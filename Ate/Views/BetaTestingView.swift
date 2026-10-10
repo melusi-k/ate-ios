@@ -95,7 +95,7 @@ struct BetaRow: View {
         HStack(alignment: .top, spacing: 10) {
             VStack(spacing: 2) {
                 Text(result.status.symbol)
-                Text("📱").font(.system(size: 9))
+                Text("📱").font(.caption2)
             }.frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title).font(AteFont.body(14, .semibold))
@@ -106,7 +106,7 @@ struct BetaRow: View {
             if let ci {
                 VStack(spacing: 2) {
                     Text(ci.status.symbol)
-                    Text("CI").font(.system(size: 9, weight: .semibold))
+                    Text("CI").font(.caption2.weight(.semibold))
                 }.frame(width: 28).accessibilityLabel("CI \(ci.status.rawValue)")
             }
         }

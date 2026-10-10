@@ -21,7 +21,7 @@ struct ShoppingListView: View {
                             .background(Theme.card, in: Capsule()).overlay(Capsule().stroke(Theme.input))
                             .onSubmit(addManual).accessibilityIdentifier("shoppingAddField")
                         Button(action: addManual) {
-                            Image(systemName: "plus").font(.system(size: 18, weight: .bold)).foregroundStyle(Theme.primaryForeground)
+                            Image(systemName: "plus").font(.body.weight(.bold)).foregroundStyle(Theme.primaryForeground)
                                 .frame(width: 48, height: 48).background(Theme.primary, in: Circle())
                         }.accessibilityLabel("Add item")
                     }
@@ -68,7 +68,7 @@ struct ShoppingListView: View {
     private func row(_ it: ShoppingItem) -> some View {
         HStack(spacing: 12) {
             Button { store.toggle(it.id); Haptics.toggle() } label: {
-                Image(systemName: it.done ? "checkmark.square.fill" : "square").font(.system(size: 22))
+                Image(systemName: it.done ? "checkmark.square.fill" : "square").font(.title2)
                     .foregroundStyle(it.done ? Theme.primary : Theme.mutedForeground).frame(width: 44, height: 44)
             }.accessibilityLabel(it.done ? "Mark \(it.name) as not bought" : "Mark \(it.name) as bought")
             VStack(alignment: .leading, spacing: 2) {

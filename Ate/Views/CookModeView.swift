@@ -40,6 +40,12 @@ struct CookModeView: View {
         if let onExit { onExit() } else if !store.path.isEmpty { store.path.removeLast() }
     }
 
+    /// "4 minutes 12 seconds" for VoiceOver instead of "4:12".
+    static func spoken(_ secs: Int) -> String {
+        let f = DateComponentsFormatter(); f.unitsStyle = .full; f.allowedUnits = secs >= 3600 ? [.hour, .minute] : [.minute, .second]
+        return f.string(from: TimeInterval(max(0, secs))) ?? "\(secs) seconds"
+    }
+
     private func step(_ r: RecipeCard) -> Step { r.steps[min(index, r.steps.count - 1)] }
 
     @ViewBuilder private func content(_ recipe: RecipeCard) -> some View {
@@ -66,7 +72,7 @@ struct CookModeView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Label(L10n.voiceListening, systemImage: "waveform").font(AteFont.body(13, .semibold))
                     if !voice.lastHeard.isEmpty {
-                        Text("“\(voice.lastHeard.suffix(60))”").font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                        Text("“\(voice.lastHeard.suffix(60))”").font(AteFont.body(12)).foregroundStyle(Theme.warmForeground)
                             .accessibilityIdentifier("voiceHeard")
                     }
                     if AppConfig.isUITesting {
@@ -86,13 +92,15 @@ struct CookModeView: View {
                     Capsule().fill(Theme.primary).frame(width: g.size.width * CGFloat(index + 1) / CGFloat(n))
                 }
             }
-            .frame(height: 6).animation(.easeInOut, value: index)
+            .frame(height: 6).animation(Motion.anim(.easeInOut), value: index)
+            .accessibilityElement().accessibilityLabel("Progress").accessibilityValue("Step \(index + 1) of \(n)")
 
             ForEach(others) { t in
                 Button { index = t.stepIndex } label: {
                     Label("Step \(t.stepIndex + 1) · \(format(t.remaining(at: store.timers.now)))", systemImage: "timer")
                         .font(AteFont.body(13, .semibold)).monospacedDigit()
-                }.buttonStyle(.ate(.secondary, height: 32))
+                }.buttonStyle(.ate(.secondary, height: 44))
+                .accessibilityLabel("Go to step \(t.stepIndex + 1), \(Self.spoken(t.remaining(at: store.timers.now))) left")
             }
 
             Spacer()
@@ -100,8 +108,11 @@ struct CookModeView: View {
                 .font(AteFont.display(UIScreen.main.bounds.width > 400 ? 34 : 30)).lineSpacing(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .minimumScaleFactor(0.5)
+                .accessibilityLabel("Step \(index + 1) of \(n). " + Units.convertTemperatures(in: s.instruction, to: store.settings.units))
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("cookStepText")
             if let range = Durations.rangeLabel(in: s.instruction), (s.timeSeconds ?? 0) > 0 {
-                Text("\(range) · timer set to the longer time").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                Text("\(range) · timer set to the longer time").font(AteFont.body(13)).foregroundStyle(Theme.warmForeground)
                     .accessibilityIdentifier("cookTimerRange")
             }
             if let secs = s.timeSeconds, secs > 0 {
@@ -111,6 +122,8 @@ struct CookModeView: View {
                         Image(systemName: "timer").foregroundStyle(Theme.primary).font(.title2)
                         Text(format(remaining)).font(.largeTitle.weight(.bold)).fontDesign(.rounded).monospacedDigit()
                             .accessibilityIdentifier("cookTimerValue")
+                            .accessibilityValue(Self.spoken(remaining) + (running ? " remaining" : ", paused"))
+                            .accessibilityAddTraits(.updatesFrequently)
                     }
                     .padding(.horizontal, 20).padding(.vertical, 12)
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
@@ -187,7 +200,7 @@ struct TimerBar: View {
                 .background(Theme.card, in: Capsule()).overlay(Capsule().stroke(Theme.border))
                 .shadow(color: Theme.brown.opacity(0.15), radius: 10, y: 4)
                 .accessibilityIdentifier("timerBarSummary")
-                .accessibilityLabel("\(timers.count) timers running. Show all timers")
+                .accessibilityLabel("\(timers.count) timers").accessibilityValue(next.map { "next ends in " + CookModeView.spoken($0) } ?? "all paused").accessibilityHint("Shows all timers")
             }
         }
         .padding(.horizontal, 12).padding(.bottom, 4)
@@ -217,7 +230,7 @@ struct TimerRow: View {
                 HStack(spacing: 10) {
                     Image(systemName: t.isRunning ? "timer" : "pause.circle").foregroundStyle(Theme.primary)
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(t.recipeTitle).font(AteFont.body(13, .semibold)).lineLimit(1)
+                        Text(t.recipeTitle).font(AteFont.body(13, .semibold)).lineLimit(2)
                         Text("Step \(t.stepIndex + 1)" + (t.isRunning ? "" : " · paused")).font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
                     }
                     Spacer(minLength: 4)
@@ -228,6 +241,8 @@ struct TimerRow: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("timerBarOpen")
             .accessibilityLabel("Open cook mode for \(t.recipeTitle)")
+            .accessibilityValue("Step \(t.stepIndex + 1), " + CookModeView.spoken(t.remaining(at: store.timers.now)) + (t.isRunning ? " left" : ", paused"))
+            .accessibilityHint("Opens cook mode at this step")
             IconButton(symbol: t.isRunning ? "pause.fill" : "play.fill", label: t.isRunning ? "Pause bar timer" : "Resume bar timer") {
                 store.timers.toggle(t.id)
             }

@@ -91,7 +91,7 @@ struct RootView: View {
             if store.session != nil { await store.syncNow() }
         }
         .tint(Theme.primary)
-        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility5)
         .safeAreaInset(edge: .top, spacing: 0) {
             // One top area: beta banner (tab roots only) and the slim offline strip. Nothing at the bottom competes with actions.
             VStack(spacing: 0) {
@@ -238,8 +238,8 @@ struct LandscapeSplitView: View {
             .frame(maxWidth: .infinity)
         }
         .overlay(alignment: .bottomLeading) {
-            Button { withAnimation(.snappy) { showSidebar.toggle() } } label: {
-                Image(systemName: "sidebar.left").font(.system(size: 17, weight: .semibold))
+            Button { withAnimation(Motion.anim(.snappy)) { showSidebar.toggle() } } label: {
+                Image(systemName: "sidebar.left").font(.body.weight(.semibold))
                     .frame(width: 44, height: 44).background(.regularMaterial, in: Circle())
             }
             .accessibilityLabel(showSidebar ? "Hide sidebar" : "Show sidebar")

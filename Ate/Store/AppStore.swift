@@ -252,10 +252,10 @@ final class AppStore {
     func show(_ message: String, error: Bool = false, action: String? = nil, perform: (() -> Void)? = nil, seconds: Double = 2.6) {
         let t = Toast(message: message, isError: error, actionTitle: action)
         toastAction = perform
-        withAnimation { toast = t }
+        withAnimation(Motion.anim()) { toast = t }
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-            if toast?.id == t.id { withAnimation { toast = nil }; toastAction = nil }
+            if toast?.id == t.id { withAnimation(Motion.anim()) { toast = nil }; toastAction = nil }
         }
     }
 

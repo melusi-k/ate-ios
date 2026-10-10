@@ -91,7 +91,7 @@ struct AddRecipeSheet: View {
         case .image:
             PhotosPicker(selection: $photoItem, matching: .images) {
                 VStack(spacing: 8) {
-                    Image(systemName: "photo.badge.plus").font(.system(size: 26)).foregroundStyle(Theme.primary)
+                    Image(systemName: "photo.badge.plus").font(.title).foregroundStyle(Theme.primary)
                     Text(imageData == nil ? "Upload a screenshot or a food photo" : "Image ready — tap to replace")
                         .font(AteFont.body(14, .medium))
                     Text("Screenshots of a recipe are read word for word. A photo of a dish gets a guessed recipe you can edit.")
@@ -212,7 +212,7 @@ struct AddRecipeSheet: View {
             Button(editing ? "Preview" : "Edit") { editing.toggle(); didEdit = true }.buttonStyle(.ate(.secondary))
             Button { Task { await generate() } } label: {
                 Image(systemName: "arrow.clockwise").rotationEffect(.degrees(loading ? 360 : 0))
-                    .animation(loading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: loading)
+                    .animation(loading ? Motion.anim(.linear(duration: 1).repeatForever(autoreverses: false)) : Motion.anim(), value: loading)
             }
             .buttonStyle(.ate(.ghost)).disabled(loading).accessibilityLabel("Regenerate")
         }

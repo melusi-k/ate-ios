@@ -113,7 +113,7 @@ struct AuthSheet: View {
 
     private func pendingView(_ address: String) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Image(systemName: "envelope.badge").font(.system(size: 40)).foregroundStyle(Theme.primary)
+            Image(systemName: "envelope.badge").font(.largeTitle).imageScale(.large).foregroundStyle(Theme.primary)
             Text("Confirm your email").font(AteFont.display(28)).accessibilityIdentifier("confirmPending")
             Text("We sent a link to \(address). Open it on this iPhone to finish signing in.")
                 .font(AteFont.body(15)).foregroundStyle(Theme.mutedForeground)

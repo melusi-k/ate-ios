@@ -291,7 +291,7 @@ struct EmptyStateCard: View {
     let message: String
     var body: some View {
         VStack(spacing: 10) {
-            if let symbol { Image(systemName: symbol).font(.system(size: 30)).foregroundStyle(Theme.primary) }
+            if let symbol { Image(systemName: symbol).font(.largeTitle).foregroundStyle(Theme.primary) }
             Text(title).font(AteFont.display(20))
             Text(message).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)
         }

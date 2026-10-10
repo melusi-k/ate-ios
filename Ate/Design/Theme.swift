@@ -9,8 +9,12 @@ extension UIColor {
 }
 
 extension Color {
-    static func dynamic(_ light: UIColor, _ dark: UIColor) -> Color {
-        Color(UIColor { $0.userInterfaceStyle == .dark ? dark : light })
+    static func dynamic(_ light: UIColor, _ dark: UIColor, highContrast: (UIColor, UIColor)? = nil) -> Color {
+        Color(UIColor { t in
+            let dark_ = t.userInterfaceStyle == .dark
+            if t.accessibilityContrast == .high, let hc = highContrast { return dark_ ? hc.1 : hc.0 }
+            return dark_ ? dark : light
+        })
     }
     static func dyn(_ l: UInt32, _ d: UInt32) -> Color { dynamic(UIColor(hex: l), UIColor(hex: d)) }
 }
@@ -27,13 +31,13 @@ enum Theme {
     static let secondary = Color.dyn(0xF3EAD7, 0x352820)
     static let secondaryForeground = Color.dyn(0x442C21, 0xF3EEE4)
     static let muted = Color.dyn(0xF3ECDF, 0x352820)
-    static let mutedForeground = Color.dyn(0x7B675B, 0xADA397)
-    static let accent = Color.dyn(0x4E7F50, 0x5E9660)
+    static let mutedForeground = Color.dynamic(UIColor(hex: 0x7B675B), UIColor(hex: 0xADA397), highContrast: (UIColor(hex: 0x4A3B32), UIColor(hex: 0xD9D1C6)))
+    static let accent = Color.dyn(0x44704A, 0x5E9660)   // light darkened from #4E7F50 (4.39:1) to pass 4.5:1
     static let warm = Color.dyn(0xF5E2C0, 0x453421)
     static let warmForeground = Color.dyn(0x512E1A, 0xEFE3CF)
     static let destructive = Color.dyn(0xCC2827, 0xFF6467)
-    static let border = Color.dynamic(UIColor(hex: 0xE6DDCE), UIColor(white: 1, alpha: 0.10))
-    static let input = Color.dynamic(UIColor(hex: 0xE6DDCE), UIColor(white: 1, alpha: 0.15))
+    static let border = Color.dynamic(UIColor(hex: 0xE6DDCE), UIColor(white: 1, alpha: 0.10), highContrast: (UIColor(hex: 0x8A7A6E), UIColor(white: 1, alpha: 0.45)))
+    static let input = Color.dynamic(UIColor(hex: 0xE6DDCE), UIColor(white: 1, alpha: 0.15), highContrast: (UIColor(hex: 0x8A7A6E), UIColor(white: 1, alpha: 0.5)))
     static let brown = Color(UIColor(hex: 0x311F16))
     static let maxWidth: CGFloat = 672
 }
@@ -58,6 +62,16 @@ enum Palette {
         p.append(Pair(name: "dark primaryForeground/primary", fg: 0x190F0A, bg: 0xE77140))
         p.append(Pair(name: "dark destructive/card", fg: 0xFF6467, bg: 0x271D16))
         p.append(Pair(name: "warmForeground/warm", fg: 0x512E1A, bg: 0xF5E2C0))
+        p.append(Pair(name: "dark warmForeground/warm", fg: 0xEFE3CF, bg: 0x453421))
+        p.append(Pair(name: "dark foreground/background", fg: 0xF3EEE4, bg: 0x1A120C))
+        p.append(Pair(name: "dark foreground/card", fg: 0xF3EEE4, bg: 0x271D16))
+        p.append(Pair(name: "dark muted/background", fg: 0xADA397, bg: 0x1A120C))
+        p.append(Pair(name: "dark primary/card", fg: 0xE77140, bg: 0x271D16))
+        p.append(Pair(name: "dark accent/background", fg: 0x5E9660, bg: 0x1A120C))
+        p.append(Pair(name: "dark secondaryForeground/secondary", fg: 0xF3EEE4, bg: 0x352820))
+        p.append(Pair(name: "accent/background (toast)", fg: 0x44704A, bg: 0xFCF7ED))
+        p.append(Pair(name: "high-contrast muted/card", fg: 0x4A3B32, bg: 0xFFFDF7))
+        p.append(Pair(name: "dark high-contrast muted/card", fg: 0xD9D1C6, bg: 0x271D16))
         return p
     }()
     static func luminance(_ h: UInt32) -> Double {
@@ -91,12 +105,19 @@ enum AteFont {
         default: return .caption
         }
     }
+    /// Bold Text: custom fonts don't get legibilityWeight automatically, so bump the weight ourselves.
+    static func bolder(_ w: Font.Weight) -> Font.Weight {
+        guard UIAccessibility.isBoldTextEnabled else { return w }
+        switch w { case .regular: return .semibold; case .medium: return .bold; case .semibold, .bold: return .heavy; default: return w }
+    }
     static func display(_ size: CGFloat, _ weight: Font.Weight = .bold) -> Font {
-        hasFraunces ? Font.custom("Fraunces", size: size, relativeTo: style(for: size)).weight(weight)
+        let weight = bolder(weight)
+        return hasFraunces ? Font.custom("Fraunces", size: size, relativeTo: style(for: size)).weight(weight)
                     : .system(style(for: size), design: .serif).weight(weight)
     }
     static func body(_ size: CGFloat = 16, _ weight: Font.Weight = .regular) -> Font {
-        hasDMSans ? Font.custom("DM Sans", size: size, relativeTo: style(for: size)).weight(weight)
+        let weight = bolder(weight)
+        return hasDMSans ? Font.custom("DM Sans", size: size, relativeTo: style(for: size)).weight(weight)
                   : .system(style(for: size)).weight(weight)
     }
 }
@@ -144,7 +165,7 @@ struct AteButtonStyle: ButtonStyle {
         return configuration.label
             .font(AteFont.body(15, .semibold))
             .padding(.horizontal, 18)
-            .frame(minHeight: height)
+            .frame(minHeight: max(height, 44))   // HIG: never below 44pt
             .frame(maxWidth: fullWidth ? .infinity : nil)
             .foregroundStyle(fg)
             .background(bg, in: RoundedRectangle(cornerRadius: capsule ? height / 2 : 14, style: .continuous))
@@ -170,8 +191,15 @@ struct IconButton: View {
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 18, weight: .medium)).foregroundStyle(tint).frame(width: 44, height: 44)
+            Image(systemName: symbol).font(.body.weight(.medium)).imageScale(.large).foregroundStyle(tint).frame(minWidth: 44, minHeight: 44)
         }
         .accessibilityLabel(label)
     }
+}
+
+
+/// Reduce Motion: every app animation goes through here and becomes instant when the setting is on.
+enum Motion {
+    static var reduce: Bool { UIAccessibility.isReduceMotionEnabled }
+    static func anim(_ a: Animation = .default) -> Animation? { reduce ? nil : a }
 }

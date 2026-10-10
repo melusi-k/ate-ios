@@ -228,7 +228,7 @@ struct TodayHealthCard: View {
             if let c = model.context {
                 Button { store.tab = .more; store.morePath = [] ; InsightsNavState.shared.open = true } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: c.insight.state.symbol).font(.system(size: 20)).foregroundStyle(Theme.primary)
+                        Image(systemName: c.insight.state.symbol).font(.title3).foregroundStyle(Theme.primary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Today · " + c.insight.state.title).font(AteFont.body(15, .semibold))
                             Text(c.insight.state.mealFocus).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)

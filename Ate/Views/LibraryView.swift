@@ -89,7 +89,7 @@ struct LibraryView: View {
                 .draggable(r.id) { RecipeGridCard(recipe: r).frame(width: 260).opacity(0.9) }
                 .dropDestination(for: String.self) { ids, _ in
                     guard let id = ids.first, id != r.id else { return false }
-                    withAnimation(.snappy) { store.move(id, before: r.id, in: ordered) }
+                    withAnimation(Motion.anim(.snappy)) { store.move(id, before: r.id, in: ordered) }
                     return true
                 }
         } else {
@@ -101,7 +101,7 @@ struct LibraryView: View {
         let sections = store.layout.sections(filtered)
         let ordered = sections.flatMap(\.recipes)
         let mover: ((IndexSet, Int) -> Void)? = store.layout.canReorder
-            ? { from, to in withAnimation { store.move(fromOffsets: from, toOffset: to, in: ordered) } } : nil
+            ? { from, to in withAnimation(Motion.anim()) { store.move(fromOffsets: from, toOffset: to, in: ordered) } } : nil
         return List {
             Group {
                 header

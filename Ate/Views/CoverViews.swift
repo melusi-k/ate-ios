@@ -20,7 +20,7 @@ struct RecipeCover: View {
                 Shimmer()
             }
         }
-        .animation(.easeOut(duration: 0.25), value: img != nil)
+        .animation(Motion.anim(.easeOut(duration: 0.25)), value: img != nil)
         .accessibilityHidden(true)
         .onAppear { if autoBackfill, let store { covers.ensure(recipe, store: store) } }
     }
@@ -62,7 +62,7 @@ struct Shimmer: View {
                 .offset(x: phase * g.size.width * 1.4)
         }
         .clipped()
-        .onAppear { withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { phase = 1 } }
+        .onAppear { withAnimation(Motion.anim(.linear(duration: 1.2).repeatForever(autoreverses: false))) { phase = 1 } }
     }
 }
 

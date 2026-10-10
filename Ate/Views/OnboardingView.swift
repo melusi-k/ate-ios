@@ -23,7 +23,7 @@ struct OnboardingView: View {
                 HStack {
                     Spacer()
                     if page < pages.count {
-                        Button("Skip") { withAnimation { page = pages.count } }
+                        Button("Skip") { withAnimation(Motion.anim()) { page = pages.count } }
                             .font(AteFont.body(15, .medium)).tint(Theme.mutedForeground).accessibilityIdentifier("onboardingSkip")
                     }
                 }.frame(height: 44).padding(.horizontal, 20)
@@ -38,10 +38,19 @@ struct OnboardingView: View {
                     ForEach(0...pages.count, id: \.self) { i in
                         Capsule().fill(i == page ? Theme.primary : Theme.border).frame(width: i == page ? 22 : 8, height: 8)
                     }
-                }.animation(.snappy, value: page).padding(.bottom, 16)
+                }.animation(Motion.anim(.snappy), value: page).padding(.bottom, 16)
+                .frame(minHeight: 44).contentShape(Rectangle())
+                .accessibilityElement()
+                .accessibilityLabel("Page")
+                .accessibilityValue("\(page + 1) of \(pages.count + 1)")
+                .accessibilityAddTraits(.updatesFrequently)
+                .accessibilityAdjustableAction { d in
+                    switch d { case .increment: if page < pages.count { page += 1 }; case .decrement: if page > 0 { page -= 1 }; default: break }
+                }
+                .accessibilityIdentifier("onboardingDots")
 
                 if page < pages.count {
-                    Button("Next") { withAnimation { page += 1 } }
+                    Button("Next") { withAnimation(Motion.anim()) { page += 1 } }
                         .buttonStyle(.ate(.primary, full: true)).accessibilityIdentifier("onboardingNext")
                         .padding(.horizontal, 24).padding(.bottom, 24)
                 }
@@ -57,7 +66,7 @@ struct OnboardingView: View {
     private func feature(_ p: Page) -> some View {
         VStack(spacing: 20) {
             Spacer()
-            Image(systemName: p.icon).font(.system(size: 64, weight: .semibold)).foregroundStyle(Theme.primary)
+            Image(systemName: p.icon).font(.largeTitle.weight(.semibold)).imageScale(.large).foregroundStyle(Theme.primary)
                 .frame(width: 128, height: 128).background(Theme.secondary, in: Circle())
             Text(p.title).font(AteFont.display(30)).multilineTextAlignment(.center)
             Text(p.body).font(AteFont.body(16)).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)

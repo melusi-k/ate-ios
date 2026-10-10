@@ -8,7 +8,7 @@ struct RecipeGridCard: View {
             ZStack(alignment: .topTrailing) {
                 RecipeThumb(recipe: recipe, width: nil, height: 140, emojiSize: 48)
                 if recipe.favorite {
-                    Image(systemName: "star.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(.white)
+                    Image(systemName: "star.fill").font(.footnote.weight(.bold)).foregroundStyle(.white)
                         .padding(7).background(Theme.primary, in: Circle()).padding(8).accessibilityLabel("Favourite")
                 }
             }
@@ -91,7 +91,7 @@ struct FilterChips: View {
         Button { action(); Haptics.toggle() } label: {
             HStack(spacing: 5) {
                 if let symbol { Image(systemName: symbol).font(.caption.weight(.semibold)) }
-                Text(title).font(AteFont.body(13, .semibold)).lineLimit(1)
+                Text(title).font(AteFont.body(13, .semibold)).lineLimit(2).multilineTextAlignment(.center)
             }
             .padding(.horizontal, 14).frame(minHeight: 44)
             .background(on ? Theme.primary : Theme.card, in: Capsule())
@@ -101,5 +101,6 @@ struct FilterChips: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier(id)
         .accessibilityAddTraits(on ? .isSelected : [])
+        .accessibilityHint(on ? "Removes this filter" : "Filters your library")
     }
 }

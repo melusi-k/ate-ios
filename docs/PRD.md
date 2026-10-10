@@ -470,6 +470,18 @@ Plus→`plus`, Search→`magnifyingglass`, Settings→`gearshape`, ShoppingBaske
 - Offline: everything except AI generation, rewrite, publish and opening shared links.
 - Accessibility: Dynamic Type, VoiceOver labels matching web aria-labels ("Shopping list", "Settings", "Share recipe", "Edit", "Delete", "Remove {item}", etc.), 44pt hit targets.
 
+### 10.1 Widgets, controls & intents ("Widgets & Intents" bundle)
+- **One widget extension** (`com.melusik.ate.widgets`, already used by the timer Live Activity) hosts every widget and control, so free Apple IDs spend no extra App ID (5 of the 10/week: app, widgets, share, watch, watch widgets).
+- **Data path:** the app writes `WidgetSnapshot` JSON (favourites, next 8 unticked items, tonight's pick with Health state) and the existing `TimerSnapshot` list to the App Group `group.com.melusik.ate` and reloads only the widget kinds whose data changed. Covers are read from the App Group `Covers/` folder and downsampled to 360 px in the extension.
+- **Writes from widgets:** timer buttons and the Kitchen timer control are `LiveActivityIntent`s, which the system runs in ate's process when it can (live `TimerCenter`, Live Activity and alerts stay in step); in the extension they edit the App Group copy and reschedule the "timer done" notification themselves. Shopping ticks are queued (`WidgetInbox`, item → wanted state, so repeats are idempotent) and applied when ate becomes active.
+- **Widgets:** Cook timers (small/medium + Lock Screen circular ring and rectangular step line), Tonight's pick (small/medium), Shopping list (small/medium/large + Lock Screen inline), Quick add (small), Favourites (medium).
+- **Controls (iOS 18 ControlWidget):** Kitchen timer (start 5 min / pause / resume, label shows state), Add to ate. Usable from Control Center, the Lock Screen and the Action button.
+- **App Intents:** `RecipeAppEntity` (AppEntity + IndexedEntity, Spotlight), `OpenRecipeIntent`, `StartCookModeIntent`, `AddToShoppingListIntent` (with `GroceryEntity` suggestions so "Add milk to my ate list" is one phrase), `TonightsPickIntent`, `ImportRecipeFromURLIntent`, timer pause/resume/stop, `KitchenTimerIntent`, `QuickAddIntent`, `SearchRecipesIntent` (`.system.search`) and `CreateAteJournalEntryIntent` (`.journal.createEntry`, ate's own journal). App Shortcuts phrases ship with the app (no setup).
+- **Deep links:** `ate://open/<id>`, `ate://cook/<id>`, `ate://add/link|photo|prompt`, `ate://shopping`, `ate://timers`. (`ate://recipe/<slug>` stays the shared-recipe link.)
+- **Tonight's pick rule:** best `RecipeHealthMatcher` match for the last Health state seen in Insights; otherwise a daily rotation through favourites (or the library); recipes cooked in the last 2 days are skipped when there's another choice.
+- **Covers:** user photo → web image → Image Playground (`ImageCreator`, iOS 18.4+, Apple Intelligence) → designed tile; "Generate cover" in the recipe … menu.
+- **Free-ID limits:** the widgets depend on the App Group surviving Sideloadly's re-sign; if it doesn't, they show "Open ate" (Beta testing → Widgets shows App Group status and which widget kinds have loaded). Intents run in the app and are unaffected.
+
 ## 11. Acceptance checklist (per screen)
 - [ ] Library: search filters live; empty/no-match states; FAB opens sheet.
 - [ ] Add sheet: 3 modes, validation toasts, private-mode block, review/edit/regenerate/save.

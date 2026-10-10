@@ -348,6 +348,8 @@ jobs:
           cat build/notes.md >> "$GITHUB_STEP_SUMMARY"
           # Immutable per-build prerelease.
           CH_TITLE=""; [ -n "$ATE_CHANNEL" ] && CH_TITLE=" — ${ATE_CHANNEL/TierA/Tier A}"
+          # Optional feature name for this bundle (docs/RELEASE_TITLE, e.g. "Widgets & Intents"), shown in both release titles.
+          RT=$(head -1 docs/RELEASE_TITLE 2>/dev/null | tr -d '\r' || true); [ -n "$RT" ] && CH_TITLE="$CH_TITLE — $RT"
           # Tags are pushed over git first and releases created WITHOUT --target: when main moves mid-run and the
           # workflow files at GITHUB_SHA differ from the tip, POST /releases with --target needs workflows:write,
           # which GITHUB_TOKEN can't have (HTTP 403 "Resource not accessible by integration", builds 65 and 67).
@@ -362,7 +364,7 @@ jobs:
           git push origin ":refs/tags/latest-build" 2>/dev/null || true
           git tag -f latest-build "$GITHUB_SHA" && git push origin "refs/tags/latest-build"
           gh release create latest-build "dist/$IPA_NAME" --prerelease --verify-tag \
-            --title "Latest build ${APP_VERSION} (${BUILD_NUMBER}) — ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}" --notes-file build/notes.md
+            --title "Latest build ${APP_VERSION} (${BUILD_NUMBER})${RT:+ — $RT} — ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}" --notes-file build/notes.md
           ASSETS=$(gh release view latest-build --json assets -q '.assets[].name')
           [ "$ASSETS" = "$IPA_NAME" ] || { echo "::error::latest-build assets are: $ASSETS"; exit 1; }
           BASE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download"

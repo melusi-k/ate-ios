@@ -4,6 +4,27 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 
 ## Unreleased
 
+### 🧩 Widgets & Intents
+- **Home Screen widgets** (one "ate" widget extension, no new App ID): **Cook timers** (small/medium, live countdown with Pause/Resume and Stop buttons), **Tonight's pick** (small/medium: one recipe from your library that fits today's Health state, tap to open, Cook button on medium), **Shopping list** (small/medium/large, tap an item to tick it off), **Quick add** (small: Link / Photo / Prompt straight into Add recipe) and **Favourites** (medium: 3–4 covers, each opens its recipe).
+- **Lock Screen:** circular countdown ring for the next timer, rectangular "Step 4 · Simmer · 12:40 left", and an inline "next shopping item · N more" by the clock.
+- **Control Center (iOS 18):** **Kitchen timer** (starts a 5-minute timer, or pauses / resumes the running one; shows its state) and **Add to ate**. Both can go on the Action button and the Lock Screen corners.
+- **Siri, Shortcuts and Spotlight:** "Start cook mode in ate" / "Cook Mogodu with ate", "Add milk to my ate list", "What's tonight's pick in ate", "Start a kitchen timer in ate", "Pause / Resume / Stop my ate timer", "Add a recipe link to ate". Recipes are App Entities indexed in Spotlight (IndexedEntity) and open in ate. Adopts Apple's **system search** schema ("Search ate for tripe" opens the Library filtered) and the **journal create-entry** schema (saves to ate's own Insights journal, never Apple's Journal app).
+- **Image Playground covers:** recipes with no photo or web image get a Playground cover automatically on Apple Intelligence iPhones (order: your photo → web image → Playground → designed tile). New **Generate cover** in the recipe's … menu; the Add sheet button is now labelled "Generate cover".
+- Widgets read a small snapshot in the App Group and reload whenever timers, the list, favourites or the Health state change. Ticks and timer taps made while ate is closed are applied the next time it opens.
+- **Beta testing:** new "Widgets, controls & Siri" diagnostics row (App Group, widget extension, which widgets have loaded, Spotlight count) and 16 new checks (A-WIDGET, A-LOCK, A-CONTROL, A-INTENT, A-COVER).
+
+### ✨ Polish
+- Sign out's confirmation now opens from the Sign out button itself.
+- Delete account warning says recipes you shared stay viewable at their links (privacy audit P5).
+- Bar timers for kitchen timers say "Quick timer" and no longer open an empty cook mode.
+
+### ⚠️ Known limits (free Apple ID / Sideloadly)
+- Widgets need the App Group to reach ate's data. If Sideloadly re-signs without it, widgets show "Open ate"; Beta testing → Widgets tells you which case you're in. Siri phrases and the Control Center controls run inside ate and keep working either way.
+- "Add milk to my ate list" works as one phrase for common items; anything else Siri asks "What should I add?".
+- Image Playground needs Apple Intelligence (iPhone 15 Pro or newer) and makes illustrations, not photos.
+
+## 0.1.69 (build 69) and earlier
+
 #### 🔐 Sign-up and reset emails (A-AUTH-02, A-AUTH-05)
 - Password rules with live feedback: 8+ characters, a letter and a number, not a common password, strength meter, and the Create account button says why it's disabled. The same policy is now enforced by Supabase (min 8, letters + digits).
 - Existing email: Supabase answers with a silent fake success; ate now spots it (empty identities) and says "An account with this email may already exist — sign in or reset your password" with both buttons.

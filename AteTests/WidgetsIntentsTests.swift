@@ -1,4 +1,5 @@
 import XCTest
+import AppIntents
 @testable import Ate
 
 final class WidgetLogicTests: XCTestCase {

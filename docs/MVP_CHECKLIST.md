@@ -432,14 +432,14 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 - **A-WIDGET-02 · Tonight's pick and Favourites open the recipe** — 🔴
   - *Journey:* As a cook, one tap on a widget gets me to a recipe.
   - *Acceptance:* Given Tonight's pick (small/medium) or Favourites (medium, 3–4 covers), When I tap a recipe, Then ate opens on that recipe; Cook on the medium pick opens cook mode.
-  - *Verified by:* `WidgetsIntentsUITests.testWidgetDeepLinkOpensRecipe`, `WidgetLogicTests.testPick*` · device
+  - *Verified by:* `WidgetsIntentsUITests.testWidgetDeepLinkOpensRecipe`, `WidgetSnapshotBuilderTests.testPick*` · device
   - *Status evidence:* new in the Widgets & Intents build
   - *Owner:* _TBD_
 
 - **A-WIDGET-03 · Shopping list widget: tick items off** — 🔴
   - *Journey:* As a shopper, I tick items off without opening the app.
   - *Acceptance:* Given 3+ unticked items, When I tap one in the widget, Then it disappears from the widget and is ticked in the app the next time it opens.
-  - *Verified by:* `WidgetLogicTests.testInboxDrain`, `WidgetsIntentsUITests.testWidgetTickAppliesOnLaunch` · device
+  - *Verified by:* `WidgetLogicTests.testInboxDrain`, `AppIntentsTests.testWidgetRelaysActOnLiveStore` · device
   - *Status evidence:* new in the Widgets & Intents build
   - *Owner:* _TBD_
 
@@ -467,14 +467,14 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 - **A-LOCK-02 · Lock Screen rectangular step timer** — 🔴
   - *Journey:* As a cook, I see which step is timing.
   - *Acceptance:* Given a running timer, Then the rectangular accessory shows 'Step N · title' and 'mm:ss left' (or 'paused'), and tapping opens cook mode.
-  - *Verified by:* `WidgetLogicTests.testStepLine` · device
+  - *Verified by:* `WidgetLogicTests.testStepLineAndFormat` · device
   - *Status evidence:* new in the Widgets & Intents build
   - *Owner:* _TBD_
 
 - **A-LOCK-03 · Lock Screen inline next shopping item** — 🔴
   - *Journey:* As a shopper, the next item sits by the clock.
   - *Acceptance:* Given unticked items, Then the inline accessory shows the next item and how many more; with none it says 'List done'.
-  - *Verified by:* `WidgetLogicTests.testSnapshotBuilder` · device
+  - *Verified by:* `WidgetSnapshotBuilderTests.testSnapshotBuilder` · device
   - *Status evidence:* new in the Widgets & Intents build
   - *Owner:* _TBD_
 
@@ -516,7 +516,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 - **A-INTENT-04 · Search ate from Siri / Spotlight** — 🔴
   - *Journey:* As a cook, I find recipes from Spotlight.
   - *Acceptance:* Given saved recipes, When I search Spotlight for one, Then it appears and opens in ate; 'Search ate for tripe' opens Library filtered by 'tripe'.
-  - *Verified by:* `AppIntentsTests.testSearchIntent`, `WidgetsIntentsUITests.testSearchIntentFiltersLibrary` · device
+  - *Verified by:* `AppIntentsTests.testSearchIntent`, `testRecipeEntityAndQuery` · device
   - *Status evidence:* new in the Widgets & Intents build
   - *Owner:* _TBD_
 

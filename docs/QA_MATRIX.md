@@ -123,6 +123,29 @@ Beta-screen IDs: H-UI-01..07 → A-HEALTH-03/04/05/07, H-DEV-01/02 → A-HEALTH-
 | H-UI-11 | `-qaJournalMomentEntry` | Entry shows "From a Journal moment" row; picker never shown | `testJournalMomentContextRow` |
 | EXT-JOURNAL-01 | External | Request com.apple.developer.journal.allow (paid team); non-blocking | manual |
 
+## Widgets & Intents (build "Widgets & Intents")
+
+Beta-screen IDs in brackets. Widgets can't be driven by XCUITest, so device checks are manual; logic is unit-tested.
+
+| ID | Setup | Check | Auto |
+|---|---|---|---|
+| W-01 | Running step timer + Cook timers widget (small/medium) | Countdown ticks; Pause → paused, app agrees, no alert; Resume; Stop removes it [A-WIDGET-01] | `WidgetLogicTests.testTimerCommands`, `AppIntentsTests.testWidgetRelaysActOnLiveStore` |
+| W-02 | Tonight's pick small/medium, Favourites medium | Tap opens that recipe; Cook opens cook mode; Health state title shows when Health is connected [A-WIDGET-02] | `WidgetsIntentsUITests.testWidgetDeepLinkOpensRecipe`, `WidgetSnapshotBuilderTests` |
+| W-03 | Shopping widget, 3+ items | Tap ticks off; item leaves widget; ticked in app after opening [A-WIDGET-03] | `WidgetLogicTests.testInboxDrain`, `testSnapshotRoundTripAndTick` |
+| W-04 | Quick add widget | Link / Photo / Prompt open Add recipe on that tab [A-WIDGET-04] | `WidgetsIntentsUITests.testQuickAddDeepLink` |
+| W-05 | Sideloadly free ID | Beta › Widgets: App Group OK, widget kinds loaded; else widgets say "Open ate" [A-WIDGET-05] | `WidgetsIntentsUITests.testBetaPageListsWidgetChecks` (row present) |
+| L-01 | Lock Screen circular | Ring empties as the next timer runs; pause icon when paused [A-LOCK-01] | manual |
+| L-02 | Lock Screen rectangular | "Step N · title", "mm:ss left"/"paused"; tap opens cook mode [A-LOCK-02] | `WidgetLogicTests.testStepLineAndFormat` |
+| L-03 | Lock Screen inline | "Milk · 3 more"; "List done" when empty [A-LOCK-03] | `WidgetSnapshotBuilderTests.testSnapshotBuilder` |
+| C-01 | Control Center › Kitchen timer | Start 5 min (Live Activity + alert) → Pause → Resume; label follows [A-CONTROL-01] | `WidgetLogicTests.testKitchenToggle` |
+| C-02 | Control Center › Add to ate; Action button | Opens Add recipe [A-CONTROL-02] | manual |
+| I-01 | "Start cook mode in ate" / "Cook Mogodu with ate" | Cook mode opens (tonight's pick when unnamed) [A-INTENT-01] | `AppIntentsTests.testStartCookMode` |
+| I-02 | "Add milk to my ate list" | Milk on the list, app not opened [A-INTENT-02] | `AppIntentsTests.testAddToShoppingList` |
+| I-03 | "What's tonight's pick in ate" | Siri answers with a library recipe [A-INTENT-03] | `AppIntentsTests.testTonightsPick` |
+| I-04 | Spotlight "mogodu"; "Search ate for tripe" | Recipe result opens ate; Library filtered [A-INTENT-04] | `AppIntentsTests.testSearchIntent`, `testRecipeEntityAndQuery` |
+| I-05 | "Save a journal entry in ate" (Apple Intelligence Siri) | Entry in Insights › Journal [A-INTENT-05] | device |
+| P-01 | Recipe without photo on an Apple Intelligence iPhone | Playground cover appears; … › Generate cover replaces it; otherwise designed tile [A-COVER-01] | `CoverTests` |
+
 ## Native acceptance (every release)
 
 Run on **iOS 18** (opaque bars) and **iOS 26** (Liquid Glass), in **light** and **dark**. Tick per OS/appearance.

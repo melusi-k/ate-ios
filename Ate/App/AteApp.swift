@@ -29,6 +29,17 @@ struct AteApp: App {
     }
 }
 
+/// Sticky timer bar, applied per screen so it reserves layout space (floating buttons sit above it).
+struct TimerBarInset: ViewModifier {
+    @Environment(AppStore.self) private var store
+    func body(content: Content) -> some View {
+        content.safeAreaInset(edge: .bottom, spacing: 0) {
+            if !store.timers.timers.isEmpty && store.cookTarget == nil { TimerBar() }
+        }
+    }
+}
+extension View { func withTimerBar() -> some View { modifier(TimerBarInset()) } }
+
 struct RootView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.scenePhase) private var phase
@@ -37,7 +48,7 @@ struct RootView: View {
     var body: some View {
         @Bindable var store = store
         NavigationStack(path: $store.path) {
-            LibraryView()
+            LibraryView().withTimerBar()
                 .navigationDestination(for: Route.self) { route in
                     Group {
                         switch route {
@@ -50,10 +61,8 @@ struct RootView: View {
                         }
                     }
                     .toolbar(.hidden, for: .navigationBar)
+                    .withTimerBar()
                 }
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !store.timers.timers.isEmpty && store.cookTarget == nil { TimerBar() }
         }
         .fullScreenCover(item: $store.cookTarget) { target in
             CookModeView(recipeID: target.id, onExit: { store.cookTarget = nil }).environment(store)

@@ -96,7 +96,7 @@ final class MockBackend: BackendService {
         }
         return RecipeCard(
             title: String(title.prefix(80)),
-            description: "A demo card from the mock backend — connect Supabase for real AI.",
+            description: "Demo card — on-device AI isn't available on this device.",
             servings: 2, timeMinutes: 25, tags: ["quick", "demo"],
             ingredients: [
                 Ingredient(name: "salmon fillets", quantity: 2, unit: "pcs", notes: nil),

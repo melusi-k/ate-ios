@@ -116,23 +116,12 @@ struct RecipeThumb: View {
     var width: CGFloat? = 56
     var height: CGFloat = 56
     var emojiSize: CGFloat = 26
+    var cornerRadius: CGFloat = 16
     var body: some View {
-        let seed = (recipe.title + recipe.tags.joined()).unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xFFFFFF }
-        let emojis = ["🍲", "🥗", "🍝", "🍛", "🥘", "🍜", "🥙", "🍳", "🍰", "🥞", "🌮", "🍣"]
-        let hue = Double(seed % 360) / 360
-        ZStack {
-            if let s = recipe.imageURL, s.hasPrefix("http"), let url = URL(string: s) {
-                AsyncImage(url: url) { $0.resizable().scaledToFill() } placeholder: { Theme.warm }
-            } else {
-                LinearGradient(colors: [Color(hue: hue, saturation: 0.45, brightness: 0.95),
-                                        Color(hue: hue + 0.08, saturation: 0.55, brightness: 0.8)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-                Text(emojis[seed % emojis.count]).font(.system(size: emojiSize))
-            }
-        }
-        .frame(width: width, height: height)
-        .frame(maxWidth: width == nil ? .infinity : nil)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        RecipeCover(recipe: recipe, symbolSize: emojiSize)
+            .frame(width: width, height: height)
+            .frame(maxWidth: width == nil ? .infinity : nil)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }
 

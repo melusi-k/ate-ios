@@ -35,6 +35,8 @@ struct AddRecipeSheet: View {
     @State private var dishQuestion: PhotoNeedsDishError?
     @State private var dishAnswer = ""
     @State private var spreadPicks: Set<String> = []
+    @State private var coverItem: PhotosPickerItem?
+    @State private var showCoverCamera = false
 
     var body: some View {
         ScrollView {
@@ -56,6 +58,12 @@ struct AddRecipeSheet: View {
         }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { img in imageData = img.jpegData(compressionQuality: 0.85) }.ignoresSafeArea()
+        }
+        .fullScreenCover(isPresented: $showCoverCamera) {
+            CameraPicker { img in setUserCover(img) }.ignoresSafeArea()
+        }
+        .onChange(of: coverItem) { _, item in
+            Task { if let d = try? await item?.loadTransferable(type: Data.self), let img = UIImage(data: d) { setUserCover(img) } }
         }
         .onChange(of: photoItem) { _, item in
             Task { imageData = try? await item?.loadTransferable(type: Data.self) }
@@ -185,6 +193,7 @@ struct AddRecipeSheet: View {
         if let n = draft?.aiNote { Text(n).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aiNote") }
         Text("Fix anything the AI got wrong, then save it to your library.")
             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
+        if let d = draft { coverEditor(d) }
         if editing, draft != nil {
             RecipeEditor(recipe: Binding(get: { draft ?? RecipeCard() }, set: { draft = $0 })).cardSurface(padding: 20)
         } else if let d = draft {
@@ -204,6 +213,61 @@ struct AddRecipeSheet: View {
                     .animation(loading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: loading)
             }
             .buttonStyle(.ate(.ghost)).disabled(loading).accessibilityLabel("Regenerate")
+        }
+    }
+
+    @ViewBuilder private func coverEditor(_ d: RecipeCard) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            RecipeHero(recipe: d, autoBackfill: false)
+            HStack(spacing: 8) {
+                Menu {
+                    PhotosPicker(selection: $coverItem, matching: .images) { Label("Choose photo", systemImage: "photo.on.rectangle") }
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button { showCoverCamera = true } label: { Label("Take photo", systemImage: "camera") }
+                    }
+                } label: { Label("Change photo", systemImage: "photo") }
+                    .buttonStyle(.ate(.secondary, height: 36)).accessibilityIdentifier("changeCover")
+                if CoverStore.playgroundAvailable {
+                    Button {
+                        Task {
+                            guard let cur = draft, let name = await CoverStore.shared.generate(for: cur) else {
+                                store.show("Couldn't generate an image right now.", error: true); return
+                            }
+                            draft?.coverImage = name
+                        }
+                    } label: { Label("Generate", systemImage: "wand.and.sparkles") }
+                        .buttonStyle(.ate(.secondary, height: 36)).accessibilityIdentifier("generateCover")
+                        .disabled(CoverStore.shared.isLoading(d.id))
+                }
+                if d.coverImage != nil && d.coverImage != CoverStore.removed {
+                    Button { CoverStore.shared.removeFiles(recipeID: d.id); draft?.coverImage = CoverStore.removed } label: {
+                        Label("Remove", systemImage: "xmark")
+                    }.buttonStyle(.ate(.ghost, height: 36)).accessibilityIdentifier("removeCover")
+                }
+            }
+            .font(AteFont.body(13))
+        }
+    }
+
+    private func setUserCover(_ img: UIImage) {
+        guard let id = draft?.id, let name = CoverStore.shared.save(img, recipeID: id, source: .userPhoto) else { return }
+        draft?.coverImage = name
+    }
+
+    /// Picks the initial cover for a fresh draft (async; saving never waits for it).
+    private func chooseInitialCover(for card: RecipeCard) {
+        if mode == .image, let d = imageData, let img = UIImage(data: d) {
+            draft?.coverImage = CoverStore.shared.save(img, recipeID: card.id, source: .userPhoto)
+            return
+        }
+        Task {
+            guard let res = await CoverStore.shared.resolve(card) else { return }
+            if draft?.id == card.id, draft?.coverImage == nil {
+                draft?.coverImage = res.file
+                if let u = res.imageURL { draft?.imageURL = u }
+            } else if store.recipe(card.id)?.coverImage == nil {
+                store.setCover(card.id, file: res.file, imageURL: res.imageURL)   // already saved
+            }
         }
     }
 
@@ -267,6 +331,7 @@ struct AddRecipeSheet: View {
             GenerationLog.last = GenerationLog(source: card.source, latencyMs: Int(Date().timeIntervalSince(started) * 1000),
                                                mode: mode.rawValue, date: Date())
             draft = RecipeLogic.normalize(card)
+            if let d = draft { chooseInitialCover(for: d) }
             editing = false
             dishQuestion = nil; dishAnswer = ""; spreadPicks = []
             let src = "source \(card.source) in \(Int(Date().timeIntervalSince(started) * 1000)) ms"

@@ -72,10 +72,13 @@ struct RecipeCard: Codable, Identifiable, Hashable {
     var aiConfidence: Double?
     /// Model note, e.g. "Caption was an ad; best-effort traditional recipe for mogodu".
     var aiNote: String?
+    /// Local cover file name (Covers folder in the App Group / app container). Bytes never sync;
+    /// on another device a missing file falls back to `imageURL` or the branded tile.
+    var coverImage: String?
 
     enum CodingKeys: String, CodingKey {
         case id, title, description, servings, timeMinutes, tags, ingredients, steps, imageURL, sourceURL, createdAt, source, generatedAt
-        case origin, favorite, lastCookedAt, cuisine, sortIndex, aiConfidence, aiNote
+        case origin, favorite, lastCookedAt, cuisine, sortIndex, aiConfidence, aiNote, coverImage
     }
 
     init(id: String = UUID().uuidString, title: String = "Untitled recipe", description: String? = nil,
@@ -113,6 +116,7 @@ struct RecipeCard: Codable, Identifiable, Hashable {
         sortIndex = try? c.decodeIfPresent(Double.self, forKey: .sortIndex)
         aiConfidence = try? c.decodeIfPresent(Double.self, forKey: .aiConfidence)
         aiNote = try? c.decodeIfPresent(String.self, forKey: .aiNote)
+        coverImage = try? c.decodeIfPresent(String.self, forKey: .coverImage)
     }
 }
 

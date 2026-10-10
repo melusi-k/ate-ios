@@ -27,6 +27,8 @@ const num = (v: unknown, min: number, max: number, req = false) => {
   if (typeof v !== "number" || !isFinite(v) || v < min || v > max) throw "bad number";
   return v;
 };
+// Cover images: https only; anything else is dropped (not rejected) so older apps still share.
+const httpsImage = (v: unknown) => { try { const s = str(v, 2000); return s && /^https:\/\//i.test(s) ? s : null; } catch { return null; } };
 const httpURL = (v: unknown) => { const s = str(v, 2000); if (s && !/^https?:\/\//i.test(s)) throw "bad url"; return s; };
 
 function validate(c: any) {
@@ -48,7 +50,7 @@ function validate(c: any) {
       order: num(s?.order, 0, 1000) ?? n + 1, instruction: str(s?.instruction, 2000) ?? "",
       timeSeconds: num(s?.timeSeconds, 0, 86400),
     })),
-    imageURL: httpURL(c.imageURL),
+    imageURL: httpsImage(c.imageURL ?? c.image_url),
     sourceURL: httpURL(c.sourceURL),
   };
   if (!card.ingredients.length && !card.steps.length) throw "empty";
@@ -89,6 +91,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     card = validate(body?.card ?? body);
+    if (!card.imageURL && body?.image_url) card.imageURL = httpsImage(body.image_url);
   } catch (e) {
     return json({ error: `Invalid recipe (${typeof e === "string" ? e : "json"})` }, 400);
   }

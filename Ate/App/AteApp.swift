@@ -24,6 +24,7 @@ struct AteApp: App {
                 .onOpenURL { store.handle(url: $0) }
                 .task {
                     PhoneWatchBridge.shared.activate()
+                    Task { await CoverStore.checkPlayground() }
                     PhoneWatchBridge.shared.update(session: store.session)
                     if let u = AppConfig.launchURL { store.handle(url: u) }
                 }

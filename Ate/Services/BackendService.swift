@@ -222,6 +222,10 @@ final class SupabaseBackend: BackendService {
     }
 
     func publish(_ card: RecipeCard) async throws -> String {
+        // Only an https cover URL travels with the share (stored inside the `card` jsonb); local cover files never leave the phone.
+        var card = card
+        card.imageURL = CoverLogic.httpsURL(card.imageURL)?.absoluteString
+        card.coverImage = nil
         var r = request("functions/v1/publish-recipe", method: "POST", body: try JSONEncoder().encode(["card": card]))
         if let token = Self.userAccessToken?() { Net.authorize(&r, key: publishableKey, bearer: token) }
         do {

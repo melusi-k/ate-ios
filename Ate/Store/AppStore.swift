@@ -265,7 +265,16 @@ final class AppStore {
         BetaQA.shared.pass("A-EDIT-03", note: "Edited “\(card.title)” without a crash")
     }
 
+    /// Cover changed (file and/or remote URL). Not an "edit" for QA purposes.
+    func setCover(_ id: String, file: String?, imageURL: String?, keepURL: Bool = true) {
+        guard let i = recipes.firstIndex(where: { $0.id == id }) else { return }
+        recipes[i].coverImage = file
+        if let imageURL { recipes[i].imageURL = imageURL } else if !keepURL { recipes[i].imageURL = nil }
+        persistRecipes()
+    }
+
     func delete(_ id: String) {
+        CoverStore.shared.removeFiles(recipeID: id)
         recipes.removeAll { $0.id == id }
         persistRecipes()
     }

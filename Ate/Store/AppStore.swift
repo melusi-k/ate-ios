@@ -60,7 +60,20 @@ struct Toast: Equatable, Identifiable {
 final class AppStore {
     var recipes: [RecipeCard] = []
     var shopping: [ShoppingItem] = []
+    /// Library tab's navigation stack (recipes, shared links, not-found).
     var path: [Route] = []
+    var shoppingPath: [Route] = []
+    var settingsPath: [Route] = []
+    var tab: AppTab = .library
+    /// Item handed over by the "Save to ate" share extension, waiting for the Add sheet.
+    var pendingImport: SharedInbox.Item?
+    var pendingShoppingCount: Int { shopping.filter { !$0.done }.count }
+
+    /// Picks up the next item queued by the share extension (called when the app becomes active).
+    func checkInbox() {
+        guard pendingImport == nil, let item = SharedInbox.pop() else { return }
+        tab = .library; path = []; pendingImport = item
+    }
     var toast: Toast?
     var settings: AppSettings { didSet { saveDefaults(settings, key: "ate.settings.v1") } }
     var timerPrefs: TimerPrefs { didSet { saveDefaults(timerPrefs, key: "ate.timerprefs.v1") } }
@@ -399,7 +412,9 @@ final class AppStore {
 
     // MARK: deep links
     func handle(url: URL) {
+        if url.scheme == "ate", url.host == "import" { checkInbox(); return }
         if url.scheme == "ate", url.host == "auth-callback" {
+            tab = .settings
             Task {
                 do {
                     switch try await auth?.session(fromCallback: url) {
@@ -421,7 +436,7 @@ final class AppStore {
             return
         }
         if url.scheme == "ate", url.host == "cook", let id = url.pathComponents.last, recipe(id) != nil {
-            cookTarget = CookTarget(id: id); return
+            tab = .library; cookTarget = CookTarget(id: id); return
         }
         var slug: String?
         if url.scheme == "ate" {
@@ -431,6 +446,7 @@ final class AppStore {
         } else if url.pathComponents.count >= 3, url.pathComponents[1] == "r" || url.pathComponents[1] == "recipe" {
             slug = url.pathComponents[2]
         }
+        tab = .library
         if let slug { path = [.shared(slug)] } else { path = [.notFound] }
     }
 }

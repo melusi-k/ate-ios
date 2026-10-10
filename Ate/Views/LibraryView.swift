@@ -67,6 +67,16 @@ struct LibraryView: View {
             .environment(store)
             .presentationDetents([.large])
         }
+        .sheet(item: Binding(get: { store.pendingImport }, set: { store.pendingImport = $0 })) { item in
+            AddRecipeSheet(initial: item) { card in
+                store.add(card)
+                store.show("Saved to your library")
+                store.pendingImport = nil
+                store.path.append(.recipe(card.id))
+            }
+            .environment(store)
+            .presentationDetents([.large])
+        }
     }
 
     private var header: some View {
@@ -82,8 +92,6 @@ struct LibraryView: View {
                         .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
                 }
                 Spacer()
-                IconButton(symbol: "basket", label: "Shopping list") { store.path.append(.shopping) }
-                IconButton(symbol: "gearshape", label: "Settings") { store.path.append(.settings) }
             }
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(Theme.mutedForeground).accessibilityHidden(true)

@@ -35,6 +35,7 @@ targets:
       - path: Shared
     dependencies:
       - target: AteWidgets
+      - target: AteShare
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate
@@ -99,6 +100,36 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+  AteShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: AteShare
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.share
+        CODE_SIGN_STYLE: "${ATE_SIGN_STYLE}"
+        PROVISIONING_PROFILE_SPECIFIER: "${ATE_PROFILE_SHARE}"
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: AteShare/Info.plist
+        CODE_SIGN_ENTITLEMENTS: AteShare/AteShare.entitlements
+        SKIP_INSTALL: YES
+    info:
+      path: AteShare/Info.plist
+      properties:
+        CFBundleDisplayName: Save to ate
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsImageWithMaxCount: 1
   AteTests:
     type: bundle.unit-test
     platform: iOS

@@ -568,4 +568,46 @@ final class AteUITests: XCTestCase {
         app.buttons["voiceToggle"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["voicePanel"].firstMatch.waitForNonExistence(timeout: 3))
     }
+
+    func test22_TabBar() {
+        launch()
+        let tabs = app.tabBars.firstMatch
+        wait(tabs)
+        XCTAssertTrue(tabs.buttons["Library"].isSelected)
+        shot("tabbar-library")
+        addPromptRecipe()
+        // state kept per tab: the library stack stays on the recipe
+        wait(app.buttons["Cook mode"])
+        app.buttons["Add to shopping list"].tap()
+        tabs.buttons["Shopping list"].tap()
+        wait(text("5 to buy"))
+        let badge = tabs.buttons["Shopping list"].value as? String ?? ""
+        XCTAssertTrue(badge.contains("5"), "badge shows unticked count, got \(badge)")
+        shot("tabbar-shopping-badge")
+        app.buttons["Mark honey as bought"].firstMatch.tap()
+        wait(text("4 to buy"))
+        XCTAssertTrue((tabs.buttons["Shopping list"].value as? String ?? "").contains("4"))
+        tabs.buttons["Settings"].tap()
+        wait(text("Timer notifications"))
+        shot("tabbar-settings")
+        tabs.buttons["Library"].tap()
+        wait(app.buttons["Cook mode"], 3)
+        // cook mode is a full-screen cover hiding the tab bar
+        app.buttons["Cook mode"].tap()
+        wait(text("Step 1 of 4"))
+        XCTAssertFalse(app.tabBars.firstMatch.isHittable)
+        app.buttons["Exit"].tap()
+        wait(app.buttons["Cook mode"], 3)
+        // re-tapping the tab pops to root
+        tabs.buttons["Library"].tap()
+        wait(text("Your kitchen library"), 5)
+    }
+
+    func test23_DeepLinkSelectsLibraryTab() {
+        launch(["-ateOpenURL", "ate://recipe/demo"])
+        let tabs = app.tabBars.firstMatch
+        wait(tabs)
+        XCTAssertTrue(tabs.buttons["Library"].isSelected)
+        shot("tabbar-deeplink-shared")
+    }
 }

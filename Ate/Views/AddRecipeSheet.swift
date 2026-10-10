@@ -12,7 +12,12 @@ struct AddRecipeSheet: View {
         }
     }
     @Environment(AppStore.self) private var store
+    var initial: SharedInbox.Item? = nil
     let onSave: (RecipeCard) -> Void
+
+    init(initial: SharedInbox.Item? = nil, onSave: @escaping (RecipeCard) -> Void) {
+        self.initial = initial; self.onSave = onSave
+    }
 
     @State private var mode: Mode = .link
     @State private var link = ""
@@ -35,6 +40,14 @@ struct AddRecipeSheet: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .overlay(alignment: .top) { if let t = store.toast { ToastView(toast: t).padding(.top, 8) } }
+        .task {
+            // Arrived from the "Save to ate" share extension: prefill and start right away.
+            guard let it = initial, draft == nil, !loading else { return }
+            if let d = SharedInbox.imageData(it) { mode = .image; imageData = d }
+            else if let u = it.url { mode = .link; link = u }
+            else if let t = it.text { mode = .prompt; prompt = t }
+            await generate()
+        }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { img in imageData = img.jpegData(compressionQuality: 0.85) }.ignoresSafeArea()
         }

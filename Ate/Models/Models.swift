@@ -91,6 +91,8 @@ struct TimerPrefs: Codable, Equatable {
     var quietEnd = "07:00"
 }
 
+enum AppTab: Hashable { case library, shopping, settings }
+
 enum Route: Hashable {
     case recipe(String)
     case cook(String)

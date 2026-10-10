@@ -8,6 +8,18 @@
 - **Friendly errors:** wrong email/password, email not confirmed (with resend), rate limited, already registered, weak password, expired link, offline/timeout/unreachable server.
 - Note: there is no account for melusi.l.k@gmail.com on either backend yet (both `auth.users` tables were empty), so the first step is **Create account**.
 
+### F1b. Tab bar navigation (v1.3)
+- Native `TabView` with three tabs: **Library** (`books.vertical`), **Shopping list** (`basket`, badge = unticked items) and **Settings** (`gearshape`). These replace the push navigation and the header icons that used to lead to Shopping and Settings.
+- Each tab has its own `NavigationStack` (`path`, `shoppingPath`, `settingsPath` in `AppStore`), so its state is kept when you switch. Re-tapping the current tab pops it to the root.
+- The sticky timer bar is a bottom safe-area inset inside each tab, so it sits above the tab bar. Cook mode and onboarding are full-screen covers that hide the tab bar.
+- Deep links select a tab: `ate://recipe/…`, `ate://r/…`, `ate://cook/…` and `ate://import` go to Library, and `ate://auth-callback` goes to Settings.
+- Built with the iOS 26 SDK, so it gets the Liquid Glass tab bar by default, tinted in the brand orange.
+
+### F1c. "Save to ate" share extension (v1.3)
+- `AteShare` target (`com.melusik.ate.share`) accepts 1 web URL, text (it pulls the first link out of a caption) or 1 image.
+- It queues the item in the App Group (`SharedInbox`, images in `Inbox/`) and offers **Open ate** (`ate://import`). The app picks the item up when it becomes active and opens the Add sheet prefilled, with generation already started.
+- With no App Group (free-account sideload), it copies the link to the clipboard instead.
+
 ### F2. Sync "HTTP 400" fix (build 14)
 - **Symptom:** after signing in, Settings showed "Sync failed: Sync failed (HTTP 400)".
 - **Root causes (both confirmed with curl against `user_recipes`):**
@@ -97,7 +109,7 @@ Open issues / gaps vs PRD:
 
 ## Updated roadmap
 1. ✅ **Done (2026-10-10):** backend moved to Melusi's own Supabase project `ate` (`ploncuhexmwydjxljuhe`): `shared_recipes` (9 rows, slugs kept) + `user_recipes` with RLS, Edge Functions `publish-recipe` and `get-shared-recipe`, email auth + `ate://auth-callback`. The app publishes and reads shares there.
-2. **Before TestFlight:** publish real privacy policy and terms pages and update `ATE_PRIVACY_URL`/`ATE_TERMS_URL`; custom SMTP so confirmation and reset emails aren't rate-limited.
+2. **Before TestFlight:** custom SMTP so confirmation and reset emails aren't rate-limited.
 3. **Next:** repoint the Lovable web app to the new project (needs Lovable credits) so new shares render on the web; optionally add an AI key secret and deploy `parse-recipe` as a server fallback; custom SMTP for auth emails (the built-in mailer is rate-limited); add JSON-LD import.
 4. **Domain:** register `ate.app`, serve `/r/<slug>` on the web, then (paid Apple Developer account) enable Associated Domains with `applinks:ate.app`, host the AASA (template in `docs/associated-domains/`) and set `ATE_SHARE_HOST=https://ate.app`.
 5. **Paid account also unlocks:** signed CI builds with two profiles (app + widget), TestFlight, push-to-update Live Activities, Sign in with Apple / CloudKit as options.

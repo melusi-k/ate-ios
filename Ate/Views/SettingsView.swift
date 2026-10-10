@@ -13,7 +13,6 @@ struct SettingsView: View {
             Theme.background.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    BackBar(title: "Library") { store.path.removeAll() }
                     Text("Settings").font(AteFont.display(30))
 
                     AccountCard()

@@ -13,7 +13,6 @@ struct ShoppingListView: View {
             Theme.background.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    BackBar(title: "Library") { store.path.removeAll() }
                     Text("Shopping list").font(AteFont.display(30))
                     Text("\(pending.count) to buy" + (done.isEmpty ? "" : " · \(done.count) in the basket"))
                         .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)

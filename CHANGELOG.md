@@ -5,6 +5,8 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 ## Unreleased
 
 ### ✨ New
+- **Tab bar** – Library, Shopping list (with a badge for items still to buy) and Settings, each keeping its place when you switch. It uses the iOS 26 Liquid Glass look. Cook mode and onboarding are full screen.
+- **Save to ate** – share a link, a caption or a photo from Safari, TikTok, Instagram or Photos straight into ate.
 - **Recipe links import instantly** – schema.org/JSON-LD data on recipe sites is read directly (exact ingredients, steps, times, servings, photo) before any AI is used.
 
 - **Privacy Policy & Terms of Use published** – linked from onboarding, sign-in and Settings.

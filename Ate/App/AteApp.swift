@@ -47,22 +47,26 @@ struct RootView: View {
 
     var body: some View {
         @Bindable var store = store
-        NavigationStack(path: $store.path) {
-            LibraryView().withTimerBar()
-                .navigationDestination(for: Route.self) { route in
-                    Group {
-                        switch route {
-                        case .recipe(let id): RecipeDetailView(recipeID: id)
-                        case .cook(let id): CookModeView(recipeID: id)
-                        case .shopping: ShoppingListView()
-                        case .settings: SettingsView()
-                        case .shared(let slug): SharedRecipeView(slug: slug)
-                        case .notFound: NotFoundView()
-                        }
-                    }
-                    .toolbar(.hidden, for: .navigationBar)
-                    .withTimerBar()
-                }
+        TabView(selection: tabSelection) {
+            NavigationStack(path: $store.path) {
+                LibraryView().withTimerBar().navigationDestination(for: Route.self, destination: destination)
+            }
+            .tabItem { Label("Library", systemImage: "books.vertical") }
+            .tag(AppTab.library)
+            .accessibilityIdentifier("tab.library")
+
+            NavigationStack(path: $store.shoppingPath) {
+                ShoppingListView().withTimerBar().navigationDestination(for: Route.self, destination: destination)
+            }
+            .tabItem { Label("Shopping list", systemImage: "basket") }
+            .badge(store.pendingShoppingCount)
+            .tag(AppTab.shopping)
+
+            NavigationStack(path: $store.settingsPath) {
+                SettingsView().withTimerBar().navigationDestination(for: Route.self, destination: destination)
+            }
+            .tabItem { Label("Settings", systemImage: "gearshape") }
+            .tag(AppTab.settings)
         }
         .fullScreenCover(item: $store.cookTarget) { target in
             CookModeView(recipeID: target.id, onExit: { store.cookTarget = nil }).environment(store)
@@ -70,7 +74,7 @@ struct RootView: View {
         .fullScreenCover(isPresented: $store.showOnboarding) { OnboardingView().environment(store) }
         .sheet(item: $store.authSheet) { m in AuthSheet(mode: m).environment(store) }
         .onReceive(tick) { store.timers.tick($0) }
-        .onChange(of: phase) { _, p in if p == .active { store.timers.tick(); store.scheduleSync(delay: 0.2) } }
+        .onChange(of: phase) { _, p in if p == .active { store.timers.tick(); store.scheduleSync(delay: 0.2); store.checkInbox() } }
         .task { if store.session != nil { await store.syncNow() } }
         .tint(Theme.primary)
         .dynamicTypeSize(...DynamicTypeSize.accessibility3)
@@ -86,3 +90,35 @@ struct RootView: View {
         }
     }
 }
+
+extension RootView {
+    /// Re-tapping the current tab pops its stack to the root (standard iOS behaviour).
+    var tabSelection: Binding<AppTab> {
+        Binding(get: { store.tab }, set: { new in
+            if new == store.tab {
+                switch new {
+                case .library: store.path = []
+                case .shopping: store.shoppingPath = []
+                case .settings: store.settingsPath = []
+                }
+            }
+            store.tab = new
+        })
+    }
+
+    @ViewBuilder func destination(_ route: Route) -> some View {
+        Group {
+            switch route {
+            case .recipe(let id): RecipeDetailView(recipeID: id)
+            case .cook(let id): CookModeView(recipeID: id)
+            case .shopping: ShoppingListView()
+            case .settings: SettingsView()
+            case .shared(let slug): SharedRecipeView(slug: slug)
+            case .notFound: NotFoundView()
+            }
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .withTimerBar()
+    }
+}
+

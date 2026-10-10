@@ -107,3 +107,18 @@ final class JournalEntry {
     }
     var state: HealthState { HealthState(rawValue: stateRaw) ?? .balanced }
 }
+
+/// Recipes seeded for Health UI tests (`-qaHealthRecipes`) so meal ranking is observable.
+enum HealthFixtures {
+    static var library: [RecipeCard] {
+        func r(_ id: String, _ t: String, _ ings: [String], mins: Int = 40, servings: Int = 2) -> RecipeCard {
+            var c = RecipeCard(); c.id = id; c.title = t; c.timeMinutes = mins; c.servings = servings
+            c.ingredients = ings.map { Ingredient(name: $0, quantity: 1, unit: "") }; return c
+        }
+        return [r("qa-h1", "Grilled chicken bowl", ["chicken", "rice", "spinach"]),
+                r("qa-h2", "Lentil soup", ["lentils", "tomato", "onion"], mins: 25),
+                r("qa-h3", "Greek salad", ["cucumber", "tomato", "feta"], mins: 10),
+                r("qa-h4", "Overnight oats", ["oats", "banana", "yogurt"], servings: 4),
+                r("qa-h5", "Beef potjie", ["beef", "potato", "carrot"], mins: 120, servings: 6)]
+    }
+}

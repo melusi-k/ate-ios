@@ -14,7 +14,11 @@ struct AteApp: App {
         let config = ModelConfiguration(isStoredInMemoryOnly: AppConfig.isUITesting)
         let c = try? ModelContainer(for: RecipeEntity.self, ShoppingEntity.self, configurations: config)
         container = c
-        _store = State(initialValue: AppStore(context: c?.mainContext))
+        let st = AppStore(context: c?.mainContext)
+        if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaHealthRecipes") && st.recipes.isEmpty {
+            st.recipes = HealthFixtures.library
+        }
+        _store = State(initialValue: st)
     }
 
     var body: some Scene {

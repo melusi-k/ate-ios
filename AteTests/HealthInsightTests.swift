@@ -19,7 +19,7 @@ final class HealthInsightTests: XCTestCase {
         XCTAssertEqual(HealthInsightEngine.insight(for: MockHealthKitService.fixture("recovery"))?.state, .recovery)
     }
     func testLowEnergyAfterShortSleep() {
-        XCTAssertEqual(HealthInsightEngine.insight(for: MockHealthKitService.fixture("lowEnergy", days: 2))?.state, .lowEnergy)
+        XCTAssertEqual(HealthInsightEngine.insight(for: MockHealthKitService.fixture("lowEnergy"))?.state, .lowEnergy)
     }
     func testUnderactiveWeek() {
         XCTAssertEqual(HealthInsightEngine.insight(for: MockHealthKitService.fixture("underactive"))?.state, .underactive)

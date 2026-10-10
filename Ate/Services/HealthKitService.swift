@@ -20,12 +20,16 @@ protocol HealthKitServicing {
 }
 
 enum HealthServiceFactory {
-    /// `-qaMockHealth <scenario>` (recovery | lowEnergy | performance | underactive | empty | denied | unavailable).
-    static func make(arguments: [String] = ProcessInfo.processInfo.arguments) -> HealthKitServicing {
+    static let scenarios = ["recovery", "lowEnergy", "performance", "underactive", "empty", "denied", "unavailable", "noEntitlement"]
+    /// Beta testing → Health insights debug picker ("" = real Apple Health).
+    static let debugKey = "ate.health.mockScenario"
+    /// `-qaMockHealth <scenario>` wins; otherwise the beta debug picker; otherwise live HealthKit.
+    static func make(arguments: [String] = ProcessInfo.processInfo.arguments, defaults: UserDefaults = .standard) -> HealthKitServicing {
         if let i = arguments.firstIndex(of: "-qaMockHealth") {
             let s = i + 1 < arguments.count ? arguments[i + 1] : "recovery"
             return MockHealthKitService(scenario: s)
         }
+        if !AppConfig.isUITesting, let s = defaults.string(forKey: debugKey), scenarios.contains(s) { return MockHealthKitService(scenario: s) }
         return LiveHealthKitService()
     }
 }
@@ -35,10 +39,10 @@ final class MockHealthKitService: HealthKitServicing {
     private(set) var access: HealthAccess
     init(scenario: String) {
         self.scenario = scenario
-        access = scenario == "unavailable" ? .unavailable : .notDetermined
+        access = scenario == "unavailable" ? .unavailable : scenario == "noEntitlement" ? .entitlementMissing : .notDetermined
     }
     func requestAccess() async -> HealthAccess {
-        if access == .unavailable { return access }
+        if access == .unavailable || access == .entitlementMissing { return access }
         access = scenario == "denied" ? .denied : .requested
         return access
     }
@@ -55,7 +59,7 @@ final class MockHealthKitService: HealthKitServicing {
         let n = max(1, min(days, 7))
         switch scenario {
         case "empty", "denied": return HealthSummary(days: [])
-        case "lowEnergy": return HealthSummary(days: (0..<n).reversed().map { day($0, sleep: 5.4, steps: 3200, kcal: 180) })
+        case "lowEnergy": return HealthSummary(days: (0..<n).reversed().map { day($0, sleep: 5.4, steps: 5200, kcal: 180) })
         case "performance": return HealthSummary(days: (0..<n).reversed().map { day($0, sleep: 8.1, steps: 10500, kcal: 520, workout: $0 == 2 ? 25 : nil, types: $0 == 2 ? ["Cycling"] : []) })
         case "underactive": return HealthSummary(days: (0..<n).reversed().map { day($0, sleep: 7.2, steps: 2100, kcal: 120) })
         default: // recovery

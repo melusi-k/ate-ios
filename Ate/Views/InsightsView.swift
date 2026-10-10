@@ -3,8 +3,15 @@ import SwiftUI
 @MainActor @Observable
 final class InsightsModel {
     static let shared = InsightsModel()
-    let health: HealthKitServicing
+    private(set) var health: HealthKitServicing
     var access: HealthAccess
+    /// Beta debug picker: swap to a mock scenario ("" = live Apple Health).
+    func useScenario(_ s: String, recipes: [RecipeCard]) async {
+        UserDefaults.standard.set(s, forKey: HealthServiceFactory.debugKey)
+        health = HealthServiceFactory.make(arguments: [])
+        if health is MockHealthKitService { _ = await health.requestAccess() }
+        await refresh(recipes: recipes)
+    }
     var context: HealthContext?
     var loading = false
     init(health: HealthKitServicing = HealthServiceFactory.make()) { self.health = health; access = health.access }

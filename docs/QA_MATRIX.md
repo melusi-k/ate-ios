@@ -103,3 +103,15 @@ _Generated 2026-10-10 against build 36; automated items updated from CI run 3806
 
 ### Apple Health insights (v1.4)
 - [ ] H-01..H-08 — see PRD "Apple Health insights + Ate journal"
+
+| ID | Scenario (`-qaMockHealth`) | Expect | Automated |
+|---|---|---|---|
+| H-UI-01 | recovery | "Recovery day", ≤3 protein-led meals, prompt, save → entry; picker hidden | `CoverageUITests.testHealthScenarioRecovery` |
+| H-UI-02 | lowEnergy | "Low-energy day", prompt, save → entry | `testHealthScenarioLowEnergy` |
+| H-UI-03 | performance | "Good-energy day", prompt, save → entry | `testHealthScenarioPerformance` |
+| H-UI-04 | underactive | "Quiet week", prompt | `testHealthScenarioUnderactive` |
+| H-UI-05 | recovery vs underactive | Different meal lists | `testHealthSuggestionsDifferByState` |
+| H-UI-06 | empty | "No recent Health data" copy | `testHealthScenarioEmpty` |
+| H-UI-07 | denied / unavailable / noEntitlement | Graceful copy, no Connect button where it can't work | `testHealthInsightsDeniedAndUnavailable` |
+| H-DEV-01 | Beta testing → Health insights picker | Switch scenarios on phone, Insights updates | manual |
+| H-DEV-02 | Real Apple Health (free-ID sideload) | Connect sheet lists 4 read types; state renders | manual |

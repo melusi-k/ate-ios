@@ -317,28 +317,57 @@ final class CoverageUITests: XCTestCase {
 /// Health insights MVP with mock Health data (`-qaMockHealth`). Extension so it runs in the CoverageUITests shard.
 extension CoverageUITests {
     func openInsights(_ scenario: String) {
-        launch(["-qaMockHealth", scenario])
+        launch(["-qaMockHealth", scenario, "-qaHealthRecipes"])
         tab("More")
         let row = app.buttons["more.insights"]
         scrollTo(row); row.tap()
     }
-    func testHealthInsightsRecoverySavesJournalEntry() {
-        openInsights("recovery")
+    func any(_ id: String) -> XCUIElement { app.descendants(matching: .any)[id] }
+    /// Connects, checks title + prompts, returns suggestion titles, saves a journal entry.
+    @discardableResult
+    func runHealthScenario(_ scenario: String, title: String, save: Bool = false) -> [String] {
+        openInsights(scenario)
         let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
-        wait(text("Recovery day"))
-        shot("insights-recovery")
-        let field = app.descendants(matching: .any)["insights.journalText"]
-        scrollTo(field); field.tap(); field.typeText("Legs tired, chicken bowl tonight")
-        let save = app.buttons["insights.save"]; scrollTo(save); save.tap()
-        wait(app.descendants(matching: .any)["insights.entry"])
-        XCTAssertFalse(app.descendants(matching: .any)["insights.journalingPicker"].exists, "Picker must be hidden without the paid entitlement")
+        wait(text(title))
+        let prompt = app.buttons["insights.prompt"].firstMatch; scrollTo(prompt)
+        XCTAssertTrue(prompt.exists, "\(scenario): no journal prompt")
+        let names = app.buttons.matching(identifier: "insights.suggestion").allElementsBoundByIndex.map(\.label)
+        shot("insights-" + scenario)
+        if save {
+            let field = any("insights.journalText"); scrollTo(field); field.tap(); field.typeText("Note for \(scenario)")
+            let b = app.buttons["insights.save"]; scrollTo(b); b.tap()
+            wait(any("insights.entry"))
+            XCTAssertFalse(any("insights.journalingPicker").exists, "Picker must be hidden without the paid entitlement")
+        }
+        app.terminate()
+        return names
+    }
+    func testHealthScenarioRecovery() { runHealthScenario("recovery", title: "Recovery day", save: true) }
+    func testHealthScenarioLowEnergy() { runHealthScenario("lowEnergy", title: "Low-energy day", save: true) }
+    func testHealthScenarioPerformance() { runHealthScenario("performance", title: "Good-energy day", save: true) }
+    func testHealthScenarioUnderactive() { runHealthScenario("underactive", title: "Quiet week") }
+    func testHealthSuggestionsDifferByState() {
+        let a = runHealthScenario("recovery", title: "Recovery day")
+        let b = runHealthScenario("underactive", title: "Quiet week")
+        XCTAssertFalse(a.isEmpty, "Recovery should suggest meals"); XCTAssertFalse(b.isEmpty, "Underactive should suggest meals")
+        XCTAssertNotEqual(a, b, "Recovery and underactive should rank meals differently")
+    }
+    func testHealthScenarioEmpty() {
+        openInsights("empty")
+        let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
+        wait(any("insights.noData"))
     }
     func testHealthInsightsDeniedAndUnavailable() {
         openInsights("denied")
         let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
-        wait(app.descendants(matching: .any)["insights.denied"])
+        wait(any("insights.denied"))
         app.terminate()
         openInsights("unavailable")
-        wait(app.descendants(matching: .any)["insights.unavailable"])
+        wait(any("insights.unavailable"))
+        XCTAssertFalse(app.buttons["insights.connect"].exists)
+        app.terminate()
+        openInsights("noEntitlement")
+        wait(any("insights.entitlementMissing"))
+        XCTAssertFalse(app.buttons["insights.connect"].exists)
     }
 }

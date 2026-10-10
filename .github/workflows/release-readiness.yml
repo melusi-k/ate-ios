@@ -1,0 +1,48 @@
+name: Release readiness
+
+on:
+  workflow_run:
+    workflows: ["Build IPA"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Release type (Internal beta updates the rolling issue; others open a per-RC issue)"
+        type: choice
+        options: ["Internal beta", "Public beta", "Public launch"]
+        default: "Internal beta"
+      version:
+        description: "RC version label, e.g. 0.1.50 (blank = latest build)"
+        required: false
+      run_id:
+        description: "Build IPA run id to take evidence from (blank = latest successful on main)"
+        required: false
+      new_issue:
+        description: "Force a new per-RC issue even for Internal beta"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+concurrency:
+  group: release-readiness
+  cancel-in-progress: false
+
+jobs:
+  readiness:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update readiness issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          RELEASE_TYPE: ${{ inputs.release_type || 'Internal beta' }}
+          RC_VERSION: ${{ inputs.version }}
+          RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
+        run: python3 scripts/release/readiness.py ${{ inputs.new_issue && '--new' || '' }}

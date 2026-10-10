@@ -22,7 +22,11 @@ struct AteApp: App {
             RootView()
                 .environment(store)
                 .onOpenURL { store.handle(url: $0) }
-                .task { if let u = AppConfig.launchURL { store.handle(url: u) } }
+                .task {
+                    PhoneWatchBridge.shared.activate()
+                    PhoneWatchBridge.shared.update(session: store.session)
+                    if let u = AppConfig.launchURL { store.handle(url: u) }
+                }
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { a in
                     if let u = a.webpageURL { store.handle(url: u) }
                 }

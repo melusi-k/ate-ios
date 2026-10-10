@@ -54,6 +54,7 @@ struct MoreView: View {
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                         .textSelection(.enabled)
                         .accessibilityElement(children: .combine).accessibilityIdentifier("aiDiagnostics")
+                        LiveActivityDiagnosticsView()
                     }
                 }
                 .foregroundStyle(Theme.foreground)
@@ -116,5 +117,27 @@ struct MoreView: View {
                 Image(systemName: "arrow.up.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.mutedForeground)
             }.frame(minHeight: 44)
         }.accessibilityIdentifier(id)
+    }
+}
+
+/// More → About → Live Activity: why the Dynamic Island might be silent on a sideloaded build.
+struct LiveActivityDiagnosticsView: View {
+    @State private var tick = 0
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Live Activity").font(AteFont.body(12, .semibold))
+            Text("areActivitiesEnabled: \(LiveActivityDiagnostics.enabledNow ? "yes" : "NO")")
+            Text("Last request: " + LiveActivityDiagnostics.lastResult)
+            Text("Active activities: \(LiveActivityDiagnostics.activeCount)")
+            Text("Widget extension: " + (LiveActivityDiagnostics.widgetAppexPresent
+                 ? "present (\(LiveActivityDiagnostics.widgetBundleID ?? "?"))" : "MISSING — re-sideload with extensions kept"))
+            Text("App bundle ID: \(Bundle.main.bundleIdentifier ?? "?")")
+            Text("PlugIns: " + (LiveActivityDiagnostics.plugIns.isEmpty ? "none" : LiveActivityDiagnostics.plugIns.joined(separator: ", ")))
+            Button("Refresh") { tick += 1 }.font(AteFont.body(12, .semibold)).tint(Theme.primary)
+        }
+        .id(tick)
+        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+        .textSelection(.enabled)
+        .accessibilityIdentifier("liveActivityDiagnostics")
     }
 }

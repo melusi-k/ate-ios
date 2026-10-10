@@ -4,6 +4,12 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 
 ## Unreleased
 
+#### ⌚ Apple Watch app (new, independent)
+- watchOS 11+ app that works without the iPhone: recipes synced from your ate account (email-code sign-in on the wrist, or automatic hand-off from the paired iPhone), offline cache, ingredients, wrist Cook mode (big step text, Next/Back + Digital Crown, step timers that keep running with haptics), Smart Stack timer widget, and shopping list tick-off. Mirrors the phone's active cook timers. Embedded in the `.ipa`; see README for free-Apple-ID install limits.
+
+#### 🔎 Live Activity diagnostics
+- More › About › Live Activity shows `areActivitiesEnabled`, the last request result or error, active count, bundle IDs and the PlugIns actually installed. Request errors are no longer swallowed (`try?`) and are logged; requests are skipped (and reported) when the app is in the background. README/SUPPORT document Sideloadly's *Remove extensions* option.
+
 #### 🐛 Fixed
 - **The app now rotates.** `Info.plist` only allowed portrait, so the landscape sidebar and two-column grid never appeared on a real iPhone. Portrait, landscape left and landscape right are now supported, and the grid fits two columns beside the sidebar on iPhone 17.
 - Recipe detail hides the tab bar so the Cook mode button is no longer covered; the shopping list's last rows clear the tab bar.

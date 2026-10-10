@@ -81,6 +81,17 @@ Fraunces and DM Sans (SIL OFL, licenses in `Ate/Resources/Fonts`) are bundled. I
 2. Under Authentication → Providers, enable **Email**. Decide whether new accounts need to confirm their email.
 3. Under Authentication → URL Configuration, add `ate://auth-callback` to the allowed **Redirect URLs** (for magic links and email confirmation).
 
+### Sideloadly: keep the extensions (Live Activity / Dynamic Island)
+The Live Activity is drawn by the **AteWidgets** extension (`PlugIns/AteWidgets.appex`, `com.melusik.ate.widgets`). If Sideloadly drops it, timers still run in the app but nothing appears on the Lock Screen or in the Dynamic Island.
+- In Sideloadly › **Advanced options**, leave **"Remove extensions"** (a.k.a. *Remove app extensions / PlugIns*) **unticked** — i.e. keep extensions. Ticking it saves App IDs but deletes the widget, the share extension and the watch app.
+- Leave **"Change bundle ID"** off unless you hit a conflict. If you change it, Sideloadly re-prefixes every extension (`<new id>.widgets`), which is fine; what breaks is an extension whose ID is no longer a child of the app's.
+- Free Apple IDs get **10 App IDs per 7 days**. ate now has 5 bundles (app, widgets, share, watch, watch widgets). If Sideloadly fails with "maximum App ID limit", wait a few days or remove extensions you don't need — but the widgets one is required for Live Activities.
+- After installing, check **More › About › Live Activity**: it shows `areActivitiesEnabled`, the last request result or error, the active count, the app/extension bundle IDs and the PlugIns present. "Widget extension: MISSING" means it was stripped; `areActivitiesEnabled: NO` means Settings › ate › **Live Activities** is off.
+
+### Apple Watch app (watchOS 11+, independent)
+`Ate.app/Watch/AteWatch.app` is embedded in the `.ipa` and also runs on its own (`WKRunsIndependentlyOfCompanionApp = YES`): sign in on the wrist with an email code, or open ate on a paired, signed-in iPhone and the session is handed over via WatchConnectivity.
+**Free Apple ID limits:** Sideloadly and AltStore generally **do not install watch apps** (they install the iPhone app only and may strip `Watch/`). Installing the watch app needs Xcode (run the AteWatch scheme on your paired watch with your Apple ID — free IDs work but expire in 7 days and count 2 more App IDs) or a paid account (TestFlight / signed builds).
+
 ### Free Apple ID vs paid
 | Works with a free Apple ID (Sideloadly) | Needs a paid Developer account |
 |---|---|
@@ -89,4 +100,4 @@ Fraunces and DM Sans (SIL OFL, licenses in `Ate/Resources/Fonts`) are bundled. I
 | Supabase accounts & sync, deep links `ate://…` | Sign in with Apple, CloudKit |
 | App Group (usually granted; falls back gracefully) | Apps that don't expire every 7 days |
 
-Free IDs also allow only about 3 sideloaded apps and 10 App IDs per week. Ate uses 2 App IDs (app + widget).
+Free IDs also allow only about 3 sideloaded apps and 10 App IDs per week. ate uses up to 5 App IDs (app, widgets, share, watch, watch widgets).

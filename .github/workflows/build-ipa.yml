@@ -57,6 +57,18 @@ jobs:
           echo "IPA_NAME=Ate-$VERSION-build$BUILD_NUMBER.ipa" >> $GITHUB_ENV
           echo "Version $VERSION build $BUILD_NUMBER"
 
+      - name: Ensure watchOS platform
+        run: |
+          xcodebuild -showsdks | grep -qi watchos || xcodebuild -downloadPlatform watchOS
+          xcodebuild -showsdks | grep -i watch || true
+
+      - name: Build watch app (watchOS simulator)
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          xcodebuild build -project Ate.xcodeproj -scheme AteWatch -destination 'generic/platform=watchOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO -quiet 2>&1 | tail -40
+
       - name: Run unit tests
         if: env.RUN_TESTS == 'true'
         timeout-minutes: 20
@@ -194,6 +206,11 @@ jobs:
           cp -R build/Ate.xcarchive/Products/Applications/Ate.app build/Payload/
           test -d build/Payload/Ate.app/PlugIns/AteWidgets.appex || { echo "Widget extension missing from app bundle"; exit 1; }
           ls build/Payload/Ate.app/PlugIns
+          test -d build/Payload/Ate.app/Watch/AteWatch.app || { echo "::error::Watch app missing from app bundle"; exit 1; }
+          ls build/Payload/Ate.app/Watch build/Payload/Ate.app/Watch/AteWatch.app/PlugIns || true
+          codesign -f -s - --entitlements AteWatchWidgets/AteWatchWidgets.entitlements build/Payload/Ate.app/Watch/AteWatch.app/PlugIns/AteWatchWidgets.appex || true
+          codesign -f -s - --entitlements AteWatch/AteWatch.entitlements build/Payload/Ate.app/Watch/AteWatch.app
+          codesign -f -s - --entitlements AteShare/AteShare.entitlements build/Payload/Ate.app/PlugIns/AteShare.appex || true
           # Ad-hoc sign with entitlements embedded so Sideloadly/AltStore can carry them over when re-signing.
           codesign -f -s - --entitlements AteWidgets/AteWidgets.entitlements build/Payload/Ate.app/PlugIns/AteWidgets.appex
           codesign -f -s - --entitlements Ate/Ate.entitlements build/Payload/Ate.app

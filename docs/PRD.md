@@ -148,7 +148,15 @@ Open issues / gaps vs PRD:
 4. **Domain:** register `ate.app`, serve `/r/<slug>` on the web, then (paid Apple Developer account) enable Associated Domains with `applinks:ate.app`, host the AASA (template in `docs/associated-domains/`) and set `ATE_SHARE_HOST=https://ate.app`.
 5. **Paid account also unlocks:** signed CI builds (already wired with one profile secret per bundle: app, widgets, share, watch, watch widgets), TestFlight, push-to-update Live Activities, Sign in with Apple / CloudKit as options.
 6. ✅ **Done in v1.3:** voice cook mode (on-device SFSpeechRecognizer), the "Save to ate" share extension, the aisle-grouped list, the bundled 3-tone chime and haptics, camera capture, JSON-LD import, the tab bar, provenance badges, food-photo guesses, social-link captions, the real logo, Dynamic Type and contrast fixes, the String Catalog, and published legal pages.
-7. **Phase: Apple Watch companion.** SwiftUI watch app showing recent recipes (synced over WatchConnectivity `applicationContext`), the current cook step with Next/Back, the running timer, and a complication or Smart Stack widget for the active timer.
+7. **Apple Watch app — built (v1.3).** Independent watchOS 11+ app (`AteWatch`, `com.melusik.ate.watchkitapp`, `WKRunsIndependentlyOfCompanionApp = YES`), embedded in the `.ipa` at `Watch/AteWatch.app`.
+   - Recipe list synced straight from Supabase (`user_recipes` over REST, same RLS/auth), with an offline cache.
+   - Sign-in on the wrist by email code (Supabase OTP), or session hand-off from a paired, signed-in iPhone via WatchConnectivity.
+   - Recipe detail with ingredients; wrist Cook mode with large step text, Next/Back buttons and the Digital Crown, step timers kept alive by `WKExtendedRuntimeSession`, haptics on finish.
+   - Smart Stack widget / complication (`AteWatchWidgets`, rectangular, circular, inline) for the running timer.
+   - Shopping list with tick-off (last-write-wins upsert).
+   - Mirrors the phone's active cook timers via WatchConnectivity when paired.
+   - Pure logic in `Shared/Watch/WatchLogic.swift`, unit-tested in `WatchLogicTests`.
+   - Limits: Sideloadly/free Apple IDs generally can't install watch apps; use Xcode or a paid account.
 8. **Phase: iPad kitchen display.** A landscape `NavigationSplitView` with the library sidebar, the recipe and a full-height cook column. Cook mode becomes a "kitchen display": large-type step, ingredient checklist for that step, and every running timer as a tile grid, with Stage Manager / Split View support. Keyboard shortcuts (→ / ← / space for timer). Always-on with the idle timer disabled while cooking. Pointer and Pencil scribble in the editor.
 9. **Phase: foldable / "duo" iPhone layouts.** If Apple ships a foldable iPhone, size-class-driven layouts: folded = the current phone UI; unfolded = a two-pane "duo" layout (recipe on the left, cook step and timers on the right; in the list, aisles on the left and items on the right). Hinge-aware spacing comes from the window geometry, and a book posture puts the step on top with controls below. Build this on adaptive `ViewThatFits` / `horizontalSizeClass` so the iPad work carries over. Verify in the simulator once a device profile exists.
 

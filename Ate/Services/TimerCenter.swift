@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UIKit
 import UserNotifications
 #if canImport(ActivityKit)
 import ActivityKit
@@ -39,6 +40,7 @@ final class TimerCenter {
     }
 
     private func persist() {
+        PhoneWatchBridge.shared.update(timers: timers)
         TimerSnapshot.save(timers.map {
             TimerSnapshot(recipeID: $0.recipeID, recipeTitle: $0.recipeTitle, stepIndex: $0.stepIndex, stepCount: $0.stepCount,
                           stepText: $0.stepText, total: $0.total, endDate: $0.endDate, pausedRemaining: $0.pausedRemaining)
@@ -132,6 +134,42 @@ final class TimerCenter {
     }
 }
 
+import os
+
+/// Last Live Activity request outcome, shown in More → About → Live Activity.
+@MainActor
+enum LiveActivityDiagnostics {
+    static let log = Logger(subsystem: "com.melusik.ate", category: "LiveActivity")
+    static var lastResult: String = "no request yet"
+    static var enabledNow: Bool {
+        #if canImport(ActivityKit)
+        return ActivityAuthorizationInfo().areActivitiesEnabled
+        #else
+        return false
+        #endif
+    }
+    static var activeCount: Int {
+        #if canImport(ActivityKit)
+        return Activity<CookTimerAttributes>.activities.count
+        #else
+        return 0
+        #endif
+    }
+    /// Lists *.appex inside Bundle.main.builtInPlugInsURL (Sideloadly "Remove extensions" deletes these).
+    static var plugIns: [String] {
+        guard let u = Bundle.main.builtInPlugInsURL,
+              let items = try? FileManager.default.contentsOfDirectory(atPath: u.path) else { return [] }
+        return items.filter { $0.hasSuffix(".appex") }.sorted()
+    }
+    static var widgetAppexPresent: Bool { plugIns.contains("AteWidgets.appex") }
+    static var widgetBundleID: String? {
+        guard let u = Bundle.main.builtInPlugInsURL?.appendingPathComponent("AteWidgets.appex") else { return nil }
+        return Bundle(url: u)?.bundleIdentifier
+    }
+    static func record(_ s: String) { lastResult = s; log.notice("\(s, privacy: .public)") }
+}
+
+@MainActor
 enum LiveActivities {
     static var enabled: Bool {
         #if canImport(ActivityKit)
@@ -158,13 +196,26 @@ enum LiveActivities {
     static func startOrUpdate(_ t: ActiveTimer) {
         if AppConfig.isUITesting { Task { @MainActor in QAProbe.shared.liveActivityRequests += 1 } }
         #if canImport(ActivityKit)
-        guard enabled else { return }
+        guard enabled else {
+            LiveActivityDiagnostics.record("skipped: areActivitiesEnabled = false (Settings → ate → Live Activities)")
+            return
+        }
+        guard UIApplication.shared.applicationState != .background else {
+            LiveActivityDiagnostics.record("skipped: app in background (requests must be made in the foreground)")
+            return
+        }
         let content = ActivityContent(state: state(t), staleDate: t.endDate?.addingTimeInterval(60))
         if let a = activity(t.id) {
             Task { await a.update(content) }
         } else {
             let attrs = CookTimerAttributes(recipeID: t.recipeID, recipeTitle: t.recipeTitle, timerID: t.id)
-            _ = try? Activity.request(attributes: attrs, content: content, pushType: nil)
+            do {
+                let a = try Activity.request(attributes: attrs, content: content, pushType: nil)
+                LiveActivityDiagnostics.record("started \(a.id.prefix(8)) at \(Date().formatted(date: .omitted, time: .standard))")
+            } catch {
+                LiveActivityDiagnostics.record("error: \(error.localizedDescription)")
+                LiveActivityDiagnostics.log.error("Activity.request failed: \(String(describing: error), privacy: .public)")
+            }
         }
         #endif
     }

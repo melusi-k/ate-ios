@@ -401,6 +401,7 @@ final class AppStore {
         if s != nil { sessionExpired = false }
         session = s
         Keychain.save(s.flatMap { try? JSONEncoder().encode($0) }, account: "session")
+        PhoneWatchBridge.shared.update(session: s)
     }
 
     // MARK: onboarding

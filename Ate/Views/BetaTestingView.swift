@@ -13,18 +13,6 @@ struct BetaTestingView: View {
 
     var body: some View {
         List {
-            Section("Health insights") {
-                Picker("Health data", selection: $healthScenario) {
-                    Text("Real Apple Health").tag("")
-                    ForEach(HealthServiceFactory.scenarios, id: \.self) { Text("Mock: " + $0).tag($0) }
-                }
-                .accessibilityIdentifier("beta.healthScenario")
-                .onChange(of: healthScenario) { _, v in Task { await InsightsModel.shared.useScenario(v, recipes: store.recipes) } }
-                NavigationLink { InsightsView() } label: { Label("Open Insights & journal", systemImage: "heart.text.square") }
-                    .accessibilityIdentifier("beta.openInsights")
-                Text("Checks H-01…H-08: connect, state title, 3 meal ideas, prompts, save to journal, denied/unavailable/no-entitlement copy. Mock data never touches Apple Health.")
-                    .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-            }
             Section {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Build \(AppConfig.buildLabel)").font(AteFont.body(13, .semibold)).accessibilityIdentifier("betaBuildLabel")
@@ -40,6 +28,18 @@ struct BetaTestingView: View {
                 Text(ci.isEmpty ? "CI: no simulator/backend results yet" + (store.session == nil ? " (sign in to see them)" : "")
                                 : "CI: \(ciPass)/\(ci.count) automated checks passing")
                     .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("betaCISummary")
+            }
+            Section("Health insights") {
+                Picker("Health data", selection: $healthScenario) {
+                    Text("Real Apple Health").tag("")
+                    ForEach(HealthServiceFactory.scenarios, id: \.self) { Text("Mock: " + $0).tag($0) }
+                }
+                .accessibilityIdentifier("beta.healthScenario")
+                .onChange(of: healthScenario) { _, v in Task { await InsightsModel.shared.useScenario(v, recipes: store.recipes) } }
+                NavigationLink { InsightsView() } label: { Label("Open Insights & journal", systemImage: "heart.text.square") }
+                    .accessibilityIdentifier("beta.openInsights")
+                Text("Checks H-01…H-08: connect, state title, 3 meal ideas, prompts, save to journal, denied/unavailable/no-entitlement copy. Mock data never touches Apple Health.")
+                    .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
             }
             let passedIDs = Set(BetaChecklist.items.filter { BetaVisibility.isPassed(device: qa.result($0.id), ci: ci[$0.id], build: AppConfig.buildNumber) }.map(\.id))
             ForEach(BetaChecklist.categories, id: \.self) { c in

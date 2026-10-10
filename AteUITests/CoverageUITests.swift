@@ -211,6 +211,7 @@ final class CoverageUITests: XCTestCase {
         wait(text("pass"), 5)
         shot("beta-item-pass")
         app.navigationBars.buttons.element(boundBy: 0).tap()
+        for _ in 0..<6 { app.swipeDown() }
         wait(text("Tier A: \(before + 1)/"), 5)
         let item2 = app.descendants(matching: .any)["beta.A-AUTH-04"].firstMatch
         scrollTo(item2); item2.tap()

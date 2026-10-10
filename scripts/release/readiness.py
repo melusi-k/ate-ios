@@ -148,7 +148,9 @@ def run_data(run):
     unit = [0, 0]; ui = [0, 0]; qa = {}
     for j in jobs:
         if j["conclusion"] in ("skipped", None): continue
-        log = sh("gh", "api", f"repos/{REPO}/actions/jobs/{j['id']}/logs", check=False)
+        lr = subprocess.run(["gh", "api", f"repos/{REPO}/actions/jobs/{j['id']}/logs"], capture_output=True, text=True, errors="ignore")
+        log = lr.stdout
+        if lr.returncode: print(f"log for job {j['name']} unavailable: {lr.stderr[:200]}", file=sys.stderr)
         for m in re.finditer(r"Test Case '-\[\S+ testQA(\d)_\w+\]' (passed|failed)", log):
             qa[int(m.group(1))] = m.group(2)
         if "ui-suite" in j["name"]:

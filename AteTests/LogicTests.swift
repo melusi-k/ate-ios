@@ -92,4 +92,24 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(res.added, 1)
         XCTAssertEqual(res.result.first?.id, "a")
     }
+
+    func testSyncRecordEncodesIntegerStampsAndNullData() throws {
+        let recs = [
+            SyncRecord(user_id: "u", kind: "recipe", id: "1", data: AnyJSON(Data(#"{"a":1}"#.utf8)), stampMs: 1760076000123.456, deleted: false),
+            SyncRecord(user_id: "u", kind: "shopping", id: "2", data: nil, stampMs: 1760076000999.9, deleted: true),
+        ]
+        let json = String(decoding: try JSONEncoder().encode(recs), as: UTF8.self)
+        XCTAssertTrue(json.contains(#""updated_at":1760076000123"#), json)
+        XCTAssertTrue(json.contains(#""updated_at":1760076001000"#), json)
+        XCTAssertFalse(json.contains("1760076000123."), "bigint column rejects fractions: \(json)")
+        // Every object must carry the same keys (PostgREST PGRST102), so nil data is written as null.
+        XCTAssertTrue(json.contains(#""data":null"#), json)
+        let objs = try JSONSerialization.jsonObject(with: Data(json.utf8)) as! [[String: Any]]
+        XCTAssertEqual(Set(objs[0].keys), Set(objs[1].keys))
+        XCTAssertEqual(Set(objs[0].keys), ["user_id", "kind", "id", "data", "updated_at", "deleted"])
+        // Tolerant decoding: integers, fractional numbers and numeric strings.
+        let back = try JSONDecoder().decode([SyncRecord].self, from: Data(#"[{"user_id":"u","kind":"recipe","id":"1","data":null,"updated_at":5.6,"deleted":false},{"user_id":"u","kind":"recipe","id":"2","updated_at":"7","deleted":true}]"#.utf8))
+        XCTAssertEqual(back.map(\.updated_at), [6, 7])
+        XCTAssertNil(back[1].data)
+    }
 }

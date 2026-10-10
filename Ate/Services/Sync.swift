@@ -1,13 +1,45 @@
 import Foundation
 
 /// One row in public.user_recipes (kind = "recipe" | "shopping").
+/// Encoding rules (PostgREST is strict): `updated_at` is an integer (bigint column; `123.4` or `123.0` → 22P02),
+/// and every object has the same keys (`data` is written as `null`, never omitted → otherwise PGRST102).
 struct SyncRecord: Codable, Equatable {
     var user_id: String
-    var kind: String
+    var kind: String            // "recipe" | "shopping"
     var id: String
     var data: AnyJSON?
-    var updated_at: Double      // ms since epoch (bigint column) — simple last-write-wins clock
+    var updated_at: Int64       // ms since epoch (bigint column), last-write-wins clock
     var deleted: Bool
+
+    init(user_id: String, kind: String, id: String, data: AnyJSON?, updated_at: Int64, deleted: Bool) {
+        self.user_id = user_id; self.kind = kind; self.id = id; self.data = data; self.updated_at = updated_at; self.deleted = deleted
+    }
+    init(user_id: String, kind: String, id: String, data: AnyJSON?, stampMs: Double, deleted: Bool) {
+        self.init(user_id: user_id, kind: kind, id: id, data: data, updated_at: Int64(stampMs.rounded()), deleted: deleted)
+    }
+
+    enum CodingKeys: String, CodingKey { case user_id, kind, id, data, updated_at, deleted }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        user_id = try c.decode(String.self, forKey: .user_id)
+        kind = try c.decode(String.self, forKey: .kind)
+        id = try c.decode(String.self, forKey: .id)
+        data = try c.decodeIfPresent(AnyJSON.self, forKey: .data)
+        if let i = try? c.decode(Int64.self, forKey: .updated_at) { updated_at = i }
+        else if let d = try? c.decode(Double.self, forKey: .updated_at) { updated_at = Int64(d.rounded()) }
+        else if let s = try? c.decode(String.self, forKey: .updated_at), let i = Int64(s) { updated_at = i }
+        else { updated_at = 0 }
+        deleted = (try? c.decode(Bool.self, forKey: .deleted)) ?? false
+    }
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(user_id, forKey: .user_id)
+        try c.encode(kind, forKey: .kind)
+        try c.encode(id, forKey: .id)
+        if let data { try c.encode(data, forKey: .data) } else { try c.encodeNil(forKey: .data) }
+        try c.encode(updated_at, forKey: .updated_at)
+        try c.encode(deleted, forKey: .deleted)
+    }
 }
 
 /// Opaque JSON value so we can round-trip `data jsonb` without re-modelling it.
@@ -50,12 +82,12 @@ indirect enum JSONValue: Codable, Equatable {
 }
 
 enum SyncError: LocalizedError {
-    case tableMissing, unauthorized, http(Int)
+    case tableMissing, unauthorized, http(Int, String?)
     var errorDescription: String? {
         switch self {
         case .tableMissing: return "Cloud sync isn't set up on the server yet (user_recipes table missing)."
         case .unauthorized: return "Your session expired. Sign in again."
-        case .http(let c): return "Sync failed (HTTP \(c))."
+        case .http(let c, let detail): return "HTTP \(c)" + (detail.map { " — \($0)" } ?? "")
         }
     }
 }
@@ -88,7 +120,10 @@ final class SupabaseSync: SyncService {
         let text = String(decoding: data, as: UTF8.self)
         if code == 404 || text.contains("PGRST205") || text.contains("42P01") { throw SyncError.tableMissing }
         if code == 401 || code == 403 { throw SyncError.unauthorized }
-        throw SyncError.http(code)
+        // Surface PostgREST's code + message (e.g. "22P02: invalid input syntax for type bigint").
+        let j = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        let detail = [j?["code"] as? String, j?["message"] as? String].compactMap { $0 }.joined(separator: ": ")
+        throw SyncError.http(code, detail.isEmpty ? nil : String(detail.prefix(160)))
     }
 
     func pull(session: AuthSession) async throws -> [SyncRecord] {
@@ -127,13 +162,13 @@ enum SyncMerge {
         var data = local.data, stamps = local.stamps, tomb = local.tombstones
         var remoteStamp: [String: Double] = [:]
         for r in remote {
-            remoteStamp[r.id] = r.updated_at
+            remoteStamp[r.id] = Double(r.updated_at)
             let localStamp = max(stamps[r.id] ?? -1, tomb[r.id] ?? -1)
-            guard r.updated_at > localStamp else { continue }
+            guard Double(r.updated_at) > localStamp else { continue }
             if r.deleted {
-                data[r.id] = nil; stamps[r.id] = nil; tomb[r.id] = r.updated_at
+                data[r.id] = nil; stamps[r.id] = nil; tomb[r.id] = Double(r.updated_at)
             } else if let raw = r.data?.raw {
-                data[r.id] = raw; stamps[r.id] = r.updated_at; tomb[r.id] = nil
+                data[r.id] = raw; stamps[r.id] = Double(r.updated_at); tomb[r.id] = nil
             }
         }
         let push = data.keys.filter { (stamps[$0] ?? 0) > (remoteStamp[$0] ?? -1) }

@@ -220,7 +220,7 @@ final class AppStore {
     func clearShopping() { shopping = []; persistShopping() }
 
     // MARK: sync bookkeeping (last-write-wins)
-    private func nowMs() -> Double { Date().timeIntervalSince1970 * 1000 }
+    private func nowMs() -> Double { (Date().timeIntervalSince1970 * 1000).rounded() }
 
     private func stampChanges() {
         let t = nowMs()
@@ -275,7 +275,7 @@ final class AppStore {
             saveDefaults(meta, key: "ate.sync.v1")
 
             func rec(_ kind: String, _ id: String, _ data: Data?, _ stamp: Double, _ del: Bool) -> SyncRecord {
-                SyncRecord(user_id: s.userID, kind: kind, id: id, data: data.map { AnyJSON($0) }, updated_at: stamp, deleted: del)
+                SyncRecord(user_id: s.userID, kind: kind, id: id, data: data.map { AnyJSON($0) }, stampMs: stamp, deleted: del)
             }
             var out: [SyncRecord] = []
             out += r.push.map { rec("recipe", $0, r.data[$0], r.stamps[$0] ?? nowMs(), false) }

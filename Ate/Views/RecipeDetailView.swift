@@ -17,7 +17,7 @@ struct RecipeDetailView: View {
             if let recipe = store.recipe(recipeID) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        BackBar(title: "Back", action: { store.path.removeAll() }) {
+                        BackBar(title: "Recipes", action: { store.path.removeAll() }) {
                             IconButton(symbol: "square.and.arrow.up", label: "Share recipe") { shareChoice = true }
                             IconButton(symbol: "pencil", label: "Edit") { editing.toggle() }.accessibilityIdentifier("editButton")
                             IconButton(symbol: "trash", label: "Delete", tint: Theme.destructive) { confirmDelete = true }

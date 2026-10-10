@@ -404,6 +404,7 @@ final class AppStore {
 
     private func wipeLocalData() {
         recipes = []; shopping = []
+        tab = .library; path = []; shoppingPath = []; settingsPath = []
         persistRecipes(stamp: false); persistShopping(stamp: false)
         meta = SyncMeta(); saveDefaults(meta, key: "ate.sync.v1")
         recipeSnapshot = [:]; shopSnapshot = [:]

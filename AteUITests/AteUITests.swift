@@ -581,12 +581,13 @@ final class AteUITests: XCTestCase {
         app.buttons["Add to shopping list"].tap()
         tabs.buttons["Shopping list"].tap()
         wait(text("5 to buy"))
-        let badge = tabs.buttons["Shopping list"].value as? String ?? ""
+        let sb = tabs.buttons["Shopping list"]
+        let badge = (sb.value as? String ?? "") + " " + sb.label
         XCTAssertTrue(badge.contains("5"), "badge shows unticked count, got \(badge)")
         shot("tabbar-shopping-badge")
         app.buttons["Mark honey as bought"].firstMatch.tap()
         wait(text("4 to buy"))
-        XCTAssertTrue((tabs.buttons["Shopping list"].value as? String ?? "").contains("4"))
+        XCTAssertTrue(((sb.value as? String ?? "") + " " + sb.label).contains("4"))
         tabs.buttons["Settings"].tap()
         wait(text("Timer notifications"))
         shot("tabbar-settings")

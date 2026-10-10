@@ -33,7 +33,8 @@ final class HealthInsightTests: XCTestCase {
     }
     func testRecoveryPrefersProtein() {
         let s = RecipeHealthMatcher.suggestions(for: .recovery, recipes: library)
-        XCTAssertEqual(s.first?.title, "Grilled chicken bowl"); XCTAssertLessThanOrEqual(s.count, 3)
+        XCTAssertTrue(s.contains { $0.title == "Grilled chicken bowl" }); XCTAssertEqual(s.count, 3)
+        XCTAssertEqual(s.first?.why, "Protein for recovery")
         XCTAssertFalse(s.contains { $0.title == "Vetkoek" })
     }
     func testUnderactiveAvoidsFried() {

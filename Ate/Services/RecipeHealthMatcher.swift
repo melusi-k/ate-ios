@@ -2,8 +2,8 @@ import Foundation
 
 /// Ranks saved recipes for a body state using ingredients, tags, title and time. Heuristic, not nutrition advice.
 enum RecipeHealthMatcher {
-    static let protein = ["chicken", "beef", "steak", "lamb", "pork", "fish", "salmon", "tuna", "egg", "eggs", "beans", "lentil", "lentils",
-                          "chickpea", "chickpeas", "tofu", "yoghurt", "yogurt", "greek yogurt", "cottage cheese", "prawn", "prawns", "mince",
+    static let protein = ["chicken", "beef", "steak", "lamb", "pork", "fish", "salmon", "tuna", "egg", "beans", "lentil",
+                          "chickpea", "tofu", "yoghurt", "yogurt", "cottage cheese", "prawn", "mince",
                           "turkey", "quinoa", "protein", "boerewors", "mogodu", "liver"]
     static let light = ["salad", "soup", "broth", "vegetable", "veg", "spinach", "greens", "cucumber", "tomato", "steamed", "grilled",
                         "zucchini", "courgette", "cabbage", "light", "lemon", "herbs", "morogo"]
@@ -30,7 +30,7 @@ enum RecipeHealthMatcher {
         let text = parts.joined(separator: " ").lowercased()
         func hits(_ words: [String]) -> Int {
             var n = 0
-            for w in words where text.range(of: "\\b" + w + "\\b", options: .regularExpression) != nil { n += 1 }
+            for w in words where text.range(of: "\\b" + w + "s?\\b", options: .regularExpression) != nil { n += 1 }
             return n
         }
         let p = hits(protein), l = hits(light), c = hits(comfort), h = hits(heavy), e = hits(energy)

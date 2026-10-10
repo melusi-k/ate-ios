@@ -54,6 +54,23 @@ enum RecipePrompt {
     8. confidence is 0 to 1: how sure you are that this card is the dish in the text.
     """
 
+    enum Input: String { case link, social, photo, screenshot, prompt, rewrite }
+
+    /// Per-input instructions ("profiles"): the shared rules plus a short mode-specific brief.
+    /// (FoundationModels in Xcode 26.6 has no Dynamic Profiles API; a fresh session per input does the same job.)
+    static func instructions(for input: Input) -> String {
+        let brief: String
+        switch input {
+        case .link: brief = "Input: text scraped from a recipe web page. Ignore navigation, ads and comments."
+        case .social: brief = "Input: a social media caption. It may be an advert or menu; follow rule 3 and 4 strictly."
+        case .photo: brief = "Input: a food photo the user named. If you need any text printed in the photo (menu boards, labels), call the readPhotoText tool. Never invent a different dish than the one named."
+        case .screenshot: brief = "Input: OCR text of a recipe screenshot. Keep the original quantities and order."
+        case .prompt: brief = "Input: the user's own description. A sensible traditional recipe is fine; still follow the units and timing rules."
+        case .rewrite: brief = "Input: an existing recipe card as JSON plus the user's change request. Change only what is asked."
+        }
+        return instructions + "\n" + brief
+    }
+
     static func social(caption raw: String) -> String {
         let caption = CaptionAnalysis.scrub(CaptionAnalysis.stripInstagramPrefix(raw))
         var p = "Social media caption (the only source of truth):\n\"\"\"\n\(caption.prefix(3000))\n\"\"\"\n"
@@ -76,11 +93,13 @@ enum RecipePrompt {
     }
 
     /// Food photo where the user (or a confident label) named the dish.
-    static func photo(dish: String, labels: [String], ocr: String) -> String {
+    /// `ocr` is inlined only on the fallback path; with the readPhotoText tool the model fetches it on demand.
+    static func photo(dish: String, labels: [String], ocr: String, ocrViaTool: Bool = false) -> String {
         var p = "A photo shows this dish: \(dish). Write a traditional home-cook recipe for exactly that dish."
         if !labels.isEmpty { p += " Image labels (generic hints only): \(labels.prefix(5).joined(separator: ", "))." }
         let o = ocr.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !o.isEmpty { p += " Text visible in the photo: \(o.prefix(200))." }
+        if ocrViaTool { if !o.isEmpty { p += " The photo contains some printed text; call readPhotoText if it helps." } }
+        else if !o.isEmpty { p += " Text visible in the photo: \(o.prefix(200))." }
         return p + "\n" + glossary(for: dish + " " + o)
     }
 

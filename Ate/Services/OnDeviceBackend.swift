@@ -60,30 +60,34 @@ final class OnDeviceBackend: BackendService {
         guard Self.isModelAvailable else { return try await fallback.parseRecipe(request) }
         var source: RecipeSource = .appleIntelligence
         let prompt: String
+        var input: RecipePrompt.Input = .prompt
+        var photoForTool: String?
         switch request.mode {
         case .prompt:
             prompt = RecipePrompt.prompt(request.text ?? "")
         case .url where socialCaption != nil:
-            prompt = RecipePrompt.social(caption: socialCaption!)
+            prompt = RecipePrompt.social(caption: socialCaption!); input = .social
         case .url:
             let page: String
             if let html = pageHTML { page = String(Self.htmlToText(html).prefix(3500)) }
             else { page = try await Self.fetchPageText(request.text ?? "") }
-            prompt = RecipePrompt.page(page)
+            prompt = RecipePrompt.page(page); input = .link
         case .image:
             let text = try await Self.ocr(dataURL: request.imageDataUrl ?? "")
             let hint = (request.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             if PhotoGuess.isScreenshotText(text) && hint.isEmpty {
-                prompt = RecipePrompt.screenshot(text)
+                prompt = RecipePrompt.screenshot(text); input = .screenshot
             } else {
                 // A food photo: OCR + labels; generic labels mean we ask the user before generating.
                 let labels = try await Self.classify(dataURL: request.imageDataUrl ?? "")
                 let names = PhotoGuess.dishes(from: labels)
+                input = .photo; photoForTool = request.imageDataUrl
+                let viaTool = Self.toolsAvailable
                 if !hint.isEmpty {
-                    prompt = RecipePrompt.photo(dish: hint, labels: names, ocr: text)
+                    prompt = RecipePrompt.photo(dish: hint, labels: names, ocr: text, ocrViaTool: viaTool)
                 } else {
                     switch PhotoGuess.assess(labels: labels, ocrText: text) {
-                    case .confident(let dish): prompt = RecipePrompt.photo(dish: dish, labels: names, ocr: text)
+                    case .confident(let dish): prompt = RecipePrompt.photo(dish: dish, labels: names, ocr: text, ocrViaTool: viaTool)
                     case .uncertain(let s): throw PhotoNeedsDishError(suggestions: s, spread: false)
                     case .spread(let s): throw PhotoNeedsDishError(suggestions: s, spread: true)
                     }
@@ -94,9 +98,9 @@ final class OnDeviceBackend: BackendService {
             var c = request.currentRecipe ?? RecipeCard()
             c.imageURL = nil; c.sourceURL = nil
             let json = (try? String(data: JSONEncoder().encode(c), encoding: .utf8)) ?? ""
-            prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"
+            prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"; input = .rewrite
         }
-        var card = try await Self.generate(prompt)
+        var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool)
         card.source = source; card.generatedAt = Date().timeIntervalSince1970 * 1000
         if request.mode == .url, let u = URL(string: (request.text ?? "").trimmingCharacters(in: .whitespaces)) {
             card.sourceURL = SocialLinks.clean(u).absoluteString
@@ -115,10 +119,20 @@ final class OnDeviceBackend: BackendService {
 
     static let instructions = RecipePrompt.instructions
 
-    static func generate(_ prompt: String) async throws -> RecipeCard {
+    /// Tools are part of FoundationModels on iOS 26 (verified in Xcode 26.6's swiftinterface).
+    static var toolsAvailable: Bool {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) { return true }
+        #endif
+        return false
+    }
+
+    static func generate(_ prompt: String, input: RecipePrompt.Input = .prompt, photoDataURL: String? = nil) async throws -> RecipeCard {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
-            let session = LanguageModelSession(instructions: instructions)
+            var tools: [any Tool] = []
+            if let photoDataURL { tools.append(PhotoTextTool(dataURL: photoDataURL)) }
+            let session = LanguageModelSession(tools: tools, instructions: RecipePrompt.instructions(for: input))
             do {
                 // Extraction, not creative writing: greedy decoding keeps the card grounded in the text.
                 let res = try await session.respond(to: prompt, generating: GenRecipe.self, options: GenerationOptions(sampling: .greedy, temperature: 0.1))
@@ -224,6 +238,23 @@ final class OnDeviceBackend: BackendService {
 }
 
 #if canImport(FoundationModels)
+/// Vision OCR exposed to the model as a Tool, so text in a food photo is read only when the model wants it.
+@available(iOS 26.0, *)
+struct PhotoTextTool: Tool {
+    let dataURL: String
+    let name = "readPhotoText"
+    let description = "Reads any printed text (menu board, label, packaging) in the user's food photo. Returns the text, or 'no text'."
+    @Generable
+    struct Arguments {
+        @Guide(description: "Why the text is needed, e.g. 'menu board names the dish'") var reason: String
+    }
+    func call(arguments: Arguments) async throws -> String {
+        let t = (try? await OnDeviceBackend.ocr(dataURL: dataURL)) ?? ""
+        let clean = t.trimmingCharacters(in: .whitespacesAndNewlines)
+        return clean.isEmpty ? "no text" : String(clean.prefix(600))
+    }
+}
+
 @available(iOS 26.0, *)
 @Generable
 struct GenIngredient {

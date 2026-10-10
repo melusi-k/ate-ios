@@ -183,7 +183,7 @@ struct RecipeEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            labeled("Title") { TextField("Title", text: $recipe.title).ateField() }
+            labeled("Title") { TextField("Title", text: $recipe.title).ateField().accessibilityIdentifier("editorTitle") }
             labeled("Description") { TextField("Description", text: descText, axis: .vertical).lineLimit(2...4).ateField() }
             HStack(spacing: 12) {
                 labeled("Servings") {

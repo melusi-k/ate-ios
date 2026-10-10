@@ -43,7 +43,7 @@ struct AddRecipeSheet: View {
         Text("ate turns a link, a screenshot or an idea into a clean recipe card.")
             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
         Picker("Source", selection: $mode) {
-            ForEach(Mode.allCases, id: \.self) { m in Label(m.rawValue, systemImage: m.symbol).tag(m) }
+            ForEach(Mode.allCases, id: \.self) { m in Text(m.rawValue).tag(m) }
         }.pickerStyle(.segmented)
 
         switch mode {
@@ -51,6 +51,7 @@ struct AddRecipeSheet: View {
             HStack {
                 TextField("https://tiktok.com/...", text: $link).keyboardType(.URL)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .accessibilityIdentifier("linkField")
                 Button("Paste") { if let s = UIPasteboard.general.string { link = s } }.font(AteFont.body(13, .semibold))
             }.ateField()
         case .image:
@@ -64,13 +65,17 @@ struct AddRecipeSheet: View {
                 .background(Theme.muted.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(style: StrokeStyle(lineWidth: 1.5, dash: [6])).foregroundStyle(Theme.border))
             }
+            if AppConfig.isUITesting {
+                Button("Use sample screenshot") { imageData = Self.sampleImage() }
+                    .buttonStyle(.ate(.secondary, height: 40)).accessibilityIdentifier("sampleImage")
+            }
             if let d = imageData, let ui = UIImage(data: d) {
                 Image(uiImage: ui).resizable().scaledToFill().frame(maxWidth: .infinity, maxHeight: 192)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         case .prompt:
             ZStack(alignment: .topLeading) {
-                TextEditor(text: $prompt).frame(height: 84).scrollContentBackground(.hidden).padding(6)
+                TextEditor(text: $prompt).accessibilityIdentifier("promptEditor").frame(height: 84).scrollContentBackground(.hidden).padding(6)
                 if prompt.isEmpty {
                     Text("A quick weeknight miso salmon for two").foregroundStyle(Theme.mutedForeground).padding(12).allowsHitTesting(false)
                 }
@@ -85,7 +90,7 @@ struct AddRecipeSheet: View {
             HStack { if loading { ProgressView().tint(Theme.primaryForeground); Text("Cooking up your card…") }
                      else { Image(systemName: "sparkles"); Text("Generate recipe card") } }
         }
-        .buttonStyle(.ate(.primary, height: 52, full: true)).disabled(loading)
+        .buttonStyle(.ate(.primary, height: 52, full: true)).disabled(loading).accessibilityIdentifier("generateButton")
     }
 
     @ViewBuilder private var reviewState: some View {
@@ -99,7 +104,7 @@ struct AddRecipeSheet: View {
         }
         HStack(spacing: 8) {
             Button("Save recipe") { if let d = draft { onSave(RecipeLogic.normalize(d)) } }
-                .buttonStyle(.ate(.primary, full: true))
+                .buttonStyle(.ate(.primary, full: true)).accessibilityIdentifier("saveRecipe")
             Button(editing ? "Preview" : "Edit") { editing.toggle() }.buttonStyle(.ate(.secondary))
             Button { Task { await generate() } } label: {
                 Image(systemName: "arrow.clockwise").rotationEffect(.degrees(loading ? 360 : 0))
@@ -107,6 +112,14 @@ struct AddRecipeSheet: View {
             }
             .buttonStyle(.ate(.ghost)).disabled(loading).accessibilityLabel("Regenerate")
         }
+    }
+
+    static func sampleImage() -> Data? {
+        UIGraphicsImageRenderer(size: CGSize(width: 300, height: 200)).image { ctx in
+            UIColor.white.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 300, height: 200))
+            ("Pancakes\n200 g flour\n2 eggs\nCook 2 minutes" as NSString)
+                .draw(at: CGPoint(x: 16, y: 16), withAttributes: [.font: UIFont.systemFont(ofSize: 22)])
+        }.pngData()
     }
 
     private func generate() async {

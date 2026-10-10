@@ -20,7 +20,7 @@ struct ShoppingListView: View {
                         TextField("Add something else…", text: $newItem).font(AteFont.body(15))
                             .padding(.horizontal, 18).frame(height: 48)
                             .background(Theme.card, in: Capsule()).overlay(Capsule().stroke(Theme.input))
-                            .onSubmit(addManual)
+                            .onSubmit(addManual).accessibilityIdentifier("shoppingAddField")
                         Button(action: addManual) {
                             Image(systemName: "plus").font(.system(size: 18, weight: .bold)).foregroundStyle(Theme.primaryForeground)
                                 .frame(width: 48, height: 48).background(Theme.primary, in: Circle())

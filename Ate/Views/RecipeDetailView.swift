@@ -19,8 +19,9 @@ struct RecipeDetailView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         BackBar(title: "Library", action: { store.path.removeAll() }) {
                             IconButton(symbol: "square.and.arrow.up", label: "Share recipe") { Task { await doShare(recipe) } }
-                            IconButton(symbol: "pencil", label: "Edit") { editing.toggle() }
+                            IconButton(symbol: "pencil", label: "Edit") { editing.toggle() }.accessibilityIdentifier("editButton")
                             IconButton(symbol: "trash", label: "Delete", tint: Theme.destructive) { confirmDelete = true }
+                                .accessibilityIdentifier("deleteButton")
                         }
                         if editing {
                             VStack(spacing: 16) {
@@ -57,7 +58,7 @@ struct RecipeDetailView: View {
             }
         }
         .confirmationDialog("Delete this recipe?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
+            Button("Delete recipe", role: .destructive) {
                 store.delete(recipeID)
                 store.show("Recipe deleted")
                 store.path.removeAll()
@@ -71,7 +72,7 @@ struct RecipeDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Ask ate").overline()
             HStack(spacing: 8) {
-                TextField("Make this vegan", text: $ask).ateField().onSubmit { Task { await rewrite(recipe) } }
+                TextField("Make this vegan", text: $ask).ateField().accessibilityIdentifier("askField").onSubmit { Task { await rewrite(recipe) } }
                 Button { Task { await rewrite(recipe) } } label: {
                     if asking { ProgressView().tint(Theme.primaryForeground) } else { Image(systemName: "sparkles") }
                 }

@@ -58,11 +58,23 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.tests
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/Ate.app/Ate
         BUNDLE_LOADER: $(TEST_HOST)
+  AteUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [AteUITests]
+    dependencies:
+      - target: Ate
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.uitests
+        TEST_TARGET_NAME: Ate
 schemes:
   Ate:
     build:
       targets:
         Ate: all
         AteTests: [test]
+        AteUITests: [test]
     test:
-      targets: [AteTests]
+      targets: [AteTests, AteUITests]

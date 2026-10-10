@@ -89,7 +89,7 @@ struct SettingsView: View {
                 Text(title).font(AteFont.body(16, .medium))
                 Text(detail).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
             }
-        }.tint(Theme.primary)
+        }.tint(Theme.primary).accessibilityIdentifier("toggle." + title)
     }
 
     private func timePicker(_ label: String, _ b: Binding<String>) -> some View {

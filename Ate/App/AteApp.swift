@@ -7,7 +7,11 @@ struct AteApp: App {
     @State private var store: AppStore
 
     init() {
-        let c = try? ModelContainer(for: RecipeEntity.self, ShoppingEntity.self)
+        if AppConfig.isUITesting {
+            for k in ["ate.settings.v1", "ate.timerprefs.v1"] { UserDefaults.standard.removeObject(forKey: k) }
+        }
+        let config = ModelConfiguration(isStoredInMemoryOnly: AppConfig.isUITesting)
+        let c = try? ModelContainer(for: RecipeEntity.self, ShoppingEntity.self, configurations: config)
         container = c
         _store = State(initialValue: AppStore(context: c?.mainContext))
     }
@@ -17,6 +21,7 @@ struct AteApp: App {
             RootView()
                 .environment(store)
                 .onOpenURL { store.handle(url: $0) }
+                .task { if let u = AppConfig.launchURL { store.handle(url: u) } }
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { a in
                     if let u = a.webpageURL { store.handle(url: u) }
                 }

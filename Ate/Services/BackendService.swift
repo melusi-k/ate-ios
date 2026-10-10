@@ -39,7 +39,18 @@ enum AppConfig {
     static var shareHost: String { string("AteShareHost").isEmpty ? "https://recipe-transform-ai.lovable.app" : string("AteShareHost") }
 
     /// Modes: "ondevice" (default: Foundation Models + Vision, mock fallback), "mock", "supabase".
+    /// Launched by XCUITest: mock AI, in-memory store, no permission prompts.
+    static var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-UITesting") }
+
+    /// Optional deep link passed as `-ateOpenURL <url>` (used by UI tests).
+    static var launchURL: URL? {
+        let a = ProcessInfo.processInfo.arguments
+        guard let i = a.firstIndex(of: "-ateOpenURL"), i + 1 < a.count else { return nil }
+        return URL(string: a[i + 1])
+    }
+
     static func makeBackend() -> BackendService {
+        if isUITesting { return MockBackend() }
         let server: BackendService = {
             if let url = supabaseURL { return SupabaseBackend(baseURL: url, publishableKey: supabasePublishableKey) }
             return MockBackend()

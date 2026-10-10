@@ -24,7 +24,7 @@ struct SharedRecipeView: View {
                     var copy = r
                     copy.id = UUID().uuidString
                     copy.createdAt = Date().timeIntervalSince1970 * 1000
-                    copy.source = .shared
+                    copy.source = .shared; copy.origin = .shared
                     store.add(copy)
                     store.show("Saved to your library")
                     store.path = [.recipe(copy.id)]

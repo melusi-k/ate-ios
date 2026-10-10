@@ -5,6 +5,7 @@ final class AteUITests: XCTestCase {
 
     override func setUp() {
         continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
     }
 
     @discardableResult
@@ -651,5 +652,63 @@ final class AteUITests: XCTestCase {
         wait(tabs)
         XCTAssertTrue(tabs.buttons["Library"].isSelected)
         shot("tabbar-deeplink-shared")
+    }
+
+    // MARK: landscape sidebar + filters
+
+    func test26_FilterChipsPortrait() {
+        launch()
+        addPromptRecipe()
+        app.tabBars.buttons["Library"].tap()
+        wait(text("Your kitchen library"), 5)
+        wait(app.buttons["chip.time30"])
+        shot("library-filter-chips")
+        app.buttons["chip.time30"].tap()     // mock recipe is 25 min
+        wait(app.staticTexts["filterResultCount"], 3)
+        XCTAssertTrue(app.staticTexts["filterResultCount"].label.hasPrefix("1 of 1"))
+        app.buttons["chip.time15"].tap()
+        wait(text("No recipes match these filters"), 3)
+        shot("library-filter-no-match")
+        app.buttons["chip.clear"].tap()
+        XCTAssertTrue(app.staticTexts["filterResultCount"].waitForNonExistence(timeout: 3))
+        app.buttons["chip.tag.fish"].tap()
+        XCTAssertTrue(app.staticTexts["filterResultCount"].label.hasPrefix("1 of 1"))
+        app.buttons["chip.clear"].tap()
+    }
+
+    func test27_LandscapeSidebarGridAndCollections() {
+        launch()
+        addPromptRecipe()
+        // favourite it from the detail screen
+        app.buttons["favouriteButton"].tap()
+        wait(text("Added to Favourites"), 5)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        sleep(2)
+        let sidebar = app.buttons["sidebar.Library"]
+        if !sidebar.waitForExistence(timeout: 5) {
+            // sidebar collapsed: reveal it
+            app.navigationBars.buttons.firstMatch.tap()
+        }
+        wait(sidebar, 5)
+        sidebar.tap()
+        wait(app.descendants(matching: .any)["libraryGrid"].firstMatch, 5)
+        XCTAssertTrue(app.buttons["gridCard"].firstMatch.exists)
+        shot("landscape-sidebar-grid")
+        app.buttons["sidebar.Favourites"].tap()
+        wait(app.buttons["chip.collection"], 5)
+        XCTAssertTrue(app.buttons["gridCard"].firstMatch.exists)
+        shot("landscape-collection-favourites")
+        app.buttons["sidebar.Recently cooked"].tap()
+        wait(text("No recipes match these filters"), 5)
+        app.buttons["sidebar.Fish"].tap()
+        XCTAssertTrue(app.buttons["gridCard"].firstMatch.waitForExistence(timeout: 3))
+        shot("landscape-collection-fish")
+        app.buttons["sidebar.Shopping list"].tap()
+        wait(text("Nothing on the list"), 5)
+        shot("landscape-shopping")
+        XCUIDevice.shared.orientation = .portrait
+        sleep(2)
+        wait(app.tabBars.firstMatch, 5)
+        shot("portrait-after-rotate")
     }
 }

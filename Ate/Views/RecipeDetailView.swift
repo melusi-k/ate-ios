@@ -18,6 +18,9 @@ struct RecipeDetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         BackBar(title: "Recipes", action: { store.path.removeAll() }) {
+                            IconButton(symbol: recipe.favorite ? "star.fill" : "star",
+                                       label: recipe.favorite ? "Remove from Favourites" : "Add to Favourites") { store.toggleFavourite(recipe.id) }
+                                .accessibilityIdentifier("favouriteButton")
                             IconButton(symbol: "square.and.arrow.up", label: "Share recipe") { shareChoice = true }
                             IconButton(symbol: "pencil", label: "Edit") { editing.toggle() }.accessibilityIdentifier("editButton")
                             IconButton(symbol: "trash", label: "Delete", tint: Theme.destructive) { confirmDelete = true }

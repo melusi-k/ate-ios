@@ -193,6 +193,7 @@ struct AddRecipeSheet: View {
         do {
             let started = Date()
             var card = try await store.backend.parseRecipe(req)
+            card.origin = mode == .link ? .link : (mode == .image ? .photo : .prompt)
             if mode == .link, let u = URL(string: link.trimmingCharacters(in: .whitespaces)) { card.sourceURL = SocialLinks.clean(u).absoluteString }
             GenerationLog.last = GenerationLog(source: card.source, latencyMs: Int(Date().timeIntervalSince(started) * 1000),
                                                mode: mode.rawValue, date: Date())

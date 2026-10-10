@@ -68,6 +68,31 @@ final class AppStore {
     /// Item handed over by the "Save to ate" share extension, waiting for the Add sheet.
     var pendingImport: SharedInbox.Item?
     var pendingShoppingCount: Int { shopping.filter { !$0.done }.count }
+    /// Library chip-row / sidebar filter, persisted between launches (UI tests start clean).
+    var filter: RecipeFilter = AppConfig.isUITesting ? RecipeFilter() : RecipeFilter.load() {
+        didSet { if !AppConfig.isUITesting { filter.save() } }
+    }
+
+    /// Sidebar/tab selection of a collection applies its filter; Library clears it.
+    func select(_ t: AppTab) {
+        switch t {
+        case .collection(let c): filter.collection = c; tab = t
+        case .library: filter.collection = nil; tab = t
+        default: tab = t
+        }
+    }
+
+    func toggleFavourite(_ id: String) {
+        guard var r = recipe(id) else { return }
+        r.favorite.toggle(); update(r)
+        show(r.favorite ? "Added to Favourites" : "Removed from Favourites")
+        Haptics.toggle()
+    }
+
+    func markCooked(_ id: String) {
+        guard var r = recipe(id) else { return }
+        r.lastCookedAt = (Date().timeIntervalSince1970 * 1000).rounded(); update(r)
+    }
 
     /// Picks up the next item queued by the share extension (called when the app becomes active).
     func checkInbox() {

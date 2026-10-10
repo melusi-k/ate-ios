@@ -15,6 +15,13 @@
 - Deep links select a tab: `ate://recipe/…`, `ate://r/…`, `ate://cook/…` and `ate://import` go to Library, and `ate://auth-callback` goes to Settings.
 - Built with the iOS 26 SDK, so it gets the Liquid Glass tab bar by default, tinted in the brand orange.
 
+### F1d. Adaptive sidebar, collections and filters (v1.3)
+- **Navigation:** iOS 18+ `TabView` with `Tab`/`TabSection("Collections")` and `.tabViewStyle(.sidebarAdaptable)`. Portrait iPhone keeps the bottom tab bar (collections hidden from the bar with `.defaultVisibility(.hidden, for: .tabBar)`). iPhone doesn't show the adaptable sidebar, so in landscape (`verticalSizeClass == .compact`) the app switches to a custom collapsible `NavigationSplitView` sidebar (`LandscapeSplitView`) with the same items. Deployment target raised to iOS 18.
+- **Library layout:** single-column list in portrait. In landscape or a regular width it becomes an adaptive `LazyVGrid` of thumbnail cards (min 250 pt, so 2 columns on a landscape iPhone and 3+ on wider screens).
+- **Collections:** Quick (<30 min), Favourites (`favorite` flag, star in detail and the long-press menu), Recently added (newest 20), Recently cooked (`lastCookedAt`, stamped when cook mode opens), and an auto-collection per main ingredient (`IngredientTags.main`). Selecting one sets `RecipeFilter.collection`.
+- **Filter chips (both orientations):** time ≤15/30/60, origin (`RecipeOrigin` link/photo/prompt/shared, inferred for legacy cards), servings 1–2/3–4/5+, Favourites, and ingredient tags auto-extracted from ingredient names (whole-word keyword table, plus vegetarian/vegan when no meat, fish or animal products). Values OR within a group and groups AND together. There's a result count and Clear (n), and the filter persists in UserDefaults.
+- **Groundwork:** the size-class-driven split view and adaptive grid are the base for the iPad kitchen display and the foldable "duo" phases below.
+
 ### F1c. "Save to ate" share extension (v1.3)
 - `AteShare` target (`com.melusik.ate.share`) accepts 1 web URL, text (it pulls the first link out of a caption) or 1 image.
 - It queues the item in the App Group (`SharedInbox`, images in `Inbox/`) and offers **Open ate** (`ate://import`). The app picks the item up when it becomes active and opens the Add sheet prefilled, with generation already started.

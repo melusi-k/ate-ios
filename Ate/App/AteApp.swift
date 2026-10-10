@@ -43,30 +43,21 @@ extension View { func withTimerBar() -> some View { modifier(TimerBarInset()) } 
 struct RootView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.scenePhase) private var phase
+    @Environment(\.verticalSizeClass) private var vSize
     private let tick = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
 
     var body: some View {
         @Bindable var store = store
-        TabView(selection: tabSelection) {
-            NavigationStack(path: $store.path) {
-                LibraryView().withTimerBar().navigationDestination(for: Route.self, destination: destination)
+        Group {
+            if vSize == .compact {
+                LandscapeSplitView()      // iPhone landscape: custom collapsible sidebar
+            } else {
+                tabs                      // portrait iPhone: bottom tab bar; iPad: adaptable sidebar
             }
-            .tabItem { Label("Library", systemImage: "books.vertical") }
-            .tag(AppTab.library)
-            .accessibilityIdentifier("tab.library")
-
-            NavigationStack(path: $store.shoppingPath) {
-                ShoppingListView().withTimerBar().navigationDestination(for: Route.self, destination: destination)
-            }
-            .tabItem { Label("Shopping list", systemImage: "basket") }
-            .badge(store.pendingShoppingCount)
-            .tag(AppTab.shopping)
-
-            NavigationStack(path: $store.settingsPath) {
-                SettingsView().withTimerBar().navigationDestination(for: Route.self, destination: destination)
-            }
-            .tabItem { Label("Settings", systemImage: "gearshape") }
-            .tag(AppTab.settings)
+        }
+        .onChange(of: vSize) { _, v in
+            // Collections are sidebar-only; back in portrait keep the filter but show the Library tab.
+            if v != .compact, case .collection = store.tab { store.tab = .library }
         }
         .fullScreenCover(item: $store.cookTarget) { target in
             CookModeView(recipeID: target.id, onExit: { store.cookTarget = nil }).environment(store)
@@ -92,21 +83,59 @@ struct RootView: View {
 }
 
 extension RootView {
+    /// iOS 18+ `Tab`/`TabSection` API with `.sidebarAdaptable` (sidebar on iPad, tab bar on iPhone).
+    @ViewBuilder var tabs: some View {
+        @Bindable var store = store
+        TabView(selection: tabSelection) {
+            Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
+                NavigationStack(path: $store.path) {
+                    LibraryView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }
+            }
+            Tab("Shopping list", systemImage: "basket", value: AppTab.shopping) {
+                NavigationStack(path: $store.shoppingPath) {
+                    ShoppingListView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }
+            }
+            .badge(store.pendingShoppingCount)
+            Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
+                NavigationStack(path: $store.settingsPath) {
+                    SettingsView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }
+            }
+            TabSection("Collections") {
+                ForEach(SidebarModel.collections(store.recipes), id: \.self) { c in
+                    Tab(c.title, systemImage: c.symbol, value: AppTab.collection(c)) {
+                        NavigationStack(path: $store.path) {
+                            LibraryView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                        }
+                    }
+                }
+            }
+            .defaultVisibility(.hidden, for: .tabBar)   // collections live in the sidebar only
+        }
+        .tabViewStyle(.sidebarAdaptable)
+    }
+
     /// Re-tapping the current tab pops its stack to the root (standard iOS behaviour).
     var tabSelection: Binding<AppTab> {
         Binding(get: { store.tab }, set: { new in
             if new == store.tab {
                 switch new {
-                case .library: store.path = []
+                case .library, .collection: store.path = []
                 case .shopping: store.shoppingPath = []
                 case .settings: store.settingsPath = []
                 }
             }
-            store.tab = new
+            store.select(new)
         })
     }
+}
 
-    @ViewBuilder func destination(_ route: Route) -> some View {
+/// Destination for every NavigationStack.
+struct RouteView: View {
+    let route: Route
+    var body: some View {
         Group {
             switch route {
             case .recipe(let id): RecipeDetailView(recipeID: id)
@@ -122,3 +151,65 @@ extension RootView {
     }
 }
 
+enum SidebarModel {
+    static func collections(_ recipes: [RecipeCard]) -> [RecipeCollection] {
+        [.quick, .favourites, .recentlyAdded, .recentlyCooked] + IngredientTags.collections(in: recipes).map { .ingredient($0) }
+    }
+}
+
+/// iPhone landscape: collapsible sidebar (Library / Shopping / Settings + Collections) beside the selected stack.
+struct LandscapeSplitView: View {
+    @Environment(AppStore.self) private var store
+    @State private var columns: NavigationSplitViewVisibility = .all
+
+    var body: some View {
+        @Bindable var store = store
+        NavigationSplitView(columnVisibility: $columns) {
+            List {
+                Section {
+                    row(.library, "Library", "books.vertical")
+                    row(.shopping, "Shopping list", "basket", badge: store.pendingShoppingCount)
+                    row(.settings, "Settings", "gearshape")
+                }
+                Section("Collections") {
+                    ForEach(SidebarModel.collections(store.recipes), id: \.self) { c in row(.collection(c), c.title, c.symbol) }
+                }
+            }
+            .listStyle(.sidebar)
+            .navigationTitle("ate")
+            .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 280)
+            .accessibilityIdentifier("sidebar")
+        } detail: {
+            switch store.tab {
+            case .library, .collection:
+                NavigationStack(path: $store.path) {
+                    LibraryView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }
+            case .shopping:
+                NavigationStack(path: $store.shoppingPath) {
+                    ShoppingListView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }
+            case .settings:
+                NavigationStack(path: $store.settingsPath) {
+                    SettingsView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }
+            }
+        }
+        .navigationSplitViewStyle(.balanced)
+        .tint(Theme.primary)
+    }
+
+    private func row(_ t: AppTab, _ title: String, _ symbol: String, badge: Int = 0) -> some View {
+        Button { store.select(t) } label: {
+            HStack {
+                Label(title, systemImage: symbol)
+                Spacer()
+                if badge > 0 { Text("\(badge)").font(AteFont.body(12, .semibold)).monospacedDigit().foregroundStyle(Theme.mutedForeground) }
+            }
+        }
+        .listRowBackground(store.tab == t ? Theme.primary.opacity(0.15) : Color.clear)
+        .foregroundStyle(store.tab == t ? Theme.primary : Theme.foreground)
+        .accessibilityIdentifier("sidebar." + title)
+        .accessibilityAddTraits(store.tab == t ? .isSelected : [])
+    }
+}

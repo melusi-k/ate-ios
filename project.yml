@@ -2,7 +2,7 @@ name: Ate
 options:
   bundleIdPrefix: com.melusik
   deploymentTarget:
-    iOS: "17.0"
+    iOS: "18.0"
   createIntermediateGroups: true
   developmentLanguage: en
 settings:

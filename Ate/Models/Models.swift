@@ -59,9 +59,15 @@ struct RecipeCard: Codable, Identifiable, Hashable {
     var source: RecipeSource = .manual
     /// ms since epoch when the card was generated/parsed (nil for manual/legacy).
     var generatedAt: Double?
+    /// How it was added (link / photo / prompt / shared). nil for legacy cards; see `RecipeFilter.origin(of:)`.
+    var origin: RecipeOrigin?
+    var favorite: Bool = false
+    /// ms since epoch when cook mode was last opened.
+    var lastCookedAt: Double?
 
     enum CodingKeys: String, CodingKey {
         case id, title, description, servings, timeMinutes, tags, ingredients, steps, imageURL, sourceURL, createdAt, source, generatedAt
+        case origin, favorite, lastCookedAt
     }
 
     init(id: String = UUID().uuidString, title: String = "Untitled recipe", description: String? = nil,
@@ -92,6 +98,9 @@ struct RecipeCard: Codable, Identifiable, Hashable {
         createdAt = (try? c.decode(Double.self, forKey: .createdAt)) ?? Date().timeIntervalSince1970 * 1000
         source = (try? c.decodeIfPresent(RecipeSource.self, forKey: .source)) ?? .unknown
         generatedAt = try? c.decodeIfPresent(Double.self, forKey: .generatedAt)
+        origin = try? c.decodeIfPresent(RecipeOrigin.self, forKey: .origin)
+        favorite = (try? c.decodeIfPresent(Bool.self, forKey: .favorite)) ?? false
+        lastCookedAt = try? c.decodeIfPresent(Double.self, forKey: .lastCookedAt)
     }
 }
 
@@ -128,7 +137,32 @@ struct TimerPrefs: Codable, Equatable {
     var quietEnd = "07:00"
 }
 
-enum AppTab: Hashable { case library, shopping, settings }
+enum RecipeOrigin: String, Codable, Hashable, CaseIterable { case link, photo, prompt, shared }
+
+/// Sidebar collections; selecting one applies the matching library filter.
+enum RecipeCollection: Hashable, Codable {
+    case quick, favourites, recentlyAdded, recentlyCooked, ingredient(String)
+    var title: String {
+        switch self {
+        case .quick: return "Quick (under 30 min)"
+        case .favourites: return "Favourites"
+        case .recentlyAdded: return "Recently added"
+        case .recentlyCooked: return "Recently cooked"
+        case .ingredient(let t): return t.prefix(1).uppercased() + t.dropFirst()
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .quick: return "bolt"
+        case .favourites: return "star"
+        case .recentlyAdded: return "clock.arrow.circlepath"
+        case .recentlyCooked: return "flame"
+        case .ingredient: return "leaf"
+        }
+    }
+}
+
+enum AppTab: Hashable { case library, shopping, settings, collection(RecipeCollection) }
 
 enum Route: Hashable {
     case recipe(String)

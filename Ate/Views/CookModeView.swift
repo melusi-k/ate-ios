@@ -26,6 +26,7 @@ struct CookModeView: View {
         .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
+            store.markCooked(recipeID)
             // Resume at the step whose timer is running, if any.
             if let t = store.timers.timers.first(where: { $0.recipeID == recipeID && $0.isRunning }) { index = t.stepIndex }
         }

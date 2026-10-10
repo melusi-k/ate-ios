@@ -203,6 +203,15 @@ struct LibraryView: View {
         Button { store.addToShopping(r, factor: 1); store.show("Added to your shopping list") } label: {
             Label("Add to shopping list", systemImage: "basket")
         }
+        if store.layout.canReorder {
+            let ordered = store.layout.sorted(store.filter.apply(store.recipes, query: query))
+            if let i = ordered.firstIndex(where: { $0.id == r.id }) {
+                if i > 0 { Button { store.move(r.id, before: ordered[i - 1].id, in: ordered) } label: { Label("Move up", systemImage: "arrow.up") } }
+                if i < ordered.count - 1 {
+                    Button { store.move(fromOffsets: IndexSet(integer: i), toOffset: i + 2, in: ordered) } label: { Label("Move down", systemImage: "arrow.down") }
+                }
+            }
+        }
         Divider()
         Button(role: .destructive) { store.deleteWithUndo(r.id) } label: { Label("Delete", systemImage: "trash") }
     }

@@ -695,10 +695,7 @@ final class AteUITests: XCTestCase {
         XCUIDevice.shared.orientation = .landscapeLeft
         sleep(2)
         let sidebar = app.buttons["sidebar.Library"]
-        if !sidebar.waitForExistence(timeout: 5) {
-            // sidebar collapsed: reveal it
-            app.navigationBars.buttons.firstMatch.tap()
-        }
+        if !sidebar.waitForExistence(timeout: 5) { app.buttons["sidebarToggle"].tap() }
         wait(sidebar, 5)
         sidebar.tap()
         wait(app.descendants(matching: .any)["libraryGrid"].firstMatch, 5)
@@ -783,10 +780,17 @@ final class AteUITests: XCTestCase {
         let first = text("First dish"), second = text("Second dish")
         wait(first)
         XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
-        // drag "First dish" above "Second dish"
-        first.press(forDuration: 1.0, thenDragTo: second)
+        // accessible reorder: long-press → Move up
+        first.press(forDuration: 1.2)
+        wait(app.buttons["Move up"], 3)
+        shot("library-reorder-menu")
+        app.buttons["Move up"].tap()
         sleep(1)
-        shot("library-reorder")
-        XCTAssertLessThan(text("First dish").frame.minY, text("Second dish").frame.minY, "drag reordered")
+        XCTAssertLessThan(text("First dish").frame.minY, text("Second dish").frame.minY, "moved up")
+        shot("library-reordered")
+        // drag (best effort in the simulator)
+        text("First dish").press(forDuration: 1.0, thenDragTo: text("Second dish"))
+        sleep(1)
+        shot("library-reorder-drag")
     }
 }

@@ -157,45 +157,61 @@ enum SidebarModel {
     }
 }
 
-/// iPhone landscape: collapsible sidebar (Library / Shopping / Settings + Collections) beside the selected stack.
+/// iPhone landscape: custom collapsible sidebar (Library / Shopping / Settings + Collections) beside the selected stack.
+/// (NavigationSplitView collapses to a single stack at compact width on non-Max iPhones, so this is hand-built.)
 struct LandscapeSplitView: View {
     @Environment(AppStore.self) private var store
-    @State private var columns: NavigationSplitViewVisibility = .all
+    @AppStorage("ate.sidebar.visible") private var showSidebar = true
 
     var body: some View {
         @Bindable var store = store
-        NavigationSplitView(columnVisibility: $columns) {
-            List {
-                Section {
-                    row(.library, "Library", "books.vertical")
-                    row(.shopping, "Shopping list", "basket", badge: store.pendingShoppingCount)
-                    row(.settings, "Settings", "gearshape")
+        HStack(spacing: 0) {
+            if showSidebar {
+                List {
+                    Section {
+                        row(.library, "Library", "books.vertical")
+                        row(.shopping, "Shopping list", "basket", badge: store.pendingShoppingCount)
+                        row(.settings, "Settings", "gearshape")
+                    }
+                    Section("Collections") {
+                        ForEach(SidebarModel.collections(store.recipes), id: \.self) { c in row(.collection(c), c.title, c.symbol) }
+                    }
                 }
-                Section("Collections") {
-                    ForEach(SidebarModel.collections(store.recipes), id: \.self) { c in row(.collection(c), c.title, c.symbol) }
+                .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
+                .background(Theme.muted.opacity(0.35))
+                .frame(width: 240)
+                .accessibilityIdentifier("sidebar")
+                .transition(.move(edge: .leading))
+                Divider()
+            }
+            Group {
+                switch store.tab {
+                case .library, .collection:
+                    NavigationStack(path: $store.path) {
+                        LibraryView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    }
+                case .shopping:
+                    NavigationStack(path: $store.shoppingPath) {
+                        ShoppingListView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    }
+                case .settings:
+                    NavigationStack(path: $store.settingsPath) {
+                        SettingsView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    }
                 }
             }
-            .listStyle(.sidebar)
-            .navigationTitle("ate")
-            .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 280)
-            .accessibilityIdentifier("sidebar")
-        } detail: {
-            switch store.tab {
-            case .library, .collection:
-                NavigationStack(path: $store.path) {
-                    LibraryView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                }
-            case .shopping:
-                NavigationStack(path: $store.shoppingPath) {
-                    ShoppingListView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                }
-            case .settings:
-                NavigationStack(path: $store.settingsPath) {
-                    SettingsView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                }
-            }
+            .frame(maxWidth: .infinity)
         }
-        .navigationSplitViewStyle(.balanced)
+        .overlay(alignment: .bottomLeading) {
+            Button { withAnimation(.snappy) { showSidebar.toggle() } } label: {
+                Image(systemName: "sidebar.left").font(.system(size: 17, weight: .semibold))
+                    .frame(width: 44, height: 44).background(.regularMaterial, in: Circle())
+            }
+            .accessibilityLabel(showSidebar ? "Hide sidebar" : "Show sidebar")
+            .accessibilityIdentifier("sidebarToggle")
+            .padding(12)
+        }
         .tint(Theme.primary)
     }
 

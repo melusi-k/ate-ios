@@ -34,7 +34,10 @@ final class AteUITests: XCTestCase {
         let s = app.switches[id].firstMatch
         wait(s)
         var tries = 0
-        while !s.isHittable && tries < 6 { app.swipeUp(velocity: .slow); tries += 1 }
+        while !s.isHittable && tries < 8 {
+            if s.frame.minY < app.frame.midY { app.swipeDown(velocity: .slow) } else { app.swipeUp(velocity: .slow) }
+            tries += 1
+        }
         s.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
     }
 

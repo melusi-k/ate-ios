@@ -16,7 +16,7 @@ Release decision + Final signoff checkboxes are always left unchecked; only a SU
 
 Local:  python3 scripts/release/readiness.py --dry-run [--run-id N] > /tmp/body.md
 """
-import argparse, io, json, os, re, subprocess, sys, urllib.request, zipfile
+import argparse, io, json, os, re, subprocess, sys, urllib.error, urllib.request, zipfile
 
 REPO = os.environ.get("GITHUB_REPOSITORY", "melusi-k/ate-ios")
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -139,7 +139,13 @@ def job_log(job_id, name):
     tok = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or sh("gh", "auth", "token").strip()
     req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/actions/jobs/{job_id}/logs",
                                  headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json"})
-    try: return urllib.request.urlopen(req, timeout=60).read().decode("utf-8", "ignore")
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *a, **k): return None
+    try:
+        try: return urllib.request.build_opener(NoRedirect).open(req, timeout=60).read().decode("utf-8", "ignore")
+        except urllib.error.HTTPError as r:
+            if r.code not in (301, 302, 303, 307): raise
+            return urllib.request.urlopen(r.headers["Location"], timeout=120).read().decode("utf-8", "ignore")
     except Exception as e: print(f"log for job {name} unavailable: {e}", file=sys.stderr); return ""
 
 
@@ -334,8 +340,9 @@ def main():
         url = sh("gh", "issue", "create", "-R", REPO, "--title", title, "--body", body, "--label", f"release,readiness,{vlabel}", "--assignee", "melusi-k").strip()
         num = int(url.rsplit("/", 1)[1])
     comments = gh_api(f"repos/{REPO}/issues/{num}/comments?per_page=100")
-    if not any(f"readiness-build: {build} -->" in x["body"] for x in comments):
-        sh("gh", "issue", "comment", str(num), "-R", REPO, "--body", comment)
+    old = next((x for x in comments if f"readiness-build: {build} -->" in x["body"]), None)
+    if old: gh_api(f"repos/{REPO}/issues/comments/{old['id']}", "-X", "PATCH", "-f", f"body={comment}")
+    else: sh("gh", "issue", "comment", str(num), "-R", REPO, "--body", comment)
     print(f"{SERVER}/{REPO}/issues/{num}")
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         open(os.environ["GITHUB_STEP_SUMMARY"], "a").write(f"### Release readiness\n{title}: {SERVER}/{REPO}/issues/{num}\n\n{comment}\n")

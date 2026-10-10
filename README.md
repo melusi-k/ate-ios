@@ -22,7 +22,7 @@ open Ate.xcodeproj   # Xcode 26 (iOS 26 SDK) required for the Foundation Models 
 ```
 
 ## CI → .ipa
-`.github/workflows/build-ipa.yml` runs on every push to any branch, and you can also start it manually. It generates the project, runs the unit tests, archives the app, uploads `Ate.ipa` as a workflow artifact, and replaces the **`latest-build`** prerelease:
+`.github/workflows/build-ipa.yml` runs on every push to any branch, and you can also start it manually. It generates the project, runs the unit tests, archives the app, uploads `Ate-<version>-build<N>.ipa` as a workflow artifact, and replaces the **`latest-build`** prerelease:
 
 **Download on your phone:** https://github.com/melusi-k/ate-ios/releases/tag/latest-build
 
@@ -56,7 +56,7 @@ Fraunces and DM Sans (SIL OFL, licenses in `Ate/Resources/Fonts`) are bundled. I
 - **Live Activity** for cook timers (`AteWidgets` extension, embedded in `PlugIns/`). **Sticky timer bar** on every screen.
 - **Accounts & sync** with Supabase Auth (email/password + magic link). Recipes and shopping list sync last-write-wins and offline-first. Works signed-out.
 - **Sharing:** "Share link" sends one link with a rich preview; "Share as text" sends clean text. Deep links: `ate://recipe/<slug>` (alias `ate://r/<slug>`). The share domain lives in one setting, `ATE_SHARE_HOST`.
-- **Build number:** every CI build sets `CURRENT_PROJECT_VERSION` from the GitHub run number. The release has `Ate-<version>-build<N>.ipa` plus a stable `Ate.ipa`.
+- **Build number and version:** CI sets `MARKETING_VERSION=0.1.<run_number>`, `CURRENT_PROJECT_VERSION=<run_number>` and `ATE_GIT_SHA`, then checks them inside the built `.ipa` (the job fails on a mismatch). Each build is published as `Ate-<version>-build<N>.ipa`: it is the only asset on the rolling `latest-build` prerelease, and it also goes on a permanent `build-<N>` prerelease. Settings shows `ate <version> (build N) · <sha> · backend <ref>` (tap to copy).
 - **Entitlements:** the App Group `group.com.melusik.ate` is used by both targets, with a fallback to standard storage if it isn't granted. Associated domains (`applinks:ate.app`, `applinks:recipe-transform-ai.lovable.app`) are added only for signed builds (`Ate/Ate-Signed.entitlements`). `DEVELOPMENT_TEAM` comes from the `TEAM_ID` env/secret.
 - `PrivacyInfo.xcprivacy` for the app and the widget: no tracking; UserDefaults reasons CA92.1 and 1C8F.1; collects email, user ID and recipe content for app functionality.
 

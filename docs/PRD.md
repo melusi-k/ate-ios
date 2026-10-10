@@ -1,5 +1,34 @@
 # Ate — PRD (native iOS)
 
+## Feature additions (v1.2) — 2026-10-10
+
+### F. Sign-in reliability fix
+- **Bug:** signing in from Settings showed "The network connection was lost." (NSURLErrorNetworkConnectionLost, -1005). That's a transport error, not an auth error: the request never got a response. The server side was fine (curl with the app's exact headers returned normal JSON errors on both the old and new projects). The likely cause is `URLSession.shared` reusing a dead pooled connection, typically an HTTP/3 (QUIC) one. Supabase advertises `alt-svc: h3`, and iOS suspends those connections when the app is backgrounded, for example while you switch to Mail.
+- **Fix:** all Supabase calls go through `Net`: a dedicated session, `assumesHTTP3Capable = false`, 20 s timeouts, and **one automatic retry on -1005**. `sb_publishable_…` keys are no longer sent as `Authorization: Bearer` (they aren't JWTs). Only `apikey` is sent, plus `Bearer <user JWT>` when signed in.
+- **Friendly errors:** wrong email/password, email not confirmed (with resend), rate limited, already registered, weak password, expired link, offline/timeout/unreachable server.
+- Note: there is no account for melusi.l.k@gmail.com on either backend yet (both `auth.users` tables were empty), so the first step is **Create account**.
+
+### G. Onboarding
+- Shown once on first run (`ate.onboarded.v1`): 3 pages (import from link/screenshot/prompt; cook mode with timers; sync and share), then **Create account / Sign in / Continue without account**, with Skip and page dots. Replay it from **Settings › About › Replay intro**. It shows again after account deletion.
+
+### H. Auth screen (sheet)
+- Sign-in / Create-account modes, show/hide password, keyboard-friendly (Next/Go, interactive dismissal), loading states, inline errors.
+- **Forgot password?** calls `POST /auth/v1/recover` with `redirect_to=ate://auth-callback`. The link opens the app on a **Choose a new password** screen (`PUT /auth/v1/user`).
+- **Magic link** (`/otp`), and an **email-confirmation pending** state with **Resend** (`/resend`).
+- `ate://auth-callback` handles PKCE `?code=` (exchanged with the verifier stored in the Keychain), implicit `#access_token…&type=recovery|signup|magiclink`, and `#error…`. A link opened on another device just says the email is confirmed and asks you to sign in.
+
+### I. Account management
+- Settings › Account & sync shows the email, sync status, Sync now, and **Sign out** with a choice: keep recipes on this iPhone, or remove local data.
+- **Delete account** (danger zone): an alert, then type **DELETE**. It calls the Edge Function **`delete-account`**, which verifies the user's JWT, deletes their `user_recipes` rows (and owned `shared_recipes` if an owner column ever exists; today shares are anonymous and stay), then deletes the auth user with the admin API. The app then wipes its session and local data and returns to onboarding. This covers Apple's account-deletion requirement (5.1.1(v)).
+
+### K. Visible build identity
+- The Settings footer shows `ate 0.1.N (build N) · <short sha> · backend <project ref>`; tap it to copy. The version and build also show in Settings › About and on the onboarding choice page.
+- `CFBundleShortVersionString` is `0.1.<run_number>`, so iPhone Storage shows a different version for each build.
+- Downloads are named `Ate-0.1.N-buildN.ipa`. There's no more plain `Ate.ipa`.
+
+### J. Legal links
+- `ATE_PRIVACY_URL` / `ATE_TERMS_URL` in `project.yml`. They currently point to **placeholders** (`recipe-transform-ai.lovable.app/privacy` and `/terms`, which don't exist yet). The links show on the auth sheet, the onboarding choice page and Settings › About.
+
 ## Feature additions (v1.1) — 2026-10-10
 
 ### A. Live Activity for cook-mode timers
@@ -31,7 +60,7 @@
 - Publishing goes to the `publish-recipe` Edge Function on the new backend; the app reads shares from `shared_recipes`. The 9 existing Lovable shares were copied with their slugs, so old links still resolve in the app. ⚠️ The Lovable web page still reads the **old** backend, so links to recipes shared from iOS after 2026-10-10 open in Ate (via `ate://`) but show "not found" on the web until Lovable is repointed.
 
 ### E. Build & platform plumbing
-- CI build number: `CURRENT_PROJECT_VERSION = github.run_number`. The release ships `Ate-<version>-build<N>.ipa` plus a stable `Ate.ipa`, with the build in the title/notes.
+- **Build number and version:** CI sets `MARKETING_VERSION=0.1.<run_number>`, `CURRENT_PROJECT_VERSION=<run_number>` and `ATE_GIT_SHA`, then checks them inside the built `.ipa` (the job fails on a mismatch). Each build is published as `Ate-<version>-build<N>.ipa`: it is the only asset on the rolling `latest-build` prerelease, and it also goes on a permanent `build-<N>` prerelease. Settings shows `ate <version> (build N) · <sha> · backend <ref>` (tap to copy).
 - `PrivacyInfo.xcprivacy` (app + widget): `NSPrivacyTracking=false`, UserDefaults reasons CA92.1 + 1C8F.1 (App Group). The app declares Email, User ID and Other User Content (linked, App Functionality) for Supabase sync.
 - Entitlements: App Group `group.com.melusik.ate` for Ate + AteWidgets. Cook timers persist to the group `UserDefaults` and fall back to `.standard` if the container is nil (possible on free-ID sideloads). Signed builds use `Ate-Signed.entitlements`, which adds `applinks:ate.app` and `applinks:recipe-transform-ai.lovable.app`. Unsigned builds are ad-hoc codesigned with the App Group entitlements so Sideloadly can carry them over. `DEVELOPMENT_TEAM` comes from the `TEAM_ID` env/secret.
 
@@ -60,10 +89,11 @@ Open issues / gaps vs PRD:
 
 ## Updated roadmap
 1. ✅ **Done (2026-10-10):** backend moved to Melusi's own Supabase project `ate` (`ploncuhexmwydjxljuhe`): `shared_recipes` (9 rows, slugs kept) + `user_recipes` with RLS, Edge Functions `publish-recipe` and `get-shared-recipe`, email auth + `ate://auth-callback`. The app publishes and reads shares there.
-2. **Next:** repoint the Lovable web app to the new project (needs Lovable credits) so new shares render on the web; optionally add an AI key secret and deploy `parse-recipe` as a server fallback; custom SMTP for auth emails (the built-in mailer is rate-limited); add JSON-LD import.
-3. **Domain:** register `ate.app`, serve `/r/<slug>` on the web, then (paid Apple Developer account) enable Associated Domains with `applinks:ate.app`, host the AASA (template in `docs/associated-domains/`) and set `ATE_SHARE_HOST=https://ate.app`.
-4. **Paid account also unlocks:** signed CI builds with two profiles (app + widget), TestFlight, push-to-update Live Activities, Sign in with Apple / CloudKit as options.
-5. **Later:** voice cook mode (SFSpeechRecognizer), share extension, aisle-grouped list, bundled chime, iPad layout.
+2. **Before TestFlight:** publish real privacy policy and terms pages and update `ATE_PRIVACY_URL`/`ATE_TERMS_URL`; custom SMTP so confirmation and reset emails aren't rate-limited.
+3. **Next:** repoint the Lovable web app to the new project (needs Lovable credits) so new shares render on the web; optionally add an AI key secret and deploy `parse-recipe` as a server fallback; custom SMTP for auth emails (the built-in mailer is rate-limited); add JSON-LD import.
+4. **Domain:** register `ate.app`, serve `/r/<slug>` on the web, then (paid Apple Developer account) enable Associated Domains with `applinks:ate.app`, host the AASA (template in `docs/associated-domains/`) and set `ATE_SHARE_HOST=https://ate.app`.
+5. **Paid account also unlocks:** signed CI builds with two profiles (app + widget), TestFlight, push-to-update Live Activities, Sign in with Apple / CloudKit as options.
+6. **Later:** voice cook mode (SFSpeechRecognizer), share extension, aisle-grouped list, bundled chime, iPad layout.
 
 ---
 

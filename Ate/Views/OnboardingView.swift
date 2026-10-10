@@ -80,6 +80,8 @@ struct OnboardingView: View {
             Button("Continue without account") { store.finishOnboarding() }
                 .buttonStyle(.ate(.ghost, full: true)).accessibilityIdentifier("onboardingContinue")
             LegalLinks().padding(.top, 4)
+            Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))")
+                .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("onboardingVersion")
         }.padding(.horizontal, 24).padding(.bottom, 24)
     }
 }

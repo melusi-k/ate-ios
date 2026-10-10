@@ -34,8 +34,14 @@ jobs:
 
       - name: Generate project
         run: |
+          BASE=$(grep -E '^\s*MARKETING_VERSION' project.yml | head -1 | sed -E 's/.*"(.*)".*/\1/')
+          # Marketing version = <major>.<minor>.<run_number> so every build is distinct in iPhone Storage.
+          VERSION="$(echo "$BASE" | cut -d. -f1-2).$BUILD_NUMBER"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          sed -i '' -E "s/^( *MARKETING_VERSION: ).*/\1\"$VERSION\"/; s/^( *CURRENT_PROJECT_VERSION: ).*/\1\"$BUILD_NUMBER\"/; s/^( *ATE_GIT_SHA: ).*/\1\"$SHORT_SHA\"/" project.yml
+          grep -E 'MARKETING_VERSION|CURRENT_PROJECT_VERSION|ATE_GIT_SHA' project.yml
+          echo "GIT_SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
           xcodegen generate && xcodebuild -version
-          VERSION=$(grep -E '^\s*MARKETING_VERSION' project.yml | head -1 | sed -E 's/.*"(.*)".*/\1/')
           echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
           echo "IPA_NAME=Ate-$VERSION-build$BUILD_NUMBER.ipa" >> $GITHUB_ENV
           echo "Version $VERSION build $BUILD_NUMBER"
@@ -139,7 +145,7 @@ jobs:
           IDENTITY="Apple Development"; [ "$EXPORT_METHOD" != development ] && IDENTITY="Apple Distribution"
           xcodebuild archive -project Ate.xcodeproj -scheme "$SCHEME" -configuration Release \
             -destination 'generic/platform=iOS' -archivePath build/Ate.xcarchive \
-            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" ATE_ENTITLEMENTS=Ate/Ate-Signed.entitlements \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" MARKETING_VERSION="$APP_VERSION" ATE_GIT_SHA="$GIT_SHORT_SHA" ATE_ENTITLEMENTS=Ate/Ate-Signed.entitlements \
             CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$TEAM_ID" PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
             CODE_SIGN_IDENTITY="$IDENTITY" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" -quiet
           cat > build/ExportOptions.plist <<PLIST
@@ -161,7 +167,7 @@ jobs:
         run: |
           xcodebuild archive -project Ate.xcodeproj -scheme "$SCHEME" -configuration Release \
             -destination 'generic/platform=iOS' -archivePath build/Ate.xcarchive \
-            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" MARKETING_VERSION="$APP_VERSION" ATE_GIT_SHA="$GIT_SHORT_SHA" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -quiet
           mkdir -p build/Payload dist
           cp -R build/Ate.xcarchive/Products/Applications/Ate.app build/Payload/
@@ -175,10 +181,34 @@ jobs:
           (cd build && zip -qry ../dist/$IPA_NAME Payload)
           echo "IPA_KIND=unsigned (sideload with Sideloadly/AltStore)" >> $GITHUB_ENV
 
+      - name: Verify version inside the .ipa
+        run: |
+          rm -rf build/verify && mkdir -p build/verify && unzip -q "dist/$IPA_NAME" -d build/verify
+          PL=build/verify/Payload/Ate.app/Info.plist
+          BV=$(plutil -extract CFBundleVersion raw -o - "$PL")
+          SV=$(plutil -extract CFBundleShortVersionString raw -o - "$PL")
+          SHA=$(plutil -extract AteGitSHA raw -o - "$PL")
+          WBV=$(plutil -extract CFBundleVersion raw -o - build/verify/Payload/Ate.app/PlugIns/AteWidgets.appex/Info.plist)
+          {
+            echo "### Ate $SV (build $BV)"
+            echo "| Key | Value |"; echo "|---|---|"
+            echo "| CFBundleShortVersionString | \`$SV\` |"
+            echo "| CFBundleVersion (app) | \`$BV\` |"
+            echo "| CFBundleVersion (widget) | \`$WBV\` |"
+            echo "| AteGitSHA | \`$SHA\` |"
+            echo "| Run number | \`$BUILD_NUMBER\` |"
+            echo "| IPA | \`$IPA_NAME\` ($IPA_KIND) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "short=$SV build=$BV widget=$WBV sha=$SHA"
+          [ "$BV" = "$BUILD_NUMBER" ] || { echo "::error::CFBundleVersion $BV != run number $BUILD_NUMBER"; exit 1; }
+          [ "$WBV" = "$BUILD_NUMBER" ] || { echo "::error::Widget CFBundleVersion $WBV != run number $BUILD_NUMBER"; exit 1; }
+          [ "$SV" = "$APP_VERSION" ] || { echo "::error::CFBundleShortVersionString $SV != $APP_VERSION"; exit 1; }
+          [ "$SHA" = "$GIT_SHORT_SHA" ] || { echo "::error::AteGitSHA $SHA != $GIT_SHORT_SHA"; exit 1; }
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Ate-ipa-build${{ github.run_number }}
+          name: ${{ env.IPA_NAME }}
           path: dist/*.ipa
           if-no-files-found: error
 
@@ -186,8 +216,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          NOTES="Version ${APP_VERSION}, build ${BUILD_NUMBER} (${IPA_NAME}). Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA}. ${IPA_KIND}. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          # Immutable per-build prerelease.
+          gh release create "build-${BUILD_NUMBER}" "dist/$IPA_NAME" --prerelease --target "$GITHUB_SHA" \
+            --title "Build ${APP_VERSION} (${BUILD_NUMBER}) @ ${GITHUB_SHA::7}" --notes "$NOTES" \
+            || echo "build-${BUILD_NUMBER} already exists, leaving it untouched"
+          # Rolling latest-build: recreated so its ONLY asset is the current versioned .ipa (no plain Ate.ipa).
           gh release delete latest-build --cleanup-tag -y || true
-          cp "dist/$IPA_NAME" dist/Ate.ipa
-          gh release create latest-build "dist/$IPA_NAME" dist/Ate.ipa --prerelease --target "$GITHUB_SHA" \
-            --title "Latest build ${APP_VERSION} (${BUILD_NUMBER}) — ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}" \
-            --notes "Version ${APP_VERSION}, build ${BUILD_NUMBER} (${IPA_NAME}). Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA}. ${IPA_KIND}. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh release create latest-build "dist/$IPA_NAME" --prerelease --target "$GITHUB_SHA" \
+            --title "Latest build ${APP_VERSION} (${BUILD_NUMBER}) — ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}" --notes "$NOTES"
+          ASSETS=$(gh release view latest-build --json assets -q '.assets[].name')
+          [ "$ASSETS" = "$IPA_NAME" ] || { echo "::error::latest-build assets are: $ASSETS"; exit 1; }
+          BASE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download"
+          {
+            echo "### Download"
+            echo "- Latest: [$IPA_NAME]($BASE/latest-build/$IPA_NAME)"
+            echo "- This build (permanent): [$IPA_NAME]($BASE/build-${BUILD_NUMBER}/$IPA_NAME)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "IPA URL: $BASE/build-${BUILD_NUMBER}/$IPA_NAME"

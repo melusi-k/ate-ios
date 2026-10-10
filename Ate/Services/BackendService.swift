@@ -38,6 +38,12 @@ enum AppConfig {
     static var supabasePublishableKey: String { string("AteSupabasePublishableKey") }
     static var privacyURL: URL? { URL(string: string("AtePrivacyURL")).flatMap { $0.host == nil ? nil : $0 } }
     static var termsURL: URL? { URL(string: string("AteTermsURL")).flatMap { $0.host == nil ? nil : $0 } }
+    static var appVersion: String { string("CFBundleShortVersionString") }
+    static var buildNumber: String { string("CFBundleVersion") }
+    static var gitSHA: String { string("AteGitSHA").isEmpty ? "dev" : string("AteGitSHA") }
+    static var backendRef: String { supabaseURL?.host?.components(separatedBy: ".").first ?? "none" }
+    /// e.g. "ate 0.1.12 (build 12) · 306e343 · backend ploncuhexmwydjxljuhe"
+    static var versionLine: String { "ate \(appVersion) (build \(buildNumber)) · \(gitSHA) · backend \(backendRef)" }
     static var shareHost: String { string("AteShareHost").isEmpty ? "https://recipe-transform-ai.lovable.app" : string("AteShareHost") }
 
     /// Modes: "ondevice" (default: Foundation Models + Vision, mock fallback), "mock", "supabase".

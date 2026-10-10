@@ -412,6 +412,7 @@ final class AteUITests: XCTestCase {
         app.buttons["onboardingNext"].tap()
         wait(app.staticTexts["onboardingChoice"])
         XCTAssertTrue(app.buttons["privacyLink"].exists)
+        XCTAssertTrue(app.staticTexts["onboardingVersion"].label.contains("(build "))
         shot("onboarding-choice")
         app.buttons["onboardingSignIn"].tap()
         wait(app.staticTexts["authTitle"])
@@ -424,6 +425,17 @@ final class AteUITests: XCTestCase {
         let replay = app.buttons["replayOnboarding"]
         var n = 0
         while !replay.isHittable && n < 8 { app.swipeUp(velocity: .slow); n += 1 }
+        XCTAssertTrue(app.staticTexts["aboutVersion"].label.contains("(build "))
+        let footer = app.buttons["versionFooter"]
+        n = 0
+        while !footer.isHittable && n < 8 { app.swipeUp(velocity: .slow); n += 1 }
+        XCTAssertTrue(footer.label.contains("backend ploncuhexmwydjxljuhe"), footer.label)
+        XCTAssertTrue(footer.label.contains("(build "), footer.label)
+        footer.tap()
+        wait(text("Version info copied"), 5)
+        shot("settings-version-footer")
+        n = 0
+        while !replay.isHittable && n < 8 { app.swipeDown(velocity: .slow); n += 1 }
         replay.tap()
         wait(text("Any recipe, one clean card"))
         app.buttons["onboardingSkip"].tap()

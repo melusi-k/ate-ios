@@ -53,8 +53,8 @@ struct SettingsView: View {
                             if let u = AppConfig.privacyURL { Link("Privacy Policy", destination: u).accessibilityIdentifier("settingsPrivacy") }
                             if let u = AppConfig.termsURL { Link("Terms of Use", destination: u).accessibilityIdentifier("settingsTerms") }
                         }.font(AteFont.body(14, .medium)).tint(Theme.primary)
-                        Text("ate \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""))")
-                            .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                        Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))")
+                            .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aboutVersion")
                     }
                     card {
                         Text("Your data").font(AteFont.display(18))
@@ -71,7 +71,18 @@ struct SettingsView: View {
                     }
                 }
                 .foregroundStyle(Theme.foreground)
-                .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
+                .padding(.horizontal, 16).padding(.top, 8)
+                .pageWidth()
+
+                Button {
+                    UIPasteboard.general.string = AppConfig.versionLine
+                    store.show("Version info copied")
+                } label: {
+                    Text(AppConfig.versionLine).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                        .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain).padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
+                .accessibilityIdentifier("versionFooter").accessibilityHint("Copies version info")
                 .pageWidth()
             }
         }

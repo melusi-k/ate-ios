@@ -19,6 +19,8 @@ settings:
     DEVELOPMENT_TEAM: "${TEAM_ID}"
     ATE_SHARE_HOST: "https://recipe-transform-ai.lovable.app"
     # Legal pages (PLACEHOLDERS: publish real pages before TestFlight/App Store, then update these).
+    # Overwritten by CI with the short commit sha (see build-ipa.yml).
+    ATE_GIT_SHA: "dev"
     ATE_PRIVACY_URL: "https://recipe-transform-ai.lovable.app/privacy"
     ATE_TERMS_URL: "https://recipe-transform-ai.lovable.app/terms"
 targets:
@@ -58,6 +60,7 @@ targets:
         AteSupabasePublishableKey: $(ATE_SUPABASE_PUBLISHABLE_KEY)
         AteShareHost: $(ATE_SHARE_HOST)
         AtePrivacyURL: $(ATE_PRIVACY_URL)
+        AteGitSHA: $(ATE_GIT_SHA)
         AteTermsURL: $(ATE_TERMS_URL)
         CFBundleURLTypes:
           - CFBundleURLName: com.melusik.ate

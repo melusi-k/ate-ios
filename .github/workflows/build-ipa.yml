@@ -56,7 +56,7 @@ jobs:
           SIM_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=json.load(sys.stdin)["devices"];print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
           echo "Simulator: $SIM_ID"
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
-            -only-testing:AteTests CODE_SIGNING_ALLOWED=NO > test.log 2>&1 || (grep -E "error:|failed|XCTAssert" test.log | head -100; tail -150 test.log; exit 1)
+            -only-testing:AteTests CODE_SIGNING_ALLOWED=NO > test.log 2>&1 || (grep -v -i coredata test.log | grep -E "\.swift:[0-9]+: error|Test Case .* failed|XCTAssert|Fatal error|crashed" | head -100 || true; grep -v -i coredata test.log | tail -80 || true; exit 1)
           grep -E "Executed|TEST SUCCEEDED" test.log | tail -3
 
       - name: Run UI tests (iPhone 17, iOS 26)

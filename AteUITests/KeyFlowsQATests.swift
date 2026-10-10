@@ -30,8 +30,26 @@ final class KeyFlowsQATests: XCTestCase {
         var n = 0
         while !(e.exists && e.isHittable) && n < max { app.swipeUp(velocity: .slow); n += 1 }
     }
+    /// Recipe detail hides the tab bar (b36), so pop back until it shows, then tap the tab.
+    func tab(_ name: String) {
+        var n = 0
+        while !app.tabBars.firstMatch.exists && n < 4 {
+            let back = app.navigationBars.buttons.element(boundBy: 0)
+            if back.exists { back.tap() } else { app.swipeRight() }
+            sleep(1); n += 1
+        }
+        let b = app.tabBars.buttons[name]
+        if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
+    }
+    func waitHittable(_ e: XCUIElement, _ t: TimeInterval = 8) {
+        let end = Date().addingTimeInterval(t)
+        while Date() < end && !(e.exists && e.isHittable) { usleep(250_000) }
+    }
     func openAdd(_ tab: String) {
-        app.buttons["Add recipe"].tap()
+        let add = app.buttons["Add recipe"]
+        if !add.waitForExistence(timeout: 20) { self.tab("Library"); _ = add.waitForExistence(timeout: 10) }
+        waitHittable(add)
+        add.tap()
         wait(text("Add a recipe"))
         app.buttons[tab].firstMatch.tap()
     }
@@ -52,7 +70,7 @@ final class KeyFlowsQATests: XCTestCase {
         generate(); review(); save()
     }
     func signIn() {
-        app.tabBars.buttons["Settings"].tap()
+        tab("Settings")
         wait(text("Account & sync"))
         app.buttons["openSignIn"].tap()
         replace(app.textFields["authEmail"], "qa@example.com")
@@ -128,7 +146,7 @@ final class KeyFlowsQATests: XCTestCase {
     func testQA4_Save() {
         launch()
         addPrompt("Pea risotto")
-        app.tabBars.buttons["Library"].tap()
+        tab("Library")
         wait(text("Pea risotto"), 5)
         XCTAssertFalse(text("Nothing saved yet").exists)
         shot("4-saved-in-library")
@@ -139,6 +157,8 @@ final class KeyFlowsQATests: XCTestCase {
     func testQA5_Share() {
         launch()
         addPrompt("Shareable soup")
+        sleep(3) // let the "Saved to your library" toast clear
+        waitHittable(app.buttons["Share recipe"])
         app.buttons["Share recipe"].tap()
         wait(app.buttons["Share link"], 5)
         XCTAssertTrue(app.buttons["Share as text"].exists)
@@ -150,6 +170,7 @@ final class KeyFlowsQATests: XCTestCase {
         shot("5-share-link-sheet")
         if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
         sleep(1)
+        waitHittable(app.buttons["Share recipe"])
         app.buttons["Share recipe"].tap()
         wait(app.buttons["Share as text"], 5)
         app.buttons["Share as text"].tap()
@@ -188,11 +209,11 @@ final class KeyFlowsQATests: XCTestCase {
         app.terminate()
         // second launch: fresh local store, same server
         launch(["-qaPersistServer"])
-        app.tabBars.buttons["Library"].tap()
+        tab("Library")
         wait(text("Nothing saved yet"), 5)
         signIn()
         wait(text("Synced"), 10)
-        app.tabBars.buttons["Library"].tap()
+        tab("Library")
         wait(text("Synced stew v2"), 10)
         shot("7-sync-device-b-pulled")
     }

@@ -9,6 +9,17 @@ final class AteUITests: XCTestCase {
     }
 
     @discardableResult
+    /// Recipe detail hides the tab bar, so pop back until it shows, then tap the tab.
+    func tab(_ name: String) {
+        var n = 0
+        while !app.tabBars.firstMatch.exists && n < 4 {
+            let back = app.navigationBars.buttons.element(boundBy: 0)
+            if back.exists { back.tap() } else { app.swipeRight() }
+            sleep(1); n += 1
+        }
+        let b = app.tabBars.buttons[name]
+        if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
+    }
     func launch(_ extra: [String] = []) -> XCUIApplication {
         app = XCUIApplication()
         app.launchArguments = ["-UITesting"] + extra
@@ -444,7 +455,7 @@ final class AteUITests: XCTestCase {
         footer.tap()
         wait(text("Version info copied"), 5)
         shot("settings-version-footer")
-        app.tabBars.buttons["More"].tap()   // About + Replay intro moved to More
+        tab("More")   // About + Replay intro moved to More
         n = 0
         while !app.staticTexts["aboutVersion"].exists && n < 8 { app.swipeUp(velocity: .slow); n += 1 }
         XCTAssertTrue(app.staticTexts["aboutVersion"].label.contains("(build "))
@@ -638,7 +649,7 @@ final class AteUITests: XCTestCase {
         app.buttons["saveRecipe"].tap()
         wait(app.buttons["Cook mode"], 5)
         XCTAssertTrue(app.descendants(matching: .any)["sourceBadge"].firstMatch.exists)
-        app.tabBars.buttons["More"].tap()
+        tab("More")
         let diag = app.descendants(matching: .any)["aiDiagnostics"].firstMatch
         var n = 0
         while !diag.exists && n < 8 { app.swipeUp(); n += 1 }
@@ -677,7 +688,7 @@ final class AteUITests: XCTestCase {
     func test26_FilterChipsPortrait() {
         launch()
         addPromptRecipe()
-        app.tabBars.buttons["Library"].tap()
+        tab("Library")
         wait(text("Your kitchen library"), 5)
         wait(app.buttons["chip.time30"])
         shot("library-filter-chips")
@@ -744,7 +755,7 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["saveRecipe"], 15)
         app.buttons["saveRecipe"].tap()
         wait(app.buttons["Cook mode"], 5)
-        app.tabBars.buttons["Library"].tap()
+        tab("Library")
         wait(text("Your kitchen library"), 5)
     }
 
@@ -795,7 +806,7 @@ final class AteUITests: XCTestCase {
         wait(text("Your session expired"), 10)
         wait(app.buttons["openSignIn"], 5)
         shot("auth-session-expired")
-        app.tabBars.buttons["Library"].tap()
+        tab("Library")
         wait(text("Keep me safe"), 5)
 
         // Account switch: the previous account's library doesn't leak into the next one.
@@ -812,7 +823,7 @@ final class AteUITests: XCTestCase {
         app.buttons["authSubmit"].tap()
         wait(text("Switched accounts"), 10)
         shot("auth-account-switch")
-        app.tabBars.buttons["Library"].tap()
+        tab("Library")
         XCTAssertFalse(text("Account A stew").waitForExistence(timeout: 2), "account A's recipe leaked into account B")
     }
 

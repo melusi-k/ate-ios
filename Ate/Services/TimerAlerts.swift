@@ -24,10 +24,8 @@ enum TimerAlerts {
         return s < e ? (now >= s && now < e) : (now >= s || now < e)
     }
 
-    static let notificationID = "ate.cook.timer"
-
-    static func schedule(step: Int, recipeTitle: String, at end: Date, prefs: TimerPrefs) {
-        cancel()
+    static func schedule(id: String, step: Int, recipeTitle: String, at end: Date, prefs: TimerPrefs) {
+        cancel(id: id)
         guard prefs.stepAlerts else { return }
         let content = UNMutableNotificationContent()
         content.title = "Step \(step) is done"
@@ -35,13 +33,13 @@ enum TimerAlerts {
         content.sound = (prefs.sound && !isQuiet(prefs, at: end)) ? .default : nil
         content.interruptionLevel = .timeSensitive
         let interval = max(1, end.timeIntervalSinceNow)
-        let req = UNNotificationRequest(identifier: notificationID, content: content,
+        let req = UNNotificationRequest(identifier: "ate.timer." + id, content: content,
                                         trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false))
         UNUserNotificationCenter.current().add(req)
     }
 
-    static func cancel() {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationID])
+    static func cancel(id: String) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["ate.timer." + id])
     }
 
     /// Foreground finish: chime + haptics (the scheduled notification covers background).

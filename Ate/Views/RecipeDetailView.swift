@@ -9,7 +9,6 @@ struct RecipeDetailView: View {
     @State private var asking = false
     @State private var confirmDelete = false
     @State private var share: ShareItems?
-    @State private var cooking = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -50,7 +49,7 @@ struct RecipeDetailView: View {
                     .pageWidth()
                 }
                 if !editing {
-                    Button { cooking = true } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
+                    Button { store.cookTarget = CookTarget(id: recipeID) } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
                         .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.bottom, 20)
                 }
             } else {
@@ -59,13 +58,13 @@ struct RecipeDetailView: View {
         }
         .confirmationDialog("Delete this recipe?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete recipe", role: .destructive) {
+                store.timers.stopAll(recipeID: recipeID)
                 store.delete(recipeID)
                 store.show("Recipe deleted")
                 store.path.removeAll()
             }
         }
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
-        .fullScreenCover(isPresented: $cooking) { CookModeView(recipeID: recipeID, onExit: { cooking = false }).environment(store) }
     }
 
     private func askCard(_ recipe: RecipeCard) -> some View {

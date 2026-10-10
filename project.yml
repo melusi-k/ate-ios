@@ -11,8 +11,9 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     # Backend config (non-secret). Mode: ondevice (default, mock fallback) | mock | supabase
     ATE_BACKEND_MODE: ondevice
-    ATE_SUPABASE_URL: ""
-    ATE_SUPABASE_PUBLISHABLE_KEY: ""
+    # Public values from the Lovable "Ate" project (.env). The publishable key is safe to ship (RLS-protected).
+    ATE_SUPABASE_URL: "https://fsowdtisvdctdmjymnpm.supabase.co"
+    ATE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_b4jwqlkgC-yiIAQoZ_wLHg_Y7Dzf6rx"
     ATE_SHARE_HOST: "https://recipe-transform-ai.lovable.app"
 targets:
   Ate:
@@ -20,6 +21,9 @@ targets:
     platform: iOS
     sources:
       - path: Ate
+      - path: Shared
+    dependencies:
+      - target: AteWidgets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate
@@ -36,6 +40,7 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIAppFonts: [Fraunces.ttf, DMSans.ttf]
+        NSSupportsLiveActivities: true
         NSPhotoLibraryUsageDescription: ate reads the recipe screenshot you pick to turn it into a recipe card.
         NSCameraUsageDescription: ate uses the camera to snap a recipe.
         ITSAppUsesNonExemptEncryption: false
@@ -46,6 +51,27 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: com.melusik.ate
             CFBundleURLSchemes: [ate]
+  AteWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: AteWidgets
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.widgets
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: AteWidgets/Info.plist
+        SKIP_INSTALL: YES
+    info:
+      path: AteWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: ate timers
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
   AteTests:
     type: bundle.unit-test
     platform: iOS

@@ -51,14 +51,13 @@ enum AppConfig {
 
     static func makeBackend() -> BackendService {
         if isUITesting { return MockBackend() }
-        let server: BackendService = {
-            if let url = supabaseURL { return SupabaseBackend(baseURL: url, publishableKey: supabasePublishableKey) }
-            return MockBackend()
-        }()
         switch backendMode {
         case "mock": return MockBackend()
-        case "supabase": return server
-        default: return OnDeviceBackend(fallback: server)
+        case "supabase":
+            if let url = supabaseURL { return SupabaseBackend(baseURL: url, publishableKey: supabasePublishableKey) }
+            return MockBackend()
+        // Edge functions (parse/publish) aren't deployed yet, so the on-device path falls back to the mock.
+        default: return OnDeviceBackend(fallback: MockBackend())
         }
     }
 }

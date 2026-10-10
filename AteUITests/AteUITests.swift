@@ -226,6 +226,63 @@ final class AteUITests: XCTestCase {
         wait(text("1 recipe saved on this device."))
     }
 
+    func test11_TimerBar() {
+        launch()
+        addPromptRecipe()
+        app.buttons["Cook mode"].tap()
+        app.buttons["Next step"].tap(); app.buttons["Next step"].tap()
+        wait(text("Step 3 of 4"))
+        app.buttons["Start timer"].tap()
+        wait(app.buttons["Pause timer"], 5)
+        app.buttons["Exit"].tap()
+        let open = app.buttons["timerBarOpen"]
+        wait(open, 5)
+        shot("timerbar-detail")
+        app.buttons["Library"].tap()
+        wait(text("Your kitchen library"))
+        XCTAssertTrue(open.exists, "timer bar should persist on Library")
+        shot("timerbar-library")
+        app.buttons["Pause bar timer"].tap()
+        wait(app.buttons["Resume bar timer"], 3)
+        wait(text("paused"))
+        shot("timerbar-paused")
+        app.buttons["Resume bar timer"].tap()
+        open.tap()
+        wait(text("Step 3 of 4"), 5)
+        wait(app.buttons["Pause timer"], 3)
+        shot("timerbar-returned-to-cook")
+        app.buttons["Exit"].tap()
+        wait(open, 5)
+        app.buttons["Stop bar timer"].tap()
+        XCTAssertTrue(open.waitForNonExistence(timeout: 3))
+        shot("timerbar-stopped")
+    }
+
+    func test12_Account() {
+        launch()
+        app.buttons["Settings"].tap()
+        wait(text("Account & sync"))
+        shot("account-signed-out")
+        let email = app.textFields["accountEmailField"]
+        email.tap(); email.typeText("cook@example.com")
+        let pw = app.secureTextFields["accountPasswordField"]
+        pw.tap(); pw.typeText("wrongpass")
+        app.buttons["Sign in"].tap()
+        wait(text("Invalid login credentials"), 5)
+        shot("account-sign-in-error")
+        pw.tap(); pw.typeText("password123")
+        app.buttons["Create account"].tap()
+        wait(app.staticTexts["accountEmail"], 8)
+        wait(text("Synced"), 8)
+        shot("account-signed-in")
+        app.buttons["Sync now"].tap()
+        wait(text("Synced"), 8)
+        app.buttons["Sign out"].tap()
+        wait(text("Signed out"), 5)
+        wait(app.textFields["accountEmailField"], 5)
+        shot("account-signed-out-again")
+    }
+
     func test10_SharedExpiredAndNotFound() {
         launch(["-ateOpenURL", "ate://r/nope1234"])
         wait(text("This recipe link has expired"), 15)

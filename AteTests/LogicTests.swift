@@ -64,6 +64,24 @@ final class LogicTests: XCTestCase {
                        "Toast\nCrunchy\n2 servings · 5 min\n\nIngredients\n- 4 slices bread\n\nSteps\n1. Toast it.\n\nSource: https://x.y")
     }
 
+    func testSyncMergeLastWriteWins() {
+        let a = Data(#"{"v":"local"}"#.utf8), b = Data(#"{"v":"remote"}"#.utf8)
+        let local = SyncMerge.Local(data: ["1": a, "2": a, "3": a], stamps: ["1": 100, "2": 300, "3": 50], tombstones: ["4": 500])
+        let remote = [
+            SyncRecord(user_id: "u", kind: "recipe", id: "1", data: AnyJSON(b), updated_at: 200, deleted: false),  // remote newer
+            SyncRecord(user_id: "u", kind: "recipe", id: "2", data: AnyJSON(b), updated_at: 200, deleted: false),  // local newer
+            SyncRecord(user_id: "u", kind: "recipe", id: "3", data: nil, updated_at: 60, deleted: true),           // remote delete
+            SyncRecord(user_id: "u", kind: "recipe", id: "5", data: AnyJSON(b), updated_at: 10, deleted: false),   // new remote
+        ]
+        let r = SyncMerge.merge(local: local, remote: remote)
+        XCTAssertEqual(r.data["1"].flatMap { String(data: $0, encoding: .utf8) }?.contains("remote"), true)
+        XCTAssertEqual(r.data["2"], a)
+        XCTAssertNil(r.data["3"])
+        XCTAssertNotNil(r.data["5"])
+        XCTAssertEqual(r.push, ["2"])
+        XCTAssertEqual(r.pushDeletes, ["4"])
+    }
+
     func testImportAndDecode() throws {
         let json = #"[{"id":"a","title":"A","servings":2,"tags":[],"ingredients":[{"name":"x","quantity":1,"unit":"g"}],"steps":[],"createdAt":1},{"id":"b","title":"Empty","ingredients":[],"steps":[]}]"#
         let cards = try JSONDecoder().decode([RecipeCard].self, from: Data(json.utf8))

@@ -156,6 +156,8 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -quiet
           mkdir -p build/Payload dist
           cp -R build/Ate.xcarchive/Products/Applications/Ate.app build/Payload/
+          test -d build/Payload/Ate.app/PlugIns/AteWidgets.appex || { echo "Widget extension missing from app bundle"; exit 1; }
+          ls build/Payload/Ate.app/PlugIns
           (cd build && zip -qry ../dist/Ate.ipa Payload)
           echo "IPA_KIND=unsigned (sideload with Sideloadly/AltStore)" >> $GITHUB_ENV
 

@@ -16,6 +16,7 @@ struct SettingsView: View {
                     BackBar(title: "Library") { store.path.removeAll() }
                     Text("Settings").font(AteFont.display(30))
 
+                    AccountCard()
                     card {
                         toggle("Private mode", "Keep everything local — no new AI generations, only your saved cards.",
                                $store.settings.onDeviceOnly)

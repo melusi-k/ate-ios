@@ -1,15 +1,15 @@
 import SwiftUI
-import Combine
 
 struct CookModeView: View {
     let recipeID: String
     var onExit: (() -> Void)? = nil
     @Environment(AppStore.self) private var store
     @State private var index = 0
-    @State private var remaining = 0
-    @State private var endDate: Date?
-    @State private var primed = false
-    private let tick = Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()
+
+    init(recipeID: String, onExit: (() -> Void)? = nil) {
+        self.recipeID = recipeID
+        self.onExit = onExit
+    }
 
     var body: some View {
         ZStack {
@@ -22,18 +22,27 @@ struct CookModeView: View {
         }
         .foregroundStyle(Theme.warmForeground)
         .toolbar(.hidden, for: .navigationBar)
-        .onAppear { UIApplication.shared.isIdleTimerDisabled = true; resetTimer() }
-        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false; TimerAlerts.cancel() }
-        .onReceive(tick) { _ in tickTimer() }
+        .onAppear {
+            UIApplication.shared.isIdleTimerDisabled = true
+            // Resume at the step whose timer is running, if any.
+            if let t = store.timers.timers.first(where: { $0.recipeID == recipeID && $0.isRunning }) { index = t.stepIndex }
+        }
+        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
     }
 
-    private func exit() { if let onExit { onExit() } else { store.path.removeLast() } }
+    private func exit() {
+        store.timers.cleanupIdle(recipeID: recipeID)
+        if let onExit { onExit() } else if !store.path.isEmpty { store.path.removeLast() }
+    }
 
     private func step(_ r: RecipeCard) -> Step { r.steps[min(index, r.steps.count - 1)] }
 
     @ViewBuilder private func content(_ recipe: RecipeCard) -> some View {
         let n = recipe.steps.count
         let s = step(recipe)
+        let active = store.timers.timer(recipeID, min(index, n - 1))
+        let remaining = active?.remaining(at: store.timers.now) ?? (s.timeSeconds ?? 0)
+        let others = store.timers.timers.filter { $0.recipeID == recipeID && $0.stepIndex != index && $0.isRunning }
         VStack(spacing: 20) {
             HStack {
                 Button(action: exit) { Label("Exit", systemImage: "chevron.left") }.buttonStyle(.ate(.ghost, height: 44))
@@ -48,32 +57,42 @@ struct CookModeView: View {
             }
             .frame(height: 6).animation(.easeInOut, value: index)
 
+            ForEach(others) { t in
+                Button { index = t.stepIndex } label: {
+                    Label("Step \(t.stepIndex + 1) · \(format(t.remaining(at: store.timers.now)))", systemImage: "timer")
+                        .font(AteFont.body(13, .semibold)).monospacedDigit()
+                }.buttonStyle(.ate(.secondary, height: 32))
+            }
+
             Spacer()
             Text(Units.convertTemperatures(in: s.instruction, to: store.settings.units))
                 .font(AteFont.display(UIScreen.main.bounds.width > 400 ? 34 : 30)).lineSpacing(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .minimumScaleFactor(0.5)
             if let secs = s.timeSeconds, secs > 0 {
+                let running = active?.isRunning == true
                 HStack(spacing: 14) {
                     HStack(spacing: 10) {
                         Image(systemName: "timer").foregroundStyle(Theme.primary).font(.system(size: 24))
                         Text(format(remaining)).font(.system(size: 36, weight: .bold, design: .rounded)).monospacedDigit()
+                            .accessibilityIdentifier("cookTimerValue")
                     }
                     .padding(.horizontal, 20).padding(.vertical, 12)
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
-                    Button { Task { await toggleTimer(recipe) } } label: {
-                        Image(systemName: endDate == nil ? "play.fill" : "pause.fill")
-                    }.buttonStyle(.ate(.primary, height: 52)).accessibilityLabel(endDate == nil ? "Start timer" : "Pause timer")
-                    Button { resetTimer() } label: { Image(systemName: "arrow.counterclockwise") }
+                    Button {
+                        if let a = active { store.timers.toggle(a.id) } else { store.timers.start(recipe: recipe, stepIndex: index) }
+                    } label: { Image(systemName: running ? "pause.fill" : "play.fill") }
+                        .buttonStyle(.ate(.primary, height: 52)).accessibilityLabel(running ? "Pause timer" : "Start timer")
+                    Button { if let a = active { store.timers.reset(a.id) } } label: { Image(systemName: "arrow.counterclockwise") }
                         .buttonStyle(.ate(.secondary, height: 52)).accessibilityLabel("Reset timer")
                 }
                 .foregroundStyle(Theme.foreground)
             }
             Spacer()
             HStack(spacing: 12) {
-                Button("Back") { index -= 1; resetTimer() }
+                Button("Back") { index -= 1 }
                     .buttonStyle(.ate(.secondary, height: 56, full: true)).disabled(index == 0)
-                Button("Next step") { index += 1; resetTimer() }
+                Button("Next step") { index += 1 }
                     .buttonStyle(.ate(.primary, height: 56, full: true)).disabled(index >= n - 1)
                     .layoutPriority(1).frame(maxWidth: .infinity)
             }
@@ -83,33 +102,45 @@ struct CookModeView: View {
     }
 
     private func format(_ s: Int) -> String { String(format: "%d:%02d", s / 60, s % 60) }
+}
 
-    private func resetTimer() {
-        endDate = nil
-        TimerAlerts.cancel()
-        if let r = store.recipe(recipeID), !r.steps.isEmpty { remaining = step(r).timeSeconds ?? 0 } else { remaining = 0 }
-    }
-
-    private func toggleTimer(_ recipe: RecipeCard) async {
-        if endDate != nil {
-            if let e = endDate { remaining = max(0, Int(ceil(e.timeIntervalSinceNow))) }
-            endDate = nil
-            TimerAlerts.cancel()
-            return
+/// Sticky bar showing running/paused cook timers on every screen outside cook mode.
+struct TimerBar: View {
+    @Environment(AppStore.self) private var store
+    var body: some View {
+        VStack(spacing: 6) {
+            ForEach(store.timers.timers) { t in
+                HStack(spacing: 10) {
+                    Button { store.cookTarget = CookTarget(id: t.recipeID) } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: t.isRunning ? "timer" : "pause.circle").foregroundStyle(Theme.primary)
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(t.recipeTitle).font(AteFont.body(13, .semibold)).lineLimit(1)
+                                Text("Step \(t.stepIndex + 1)" + (t.isRunning ? "" : " · paused")).font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
+                            }
+                            Spacer(minLength: 4)
+                            Text(String(format: "%d:%02d", t.remaining(at: store.timers.now) / 60, t.remaining(at: store.timers.now) % 60))
+                                .font(.system(size: 20, weight: .bold, design: .rounded)).monospacedDigit()
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("timerBarOpen")
+                    .accessibilityLabel("Open cook mode for \(t.recipeTitle)")
+                    IconButton(symbol: t.isRunning ? "pause.fill" : "play.fill", label: t.isRunning ? "Pause bar timer" : "Resume bar timer") {
+                        store.timers.toggle(t.id)
+                    }
+                    IconButton(symbol: "stop.fill", label: "Stop bar timer", tint: Theme.destructive) { store.timers.stop(t.id) }
+                }
+                .foregroundStyle(Theme.foreground)
+                .padding(.leading, 14).padding(.trailing, 4).padding(.vertical, 4)
+                .background(Theme.card, in: Capsule())
+                .overlay(Capsule().stroke(Theme.border))
+                .shadow(color: Theme.brown.opacity(0.15), radius: 10, y: 4)
+            }
         }
-        if !primed, store.timerPrefs.stepAlerts { _ = await TimerAlerts.requestPermission(); primed = true }
-        if remaining <= 0 { remaining = step(recipe).timeSeconds ?? 0 }
-        let end = Date().addingTimeInterval(TimeInterval(remaining))
-        endDate = end
-        TimerAlerts.schedule(step: index + 1, recipeTitle: recipe.title, at: end, prefs: store.timerPrefs)
-    }
-
-    private func tickTimer() {
-        guard let e = endDate else { return }
-        remaining = max(0, Int(ceil(e.timeIntervalSinceNow)))
-        if remaining == 0 {
-            endDate = nil
-            TimerAlerts.timerFinished(prefs: store.timerPrefs)
-        }
+        .padding(.horizontal, 12).padding(.bottom, 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("timerBar")
     }
 }

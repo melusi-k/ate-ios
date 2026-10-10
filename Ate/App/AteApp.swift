@@ -31,6 +31,8 @@ struct AteApp: App {
 
 struct RootView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.scenePhase) private var phase
+    private let tick = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
 
     var body: some View {
         @Bindable var store = store
@@ -50,6 +52,15 @@ struct RootView: View {
                     .toolbar(.hidden, for: .navigationBar)
                 }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !store.timers.timers.isEmpty && store.cookTarget == nil { TimerBar() }
+        }
+        .fullScreenCover(item: $store.cookTarget) { target in
+            CookModeView(recipeID: target.id, onExit: { store.cookTarget = nil }).environment(store)
+        }
+        .onReceive(tick) { store.timers.tick($0) }
+        .onChange(of: phase) { _, p in if p == .active { store.timers.tick(); store.scheduleSync(delay: 0.2) } }
+        .task { if store.session != nil { await store.syncNow() } }
         .tint(Theme.primary)
         .overlay(alignment: .top) {
             if let t = store.toast {

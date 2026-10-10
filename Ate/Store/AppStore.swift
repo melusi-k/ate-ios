@@ -22,6 +22,29 @@ final class ShoppingEntity {
     init(id: String, position: Int, json: Data) { self.id = id; self.position = position; self.json = json }
 }
 
+struct CookTarget: Identifiable, Equatable { let id: String }
+
+enum SyncState: Equatable {
+    case signedOut, idle, syncing, synced(Date), unavailable(String), failed(String)
+    var label: String {
+        switch self {
+        case .signedOut: return "Signed out — recipes stay on this device."
+        case .idle: return "Not synced yet"
+        case .syncing: return "Syncing…"
+        case .synced(let d): return "Synced " + (abs(d.timeIntervalSinceNow) < 60 ? "just now" : d.formatted(date: .omitted, time: .shortened))
+        case .unavailable(let m): return m
+        case .failed(let m): return "Sync failed: " + m
+        }
+    }
+}
+
+private struct SyncMeta: Codable {
+    var recipeStamps: [String: Double] = [:]
+    var recipeTombs: [String: Double] = [:]
+    var shopStamps: [String: Double] = [:]
+    var shopTombs: [String: Double] = [:]
+}
+
 struct Toast: Equatable, Identifiable {
     let id = UUID()
     let message: String
@@ -38,15 +61,41 @@ final class AppStore {
     var settings: AppSettings { didSet { saveDefaults(settings, key: "ate.settings.v1") } }
     var timerPrefs: TimerPrefs { didSet { saveDefaults(timerPrefs, key: "ate.timerprefs.v1") } }
 
+    var cookTarget: CookTarget?
+    let timers = TimerCenter()
+
+    // Accounts & sync
+    var session: AuthSession?
+    var syncState: SyncState = .signedOut
+    let auth: AuthService?
+    let sync: SyncService?
+    private var meta = SyncMeta()
+    private var recipeSnapshot: [String: RecipeCard] = [:]
+    private var shopSnapshot: [String: ShoppingItem] = [:]
+    private var syncTask: Task<Void, Never>?
+
     let backend: BackendService
     private let context: ModelContext?
 
     init(context: ModelContext?, backend: BackendService = AppConfig.makeBackend()) {
         self.context = context
         self.backend = backend
+        if AppConfig.isUITesting {
+            auth = MockAuth(); sync = MockSync()
+        } else if let url = AppConfig.supabaseURL, !AppConfig.supabasePublishableKey.isEmpty {
+            auth = SupabaseAuth(baseURL: url, key: AppConfig.supabasePublishableKey)
+            sync = SupabaseSync(baseURL: url, key: AppConfig.supabasePublishableKey)
+        } else { auth = nil; sync = nil }
         settings = Self.loadDefaults(AppSettings.self, key: "ate.settings.v1") ?? AppSettings()
         timerPrefs = Self.loadDefaults(TimerPrefs.self, key: "ate.timerprefs.v1") ?? TimerPrefs()
+        if AppConfig.isUITesting { UserDefaults.standard.removeObject(forKey: "ate.sync.v1"); Keychain.save(nil, account: "session") }
+        meta = Self.loadDefaults(SyncMeta.self, key: "ate.sync.v1") ?? SyncMeta()
+        session = Keychain.load(account: "session").flatMap { try? JSONDecoder().decode(AuthSession.self, from: $0) }
+        syncState = session == nil ? .signedOut : .idle
         load()
+        recipeSnapshot = Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        shopSnapshot = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        timers.prefsProvider = { [weak self] in self?.timerPrefs ?? TimerPrefs() }
     }
 
     // MARK: persistence
@@ -59,7 +108,8 @@ final class AppStore {
         shopping = s.compactMap { try? dec.decode(ShoppingItem.self, from: $0.json) }
     }
 
-    private func persistRecipes() {
+    private func persistRecipes(stamp: Bool = true) {
+        if stamp { stampChanges() }
         guard let context else { return }
         try? context.delete(model: RecipeEntity.self)
         let enc = JSONEncoder()
@@ -69,7 +119,8 @@ final class AppStore {
         try? context.save()
     }
 
-    private func persistShopping() {
+    private func persistShopping(stamp: Bool = true) {
+        if stamp { stampChanges() }
         guard let context else { return }
         try? context.delete(model: ShoppingEntity.self)
         let enc = JSONEncoder()
@@ -150,8 +201,132 @@ final class AppStore {
     func clearTicked() { shopping.removeAll { $0.done }; persistShopping() }
     func clearShopping() { shopping = []; persistShopping() }
 
+    // MARK: sync bookkeeping (last-write-wins)
+    private func nowMs() -> Double { Date().timeIntervalSince1970 * 1000 }
+
+    private func stampChanges() {
+        let t = nowMs()
+        var changed = false
+        let rNow = Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        for (id, c) in rNow where recipeSnapshot[id] != c { meta.recipeStamps[id] = t; meta.recipeTombs[id] = nil; changed = true }
+        for id in recipeSnapshot.keys where rNow[id] == nil { meta.recipeTombs[id] = t; meta.recipeStamps[id] = nil; changed = true }
+        recipeSnapshot = rNow
+        let sNow = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        for (id, it) in sNow where shopSnapshot[id] != it { meta.shopStamps[id] = t; meta.shopTombs[id] = nil; changed = true }
+        for id in shopSnapshot.keys where sNow[id] == nil { meta.shopTombs[id] = t; meta.shopStamps[id] = nil; changed = true }
+        shopSnapshot = sNow
+        if changed { saveDefaults(meta, key: "ate.sync.v1"); scheduleSync() }
+    }
+
+    func scheduleSync(delay: Double = 1.5) {
+        guard session != nil else { return }
+        syncTask?.cancel()
+        syncTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            if Task.isCancelled { return }
+            await syncNow()
+        }
+    }
+
+    func syncNow() async {
+        guard var s = session, let sync, let auth else { syncState = .signedOut; return }
+        syncState = .syncing
+        do {
+            if s.expiresAt < Date().timeIntervalSince1970 + 60 { s = try await auth.refresh(s); setSession(s) }
+            let remote = try await sync.pull(session: s)
+            let enc = JSONEncoder()
+            let dec = JSONDecoder()
+
+            let r = SyncMerge.merge(local: .init(data: recipes.reduce(into: [:]) { $0[$1.id] = try? enc.encode($1) },
+                                                 stamps: meta.recipeStamps, tombstones: meta.recipeTombs),
+                                    remote: remote.filter { $0.kind == "recipe" })
+            let sh = SyncMerge.merge(local: .init(data: shopping.reduce(into: [:]) { $0[$1.id] = try? enc.encode($1) },
+                                                  stamps: meta.shopStamps, tombstones: meta.shopTombs),
+                                     remote: remote.filter { $0.kind == "shopping" })
+
+            recipes = r.data.values.compactMap { try? dec.decode(RecipeCard.self, from: $0) }.sorted { $0.createdAt > $1.createdAt }
+            let newShop = sh.data.compactMapValues { try? dec.decode(ShoppingItem.self, from: $0) }
+            var ordered = shopping.compactMap { newShop[$0.id] }
+            for (id, it) in newShop where !ordered.contains(where: { $0.id == id }) { ordered.append(it) }
+            shopping = ordered
+            meta.recipeStamps = r.stamps; meta.recipeTombs = r.tombstones
+            meta.shopStamps = sh.stamps; meta.shopTombs = sh.tombstones
+            recipeSnapshot = Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            shopSnapshot = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            persistRecipes(stamp: false); persistShopping(stamp: false)
+            saveDefaults(meta, key: "ate.sync.v1")
+
+            func rec(_ kind: String, _ id: String, _ data: Data?, _ stamp: Double, _ del: Bool) -> SyncRecord {
+                SyncRecord(user_id: s.userID, kind: kind, id: id, data: data.map { AnyJSON($0) }, updated_at: stamp, deleted: del)
+            }
+            var out: [SyncRecord] = []
+            out += r.push.map { rec("recipe", $0, r.data[$0], r.stamps[$0] ?? nowMs(), false) }
+            out += r.pushDeletes.map { rec("recipe", $0, nil, r.tombstones[$0] ?? nowMs(), true) }
+            out += sh.push.map { rec("shopping", $0, sh.data[$0], sh.stamps[$0] ?? nowMs(), false) }
+            out += sh.pushDeletes.map { rec("shopping", $0, nil, sh.tombstones[$0] ?? nowMs(), true) }
+            try await sync.push(out, session: s)
+            syncState = .synced(Date())
+        } catch SyncError.tableMissing {
+            syncState = .unavailable(SyncError.tableMissing.errorDescription ?? "")
+        } catch SyncError.unauthorized {
+            syncState = .failed("session expired — sign in again")
+        } catch {
+            syncState = .failed(error.localizedDescription)
+        }
+    }
+
+    private func setSession(_ s: AuthSession?) {
+        session = s
+        Keychain.save(s.flatMap { try? JSONEncoder().encode($0) }, account: "session")
+    }
+
+    // MARK: account
+    var accountAvailable: Bool { auth != nil }
+
+    func signIn(email: String, password: String) async {
+        guard let auth else { return }
+        do {
+            setSession(try await auth.signIn(email: email.trimmingCharacters(in: .whitespaces), password: password))
+            show("Signed in")
+            await syncNow()
+        } catch { show(error.localizedDescription, error: true) }
+    }
+
+    func signUp(email: String, password: String) async {
+        guard let auth else { return }
+        do {
+            if let s = try await auth.signUp(email: email.trimmingCharacters(in: .whitespaces), password: password) {
+                setSession(s); show("Account created"); await syncNow()
+            } else { show("Check your email to confirm your account") }
+        } catch { show(error.localizedDescription, error: true) }
+    }
+
+    func sendMagicLink(email: String) async {
+        guard let auth else { return }
+        do { try await auth.sendMagicLink(email: email.trimmingCharacters(in: .whitespaces)); show("Magic link sent — open it on this iPhone") }
+        catch { show(error.localizedDescription, error: true) }
+    }
+
+    func signOut() async {
+        if let s = session { await auth?.signOut(s) }
+        setSession(nil)
+        syncState = .signedOut
+        show("Signed out — your recipes stay on this device")
+    }
+
     // MARK: deep links
     func handle(url: URL) {
+        if url.scheme == "ate", url.host == "auth-callback" {
+            Task {
+                do {
+                    if let s = try await auth?.session(fromCallback: url) { setSession(s); show("Signed in"); await syncNow() }
+                } catch { show(error.localizedDescription, error: true) }
+            }
+            return
+        }
+        if url.scheme == "ate", url.host == "cook", let id = url.pathComponents.last, recipe(id) != nil {
+            cookTarget = CookTarget(id: id); return
+        }
         var slug: String?
         if url.scheme == "ate" {
             let parts = ([url.host ?? ""] + url.pathComponents).filter { $0 != "/" && !$0.isEmpty }

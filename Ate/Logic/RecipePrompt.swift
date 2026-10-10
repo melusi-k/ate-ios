@@ -49,7 +49,7 @@ enum RecipePrompt {
     3. If the text is a menu or an advert that names a dish but has no recipe, write a best-effort traditional recipe for that NAMED dish and say so in note.
     4. If no dish is named at all, title the card "Unknown dish", set confidence below 0.2 and explain in note.
     5. Use realistic home quantities in metric units (g, kg, ml, l, tbsp, tsp, cloves, pcs). Servings must suit the dish (stews and braises usually 4 to 6).
-    6. Give timeSeconds for every waiting or cooking step. timeMinutes is the sum of all steps plus prep: tripe takes 2 to 3 h, steamed bread over 1 h, samp and beans 2 to 3 h.
+    6. Give minutes for every waiting or cooking step, matching the time written in the step ("simmer 20 minutes" is 20; "2 to 3 h" is 180). timeMinutes is the sum of all steps plus prep: tripe takes 2 to 3 h, steamed bread over 1 h, samp and beans 2 to 3 h.
     7. Respect regional cuisines (South African, Southern African, West African). Use the glossary when provided. Never replace them with an unrelated Western dish.
     8. confidence is 0 to 1: how sure you are that this card is the dish in the text.
     """

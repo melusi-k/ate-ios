@@ -219,18 +219,5 @@ enum IngredientParser {
 
 /// Finds a waiting time in a step ("bake for 25 minutes", "simmer 1 hour 10 mins", "rest 30 seconds").
 enum StepTimer {
-    static func seconds(in s: String) -> Int? {
-        let l = s.lowercased()
-        let pattern = #"(\d+(?:[.,]\d+)?)\s*(?:-|–|to)?\s*(?:\d+(?:[.,]\d+)?)?\s*(hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\b"#
-        guard let re = try? NSRegularExpression(pattern: pattern) else { return nil }
-        let ns = l as NSString
-        var total = 0.0
-        for m in re.matches(in: l, range: NSRange(location: 0, length: ns.length)) {
-            let v = Double(ns.substring(with: m.range(at: 1)).replacingOccurrences(of: ",", with: ".")) ?? 0
-            let u = ns.substring(with: m.range(at: 2))
-            if u.hasPrefix("h") { total += v * 3600 } else if u.hasPrefix("m") { total += v * 60 } else { total += v }
-        }
-        let t = Int(total)
-        return t > 0 && t <= 86400 ? t : nil
-    }
+    static func seconds(in s: String) -> Int? { Durations.seconds(in: s) }
 }

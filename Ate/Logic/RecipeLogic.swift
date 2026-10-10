@@ -18,6 +18,12 @@ enum RecipeLogic {
         c.tags = c.tags.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         c.ingredients = c.ingredients.map { var i = $0; if !i.quantity.isFinite { i.quantity = 0 }; return i }
         c.steps = c.steps.enumerated().map { idx, s in var s = s; s.order = idx + 1; return s }
+        let fixed = Durations.sanitize(c)
+        c = fixed.card
+        if fixed.corrected {
+            let note = "Some cooking times looked wrong and were corrected from the step text — check them before cooking."
+            if !(c.aiNote ?? "").contains("cooking times") { c.aiNote = [c.aiNote, note].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " ") }
+        }
         return c
     }
 

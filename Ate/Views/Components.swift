@@ -63,7 +63,7 @@ struct RecipeCardView: View {
                             Text("\(idx + 1)").font(AteFont.body(12, .bold)).foregroundStyle(.white)
                                 .frame(width: 24, height: 24).background(Theme.primary, in: Circle())
                             (Text(Units.convertTemperatures(in: s.instruction, to: units))
-                             + Text(s.timeSeconds.map { $0 > 0 ? " (\(Int((Double($0) / 60).rounded())) min)" : "" } ?? "").foregroundColor(Theme.mutedForeground))
+                             + Text(Durations.spans(in: s.instruction).isEmpty ? (s.timeSeconds.map { $0 > 0 ? " (\(Int((Double($0) / 60).rounded())) min)" : "" } ?? "") : "").foregroundColor(Theme.mutedForeground))
                                 .font(AteFont.body(15))
                                 .fixedSize(horizontal: false, vertical: true)
                         }

@@ -48,7 +48,7 @@ final class JSONLDTests: XCTestCase {
         XCTAssertNil(JSONLD.duration("PT0M"))
         XCTAssertEqual(StepTimer.seconds(in: "Simmer for 1 hour 10 mins"), 4200)
         XCTAssertEqual(StepTimer.seconds(in: "Rest 30 seconds"), 30)
-        XCTAssertEqual(StepTimer.seconds(in: "Bake 10-12 minutes"), 600)
+        XCTAssertEqual(StepTimer.seconds(in: "Bake 10-12 minutes"), 720)
         XCTAssertNil(StepTimer.seconds(in: "Serve with 4 slices of toast"))
     }
 

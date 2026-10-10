@@ -98,6 +98,10 @@ struct CookModeView: View {
                 .font(AteFont.display(UIScreen.main.bounds.width > 400 ? 34 : 30)).lineSpacing(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .minimumScaleFactor(0.5)
+            if let range = Durations.rangeLabel(in: s.instruction), (s.timeSeconds ?? 0) > 0 {
+                Text("\(range) · timer set to the longer time").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                    .accessibilityIdentifier("cookTimerRange")
+            }
             if let secs = s.timeSeconds, secs > 0 {
                 let running = active?.isRunning == true
                 HStack(spacing: 14) {

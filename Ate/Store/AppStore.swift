@@ -201,7 +201,7 @@ final class AppStore {
         guard let context else { return }
         let dec = JSONDecoder()
         let r = (try? context.fetch(FetchDescriptor<RecipeEntity>(sortBy: [SortDescriptor(\.position)]))) ?? []
-        recipes = r.compactMap { try? dec.decode(RecipeCard.self, from: $0.json) }
+        recipes = r.compactMap { try? dec.decode(RecipeCard.self, from: $0.json) }.map { Durations.sanitize($0).card }  // repairs recipes saved with bad times
         let s = (try? context.fetch(FetchDescriptor<ShoppingEntity>(sortBy: [SortDescriptor(\.position)]))) ?? []
         shopping = s.compactMap { try? dec.decode(ShoppingItem.self, from: $0.json) }
     }

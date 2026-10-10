@@ -44,7 +44,10 @@ struct TimerBarInset: ViewModifier {
     @Environment(AppStore.self) private var store
     func body(content: Content) -> some View {
         content.safeAreaInset(edge: .bottom, spacing: 0) {
-            if !store.timers.timers.isEmpty && store.cookTarget == nil { TimerBar() }
+            VStack(spacing: 6) {
+                if !NetworkMonitor.shared.isOnline && store.cookTarget == nil { OfflineBanner().transition(.opacity) }
+                if !store.timers.timers.isEmpty && store.cookTarget == nil { TimerBar() }
+            }
         }
     }
 }
@@ -92,11 +95,6 @@ struct RootView: View {
         .dynamicTypeSize(...DynamicTypeSize.accessibility3)
         .overlay(alignment: .top) {
             if !store.showOnboarding { BetaBanner { store.tab = .more; BetaQA.shared.openRequested = true }.padding(.top, 4) }
-        }
-        .overlay(alignment: .bottom) {
-            if !NetworkMonitor.shared.isOnline && store.cookTarget == nil {
-                OfflineBanner().padding(.bottom, 84).transition(.opacity)
-            }
         }
         .overlay(alignment: .bottomTrailing) {
             if AppConfig.isUITesting {

@@ -268,7 +268,7 @@ struct GenIngredient {
 @Generable
 struct GenStep {
     @Guide(description: "Concise instruction") var instruction: String
-    @Guide(description: "Seconds to wait/cook for this step, only for timed steps") var timeSeconds: Int?
+    @Guide(description: "Minutes this step takes (e.g. 20 for 'simmer 20 minutes', 180 for '2 to 3 h'); omit for untimed steps") var minutes: Int?
 }
 
 @available(iOS 26.0, *)
@@ -281,7 +281,7 @@ struct GenRecipe {
     @Guide(description: "Up to 5 short lowercase tags") var tags: [String]
     @Guide(description: "Cuisine in one or two words, e.g. Italian, Mexican, South African, Thai") var cuisine: String
     @Guide(description: "Ingredients copied from the text when given; realistic metric quantities") var ingredients: [GenIngredient]
-    @Guide(description: "Steps in order; timed steps carry timeSeconds") var steps: [GenStep]
+    @Guide(description: "Steps in order; timed steps carry minutes") var steps: [GenStep]
     @Guide(description: "0 to 1: how sure you are this card is the dish in the text") var confidence: Double
     @Guide(description: "Short note when the recipe is best-effort (advert/menu, unknown dish), otherwise empty") var note: String
 
@@ -291,7 +291,7 @@ struct GenRecipe {
         let n = note.trimmingCharacters(in: .whitespacesAndNewlines)
         c.aiNote = n.isEmpty ? nil : n
         // Total time = sum of timed steps when the model's own total is lower.
-        let stepMin = (steps.compactMap(\.timeSeconds).reduce(0, +) + 59) / 60
+        let stepMin = steps.compactMap(\.minutes).reduce(0, +)
         if stepMin > (c.timeMinutes ?? 0) { c.timeMinutes = stepMin }
         return c
     }
@@ -301,7 +301,7 @@ struct GenRecipe {
                    timeMinutes: timeMinutes > 0 ? timeMinutes : nil, tags: tags,
                    ingredients: ingredients.map { Ingredient(name: $0.name, quantity: $0.quantity, unit: $0.unit, notes: $0.notes) },
                    steps: steps.enumerated().map { Step(order: $0.offset + 1, instruction: $0.element.instruction,
-                                                        timeSeconds: ($0.element.timeSeconds ?? 0) > 0 ? $0.element.timeSeconds : nil) },
+                                                        timeSeconds: ($0.element.minutes ?? 0) > 0 ? $0.element.minutes! * 60 : nil) },
                    cuisine: cuisine.trimmingCharacters(in: .whitespaces).isEmpty ? nil : cuisine.trimmingCharacters(in: .whitespaces))
     }
 }

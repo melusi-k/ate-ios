@@ -386,4 +386,29 @@ extension CoverageUITests {
         wait(text("Recovery day"))
         XCTAssertFalse(done.exists)
     }
+
+    /// Offline banner + sticky timer bar must sit below the Cook mode button and the Ask Ate field, never on top.
+    func testBottomBarsDoNotOverlapRecipeDetail() {
+        launch(["-simulateOffline"])
+        addPrompt("miso salmon")
+        app.buttons["Cook mode"].tap()
+        wait(text("Step 1 of"))
+        app.buttons["Next step"].tap(); app.buttons["Next step"].tap()
+        app.buttons["Start timer"].tap()
+        wait(app.buttons["Pause timer"], 5)
+        app.buttons["Exit"].tap()
+        let cook = app.buttons["Cook mode"]; wait(cook)
+        let bar = app.otherElements["timerBar"].firstMatch.exists ? app.otherElements["timerBar"].firstMatch : app.buttons["timerBarOpen"].firstMatch
+        let banner = app.descendants(matching: .any)["offlineBanner"].firstMatch
+        wait(bar, 5); wait(banner, 5)
+        shot("detail-bottom-bars")
+        XCTAssertLessThanOrEqual(cook.frame.maxY, banner.frame.minY + 1, "Cook mode overlaps the offline banner")
+        XCTAssertLessThanOrEqual(cook.frame.maxY, bar.frame.minY + 1, "Cook mode overlaps the timer bar")
+        XCTAssertFalse(banner.frame.intersects(bar.frame), "offline banner overlaps the timer bar")
+        let ask = app.textFields["askField"]
+        scrollTo(ask)
+        XCTAssertTrue(ask.isHittable)
+        XCTAssertLessThanOrEqual(ask.frame.maxY, banner.frame.minY + 1, "Ask Ate field hidden behind bottom bars")
+        XCTAssertFalse(ask.frame.intersects(cook.frame), "Ask Ate field under Cook mode")
+    }
 }

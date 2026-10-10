@@ -76,8 +76,7 @@ final class SupabaseSync: SyncService {
         var r = URLRequest(url: comps.url!)
         r.httpMethod = method
         r.timeoutInterval = 20
-        r.setValue(key, forHTTPHeaderField: "apikey")
-        r.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
+        Net.authorize(&r, key: key, bearer: session.accessToken)
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
         r.httpBody = body
         return r
@@ -95,7 +94,7 @@ final class SupabaseSync: SyncService {
     func pull(session: AuthSession) async throws -> [SyncRecord] {
         let r = req([URLQueryItem(name: "select", value: "user_id,kind,id,data,updated_at,deleted"),
                      URLQueryItem(name: "user_id", value: "eq.\(session.userID)")], method: "GET", session: session)
-        let (data, resp) = try await URLSession.shared.data(for: r)
+        let (data, resp) = try await Net.data(for: r)
         try check(data, resp)
         return try JSONDecoder().decode([SyncRecord].self, from: data)
     }
@@ -105,7 +104,7 @@ final class SupabaseSync: SyncService {
         var r = req([URLQueryItem(name: "on_conflict", value: "user_id,kind,id")], method: "POST", session: session,
                     body: try JSONEncoder().encode(records))
         r.setValue("resolution=merge-duplicates,return=minimal", forHTTPHeaderField: "Prefer")
-        let (data, resp) = try await URLSession.shared.data(for: r)
+        let (data, resp) = try await Net.data(for: r)
         try check(data, resp)
     }
 }

@@ -36,6 +36,8 @@ enum AppConfig {
     static var supabaseURL: URL? { URL(string: string("AteSupabaseURL")).flatMap { $0.host == nil ? nil : $0 } }
     /// Publishable (anon) key only — safe to ship; RLS restricts it to SELECT.
     static var supabasePublishableKey: String { string("AteSupabasePublishableKey") }
+    static var privacyURL: URL? { URL(string: string("AtePrivacyURL")).flatMap { $0.host == nil ? nil : $0 } }
+    static var termsURL: URL? { URL(string: string("AteTermsURL")).flatMap { $0.host == nil ? nil : $0 } }
     static var shareHost: String { string("AteShareHost").isEmpty ? "https://recipe-transform-ai.lovable.app" : string("AteShareHost") }
 
     /// Modes: "ondevice" (default: Foundation Models + Vision, mock fallback), "mock", "supabase".
@@ -149,16 +151,13 @@ final class SupabaseBackend: BackendService {
         r.httpMethod = method
         r.timeoutInterval = 30
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !publishableKey.isEmpty {
-            r.setValue(publishableKey, forHTTPHeaderField: "apikey")
-            r.setValue("Bearer \(publishableKey)", forHTTPHeaderField: "Authorization")
-        }
+        if !publishableKey.isEmpty { Net.authorize(&r, key: publishableKey) }
         r.httpBody = body
         return r
     }
 
     private func send(_ r: URLRequest) async throws -> Data {
-        let (data, resp) = try await URLSession.shared.data(for: r)
+        let (data, resp) = try await Net.data(for: r)
         let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(code) else { throw BackendError.http(code) }
         return data
@@ -176,7 +175,7 @@ final class SupabaseBackend: BackendService {
 
     func publish(_ card: RecipeCard) async throws -> String {
         var r = request("functions/v1/publish-recipe", method: "POST", body: try JSONEncoder().encode(["card": card]))
-        if let token = Self.userAccessToken?() { r.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        if let token = Self.userAccessToken?() { Net.authorize(&r, key: publishableKey, bearer: token) }
         do {
             let data = try await send(r)
             return try JSONDecoder().decode(SlugEnvelope.self, from: data).slug

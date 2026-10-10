@@ -46,6 +46,17 @@ struct SettingsView: View {
                         }
                     }
                     card {
+                        Text("About").font(AteFont.display(18))
+                        Button { store.replayOnboarding() } label: { Label("Replay intro", systemImage: "sparkles") }
+                            .buttonStyle(.ate(.secondary, height: 40)).accessibilityIdentifier("replayOnboarding")
+                        HStack(spacing: 16) {
+                            if let u = AppConfig.privacyURL { Link("Privacy Policy", destination: u).accessibilityIdentifier("settingsPrivacy") }
+                            if let u = AppConfig.termsURL { Link("Terms of Use", destination: u).accessibilityIdentifier("settingsTerms") }
+                        }.font(AteFont.body(14, .medium)).tint(Theme.primary)
+                        Text("ate \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""))")
+                            .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                    }
+                    card {
                         Text("Your data").font(AteFont.display(18))
                         Text("Recipes are stored on this device only. Nothing is uploaded when you browse or cook.")
                             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)

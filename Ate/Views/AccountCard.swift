@@ -2,11 +2,14 @@ import SwiftUI
 
 struct AccountCard: View {
     @Environment(AppStore.self) private var store
-    @State private var email = ""
-    @State private var password = ""
-    @State private var busy = false
+    @State private var confirmSignOut = false
+    @State private var confirmDelete = false
+    @State private var typeDelete = false
+    @State private var deleteText = ""
+    @State private var deleting = false
 
     var body: some View {
+        @Bindable var store = store
         VStack(alignment: .leading, spacing: 12) {
             Text("Account & sync").font(AteFont.display(18))
             if !store.accountAvailable {
@@ -19,39 +22,55 @@ struct AccountCard: View {
                     Text(store.syncState.label).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
                         .accessibilityIdentifier("syncStatus")
                 }
-                HStack(spacing: 8) {
+                WrapLayout(spacing: 8) {
                     Button { Task { await store.syncNow() } } label: { Label("Sync now", systemImage: "arrow.triangle.2.circlepath") }
                         .buttonStyle(.ate(.secondary, height: 40)).disabled(store.syncState == .syncing)
-                    Button("Sign out") { Task { await store.signOut() } }.buttonStyle(.ate(.destructiveGhost, height: 40))
+                    Button("Sign out") { confirmSignOut = true }.buttonStyle(.ate(.outline, height: 40))
+                        .accessibilityIdentifier("signOutButton")
                 }
+                Divider().padding(.vertical, 4)
+                Text("Danger zone").font(AteFont.body(14, .semibold)).foregroundStyle(Theme.destructive)
+                Text("Deleting your account permanently removes it and your synced recipes from ate's server and this iPhone.")
+                    .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                Button { confirmDelete = true } label: {
+                    HStack { if deleting { ProgressView() }; Label("Delete account", systemImage: "trash") }
+                }.buttonStyle(.ate(.destructiveGhost, height: 40)).disabled(deleting).accessibilityIdentifier("deleteAccountButton")
             } else {
                 Text("Sign in to sync your recipes and shopping list across devices. Everything keeps working offline without an account.")
                     .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
-                TextField("Email", text: $email).keyboardType(.emailAddress).textContentType(.username)
-                    .textInputAutocapitalization(.never).autocorrectionDisabled().ateField().accessibilityIdentifier("accountEmailField")
-                SecureField("Password (min 6 characters)", text: $password).textContentType(.password)
-                    .ateField().accessibilityIdentifier("accountPasswordField")
                 WrapLayout(spacing: 8) {
-                    Button("Sign in") { run { await store.signIn(email: email, password: password) } }
-                        .buttonStyle(.ate(.primary, height: 40)).disabled(!valid(needsPassword: true))
-                    Button("Create account") { run { await store.signUp(email: email, password: password) } }
-                        .buttonStyle(.ate(.secondary, height: 40)).disabled(!valid(needsPassword: true))
-                    Button { run { await store.sendMagicLink(email: email) } } label: { Label("Email me a magic link", systemImage: "envelope") }
-                        .buttonStyle(.ate(.ghost, height: 40)).disabled(!valid(needsPassword: false))
+                    Button("Sign in") { store.authSheet = .signIn }.buttonStyle(.ate(.primary, height: 40))
+                        .accessibilityIdentifier("openSignIn")
+                    Button("Create account") { store.authSheet = .signUp }.buttonStyle(.ate(.secondary, height: 40))
+                        .accessibilityIdentifier("openSignUp")
                 }
-                if busy { ProgressView() }
+                if let p = store.pendingConfirmation {
+                    Text("Waiting for you to confirm \(p).").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface(padding: 20)
-    }
-
-    private func valid(needsPassword: Bool) -> Bool {
-        !busy && email.contains("@") && email.contains(".") && (!needsPassword || password.count >= 6)
-    }
-
-    private func run(_ op: @escaping () async -> Void) {
-        busy = true
-        Task { await op(); busy = false; password = "" }
+        .confirmationDialog("Sign out of ate?", isPresented: $confirmSignOut, titleVisibility: .visible) {
+            Button("Sign out, keep recipes on this iPhone") { Task { await store.signOut(removeLocalData: false) } }
+            Button("Sign out and remove local data", role: .destructive) { Task { await store.signOut(removeLocalData: true) } }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("Your synced recipes stay in your account either way.") }
+        .alert("Delete your account?", isPresented: $confirmDelete) {
+            Button("Continue", role: .destructive) { deleteText = ""; typeDelete = true }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("This permanently deletes your account and synced recipes. It can't be undone.") }
+        .alert("Type DELETE to confirm", isPresented: $typeDelete) {
+            TextField("DELETE", text: $deleteText).textInputAutocapitalization(.characters).accessibilityIdentifier("deleteConfirmField")
+            Button("Delete account", role: .destructive) {
+                guard deleteText == "DELETE" else { store.show("Account not deleted — you didn't type DELETE", error: true); return }
+                deleting = true
+                Task {
+                    if let e = await store.deleteAccount() { store.show(e.message, error: true) }
+                    deleting = false
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("Your recipes on this iPhone will be removed too.") }
     }
 }

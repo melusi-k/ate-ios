@@ -67,6 +67,8 @@ struct RootView: View {
         .fullScreenCover(item: $store.cookTarget) { target in
             CookModeView(recipeID: target.id, onExit: { store.cookTarget = nil }).environment(store)
         }
+        .fullScreenCover(isPresented: $store.showOnboarding) { OnboardingView().environment(store) }
+        .sheet(item: $store.authSheet) { m in AuthSheet(mode: m).environment(store) }
         .onReceive(tick) { store.timers.tick($0) }
         .onChange(of: phase) { _, p in if p == .active { store.timers.tick(); store.scheduleSync(delay: 0.2) } }
         .task { if store.session != nil { await store.syncNow() } }

@@ -269,29 +269,166 @@ final class AteUITests: XCTestCase {
         shot("timerbar-stopped")
     }
 
-    func test12_Account() {
-        launch()
+    func openSettingsAccount() {
         app.buttons["Settings"].tap()
         wait(text("Account & sync"))
+    }
+
+    func replaceText(_ e: XCUIElement, _ newText: String, placeholder: String) {
+        wait(e)
+        e.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        if let v = e.value as? String, !v.isEmpty, v != placeholder {
+            e.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: v.count + 2))
+        }
+        e.typeText(newText)
+    }
+
+    func fillAuth(_ email: String, _ password: String?) {
+        replaceText(app.textFields["authEmail"], email, placeholder: "Email")
+        if let password {
+            let p = app.secureTextFields["authPassword"]
+            replaceText(p, password, placeholder: (p.placeholderValue ?? ""))
+        }
+    }
+
+    func signInViaSettings() {
+        openSettingsAccount()
+        app.buttons["openSignIn"].tap()
+        wait(app.staticTexts["authTitle"])
+        fillAuth("cook@example.com", "password123")
+        app.buttons["authSubmit"].tap()
+        wait(app.staticTexts["accountEmail"], 8)
+        wait(text("Synced"), 8)
+    }
+
+    func test12_SignInErrors() {
+        launch()
+        openSettingsAccount()
         shot("account-signed-out")
-        let email = app.textFields["accountEmailField"]
-        email.tap(); email.typeText("cook@example.com")
-        let pw = app.secureTextFields["accountPasswordField"]
-        pw.tap(); pw.typeText("wrongpass")
-        app.buttons["Sign in"].tap()
-        wait(text("Invalid login credentials"), 5)
-        shot("account-sign-in-error")
-        pw.tap(); pw.typeText("password123")
-        app.buttons["Create account"].tap()
+        app.buttons["openSignIn"].tap()
+        wait(app.staticTexts["authTitle"])
+        shot("auth-sign-in")
+        // wrong password
+        fillAuth("cook@example.com", "wrongpass")
+        app.buttons["authSubmit"].tap()
+        wait(text("Wrong email or password"), 5)
+        shot("auth-error-credentials")
+        // show/hide password
+        app.buttons["Show password"].tap()
+        wait(app.textFields["authPasswordVisible"], 3)
+        app.buttons["Hide password"].tap()
+        // offline
+        fillAuth("offline@example.com", "password123")
+        app.buttons["authSubmit"].tap()
+        wait(text("You're offline"), 5)
+        shot("auth-error-offline")
+        // not confirmed -> pending state with resend
+        fillAuth("unconfirmed@example.com", "password123")
+        app.buttons["authSubmit"].tap()
+        wait(app.staticTexts["confirmPending"], 5)
+        app.buttons["resendConfirmation"].tap()
+        wait(text("Sent again"), 5)
+        shot("auth-confirm-pending")
+        app.buttons["I've confirmed, sign in"].tap()
+        // forgot password
+        wait(app.buttons["forgotPassword"], 5)
+        app.buttons["forgotPassword"].tap()
+        wait(text("Reset your password"))
+        app.buttons["sendReset"].tap()
+        wait(text("Check your inbox"), 5)
+        shot("auth-forgot")
+        app.buttons["authClose"].tap()
+        wait(app.buttons["openSignIn"], 5)
+    }
+
+    func test15_SignUpPendingAndSignInOut() {
+        launch()
+        openSettingsAccount()
+        app.buttons["openSignUp"].tap()
+        wait(text("Create your account"))
+        fillAuth("pending@example.com", "password123")
+        app.buttons["authSubmit"].tap()
+        wait(app.staticTexts["confirmPending"], 5)
+        shot("auth-signup-pending")
+        app.buttons["authClose"].tap()
+        wait(text("Waiting for you to confirm"), 5)
+        // sign in, then sign out keeping data
+        app.buttons["openSignIn"].tap()
+        fillAuth("cook@example.com", "password123")
+        app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
         wait(text("Synced"), 8)
         shot("account-signed-in")
-        app.buttons["Sync now"].tap()
-        wait(text("Synced"), 8)
-        app.buttons["Sign out"].tap()
-        wait(text("Signed out"), 5)
-        wait(app.textFields["accountEmailField"], 5)
+        app.buttons["signOutButton"].tap()
+        let keep = app.buttons["Sign out, keep recipes on this iPhone"]
+        wait(keep, 5)
+        shot("account-sign-out-confirm")
+        keep.tap()
+        wait(app.buttons["openSignIn"], 5)
         shot("account-signed-out-again")
+    }
+
+    func test16_DeleteAccount() {
+        launch()
+        addPromptRecipe()
+        app.buttons["Library"].firstMatch.tap()
+        signInViaSettings()
+        let del = app.buttons["deleteAccountButton"]
+        var n = 0
+        while !del.isHittable && n < 6 { app.swipeUp(velocity: .slow); n += 1 }
+        del.tap()
+        wait(app.alerts.buttons["Continue"], 5)
+        app.alerts.buttons["Continue"].tap()
+        let field = app.alerts.textFields.firstMatch
+        wait(field, 5)
+        // wrong word first: nothing is deleted
+        field.typeText("delete")
+        app.alerts.buttons["Delete account"].tap()
+        wait(text("you didn't type DELETE"), 5)
+        wait(app.staticTexts["accountEmail"], 3)
+        del.tap()
+        app.alerts.buttons["Continue"].tap()
+        wait(app.alerts.textFields.firstMatch, 5)
+        app.alerts.textFields.firstMatch.typeText("DELETE")
+        shot("account-delete-confirm")
+        app.alerts.buttons["Delete account"].tap()
+        wait(app.buttons["onboardingNext"], 8)
+        shot("account-deleted-onboarding")
+        app.buttons["onboardingSkip"].tap()
+        app.buttons["onboardingContinue"].tap()
+        wait(text("Nothing saved yet"), 5)
+    }
+
+    func test17_Onboarding() {
+        launch(["-showOnboarding"])
+        wait(text("Any recipe, one clean card"))
+        shot("onboarding-1")
+        app.buttons["onboardingNext"].tap()
+        wait(text("Cook mode with timers"))
+        shot("onboarding-2")
+        app.buttons["onboardingNext"].tap()
+        wait(text("Sync and share"))
+        shot("onboarding-3")
+        app.buttons["onboardingNext"].tap()
+        wait(app.staticTexts["onboardingChoice"])
+        XCTAssertTrue(app.buttons["privacyLink"].exists)
+        shot("onboarding-choice")
+        app.buttons["onboardingSignIn"].tap()
+        wait(app.staticTexts["authTitle"])
+        fillAuth("cook@example.com", "password123")
+        app.buttons["authSubmit"].tap()
+        wait(text("Your kitchen library"), 8)
+        XCTAssertFalse(app.staticTexts["onboardingChoice"].exists)
+        // replay from Settings, then continue without account
+        openSettingsAccount()
+        let replay = app.buttons["replayOnboarding"]
+        var n = 0
+        while !replay.isHittable && n < 8 { app.swipeUp(velocity: .slow); n += 1 }
+        replay.tap()
+        wait(text("Any recipe, one clean card"))
+        app.buttons["onboardingSkip"].tap()
+        app.buttons["onboardingContinue"].tap()
+        wait(text("Account & sync"), 5)
     }
 
     func test13_ShareOptions() {

@@ -24,6 +24,10 @@ final class ShoppingEntity {
 
 struct CookTarget: Identifiable, Equatable { let id: String }
 
+enum AuthMode: String, Identifiable { case signIn, signUp, newPassword; var id: String { rawValue } }
+
+enum SignUpOutcome: Equatable { case signedIn, confirmationSent, failed(AuthError) }
+
 enum SyncState: Equatable {
     case signedOut, idle, syncing, synced(Date), unavailable(String), failed(String)
     var label: String {
@@ -64,6 +68,11 @@ final class AppStore {
     var cookTarget: CookTarget?
     let timers = TimerCenter()
 
+    // Onboarding & auth UI
+    var showOnboarding = false
+    var authSheet: AuthMode?
+    var pendingConfirmation: String?   // email awaiting confirmation
+
     // Accounts & sync
     var session: AuthSession?
     var syncState: SyncState = .signedOut
@@ -92,6 +101,8 @@ final class AppStore {
         meta = Self.loadDefaults(SyncMeta.self, key: "ate.sync.v1") ?? SyncMeta()
         session = Keychain.load(account: "session").flatMap { try? JSONDecoder().decode(AuthSession.self, from: $0) }
         syncState = session == nil ? .signedOut : .idle
+        showOnboarding = AppConfig.isUITesting ? ProcessInfo.processInfo.arguments.contains("-showOnboarding")
+                                               : !UserDefaults.standard.bool(forKey: Self.onboardedKey)
         load()
         recipeSnapshot = Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         shopSnapshot = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
@@ -287,38 +298,103 @@ final class AppStore {
         Keychain.save(s.flatMap { try? JSONEncoder().encode($0) }, account: "session")
     }
 
+    // MARK: onboarding
+    static let onboardedKey = "ate.onboarded.v1"
+    func finishOnboarding() {
+        if !AppConfig.isUITesting { UserDefaults.standard.set(true, forKey: Self.onboardedKey) }
+        showOnboarding = false
+    }
+    func replayOnboarding() { showOnboarding = true }
+
     // MARK: account
     var accountAvailable: Bool { auth != nil }
 
-    func signIn(email: String, password: String) async {
-        guard let auth else { return }
+    /// Returns nil on success.
+    func signIn(email: String, password: String) async -> AuthError? {
+        guard let auth else { return AuthError(message: "Accounts aren't configured in this build.") }
+        let email = email.trimmingCharacters(in: .whitespaces)
         do {
-            setSession(try await auth.signIn(email: email.trimmingCharacters(in: .whitespaces), password: password))
+            setSession(try await auth.signIn(email: email, password: password))
+            pendingConfirmation = nil
             show("Signed in")
-            await syncNow()
-        } catch { show(error.localizedDescription, error: true) }
+            Task { await syncNow() }
+            return nil
+        } catch {
+            let e = AuthError.network(error)
+            if e.kind == .emailNotConfirmed { pendingConfirmation = email }
+            return e
+        }
     }
 
-    func signUp(email: String, password: String) async {
-        guard let auth else { return }
+    func signUp(email: String, password: String) async -> SignUpOutcome {
+        guard let auth else { return .failed(AuthError(message: "Accounts aren't configured in this build.")) }
+        let email = email.trimmingCharacters(in: .whitespaces)
         do {
-            if let s = try await auth.signUp(email: email.trimmingCharacters(in: .whitespaces), password: password) {
-                setSession(s); show("Account created"); await syncNow()
-            } else { show("Check your email to confirm your account") }
-        } catch { show(error.localizedDescription, error: true) }
+            if let s = try await auth.signUp(email: email, password: password) {
+                setSession(s); show("Account created"); Task { await syncNow() }
+                return .signedIn
+            }
+            pendingConfirmation = email
+            return .confirmationSent
+        } catch { return .failed(AuthError.network(error)) }
     }
 
-    func sendMagicLink(email: String) async {
-        guard let auth else { return }
-        do { try await auth.sendMagicLink(email: email.trimmingCharacters(in: .whitespaces)); show("Magic link sent — open it on this iPhone") }
-        catch { show(error.localizedDescription, error: true) }
+    func sendMagicLink(email: String) async -> AuthError? {
+        guard let auth else { return nil }
+        do { try await auth.sendMagicLink(email: email.trimmingCharacters(in: .whitespaces)); return nil }
+        catch { return AuthError.network(error) }
     }
 
-    func signOut() async {
+    func resendConfirmation() async -> AuthError? {
+        guard let auth, let email = pendingConfirmation else { return nil }
+        do { try await auth.resendConfirmation(email: email); return nil } catch { return AuthError.network(error) }
+    }
+
+    func recoverPassword(email: String) async -> AuthError? {
+        guard let auth else { return nil }
+        do { try await auth.recoverPassword(email: email.trimmingCharacters(in: .whitespaces)); return nil }
+        catch { return AuthError.network(error) }
+    }
+
+    func setNewPassword(_ password: String) async -> AuthError? {
+        guard let auth, let s = session else { return AuthError(.unauthorized, "Open the reset link again.") }
+        do { try await auth.updatePassword(s, to: password); show("Password updated"); return nil }
+        catch { return AuthError.network(error) }
+    }
+
+    func signOut(removeLocalData: Bool = false) async {
         if let s = session { await auth?.signOut(s) }
+        syncTask?.cancel()
         setSession(nil)
         syncState = .signedOut
-        show("Signed out — your recipes stay on this device")
+        if removeLocalData { wipeLocalData() }
+        show(removeLocalData ? "Signed out and removed this iPhone's copy" : "Signed out — your recipes stay on this device")
+    }
+
+    /// Permanently deletes the account on the server, then all local data, then shows onboarding.
+    func deleteAccount() async -> AuthError? {
+        guard let auth, var s = session else { return AuthError(.unauthorized, "Sign in again to delete your account.") }
+        do {
+            if s.expiresAt < Date().timeIntervalSince1970 + 60 { s = try await auth.refresh(s) }
+            try await auth.deleteAccount(s)
+        } catch { return AuthError.network(error) }
+        syncTask?.cancel()
+        setSession(nil)
+        syncState = .signedOut
+        wipeLocalData()
+        path.removeAll()
+        if !AppConfig.isUITesting { UserDefaults.standard.removeObject(forKey: Self.onboardedKey) }
+        showOnboarding = true
+        show("Your account and data were deleted")
+        return nil
+    }
+
+    private func wipeLocalData() {
+        recipes = []; shopping = []
+        persistRecipes(stamp: false); persistShopping(stamp: false)
+        meta = SyncMeta(); saveDefaults(meta, key: "ate.sync.v1")
+        recipeSnapshot = [:]; shopSnapshot = [:]
+        for t in timers.timers { timers.stop(t.id) }
     }
 
     // MARK: deep links
@@ -326,8 +402,21 @@ final class AppStore {
         if url.scheme == "ate", url.host == "auth-callback" {
             Task {
                 do {
-                    if let s = try await auth?.session(fromCallback: url) { setSession(s); show("Signed in"); await syncNow() }
-                } catch { show(error.localizedDescription, error: true) }
+                    switch try await auth?.session(fromCallback: url) {
+                    case .signedIn(let s)?:
+                        setSession(s); pendingConfirmation = nil; authSheet = nil
+                        if showOnboarding { finishOnboarding() }
+                        show("Signed in"); await syncNow()
+                    case .recovery(let s)?:
+                        setSession(s); if showOnboarding { finishOnboarding() }
+                        authSheet = .newPassword
+                    case .confirmedNeedsSignIn?:
+                        pendingConfirmation = nil
+                        show("Email confirmed — sign in with your password")
+                        authSheet = .signIn
+                    case nil: show("That sign-in link didn't work. Request a new one.", error: true)
+                    }
+                } catch { show(AuthError.network(error).message, error: true) }
             }
             return
         }

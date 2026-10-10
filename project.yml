@@ -18,6 +18,9 @@ settings:
     # Signing team from env/secret TEAM_ID at `xcodegen generate` time (empty = unsigned / free-ID sideload).
     DEVELOPMENT_TEAM: "${TEAM_ID}"
     ATE_SHARE_HOST: "https://recipe-transform-ai.lovable.app"
+    # Legal pages (PLACEHOLDERS: publish real pages before TestFlight/App Store, then update these).
+    ATE_PRIVACY_URL: "https://recipe-transform-ai.lovable.app/privacy"
+    ATE_TERMS_URL: "https://recipe-transform-ai.lovable.app/terms"
 targets:
   Ate:
     type: application
@@ -54,6 +57,8 @@ targets:
         AteSupabaseURL: $(ATE_SUPABASE_URL)
         AteSupabasePublishableKey: $(ATE_SUPABASE_PUBLISHABLE_KEY)
         AteShareHost: $(ATE_SHARE_HOST)
+        AtePrivacyURL: $(ATE_PRIVACY_URL)
+        AteTermsURL: $(ATE_TERMS_URL)
         CFBundleURLTypes:
           - CFBundleURLName: com.melusik.ate
             CFBundleURLSchemes: [ate]

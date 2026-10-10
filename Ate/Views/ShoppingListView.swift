@@ -53,7 +53,7 @@ struct ShoppingListView: View {
                     }
                 }
                 .foregroundStyle(Theme.foreground)
-                .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
+                .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 96)
                 .pageWidth()
             }
         }

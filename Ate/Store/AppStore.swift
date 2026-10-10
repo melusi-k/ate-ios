@@ -66,6 +66,7 @@ final class AppStore {
     var path: [Route] = []
     var shoppingPath: [Route] = []
     var settingsPath: [Route] = []
+    var morePath: [Route] = []
     var tab: AppTab = .library
     /// Item handed over by the "Save to ate" share extension, waiting for the Add sheet.
     var pendingImport: SharedInbox.Item?

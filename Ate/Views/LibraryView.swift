@@ -57,7 +57,7 @@ struct LibraryView: View {
                 emptyState(filtered)
                 ForEach(sections) { sec in
                     if !sec.title.isEmpty { sectionHeader(sec.title, count: sec.recipes.count) }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 250, maximum: 420), spacing: 14)], spacing: 14) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: vSize == .compact ? 220 : 250, maximum: 420), spacing: 14)], spacing: 14) {
                         ForEach(sec.recipes) { r in
                             gridCell(r, ordered: ordered)
                         }

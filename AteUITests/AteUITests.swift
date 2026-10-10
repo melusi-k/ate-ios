@@ -175,14 +175,14 @@ final class AteUITests: XCTestCase {
     func test07_ShoppingList() {
         launch()
         wait(text("Your kitchen library"))
-        app.buttons["Shopping list"].tap()
+        app.buttons["Shopping"].tap()
         wait(text("Nothing on the list"))
         shot("shopping-empty")
         app.buttons["Library"].tap()
         addPromptRecipe()
         app.buttons["Add to shopping list"].tap()
         app.buttons["Library"].tap()
-        app.buttons["Shopping list"].tap()
+        app.buttons["Shopping"].tap()
         wait(text("5 to buy"))
         let field = app.textFields["shoppingAddField"]
         field.tap(); field.typeText("Lemons")
@@ -436,7 +436,6 @@ final class AteUITests: XCTestCase {
         let replay = app.buttons["replayOnboarding"]
         var n = 0
         while !replay.isHittable && n < 8 { app.swipeUp(velocity: .slow); n += 1 }
-        XCTAssertTrue(app.staticTexts["aboutVersion"].label.contains("(build "))
         let footer = app.buttons["versionFooter"]
         n = 0
         while !footer.isHittable && n < 8 { app.swipeUp(velocity: .slow); n += 1 }
@@ -445,6 +444,10 @@ final class AteUITests: XCTestCase {
         footer.tap()
         wait(text("Version info copied"), 5)
         shot("settings-version-footer")
+        app.tabBars.buttons["More"].tap()   // About + Replay intro moved to More
+        n = 0
+        while !app.staticTexts["aboutVersion"].exists && n < 8 { app.swipeUp(velocity: .slow); n += 1 }
+        XCTAssertTrue(app.staticTexts["aboutVersion"].label.contains("(build "))
         n = 0
         while !replay.isHittable && n < 8 { app.swipeDown(velocity: .slow); n += 1 }
         replay.tap()
@@ -590,9 +593,9 @@ final class AteUITests: XCTestCase {
         // state kept per tab: the library stack stays on the recipe
         wait(app.buttons["Cook mode"])
         app.buttons["Add to shopping list"].tap()
-        tabs.buttons["Shopping list"].tap()
+        tabs.buttons["Shopping"].tap()
         wait(text("5 to buy"))
-        let sb = tabs.buttons["Shopping list"]
+        let sb = tabs.buttons["Shopping"]
         let badge = (sb.value as? String ?? "") + " " + sb.label
         // iOS 26 doesn't expose tab badges to XCUITest; verified via screenshot + AppStore.pendingShoppingCount unit test.
         _ = badge
@@ -600,6 +603,11 @@ final class AteUITests: XCTestCase {
         app.buttons["Mark honey as bought"].firstMatch.tap()
         wait(text("4 to buy"))
         shot("tabbar-shopping-badge-4")
+        XCTAssertEqual(tabs.buttons.count, 4)
+        XCTAssertFalse(tabs.buttons["Quick (≤30 min)"].exists)
+        tabs.buttons["More"].tap()
+        wait(app.buttons["more.Quick (≤30 min)"])
+        shot("tabbar-more")
         tabs.buttons["Settings"].tap()
         wait(text("Timer notifications"))
         shot("tabbar-settings")
@@ -630,7 +638,7 @@ final class AteUITests: XCTestCase {
         app.buttons["saveRecipe"].tap()
         wait(app.buttons["Cook mode"], 5)
         XCTAssertTrue(app.descendants(matching: .any)["sourceBadge"].firstMatch.exists)
-        app.tabBars.buttons["Settings"].tap()
+        app.tabBars.buttons["More"].tap()
         let diag = app.descendants(matching: .any)["aiDiagnostics"].firstMatch
         var n = 0
         while !diag.exists && n < 8 { app.swipeUp(); n += 1 }

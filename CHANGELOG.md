@@ -4,7 +4,14 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 
 ## Unreleased
 
-### ✨ New
+#### 🐛 Fixed
+- **The app now rotates.** `Info.plist` only allowed portrait, so the landscape sidebar and two-column grid never appeared on a real iPhone. Portrait, landscape left and landscape right are now supported, and the grid fits two columns beside the sidebar on iPhone 17.
+- Recipe detail hides the tab bar so the Cook mode button is no longer covered; the shopping list's last rows clear the tab bar.
+
+## ✨ New
+- **Cleaner tab bar.** Exactly four tabs with short labels: Library, Shopping (with badge), More and Settings. Collections no longer leak into the bar or the system "More" list. Selected tab is brand orange, others secondary grey.
+- **New More screen** in ate's own styling: Collections (Quick, Favourites, Recently added, Recently cooked), By ingredient, Tools (export/import, replay intro, Privacy/Terms) and About (version, AI transparency, what to expect in beta, AI diagnostics). Settings now holds only Account & sync, Private mode, Units, Timer notifications and Your data.
+- **Quick ≤30 min** is now the first filter chip in the Library.
 - **Group & sort your library.** Group by Recently added (Today/This week/Earlier), Cuisine (filled in by the AI, editable), Main ingredient or Cook time. Sort by Newest, A–Z, Quickest, Recently cooked, Favourites first or **My order**, where you drag cards to arrange them (synced). Your choice is remembered.
 - **Swipe and long-press.** Swipe left to delete (with Undo), swipe right to Favourite or add to the shopping list. Long-press any card for Cook, Share, Favourite, Add to list and Delete, with a rounded preview.
 - **Landscape sidebar and recipe grid.** Turn your iPhone sideways for a collapsible sidebar (Library, Shopping list, Settings and Collections) and a grid of recipe cards with thumbnails. Portrait is unchanged. It uses the adaptable `TabView` sidebar, ready for iPad.

@@ -61,7 +61,7 @@ targets:
           UIImageName: AteLogo
           UIColorName: LaunchBackground
           UIImageRespectsSafeAreaInsets: true
-        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         UIAppFonts: [Fraunces.ttf, DMSans.ttf]
         NSSupportsLiveActivities: true
         NSPhotoLibraryUsageDescription: ate reads the recipe screenshot you pick to turn it into a recipe card.

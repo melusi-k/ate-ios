@@ -43,8 +43,11 @@ struct FilterChips: View {
                     if let c = f.collection {
                         chip(c.title, symbol: c.symbol, on: true, id: "chip.collection") { store.filter.collection = nil }
                     }
+                    chip("Quick ≤30 min", symbol: "bolt", on: f.maxMinutes == 30, id: "chip.time30") {
+                        store.filter.maxMinutes = f.maxMinutes == 30 ? nil : 30
+                    }
                     chip("Favourites", symbol: "star", on: f.favouritesOnly, id: "chip.favourites") { store.filter.favouritesOnly.toggle() }
-                    ForEach(RecipeFilter.timeOptions, id: \.self) { m in
+                    ForEach(RecipeFilter.timeOptions.filter { $0 != 30 }, id: \.self) { m in
                         chip("≤\(m) min", symbol: "clock", on: f.maxMinutes == m, id: "chip.time\(m)") {
                             store.filter.maxMinutes = f.maxMinutes == m ? nil : m
                         }

@@ -45,34 +45,6 @@ struct SettingsView: View {
                         }
                     }
                     card {
-                        Text("About").font(AteFont.display(18))
-                        Button { store.replayOnboarding() } label: { Label("Replay intro", systemImage: "sparkles") }
-                            .buttonStyle(.ate(.secondary, height: 40)).accessibilityIdentifier("replayOnboarding")
-                        HStack(spacing: 16) {
-                            if let u = AppConfig.privacyURL { Link("Privacy Policy", destination: u).accessibilityIdentifier("settingsPrivacy") }
-                            if let u = AppConfig.termsURL { Link("Terms of Use", destination: u).accessibilityIdentifier("settingsTerms") }
-                        }.font(AteFont.body(14, .medium)).tint(Theme.primary)
-                        Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))")
-                            .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aboutVersion")
-                        Text(Transparency.ai).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-                            .accessibilityIdentifier("aiTransparency")
-                        DisclosureGroup {
-                            VStack(alignment: .leading, spacing: 6) {
-                                ForEach(Transparency.beta, id: \.self) { Label($0, systemImage: "info.circle").font(AteFont.body(13)) }
-                            }.padding(.top, 4)
-                        } label: { Text(Transparency.betaTitle).font(AteFont.body(14, .semibold)) }
-                            .tint(Theme.primary).accessibilityIdentifier("betaNote")
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("AI diagnostics").font(AteFont.body(12, .semibold))
-                            Text("Model: " + OnDeviceBackend.availabilityDescription)
-                            Text("Last generation: " + (GenerationLog.last?.summary ?? "none yet"))
-                                .accessibilityIdentifier("lastGeneration")
-                        }
-                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                        .textSelection(.enabled)
-                        .accessibilityElement(children: .combine).accessibilityIdentifier("aiDiagnostics")
-                    }
-                    card {
                         Text("Your data").font(AteFont.display(18))
                         Text(store.session == nil
                              ? "Recipes are stored on this iPhone only. Sign in to sync them to your account."

@@ -7,6 +7,7 @@ struct AteApp: App {
     @State private var store: AppStore
 
     init() {
+        TabBarStyle.apply()
         if AppConfig.isUITesting {
             for k in ["ate.settings.v1", "ate.timerprefs.v1"] { UserDefaults.standard.removeObject(forKey: k) }
         }
@@ -89,7 +90,7 @@ struct RootView: View {
 }
 
 extension RootView {
-    /// iOS 18+ `Tab`/`TabSection` API with `.sidebarAdaptable` (sidebar on iPad, tab bar on iPhone).
+    /// Compact tab bar: exactly four tabs. Collections live in More (portrait) and the landscape sidebar only.
     @ViewBuilder var tabs: some View {
         @Bindable var store = store
         TabView(selection: tabSelection) {
@@ -98,39 +99,35 @@ extension RootView {
                     LibraryView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }
             }
-            Tab("Shopping list", systemImage: "basket", value: AppTab.shopping) {
+            Tab("Shopping", systemImage: "basket", value: AppTab.shopping) {
                 NavigationStack(path: $store.shoppingPath) {
                     ShoppingListView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }
             }
             .badge(store.pendingShoppingCount)
+            Tab("More", systemImage: "square.grid.2x2", value: AppTab.more) {
+                NavigationStack(path: $store.morePath) {
+                    MoreView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }
+            }
             Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
                 NavigationStack(path: $store.settingsPath) {
                     SettingsView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }
             }
-            TabSection("Collections") {
-                ForEach(SidebarModel.collections(store.recipes), id: \.self) { c in
-                    Tab(c.title, systemImage: c.symbol, value: AppTab.collection(c)) {
-                        NavigationStack(path: $store.path) {
-                            LibraryView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                        }
-                    }
-                }
-            }
-            .defaultVisibility(.hidden, for: .tabBar)   // collections live in the sidebar only
         }
-        .tabViewStyle(.sidebarAdaptable)
+        .tabViewStyle(.tabBarOnly)
     }
 
     /// Re-tapping the current tab pops its stack to the root (standard iOS behaviour).
     var tabSelection: Binding<AppTab> {
-        Binding(get: { store.tab }, set: { new in
+        Binding(get: { if case .collection = store.tab { return .library }; return store.tab }, set: { new in
             if new == store.tab {
                 switch new {
                 case .library, .collection: store.path = []
                 case .shopping: store.shoppingPath = []
                 case .settings: store.settingsPath = []
+                case .more: store.morePath = []
                 }
             }
             store.select(new)
@@ -177,6 +174,7 @@ struct LandscapeSplitView: View {
                     Section {
                         row(.library, "Library", "books.vertical")
                         row(.shopping, "Shopping list", "basket", badge: store.pendingShoppingCount)
+                        row(.more, "More", "square.grid.2x2")
                         row(.settings, "Settings", "gearshape")
                     }
                     Section("Collections") {
@@ -200,6 +198,10 @@ struct LandscapeSplitView: View {
                 case .shopping:
                     NavigationStack(path: $store.shoppingPath) {
                         ShoppingListView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    }
+                case .more:
+                    NavigationStack(path: $store.morePath) {
+                        MoreView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
                     }
                 case .settings:
                     NavigationStack(path: $store.settingsPath) {
@@ -233,5 +235,23 @@ struct LandscapeSplitView: View {
         .foregroundStyle(store.tab == t ? Theme.primary : Theme.foreground)
         .accessibilityIdentifier("sidebar." + title)
         .accessibilityAddTraits(store.tab == t ? .isSelected : [])
+    }
+}
+
+/// Selected tab = brand tint (via `.tint`), unselected = secondary label; same symbol weight for every item.
+enum TabBarStyle {
+    static func apply() {
+        let a = UITabBarAppearance()
+        a.configureWithDefaultBackground()
+        let sel = UIColor(Theme.primary), off = UIColor.secondaryLabel
+        for l in [a.stackedLayoutAppearance, a.inlineLayoutAppearance, a.compactInlineLayoutAppearance] {
+            l.selected.iconColor = sel
+            l.selected.titleTextAttributes = [.foregroundColor: sel, .font: UIFont.systemFont(ofSize: 10, weight: .semibold)]
+            l.normal.iconColor = off
+            l.normal.titleTextAttributes = [.foregroundColor: off, .font: UIFont.systemFont(ofSize: 10, weight: .medium)]
+        }
+        UITabBar.appearance().standardAppearance = a
+        UITabBar.appearance().scrollEdgeAppearance = a
+        UITabBar.appearance().unselectedItemTintColor = off
     }
 }

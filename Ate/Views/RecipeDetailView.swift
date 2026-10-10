@@ -61,6 +61,7 @@ struct RecipeDetailView: View {
                 RecipeNotFoundView(title: "Recipe not found")
             }
         }
+        .toolbar(.hidden, for: .tabBar)   // full-height detail; Cook mode pinned at the bottom, never under the tab bar
         .confirmationDialog("Delete this recipe?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete recipe", role: .destructive) {
                 store.timers.stopAll(recipeID: recipeID)

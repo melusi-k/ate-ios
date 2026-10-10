@@ -150,7 +150,7 @@ enum RecipeCollection: Hashable, Codable {
     case quick, favourites, recentlyAdded, recentlyCooked, ingredient(String)
     var title: String {
         switch self {
-        case .quick: return "Quick (under 30 min)"
+        case .quick: return "Quick (≤30 min)"
         case .favourites: return "Favourites"
         case .recentlyAdded: return "Recently added"
         case .recentlyCooked: return "Recently cooked"
@@ -168,7 +168,7 @@ enum RecipeCollection: Hashable, Codable {
     }
 }
 
-enum AppTab: Hashable { case library, shopping, settings, collection(RecipeCollection) }
+enum AppTab: Hashable { case library, shopping, more, settings, collection(RecipeCollection) }
 
 enum Route: Hashable {
     case recipe(String)

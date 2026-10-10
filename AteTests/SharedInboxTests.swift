@@ -58,3 +58,13 @@ final class ProvenanceTests: XCTestCase {
         XCTAssertEqual(RecipeCard().source, .manual)
     }
 }
+
+@MainActor
+final class TabBadgeTests: XCTestCase {
+    func testBadgeCountsUntickedItems() {
+        let store = AppStore(context: nil, backend: MockBackend())
+        store.shopping = [ShoppingItem(name: "a", quantity: 1, unit: ""), ShoppingItem(name: "b", quantity: 1, unit: "", done: true),
+                          ShoppingItem(name: "c", quantity: 1, unit: "")]
+        XCTAssertEqual(store.pendingShoppingCount, 2)
+    }
+}

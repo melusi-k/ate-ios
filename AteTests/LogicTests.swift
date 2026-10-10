@@ -59,9 +59,12 @@ final class LogicTests: XCTestCase {
     func testShareText() {
         let c = RecipeCard(title: "Toast", description: "Crunchy", servings: 1, timeMinutes: 5,
                            ingredients: [Ingredient(name: "bread", quantity: 2, unit: "slice", notes: nil)],
-                           steps: [Step(order: 1, instruction: "Toast it.", timeSeconds: nil)], sourceURL: "https://x.y")
+                           steps: [Step(order: 1, instruction: "toast it.", timeSeconds: nil)], sourceURL: "https://x.y")
         XCTAssertEqual(RecipeLogic.text(for: c, factor: 2),
-                       "Toast\nCrunchy\n2 servings · 5 min\n\nIngredients\n- 4 slices bread\n\nSteps\n1. Toast it.\n\nSource: https://x.y")
+                       "Toast\nCrunchy\n2 servings · 5 min\n\nIngredients\n• 4 slices bread\n\nSteps\n1. Toast it.\n\nSource: https://x.y")
+        let shared = RecipeLogic.text(for: c, shareURL: "https://h/r/abc")
+        XCTAssertTrue(shared.hasSuffix("\n\nView in ate: https://h/r/abc"))
+        XCTAssertEqual(shared.components(separatedBy: "https://h/r/abc").count, 2, "link must appear exactly once")
     }
 
     func testSyncMergeLastWriteWins() {

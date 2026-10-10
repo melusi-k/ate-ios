@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import LinkPresentation
 
 struct TagBadge: View {
     let text: String
@@ -314,6 +315,34 @@ struct ActivityView: UIViewControllerRepresentable {
 }
 
 struct ShareItems: Identifiable { let id = UUID(); let items: [Any] }
+
+/// Shares exactly one URL with rich link metadata so Messages shows a preview card, not a raw link.
+final class LinkShareSource: NSObject, UIActivityItemSource {
+    let url: URL
+    let title: String
+    let image: UIImage?
+    init(url: URL, title: String, image: UIImage?) { self.url = url; self.title = title; self.image = image }
+    func activityViewControllerPlaceholderItem(_ c: UIActivityViewController) -> Any { url }
+    func activityViewController(_ c: UIActivityViewController, itemForActivityType t: UIActivity.ActivityType?) -> Any? { url }
+    func activityViewController(_ c: UIActivityViewController, subjectForActivityType t: UIActivity.ActivityType?) -> String { title }
+    func activityViewControllerLinkMetadata(_ c: UIActivityViewController) -> LPLinkMetadata? {
+        let m = LPLinkMetadata()
+        m.originalURL = url
+        m.url = url
+        m.title = title
+        if let image {
+            m.iconProvider = NSItemProvider(object: image)
+            m.imageProvider = NSItemProvider(object: image)
+        }
+        return m
+    }
+}
+
+@MainActor func thumbnailImage(for recipe: RecipeCard) -> UIImage? {
+    let r = ImageRenderer(content: RecipeThumb(recipe: recipe).frame(width: 56, height: 56))
+    r.scale = 6
+    return r.uiImage
+}
 
 func writeTemp(_ name: String, _ data: Data) -> URL? {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)

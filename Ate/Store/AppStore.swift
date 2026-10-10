@@ -330,8 +330,9 @@ final class AppStore {
         var slug: String?
         if url.scheme == "ate" {
             let parts = ([url.host ?? ""] + url.pathComponents).filter { $0 != "/" && !$0.isEmpty }
-            if parts.first == "r", parts.count > 1 { slug = parts[1] }
-        } else if url.pathComponents.count >= 3, url.pathComponents[1] == "r" {
+            // ate://recipe/<slug> (canonical) and ate://r/<slug> (alias)
+            if let f = parts.first, f == "recipe" || f == "r", parts.count > 1 { slug = parts[1] }
+        } else if url.pathComponents.count >= 3, url.pathComponents[1] == "r" || url.pathComponents[1] == "recipe" {
             slug = url.pathComponents[2]
         }
         if let slug { path = [.shared(slug)] } else { path = [.notFound] }

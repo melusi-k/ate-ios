@@ -283,6 +283,24 @@ final class AteUITests: XCTestCase {
         shot("account-signed-out-again")
     }
 
+    func test13_ShareOptions() {
+        launch()
+        addPromptRecipe()
+        app.buttons["Share recipe"].tap()
+        wait(app.buttons["Share link"], 5)
+        XCTAssertTrue(app.buttons["Share as text"].exists)
+        shot("share-options")
+        app.buttons["Share link"].tap()
+        sleep(3)
+        shot("share-link-sheet")
+    }
+
+    func test14_CustomSchemeRecipeLink() {
+        launch(["-ateOpenURL", "ate://recipe/demo"])
+        wait(app.buttons["Save to my library"], 15)
+        shot("deeplink-ate-recipe-scheme")
+    }
+
     func test10_SharedExpiredAndNotFound() {
         launch(["-ateOpenURL", "ate://r/nope1234"])
         wait(text("This recipe link has expired"), 15)

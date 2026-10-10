@@ -14,6 +14,7 @@ settings:
     # Public values from the Lovable "Ate" project (.env). The publishable key is safe to ship (RLS-protected).
     ATE_SUPABASE_URL: "https://fsowdtisvdctdmjymnpm.supabase.co"
     ATE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_b4jwqlkgC-yiIAQoZ_wLHg_Y7Dzf6rx"
+    # Single source of truth for share links (<host>/r/<slug>). Switch to https://ate.app once the domain + AASA are live.
     ATE_SHARE_HOST: "https://recipe-transform-ai.lovable.app"
 targets:
   Ate:

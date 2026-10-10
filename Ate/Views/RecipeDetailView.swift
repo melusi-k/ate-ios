@@ -9,6 +9,7 @@ struct RecipeDetailView: View {
     @State private var asking = false
     @State private var confirmDelete = false
     @State private var share: ShareItems?
+    @State private var shareChoice = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -17,7 +18,7 @@ struct RecipeDetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         BackBar(title: "Library", action: { store.path.removeAll() }) {
-                            IconButton(symbol: "square.and.arrow.up", label: "Share recipe") { Task { await doShare(recipe) } }
+                            IconButton(symbol: "square.and.arrow.up", label: "Share recipe") { shareChoice = true }
                             IconButton(symbol: "pencil", label: "Edit") { editing.toggle() }.accessibilityIdentifier("editButton")
                             IconButton(symbol: "trash", label: "Delete", tint: Theme.destructive) { confirmDelete = true }
                                 .accessibilityIdentifier("deleteButton")
@@ -64,6 +65,12 @@ struct RecipeDetailView: View {
                 store.path.removeAll()
             }
         }
+        .confirmationDialog("Share recipe", isPresented: $shareChoice, titleVisibility: .hidden) {
+            if let r = store.recipe(recipeID) {
+                Button("Share link") { Task { await doShare(r, asText: false) } }
+                Button("Share as text") { Task { await doShare(r, asText: true) } }
+            }
+        }
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
     }
 
@@ -96,20 +103,21 @@ struct RecipeDetailView: View {
         } catch { store.show(error.localizedDescription, error: true) }
     }
 
-    private func doShare(_ recipe: RecipeCard) async {
+    /// "Share link" (default): one URL item with a rich preview. "Share as text": text with the link once at the end.
+    private func doShare(_ recipe: RecipeCard, asText: Bool) async {
+        let units = store.settings.units
         do {
             let slug = try await store.backend.publish(RecipeLogic.scaled(recipe, factor: factor))
-            let url = "\(AppConfig.shareHost)/r/\(slug)"
-            let text = RecipeLogic.text(for: recipe, factor: factor, units: store.settings.units, shareURL: url)
-            UIPasteboard.general.string = url
-            var items: [Any] = [text]
-            if let u = URL(string: url) { items.append(u) }
-            share = ShareItems(items: items)
+            let link = "\(AppConfig.shareHost)/r/\(slug)"
+            guard let url = URL(string: link) else { throw BackendError(message: "bad url") }
+            if asText {
+                share = ShareItems(items: [RecipeLogic.text(for: recipe, factor: factor, units: units, shareURL: link)])
+            } else {
+                share = ShareItems(items: [LinkShareSource(url: url, title: recipe.title, image: thumbnailImage(for: recipe))])
+            }
         } catch {
             store.show("Could not create a share link. Sharing the text instead.", error: true)
-            let text = RecipeLogic.text(for: recipe, factor: factor, units: store.settings.units)
-            UIPasteboard.general.string = text
-            share = ShareItems(items: [text])
+            share = ShareItems(items: [RecipeLogic.text(for: recipe, factor: factor, units: units)])
         }
     }
 }

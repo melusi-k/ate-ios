@@ -34,18 +34,24 @@ enum RecipeLogic {
         for i in r.ingredients {
             let (q, u) = Units.convert(quantity: i.quantity, unit: i.unit, to: units)
             let amt = Units.formatAmount(q, u)
-            var l = "- " + [amt, i.name].filter { !$0.isEmpty }.joined(separator: " ")
+            var l = "• " + [amt, i.name].filter { !$0.isEmpty }.joined(separator: " ")
             if let n = i.notes, !n.isEmpty { l += " (\(n))" }
             lines.append(l)
         }
         lines.append("")
         lines.append("Steps")
         for (idx, s) in r.steps.enumerated() {
-            lines.append("\(idx + 1). \(Units.convertTemperatures(in: s.instruction, to: units))")
+            lines.append("\(idx + 1). \(sentenceCase(Units.convertTemperatures(in: s.instruction, to: units)))")
         }
         if let s = r.sourceURL, !s.isEmpty { lines.append(""); lines.append("Source: \(s)") }
-        if let u = shareURL { lines.append(""); lines.append(u) }
+        if let u = shareURL { lines.append(""); lines.append("View in ate: \(u)") }
         return lines.joined(separator: "\n")
+    }
+
+    static func sentenceCase(_ s: String) -> String {
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let f = t.first else { return t }
+        return f.uppercased() + t.dropFirst()
     }
 
     static func matches(_ card: RecipeCard, query: String) -> Bool {

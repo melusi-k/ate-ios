@@ -38,7 +38,14 @@ final class OnDeviceBackend: BackendService {
     func parseRecipe(_ request: ParseRequest) async throws -> RecipeCard {
         // Links: structured schema.org/Recipe data first (no AI needed), then the model.
         var pageHTML: String?
-        if request.mode == .url {
+        var socialCaption: String?
+        if request.mode == .url, let u = URL(string: (request.text ?? "").trimmingCharacters(in: .whitespaces)),
+           let platform = SocialLinks.platform(of: u) {
+            let clean = SocialLinks.clean(u)
+            let caption = await Self.fetchSocialCaption(clean, platform: platform)
+            guard SocialLinks.isUseful(caption) else { throw SocialCaptionError(platform: platform) }
+            socialCaption = caption
+        } else if request.mode == .url {
             if let html = try? await Self.fetchHTML(request.text ?? "") {
                 pageHTML = html
                 if var card = JSONLD.recipe(fromHTML: html, sourceURL: request.text) {
@@ -48,10 +55,13 @@ final class OnDeviceBackend: BackendService {
             }
         }
         guard Self.isModelAvailable else { return try await fallback.parseRecipe(request) }
+        var source: RecipeSource = .appleIntelligence
         let prompt: String
         switch request.mode {
         case .prompt:
             prompt = "Recipe card for: \(String((request.text ?? "").prefix(500)))"
+        case .url where socialCaption != nil:
+            prompt = "Extract the recipe from this social media video caption (infer missing quantities sensibly):\n\(String(socialCaption!.prefix(3500)))"
         case .url:
             let page: String
             if let html = pageHTML { page = String(Self.htmlToText(html).prefix(3500)) }
@@ -59,8 +69,16 @@ final class OnDeviceBackend: BackendService {
             prompt = "Extract the recipe from this web page text:\n\(page)"
         case .image:
             let text = try await Self.ocr(dataURL: request.imageDataUrl ?? "")
-            guard !text.isEmpty else { throw BackendError(message: "Couldn't read any text in that screenshot.") }
-            prompt = "Extract the recipe from this screenshot text:\n\(String(text.prefix(3500)))"
+            if PhotoGuess.isScreenshotText(text) {
+                prompt = "Extract the recipe from this screenshot text:\n\(String(text.prefix(3500)))"
+            } else {
+                // A food photo, not a screenshot: recognise the dish and draft a likely recipe.
+                let labels = try await Self.classify(dataURL: request.imageDataUrl ?? "")
+                guard let p = PhotoGuess.prompt(labels: labels, ocrText: text) else {
+                    throw BackendError(message: "Couldn't recognise a dish in that photo. Try a closer shot, a screenshot of the recipe, or describe it in Prompt.")
+                }
+                prompt = p; source = .photoGuess
+            }
         case .rewrite:
             var c = request.currentRecipe ?? RecipeCard()
             c.imageURL = nil; c.sourceURL = nil
@@ -68,8 +86,10 @@ final class OnDeviceBackend: BackendService {
             prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"
         }
         var card = try await Self.generate(prompt)
-        card.source = .appleIntelligence; card.generatedAt = Date().timeIntervalSince1970 * 1000
-        if request.mode == .url { card.sourceURL = request.text }
+        card.source = source; card.generatedAt = Date().timeIntervalSince1970 * 1000
+        if request.mode == .url, let u = URL(string: (request.text ?? "").trimmingCharacters(in: .whitespaces)) {
+            card.sourceURL = SocialLinks.clean(u).absoluteString
+        }
         if request.mode == .rewrite, let cur = request.currentRecipe {
             card.id = cur.id; card.createdAt = cur.createdAt; card.source = .appleIntelligence; card.imageURL = cur.imageURL; card.sourceURL = cur.sourceURL
         }
@@ -112,14 +132,58 @@ final class OnDeviceBackend: BackendService {
             throw BackendError(message: "That doesn't look like a link.")
         }
         var r = URLRequest(url: url)
-        r.timeoutInterval = 8
+        r.timeoutInterval = 10
         r.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 ate/1.0", forHTTPHeaderField: "User-Agent")
         r.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
-        let (data, resp) = try await Net.data(for: r)
+        let data: Data, resp: URLResponse
+        do { (data, resp) = try await Net.data(for: r) }
+        catch let e as URLError where e.code == .timedOut {
+            throw BackendError(message: "That page took too long to load (10 s). Check the link, or paste the recipe text into Prompt.")
+        }
         if let code = (resp as? HTTPURLResponse)?.statusCode, code >= 400 {
             throw BackendError(message: "That page didn't load (HTTP \(code)). Check the link and try again.")
         }
         return String(decoding: data.prefix(1_500_000), as: UTF8.self)
+    }
+
+    /// oEmbed (TikTok/YouTube) + OG tags fetched with a link-preview bot UA, ~8 s budget. Never throws: empty = nothing found.
+    static func fetchSocialCaption(_ url: URL, platform: SocialLinks.Platform) async -> String {
+        func get(_ u: URL, ua: String) async -> Data? {
+            var r = URLRequest(url: u); r.timeoutInterval = 8
+            r.setValue(ua, forHTTPHeaderField: "User-Agent")
+            r.setValue("text/html,application/json;q=0.9,*/*;q=0.8", forHTTPHeaderField: "Accept")
+            r.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
+            guard let (d, resp) = try? await Net.data(for: r), ((resp as? HTTPURLResponse)?.statusCode ?? 500) < 400 else { return nil }
+            return d
+        }
+        let bot = "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
+        let desktop = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+        let oURL = SocialLinks.oEmbedURL(for: url)
+        async let page: Data? = get(url, ua: bot)
+        var oeData: Data?
+        if let oURL { oeData = await get(oURL, ua: desktop) }
+        let oEmbed = oeData.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        let html = (await page).map { String(decoding: $0.prefix(1_500_000), as: UTF8.self) } ?? ""
+        var caption = SocialLinks.caption(platform: platform, oEmbed: oEmbed, meta: SocialLinks.meta(html))
+        if !SocialLinks.isUseful(caption), let card = JSONLD.recipe(fromHTML: html, sourceURL: url.absoluteString) {
+            caption = RecipeLogic.text(for: card, units: .metric)
+        }
+        return caption
+    }
+
+    static func classify(dataURL: String) async throws -> [(String, Float)] {
+        let b64 = dataURL.components(separatedBy: ",").last ?? ""
+        guard let data = Data(base64Encoded: b64), let cg = UIImage(data: data)?.cgImage else { return [] }
+        return try await withCheckedThrowingContinuation { cont in
+            let req = VNClassifyImageRequest()
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    try VNImageRequestHandler(cgImage: cg).perform([req])
+                    let obs = (req.results ?? []).filter { $0.confidence > 0.05 }.prefix(12).map { ($0.identifier, $0.confidence) }
+                    cont.resume(returning: Array(obs))
+                } catch { cont.resume(throwing: error) }
+            }
+        }
     }
 
     static func htmlToText(_ html: String) -> String {

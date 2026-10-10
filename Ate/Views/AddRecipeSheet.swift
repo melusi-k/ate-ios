@@ -29,6 +29,7 @@ struct AddRecipeSheet: View {
     @State private var editing = false
     @State private var showCamera = false
     @State private var error: String?
+    @State private var socialError: SocialLinks.Platform?
 
     var body: some View {
         ScrollView {
@@ -76,8 +77,10 @@ struct AddRecipeSheet: View {
             PhotosPicker(selection: $photoItem, matching: .images) {
                 VStack(spacing: 8) {
                     Image(systemName: "photo.badge.plus").font(.system(size: 26)).foregroundStyle(Theme.primary)
-                    Text(imageData == nil ? "Upload a recipe screenshot" : "Screenshot ready — tap to replace")
+                    Text(imageData == nil ? "Upload a screenshot or a food photo" : "Image ready — tap to replace")
                         .font(AteFont.body(14, .medium))
+                    Text("Screenshots of a recipe are read word for word. A photo of a dish gets a guessed recipe you can edit.")
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity).padding(32)
                 .background(Theme.muted.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
@@ -111,7 +114,22 @@ struct AddRecipeSheet: View {
 
         Text(OnDeviceBackend.availabilityDescription).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
 
-        if let error {
+        if let p = socialError {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(SocialLinks.noCaptionMessage(p), systemImage: "text.bubble")
+                    .font(AteFont.body(14)).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("socialNoCaption")
+                Text("In \(p.rawValue), tap ⋯ › Copy caption (or select the description), then paste it here.")
+                    .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                Button {
+                    if let u = URL(string: link) { prompt = "Recipe from \(SocialLinks.clean(u).absoluteString)\n\n" }
+                    mode = .prompt; socialError = nil; error = nil
+                } label: { Label("Paste caption in Prompt", systemImage: "arrow.right.circle.fill") }
+                    .buttonStyle(.ate(.primary, height: 40)).accessibilityIdentifier("switchToPrompt")
+            }
+            .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.secondary, in: RoundedRectangle(cornerRadius: 14))
+        } else if let error {
             ErrorRetryCard(message: error, retryID: "generateRetry") { Task { await generate() } }
         }
 
@@ -170,16 +188,19 @@ struct AddRecipeSheet: View {
             req = ParseRequest(mode: .image, imageDataUrl: "data:image/jpeg;base64," + jpeg.base64EncodedString())
         }
         loading = true
-        error = nil
+        error = nil; socialError = nil
         defer { loading = false }
         do {
             let started = Date()
             var card = try await store.backend.parseRecipe(req)
-            if mode == .link { card.sourceURL = link }
+            if mode == .link, let u = URL(string: link.trimmingCharacters(in: .whitespaces)) { card.sourceURL = SocialLinks.clean(u).absoluteString }
             GenerationLog.last = GenerationLog(source: card.source, latencyMs: Int(Date().timeIntervalSince(started) * 1000),
                                                mode: mode.rawValue, date: Date())
             draft = RecipeLogic.normalize(card)
             editing = false
+        } catch let e as SocialCaptionError {
+            socialError = e.platform
+            Haptics.warning()
         } catch let e {
             let msg = (e is URLError) ? Net.friendly(e) : e.localizedDescription
             self.error = msg

@@ -627,6 +627,22 @@ final class AteUITests: XCTestCase {
         shot("settings-ai-diagnostics")
     }
 
+    func test25_InstagramNoCaptionSwitchesToPrompt() {
+        launch()
+        app.buttons["Add recipe"].tap()
+        let f = app.textFields["linkField"]; f.tap()
+        f.typeText("https://www.instagram.com/reel/nocaption/?mdxt=abc")
+        app.buttons["generateButton"].tap()
+        wait(text("Instagram didn't share the caption"), 10)
+        shot("link-instagram-no-caption")
+        app.buttons["switchToPrompt"].tap()
+        let e = app.textViews["promptEditor"]
+        wait(e, 3)
+        XCTAssertTrue((e.value as? String ?? "").contains("instagram.com/reel/nocaption/"), "tracking params stripped")
+        XCTAssertFalse((e.value as? String ?? "").contains("mdxt"))
+        shot("prompt-after-social-switch")
+    }
+
     func test23_DeepLinkSelectsLibraryTab() {
         launch(["-ateOpenURL", "ate://recipe/demo"])
         let tabs = app.tabBars.firstMatch

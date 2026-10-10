@@ -102,6 +102,10 @@ final class MockBackend: BackendService {
             return card
         }
         let seed = (request.text ?? "").trimmingCharacters(in: .whitespaces)
+        // UI-test hook: a social link with no caption.
+        if request.mode == .url, let u = URL(string: seed), let p = SocialLinks.platform(of: u), seed.contains("nocaption") {
+            throw SocialCaptionError(platform: p)
+        }
         let title: String
         switch request.mode {
         case .prompt: title = seed.isEmpty ? "Weeknight miso salmon" : seed.prefix(1).uppercased() + seed.dropFirst()

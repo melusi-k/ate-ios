@@ -22,6 +22,8 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 - **Hands-free cook mode** – tap the mic and say “next”, “back”, “start timer”, “pause timer” or “repeat” (reads the step aloud). Recognition runs on your iPhone.
 
 ### 🐛 Fixed
+- **Food photos work on the Image tab.** A photo of a dish (no text) no longer fails with “Couldn't read any text”. ate recognises the dish and drafts a likely recipe, badged “Guessed from photo”, for you to review and edit. The copy now explains screenshots versus photos.
+- **Instagram, TikTok and YouTube links** no longer time out. ate reads the caption or description from the link preview (oEmbed/OpenGraph, ~8 s), strips tracking parameters, and builds the card from that. When Instagram hides the caption, ate says so and offers one tap to paste it into Prompt. Other pages now give up after 10 s with a clear message.
 - Recipe pages that block the default downloader now load (browser user agent).
 
 ### ⚠️ Known issues

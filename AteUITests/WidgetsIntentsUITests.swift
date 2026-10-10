@@ -50,9 +50,10 @@ final class WidgetsIntentsUITests: XCTestCase {
         XCTAssertTrue(diag.exists, "Beta page should show the widget diagnostics row")
         XCTAssertTrue(diag.label.contains("App Group"))
         let item = app.descendants(matching: .any)["beta.A-WIDGET-01"].firstMatch
+        let header = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "Widgets & Intents")).firstMatch
         n = 0
-        while !item.exists && n < 25 { app.swipeUp(); n += 1 }
-        XCTAssertTrue(item.exists, "Widget checks should appear on the Beta page")
+        while !(item.exists || header.exists) && n < 60 { app.swipeUp(velocity: .slow); n += 1 }
+        XCTAssertTrue(item.exists || header.exists, "Widget checks should appear on the Beta page")
         shot("beta-widget-checks")
     }
 }

@@ -30,7 +30,7 @@ enum TimerAlerts {
         let content = UNMutableNotificationContent()
         content.title = "Step \(step) is done"
         content.body = recipeTitle
-        content.sound = (prefs.sound && !isQuiet(prefs, at: end)) ? .default : nil
+        content.sound = (prefs.sound && !isQuiet(prefs, at: end)) ? UNNotificationSound(named: UNNotificationSoundName("ate-chime.wav")) : nil
         content.interruptionLevel = .timeSensitive
         let interval = max(1, end.timeIntervalSinceNow)
         let req = UNNotificationRequest(identifier: "ate.timer." + id, content: content,
@@ -44,12 +44,7 @@ enum TimerAlerts {
 
     /// Foreground finish: chime + haptics (the scheduled notification covers background).
     @MainActor static func timerFinished(prefs: TimerPrefs) {
-        if prefs.sound && !isQuiet(prefs) {
-            // Three-tone chime approximation using system sounds (no bundled audio yet).
-            for (i, delay) in [0.0, 0.28, 0.56].enumerated() {
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { AudioServicesPlaySystemSound(i == 2 ? 1057 : 1104) }
-            }
-        }
-        if prefs.vibration { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+        if prefs.sound && !isQuiet(prefs) { Haptics.chime() }
+        if prefs.vibration { Haptics.timerDone() }
     }
 }

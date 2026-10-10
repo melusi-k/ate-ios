@@ -20,7 +20,7 @@ enum Theme {
     static let background = Color.dyn(0xFCF7ED, 0x1A120C)
     static let foreground = Color.dyn(0x311F16, 0xF3EEE4)
     static let card = Color.dyn(0xFFFDF7, 0x271D16)
-    static let primary = Color.dyn(0xC95028, 0xE77140)
+    static let primary = Color.dyn(Palette.primaryLight, 0xE77140)
     static let primaryForeground = Color.dyn(0xFEFAF1, 0x190F0A)
     static let secondary = Color.dyn(0xF3EAD7, 0x352820)
     static let secondaryForeground = Color.dyn(0x442C21, 0xF3EEE4)
@@ -36,16 +36,53 @@ enum Theme {
     static let maxWidth: CGFloat = 672
 }
 
+/// Raw hex tokens used for WCAG contrast checks (unit-tested in AccessibilityTests).
+enum Palette {
+    /// Darkened from the web's #C95028 so text/buttons reach 4.5:1 on the cream background.
+    static let primaryLight: UInt32 = 0xB9481F
+    static let pairs: [(name: String, fg: UInt32, bg: UInt32)] = [
+        ("foreground/background", 0x311F16, 0xFCF7ED), ("muted/background", 0x7B675B, 0xFCF7ED), ("muted/card", 0x7B675B, 0xFFFDF7),
+        ("primary/background", primaryLight, 0xFCF7ED), ("primaryForeground/primary", 0xFEFAF1, primaryLight),
+        ("destructive/card", 0xCC2827, 0xFFFDF7), ("secondaryForeground/secondary", 0x442C21, 0xF3EAD7),
+        ("dark foreground/background", 0xF3EEE4, 0x1A120C), ("dark muted/card", 0xADA397, 0x271D16),
+        ("dark primary/background", 0xE77140, 0x1A120C), ("dark primaryForeground/primary", 0x190F0A, 0xE77140),
+        ("dark destructive/card", 0xFF6467, 0x271D16), ("warmForeground/warm", 0x512E1A, 0xF5E2C0),
+    ]
+    static func luminance(_ h: UInt32) -> Double {
+        let c = [16, 8, 0].map { Double((h >> UInt32($0)) & 0xFF) / 255 }
+            .map { $0 <= 0.03928 ? $0 / 12.92 : pow(($0 + 0.055) / 1.055, 2.4) }
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    }
+    static func contrast(_ a: UInt32, _ b: UInt32) -> Double {
+        let (x, y) = (luminance(a), luminance(b))
+        return (max(x, y) + 0.05) / (min(x, y) + 0.05)
+    }
+}
+
 /// Fraunces / DM Sans, bundled. `Font.custom` falls back to the system font if a face is missing.
 enum AteFont {
     static var hasFraunces: Bool { UIFont(name: "Fraunces", size: 12) != nil || !UIFont.fontNames(forFamilyName: "Fraunces").isEmpty }
     static var hasDMSans: Bool { !UIFont.fontNames(forFamilyName: "DM Sans").isEmpty }
 
+    /// All text scales with Dynamic Type (relative to the closest system text style).
+    static func style(for size: CGFloat) -> Font.TextStyle {
+        switch size {
+        case 30...: return .largeTitle
+        case 24..<30: return .title
+        case 20..<24: return .title2
+        case 17..<20: return .headline
+        case 15..<17: return .body
+        case 13..<15: return .footnote
+        default: return .caption
+        }
+    }
     static func display(_ size: CGFloat, _ weight: Font.Weight = .bold) -> Font {
-        hasFraunces ? Font.custom("Fraunces", size: size).weight(weight) : .system(size: size, weight: weight, design: .serif)
+        hasFraunces ? Font.custom("Fraunces", size: size, relativeTo: style(for: size)).weight(weight)
+                    : .system(style(for: size), design: .serif).weight(weight)
     }
     static func body(_ size: CGFloat = 16, _ weight: Font.Weight = .regular) -> Font {
-        hasDMSans ? Font.custom("DM Sans", size: size).weight(weight) : .system(size: size, weight: weight)
+        hasDMSans ? Font.custom("DM Sans", size: size, relativeTo: style(for: size)).weight(weight)
+                  : .system(style(for: size)).weight(weight)
     }
 }
 

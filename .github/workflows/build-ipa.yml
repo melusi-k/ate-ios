@@ -10,7 +10,8 @@ permissions:
 
 concurrency:
   group: build-ipa-${{ github.ref }}
-  cancel-in-progress: true
+  # Queue instead of cancelling: every pushed batch gets its own build-N release.
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -18,11 +19,14 @@ jobs:
     timeout-minutes: 60
     env:
       SCHEME: Ate
+      ATE_SIGN_STYLE: Automatic
       BUILD_NUMBER: ${{ github.run_number }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
       HAS_SIGNING: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && secrets.BUILD_PROVISION_PROFILE_BASE64 != '' && secrets.P12_PASSWORD != '' && secrets.TEAM_ID != '' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Select Xcode 26
         uses: maxim-lobanov/setup-xcode@v1
@@ -108,46 +112,63 @@ jobs:
           path: build/UITests.xcresult
           if-no-files-found: warn
 
-      - name: Install signing certificate & profile
+      - name: Install signing certificate & profiles
         if: env.HAS_SIGNING == 'true'
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+          # One provisioning profile per signed bundle. App is required; extensions are needed once those targets exist.
+          PROFILE_APP: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+          PROFILE_WIDGETS: ${{ secrets.WIDGET_PROVISION_PROFILE_BASE64 }}
+          PROFILE_SHARE: ${{ secrets.SHARE_PROVISION_PROFILE_BASE64 }}
+          PROFILE_WATCH: ${{ secrets.WATCH_PROVISION_PROFILE_BASE64 }}
+          PROFILE_WATCHWIDGETS: ${{ secrets.WATCH_WIDGET_PROVISION_PROFILE_BASE64 }}
         run: |
           KEYCHAIN=$RUNNER_TEMP/build.keychain-db
           KC_PASS=$(uuidgen)
           echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/cert.p12
-          echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode > $RUNNER_TEMP/profile.mobileprovision
           security create-keychain -p "$KC_PASS" "$KEYCHAIN"
           security set-keychain-settings -lut 21600 "$KEYCHAIN"
           security unlock-keychain -p "$KC_PASS" "$KEYCHAIN"
           security import $RUNNER_TEMP/cert.p12 -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
           security set-key-partition-list -S apple-tool:,apple: -k "$KC_PASS" "$KEYCHAIN"
           security list-keychain -d user -s "$KEYCHAIN"
-          security cms -D -i $RUNNER_TEMP/profile.mobileprovision > $RUNNER_TEMP/profile.plist
-          UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' $RUNNER_TEMP/profile.plist)
-          NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' $RUNNER_TEMP/profile.plist)
-          APPID=$(/usr/libexec/PlistBuddy -c 'Print Entitlements:application-identifier' $RUNNER_TEMP/profile.plist)
-          BUNDLE_ID=${APPID#*.}
-          if /usr/libexec/PlistBuddy -c 'Print ProvisionsAllDevices' $RUNNER_TEMP/profile.plist >/dev/null 2>&1; then METHOD=enterprise
-          elif /usr/libexec/PlistBuddy -c 'Print Entitlements:get-task-allow' $RUNNER_TEMP/profile.plist | grep -q true; then METHOD=development
-          else METHOD=ad-hoc; fi
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp $RUNNER_TEMP/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
-          { echo "PROFILE_NAME=$NAME"; echo "BUNDLE_ID=$BUNDLE_ID"; echo "EXPORT_METHOD=$METHOD"; } >> $GITHUB_ENV
+          MAP=""
+          for KIND in APP WIDGETS SHARE WATCH WATCHWIDGETS; do
+            VAR=PROFILE_$KIND; DATA=${!VAR}
+            [ -z "$DATA" ] && { echo "No $KIND profile secret"; continue; }
+            F=$RUNNER_TEMP/$KIND.mobileprovision; echo -n "$DATA" | base64 --decode > $F
+            security cms -D -i $F > $F.plist
+            UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' $F.plist); NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' $F.plist)
+            APPID=$(/usr/libexec/PlistBuddy -c 'Print Entitlements:application-identifier' $F.plist); BID=${APPID#*.}
+            cp $F ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+            echo "ATE_PROFILE_$KIND=$NAME" >> $GITHUB_ENV
+            MAP="$MAP<key>$BID</key><string>$NAME</string>"
+            echo "$KIND → $BID ($NAME)"
+            if [ $KIND = APP ]; then
+              if /usr/libexec/PlistBuddy -c 'Print ProvisionsAllDevices' $F.plist >/dev/null 2>&1; then METHOD=enterprise
+              elif /usr/libexec/PlistBuddy -c 'Print Entitlements:get-task-allow' $F.plist | grep -q true; then METHOD=development
+              else METHOD=ad-hoc; fi
+              echo "EXPORT_METHOD=$METHOD" >> $GITHUB_ENV
+            fi
+          done
+          echo "PROFILE_MAP=$MAP" >> $GITHUB_ENV
+          [ -n "$ATE_PROFILE_APP" ] || grep -q ATE_PROFILE_APP $GITHUB_ENV || { echo "::error::BUILD_PROVISION_PROFILE_BASE64 is required"; exit 1; }
 
       - name: Build signed IPA
         if: env.HAS_SIGNING == 'true'
         env:
           TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
+          # Regenerate so each target gets its own profile (project.yml reads ATE_PROFILE_* / ATE_SIGN_STYLE).
+          export ATE_SIGN_STYLE=Manual
+          xcodegen generate
           IDENTITY="Apple Development"; [ "$EXPORT_METHOD" != development ] && IDENTITY="Apple Distribution"
           xcodebuild archive -project Ate.xcodeproj -scheme "$SCHEME" -configuration Release \
             -destination 'generic/platform=iOS' -archivePath build/Ate.xcarchive \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" MARKETING_VERSION="$APP_VERSION" ATE_GIT_SHA="$GIT_SHORT_SHA" ATE_ENTITLEMENTS=Ate/Ate-Signed.entitlements \
-            CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$TEAM_ID" PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-            CODE_SIGN_IDENTITY="$IDENTITY" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" -quiet
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_IDENTITY="$IDENTITY" -quiet
           cat > build/ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -155,7 +176,7 @@ jobs:
             <key>method</key><string>${EXPORT_METHOD}</string>
             <key>teamID</key><string>${TEAM_ID}</string>
             <key>signingStyle</key><string>manual</string>
-            <key>provisioningProfiles</key><dict><key>${BUNDLE_ID}</key><string>${PROFILE_NAME}</string></dict>
+            <key>provisioningProfiles</key><dict>${PROFILE_MAP}</dict>
           </dict></plist>
           PLIST
           xcodebuild -exportArchive -archivePath build/Ate.xcarchive -exportOptionsPlist build/ExportOptions.plist -exportPath build/export
@@ -216,15 +237,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          NOTES="Version ${APP_VERSION}, build ${BUILD_NUMBER} (${IPA_NAME}). Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA}. ${IPA_KIND}. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          git fetch --tags --force -q || true
+          scripts/release-notes.sh "$APP_VERSION" "$BUILD_NUMBER" "$GITHUB_SHA" \
+            "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" "$IPA_NAME" "$IPA_KIND" > build/notes.md
+          cat build/notes.md >> "$GITHUB_STEP_SUMMARY"
           # Immutable per-build prerelease.
           gh release create "build-${BUILD_NUMBER}" "dist/$IPA_NAME" --prerelease --target "$GITHUB_SHA" \
-            --title "Build ${APP_VERSION} (${BUILD_NUMBER}) @ ${GITHUB_SHA::7}" --notes "$NOTES" \
+            --title "Build ${APP_VERSION} (${BUILD_NUMBER}) @ ${GITHUB_SHA::7}" --notes-file build/notes.md \
             || echo "build-${BUILD_NUMBER} already exists, leaving it untouched"
           # Rolling latest-build: recreated so its ONLY asset is the current versioned .ipa (no plain Ate.ipa).
           gh release delete latest-build --cleanup-tag -y || true
           gh release create latest-build "dist/$IPA_NAME" --prerelease --target "$GITHUB_SHA" \
-            --title "Latest build ${APP_VERSION} (${BUILD_NUMBER}) — ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}" --notes "$NOTES"
+            --title "Latest build ${APP_VERSION} (${BUILD_NUMBER}) — ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}" --notes-file build/notes.md
           ASSETS=$(gh release view latest-build --json assets -q '.assets[].name')
           [ "$ASSETS" = "$IPA_NAME" ] || { echo "::error::latest-build assets are: $ASSETS"; exit 1; }
           BASE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download"

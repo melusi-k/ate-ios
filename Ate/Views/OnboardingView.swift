@@ -68,7 +68,7 @@ struct OnboardingView: View {
     private var choice: some View {
         VStack(spacing: 14) {
             Spacer()
-            Text("ate").font(AteFont.display(48)).foregroundStyle(Theme.primary)
+            Image("AteLogo").resizable().scaledToFit().frame(width: 96, height: 96).accessibilityLabel("ate")
             Text("Ready to cook?").font(AteFont.display(28)).accessibilityIdentifier("onboardingChoice")
             Text("An account is optional. Everything works offline on this iPhone.")
                 .font(AteFont.body(15)).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)

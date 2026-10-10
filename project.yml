@@ -4,9 +4,12 @@ options:
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
+  developmentLanguage: en
 settings:
   base:
     SWIFT_VERSION: "5.9"
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+    SWIFT_EMIT_LOC_STRINGS: YES
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     # Backend config (non-secret). Mode: ondevice (default, mock fallback) | mock | supabase
@@ -18,11 +21,11 @@ settings:
     # Signing team from env/secret TEAM_ID at `xcodegen generate` time (empty = unsigned / free-ID sideload).
     DEVELOPMENT_TEAM: "${TEAM_ID}"
     ATE_SHARE_HOST: "https://recipe-transform-ai.lovable.app"
-    # Legal pages (PLACEHOLDERS: publish real pages before TestFlight/App Store, then update these).
     # Overwritten by CI with the short commit sha (see build-ipa.yml).
     ATE_GIT_SHA: "dev"
-    ATE_PRIVACY_URL: "https://recipe-transform-ai.lovable.app/privacy"
-    ATE_TERMS_URL: "https://recipe-transform-ai.lovable.app/terms"
+    # Legal pages: source docs/legal/*.md → scripts/build-legal.py → public repo melusi-k/ate-legal (GitHub Pages).
+    ATE_PRIVACY_URL: "https://melusi-k.github.io/ate-legal/privacy.html"
+    ATE_TERMS_URL: "https://melusi-k.github.io/ate-legal/terms.html"
 targets:
   Ate:
     type: application
@@ -35,6 +38,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate
+        CODE_SIGN_STYLE: "${ATE_SIGN_STYLE}"
+        PROVISIONING_PROFILE_SPECIFIER: "${ATE_PROFILE_APP}"
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
@@ -48,7 +53,10 @@ targets:
         CFBundleDisplayName: ate
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        UILaunchScreen: {}
+        UILaunchScreen:
+          UIImageName: AteLogo
+          UIColorName: LaunchBackground
+          UIImageRespectsSafeAreaInsets: true
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIAppFonts: [Fraunces.ttf, DMSans.ttf]
         NSSupportsLiveActivities: true
@@ -74,6 +82,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.widgets
+        CODE_SIGN_STYLE: "${ATE_SIGN_STYLE}"
+        PROVISIONING_PROFILE_SPECIFIER: "${ATE_PROFILE_WIDGETS}"
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: AteWidgets/Info.plist

@@ -79,6 +79,7 @@ enum AppConfig {
 
 final class MockBackend: BackendService {
     private static var published: [String: RecipeCard] = [:]
+    private static var offlineOnce = true
 
     func parseRecipe(_ request: ParseRequest) async throws -> RecipeCard {
         try await Task.sleep(nanoseconds: 900_000_000)
@@ -138,6 +139,10 @@ final class MockBackend: BackendService {
     func fetchShared(slug: String) async throws -> RecipeCard? {
         try await Task.sleep(nanoseconds: 300_000_000)
         if let c = Self.published[slug] { return c }
+        if slug == "offline" {
+            if Self.offlineOnce { Self.offlineOnce = false; throw URLError(.notConnectedToInternet) }
+            return try await parseRecipe(ParseRequest(mode: .prompt, text: "Back online soup"))
+        }
         if slug == "demo" { return try await parseRecipe(ParseRequest(mode: .prompt, text: "Shared miso salmon")) }
         return nil
     }

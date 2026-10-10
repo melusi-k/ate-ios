@@ -358,3 +358,36 @@ func writeTemp(_ name: String, _ data: Data) -> URL? {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
     do { try data.write(to: url, options: .atomic); return url } catch { return nil }
 }
+
+/// Inline failure with a Retry button (AI import, shared recipe load, sync).
+struct ErrorRetryCard: View {
+    let message: String
+    var retryID = "retryButton"
+    let retry: () -> Void
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.destructive).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(message).font(AteFont.body(14)).fixedSize(horizontal: false, vertical: true)
+                Button { retry() } label: { Label(L10n.retry, systemImage: "arrow.clockwise") }
+                    .buttonStyle(.ate(.secondary, height: 36)).accessibilityIdentifier(retryID)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(Theme.destructive.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.destructive.opacity(0.35)))
+        .accessibilityElement(children: .contain)
+    }
+}
+
+/// Shown at the top of the app while there is no network.
+struct OfflineBanner: View {
+    var body: some View {
+        Label(L10n.offlineBanner, systemImage: "wifi.slash")
+            .font(AteFont.body(13, .medium)).foregroundStyle(Theme.warmForeground)
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            .background(Theme.warm, in: Capsule())
+            .accessibilityIdentifier("offlineBanner")
+    }
+}

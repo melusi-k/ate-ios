@@ -22,6 +22,8 @@ struct AddRecipeSheet: View {
     @State private var loading = false
     @State private var draft: RecipeCard?
     @State private var editing = false
+    @State private var showCamera = false
+    @State private var error: String?
 
     var body: some View {
         ScrollView {
@@ -33,6 +35,9 @@ struct AddRecipeSheet: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .overlay(alignment: .top) { if let t = store.toast { ToastView(toast: t).padding(.top, 8) } }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker { img in imageData = img.jpegData(compressionQuality: 0.85) }.ignoresSafeArea()
+        }
         .onChange(of: photoItem) { _, item in
             Task { imageData = try? await item?.loadTransferable(type: Data.self) }
         }
@@ -65,6 +70,13 @@ struct AddRecipeSheet: View {
                 .background(Theme.muted.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(style: StrokeStyle(lineWidth: 1.5, dash: [6])).foregroundStyle(Theme.border))
             }
+            if CameraPicker.isAvailable || AppConfig.isUITesting {
+                Button {
+                    if CameraPicker.isAvailable { showCamera = true }
+                    else { imageData = Self.sampleImage(); store.show("No camera here — used a sample photo") }
+                } label: { Label("Take a photo", systemImage: "camera") }
+                    .buttonStyle(.ate(.secondary, height: 44, full: true)).accessibilityIdentifier("takePhoto")
+            }
             if AppConfig.isUITesting {
                 Button("Use sample screenshot") { imageData = Self.sampleImage() }
                     .buttonStyle(.ate(.secondary, height: 40)).accessibilityIdentifier("sampleImage")
@@ -85,6 +97,10 @@ struct AddRecipeSheet: View {
         }
 
         Text(OnDeviceBackend.availabilityDescription).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+
+        if let error {
+            ErrorRetryCard(message: error, retryID: "generateRetry") { Task { await generate() } }
+        }
 
         Button { Task { await generate() } } label: {
             HStack { if loading { ProgressView().tint(Theme.primaryForeground); Text("Cooking up your card…") }
@@ -140,14 +156,18 @@ struct AddRecipeSheet: View {
             req = ParseRequest(mode: .image, imageDataUrl: "data:image/jpeg;base64," + jpeg.base64EncodedString())
         }
         loading = true
+        error = nil
         defer { loading = false }
         do {
             var card = try await store.backend.parseRecipe(req)
             if mode == .link { card.sourceURL = link }
             draft = RecipeLogic.normalize(card)
             editing = false
-        } catch {
-            store.show(error.localizedDescription, error: true)
+        } catch let e {
+            let msg = (e is URLError) ? Net.friendly(e) : e.localizedDescription
+            self.error = msg
+            store.show(msg, error: true)
+            Haptics.error()
         }
     }
 }

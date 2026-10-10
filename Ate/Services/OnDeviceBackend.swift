@@ -36,13 +36,23 @@ final class OnDeviceBackend: BackendService {
     }
 
     func parseRecipe(_ request: ParseRequest) async throws -> RecipeCard {
+        // Links: structured schema.org/Recipe data first (no AI needed), then the model.
+        var pageHTML: String?
+        if request.mode == .url {
+            if let html = try? await Self.fetchHTML(request.text ?? "") {
+                pageHTML = html
+                if let card = JSONLD.recipe(fromHTML: html, sourceURL: request.text) { return RecipeLogic.normalize(card) }
+            }
+        }
         guard Self.isModelAvailable else { return try await fallback.parseRecipe(request) }
         let prompt: String
         switch request.mode {
         case .prompt:
             prompt = "Recipe card for: \(String((request.text ?? "").prefix(500)))"
         case .url:
-            let page = try await Self.fetchPageText(request.text ?? "")
+            let page: String
+            if let html = pageHTML { page = String(Self.htmlToText(html).prefix(3500)) }
+            else { page = try await Self.fetchPageText(request.text ?? "") }
             prompt = "Extract the recipe from this web page text:\n\(page)"
         case .image:
             let text = try await Self.ocr(dataURL: request.imageDataUrl ?? "")
@@ -90,15 +100,22 @@ final class OnDeviceBackend: BackendService {
     }
 
     static func fetchPageText(_ link: String) async throws -> String {
+        String(htmlToText(try await fetchHTML(link)).prefix(3500))
+    }
+
+    static func fetchHTML(_ link: String) async throws -> String {
         guard let url = URL(string: link.trimmingCharacters(in: .whitespaces)), url.scheme?.hasPrefix("http") == true else {
             throw BackendError(message: "That doesn't look like a link.")
         }
         var r = URLRequest(url: url)
         r.timeoutInterval = 8
-        r.setValue("AteBot/1.0", forHTTPHeaderField: "User-Agent")
-        let (data, _) = try await URLSession.shared.data(for: r)
-        let html = String(decoding: data.prefix(400_000), as: UTF8.self)
-        return String(htmlToText(html).prefix(3500))
+        r.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 ate/1.0", forHTTPHeaderField: "User-Agent")
+        r.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
+        let (data, resp) = try await Net.data(for: r)
+        if let code = (resp as? HTTPURLResponse)?.statusCode, code >= 400 {
+            throw BackendError(message: "That page didn't load (HTTP \(code)). Check the link and try again.")
+        }
+        return String(decoding: data.prefix(1_500_000), as: UTF8.self)
     }
 
     static func htmlToText(_ html: String) -> String {

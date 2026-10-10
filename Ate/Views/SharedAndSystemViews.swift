@@ -5,6 +5,7 @@ struct SharedRecipeView: View {
     @Environment(AppStore.self) private var store
     @State private var recipe: RecipeCard?
     @State private var loading = true
+    @State private var loadError: String?
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -28,16 +29,28 @@ struct SharedRecipeView: View {
                     store.path = [.recipe(copy.id)]
                 } label: { Label("Save to my library", systemImage: "bookmark").padding(.horizontal, 10) }
                     .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.bottom, 20)
+            } else if let loadError {
+                VStack(spacing: 16) {
+                    BackBar(title: "Open ate") { store.path.removeAll() }
+                    Spacer()
+                    Text("Couldn't load this recipe").font(AteFont.display(24))
+                    ErrorRetryCard(message: loadError, retryID: "sharedRetry") { Task { await load() } }
+                    Spacer()
+                }.padding(.horizontal, 16).pageWidth()
             } else {
                 MessageStateView(title: "This recipe link has expired", message: "The shared recipe could not be found.",
                                  buttons: [("Open ate", { store.path.removeAll() })])
             }
         }
         .foregroundStyle(Theme.foreground)
-        .task {
-            recipe = try? await store.backend.fetchShared(slug: slug)
-            loading = false
-        }
+        .task { await load() }
+    }
+
+    private func load() async {
+        loading = true; loadError = nil
+        do { recipe = try await store.backend.fetchShared(slug: slug) }
+        catch { loadError = (error is URLError) ? Net.friendly(error) : error.localizedDescription }
+        loading = false
     }
 }
 

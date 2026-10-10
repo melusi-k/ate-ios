@@ -73,6 +73,12 @@ struct RootView: View {
         .onChange(of: phase) { _, p in if p == .active { store.timers.tick(); store.scheduleSync(delay: 0.2) } }
         .task { if store.session != nil { await store.syncNow() } }
         .tint(Theme.primary)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+        .overlay(alignment: .bottom) {
+            if !NetworkMonitor.shared.isOnline && store.cookTarget == nil {
+                OfflineBanner().padding(.bottom, 84).transition(.opacity)
+            }
+        }
         .overlay(alignment: .top) {
             if let t = store.toast {
                 ToastView(toast: t).padding(.top, 8).transition(.move(edge: .top).combined(with: .opacity)).id(t.id)

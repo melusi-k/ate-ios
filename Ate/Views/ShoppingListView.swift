@@ -4,6 +4,7 @@ struct ShoppingListView: View {
     @Environment(AppStore.self) private var store
     @State private var newItem = ""
     @State private var share: ShareItems?
+    @AppStorage("ate.shopping.byAisle") private var byAisle = true
 
     var body: some View {
         let pending = store.shopping.filter { !$0.done }
@@ -30,7 +31,25 @@ struct ShoppingListView: View {
                         EmptyStateCard(symbol: "basket", title: "Nothing on the list",
                                        message: "Open a recipe and tap “Add to shopping list” — quantities merge automatically.")
                     } else {
-                        VStack(spacing: 8) { ForEach(pending + done) { row($0) } }
+                        Toggle(isOn: $byAisle) { Label("Group by aisle", systemImage: "square.grid.2x2") }
+                            .font(AteFont.body(15, .medium)).tint(Theme.primary).accessibilityIdentifier("toggle.Group by aisle")
+                        if byAisle {
+                            ForEach(ShoppingLogic.grouped(pending), id: \.aisle) { g in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(g.aisle.rawValue).overline().accessibilityAddTraits(.isHeader)
+                                        .accessibilityIdentifier("aisle." + g.aisle.rawValue)
+                                    ForEach(g.items) { row($0) }
+                                }
+                            }
+                            if !done.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("In the basket").overline().accessibilityAddTraits(.isHeader)
+                                    ForEach(done) { row($0) }
+                                }
+                            }
+                        } else {
+                            VStack(spacing: 8) { ForEach(pending + done) { row($0) } }
+                        }
                         exportCard(done: !done.isEmpty)
                     }
                 }
@@ -49,7 +68,7 @@ struct ShoppingListView: View {
 
     private func row(_ it: ShoppingItem) -> some View {
         HStack(spacing: 12) {
-            Button { store.toggle(it.id) } label: {
+            Button { store.toggle(it.id); Haptics.toggle() } label: {
                 Image(systemName: it.done ? "checkmark.square.fill" : "square").font(.system(size: 22))
                     .foregroundStyle(it.done ? Theme.primary : Theme.mutedForeground).frame(width: 44, height: 44)
             }.accessibilityLabel(it.done ? "Mark \(it.name) as not bought" : "Mark \(it.name) as bought")
@@ -65,6 +84,11 @@ struct ShoppingListView: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 4)
         .cardSurface()
+        .contextMenu {
+            Button { store.toggle(it.id) } label: { Label(it.done ? "Mark as not bought" : "Mark as bought", systemImage: "checkmark.square") }
+            Button { UIPasteboard.general.string = ShoppingLogic.label(it) } label: { Label("Copy", systemImage: "doc.on.doc") }
+            Button(role: .destructive) { store.removeItem(it.id) } label: { Label("Remove", systemImage: "trash") }
+        }
     }
 
     private func exportCard(done: Bool) -> some View {

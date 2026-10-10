@@ -4,57 +4,59 @@ struct LibraryView: View {
     @Environment(AppStore.self) private var store
     @State private var query = ""
     @State private var showAdd = false
+    @State private var confirmDelete: RecipeCard?
 
     var body: some View {
         let filtered = store.recipes.filter { RecipeLogic.matches($0, query: query) }
         ZStack(alignment: .bottom) {
             Theme.background.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "fork.knife.circle.fill").font(.system(size: 26)).foregroundStyle(Theme.primary)
-                                Text("ate").font(AteFont.body(14, .bold)).tracking(2.8).foregroundStyle(Theme.primary)
-                            }
-                            Text("Your kitchen library").font(AteFont.display(36))
-                            Text("\(store.recipes.count) recipe\(store.recipes.count == 1 ? "" : "s") saved on this device.")
-                                .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
-                        }
-                        Spacer()
-                        IconButton(symbol: "basket", label: "Shopping list") { store.path.append(.shopping) }
-                        IconButton(symbol: "gearshape", label: "Settings") { store.path.append(.settings) }
-                    }
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass").foregroundStyle(Theme.mutedForeground)
-                        TextField("Search chicken, pasta, vegan…", text: $query).font(AteFont.body(15))
-                            .textInputAutocapitalization(.never)
-                    }
-                    .padding(.horizontal, 18).frame(height: 48)
-                    .background(Theme.card, in: Capsule()).overlay(Capsule().stroke(Theme.input))
-
+            List {
+                Group {
+                    header
                     if store.recipes.isEmpty {
                         EmptyStateCard(symbol: "fork.knife", title: "Nothing saved yet",
                                        message: "Paste a link or a screenshot and get a clean recipe card in seconds.")
                     } else if filtered.isEmpty {
                         EmptyStateCard(symbol: "fork.knife", title: "No matches", message: "Try another ingredient or tag.")
                     } else {
-                        LazyVStack(spacing: 12) {
-                            ForEach(filtered) { r in
-                                Button { store.path.append(.recipe(r.id)) } label: { RecipeRowView(recipe: r) }
-                                    .buttonStyle(PressScale())
-                            }
+                        ForEach(filtered) { r in
+                            Button { store.path.append(.recipe(r.id)) } label: { RecipeRowView(recipe: r) }
+                                .buttonStyle(PressScale())
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) { confirmDelete = r } label: { Label("Delete", systemImage: "trash") }
+                                        .tint(Theme.destructive)
+                                }
+                                .swipeActions(edge: .leading) {
+                                    Button { store.cookTarget = CookTarget(id: r.id) } label: { Label("Cook", systemImage: "flame") }
+                                        .tint(Theme.primary)
+                                }
+                                .contextMenu { menu(r) } preview: { RecipeRowView(recipe: r).frame(width: 340) }
                         }
                     }
+                    Color.clear.frame(height: 96)
                 }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                 .foregroundStyle(Theme.foreground)
-                .padding(.horizontal, 16).padding(.top, 32).padding(.bottom, 112)
                 .pageWidth()
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .refreshable {
+                if store.session != nil { await store.syncNow() } else { store.show("Sign in from Settings to sync across devices") }
             }
             Button { showAdd = true } label: { Label("Add recipe", systemImage: "plus").padding(.horizontal, 10) }
                 .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.bottom, 20)
         }
         .toolbar(.hidden, for: .navigationBar)
+        .confirmationDialog("Delete “\(confirmDelete?.title ?? "")”?", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
+                            titleVisibility: .visible) {
+            Button("Delete recipe", role: .destructive) {
+                if let r = confirmDelete { store.delete(r.id); store.show("Recipe deleted"); Haptics.warning() }
+                confirmDelete = nil
+            }
+        }
         .sheet(isPresented: $showAdd) {
             AddRecipeSheet { card in
                 store.add(card)
@@ -65,5 +67,45 @@ struct LibraryView: View {
             .environment(store)
             .presentationDetents([.large])
         }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Image("AteLogo").resizable().scaledToFit().frame(width: 28, height: 28).accessibilityHidden(true)
+                        Text("ate").font(AteFont.body(14, .bold)).tracking(2.8).foregroundStyle(Theme.primary)
+                    }
+                    Text(L10n.libraryTitle).font(AteFont.display(36)).accessibilityAddTraits(.isHeader)
+                    Text("\(store.recipes.count) recipe\(store.recipes.count == 1 ? "" : "s") saved on this device.")
+                        .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
+                }
+                Spacer()
+                IconButton(symbol: "basket", label: "Shopping list") { store.path.append(.shopping) }
+                IconButton(symbol: "gearshape", label: "Settings") { store.path.append(.settings) }
+            }
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(Theme.mutedForeground).accessibilityHidden(true)
+                TextField("Search chicken, pasta, vegan…", text: $query).font(AteFont.body(15))
+                    .textInputAutocapitalization(.never).accessibilityLabel("Search recipes")
+            }
+            .padding(.horizontal, 18).frame(minHeight: 48)
+            .background(Theme.card, in: Capsule()).overlay(Capsule().stroke(Theme.input))
+        }
+        .padding(.top, 24)
+    }
+
+    @ViewBuilder private func menu(_ r: RecipeCard) -> some View {
+        Button { store.path.append(.recipe(r.id)) } label: { Label("Open", systemImage: "book") }
+        Button { store.cookTarget = CookTarget(id: r.id) } label: { Label("Start cooking", systemImage: "flame") }
+        Button { store.addToShopping(r, factor: 1); store.show("Added to your shopping list") } label: {
+            Label("Add to shopping list", systemImage: "basket")
+        }
+        Button { UIPasteboard.general.string = RecipeLogic.text(for: r, units: store.settings.units); store.show("Recipe copied") } label: {
+            Label("Copy as text", systemImage: "doc.on.doc")
+        }
+        Divider()
+        Button(role: .destructive) { confirmDelete = r } label: { Label("Delete", systemImage: "trash") }
     }
 }

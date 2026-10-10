@@ -38,14 +38,22 @@ Add these under repo **Settings → Secrets and variables → Actions**:
 | `BUILD_CERTIFICATE_BASE64` | Export your Apple Development (or Distribution) certificate + key from Keychain as `.p12`, then `base64 -i cert.p12 \| pbcopy` |
 | `P12_PASSWORD` | Password you set for the `.p12` |
 | `BUILD_PROVISION_PROFILE_BASE64` | Development or Ad Hoc profile for your App ID (e.g. `com.melusik.ate`) with your devices: `base64 -i profile.mobileprovision \| pbcopy` |
+| `WIDGET_PROVISION_PROFILE_BASE64` | Profile for `com.melusik.ate.widgets` (Live Activity / widget extension) |
+| `SHARE_PROVISION_PROFILE_BASE64` | Profile for `com.melusik.ate.share` ("Save to ate" share extension) |
+| `WATCH_PROVISION_PROFILE_BASE64` | Profile for `com.melusik.ate.watchkitapp` (Apple Watch app) |
+| `WATCH_WIDGET_PROVISION_PROFILE_BASE64` | Profile for `com.melusik.ate.watchkitapp.widgets` (watch complication) |
 | `TEAM_ID` | 10-character Apple Developer Team ID |
 
-The bundle ID and export method (development / ad-hoc) are read from the profile automatically.
+Every embedded bundle needs its own profile, and all of them need the App Group `group.com.melusik.ate`. CI regenerates the project with each profile assigned to its target (`ATE_PROFILE_*`), then exports with a bundle-ID → profile map. The export method (development / ad-hoc) comes from the app profile. A missing extension profile makes the signed export fail and name that bundle.
 
 ```sh
 gh secret set BUILD_CERTIFICATE_BASE64 < <(base64 -i cert.p12)
 gh secret set P12_PASSWORD
-gh secret set BUILD_PROVISION_PROFILE_BASE64 < <(base64 -i profile.mobileprovision)
+gh secret set BUILD_PROVISION_PROFILE_BASE64 < <(base64 -i app.mobileprovision)
+gh secret set WIDGET_PROVISION_PROFILE_BASE64 < <(base64 -i widgets.mobileprovision)
+gh secret set SHARE_PROVISION_PROFILE_BASE64 < <(base64 -i share.mobileprovision)
+gh secret set WATCH_PROVISION_PROFILE_BASE64 < <(base64 -i watch.mobileprovision)
+gh secret set WATCH_WIDGET_PROVISION_PROFILE_BASE64 < <(base64 -i watch-widgets.mobileprovision)
 gh secret set TEAM_ID
 ```
 

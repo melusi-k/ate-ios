@@ -187,9 +187,19 @@ final class AteUITests: XCTestCase {
         field.tap(); field.typeText("Lemons")
         app.buttons["Add item"].tap()
         wait(text("6 to buy"))
-        app.buttons["Mark honey as bought"].tap()
+        wait(app.staticTexts["aisle.Produce"], 3)
+        XCTAssertTrue(app.staticTexts["aisle.Pantry"].exists)
+        XCTAssertTrue(app.staticTexts["aisle.Meat & Fish"].exists)
+        shot("shopping-by-aisle")
+        let honey = app.buttons["Mark honey as bought"]
+        var n = 0
+        while !honey.isHittable && n < 4 { app.swipeUp(velocity: .slow); n += 1 }
+        honey.tap()
         wait(text("1 in the basket"))
         shot("shopping-ticked")
+        tapSwitch("toggle.Group by aisle")
+        XCTAssertTrue(app.staticTexts["aisle.Produce"].waitForNonExistence(timeout: 3))
+        tapSwitch("toggle.Group by aisle")
         app.buttons["Copy text"].tap()
         wait(text("Copied as text"), 5)
         app.swipeUp()
@@ -473,5 +483,62 @@ final class AteUITests: XCTestCase {
         shot("not-found-404")
         app.buttons["Go home"].tap()
         wait(text("Your kitchen library"))
+    }
+
+    // MARK: batch v1.3
+
+    func test18_SwipeContextMenuPullToRefresh() {
+        launch()
+        addPromptRecipe()
+        app.buttons["Library"].firstMatch.tap()
+        let row = text("Miso salmon for two")
+        wait(row)
+        // pull to refresh (signed out → hint)
+        app.swipeDown(velocity: .slow)
+        wait(text("Sign in from Settings to sync"), 5)
+        // context menu
+        row.press(forDuration: 1.2)
+        wait(app.buttons["Add to shopping list"], 5)
+        shot("library-context-menu")
+        app.buttons["Add to shopping list"].tap()
+        wait(text("Added to your shopping list"), 5)
+        // swipe to delete
+        row.swipeLeft()
+        let del = app.buttons["Delete"].firstMatch
+        wait(del, 5)
+        shot("library-swipe-delete")
+        del.tap()
+        wait(app.buttons["Delete recipe"], 5)
+        app.buttons["Delete recipe"].tap()
+        wait(text("Nothing saved yet"), 5)
+    }
+
+    func test19_OfflineAndRetry() {
+        launch(["-simulateOffline", "-ateOpenURL", "ate://recipe/offline"])
+        wait(app.descendants(matching: .any)["offlineBanner"].firstMatch, 8)
+        wait(text("Couldn't load this recipe"), 8)
+        wait(text("You're offline"), 3)
+        shot("shared-offline-retry")
+        app.buttons["sharedRetry"].tap()
+        wait(text("Back online soup"), 8)
+        shot("shared-after-retry")
+    }
+
+    func test20_CameraOptionAndLargeText() {
+        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityL"])
+        wait(text("Your kitchen library"))
+        shot("a11y-large-text-library")
+        app.buttons["Add recipe"].tap()
+        app.buttons["Image"].tap()
+        wait(app.buttons["takePhoto"])
+        shot("add-image-camera-option")
+        app.buttons["takePhoto"].tap()
+        wait(text("used a sample photo"), 5)
+        let gen = app.buttons["generateButton"]
+        var n = 0
+        while !gen.isHittable && n < 5 { app.swipeUp(velocity: .slow); n += 1 }
+        gen.tap()
+        wait(text("Review your card"), 15)
+        shot("a11y-large-text-review")
     }
 }

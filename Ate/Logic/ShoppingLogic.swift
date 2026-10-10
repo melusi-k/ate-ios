@@ -70,6 +70,15 @@ enum ShoppingLogic {
         return items
     }
 
+    /// Store-walk order for grouping the list.
+    static let aisleOrder: [Aisle] = [.produce, .bakery, .meatFish, .dairy, .pantry, .frozen, .other]
+
+    /// Pending items grouped by aisle (stable item order within a group, empty aisles dropped).
+    static func grouped(_ items: [ShoppingItem]) -> [(aisle: Aisle, items: [ShoppingItem])] {
+        let by = Dictionary(grouping: items) { $0.aisle ?? guessAisle($0.name) }
+        return aisleOrder.compactMap { a in by[a].map { (a, $0) } }
+    }
+
     static func label(_ it: ShoppingItem) -> String {
         [Units.formatAmount(it.quantity, it.unit), it.name].filter { !$0.isEmpty }.joined(separator: " ")
     }

@@ -8,6 +8,14 @@
 - **Friendly errors:** wrong email/password, email not confirmed (with resend), rate limited, already registered, weak password, expired link, offline/timeout/unreachable server.
 - Note: there is no account for melusi.l.k@gmail.com on either backend yet (both `auth.users` tables were empty), so the first step is **Create account**.
 
+### F2. Sync "HTTP 400" fix (build 14)
+- **Symptom:** after signing in, Settings showed "Sync failed: Sync failed (HTTP 400)".
+- **Root causes (both confirmed with curl against `user_recipes`):**
+  1. `updated_at` was a Swift `Double` built from `Date().timeIntervalSince1970 * 1000`, so it went out as e.g. `1760076000123.456`. The column is `bigint`, so PostgREST rejected it with **22P02** "invalid input syntax for type bigint". Even `…123.0` is rejected.
+  2. Swift's synthesized `Encodable` **omits** `nil` optionals, so tombstones (`data == nil`) had no `data` key. In a bulk upsert mixing upserts and deletes, PostgREST requires identical keys and returns **PGRST102** "All object keys must match".
+- **Fix:** `SyncRecord.updated_at` is `Int64` (stamps are rounded when created, and decoding accepts ints, floats or numeric strings). A custom `encode(to:)` always writes `data` (`null` for deletes). Sync status now shows PostgREST's `code: message`.
+- **Checks:** RLS still rejects a foreign `user_id` (42501), and the `kind` check constraint rejects anything but `recipe`/`shopping` (23514). Unit test `testSyncRecordEncodesIntegerStampsAndNullData`.
+
 ### G. Onboarding
 - Shown once on first run (`ate.onboarded.v1`): 3 pages (import from link/screenshot/prompt; cook mode with timers; sync and share), then **Create account / Sign in / Continue without account**, with Skip and page dots. Replay it from **Settings › About › Replay intro**. It shows again after account deletion.
 
@@ -27,7 +35,7 @@
 - Downloads are named `Ate-0.1.N-buildN.ipa`. There's no more plain `Ate.ipa`.
 
 ### J. Legal links
-- `ATE_PRIVACY_URL` / `ATE_TERMS_URL` in `project.yml`. They currently point to **placeholders** (`recipe-transform-ai.lovable.app/privacy` and `/terms`, which don't exist yet). The links show on the auth sheet, the onboarding choice page and Settings › About.
+- ✅ **Live:** https://melusi-k.github.io/ate-legal/privacy.html and https://melusi-k.github.io/ate-legal/terms.html. Source is `docs/legal/*.md`, rendered by `scripts/build-legal.py` into the public repo `melusi-k/ate-legal`, because GitHub Pages on the private repo needs a paid plan. The links show on the auth sheet, the onboarding choice page and Settings › About.
 
 ## Feature additions (v1.1) — 2026-10-10
 

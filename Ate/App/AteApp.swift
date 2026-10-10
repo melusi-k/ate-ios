@@ -70,10 +70,24 @@ struct RootView: View {
         .fullScreenCover(isPresented: $store.showOnboarding) { OnboardingView().environment(store) }
         .sheet(item: $store.authSheet) { m in AuthSheet(mode: m).environment(store) }
         .onReceive(tick) { store.timers.tick($0) }
-        .onChange(of: phase) { _, p in if p == .active { store.timers.tick(); store.scheduleSync(delay: 0.2); store.checkInbox() } }
-        .task { if store.session != nil { await store.syncNow() } }
+        .onChange(of: phase) { _, p in
+            if p == .active {
+                store.timers.tick(); store.timers.ensureLiveActivities(); store.scheduleSync(delay: 0.2); store.checkInbox()
+                BetaQA.shared.returnedToForeground(runningTimers: store.timers.timers.filter(\.isRunning).count)
+            } else if p == .background {
+                BetaQA.shared.wentToBackground(runningTimers: store.timers.timers.filter(\.isRunning).count)
+            }
+        }
+        .task {
+            store.timers.ensureLiveActivities()
+            BetaQA.shared.launched(recipeCount: store.recipes.count, restoredTimers: store.timers.timers.count)
+            if store.session != nil { await store.syncNow() }
+        }
         .tint(Theme.primary)
         .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+        .overlay(alignment: .top) {
+            if !store.showOnboarding { BetaBanner { store.tab = .more; BetaQA.shared.openRequested = true }.padding(.top, 4) }
+        }
         .overlay(alignment: .bottom) {
             if !NetworkMonitor.shared.isOnline && store.cookTarget == nil {
                 OfflineBanner().padding(.bottom, 84).transition(.opacity)

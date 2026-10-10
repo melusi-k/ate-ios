@@ -115,6 +115,7 @@ struct RecipeDetailView: View {
             let slug = try await store.backend.publish(RecipeLogic.scaled(recipe, factor: factor))
             let link = "\(AppConfig.shareHost)/r/\(slug)"
             guard let url = URL(string: link) else { throw BackendError(message: "bad url") }
+            BetaQA.shared.pass("A-SHARE-01", note: "Published \(link)")
             if asText {
                 share = ShareItems(items: [RecipeLogic.text(for: recipe, factor: factor, units: units, shareURL: link)])
             } else {
@@ -122,6 +123,8 @@ struct RecipeDetailView: View {
             }
         } catch {
             store.show("Could not create a share link. Sharing the text instead.", error: true)
+            BetaQA.shared.fail("A-SHARE-01", error: "Publish failed: \(Net.friendly(error))")
+            BetaQA.shared.pass("A-SHARE-05", note: "Backend unavailable → fell back to text share")
             share = ShareItems(items: [RecipeLogic.text(for: recipe, factor: factor, units: units)])
         }
     }

@@ -6,6 +6,7 @@ struct MoreView: View {
     @Environment(AppStore.self) private var store
     @State private var importing = false
     @State private var share: ShareItems?
+    @State private var qa = BetaQA.shared
 
     var body: some View {
         ZStack {
@@ -14,6 +15,25 @@ struct MoreView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("More").font(AteFont.display(30))
 
+                    section("Beta testing") {
+                        NavigationLink { BetaTestingView() } label: {
+                            HStack {
+                                Image(systemName: "checklist").foregroundStyle(Theme.primary)
+                                Text("Beta testing").font(AteFont.body(15, .semibold))
+                                Spacer()
+                                Text("\(qa.progress().passed)/\(qa.progress().total)").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                                Image(systemName: "chevron.right").foregroundStyle(Theme.mutedForeground)
+                            }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+                        }.buttonStyle(.plain).accessibilityIdentifier("more.betaTesting")
+                        NavigationLink { BetaExpectationsView() } label: {
+                            HStack {
+                                Image(systemName: "info.circle").foregroundStyle(Theme.primary)
+                                Text(Transparency.betaTitle).font(AteFont.body(15, .semibold))
+                                Spacer()
+                                Image(systemName: "chevron.right").foregroundStyle(Theme.mutedForeground)
+                            }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+                        }.buttonStyle(.plain).accessibilityIdentifier("betaNote")
+                    }
                     section("Collections") {
                         ForEach([RecipeCollection.quick, .favourites, .recentlyAdded, .recentlyCooked], id: \.self) { c in
                             collectionRow(c)
@@ -35,16 +55,10 @@ struct MoreView: View {
                         if let u = AppConfig.termsURL { linkRow("Terms of Use", "doc.text", u, id: "settingsTerms") }
                     }
                     section("About") {
-                        Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))")
+                        Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))" + (AppConfig.channel.isEmpty ? "" : " · \(AppConfig.channel)"))
                             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aboutVersion")
                         Text(Transparency.ai).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
                             .accessibilityIdentifier("aiTransparency")
-                        DisclosureGroup {
-                            VStack(alignment: .leading, spacing: 6) {
-                                ForEach(Transparency.beta, id: \.self) { Label($0, systemImage: "info.circle").font(AteFont.body(13)) }
-                            }.padding(.top, 4)
-                        } label: { Text(Transparency.betaTitle).font(AteFont.body(14, .semibold)) }
-                            .tint(Theme.primary).accessibilityIdentifier("betaNote")
                         VStack(alignment: .leading, spacing: 2) {
                             Text("AI diagnostics").font(AteFont.body(12, .semibold))
                             Text("Model: " + OnDeviceBackend.availabilityDescription)
@@ -72,6 +86,7 @@ struct MoreView: View {
             } catch { store.show("That file isn't a ate export.", error: true) }
         }
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
+        .navigationDestination(isPresented: $qa.openRequested) { BetaTestingView() }
     }
 
     private func section<C: View>(_ title: String, @ViewBuilder _ c: () -> C) -> some View {
@@ -128,6 +143,7 @@ struct LiveActivityDiagnosticsView: View {
             Text("Live Activity").font(AteFont.body(12, .semibold))
             Text("areActivitiesEnabled: \(LiveActivityDiagnostics.enabledNow ? "yes" : "NO")")
             Text("Last request: " + LiveActivityDiagnostics.lastResult)
+            ForEach(Array(LiveActivityLog.shared.entries.dropFirst().prefix(8).enumerated()), id: \.offset) { Text("· " + $0.element).font(AteFont.body(11)) }
             Text("Active activities: \(LiveActivityDiagnostics.activeCount)")
             Text("Widget extension: " + (LiveActivityDiagnostics.widgetAppexPresent
                  ? "present (\(LiveActivityDiagnostics.widgetBundleID ?? "?"))" : "MISSING — re-sideload with extensions kept"))
@@ -136,6 +152,7 @@ struct LiveActivityDiagnosticsView: View {
             Button("Refresh") { tick += 1 }.font(AteFont.body(12, .semibold)).tint(Theme.primary)
         }
         .id(tick)
+        .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in tick += 1 }
         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
         .textSelection(.enabled)
         .accessibilityIdentifier("liveActivityDiagnostics")

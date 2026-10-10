@@ -27,6 +27,8 @@ settings:
     DEVELOPMENT_TEAM: "${TEAM_ID}"
     # Overwritten by CI with the short commit sha (see build-ipa.yml).
     ATE_GIT_SHA: "dev"
+    # Release channel shown in About, the footer and Beta testing (display only; CFBundleShortVersionString stays numeric).
+    ATE_CHANNEL: "TierA"
     # Legal pages: source docs/legal/*.md → scripts/build-legal.py → public repo melusi-k/ate-legal (GitHub Pages).
     ATE_PRIVACY_URL: "https://melusi-k.github.io/ate-legal/privacy.html"
     ATE_TERMS_URL: "https://melusi-k.github.io/ate-legal/terms.html"
@@ -78,6 +80,7 @@ targets:
         AteShareHost: $(ATE_SHARE_HOST)
         AtePrivacyURL: $(ATE_PRIVACY_URL)
         AteGitSHA: $(ATE_GIT_SHA)
+        AteChannel: $(ATE_CHANNEL)
         AteTermsURL: $(ATE_TERMS_URL)
         CFBundleURLTypes:
           - CFBundleURLName: com.melusik.ate

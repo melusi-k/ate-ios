@@ -50,7 +50,10 @@ struct SharedRecipeView: View {
     private func load() async {
         loading = true; loadError = nil
         do { recipe = try await store.backend.fetchShared(slug: slug) }
-        catch { loadError = (error is URLError) ? Net.friendly(error) : error.localizedDescription }
+        catch {
+            loadError = (error is URLError) ? Net.friendly(error) : error.localizedDescription
+            BetaQA.shared.fail("A-SHARE-02", error: "Open shared \(slug): \(loadError ?? "")")
+        }
         loading = false
     }
 }

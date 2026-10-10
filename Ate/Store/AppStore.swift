@@ -92,6 +92,7 @@ final class AppStore {
         show("Deleted “\(r.title)”", action: "Undo", perform: { [weak self] in
             guard let self else { return }
             self.recipes.insert(r, at: min(idx, self.recipes.count)); self.persistRecipes()
+            BetaQA.shared.pass("A-EDIT-04", note: "Deleted “\(r.title)” and restored it with Undo")
             self.toast = nil
         }, seconds: 5)
     }
@@ -206,6 +207,7 @@ final class AppStore {
     }
 
     private func persistRecipes(stamp: Bool = true) {
+        BetaQA.shared.recipeCountChanged(recipes.count)
         if stamp { stampChanges() }
         guard let context else { return }
         try? context.delete(model: RecipeEntity.self)
@@ -260,6 +262,7 @@ final class AppStore {
         guard let i = recipes.firstIndex(where: { $0.id == card.id }) else { return }
         recipes[i] = card
         persistRecipes()
+        BetaQA.shared.pass("A-EDIT-03", note: "Edited “\(card.title)” without a crash")
     }
 
     func delete(_ id: String) {
@@ -334,7 +337,7 @@ final class AppStore {
         syncState = .syncing
         do {
             if s.expiresAt < Date().timeIntervalSince1970 + 60 {
-                do { s = try await auth.refresh(s); setSession(s) }
+                do { s = try await auth.refresh(s); setSession(s); BetaQA.shared.pass("A-AUTH-06", note: "Session refreshed before sync") }
                 catch let e as AuthError where e.kind == .unauthorized { expireSession(); return }
             }
             if SyncMerge.isAccountSwitch(lastSyncedUser: meta.userID, newUser: s.userID) {
@@ -342,10 +345,12 @@ final class AppStore {
                 recipes = []; shopping = []; recipeSnapshot = [:]; shopSnapshot = [:]
                 persistRecipes(stamp: false); persistShopping(stamp: false)
                 meta = SyncMeta()
+                BetaQA.shared.pass("A-SYNC-05", note: "Account switch detected; previous account's copy removed")
                 show("Switched accounts — the other account's recipes were removed from this iPhone (they're still in that account).")
             }
             meta.userID = s.userID
             let remote = try await sync.pull(session: s)
+            BetaQA.shared.syncPulled(rows: remote.count)
             let enc = JSONEncoder()
             let dec = JSONDecoder()
 
@@ -378,12 +383,14 @@ final class AppStore {
             out += sh.pushDeletes.map { rec("shopping", $0, nil, sh.tombstones[$0] ?? nowMs(), true) }
             try await sync.push(out, session: s)
             syncState = .synced(Date())
+            BetaQA.shared.syncSucceeded(pushed: out.count)
         } catch SyncError.tableMissing {
             syncState = .unavailable(SyncError.tableMissing.errorDescription ?? "")
         } catch SyncError.unauthorized {
             expireSession()
         } catch {
             syncState = .failed(error.localizedDescription)
+            BetaQA.shared.syncFailed(Net.friendly(error))
         }
     }
 
@@ -423,12 +430,14 @@ final class AppStore {
             let new = try await auth.signIn(email: email, password: password)
             setSession(new)
             pendingConfirmation = nil
+            BetaQA.shared.pass("A-AUTH-03", note: "Signed in as \(new.email)")
             show("Signed in")
             Task { await syncNow() }
             return nil
         } catch {
             let e = AuthError.network(error)
             if e.kind == .emailNotConfirmed { pendingConfirmation = email }
+            if e.kind != .invalidCredentials && e.kind != .emailNotConfirmed { BetaQA.shared.fail("A-AUTH-03", error: "Sign in: \(e.message)") }
             return e
         }
     }
@@ -439,17 +448,24 @@ final class AppStore {
         do {
             if let s = try await auth.signUp(email: email, password: password) {
                 setSession(s); show("Account created"); Task { await syncNow() }
+                BetaQA.shared.pass("A-AUTH-01", note: "Signed up and signed in")
                 return .signedIn
             }
             pendingConfirmation = email
+            BetaQA.shared.set("A-AUTH-01", .untested, note: "Confirmation email sent — open the link to finish", auto: true)
             return .confirmationSent
-        } catch { return .failed(AuthError.network(error)) }
+        } catch {
+            let e = AuthError.network(error)
+            if e.kind == .weakPassword || e.kind == .userExists { BetaQA.shared.pass("A-AUTH-02", note: "Friendly error: \(e.message)") }
+            else { BetaQA.shared.fail("A-AUTH-01", error: "Sign up: \(e.message)") }
+            return .failed(e)
+        }
     }
 
     func sendMagicLink(email: String) async -> AuthError? {
         guard let auth else { return nil }
-        do { try await auth.sendMagicLink(email: email.trimmingCharacters(in: .whitespaces)); return nil }
-        catch { return AuthError.network(error) }
+        do { try await auth.sendMagicLink(email: email.trimmingCharacters(in: .whitespaces)); BetaQA.shared.magicLinkSent = true; return nil }
+        catch { let e = AuthError.network(error); BetaQA.shared.fail("A-AUTH-04", error: "Send magic link: \(e.message)"); return e }
     }
 
     func resendConfirmation() async -> AuthError? {
@@ -460,13 +476,13 @@ final class AppStore {
     func recoverPassword(email: String) async -> AuthError? {
         guard let auth else { return nil }
         do { try await auth.recoverPassword(email: email.trimmingCharacters(in: .whitespaces)); return nil }
-        catch { return AuthError.network(error) }
+        catch { let e = AuthError.network(error); BetaQA.shared.fail("A-AUTH-05", error: "Reset email: \(e.message)"); return e }
     }
 
     func setNewPassword(_ password: String) async -> AuthError? {
         guard let auth, let s = session else { return AuthError(.unauthorized, "Open the reset link again.") }
-        do { try await auth.updatePassword(s, to: password); show("Password updated"); return nil }
-        catch { return AuthError.network(error) }
+        do { try await auth.updatePassword(s, to: password); show("Password updated"); BetaQA.shared.pass("A-AUTH-05", note: "Reset link opened and new password set"); return nil }
+        catch { let e = AuthError.network(error); BetaQA.shared.fail("A-AUTH-05", error: "Set new password: \(e.message)"); return e }
     }
 
     func signOut(removeLocalData: Bool = false) async {
@@ -475,6 +491,7 @@ final class AppStore {
         setSession(nil)
         syncState = .signedOut
         if removeLocalData { wipeLocalData() }
+        BetaQA.shared.signedOut(removeLocalData: removeLocalData, remaining: recipes.count)
         show(removeLocalData ? "Signed out and removed this iPhone's copy" : "Signed out — your recipes stay on this device")
     }
 
@@ -484,7 +501,8 @@ final class AppStore {
         do {
             if s.expiresAt < Date().timeIntervalSince1970 + 60 { s = try await auth.refresh(s) }
             try await auth.deleteAccount(s)
-        } catch { return AuthError.network(error) }
+        } catch { let e = AuthError.network(error); BetaQA.shared.fail("A-AUTH-08", error: e.message); return e }
+        BetaQA.shared.pass("A-AUTH-08", note: "Account deleted on the server and locally")
         syncTask?.cancel()
         setSession(nil)
         syncState = .signedOut
@@ -515,6 +533,7 @@ final class AppStore {
                     switch try await auth?.session(fromCallback: url) {
                     case .signedIn(let s)?:
                         setSession(s); pendingConfirmation = nil; authSheet = nil
+                        BetaQA.shared.authLinkSignedIn(email: s.email)
                         if showOnboarding { finishOnboarding() }
                         show("Signed in"); await syncNow()
                     case .recovery(let s)?:
@@ -526,7 +545,11 @@ final class AppStore {
                         authSheet = .signIn
                     case nil: show("That sign-in link didn't work. Request a new one.", error: true)
                     }
-                } catch { show(AuthError.network(error).message, error: true) }
+                } catch {
+                    let m = AuthError.network(error).message
+                    BetaQA.shared.fail(BetaQA.shared.magicLinkSent ? "A-AUTH-04" : "A-AUTH-01", error: "Email link: \(m)")
+                    show(m, error: true)
+                }
             }
             return
         }
@@ -542,6 +565,7 @@ final class AppStore {
             slug = url.pathComponents[2]
         }
         tab = .library
-        if let slug { path = [.shared(slug)] } else { path = [.notFound] }
+        if let slug { path = [.shared(slug)]; BetaQA.shared.pass("A-SHARE-02", note: "Opened \(url.scheme ?? "")://… shared link \(slug)") }
+        else { path = [.notFound] }
     }
 }

@@ -26,6 +26,7 @@ struct AddRecipeSheet: View {
     @State private var imageData: Data?
     @State private var loading = false
     @State private var draft: RecipeCard?
+    @State private var didEdit = false
     @State private var editing = false
     @State private var showCamera = false
     @State private var error: String?
@@ -153,9 +154,14 @@ struct AddRecipeSheet: View {
             RecipeCardView(recipe: d, units: store.settings.units)
         }
         HStack(spacing: 8) {
-            Button("Save recipe") { if let d = draft { onSave(RecipeLogic.normalize(d)) } }
+            Button("Save recipe") {
+                if let d = draft {
+                    BetaQA.shared.pass("A-EDIT-01", note: (didEdit ? "Edited and saved" : "Reviewed and saved") + " “\(d.title)”")
+                    onSave(RecipeLogic.normalize(d))
+                }
+            }
                 .buttonStyle(.ate(.primary, full: true)).accessibilityIdentifier("saveRecipe")
-            Button(editing ? "Preview" : "Edit") { editing.toggle() }.buttonStyle(.ate(.secondary))
+            Button(editing ? "Preview" : "Edit") { editing.toggle(); didEdit = true }.buttonStyle(.ate(.secondary))
             Button { Task { await generate() } } label: {
                 Image(systemName: "arrow.clockwise").rotationEffect(.degrees(loading ? 360 : 0))
                     .animation(loading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: loading)
@@ -212,13 +218,30 @@ struct AddRecipeSheet: View {
                                                mode: mode.rawValue, date: Date())
             draft = RecipeLogic.normalize(card)
             editing = false
+            let src = "source \(card.source) in \(Int(Date().timeIntervalSince(started) * 1000)) ms"
+            switch mode {
+            case .link:
+                let host = URL(string: link.trimmingCharacters(in: .whitespaces))?.host ?? ""
+                let social = ["instagram", "tiktok", "youtube", "youtu.be"].contains { host.contains($0) }
+                BetaQA.shared.pass(social ? "A-CREATE-02" : "A-CREATE-01", note: "Imported from \(host), \(src)")
+            case .image: BetaQA.shared.pass("A-CREATE-03", note: "Photo → card, \(src)")
+            case .prompt: BetaQA.shared.pass("A-CREATE-04", note: "Prompt → card, \(src)")
+            }
         } catch let e as SocialCaptionError {
             socialError = e.platform
+            BetaQA.shared.pass("A-CREATE-02", note: "No caption on \(e.platform): friendly Prompt offer shown")
             Haptics.warning()
         } catch let e {
             let msg = (e is URLError) ? Net.friendly(e) : e.localizedDescription
             self.error = msg
             store.show(msg, error: true)
+            let id = mode == .link ? "A-CREATE-01" : (mode == .image ? "A-CREATE-03" : "A-CREATE-04")
+            if let u = e as? URLError, [.notConnectedToInternet, .networkConnectionLost, .dataNotAllowed].contains(u.code) {
+                BetaQA.shared.pass("A-CREATE-06", note: "Offline \(mode.rawValue) attempt showed: \(msg)")
+                BetaQA.shared.markNetworkLoss()
+            } else {
+                BetaQA.shared.fail(id, error: msg)
+            }
             Haptics.error()
         }
     }

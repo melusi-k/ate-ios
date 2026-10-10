@@ -120,11 +120,17 @@ final class TimerCenter {
 
     func stopAll(recipeID: String) { for t in timers where t.recipeID == recipeID { stop(t.id) } }
 
+    /// Timers restored from persistence (or running when we come back to the foreground) get their Live Activity back.
+    func ensureLiveActivities() {
+        for t in timers where t.isRunning { LiveActivities.startOrUpdate(t) }
+    }
+
     func tick(_ date: Date = Date()) {
         now = date
         for t in timers where t.isRunning && t.remaining(at: date) == 0 {
             timers.removeAll { $0.id == t.id }
             TimerAlerts.timerFinished(prefs: prefsProvider())
+            BetaQA.shared.pass("A-TIMER-01", note: "Timer for step \(t.stepIndex + 1) finished")
             LiveActivities.end(t.id, finished: t)
         }
     }
@@ -138,9 +144,22 @@ import os
 
 /// Last Live Activity request outcome, shown in More → About → Live Activity.
 @MainActor
+@Observable
+final class LiveActivityLog {
+    static let shared = LiveActivityLog()
+    private static let key = "ate.liveactivity.log.v1"
+    private(set) var entries: [String] = UserDefaults.standard.stringArray(forKey: LiveActivityLog.key) ?? []
+    func add(_ s: String) {
+        entries.insert("\(Date().formatted(date: .omitted, time: .standard)) \(s)", at: 0)
+        if entries.count > 20 { entries.removeLast(entries.count - 20) }
+        UserDefaults.standard.set(entries, forKey: Self.key)
+    }
+}
+
+@MainActor
 enum LiveActivityDiagnostics {
     static let log = Logger(subsystem: "com.melusik.ate", category: "LiveActivity")
-    static var lastResult: String = "no request yet"
+    static var lastResult: String { LiveActivityLog.shared.entries.first ?? "no request yet" }
     static var enabledNow: Bool {
         #if canImport(ActivityKit)
         return ActivityAuthorizationInfo().areActivitiesEnabled
@@ -166,7 +185,7 @@ enum LiveActivityDiagnostics {
         guard let u = Bundle.main.builtInPlugInsURL?.appendingPathComponent("AteWidgets.appex") else { return nil }
         return Bundle(url: u)?.bundleIdentifier
     }
-    static func record(_ s: String) { lastResult = s; log.notice("\(s, privacy: .public)") }
+    static func record(_ s: String) { LiveActivityLog.shared.add(s); log.notice("\(s, privacy: .public)") }
 }
 
 @MainActor
@@ -196,6 +215,7 @@ enum LiveActivities {
     static func startOrUpdate(_ t: ActiveTimer) {
         if AppConfig.isUITesting { Task { @MainActor in QAProbe.shared.liveActivityRequests += 1 } }
         #if canImport(ActivityKit)
+        LiveActivityDiagnostics.record("attempt: \(t.isRunning ? "running" : "paused") timer step \(t.stepIndex + 1)")
         guard enabled else {
             LiveActivityDiagnostics.record("skipped: areActivitiesEnabled = false (Settings → ate → Live Activities)")
             return
@@ -206,14 +226,16 @@ enum LiveActivities {
         }
         let content = ActivityContent(state: state(t), staleDate: t.endDate?.addingTimeInterval(60))
         if let a = activity(t.id) {
-            Task { await a.update(content) }
+            Task { await a.update(content); LiveActivityDiagnostics.record("updated \(a.id.prefix(8)) state=\(String(describing: a.activityState))") }
         } else {
             let attrs = CookTimerAttributes(recipeID: t.recipeID, recipeTitle: t.recipeTitle, timerID: t.id)
             do {
                 let a = try Activity.request(attributes: attrs, content: content, pushType: nil)
-                LiveActivityDiagnostics.record("started \(a.id.prefix(8)) at \(Date().formatted(date: .omitted, time: .standard))")
+                LiveActivityDiagnostics.record("started \(a.id.prefix(8)) state=\(String(describing: a.activityState)), total active \(Activity<CookTimerAttributes>.activities.count)")
+                BetaQA.shared.pass("A-TIMER-02", note: "Live Activity request succeeded (\(a.id.prefix(8)))")
             } catch {
-                LiveActivityDiagnostics.record("error: \(error.localizedDescription)")
+                LiveActivityDiagnostics.record("error: \(error.localizedDescription) [\(String(describing: error))]")
+                BetaQA.shared.fail("A-TIMER-02", error: "Live Activity request failed: \(error.localizedDescription)")
                 LiveActivityDiagnostics.log.error("Activity.request failed: \(String(describing: error), privacy: .public)")
             }
         }

@@ -43,7 +43,11 @@ enum AppConfig {
     static var gitSHA: String { string("AteGitSHA").isEmpty ? "dev" : string("AteGitSHA") }
     static var backendRef: String { supabaseURL?.host?.components(separatedBy: ".").first ?? "none" }
     /// e.g. "ate 0.1.12 (build 12) · 306e343 · backend ploncuhexmwydjxljuhe"
-    static var versionLine: String { "ate \(appVersion) (build \(buildNumber)) · \(gitSHA) · backend \(backendRef)" }
+    /// Release channel (build setting ATE_CHANNEL, e.g. "TierA"); empty for plain builds.
+    static var channel: String { string("AteChannel") }
+    /// "0.1.40 (40) TierA" — CFBundleShortVersionString stays numeric; the channel is display-only.
+    static var buildLabel: String { "\(appVersion) (\(buildNumber))" + (channel.isEmpty ? "" : " \(channel)") }
+    static var versionLine: String { "ate \(appVersion) (build \(buildNumber))\(channel.isEmpty ? "" : " · " + channel) · \(gitSHA) · backend \(backendRef)" }
     static var shareHost: String { string("AteShareHost").isEmpty ? "https://recipe-transform-ai.lovable.app" : string("AteShareHost") }
 
     /// Modes: "ondevice" (default: Foundation Models + Vision, mock fallback), "mock", "supabase".

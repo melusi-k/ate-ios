@@ -12,30 +12,41 @@ enum RecipeHealthMatcher {
     static let energy = ["oats", "rice", "pasta", "sweet potato", "banana", "wholegrain", "grain", "bowl", "fruit"]
 
     static func suggestions(for state: HealthState, recipes: [RecipeCard], limit: Int = 3) -> [NutritionFitSuggestion] {
-        recipes.map { r in (r, score(r, state)) }
-            .filter { $0.1.score > 0 }
-            .sorted { $0.1.score != $1.1.score ? $0.1.score > $1.1.score : $0.0.title < $1.0.title }
-            .prefix(limit)
-            .map { NutritionFitSuggestion(recipeID: $0.0.id, title: $0.0.title, why: $0.1.why, score: $0.1.score) }
+        var scored: [NutritionFitSuggestion] = []
+        for r in recipes {
+            let (sc, why): (Double, String) = score(r, state)
+            if sc > 0 { scored.append(NutritionFitSuggestion(recipeID: r.id, title: r.title, why: why, score: sc)) }
+        }
+        scored.sort { (a: NutritionFitSuggestion, b: NutritionFitSuggestion) -> Bool in
+            a.score != b.score ? a.score > b.score : a.title < b.title
+        }
+        return Array(scored.prefix(limit))
     }
 
     static func score(_ r: RecipeCard, _ state: HealthState) -> (score: Double, why: String) {
-        let text = ([r.title, r.description ?? "", r.cuisine ?? ""] + r.tags + r.ingredients.map(\.name)).joined(separator: " ").lowercased()
-        func hits(_ words: [String]) -> Int { words.filter { text.range(of: "\\b\($0)\\b", options: .regularExpression) != nil }.count }
+        var parts: [String] = [r.title, r.description ?? "", r.cuisine ?? ""]
+        parts += r.tags
+        parts += r.ingredients.map { $0.name }
+        let text = parts.joined(separator: " ").lowercased()
+        func hits(_ words: [String]) -> Int {
+            var n = 0
+            for w in words where text.range(of: "\\b" + w + "\\b", options: .regularExpression) != nil { n += 1 }
+            return n
+        }
         let p = hits(protein), l = hits(light), c = hits(comfort), h = hits(heavy), e = hits(energy)
         let quick = (r.timeMinutes ?? 99) <= 30
         var s = 0.0; var why = ""
         switch state {
         case .recovery:
-            s = Double(p) * 3 + Double(e) + (quick ? 0.5 : 0); why = p > 0 ? "Protein for recovery" : "Refuels after training"
+            s = Double(p) * 3; s += Double(e); if quick { s += 0.5 }; why = p > 0 ? "Protein for recovery" : "Refuels after training"
         case .lowEnergy:
-            s = Double(c) * 2 + Double(l) * 1.5 + (quick ? 2 : 0) - Double(h); why = quick ? "Quick and comforting" : "Gentle and comforting"
+            s = Double(c) * 2; s += Double(l) * 1.5; s -= Double(h); if quick { s += 2 }; why = quick ? "Quick and comforting" : "Gentle and comforting"
         case .underactive:
-            s = Double(l) * 2.5 + Double(p) - Double(h) * 2; why = "Lighter dinner"
+            s = Double(l) * 2.5; s += Double(p); s -= Double(h) * 2; why = "Lighter dinner"
         case .performance:
-            s = Double(e) * 2 + Double(p) + ((r.servings >= 4) ? 2 : 0) + Double(l); why = r.servings >= 4 ? "Good for meal prep" : "Energising"
+            s = Double(e) * 2; s += Double(p) + Double(l); if r.servings >= 4 { s += 2 }; why = r.servings >= 4 ? "Good for meal prep" : "Energising"
         case .balanced:
-            s = 1 + Double(l) + Double(p) * 0.5 + (r.favorite ? 1 : 0); why = r.favorite ? "One of your favourites" : "A good fit today"
+            s = 1 + Double(l); s += Double(p) * 0.5; if r.favorite { s += 1 }; why = r.favorite ? "One of your favourites" : "A good fit today"
         }
         if r.favorite { s += 0.5 }
         return (s, why)

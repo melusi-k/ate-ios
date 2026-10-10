@@ -33,6 +33,8 @@ final class AteUITests: XCTestCase {
     func tapSwitch(_ id: String) {
         let s = app.switches[id].firstMatch
         wait(s)
+        var tries = 0
+        while !s.isHittable && tries < 6 { app.swipeUp(velocity: .slow); tries += 1 }
         s.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
     }
 

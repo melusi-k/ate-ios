@@ -101,3 +101,7 @@ The Live Activity is drawn by the **AteWidgets** extension (`PlugIns/AteWidgets.
 | App Group (usually granted; falls back gracefully) | Apps that don't expire every 7 days |
 
 Free IDs also allow only about 3 sideloaded apps and 10 App IDs per week. ate uses up to 5 App IDs (app, widgets, share, watch, watch widgets).
+
+## License
+
+Proprietary. Copyright (c) 2026 Melusi Khumalo. All rights reserved. The source is visible for transparency only; see [LICENSE](LICENSE).

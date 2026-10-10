@@ -1,0 +1,140 @@
+import SwiftUI
+import PhotosUI
+
+struct AddRecipeSheet: View {
+    enum Mode: String, CaseIterable { case link = "Link", image = "Image", prompt = "Prompt"
+        var symbol: String {
+            switch self {
+            case .link: return "link"
+            case .image: return "photo.badge.plus"
+            case .prompt: return "pencil.line"
+            }
+        }
+    }
+    @Environment(AppStore.self) private var store
+    let onSave: (RecipeCard) -> Void
+
+    @State private var mode: Mode = .link
+    @State private var link = ""
+    @State private var prompt = ""
+    @State private var photoItem: PhotosPickerItem?
+    @State private var imageData: Data?
+    @State private var loading = false
+    @State private var draft: RecipeCard?
+    @State private var editing = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                if draft == nil { inputState } else { reviewState }
+            }
+            .foregroundStyle(Theme.foreground)
+            .padding(20)
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .overlay(alignment: .top) { if let t = store.toast { ToastView(toast: t).padding(.top, 8) } }
+        .onChange(of: photoItem) { _, item in
+            Task { imageData = try? await item?.loadTransferable(type: Data.self) }
+        }
+    }
+
+    @ViewBuilder private var inputState: some View {
+        Text("Add a recipe").font(AteFont.display(24))
+        Text("ate turns a link, a screenshot or an idea into a clean recipe card.")
+            .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
+        Picker("Source", selection: $mode) {
+            ForEach(Mode.allCases, id: \.self) { m in Label(m.rawValue, systemImage: m.symbol).tag(m) }
+        }.pickerStyle(.segmented)
+
+        switch mode {
+        case .link:
+            HStack {
+                TextField("https://tiktok.com/...", text: $link).keyboardType(.URL)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                Button("Paste") { if let s = UIPasteboard.general.string { link = s } }.font(AteFont.body(13, .semibold))
+            }.ateField()
+        case .image:
+            PhotosPicker(selection: $photoItem, matching: .images) {
+                VStack(spacing: 8) {
+                    Image(systemName: "photo.badge.plus").font(.system(size: 26)).foregroundStyle(Theme.primary)
+                    Text(imageData == nil ? "Upload a recipe screenshot" : "Screenshot ready — tap to replace")
+                        .font(AteFont.body(14, .medium))
+                }
+                .frame(maxWidth: .infinity).padding(32)
+                .background(Theme.muted.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(style: StrokeStyle(lineWidth: 1.5, dash: [6])).foregroundStyle(Theme.border))
+            }
+            if let d = imageData, let ui = UIImage(data: d) {
+                Image(uiImage: ui).resizable().scaledToFill().frame(maxWidth: .infinity, maxHeight: 192)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        case .prompt:
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $prompt).frame(height: 84).scrollContentBackground(.hidden).padding(6)
+                if prompt.isEmpty {
+                    Text("A quick weeknight miso salmon for two").foregroundStyle(Theme.mutedForeground).padding(12).allowsHitTesting(false)
+                }
+            }
+            .font(AteFont.body(15))
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.input))
+        }
+
+        Text(OnDeviceBackend.availabilityDescription).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+
+        Button { Task { await generate() } } label: {
+            HStack { if loading { ProgressView().tint(Theme.primaryForeground); Text("Cooking up your card…") }
+                     else { Image(systemName: "sparkles"); Text("Generate recipe card") } }
+        }
+        .buttonStyle(.ate(.primary, height: 52, full: true)).disabled(loading)
+    }
+
+    @ViewBuilder private var reviewState: some View {
+        Text("Review your card").font(AteFont.display(24))
+        Text("Fix anything the AI got wrong, then save it to your library.")
+            .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
+        if editing, draft != nil {
+            RecipeEditor(recipe: Binding(get: { draft ?? RecipeCard() }, set: { draft = $0 })).cardSurface(padding: 20)
+        } else if let d = draft {
+            RecipeCardView(recipe: d, units: store.settings.units)
+        }
+        HStack(spacing: 8) {
+            Button("Save recipe") { if let d = draft { onSave(RecipeLogic.normalize(d)) } }
+                .buttonStyle(.ate(.primary, full: true))
+            Button(editing ? "Preview" : "Edit") { editing.toggle() }.buttonStyle(.ate(.secondary))
+            Button { Task { await generate() } } label: {
+                Image(systemName: "arrow.clockwise").rotationEffect(.degrees(loading ? 360 : 0))
+                    .animation(loading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: loading)
+            }
+            .buttonStyle(.ate(.ghost)).disabled(loading).accessibilityLabel("Regenerate")
+        }
+    }
+
+    private func generate() async {
+        if store.settings.onDeviceOnly {
+            store.show("Private mode is on — turn it off in Settings to use AI.", error: true); return
+        }
+        var req: ParseRequest
+        switch mode {
+        case .link:
+            guard !link.trimmingCharacters(in: .whitespaces).isEmpty else { store.show("Paste a recipe link first.", error: true); return }
+            req = ParseRequest(mode: .url, text: link)
+        case .prompt:
+            guard !prompt.trimmingCharacters(in: .whitespaces).isEmpty else { store.show("Describe the dish first.", error: true); return }
+            req = ParseRequest(mode: .prompt, text: prompt)
+        case .image:
+            guard let d = imageData else { store.show("Upload a screenshot first.", error: true); return }
+            let jpeg = UIImage(data: d)?.jpegData(compressionQuality: 0.8) ?? d
+            req = ParseRequest(mode: .image, imageDataUrl: "data:image/jpeg;base64," + jpeg.base64EncodedString())
+        }
+        loading = true
+        defer { loading = false }
+        do {
+            var card = try await store.backend.parseRecipe(req)
+            if mode == .link { card.sourceURL = link }
+            draft = RecipeLogic.normalize(card)
+            editing = false
+        } catch {
+            store.show(error.localizedDescription, error: true)
+        }
+    }
+}

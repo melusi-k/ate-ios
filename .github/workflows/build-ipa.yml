@@ -347,12 +347,20 @@ jobs:
           cat build/notes.md >> "$GITHUB_STEP_SUMMARY"
           # Immutable per-build prerelease.
           CH_TITLE=""; [ -n "$ATE_CHANNEL" ] && CH_TITLE=" — ${ATE_CHANNEL/TierA/Tier A}"
-          gh release create "build-${BUILD_NUMBER}${CH_SUFFIX}" "dist/$IPA_NAME" --prerelease --target "$GITHUB_SHA" \
+          # Tags are pushed over git first and releases created WITHOUT --target: when main moves mid-run and the
+          # workflow files at GITHUB_SHA differ from the tip, POST /releases with --target needs workflows:write,
+          # which GITHUB_TOKEN can't have (HTTP 403 "Resource not accessible by integration", builds 65 and 67).
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          TAG="build-${BUILD_NUMBER}${CH_SUFFIX}"
+          git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || { git tag "$TAG" "$GITHUB_SHA" && git push origin "refs/tags/$TAG"; }
+          gh release create "$TAG" "dist/$IPA_NAME" --prerelease --verify-tag \
             --title "Build ${APP_VERSION} (${BUILD_NUMBER})${CH_TITLE} @ ${GITHUB_SHA::7}" --notes-file build/notes.md \
-            || echo "build-${BUILD_NUMBER}${CH_SUFFIX} already exists, leaving it untouched"
+            || echo "$TAG already exists, leaving it untouched"
           # Rolling latest-build: recreated so its ONLY asset is the current versioned .ipa (no plain Ate.ipa).
           gh release delete latest-build --cleanup-tag -y || true
-          gh release create latest-build "dist/$IPA_NAME" --prerelease --target "$GITHUB_SHA" \
+          git push origin ":refs/tags/latest-build" 2>/dev/null || true
+          git tag -f latest-build "$GITHUB_SHA" && git push origin "refs/tags/latest-build"
+          gh release create latest-build "dist/$IPA_NAME" --prerelease --verify-tag \
             --title "Latest build ${APP_VERSION} (${BUILD_NUMBER}) — ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}" --notes-file build/notes.md
           ASSETS=$(gh release view latest-build --json assets -q '.assets[].name')
           [ "$ASSETS" = "$IPA_NAME" ] || { echo "::error::latest-build assets are: $ASSETS"; exit 1; }

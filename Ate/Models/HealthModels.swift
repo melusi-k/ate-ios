@@ -93,6 +93,8 @@ struct JournalPrompt: Hashable, Identifiable, Codable {
     var generated: Bool = false
 }
 
+enum JournalEntrySource: String, Codable { case ate, journalMoment }
+
 /// Local-only journal entry (SwiftData). Never synced or sent anywhere.
 @Model
 final class JournalEntry {
@@ -102,9 +104,16 @@ final class JournalEntry {
     var text: String
     var stateRaw: String
     var recipeIDs: [String]
-    init(id: String = UUID().uuidString, createdAt: Date = .now, prompt: String, text: String, state: HealthState, recipeIDs: [String] = []) {
+    // Additive (v1.4.1): Journaling Suggestions provenance. Defaults keep old stores migrating lightly.
+    var journalingSuggestionTitle: String? = nil
+    var momentDate: Date? = nil
+    var sourceRaw: String = JournalEntrySource.ate.rawValue
+    init(id: String = UUID().uuidString, createdAt: Date = .now, prompt: String, text: String, state: HealthState, recipeIDs: [String] = [],
+         journalingSuggestionTitle: String? = nil, momentDate: Date? = nil, source: JournalEntrySource = .ate) {
         self.id = id; self.createdAt = createdAt; self.prompt = prompt; self.text = text; self.stateRaw = state.rawValue; self.recipeIDs = recipeIDs
+        self.journalingSuggestionTitle = journalingSuggestionTitle; self.momentDate = momentDate; self.sourceRaw = source.rawValue
     }
+    var source: JournalEntrySource { JournalEntrySource(rawValue: sourceRaw) ?? .ate }
     var state: HealthState { HealthState(rawValue: stateRaw) ?? .balanced }
 }
 

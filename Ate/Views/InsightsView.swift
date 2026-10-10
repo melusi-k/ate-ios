@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 
 @MainActor @Observable
 final class InsightsModel {
@@ -14,9 +15,20 @@ final class InsightsModel {
     }
     var context: HealthContext?
     var loading = false
-    init(health: HealthKitServicing = HealthServiceFactory.make()) { self.health = health; access = health.access }
+    /// Loaded once per launch on first appear; pull-to-refresh re-queries.
+    private(set) var loadedOnce = false
+    /// UI tests (`-qaHealthPrompt`): stand-in for the system Health sheet so a refactor that stops asking is caught.
+    var mockPromptShown = false
+    init(health: HealthKitServicing) { self.health = health; access = health.access }
+    convenience init() { self.init(health: HealthServiceFactory.make()) }
 
+    func loadIfNeeded(recipes: [RecipeCard]) async { guard !loadedOnce else { return }; loadedOnce = true; await refresh(recipes: recipes) }
+    func tapConnect(recipes: [RecipeCard]) async {
+        if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaHealthPrompt") { mockPromptShown = true; return }
+        await connect(recipes: recipes)
+    }
     func connect(recipes: [RecipeCard]) async { access = await health.requestAccess(); await refresh(recipes: recipes) }
+    func useSampleData(recipes: [RecipeCard]) async { await useScenario("recovery", recipes: recipes) }
     func refresh(recipes: [RecipeCard]) async {
         access = health.access
         guard access == .requested else { context = nil; return }
@@ -37,6 +49,8 @@ struct InsightsView: View {
     @State private var prompt: JournalPrompt?
     @State private var entries: [JournalEntry] = []
     @State private var openRecipe: RecipeSheetTarget?
+    @State private var pendingMoment: (title: String, date: Date?)?
+    @AppStorage(JournalingSuggestionsGate.settingKey) private var journalingEnabled = false
 
     var body: some View {
         ZStack {
@@ -98,23 +112,28 @@ struct InsightsView: View {
         .onChange(of: model.access) { _, a in
             if a == .denied || a == .unavailable || a == .entitlementMissing { BetaQA.shared.pass("A-HEALTH-05", note: "Graceful \(a) state shown") }
         }
-        .task { await model.refresh(recipes: store.recipes); prompt = model.context?.prompts.first; entries = JournalStore.shared.entries() }
+        .refreshable { await model.refresh(recipes: store.recipes); prompt = model.context?.prompts.first }
+        .task { await model.loadIfNeeded(recipes: store.recipes); prompt = prompt ?? model.context?.prompts.first; entries = JournalStore.shared.entries() }
+        .alert("“ate” would like to access your Health data", isPresented: $model.mockPromptShown) {
+            Button("Don't Allow", role: .cancel) {}
+            Button("Allow") { Task { await model.connect(recipes: store.recipes); prompt = model.context?.prompts.first } }
+        } message: { Text("Read: Sleep, Steps, Active Energy, Workouts") }
     }
 
     @ViewBuilder private var bodyToday: some View {
         card("Your body today") {
             switch model.access {
             case .unavailable:
-                Text("Apple Health isn't available on this device.").accessibilityIdentifier("insights.unavailable")
+                unavailable("Apple Health isn't available", "heart.slash", "This device has no Health app (e.g. iPad).", id: "insights.unavailable")
             case .entitlementMissing:
-                Text("This build was signed without Apple Health access. Re-sideload the latest Ate build with the same Apple ID to enable it.")
-                    .accessibilityIdentifier("insights.entitlementMissing")
+                unavailable("Health access not in this build", "lock.shield",
+                            "This copy was signed without Apple Health access. Re-sideload the latest Ate build with the same Apple ID.", id: "insights.entitlementMissing")
             case .denied:
-                Text("Health access is off. Turn it on in Settings › Health › Data Access & Devices › ate.").accessibilityIdentifier("insights.denied")
+                unavailable("Health access is off", "hand.raised", "Turn it on in Settings › Health › Data Access & Devices › ate.", id: "insights.denied", settings: true, retry: true)
             case .notDetermined:
                 Text("Connect Apple Health (read-only) to get meal ideas that fit your sleep, steps and workouts. Your health data stays on this iPhone.")
                     .font(AteFont.body(14))
-                Button("Connect Apple Health") { Task { await model.connect(recipes: store.recipes); prompt = model.context?.prompts.first } }
+                Button("Connect Apple Health") { Task { await model.tapConnect(recipes: store.recipes); prompt = model.context?.prompts.first } }
                     .buttonStyle(.ate(.primary, full: true)).accessibilityIdentifier("insights.connect")
             case .requested:
                 if model.loading { ProgressView() }
@@ -122,9 +141,10 @@ struct InsightsView: View {
                     Label(c.insight.state.title, systemImage: c.insight.state.symbol).font(AteFont.display(20))
                         .accessibilityIdentifier("insights.state")
                     Text(c.insight.headline).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
+                    StepsSparkline(days: c.summary.days)
                 } else {
-                    Text("No recent Health data yet. Wear your Apple Watch or carry your iPhone and check back later.")
-                        .accessibilityIdentifier("insights.noData")
+                    unavailable("No recent Health data", "chart.line.downtrend.xyaxis",
+                                "Wear your Apple Watch or carry your iPhone, then pull to refresh.", id: "insights.noData", retry: true)
                 }
             }
         }
@@ -133,10 +153,8 @@ struct InsightsView: View {
 
     @ViewBuilder private var journalCard: some View {
         card("Your Ate journal") {
-            JournalingSuggestionsButton { m in
-                prompt = JournalPrompt(text: m.isWorkout ? "After \(m.title): what would help you recover?" : "About \(m.title): what did you eat, and would you cook it again?",
-                                       state: model.context?.insight.state ?? .balanced)
-                if m.isWorkout { store.show("Tip: try a high-protein recipe from Suggested meals") }
+            if journalingEnabled && JournalingSuggestionsGate.isAvailable && !AppConfig.isUITesting {
+                JournalingSuggestionsButton { m in handle(moment: m) }
             }
             if entries.isEmpty {
                 Text("No entries yet.").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
@@ -145,6 +163,10 @@ struct InsightsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(e.createdAt.formatted(date: .abbreviated, time: .shortened) + " · " + e.state.title)
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                    if let line = JournalingMomentMapper.contextLine(title: e.journalingSuggestionTitle, date: e.momentDate) {
+                        Label(line, systemImage: "book.pages").font(AteFont.body(12)).foregroundStyle(Theme.primary)
+                            .accessibilityIdentifier("insights.entryMomentContext")
+                    }
                     Text(e.text).font(AteFont.body(14))
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
@@ -154,9 +176,38 @@ struct InsightsView: View {
         }
     }
 
+    @ViewBuilder
+    private func unavailable(_ title: String, _ symbol: String, _ detail: String, id: String, settings: Bool = false, retry: Bool = false) -> some View {
+        ContentUnavailableView {
+            Label(title, systemImage: symbol)
+        } description: { Text(detail) } actions: {
+            if settings, let u = URL(string: UIApplication.openSettingsURLString) {
+                Button("Open Settings") { UIApplication.shared.open(u) }.accessibilityIdentifier("insights.openSettings")
+            }
+            if retry { Button("Try again") { Task { await model.refresh(recipes: store.recipes) } }.accessibilityIdentifier("insights.retry") }
+            if !AppConfig.channel.isEmpty || AppConfig.isUITesting {
+                Button("Use sample data") { Task { await model.useSampleData(recipes: store.recipes); prompt = model.context?.prompts.first } }
+                    .accessibilityIdentifier("insights.sampleData")
+            }
+        }
+        .accessibilityElement(children: .contain).accessibilityIdentifier(id)
+    }
+
+    private func handle(moment m: PickedMoment) {
+        switch JournalingMomentMapper.map(title: m.title, date: m.date.map { DateInterval(start: $0, duration: 0) }, hasPhotos: !m.photoURLs.isEmpty, isWorkout: m.isWorkout) {
+        case .recipeDraft(let title, let date):
+            let card = JournalingMomentMapper.draft(title: title, date: date)
+            store.add(card); openRecipe = RecipeSheetTarget(id: card.id); store.show("Recipe draft from your Journal moment")
+        case .journalEntry(let p, let title, let date, let state):
+            prompt = JournalPrompt(text: p, state: state); pendingMoment = (title, date)
+        }
+    }
+
     private func save(_ c: HealthContext) {
         let p = prompt ?? c.prompts.first
-        if JournalStore.shared.save(prompt: p?.text ?? "", text: draft, state: c.insight.state, recipeIDs: c.suggestions.map(\.recipeID)) {
+        let moment = pendingMoment; pendingMoment = nil
+        if JournalStore.shared.save(prompt: p?.text ?? "", text: draft, state: c.insight.state, recipeIDs: c.suggestions.map(\.recipeID),
+                                    momentTitle: moment?.title, momentDate: moment?.date) {
             draft = ""; entries = JournalStore.shared.entries(); store.show("Saved to your Ate journal")
             BetaQA.shared.pass("A-HEALTH-04", note: "Saved a local journal entry")
         }
@@ -225,3 +276,25 @@ struct RecipeSheet: View {
         .onChange(of: store.path) { _, p in if !p.isEmpty { dismiss() } }
     }
 }
+
+/// 7-day steps sparkline (Swift Charts). Hidden when there are fewer than 2 days of steps.
+struct StepsSparkline: View {
+    let days: [HealthDay]
+    var body: some View {
+        let pts: [StepPoint] = days.compactMap { d in d.steps.map { StepPoint(date: d.date, steps: $0) } }
+        if pts.count >= 2 {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Steps, last \(pts.count) days").font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
+                Chart(pts) { p in
+                    LineMark(x: .value("Day", p.date, unit: .day), y: .value("Steps", p.steps)).interpolationMethod(.catmullRom)
+                    AreaMark(x: .value("Day", p.date, unit: .day), y: .value("Steps", p.steps)).foregroundStyle(Theme.primary.opacity(0.15))
+                }
+                .chartXAxis(.hidden).chartYAxis(.hidden).foregroundStyle(Theme.primary).frame(height: 44)
+            }
+            .accessibilityElement(children: .ignore).accessibilityLabel("Steps trend over \(pts.count) days")
+            .accessibilityIdentifier("insights.sparkline")
+        }
+    }
+}
+
+struct StepPoint: Identifiable { let date: Date; let steps: Int; var id: Date { date } }

@@ -8,6 +8,8 @@ import JournalingSuggestions
 /// Needs com.apple.developer.journal.allow, which only paid Apple Developer Program teams can provision,
 /// so the picker is hidden unless the installed profile carries that entitlement.
 enum JournalingSuggestionsGate {
+    /// Settings toggle (OFF by default; only switchable when the entitlement is present).
+    static let settingKey = "ate.journalingSuggestions.enabled"
     static var isAvailable: Bool {
         #if canImport(JournalingSuggestions) && !targetEnvironment(simulator)
         guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),

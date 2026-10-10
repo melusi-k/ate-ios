@@ -118,3 +118,7 @@ _Generated 2026-10-10 against build 36; automated items updated from CI run 3806
 | H-UI-08 | recovery → tap suggestion | Recipe opens as sheet, Done closes back to Insights (A-HEALTH-08) | `testHealthOpenRecipeSheetAndClose` |
 
 Beta-screen IDs: H-UI-01..07 → A-HEALTH-03/04/05/07, H-DEV-01/02 → A-HEALTH-02/03/06.
+| H-UI-09 | recovery + `-qaHealthPrompt` | Connect still shows the Health permission prompt | `testHealthPermissionPromptAppearsWhenUndecided` |
+| H-UI-10 | empty → Use sample data | Sample data loads Recovery day | `testHealthEmptyStateSampleDataAction` |
+| H-UI-11 | `-qaJournalMomentEntry` | Entry shows "From a Journal moment" row; picker never shown | `testJournalMomentContextRow` |
+| EXT-JOURNAL-01 | External | Request com.apple.developer.journal.allow (paid team); non-blocking | manual |

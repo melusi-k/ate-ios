@@ -411,4 +411,29 @@ extension CoverageUITests {
         XCTAssertLessThanOrEqual(ask.frame.maxY, banner.frame.minY + 1, "Ask Ate field hidden behind bottom bars")
         XCTAssertFalse(ask.frame.intersects(cook.frame), "Ask Ate field under Cook mode")
     }
+    /// Regression guard (StepTrackerTCA lesson): Connect must still ask for Health when access is undecided.
+    func testHealthPermissionPromptAppearsWhenUndecided() {
+        launch(["-qaMockHealth", "recovery", "-qaHealthRecipes", "-qaHealthPrompt"])
+        tab("More"); let row = app.buttons["more.insights"]; scrollTo(row); row.tap()
+        let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
+        let alert = app.alerts.firstMatch; wait(alert, 5)
+        XCTAssertTrue(alert.label.contains("Health"), alert.label)
+        alert.buttons["Allow"].tap()
+        wait(text("Recovery day"))
+    }
+    func testHealthEmptyStateSampleDataAction() {
+        openInsights("empty")
+        let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
+        wait(any("insights.noData"))
+        let sample = app.buttons["insights.sampleData"]; wait(sample, 5); sample.tap()
+        wait(text("Recovery day"))
+    }
+    /// Journaling Suggestions picker is never presented under UI tests; check the context row instead.
+    func testJournalMomentContextRow() {
+        launch(["-qaMockHealth", "recovery", "-qaJournalMomentEntry"])
+        tab("More"); let row = app.buttons["more.insights"]; scrollTo(row); row.tap()
+        let ctx = any("insights.entryMomentContext"); scrollTo(ctx); wait(ctx)
+        XCTAssertTrue(ctx.label.contains("Dinner at Mama"), ctx.label)
+        XCTAssertFalse(any("insights.journalingPicker").exists)
+    }
 }

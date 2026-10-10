@@ -51,15 +51,24 @@ final class JournalStore {
     init(inMemory: Bool = AppConfig.isUITesting) {
         container = try? ModelContainer(for: JournalEntry.self,
                                         configurations: ModelConfiguration("AteJournal", isStoredInMemoryOnly: inMemory))
+        seedMomentEntryForUITests()
     }
     func entries() -> [JournalEntry] {
         (try? container?.mainContext.fetch(FetchDescriptor<JournalEntry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []
     }
     @discardableResult
-    func save(prompt: String, text: String, state: HealthState, recipeIDs: [String]) -> Bool {
+    func save(prompt: String, text: String, state: HealthState, recipeIDs: [String], momentTitle: String? = nil, momentDate: Date? = nil) -> Bool {
         guard let ctx = container?.mainContext, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
-        ctx.insert(JournalEntry(prompt: prompt, text: text, state: state, recipeIDs: recipeIDs))
+        ctx.insert(JournalEntry(prompt: prompt, text: text, state: state, recipeIDs: recipeIDs, journalingSuggestionTitle: momentTitle,
+                                momentDate: momentDate, source: momentTitle == nil ? .ate : .journalMoment))
         return (try? ctx.save()) != nil
+    }
+    /// UI tests (`-qaJournalMomentEntry`): one entry that came from a Journal moment, to check the context row.
+    func seedMomentEntryForUITests() {
+        guard AppConfig.isUITesting, ProcessInfo.processInfo.arguments.contains("-qaJournalMomentEntry"), entries().isEmpty else { return }
+        if case let .journalEntry(p, title, date, state) = JournalingMomentMapper.map(title: "Dinner at Mama's", date: DateInterval(start: Date(timeIntervalSince1970: 1_791_000_000), duration: 3600), hasPhotos: false, isWorkout: false) {
+            save(prompt: p, text: "Seeded from a Journal moment", state: state, recipeIDs: [], momentTitle: title, momentDate: date)
+        }
     }
     func delete(_ e: JournalEntry) { container?.mainContext.delete(e); try? container?.mainContext.save() }
 }

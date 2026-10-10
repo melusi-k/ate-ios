@@ -15,7 +15,7 @@ struct Step: Codable, Hashable {
 
 /// Where a recipe card came from (provenance). Unknown raw values (and pre-v1.3 recipes) decode as `.unknown`.
 enum RecipeSource: String, Codable, Hashable, CaseIterable {
-    case appleIntelligence, jsonLD, photoGuess, mock, manual, shared, imported, unknown
+    case appleIntelligence, jsonLD, photoGuess, mock, manual, shared, imported, journalMoment, unknown
     init(from decoder: Decoder) throws {
         self = RecipeSource(rawValue: (try? decoder.singleValueContainer().decode(String.self)) ?? "") ?? .unknown
     }
@@ -28,6 +28,7 @@ enum RecipeSource: String, Codable, Hashable, CaseIterable {
         case .mock: return "Demo"
         case .shared: return "Shared with you"
         case .imported: return "Imported"
+        case .journalMoment: return "From a Journal moment"
         case .manual, .unknown: return nil
         }
     }
@@ -39,6 +40,7 @@ enum RecipeSource: String, Codable, Hashable, CaseIterable {
         case .mock: return "theatermasks"
         case .shared: return "person.2"
         case .imported: return "square.and.arrow.down"
+        case .journalMoment: return "book.pages"
         case .manual, .unknown: return "pencil"
         }
     }

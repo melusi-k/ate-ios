@@ -133,7 +133,12 @@ final class LiveHealthKitService: HealthKitServicing {
                                  workoutMinutes: wo.isEmpty ? nil : wo.reduce(0) { $0 + $1.duration } / 60,
                                  workoutTypes: wo.map { $0.workoutActivityType.ateName }))
         }
-        return HealthSummary(days: out)
+        let result = HealthSummary(days: out)
+        #if targetEnvironment(simulator)
+        // The simulator has no Health data after authorization: fall back to sample data so the flow is testable.
+        if !result.hasAnyData { return MockHealthKitService.fixture("recovery", days: n) }
+        #endif
+        return result
         #else
         return HealthSummary(days: [])
         #endif

@@ -34,6 +34,16 @@
 - States: unavailable, entitlement missing, denied, no data.
 - Journaling Suggestions picker: compiled in, shown only when the installed profile has `com.apple.developer.journal.allow` (hidden on free-ID builds). Picking a photo moment starts a journal prompt about that meal; a workout moment points to recovery meals.
 
+**Journaling Suggestions design (v1.4.1, patterns from robbiet480/Dispatch #33).**
+- Picker READS a moment the user chooses; Ate never pushes suggestions into Apple's Journal app.
+- `JournalingMomentMapper` (pure, framework-free, unit-tested) maps (title, DateInterval?, photos?, workout?) → recipe draft (food-ish title + photo) or a prefilled Ate journal entry. `JournalingSuggestions` is imported only in `JournalingSuggestionsBridge.swift` (app target, device only).
+- Additive schema only: `RecipeSource.journalMoment`; `JournalEntry.journalingSuggestionTitle`, `momentDate`, `sourceRaw` (defaults, lightweight migration).
+- Settings → "Journaling Suggestions" toggle, OFF by default, disabled unless the installed profile carries the entitlement.
+- Never presented under UI tests; tests cover the mapper and the "From a Journal moment" context row (entries) / source badge (recipes).
+- `com.apple.developer.journal.allow` is a request-based entitlement on a paid team. External, non-blocking checklist item: **EXT-JOURNAL-01 — request the entitlement once the paid Apple Developer account exists**; nothing else waits on it.
+
+**Insights hardening (lessons from SebaKrk/StepTrackerTCA).** Permission-prompt regression UI test (mock prompt via `-qaHealthPrompt`); ContentUnavailableView for empty/denied/unavailable/unsigned with Open Settings / Try again / Use sample data (beta + tests); load once on first appear + pull-to-refresh; simulator falls back to sample data after authorization; 7-day steps sparkline (Swift Charts); all reads behind `HealthKitServicing` for injection.
+
 **Later phases.**
 1. Health meal nutrition logging (write dietary energy/macros after cooking; adds `NSHealthUpdateUsageDescription`, per-recipe nutrition estimates).
 2. Paid account: add `com.apple.developer.journal.allow` to `Ate-Signed.entitlements`, enable the picker; "dinner photo → recipe" via the photo import pipeline.

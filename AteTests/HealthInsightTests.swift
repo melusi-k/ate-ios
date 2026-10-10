@@ -77,4 +77,41 @@ final class HealthInsightTests: XCTestCase {
         XCTAssertEqual(Set(ids).count, ids.count, "Duplicate checklist IDs")
         XCTAssertTrue(BetaChecklist.categories.contains("Apple Health insights"))
     }
+    // MARK: JournalingMomentMapper (pure)
+    func testMapperWorkoutBecomesRecoveryEntry() {
+        let d = DateInterval(start: Date(timeIntervalSince1970: 1_791_000_000), duration: 1800)
+        guard case let .journalEntry(p, t, date, st) = JournalingMomentMapper.map(title: "Morning Run", date: d, hasPhotos: false, isWorkout: true) else { return XCTFail() }
+        XCTAssertEqual(t, "Morning Run"); XCTAssertEqual(date, d.start); XCTAssertEqual(st, .recovery); XCTAssertTrue(p.contains("Morning Run"))
+    }
+    func testMapperFoodPhotoBecomesRecipeDraft() {
+        XCTAssertEqual(JournalingMomentMapper.map(title: "Sunday braai with family", date: nil, hasPhotos: true, isWorkout: false),
+                       .recipeDraft(title: "Sunday braai with family", date: nil))
+        let c = JournalingMomentMapper.draft(title: "Sunday braai", date: nil)
+        XCTAssertEqual(c.source, .journalMoment); XCTAssertEqual(c.source.badge, "From a Journal moment")
+    }
+    func testMapperNonFoodOrNoPhotoBecomesEntry() {
+        if case .recipeDraft = JournalingMomentMapper.map(title: "Dinner", date: nil, hasPhotos: false, isWorkout: false) { XCTFail("needs a photo") }
+        if case .recipeDraft = JournalingMomentMapper.map(title: "Beach walk", date: nil, hasPhotos: true, isWorkout: false) { XCTFail("not food") }
+        guard case let .journalEntry(_, t, _, _) = JournalingMomentMapper.map(title: "   ", date: nil, hasPhotos: false, isWorkout: false) else { return XCTFail() }
+        XCTAssertEqual(t, "A moment")
+    }
+    func testMapperContextLine() {
+        XCTAssertNil(JournalingMomentMapper.contextLine(title: nil, date: nil))
+        XCTAssertEqual(JournalingMomentMapper.contextLine(title: "Dinner", date: nil), "From a Journal moment: Dinner")
+    }
+    func testJournalMomentSourceDecodesAndUnknownStaysSafe() throws {
+        let d = try JSONDecoder().decode([RecipeSource].self, from: Data(#"["journalMoment","futureThing"]"#.utf8))
+        XCTAssertEqual(d, [.journalMoment, .unknown])
+    }
+    @MainActor func testJournalStoreKeepsMomentProvenance() {
+        let j = JournalStore(inMemory: true)
+        XCTAssertTrue(j.save(prompt: "p", text: "t", state: .balanced, recipeIDs: [], momentTitle: "Dinner", momentDate: nil))
+        XCTAssertEqual(j.entries().first?.source, .journalMoment); XCTAssertEqual(j.entries().first?.journalingSuggestionTitle, "Dinner")
+    }
+    @MainActor func testInsightsModelInjectsServiceAndLoadsOnce() async {
+        let m = InsightsModel(health: MockHealthKitService(scenario: "recovery"))
+        await m.connect(recipes: [])
+        XCTAssertEqual(m.context?.insight.state, .recovery)
+        await m.loadIfNeeded(recipes: []); XCTAssertTrue(m.loadedOnce)
+    }
 }

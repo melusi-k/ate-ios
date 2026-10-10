@@ -2,6 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
+    @AppStorage(JournalingSuggestionsGate.settingKey) private var journalingEnabled = false
     @Environment(AppStore.self) private var store
     @State private var importing = false
     @State private var confirmClear = false
@@ -20,6 +21,19 @@ struct SettingsView: View {
                         toggle("Private mode", "Keep everything local — no new AI generations, only your saved cards.",
                                $store.settings.onDeviceOnly)
                         Text(OnDeviceBackend.availabilityDescription).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                    }
+                    card {
+                        Toggle(isOn: $journalingEnabled) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Journaling Suggestions").font(AteFont.body(16, .medium))
+                                Text(JournalingSuggestionsGate.isAvailable
+                                     ? "Pick a moment (photo, workout, place) in Insights and turn it into an Ate entry or recipe draft."
+                                     : "Needs a paid Apple Developer build with Apple's Journaling Suggestions entitlement. Not available in this build.")
+                                    .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                            }
+                        }
+                        .tint(Theme.primary).disabled(!JournalingSuggestionsGate.isAvailable)
+                        .accessibilityIdentifier("toggle.journalingSuggestions")
                     }
                     card {
                         Text("Units").font(AteFont.body(16, .semibold))

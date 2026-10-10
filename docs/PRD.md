@@ -30,6 +30,11 @@
 - Custom scheme: `ate://recipe/<slug>` (canonical) plus `ate://r/<slug>` (alias) open the Shared recipe screen. `ate://cook/<id>` opens cook mode. Associated Domains placeholders live in `docs/associated-domains/` (needs a paid account).
 - ⚠️ Publishing still uses the **mock** publisher (there's no `publish-recipe` edge function), so links like `/r/btnz4l1y` **won't load for recipients** on the web or another phone yet. See the roadmap.
 
+### E. Build & platform plumbing
+- CI build number: `CURRENT_PROJECT_VERSION = github.run_number`. The release ships `Ate-<version>-build<N>.ipa` plus a stable `Ate.ipa`, with the build in the title/notes.
+- `PrivacyInfo.xcprivacy` (app + widget): `NSPrivacyTracking=false`, UserDefaults reasons CA92.1 + 1C8F.1 (App Group). The app declares Email, User ID and Other User Content (linked, App Functionality) for Supabase sync.
+- Entitlements: App Group `group.com.melusik.ate` for Ate + AteWidgets. Cook timers persist to the group `UserDefaults` and fall back to `.standard` if the container is nil (possible on free-ID sideloads). Signed builds use `Ate-Signed.entitlements`, which adds `applinks:ate.app` and `applinks:recipe-transform-ai.lovable.app`. Unsigned builds are ad-hoc codesigned with the App Group entitlements so Sideloadly can carry them over. `DEVELOPMENT_TEAM` comes from the `TEAM_ID` env/secret.
+
 ## Review findings (v1.1 review)
 Fixed:
 1. The share link appeared twice (text + URL items). Fixed in D.
@@ -39,6 +44,9 @@ Fixed:
 5. Timers reset whenever you changed steps in cook mode, and only one could exist. Now handled by `TimerCenter` (multi-timer, survives navigation).
 6. Without the edge functions deployed, the on-device fallback could route to the Supabase backend. The fallback is now always the mock.
 7. Deleting a recipe left its timers running. They're now stopped.
+8. The timer bar covered the floating "Add recipe"/"Cook mode" buttons. The bar is now a per-screen safe-area inset, so the buttons sit above it.
+9. The demo card description told users to "connect Supabase for real AI" (wrong since the on-device switch). Copy fixed.
+10. Running cook timers were lost when the app was killed. They now persist (App Group) and restore on launch.
 
 Open issues / gaps vs PRD:
 - **Sharing is not real yet:** recipients can't open links until `publish-recipe` (an Edge Function using the service role) is deployed and the app is switched to it. Shared-recipe reads should then query `shared_recipes` with the publishable key.

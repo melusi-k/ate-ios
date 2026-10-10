@@ -2,7 +2,7 @@
 
 Native SwiftUI (iOS 18+, iPhone; Apple Intelligence features need iOS 26 on supported hardware) rebuild of the **ate** AI recipe library. Full spec: [docs/PRD.md](docs/PRD.md).
 
-**Beta gate:** [docs/MVP_CHECKLIST.md](docs/MVP_CHECKLIST.md) (score in [docs/MVP_SCORE.md](docs/MVP_SCORE.md)) · **QA gate:** [docs/QA.md](docs/QA.md) — `KeyFlowsQATests` must pass before CI publishes a release · Testers: [docs/BETA.md](docs/BETA.md).
+**Beta / launch gate:** [docs/MVP_CHECKLIST.md](docs/MVP_CHECKLIST.md) (tiered A/B/C, score in [docs/MVP_SCORE.md](docs/MVP_SCORE.md), test matrix [docs/QA_MATRIX.md](docs/QA_MATRIX.md)) · **Support FAQ:** [docs/SUPPORT.md](docs/SUPPORT.md) · **QA gate:** [docs/QA.md](docs/QA.md) — `KeyFlowsQATests` must pass before CI publishes a release · Testers: [docs/BETA.md](docs/BETA.md).
 
 ## Features
 Library + search · Add recipe sheet (Link / Image / Prompt → review/edit/regenerate/save) · Recipe detail (x1/x2/x3 scaling, inline edit, Ask ate rewrite, share, add to shopping list, delete) · Cook mode (big text, progress, step timers with background notifications, screen stays awake) · Shopping list (merge, manual add, tick, share/copy/.txt/.csv, clear) · Settings (private mode, units, timer prefs + quiet hours, export/import/clear) · Shared recipe deep links (`ate://recipe/<slug>`, legacy `ate://r/<slug>`) · 404 / error states.

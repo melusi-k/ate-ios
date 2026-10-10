@@ -4,6 +4,12 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 
 ## Unreleased
 
+#### 🔐 Sign-up and reset emails (A-AUTH-02, A-AUTH-05)
+- Password rules with live feedback: 8+ characters, a letter and a number, not a common password, strength meter, and the Create account button says why it's disabled. The same policy is now enforced by Supabase (min 8, letters + digits).
+- Existing email: Supabase answers with a silent fake success; ate now spots it (empty identities) and says "An account with this email may already exist — sign in or reset your password" with both buttons.
+- After sign-up: a clear pending screen with the address, "Didn't get it?" tips (spam, the beta email limit) and Resend with a cooldown timer.
+- Email rate limit: "Email limit reached — try again in about an hour" with a countdown that survives relaunch (was "wait a minute"). Real fix needs custom SMTP — see docs/SMTP.md (needs a provider key).
+
 #### 🍲 Better AI for traditional and South African food
 - New grounded instructions: dish names and ingredients come from your text verbatim; place names, business names, hashtags, @handles, phone numbers and delivery/ordering text are never used as the recipe. Menus/ads that name a dish get a best-effort traditional recipe with a note; ads that name no dish (e.g. "Traditional food for delivery in Midrand") now stop with a clear message instead of inventing "Traditional Midrand Meal".
 - Regional glossary (pap/phutu, ujeqe, mogodu/ulusu, amanqina, morogo, chakalaka, umngqusho, chotlho, braai, boerewors, bobotie, potjiekos, vetkoek, kota, ting, sadza, jollof, egusi, fufu…) with typical ingredients and realistic times; metric units, servings that fit the dish, total time at least the sum of step timers.

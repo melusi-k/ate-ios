@@ -46,12 +46,14 @@ struct AuthError: LocalizedError, Equatable {
             return AuthError(.invalidCredentials, "Wrong email or password.")
         case "email_not_confirmed":
             return AuthError(.emailNotConfirmed, "Confirm your email first. Check your inbox, or resend the link.")
-        case "over_email_send_rate_limit", "over_request_rate_limit", "over_sms_send_rate_limit":
+        case "over_email_send_rate_limit":
+            return AuthError(.rateLimited, "Email limit reached — try again in about an hour. (ate's email sender allows only a few emails per hour during the beta.)")
+        case "over_request_rate_limit", "over_sms_send_rate_limit":
             return AuthError(.rateLimited, "Too many attempts. Wait a minute and try again.")
         case "user_already_exists", "email_exists":
             return AuthError(.userExists, "There's already an account with this email. Sign in instead.")
         case "weak_password":
-            return AuthError(.weakPassword, raw ?? "Choose a stronger password (at least 6 characters).")
+            return AuthError(.weakPassword, raw ?? "Choose a stronger password: at least 8 characters with a letter and a number.")
         case "otp_expired", "flow_state_expired", "flow_state_not_found", "bad_code_verifier":
             return AuthError(.expiredLink, "This link has expired or was opened on another device. Request a new one.")
         case "signup_disabled":
@@ -60,7 +62,10 @@ struct AuthError: LocalizedError, Equatable {
             return AuthError(.other, raw ?? "Check the email address and try again.")
         default: break
         }
-        if status == 429 { return AuthError(.rateLimited, "Too many attempts. Wait a minute and try again.") }
+        if status == 429 {
+            if (raw ?? "").lowercased().contains("email") { return AuthError(.rateLimited, "Email limit reached — try again in about an hour. (ate's email sender allows only a few emails per hour during the beta.)") }
+            return AuthError(.rateLimited, "Too many attempts. Wait a minute and try again.")
+        }
         if status == 401 || status == 403 { return AuthError(.unauthorized, "Your session expired. Sign in again.") }
         if raw?.lowercased().contains("invalid login") == true { return AuthError(.invalidCredentials, "Wrong email or password.") }
         if status >= 500 { return AuthError(.other, "ate's server had a problem. Try again in a moment.") }
@@ -119,12 +124,22 @@ final class SupabaseAuth: AuthService {
         Keychain.save(Data("\(flow)|\(verifier)".utf8), account: "pkce")
         return ["code_challenge": challenge, "code_challenge_method": "s256"]
     }
+    static let maybeExistsMessage = "An account with this email may already exist — sign in or reset your password."
+    /// With email confirmation on, GoTrue answers an existing email with a fake user whose `identities` is empty.
+    static func isObfuscatedExistingUser(_ j: [String: Any]) -> Bool {
+        let user = (j["user"] as? [String: Any]) ?? j
+        guard user["id"] != nil, let ids = user["identities"] as? [Any] else { return false }
+        return ids.isEmpty
+    }
     private var redirectQuery: [URLQueryItem] { [URLQueryItem(name: "redirect_to", value: Self.redirect)] }
 
     func signUp(email: String, password: String) async throws -> AuthSession? {
         var body: [String: Any] = ["email": email, "password": password]
         body.merge(pkce(flow: "signup")) { $1 }
-        return parse(try await call("signup", query: redirectQuery, body: body))
+        let j = try await call("signup", query: redirectQuery, body: body)
+        if let session = parse(j) { return session }
+        if Self.isObfuscatedExistingUser(j) { throw AuthError(.userExists, Self.maybeExistsMessage) }
+        return nil
     }
 
     func signIn(email: String, password: String) async throws -> AuthSession {
@@ -228,7 +243,10 @@ final class MockAuth: AuthService {
     }
     func signUp(email: String, password: String) async throws -> AuthSession? {
         try check(email)
-        guard password.count >= 6 else { throw AuthError(.weakPassword, "Password should be at least 6 characters.") }
+        let r = PasswordPolicy.evaluate(password)
+        guard r.ok else { throw AuthError(.weakPassword, r.problems.joined(separator: ". ") + ".") }
+        if email.hasPrefix("exists@") { throw AuthError(.userExists, SupabaseAuth.maybeExistsMessage) }
+        if email.hasPrefix("ratelimit@") { throw AuthError.from(status: 429, json: ["error_code": "over_email_send_rate_limit"]) }
         return email.hasPrefix("pending@") ? nil : make(email)
     }
     func signIn(email: String, password: String) async throws -> AuthSession {
@@ -239,9 +257,13 @@ final class MockAuth: AuthService {
     }
     func sendMagicLink(email: String) async throws { try check(email) }
     func resendConfirmation(email: String) async throws { try check(email) }
-    func recoverPassword(email: String) async throws { try check(email) }
+    func recoverPassword(email: String) async throws {
+        try check(email)
+        if email.hasPrefix("ratelimit@") { throw AuthError.from(status: 429, json: ["error_code": "over_email_send_rate_limit"]) }
+    }
     func updatePassword(_ session: AuthSession, to password: String) async throws {
-        guard password.count >= 6 else { throw AuthError(.weakPassword, "Password should be at least 6 characters.") }
+        let r = PasswordPolicy.evaluate(password)
+        guard r.ok else { throw AuthError(.weakPassword, r.problems.joined(separator: ". ") + ".") }
     }
     func refresh(_ session: AuthSession) async throws -> AuthSession {
         if ProcessInfo.processInfo.arguments.contains("-qaExpireSession") { throw AuthError(.unauthorized, "Session expired. Sign in again.") }

@@ -18,6 +18,9 @@ struct AuthSheet: View {
     @State private var info: String?
     @State private var forgot = false
     @State private var pendingShown = false
+    @State private var maybeExists = false
+    @State private var now = Date()
+    private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     @FocusState private var focus: Field?
     enum Field { case email, password }
 
@@ -47,6 +50,7 @@ struct AuthSheet: View {
             focus = mode == .newPassword ? .password : .email
         }
         .interactiveDismissDisabled(busy)
+        .onReceive(clock) { now = $0 }
     }
 
     // MARK: forms
@@ -63,15 +67,20 @@ struct AuthSheet: View {
             .onChange(of: mode) { _, _ in error = nil; info = nil }
 
             emailField
-            passwordField(placeholder: mode == .signIn ? "Password" : "Password (min 6 characters)")
+            passwordField(placeholder: mode == .signIn ? "Password" : "Password (8+ characters, a letter and a number)")
+            if mode == .signUp { strengthMeter }
 
             messages
+            if maybeExists { existsActions }
 
             Button { submit() } label: {
                 HStack { if busy { ProgressView().tint(Theme.primaryForeground) }; Text(mode == .signIn ? "Sign in" : "Create account") }
             }
             .buttonStyle(.ate(.primary, full: true)).disabled(!valid(password: true))
             .accessibilityIdentifier("authSubmit")
+            if let why = submitBlockedReason {
+                Text(why).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("authSubmitReason")
+            }
 
             HStack {
                 if mode == .signIn {
@@ -92,9 +101,12 @@ struct AuthSheet: View {
                 .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
             emailField
             messages
-            Button { run { await store.recoverPassword(email: email) } success: { info = "Check your inbox for the reset link." } } label: {
-                HStack { if busy { ProgressView() }; Text("Send reset link") }
-            }.buttonStyle(.ate(.primary, full: true)).disabled(!valid(password: false)).accessibilityIdentifier("sendReset")
+            let wait = cooldown(.reset)
+            Button { sendReset() } label: {
+                HStack { if busy { ProgressView() }; Text(wait > 0 ? "Send again \(EmailCooldown.label(wait))" : "Send reset link") }
+            }.buttonStyle(.ate(.primary, full: true)).disabled(!valid(password: false) || wait > 0).accessibilityIdentifier("sendReset")
+            Text("Didn't get it? Check Spam/Promotions. During the beta ate can only send a few emails per hour.")
+                .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
             Button("Back to sign in") { forgot = false; error = nil; info = nil }.font(AteFont.body(14, .medium)).tint(Theme.primary)
         }
     }
@@ -105,10 +117,18 @@ struct AuthSheet: View {
             Text("Confirm your email").font(AteFont.display(28)).accessibilityIdentifier("confirmPending")
             Text("We sent a link to \(address). Open it on this iPhone to finish signing in.")
                 .font(AteFont.body(15)).foregroundStyle(Theme.mutedForeground)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Didn't get it?").font(AteFont.body(14, .semibold))
+                Text("• Check Spam, Junk or Promotions.\n• It can take a few minutes.\n• During the beta ate can send only a few emails per hour, so a resend may have to wait.\n• If you already have an account, sign in or reset your password instead.")
+                    .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+            }.accessibilityIdentifier("pendingTips")
             messages
-            Button { run { await store.resendConfirmation() } success: { info = "Sent again. It can take a minute." } } label: {
-                HStack { if busy { ProgressView() }; Text("Resend email") }
-            }.buttonStyle(.ate(.secondary, full: true)).disabled(busy).accessibilityIdentifier("resendConfirmation")
+            let wait = cooldown(.signup)
+            Button {
+                run { await store.resendConfirmation() } success: { info = "Sent again. It can take a few minutes."; EmailCooldown.record(.signup) }
+            } label: {
+                HStack { if busy { ProgressView() }; Text(wait > 0 ? "Resend \(EmailCooldown.label(wait))" : "Resend email") }
+            }.buttonStyle(.ate(.secondary, full: true)).disabled(busy || wait > 0).accessibilityIdentifier("resendConfirmation")
             Button("I've confirmed, sign in") {
                 pendingShown = false; mode = .signIn; error = nil; info = nil
                 store.pendingConfirmation = nil; focus = .password
@@ -122,11 +142,12 @@ struct AuthSheet: View {
             if let e = store.session?.email, !e.isEmpty {
                 Text(e).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
             }
-            passwordField(placeholder: "New password (min 6 characters)")
+            passwordField(placeholder: "New password (8+ characters, a letter and a number)")
+            strengthMeter
             messages
             Button { run { await store.setNewPassword(password) } success: { dismiss() } } label: {
                 HStack { if busy { ProgressView() }; Text("Save password") }
-            }.buttonStyle(.ate(.primary, full: true)).disabled(busy || password.count < 6).accessibilityIdentifier("savePassword")
+            }.buttonStyle(.ate(.primary, full: true)).disabled(busy || !PasswordPolicy.evaluate(password).ok).accessibilityIdentifier("savePassword")
         }
     }
 
@@ -136,7 +157,7 @@ struct AuthSheet: View {
             .keyboardType(.emailAddress).textContentType(.username)
             .textInputAutocapitalization(.never).autocorrectionDisabled()
             .submitLabel(forgot ? .send : .next).focused($focus, equals: .email)
-            .onSubmit { if forgot { if valid(password: false) { run { await store.recoverPassword(email: email) } success: { info = "Check your inbox for the reset link." } } } else { focus = .password } }
+            .onSubmit { if forgot { if valid(password: false) && cooldown(.reset) == 0 { sendReset() } } else { focus = .password } }
             .ateField().accessibilityIdentifier("authEmail")
     }
 
@@ -149,7 +170,7 @@ struct AuthSheet: View {
             .textContentType(mode == .signIn ? .password : .newPassword)
             .textInputAutocapitalization(.never).autocorrectionDisabled()
             .focused($focus, equals: .password).submitLabel(.go)
-            .onSubmit { if mode == .newPassword { if password.count >= 6 { run { await store.setNewPassword(password) } success: { dismiss() } } } else if valid(password: true) { submit() } }
+            .onSubmit { if mode == .newPassword { if PasswordPolicy.evaluate(password).ok { run { await store.setNewPassword(password) } success: { dismiss() } } } else if valid(password: true) { submit() } }
             Button { showPassword.toggle() } label: { Image(systemName: showPassword ? "eye.slash" : "eye") }
                 .foregroundStyle(Theme.mutedForeground)
                 .accessibilityLabel(showPassword ? "Hide password" : "Show password")
@@ -167,10 +188,51 @@ struct AuthSheet: View {
         }
     }
 
+    private var strengthMeter: some View {
+        let r = PasswordPolicy.evaluate(password)
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                ForEach(0..<4, id: \.self) { i in
+                    Capsule().fill(i < r.strength ? (r.ok ? Theme.primary : Theme.destructive) : Theme.input).frame(height: 4)
+                }
+            }
+            if !password.isEmpty {
+                Text(r.ok ? r.label : r.problems.joined(separator: " · "))
+                    .font(AteFont.body(12)).foregroundStyle(r.ok ? Theme.mutedForeground : Theme.destructive)
+            }
+        }.accessibilityElement(children: .combine).accessibilityIdentifier("passwordStrength")
+    }
+
+    private var existsActions: some View {
+        HStack {
+            Button("Sign in") { mode = .signIn; maybeExists = false; error = nil; focus = .password }
+                .buttonStyle(.ate(.primary, height: 40)).accessibilityIdentifier("existsSignIn")
+            Button("Reset password") { forgot = true; maybeExists = false; error = nil }
+                .buttonStyle(.ate(.secondary, height: 40)).accessibilityIdentifier("existsReset")
+        }
+    }
+
+    private var submitBlockedReason: String? {
+        if busy { return nil }
+        let e = email.trimmingCharacters(in: .whitespaces)
+        if !(e.contains("@") && e.contains(".")) { return email.isEmpty ? nil : "Enter a valid email address." }
+        if mode == .signUp, !password.isEmpty, let p = PasswordPolicy.evaluate(password).problems.first { return p + "." }
+        return nil
+    }
+
+    private func cooldown(_ k: EmailCooldown.Kind) -> Int { _ = now; return EmailCooldown.remaining(k) }
+
+    private func sendReset() {
+        run { await store.recoverPassword(email: email) } success: {
+            info = "Check your inbox for the reset link."; EmailCooldown.record(.reset)
+        }
+    }
+
     // MARK: actions
     private func valid(password needs: Bool) -> Bool {
         let e = email.trimmingCharacters(in: .whitespaces)
-        return !busy && e.contains("@") && e.contains(".") && (!needs || password.count >= 6)
+        let pwOK = mode == .signUp ? PasswordPolicy.evaluate(password).ok : password.count >= 6
+        return !busy && e.contains("@") && e.contains(".") && (!needs || pwOK)
     }
 
     private func submit() {
@@ -182,10 +244,11 @@ struct AuthSheet: View {
         Task {
             switch await store.signUp(email: email, password: password) {
             case .signedIn: onSignedIn(); dismiss()
-            case .confirmationSent: pendingShown = true; password = ""
+            case .confirmationSent: pendingShown = true; password = ""; EmailCooldown.record(.signup)
             case .failed(let e):
                 error = e.message
-                if e.kind == .userExists { mode = .signIn }
+                if e.kind == .userExists { maybeExists = true }
+                if e.kind == .rateLimited { EmailCooldown.record(.signup, rateLimited: true) }
             }
             busy = false
         }
@@ -201,6 +264,9 @@ struct AuthSheet: View {
             if let e = await op() {
                 error = e.message
                 if e.kind == .emailNotConfirmed { pendingShown = true }
+                if e.kind == .rateLimited, e.message.hasPrefix("Email limit") {
+                    EmailCooldown.record(forgot ? .reset : (pendingShown ? .signup : .magic), rateLimited: true)
+                }
             } else { success() }
             busy = false
         }

@@ -14,7 +14,7 @@ Go to Settings › Privacy & Security › **Developer Mode**, switch it on, rest
 **4. "The share link doesn't load on the web."**
 Resolved for new links (Tier A builds): shares now look like `https://melusi-k.github.io/ate-legal/r/?s=<code>` and open in any browser. Links made before this build (`recipe-transform-ai.lovable.app/r/…`) still open inside ate but not on the web — share the recipe again for a new link. Links can't open the app automatically (universal links) until ate has a paid Apple developer account; use the page's "Open in ate" button.
 
-**5. "My confirmation / magic-link / reset email never arrived."**
+**5. "My confirmation / magic-link / reset email never arrived" or "Email limit reached".**
 Check Spam/Promotions. The beta uses Supabase's built-in mailer, which sends only a few emails per hour, so wait 10 minutes before trying again. Open the link **on the iPhone that has ate installed**. If it says the link expired, request a new one. You can keep using ate without an account in the meantime.
 
 **6. "Timers run but nothing shows in the Dynamic Island / Lock Screen."**

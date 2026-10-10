@@ -370,7 +370,7 @@ final class AteUITests: XCTestCase {
         openSettingsAccount()
         app.buttons["openSignUp"].tap()
         wait(text("Create your account"))
-        fillAuth("pending@example.com", "password123")
+        fillAuth("pending@example.com", "Kitchen2026")
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["confirmPending"], 5)
         shot("auth-signup-pending")

@@ -106,7 +106,7 @@ final class VoiceController {
     }
 
     func speak(_ text: String) {
-        if AppConfig.isUITesting { lastHeard = "speaking: " + text; return }
+        if AppConfig.isUITesting { lastHeard = "speaking: " + String(text.prefix(30)); return }
         synth.stopSpeaking(at: .immediate)
         let u = AVSpeechUtterance(string: text)
         u.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95

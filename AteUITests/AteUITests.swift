@@ -495,7 +495,7 @@ final class AteUITests: XCTestCase {
         wait(row)
         // pull to refresh (signed out → hint)
         app.swipeDown(velocity: .slow)
-        wait(text("Sign in from Settings to sync"), 5)
+        wait(text("Sign in from Settings to sync across devices"), 5)
         // context menu
         row.press(forDuration: 1.2)
         wait(app.buttons["Add to shopping list"], 5)

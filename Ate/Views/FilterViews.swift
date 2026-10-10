@@ -50,7 +50,7 @@ struct FilterChips: View {
                         }
                     }
                     ForEach(RecipeOrigin.allCases, id: \.self) { o in
-                        chip(o.rawValue.capitalized, symbol: Self.symbol(o), on: f.origins.contains(o), id: "chip.origin.\(o.rawValue)") {
+                        chip(Self.label(o), symbol: Self.symbol(o), on: f.origins.contains(o), id: "chip.origin.\(o.rawValue)") {
                             if store.filter.origins.contains(o) { store.filter.origins.remove(o) } else { store.filter.origins.insert(o) }
                         }
                     }
@@ -74,6 +74,10 @@ struct FilterChips: View {
                     .accessibilityIdentifier("filterResultCount")
             }
         }
+    }
+
+    static func label(_ o: RecipeOrigin) -> String {
+        switch o { case .link: return "From a link"; case .photo: return "From a photo"; case .prompt: return "From a prompt"; case .shared: return "Shared with me" }
     }
 
     static func symbol(_ o: RecipeOrigin) -> String {

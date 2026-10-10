@@ -80,15 +80,16 @@ struct RecipeDetailView: View {
                             .accessibilityIdentifier("deleteButton")
                     } label: { Image(systemName: "ellipsis.circle") }
                     .accessibilityLabel("More actions").accessibilityIdentifier("recipeMenu")
+            .confirmationDialog("Delete this recipe?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Delete recipe", role: .destructive) {
+                    store.timers.stopAll(recipeID: recipeID)
+                    store.delete(recipeID)
+                    store.show("Recipe deleted")
+                    goBack()
                 }
             }
-        }
-        .confirmationDialog("Delete this recipe?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete recipe", role: .destructive) {
-                store.timers.stopAll(recipeID: recipeID)
-                store.delete(recipeID)
-                store.show("Recipe deleted")
-                goBack()
+
+                }
             }
         }
         .confirmationDialog("Share recipe", isPresented: $shareChoice, titleVisibility: .hidden) {

@@ -122,3 +122,23 @@ Beta-screen IDs: H-UI-01..07 → A-HEALTH-03/04/05/07, H-DEV-01/02 → A-HEALTH-
 | H-UI-10 | empty → Use sample data | Sample data loads Recovery day | `testHealthEmptyStateSampleDataAction` |
 | H-UI-11 | `-qaJournalMomentEntry` | Entry shows "From a Journal moment" row; picker never shown | `testJournalMomentContextRow` |
 | EXT-JOURNAL-01 | External | Request com.apple.developer.journal.allow (paid team); non-blocking | manual |
+
+## Native acceptance (every release)
+
+Run on **iOS 18** (opaque bars) and **iOS 26** (Liquid Glass), in **light** and **dark**. Tick per OS/appearance.
+
+| ID | Check | How | Auto |
+|---|---|---|---|
+| N-01 | System chrome only | Tab bar, nav bars, Back, menus, search and sheet chrome are system; no custom `glassEffect` (any future use is `#available(iOS 26)` with an opaque iOS 18 fallback). Cards, primary buttons, chips and fields stay opaque. | Review |
+| N-02 | Large titles + system Back | Library/Shopping/More/Settings show large serif titles that collapse on scroll; pushed screens have chevron Back and swipe-back; Back never dead from Library, More, Settings or the Insights sheet. | testSystemBackFromRecipeNeverDead |
+| N-03 | One bottom area | Recipe detail: Cook mode sits above a single timer bar; Ask Ate scrolls clear; offline strip is at the top. | testBottomBarsDoNotOverlapRecipeDetail |
+| N-04 | Search | Library uses system search; query survives tab switches/cancel-and-return; scroll position kept per tab. | test04 |
+| N-05 | Destructive actions | Delete recipe, clear list, sign out use a confirmation dialog anchored to the triggering control; delete account is an alert with a safe Cancel. | Manual |
+| N-06 | Editing sheets | Add/import sheet has a grabber, Cancel, and won't swipe-dismiss with unsaved input (discard prompt). | Manual |
+| N-07 | Filter rail | One non-wrapping row, 44pt chips, selected chip has a checkmark and scrolls into view. | Manual |
+| N-08 | AX5 text | Settings › Accessibility › Larger Text at max: every screen readable, nothing clipped, no fixed-size fonts. | testAuditLargestDynamicType (recorded) |
+| N-09 | VoiceOver | Every icon button has a spoken label; timers read "4 minutes 12 seconds"; cook steps are headers ("Step 2 of 5. …"); onboarding dots read "Page x of y" and are adjustable; chips announce Selected. | testAuditMainScreens, testAuditOnboarding |
+| N-10 | Reduce Motion | Onboarding, progress, list moves and shimmer don't animate. | Manual |
+| N-11 | Reduce Transparency | Bars and materials turn opaque; text stays readable. | Manual |
+| N-12 | Increase Contrast + Bold Text | Muted text and borders darken; custom fonts get heavier with Bold Text. Brand pairs ≥ 4.5:1 (AccessibilityTests). | AccessibilityTests |
+| N-13 | Offline / model unavailable | Typed link/prompt and review drafts are kept; Retry works without retyping. | A-OFF-02 |

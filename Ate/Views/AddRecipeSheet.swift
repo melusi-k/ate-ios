@@ -37,6 +37,11 @@ struct AddRecipeSheet: View {
     @State private var spreadPicks: Set<String> = []
     @State private var coverItem: PhotosPickerItem?
     @State private var showCoverCamera = false
+    @State private var confirmDiscard = false
+    @Environment(\.dismiss) private var dismiss
+    private var hasUnsaved: Bool {
+        draft != nil || !link.trimmingCharacters(in: .whitespaces).isEmpty || !prompt.trimmingCharacters(in: .whitespaces).isEmpty || imageData != nil
+    }
 
     var body: some View {
         ScrollView {
@@ -48,7 +53,19 @@ struct AddRecipeSheet: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .overlay(alignment: .top) { if let t = store.toast { ToastView(toast: t).padding(.top, 8) } }
-        .onDisappear { if !loading { DraftStore.shared.clear() } }
+        // Unsaved input can't be swiped away by accident; the drag asks first. Input and drafts survive offline / model-unavailable errors.
+        .interactiveDismissDisabled(hasUnsaved)
+        .presentationDragIndicator(.visible)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { if hasUnsaved { confirmDiscard = true } else { dismiss() } }.accessibilityIdentifier("addCancel")
+                    .confirmationDialog("Discard this recipe?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+                        Button("Discard", role: .destructive) { DraftStore.shared.clear(); dismiss() }
+                        Button("Keep editing", role: .cancel) {}
+                    }
+            }
+        }
+        .onDisappear { if !loading && !hasUnsaved { DraftStore.shared.clear() } }
         .task {
             if initial == nil, draft == nil, !loading { restoreInterrupted() }
             // Arrived from the "Save to ate" share extension: prefill and start right away.

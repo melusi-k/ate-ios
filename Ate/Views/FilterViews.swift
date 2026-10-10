@@ -35,6 +35,8 @@ struct FilterChips: View {
     var body: some View {
         let f = store.filter
         VStack(alignment: .leading, spacing: 6) {
+            // One non-wrapping row; the selected chip scrolls into view.
+            ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     if f.isActive {
@@ -70,6 +72,10 @@ struct FilterChips: View {
                 }
                 .padding(.vertical, 2)
             }
+            .onChange(of: store.filter) { _, _ in
+                withAnimation(Motion.anim()) { proxy.scrollTo(Self.firstSelectedID(store.filter), anchor: .center) }
+            }
+            }
             .accessibilityIdentifier("filterChips")
             if f.isActive {
                 Text("\(resultCount) of \(store.recipes.count) recipe\(store.recipes.count == 1 ? "" : "s")")
@@ -77,6 +83,16 @@ struct FilterChips: View {
                     .accessibilityIdentifier("filterResultCount")
             }
         }
+    }
+
+    static func firstSelectedID(_ f: RecipeFilter) -> String {
+        if f.collection != nil { return "chip.collection" }
+        if f.favouritesOnly { return "chip.favourites" }
+        if let m = f.maxMinutes { return "chip.time\(m)" }
+        if let o = f.origins.first { return "chip.origin.\(o.rawValue)" }
+        if let sv = f.servings.first { return "chip.servings.\(sv.rawValue)" }
+        if let t = f.tags.sorted().first { return "chip.tag.\(t)" }
+        return "chip.time30"
     }
 
     static func label(_ o: RecipeOrigin) -> String {
@@ -90,7 +106,9 @@ struct FilterChips: View {
     private func chip(_ title: String, symbol: String?, on: Bool, id: String, action: @escaping () -> Void) -> some View {
         Button { action(); Haptics.toggle() } label: {
             HStack(spacing: 5) {
-                if let symbol { Image(systemName: symbol).font(.caption.weight(.semibold)) }
+                // Selected state isn't colour-only: a checkmark replaces the icon.
+                if on { Image(systemName: "checkmark").font(.caption.weight(.bold)).accessibilityHidden(true) }
+                else if let symbol { Image(systemName: symbol).font(.caption.weight(.semibold)).accessibilityHidden(true) }
                 Text(title).font(AteFont.body(13, .semibold)).lineLimit(2).multilineTextAlignment(.center)
             }
             .padding(.horizontal, 14).frame(minHeight: 44)
@@ -99,6 +117,8 @@ struct FilterChips: View {
             .foregroundStyle(on ? Theme.primaryForeground : Theme.foreground)
         }
         .buttonStyle(.plain)
+        .fixedSize()
+        .id(id)
         .accessibilityIdentifier(id)
         .accessibilityAddTraits(on ? .isSelected : [])
         .accessibilityHint(on ? "Removes this filter" : "Filters your library")

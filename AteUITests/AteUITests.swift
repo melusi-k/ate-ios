@@ -125,7 +125,7 @@ final class AteUITests: XCTestCase {
         tab("Library")
         wait(text("1 recipe saved on this device."))
         shot("library-one-recipe")
-        let search = app.textFields["Search chicken, pasta, vegan…"]
+        let search = app.searchFields.firstMatch
         search.tap(); search.typeText("zzz")
         wait(text("No matches"))
         shot("library-no-matches")

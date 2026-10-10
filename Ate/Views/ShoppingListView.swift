@@ -4,6 +4,7 @@ struct ShoppingListView: View {
     @Environment(AppStore.self) private var store
     @State private var newItem = ""
     @State private var share: ShareItems?
+    @State private var confirmClearAll = false
     @AppStorage("ate.shopping.byAisle") private var byAisle = true
 
     var body: some View {
@@ -111,8 +112,13 @@ struct ShoppingListView: View {
             HStack {
                 Button { store.clearTicked() } label: { Label("Clear ticked", systemImage: "checkmark") }
                     .buttonStyle(.ate(.ghost, height: 40)).disabled(!done)
-                Button("Clear all") { store.clearShopping(); store.show("List cleared") }
+                Button("Clear all") { confirmClearAll = true }
                     .buttonStyle(.ate(.destructiveGhost, height: 40))
+                    // Anchored to the button that triggered it (popover source on iPad).
+                    .confirmationDialog("Clear the whole shopping list?", isPresented: $confirmClearAll, titleVisibility: .visible) {
+                        Button("Clear all items", role: .destructive) { store.clearShopping(); store.show("List cleared") }
+                        Button("Cancel", role: .cancel) {}
+                    }
             }
         }
         .cardSurface(padding: 20)

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct LibraryView: View {
     @Environment(AppStore.self) private var store
-    @State private var query = ""
+    @SceneStorage("ate.library.query") private var query = ""
     @State private var showAdd = false
     @State private var confirmDelete: RecipeCard?
     @Environment(\.verticalSizeClass) private var vSize
@@ -21,6 +21,10 @@ struct LibraryView: View {
             Button { showAdd = true } label: { Label("Add recipe", systemImage: "plus").padding(.horizontal, 10) }
                 .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8).frame(maxWidth: .infinity)
         }
+        // System search (glass on iOS 26). The query lives in SceneStorage so switching tabs or cancelling and
+        // coming back restores it; the List keeps its own scroll position per tab stack.
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search chicken, pasta, vegan…")
+        .textInputAutocapitalization(.never)
         .navigationTitle(store.filter.collection?.title ?? L10n.libraryTitle)
         .navigationBarTitleDisplayMode(.large)
         .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd))
@@ -184,13 +188,6 @@ struct LibraryView: View {
                 }
                 Spacer()
             }
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass").foregroundStyle(Theme.mutedForeground).accessibilityHidden(true)
-                TextField("Search chicken, pasta, vegan…", text: $query).font(AteFont.body(15))
-                    .textInputAutocapitalization(.never).accessibilityLabel("Search recipes")
-            }
-            .padding(.horizontal, 18).frame(minHeight: 48)
-            .background(Theme.card, in: Capsule()).overlay(Capsule().stroke(Theme.input))
             layoutMenus
         }
         .padding(.top, 24)
@@ -236,24 +233,32 @@ private struct LibrarySheets: ViewModifier {
             }
         }
         .sheet(isPresented: $showAdd) {
-            AddRecipeSheet { card in
-                store.add(card)
-                store.show("Saved to your library")
-                showAdd = false
-                store.path.append(.recipe(card.id))
+            NavigationStack {
+                AddRecipeSheet { card in
+                    store.add(card)
+                    store.show("Saved to your library")
+                    showAdd = false
+                    store.path.append(.recipe(card.id))
+                }
+                .navigationBarTitleDisplayMode(.inline)
             }
             .environment(store)
             .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: Binding(get: { store.pendingImport }, set: { store.pendingImport = $0 })) { item in
-            AddRecipeSheet(initial: item) { card in
-                store.add(card)
-                store.show("Saved to your library")
-                store.pendingImport = nil
-                store.path.append(.recipe(card.id))
+            NavigationStack {
+                AddRecipeSheet(initial: item) { card in
+                    store.add(card)
+                    store.show("Saved to your library")
+                    store.pendingImport = nil
+                    store.path.append(.recipe(card.id))
+                }
+                .navigationBarTitleDisplayMode(.inline)
             }
             .environment(store)
             .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
     }
 }

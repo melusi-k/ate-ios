@@ -33,4 +33,21 @@ final class AuthHardeningTests: XCTestCase {
         XCTAssertEqual(EmailCooldown.label(3000), "in about 50 min")
         XCTAssertEqual(EmailCooldown.label(42), "in 42 s")
     }
+
+    func testServerWeakPasswordAndDuplicateMapping() {
+        let w = AuthError.from(status: 422, json: ["error_code": "weak_password", "msg": "Password should contain at least one character of each: abc..., 012..."])
+        XCTAssertEqual(w.kind, .weakPassword); XCTAssertFalse(w.message.isEmpty)
+        XCTAssertEqual(AuthError.from(status: 422, json: ["error_code": "user_already_exists"]).kind, .userExists)
+        XCTAssertFalse(SupabaseAuth.isObfuscatedExistingUser(["id": "u1"]), "no identities key is not a duplicate")
+    }
+
+    func testMockSignUpOutcomes() async {
+        let m = MockAuth()
+        do { _ = try await m.signUp(email: "new@example.com", password: "abc"); XCTFail("weak accepted") }
+        catch { XCTAssertEqual((error as? AuthError)?.kind, .weakPassword) }
+        do { _ = try await m.signUp(email: "exists@example.com", password: "Cooking2026"); XCTFail() }
+        catch { XCTAssertEqual((error as? AuthError)?.kind, .userExists) }
+        do { _ = try await m.signUp(email: "ratelimit@example.com", password: "Cooking2026"); XCTFail() }
+        catch { XCTAssertEqual((error as? AuthError)?.kind, .rateLimited) }
+    }
 }

@@ -190,6 +190,18 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(app.segmentedControls["authModePicker"].buttons["Sign in"].isSelected)
     }
 
+    func test34b_SignUpRateLimitedShowsMessage() {
+        launch()
+        openSignUp()
+        replaceText(app.textFields["authEmail"], "ratelimit@example.com")
+        replaceText(app.secureTextFields["authPassword"], "Cooking2026")
+        app.buttons["authSubmit"].tap()
+        let err = app.descendants(matching: .any)["authError"].firstMatch
+        wait(err, 8)
+        XCTAssertTrue(err.label.contains("Email limit"), "rate-limited sign-up must show a visible message, got: \(err.label)")
+        shot("signup-rate-limited")
+    }
+
     // MARK: Beta testing screen
 
     func test35_BetaScreenManualExportReset() {

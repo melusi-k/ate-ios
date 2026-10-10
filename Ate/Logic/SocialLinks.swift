@@ -6,7 +6,8 @@ enum SocialLinks {
     enum Platform: String { case instagram = "Instagram", tiktok = "TikTok", youtube = "YouTube" }
 
     static func platform(of url: URL) -> Platform? {
-        let h = (url.host ?? "").lowercased().replacingOccurrences(of: "www.", with: "").replacingOccurrences(of: "m.", with: "")
+        var h = (url.host ?? "").lowercased()
+        for p in ["www.", "m.", "vm.", "vt."] where h.hasPrefix(p) { h.removeFirst(p.count) }
         if h == "instagram.com" || h.hasSuffix(".instagram.com") || h == "instagr.am" { return .instagram }
         if h == "tiktok.com" || h.hasSuffix(".tiktok.com") { return .tiktok }
         if h == "youtube.com" || h.hasSuffix(".youtube.com") || h == "youtu.be" { return .youtube }

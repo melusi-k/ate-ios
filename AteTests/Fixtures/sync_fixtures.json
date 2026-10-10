@@ -1,0 +1,47 @@
+{
+  "comment": "Shared by AteTests/SyncFixtureTests.swift and scripts/e2e/backend_e2e.py (A-SYNC-02/03). Stamps are ms; ids are recipe ids.",
+  "scenarios": [
+    {
+      "name": "conflict_remote_newer_wins",
+      "local": {"data": {"r1": {"title": "Local edit"}}, "stamps": {"r1": 1000}, "tombstones": {}},
+      "remote": [{"id": "r1", "data": {"title": "Remote edit"}, "updated_at": 2000, "deleted": false}],
+      "expect": {"data": {"r1": {"title": "Remote edit"}}, "tombstones": [], "push": [], "pushDeletes": []}
+    },
+    {
+      "name": "conflict_local_newer_wins_and_pushes",
+      "local": {"data": {"r1": {"title": "Local edit"}}, "stamps": {"r1": 3000}, "tombstones": {}},
+      "remote": [{"id": "r1", "data": {"title": "Remote edit"}, "updated_at": 2000, "deleted": false}],
+      "expect": {"data": {"r1": {"title": "Local edit"}}, "tombstones": [], "push": ["r1"], "pushDeletes": []}
+    },
+    {
+      "name": "remote_tombstone_deletes_local",
+      "local": {"data": {"r2": {"title": "Soup"}}, "stamps": {"r2": 1000}, "tombstones": {}},
+      "remote": [{"id": "r2", "data": null, "updated_at": 1500, "deleted": true}],
+      "expect": {"data": {}, "tombstones": ["r2"], "push": [], "pushDeletes": []}
+    },
+    {
+      "name": "local_tombstone_propagates",
+      "local": {"data": {}, "stamps": {}, "tombstones": {"r3": 5000}},
+      "remote": [{"id": "r3", "data": {"title": "Old"}, "updated_at": 4000, "deleted": false}],
+      "expect": {"data": {}, "tombstones": ["r3"], "push": [], "pushDeletes": ["r3"]}
+    },
+    {
+      "name": "edit_after_delete_resurrects",
+      "local": {"data": {}, "stamps": {}, "tombstones": {"r4": 1000}},
+      "remote": [{"id": "r4", "data": {"title": "Edited later"}, "updated_at": 2000, "deleted": false}],
+      "expect": {"data": {"r4": {"title": "Edited later"}}, "tombstones": [], "push": [], "pushDeletes": []}
+    },
+    {
+      "name": "duplicate_id_upsert_is_idempotent",
+      "local": {"data": {"r5": {"title": "Same"}}, "stamps": {"r5": 7000}, "tombstones": {}},
+      "remote": [{"id": "r5", "data": {"title": "Same"}, "updated_at": 7000, "deleted": false}],
+      "expect": {"data": {"r5": {"title": "Same"}}, "tombstones": [], "push": [], "pushDeletes": []}
+    },
+    {
+      "name": "stale_reference_to_unknown_tombstone",
+      "local": {"data": {"r6": {"title": "Keep"}}, "stamps": {"r6": 1000}, "tombstones": {}},
+      "remote": [{"id": "ghost", "data": null, "updated_at": 900, "deleted": true}],
+      "expect": {"data": {"r6": {"title": "Keep"}}, "tombstones": ["ghost"], "push": ["r6"], "pushDeletes": []}
+    }
+  ]
+}

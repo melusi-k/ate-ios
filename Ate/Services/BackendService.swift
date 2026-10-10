@@ -85,10 +85,21 @@ enum AppConfig {
 // MARK: - Mock (default)
 
 final class MockBackend: BackendService {
+    static let downMessage = "ate's server isn't responding right now (HTTP 503). Your recipes are safe on this iPhone. Try again in a moment."
     private static var published: [String: RecipeCard] = [:]
     private static var offlineOnce = true
 
+    private static var parses = 0
+    static let args = ProcessInfo.processInfo.arguments
     func parseRecipe(_ request: ParseRequest) async throws -> RecipeCard {
+        // QA hooks: -qaSlowGenerate keeps a generation running (kill mid-generation, A-CREATE-05);
+        // -qaBackendDown fails every generation after the first (A-SHARE-05 / backend outage).
+        if Self.args.contains("-qaSlowGenerate") { try await Task.sleep(nanoseconds: 90_000_000_000) }
+        if Self.args.contains("-qaBackendDown"), Self.parses >= 1 {
+            try await Task.sleep(nanoseconds: 300_000_000)
+            throw BackendError(message: MockBackend.downMessage)
+        }
+        Self.parses += 1
         try await Task.sleep(nanoseconds: 900_000_000)
         if request.mode == .rewrite, var card = request.currentRecipe {
             let ask = request.text ?? ""
@@ -118,6 +129,16 @@ final class MockBackend: BackendService {
             guard SocialLinks.isUseful(caption) else { throw SocialCaptionError(platform: p) }
             var c = QAFixtures.cardFromCaption(caption, sourceURL: SocialLinks.clean(u).absoluteString)
             c.source = .mock; c.generatedAt = Date().timeIntervalSince1970 * 1000; return c
+        }
+        // QA fixture: a food spread that needs "What dish is this?" (A-CREATE-03 photo step).
+        if request.mode == .image, Self.args.contains("-qaSpreadPhoto") {
+            guard let dish = request.text, !dish.isEmpty else {
+                throw PhotoNeedsDishError(suggestions: ["mogodu", "ujeqe", "morogo", "chakalaka"], spread: true)
+            }
+            var c = RecipeCard(title: dish.capitalized, description: "From your spread photo.", servings: 4, timeMinutes: 60,
+                               ingredients: [Ingredient(name: dish, quantity: 1, unit: "kg", notes: nil)],
+                               steps: [Step(order: 1, instruction: "Cook the \(dish).", timeSeconds: nil)])
+            c.source = .photoGuess; c.generatedAt = Date().timeIntervalSince1970 * 1000; return c
         }
         // Photos: real Vision OCR decides screenshot vs food photo, even in the mock.
         if request.mode == .image {

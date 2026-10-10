@@ -7,6 +7,7 @@ struct BetaTestingView: View {
     @State private var share: ShareItems?
     @State private var confirmReset = false
     @State private var uploadMessage: String?
+    @State private var ci = CIStatus.results
 
     var body: some View {
         List {
@@ -21,12 +22,16 @@ struct BetaTestingView: View {
                 }
                 NavigationLink { BetaExpectationsView() } label: { Label(Transparency.betaTitle, systemImage: "info.circle") }
                     .accessibilityIdentifier("betaExpectationsLink")
+                let ciPass = ci.values.filter { $0.status == .pass }.count
+                Text(ci.isEmpty ? "CI: no simulator/backend results yet" + (store.session == nil ? " (sign in to see them)" : "")
+                                : "CI: \(ciPass)/\(ci.count) automated checks passing")
+                    .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("betaCISummary")
             }
             ForEach(BetaChecklist.categories, id: \.self) { c in
                 let p = qa.progress(c)
                 Section("\(c) — \(p.passed)/\(p.total)") {
                     ForEach(BetaChecklist.items.filter { $0.category == c }) { item in
-                        NavigationLink { BetaItemView(item: item) } label: { BetaRow(item: item, result: qa.result(item.id)) }
+                        NavigationLink { BetaItemView(item: item) } label: { BetaRow(item: item, result: qa.result(item.id), ci: ci[item.id]) }
                     }
                 }
             }
@@ -44,6 +49,8 @@ struct BetaTestingView: View {
             }
         }
         .navigationTitle("Beta testing")
+        .task { if let s = store.session { await CIStatus.refresh(session: s); ci = CIStatus.results } }
+        .refreshable { if let s = store.session { await CIStatus.refresh(session: s); ci = CIStatus.results } }
         .confirmationDialog("Reset every beta result on this iPhone?", isPresented: $confirmReset, titleVisibility: .visible) {
             Button("Reset", role: .destructive) { qa.reset() }
         }
@@ -55,13 +62,24 @@ struct BetaTestingView: View {
 struct BetaRow: View {
     let item: BetaItem
     let result: BetaQA.Result
+    var ci: CIResult? = nil
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Text(result.status.symbol).frame(width: 24)
+            VStack(spacing: 2) {
+                Text(result.status.symbol)
+                Text("📱").font(.system(size: 9))
+            }.frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title).font(AteFont.body(14, .semibold))
                 Text(item.id + (item.auto ? " · auto" : " · manual")).font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
                 if !result.note.isEmpty { Text(result.note).font(AteFont.body(11)).foregroundStyle(result.status == .fail ? Theme.destructive : Theme.mutedForeground).lineLimit(2) }
+            }
+            Spacer(minLength: 4)
+            if let ci {
+                VStack(spacing: 2) {
+                    Text(ci.status.symbol)
+                    Text("CI").font(.system(size: 9, weight: .semibold))
+                }.frame(width: 28).accessibilityLabel("CI \(ci.status.rawValue)")
             }
         }
         .accessibilityElement(children: .combine).accessibilityIdentifier("beta.\(item.id)")

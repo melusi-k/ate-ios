@@ -234,7 +234,8 @@ extension Data {
 final class MockAuth: AuthService {
     func make(_ email: String) -> AuthSession {
         AuthSession(accessToken: "mock", refreshToken: "mock",
-                    expiresAt: Date().timeIntervalSince1970 + (ProcessInfo.processInfo.arguments.contains("-qaExpireSession") ? 0 : 3600),
+                    expiresAt: Date().timeIntervalSince1970 + (ProcessInfo.processInfo.arguments.contains("-qaExpireSession")
+                                                                 || ProcessInfo.processInfo.arguments.contains("-qaExpireOnce") ? 0 : 3600),
                     userID: email.lowercased() == "cook@example.com" || email.lowercased() == "qa@example.com"
                         ? "00000000-0000-0000-0000-000000000001" : "mock-" + email.lowercased(), email: email)
     }
@@ -267,7 +268,9 @@ final class MockAuth: AuthService {
     }
     func refresh(_ session: AuthSession) async throws -> AuthSession {
         if ProcessInfo.processInfo.arguments.contains("-qaExpireSession") { throw AuthError(.unauthorized, "Session expired. Sign in again.") }
-        return session
+        // -qaExpireOnce: the stored token is expired but the refresh token is good (A-AUTH-06).
+        var s = session; s.accessToken = "mock-refreshed"; s.expiresAt = Date().timeIntervalSince1970 + 3600
+        return s
     }
     func session(fromCallback url: URL) async throws -> AuthCallback? {
         SupabaseAuth.params(url)["type"] == "recovery" ? .recovery(make("reset@example.com")) : .signedIn(make("magic@example.com"))

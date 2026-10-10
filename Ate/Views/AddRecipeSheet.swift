@@ -48,7 +48,9 @@ struct AddRecipeSheet: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .overlay(alignment: .top) { if let t = store.toast { ToastView(toast: t).padding(.top, 8) } }
+        .onDisappear { if !loading { DraftStore.shared.clear() } }
         .task {
+            if initial == nil, draft == nil, !loading { restoreInterrupted() }
             // Arrived from the "Save to ate" share extension: prefill and start right away.
             guard let it = initial, draft == nil, !loading else { return }
             if let d = SharedInbox.imageData(it) { mode = .image; imageData = d }
@@ -227,7 +229,11 @@ struct AddRecipeSheet: View {
                     }
                 } label: { Label("Change photo", systemImage: "photo") }
                     .buttonStyle(.ate(.secondary, height: 36)).accessibilityIdentifier("changeCover")
-                if CoverStore.playgroundAvailable {
+                if AppConfig.isUITesting {
+                    Button("Sample cover") { if let d = Self.sampleFoodPhoto(), let img = UIImage(data: d) { setUserCover(img) } }
+                        .buttonStyle(.ate(.secondary, height: 36)).accessibilityIdentifier("sampleCover")
+                }
+                if CoverStore.playgroundAvailable && !ProcessInfo.processInfo.arguments.contains("-qaNoPlayground") {
                     Button {
                         Task {
                             guard let cur = draft, let name = await CoverStore.shared.generate(for: cur) else {
@@ -290,6 +296,21 @@ struct AddRecipeSheet: View {
         }.pngData()
     }
 
+    /// A-CREATE-05: the app was closed mid-generation (or with an unsaved card) last time.
+    private func restoreInterrupted() {
+        if let c = DraftStore.shared.draft {
+            draft = c; store.show("Restored your unsaved card")
+            BetaQA.shared.pass("A-CREATE-05", note: "Restored unsaved draft “\(c.title)” after relaunch")
+        } else if let p = DraftStore.shared.pending {
+            if let m = Mode(rawValue: p.mode) { mode = m }
+            switch mode { case .link: link = p.text; case .prompt: prompt = p.text; case .image: break }
+            error = Self.interruptedMessage
+            DraftStore.shared.end()
+            BetaQA.shared.pass("A-CREATE-05", note: "Interrupted \(p.mode) generation offered a retry after relaunch")
+        }
+    }
+    static let interruptedMessage = "Your last recipe was interrupted when ate closed. Tap Try again to retry."
+
     private func generate() async {
         if store.settings.onDeviceOnly {
             store.show("Private mode is on — turn it off in Settings to use AI.", error: true); return
@@ -322,7 +343,8 @@ struct AddRecipeSheet: View {
         }
         loading = true
         error = nil; socialError = nil; socialReason = nil
-        defer { loading = false }
+        DraftStore.shared.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""))
+        defer { loading = false; DraftStore.shared.end() }
         do {
             let started = Date()
             var card = try await store.backend.parseRecipe(req)
@@ -331,7 +353,7 @@ struct AddRecipeSheet: View {
             GenerationLog.last = GenerationLog(source: card.source, latencyMs: Int(Date().timeIntervalSince(started) * 1000),
                                                mode: mode.rawValue, date: Date())
             draft = RecipeLogic.normalize(card)
-            if let d = draft { chooseInitialCover(for: d) }
+            if let d = draft { chooseInitialCover(for: d); DraftStore.shared.saveDraft(d) }
             editing = false
             dishQuestion = nil; dishAnswer = ""; spreadPicks = []
             let src = "source \(card.source) in \(Int(Date().timeIntervalSince(started) * 1000)) ms"

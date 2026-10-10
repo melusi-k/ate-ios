@@ -75,6 +75,15 @@ struct RecipeHero: View {
             .aspectRatio(4 / 3, contentMode: .fit)
             .frame(maxWidth: .infinity)
             .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Recipe cover")
+            .accessibilityValue(kind)
             .accessibilityIdentifier("recipeHero")
+    }
+    /// "photo" when a local cover or remote image exists, otherwise "tile" (branded fallback). Used by UI tests.
+    private var kind: String {
+        if let f = recipe.coverImage, f != CoverStore.removed { return "photo" }
+        if recipe.coverImage == nil, recipe.imageURL != nil { return "photo" }
+        return "tile"
     }
 }

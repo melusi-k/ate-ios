@@ -155,8 +155,13 @@ final class MockSync: SyncService {
            let r = try? JSONDecoder().decode([String: SyncRecord].self, from: d) { rows = r }
         if ProcessInfo.processInfo.arguments.contains("-qaResetServer") { try? FileManager.default.removeItem(at: Self.file); rows = [:] }
     }
-    func pull(session: AuthSession) async throws -> [SyncRecord] { Array(rows.values) }
+    private var down: Bool { ProcessInfo.processInfo.arguments.contains("-qaBackendDown") }
+    func pull(session: AuthSession) async throws -> [SyncRecord] {
+        if down { throw SyncError.http(503, "Service unavailable") }
+        return Array(rows.values)
+    }
     func push(_ records: [SyncRecord], session: AuthSession) async throws {
+        if down { throw SyncError.http(503, "Service unavailable") }
         pushCount += 1
         for r in records { rows["\(r.kind)/\(r.id)"] = r }
         if AppConfig.qaPersistServer { try? JSONEncoder().encode(rows).write(to: Self.file) }

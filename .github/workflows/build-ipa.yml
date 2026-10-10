@@ -35,6 +35,7 @@ jobs:
       HAS_SIGNING: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && secrets.BUILD_PROVISION_PROFILE_BASE64 != '' && secrets.P12_PASSWORD != '' && secrets.TEAM_ID != '' }}
       # Tests are off by default for fast IPA builds. Turn on via workflow_dispatch run_tests=true or "[run tests]" in the commit message.
       RUN_TESTS: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -250,6 +251,81 @@ jobs:
           [ "$SV" = "$APP_VERSION" ] || { echo "::error::CFBundleShortVersionString $SV != $APP_VERSION"; exit 1; }
           [ "$SHA" = "$GIT_SHORT_SHA" ] || { echo "::error::AteGitSHA $SHA != $GIT_SHORT_SHA"; exit 1; }
 
+      - name: Release smoke test (A-CI-03) — plist + codesign checks on the .ipa
+        id: ipacheck
+        run: |
+          set -e
+          A=build/verify/Payload/Ate.app
+          plutil -lint "$A/Info.plist" $A/PlugIns/*.appex/Info.plist
+          for K in CFBundleIdentifier CFBundleExecutable CFBundleShortVersionString CFBundleVersion MinimumOSVersion NSSupportsLiveActivities; do
+            plutil -extract $K raw -o - "$A/Info.plist" >/dev/null || { echo "::error::Info.plist missing $K"; exit 1; }
+          done
+          [ "$(plutil -extract CFBundleIdentifier raw -o - "$A/Info.plist")" = com.melusik.ate ] || { echo "::error::wrong bundle id"; exit 1; }
+          EXE=$(plutil -extract CFBundleExecutable raw -o - "$A/Info.plist"); [ -x "$A/$EXE" ] || { echo "::error::executable missing"; exit 1; }
+          lipo -archs "$A/$EXE" | grep -q arm64 || { echo "::error::no arm64 slice"; exit 1; }
+          codesign --verify --strict "$A" || { echo "::error::codesign verify failed for Ate.app"; exit 1; }
+          codesign -d --entitlements - "$A" 2>/dev/null | grep -q application-groups || { echo "::error::app entitlements missing"; exit 1; }
+          for B in $A/PlugIns/*.appex; do
+            if codesign --verify --strict "$B" 2>/dev/null; then echo "codesign ok: $B"
+            elif [ "$HAS_SIGNING" = true ]; then echo "::error::codesign verify failed for $B"; exit 1
+            else echo "::warning::$B not signed (unsigned sideload build)"; fi
+          done
+          for X in $A/PlugIns/*.appex; do
+            XB=$(plutil -extract CFBundleVersion raw -o - "$X/Info.plist"); [ "$XB" = "$BUILD_NUMBER" ] || { echo "::error::$X CFBundleVersion $XB"; exit 1; }
+          done
+          echo "plist + codesign checks passed" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Release smoke test (A-CI-03) — simulator build, install, launch, alive after 10 s
+        id: simsmoke
+        timeout-minutes: 20
+        run: |
+          set -o pipefail
+          SIM_ID=$(xcrun simctl list devices available -j | python3 -c '
+          import json,sys
+          d=json.load(sys.stdin)["devices"]
+          c=[(k,x) for k,v in d.items() if "iOS-26" in k for x in v if x["name"]=="iPhone 17"]
+          c=c or [(k,x) for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")]
+          c.sort(key=lambda t:t[0]); print(c[-1][1]["udid"])')
+          xcrun simctl boot "$SIM_ID" || true
+          xcodebuild build -project Ate.xcodeproj -scheme "$SCHEME" -configuration Release -sdk iphonesimulator \
+            -destination "id=$SIM_ID" -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO -quiet 2>&1 | tail -20
+          APP=$(ls -d build/sim/Build/Products/Release-iphonesimulator/Ate.app)
+          [ "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "$BUILD_NUMBER" ] || { echo "::error::sim build number mismatch"; exit 1; }
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl install "$SIM_ID" "$APP"
+          OUT=$(xcrun simctl launch "$SIM_ID" com.melusik.ate); echo "$OUT"
+          PID=$(echo "$OUT" | awk -F': ' '{print $NF}')
+          sleep 10
+          mkdir -p smoke
+          xcrun simctl io "$SIM_ID" screenshot smoke/launch-10s.png
+          if kill -0 "$PID" 2>/dev/null; then
+            echo "SMOKE_STATUS=pass" >> $GITHUB_ENV; echo "✅ Ate alive 10 s after launch (pid $PID)" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "SMOKE_STATUS=fail" >> $GITHUB_ENV; echo "::error::Ate exited within 10 s of launch"
+            xcrun simctl spawn "$SIM_ID" log show --last 1m --predicate 'process == "Ate"' | tail -60 || true
+            exit 1
+          fi
+
+      - name: Upload smoke screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-launch-screenshot
+          path: smoke/*.png
+          if-no-files-found: warn
+
+      - name: Report A-CI-03 to qa_results
+        if: always() && env.SUPABASE_ACCESS_TOKEN != ''
+        continue-on-error: true
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          ST=pass; NOTE="ipa plist+codesign OK; simulator install+launch alive after 10 s"
+          [ "${{ steps.ipacheck.outcome }}" = success ] || { ST=fail; NOTE="ipa plist/codesign check failed"; }
+          [ "${{ steps.simsmoke.outcome }}" = success ] || { ST=fail; NOTE="$NOTE; simulator smoke ${{ steps.simsmoke.outcome }}"; }
+          python3 -c "import json,sys; json.dump({'A-CI-03': {'status': sys.argv[1], 'note': sys.argv[2]}}, open('ci03.json','w'))" "$ST" "$NOTE"
+          python3 scripts/e2e/backend_e2e.py --no-checks --extra ci03.json --upload --build "$APP_VERSION ($BUILD_NUMBER)${ATE_CHANNEL:+ $ATE_CHANNEL}" --out build/ci03 || true
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -289,8 +365,13 @@ jobs:
 
   ui-suite:
     if: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [AteUITests, CoverageUITests]
+    name: ui-suite (${{ matrix.shard }})
     runs-on: macos-26
-    timeout-minutes: 30
+    timeout-minutes: 45
     continue-on-error: true
     env:
       SCHEME: Ate
@@ -327,7 +408,7 @@ jobs:
 
       - name: Run UI tests (full suite, non-blocking)
         id: uitests
-        timeout-minutes: 30
+        timeout-minutes: 42
         continue-on-error: true
         run: |
           SIM_ID=$(xcrun simctl list devices available -j | python3 -c '
@@ -339,7 +420,7 @@ jobs:
           echo "UI test simulator: $SIM_ID"; echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
           xcrun simctl boot "$SIM_ID" || true; xcrun simctl bootstatus "$SIM_ID" -b
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
-            -only-testing:AteUITests -skip-testing:AteUITests/KeyFlowsQATests -resultBundlePath build/UITests.xcresult \
+            -only-testing:AteUITests/${{ matrix.shard }} -resultBundlePath build/UITests.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee uitest.log | grep --line-buffered -E "Test Case|Test Suite|error:|Testing (started|failed)|Restarting after" ; STATUS=${PIPESTATUS[0]}
           grep -E "Test Case .*(passed|failed)|error:|Executed" uitest.log | tail -60
@@ -367,7 +448,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ui-screenshots
+          name: ui-screenshots-${{ matrix.shard }}
           path: |
             ui-screenshots/*.png
             ui-screenshots/*.jpg
@@ -378,7 +459,44 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: UITests-xcresult
+          name: UITests-xcresult-${{ matrix.shard }}
           path: build/UITests.xcresult
           if-no-files-found: warn
 
+      - name: Report simulator Tier A items to qa_results
+        if: always() && matrix.shard == 'CoverageUITests'
+        continue-on-error: true
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || exit 0
+          python3 scripts/e2e/ui_results.py uitest.log build/ui-items.json
+          python3 scripts/e2e/backend_e2e.py --no-checks --extra build/ui-items.json --upload --build "$APP_VERSION ($BUILD_NUMBER) TierA" --out build/ui-e2e || true
+
+  backend-e2e:
+    # Real-Supabase checks with temporary pre-confirmed users. Non-blocking while it beds in.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Playwright
+        run: pip install -q playwright && python -m playwright install --with-deps chromium
+      - name: Run backend-e2e
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          BASE=$(grep -E '^\s*MARKETING_VERSION' project.yml | head -1 | sed -E 's/.*"(.*)".*/\1/' | cut -d. -f1-2)
+          S=0
+          python scripts/e2e/backend_e2e.py --upload --build "$BASE.${{ github.run_number }} (${{ github.run_number }}) TierA" || S=$?
+          cat build/e2e/summary.md >> "$GITHUB_STEP_SUMMARY"; exit $S
+      - name: Upload e2e results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-e2e
+          path: build/e2e
+          if-no-files-found: warn

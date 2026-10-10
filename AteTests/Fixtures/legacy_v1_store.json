@@ -1,0 +1,13 @@
+{
+  "comment": "Recipes as saved by build ~20 (pre-provenance, pre-covers): string servings, Double timeMinutes, no source/origin/cover; one empty card that import must drop.",
+  "recipes": [
+    {"id": "legacy-1", "title": "Mogodu", "servings": 6.0, "timeMinutes": 180.0, "tags": ["traditional"],
+     "ingredients": [{"name": "tripe", "quantity": 1.5, "unit": "kg"}],
+     "steps": [{"order": 1, "instruction": "Simmer the tripe for 3 hours."}], "createdAt": 1700000000000},
+    {"id": "legacy-2", "title": "Ujeqe", "source": "someFutureSource", "favorite": true,
+     "ingredients": [{"name": "flour", "quantity": 500, "unit": "g", "notes": "cake flour"}],
+     "steps": [{"order": 1, "instruction": "Steam for 1 hour.", "timeSeconds": 3600}]},
+    {"id": "legacy-empty", "title": "Nothing", "ingredients": [], "steps": []}
+  ],
+  "sync_v1": {"user": "00000000-0000-0000-0000-000000000001", "stamps": {"legacy-1": 1700000000000.4}, "tombstones": {"gone": 1700000000001}}
+}

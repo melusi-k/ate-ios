@@ -116,11 +116,11 @@ final class BetaQA {
         let rows: [[String: Any]] = BetaChecklist.items.compactMap { i in
             let r = result(i.id); guard r.status != .untested else { return nil }
             return ["user_id": session.userID, "build": AppConfig.buildLabel, "item_id": i.id, "status": r.status.rawValue,
-                    "note": r.note, "auto": r.auto, "ts": iso.string(from: r.ts)]
+                    "note": r.note, "auto": r.auto, "ts": iso.string(from: r.ts), "source": "device"]
         }
         guard !rows.isEmpty else { return "Nothing tested yet." }
         var c = URLComponents(url: base.appendingPathComponent("rest/v1/qa_results"), resolvingAgainstBaseURL: false)!
-        c.queryItems = [URLQueryItem(name: "on_conflict", value: "user_id,build,item_id")]
+        c.queryItems = [URLQueryItem(name: "on_conflict", value: "user_id,build,item_id,source")]
         var req = URLRequest(url: c.url!); req.httpMethod = "POST"
         Net.authorize(&req, key: AppConfig.supabasePublishableKey, bearer: session.accessToken)
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -131,6 +131,38 @@ final class BetaQA {
             let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
             return (200..<300).contains(code) ? nil : "Upload failed (\(code)): \(String(decoding: d, as: UTF8.self).prefix(120))"
         } catch { return Net.friendly(error) }
+    }
+}
+
+// MARK: CI results (qa_results source='ci', written by backend-e2e / simulator jobs)
+struct CIResult: Equatable { var status: BetaQA.Status; var note: String; var build: String; var ts: String }
+@MainActor enum CIStatus {
+    static var results: [String: CIResult] = AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaCIResults")
+        ? ["A-SYNC-02": CIResult(status: .pass, note: "7 fixture scenarios converge", build: "ci", ts: "2026-10-10T02:17:00Z"),
+           "A-SHARE-05": CIResult(status: .fail, note: "ErrorRetryCard missing", build: "ci", ts: "2026-10-10T02:17:00Z")]
+        : [:]
+    static var lastError: String?
+    /// Latest CI verdict per item (owner-readable via RLS).
+    static func refresh(session: AuthSession) async {
+        guard !AppConfig.isUITesting, let base = AppConfig.supabaseURL else { return }
+        var c = URLComponents(url: base.appendingPathComponent("rest/v1/qa_results"), resolvingAgainstBaseURL: false)!
+        c.queryItems = [URLQueryItem(name: "select", value: "item_id,status,note,build,ts"), URLQueryItem(name: "source", value: "eq.ci"),
+                        URLQueryItem(name: "user_id", value: "eq.\(session.userID)"), URLQueryItem(name: "order", value: "ts.desc"),
+                        URLQueryItem(name: "limit", value: "500")]
+        var req = URLRequest(url: c.url!)
+        Net.authorize(&req, key: AppConfig.supabasePublishableKey, bearer: session.accessToken)
+        do {
+            let (d, resp) = try await Net.data(for: req)
+            guard (resp as? HTTPURLResponse)?.statusCode == 200,
+                  let rows = try JSONSerialization.jsonObject(with: d) as? [[String: Any]] else { lastError = "CI results unavailable"; return }
+            var out: [String: CIResult] = [:]
+            for r in rows {
+                guard let id = r["item_id"] as? String, out[id] == nil else { continue }
+                out[id] = CIResult(status: BetaQA.Status(rawValue: r["status"] as? String ?? "") ?? .untested,
+                                   note: r["note"] as? String ?? "", build: r["build"] as? String ?? "", ts: r["ts"] as? String ?? "")
+            }
+            results = out; lastError = nil
+        } catch { lastError = Net.friendly(error) }
     }
 }
 

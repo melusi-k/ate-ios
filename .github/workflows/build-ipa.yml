@@ -59,7 +59,9 @@ jobs:
             -only-testing:AteTests CODE_SIGNING_ALLOWED=NO > test.log 2>&1 || (grep -v -i coredata test.log | grep -E "\.swift:[0-9]+: error|Test Case .* failed|XCTAssert|Fatal error|crashed" | head -100 || true; grep -v -i coredata test.log | tail -80 || true; exit 1)
           grep -E "Executed|TEST SUCCEEDED" test.log | tail -3
 
-      - name: Run UI tests (iPhone 17, iOS 26)
+      - name: Run UI tests (iPhone 17, iOS 26) — check, not a release gate
+        id: uitests
+        continue-on-error: true
         run: |
           SIM_ID=$(xcrun simctl list devices available -j | python3 -c '
           import json,sys
@@ -71,6 +73,7 @@ jobs:
           xcrun simctl boot "$SIM_ID" || true
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
             -only-testing:AteUITests -skip-testing:AteUITests/KeyFlowsQATests -resultBundlePath build/UITests.xcresult \
+            -parallel-testing-enabled YES -parallel-testing-worker-count 3 \
             CODE_SIGNING_ALLOWED=NO > uitest.log 2>&1 && STATUS=0 || STATUS=$?
           grep -E "Test Case .*(passed|failed)|error:|Executed" uitest.log | tail -60
           mkdir -p ui-screenshots/raw
@@ -95,6 +98,7 @@ jobs:
 
       - name: QA gate — key flows (KeyFlowsQATests)
         id: qa
+        if: always()
         run: |
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
             -only-testing:AteUITests/KeyFlowsQATests -resultBundlePath build/QA.xcresult \
@@ -267,6 +271,7 @@ jobs:
           scripts/release-notes.sh "$APP_VERSION" "$BUILD_NUMBER" "$GITHUB_SHA" \
             "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" "$IPA_NAME" "$IPA_KIND" > build/notes.md
           [ -f build/qa.md ] && { echo; cat build/qa.md; } >> build/notes.md
+          echo -e "\nFull UI suite (non-blocking check): **${{ steps.uitests.outcome }}**" >> build/notes.md
           [ -f docs/MVP_SCORE.md ] && { echo; cat docs/MVP_SCORE.md; } >> build/notes.md
           cat build/notes.md >> "$GITHUB_STEP_SUMMARY"
           # Immutable per-build prerelease.

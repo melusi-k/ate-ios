@@ -68,10 +68,14 @@ struct RecipeCard: Codable, Identifiable, Hashable {
     var cuisine: String?
     /// Position in "My order" (synced with the recipe).
     var sortIndex: Double?
+    /// Model's self-reported confidence 0…1 that the card matches the input (AI cards only).
+    var aiConfidence: Double?
+    /// Model note, e.g. "Caption was an ad; best-effort traditional recipe for mogodu".
+    var aiNote: String?
 
     enum CodingKeys: String, CodingKey {
         case id, title, description, servings, timeMinutes, tags, ingredients, steps, imageURL, sourceURL, createdAt, source, generatedAt
-        case origin, favorite, lastCookedAt, cuisine, sortIndex
+        case origin, favorite, lastCookedAt, cuisine, sortIndex, aiConfidence, aiNote
     }
 
     init(id: String = UUID().uuidString, title: String = "Untitled recipe", description: String? = nil,
@@ -107,6 +111,8 @@ struct RecipeCard: Codable, Identifiable, Hashable {
         lastCookedAt = try? c.decodeIfPresent(Double.self, forKey: .lastCookedAt)
         cuisine = (try? c.decodeIfPresent(String.self, forKey: .cuisine)).flatMap { $0?.isEmpty == false ? $0 : nil }
         sortIndex = try? c.decodeIfPresent(Double.self, forKey: .sortIndex)
+        aiConfidence = try? c.decodeIfPresent(Double.self, forKey: .aiConfidence)
+        aiNote = try? c.decodeIfPresent(String.self, forKey: .aiNote)
     }
 }
 

@@ -13,7 +13,7 @@ Data is stored on-device with SwiftData. Settings live in UserDefaults.
 - **Default: on-device.** Apple Foundation Models (`LanguageModelSession` + `@Generable` recipe type) on iOS 26+ devices with Apple Intelligence. Screenshots go through Vision OCR (`VNRecognizeTextRequest`). For links, the app fetches the page and passes its text to the model.
 - If the system model isn't available (older iOS, unsupported device, Apple Intelligence off), links with schema.org page data still import via JSON-LD; everything else **falls back to demo cards** badged "Demo". The Add sheet and Settings show which one is active.
 - Everything goes through the `BackendService` protocol (`Ate/Services`). Sharing is live on Supabase (`publish-recipe` edge function → `shared_recipes`); a server-side `parse-recipe` fallback is not deployed yet.
-- Config lives in `project.yml` build settings and is read from Info.plist: `ATE_BACKEND_MODE` (`ondevice` | `mock` | `supabase`), `ATE_SUPABASE_URL`, `ATE_SUPABASE_PUBLISHABLE_KEY` (publishable/anon key only), `ATE_SHARE_HOST`. **No secret keys in the app.**
+- Config lives in `project.yml` build settings and is read from Info.plist: `ATE_BACKEND_MODE` (`ondevice` | `mock` | `supabase`), `ATE_SUPABASE_URL`, `ATE_SUPABASE_PUBLISHABLE_KEY` (publishable/anon key only), `ATE_SHARE_HOST`, `ATE_SHARE_URL_TEMPLATE` (`…/r/?s={slug}`). **No secret keys in the app.**
 - **Default runtime modes:**
 
   | Build | AI parsing | Sharing | Sync / accounts |

@@ -20,8 +20,10 @@ settings:
     # Melusi's Supabase project "ate" (ploncuhexmwydjxljuhe). The publishable key is RLS-protected and safe to ship.
     ATE_SUPABASE_URL: "https://ploncuhexmwydjxljuhe.supabase.co"
     ATE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_iiLYpvTdIEhYk2FsvJlzTQ_3T4w77mv"
-    # Share links (<host>/r/<slug>). Switch to https://ate.app once the domain and AASA are live.
-    ATE_SHARE_HOST: "https://recipe-transform-ai.lovable.app"
+    # Share links. Template with {slug}; the ?s= form returns 200 on GitHub Pages (the /r/<slug> path form 404s before its JS redirect).
+    # Switch to https://ate.app/r/{slug} once the domain and AASA are live. Old lovable.app/r/<slug> links are still parsed.
+    ATE_SHARE_HOST: "https://melusi-k.github.io/ate-legal"
+    ATE_SHARE_URL_TEMPLATE: "https://melusi-k.github.io/ate-legal/r/?s={slug}"
     # ── END PUBLIC CONFIG ────────────────────────────────────────────────────────
     # Signing team from env/secret TEAM_ID at `xcodegen generate` time (empty = unsigned / free-ID sideload).
     DEVELOPMENT_TEAM: "${TEAM_ID}"
@@ -78,6 +80,7 @@ targets:
         AteSupabaseURL: $(ATE_SUPABASE_URL)
         AteSupabasePublishableKey: $(ATE_SUPABASE_PUBLISHABLE_KEY)
         AteShareHost: $(ATE_SHARE_HOST)
+        AteShareURLTemplate: $(ATE_SHARE_URL_TEMPLATE)
         AtePrivacyURL: $(ATE_PRIVACY_URL)
         AteGitSHA: $(ATE_GIT_SHA)
         AteChannel: $(ATE_CHANNEL)

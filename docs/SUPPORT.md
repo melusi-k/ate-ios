@@ -12,7 +12,7 @@ Go to Settings › General › VPN & Device Management, tap the developer profil
 Go to Settings › Privacy & Security › **Developer Mode**, switch it on, restart when asked, then confirm **Turn On**. (The option only appears after a sideloaded app has been installed once.)
 
 **4. "The share link doesn't load on the web."**
-Known issue: the web share page still reads the old backend, so links made in this beta won't load in a browser yet. The recipe is fine. A friend with ate can open the `ate://recipe/…` link, or you can use **Share as text**. Links also can't open the app automatically (universal links) until ate has a paid Apple developer account.
+Resolved for new links (Tier A builds): shares now look like `https://melusi-k.github.io/ate-legal/r/?s=<code>` and open in any browser. Links made before this build (`recipe-transform-ai.lovable.app/r/…`) still open inside ate but not on the web — share the recipe again for a new link. Links can't open the app automatically (universal links) until ate has a paid Apple developer account; use the page's "Open in ate" button.
 
 **5. "My confirmation / magic-link / reset email never arrived."**
 Check Spam/Promotions. The beta uses Supabase's built-in mailer, which sends only a few emails per hour, so wait 10 minutes before trying again. Open the link **on the iPhone that has ate installed**. If it says the link expired, request a new one. You can keep using ate without an account in the meantime.

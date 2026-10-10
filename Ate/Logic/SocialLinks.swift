@@ -82,11 +82,14 @@ enum SocialLinks {
     static func caption(platform: Platform, oEmbed: [String: Any]?, meta: [String: String]) -> String {
         var parts: [String] = []
         if let t = oEmbed?["title"] as? String { parts.append(t) }
-        if let t = meta["og:title"], !parts.contains(t) { parts.append(t) }
-        if var d = meta["og:description"] ?? meta["description"] {
-            if platform == .instagram, let r = d.range(of: ": \""), d.hasSuffix("\"") || d.hasSuffix("\".") {
-                d = String(d[r.upperBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "\". "))
-            }
+        let desc = meta["og:description"] ?? meta["description"]
+        // Instagram: the caption (og:description minus "N likes, N comments - user on Date:") beats og:title ("Name on Instagram: …").
+        if let t = meta["og:title"], !(platform == .instagram && desc != nil) {
+            let tt = platform == .instagram ? CaptionAnalysis.stripInstagramPrefix(t) : t
+            if !parts.contains(tt) { parts.append(tt) }
+        }
+        if var d = desc {
+            if platform == .instagram { d = CaptionAnalysis.stripInstagramPrefix(d) }
             if !parts.contains(d) { parts.append(d) }
         }
         let joined = parts.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -110,5 +113,6 @@ enum SocialLinks {
 /// Error the Add sheet can act on (one-tap switch to the Prompt tab).
 struct SocialCaptionError: LocalizedError {
     let platform: SocialLinks.Platform
-    var errorDescription: String? { SocialLinks.noCaptionMessage(platform) }
+    var reason: String? = nil
+    var errorDescription: String? { reason ?? SocialLinks.noCaptionMessage(platform) }
 }

@@ -13,8 +13,10 @@ final class AteUITests: XCTestCase {
     func tab(_ name: String) {
         var n = 0
         while !app.tabBars.firstMatch.exists && n < 4 {
+            let bar = app.buttons["backBar"].firstMatch
             let back = app.navigationBars.buttons.element(boundBy: 0)
-            if back.exists { back.tap() } else { app.swipeRight() }
+            if bar.exists { bar.tap() } else if back.exists { back.tap() }
+            else { app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5)).press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))) }
             sleep(1); n += 1
         }
         let b = app.tabBars.buttons[name]

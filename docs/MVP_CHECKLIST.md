@@ -231,18 +231,18 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Status evidence:* Simulator only; cross-iPhone not recorded
   - *Owner:* _TBD_
 
-- **A-SHARE-03 · Share link renders on the web** — ⛔
+- **A-SHARE-03 · Share link renders on the web** — 🟡
   - *Journey:* As a friend without Ate, I open the link in Safari and see the recipe.
   - *Acceptance:* Given a new share, When opened in any browser, Then the page shows title, ingredients and steps within 3 s.
   - *Verified by:* `none` · Manual
-  - *Status evidence:* Web share page (Lovable) still reads the OLD backend; new shares don't load there
+  - *Status evidence:* Resolved for new links (build 4x Tier A): links are now `https://melusi-k.github.io/ate-legal/r/?s=<slug>` (GitHub Pages page reading the new Supabase; returns 200, verified in a browser). Needs a real-device round trip to go ✅. Old lovable.app links still open in the app but not on the web
   - *Owner:* _TBD_
 
 - **A-SHARE-04 · One real share round trip app → web → app** — ⛔
   - *Journey:* As a cook, I share, my friend views it on the web and then opens it in Ate.
   - *Acceptance:* Given a share from phone A, Then the web page renders it AND its "Open in Ate" button opens the recipe on phone B.
   - *Verified by:* `none` · QA.md (new step)
-  - *Status evidence:* Blocked by A-SHARE-03; universal links need the paid account (Tier B)
+  - *Status evidence:* Web leg unblocked (A-SHARE-03); "Open in ate" uses ate://recipe/<slug>. Universal links still need the paid account (Tier B)
   - *Owner:* _TBD_
 
 - **A-SHARE-05 · Backend unavailable fallback** — 🟡

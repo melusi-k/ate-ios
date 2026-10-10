@@ -556,14 +556,7 @@ final class AppStore {
         if url.scheme == "ate", url.host == "cook", let id = url.pathComponents.last, recipe(id) != nil {
             tab = .library; cookTarget = CookTarget(id: id); return
         }
-        var slug: String?
-        if url.scheme == "ate" {
-            let parts = ([url.host ?? ""] + url.pathComponents).filter { $0 != "/" && !$0.isEmpty }
-            // ate://recipe/<slug> (canonical) and ate://r/<slug> (alias)
-            if let f = parts.first, f == "recipe" || f == "r", parts.count > 1 { slug = parts[1] }
-        } else if url.pathComponents.count >= 3, url.pathComponents[1] == "r" || url.pathComponents[1] == "recipe" {
-            slug = url.pathComponents[2]
-        }
+        let slug = ShareLinks.slug(from: url)   // ate://recipe|r/<slug>, <host>/r/<slug>, <host>/r/?s=<slug>
         tab = .library
         if let slug { path = [.shared(slug)]; BetaQA.shared.pass("A-SHARE-02", note: "Opened \(url.scheme ?? "")://… shared link \(slug)") }
         else { path = [.notFound] }

@@ -113,7 +113,7 @@ struct RecipeDetailView: View {
         let units = store.settings.units
         do {
             let slug = try await store.backend.publish(RecipeLogic.scaled(recipe, factor: factor))
-            let link = "\(AppConfig.shareHost)/r/\(slug)"
+            let link = AppConfig.shareURL(slug: slug)
             guard let url = URL(string: link) else { throw BackendError(message: "bad url") }
             BetaQA.shared.pass("A-SHARE-01", note: "Published \(link)")
             if asText {

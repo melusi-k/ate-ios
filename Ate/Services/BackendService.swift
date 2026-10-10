@@ -48,7 +48,10 @@ enum AppConfig {
     /// "0.1.40 (40) TierA" — CFBundleShortVersionString stays numeric; the channel is display-only.
     static var buildLabel: String { "\(appVersion) (\(buildNumber))" + (channel.isEmpty ? "" : " \(channel)") }
     static var versionLine: String { "ate \(appVersion) (build \(buildNumber))\(channel.isEmpty ? "" : " · " + channel) · \(gitSHA) · backend \(backendRef)" }
-    static var shareHost: String { string("AteShareHost").isEmpty ? "https://recipe-transform-ai.lovable.app" : string("AteShareHost") }
+    static var shareHost: String { string("AteShareHost").isEmpty ? "https://melusi-k.github.io/ate-legal" : string("AteShareHost") }
+    /// Full share-link template with `{slug}`; see ShareLinks.
+    static var shareURLTemplate: String { string("AteShareURLTemplate").contains("{slug}") ? string("AteShareURLTemplate") : ShareLinks.defaultTemplate }
+    static func shareURL(slug: String) -> String { ShareLinks.url(slug: slug, template: shareURLTemplate) }
 
     /// Modes: "ondevice" (default: Foundation Models + Vision, mock fallback), "mock", "supabase".
     /// Launched by XCUITest: mock AI, in-memory store, no permission prompts.

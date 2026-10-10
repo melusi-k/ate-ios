@@ -34,8 +34,10 @@ final class KeyFlowsQATests: XCTestCase {
     func tab(_ name: String) {
         var n = 0
         while !app.tabBars.firstMatch.exists && n < 4 {
+            let bar = app.buttons["backBar"].firstMatch
             let back = app.navigationBars.buttons.element(boundBy: 0)
-            if back.exists { back.tap() } else { app.swipeRight() }
+            if bar.exists { bar.tap() } else if back.exists { back.tap() }
+            else { app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5)).press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))) }
             sleep(1); n += 1
         }
         let b = app.tabBars.buttons[name]
@@ -47,7 +49,7 @@ final class KeyFlowsQATests: XCTestCase {
     }
     func openAdd(_ tab: String) {
         let add = app.buttons["Add recipe"]
-        if !add.waitForExistence(timeout: 20) { self.tab("Library"); _ = add.waitForExistence(timeout: 10) }
+        if !add.waitForExistence(timeout: 4) { self.tab("Library"); _ = add.waitForExistence(timeout: 10) }
         waitHittable(add)
         add.tap()
         wait(text("Add a recipe"))

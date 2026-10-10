@@ -4,6 +4,17 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 
 ## Unreleased
 
+#### 🍲 Better AI for traditional and South African food
+- New grounded instructions: dish names and ingredients come from your text verbatim; place names, business names, hashtags, @handles, phone numbers and delivery/ordering text are never used as the recipe. Menus/ads that name a dish get a best-effort traditional recipe with a note; ads that name no dish (e.g. "Traditional food for delivery in Midrand") now stop with a clear message instead of inventing "Traditional Midrand Meal".
+- Regional glossary (pap/phutu, ujeqe, mogodu/ulusu, amanqina, morogo, chakalaka, umngqusho, chotlho, braai, boerewors, bobotie, potjiekos, vetkoek, kota, ting, sadza, jollof, egusi, fufu…) with typical ingredients and realistic times; metric units, servings that fit the dish, total time at least the sum of step timers.
+- Guided generation with field descriptions and greedy decoding; every AI card shows a confidence (warning under 50%) and any note.
+- Instagram: the "N likes, N comments - user on Date:" prefix is stripped and the caption is preferred over og:title.
+- Food photos: generic labels (food, meal, potato…) no longer produce a random Western dish. ate asks "What dish is this?" with suggestions; multi-dish spreads let you pick one or several (one card each).
+- Tests: caption fixtures (incl. the real Midrand ad), glossary, photo assessment and a prompt snapshot.
+
+#### 🔗 Share links work on the web
+- New links: `https://melusi-k.github.io/ate-legal/r/?s=<slug>` (configurable via `ATE_SHARE_URL_TEMPLATE`). Old `lovable.app/r/<slug>`, `/r/<slug>`, `/r/?s=` and `ate://recipe/<slug>` links all still open in the app.
+
 #### 🧪 Tier A beta build
 - **More › Beta testing**: all 44 Tier A items (A-CREATE … A-LAUNCH) with IDs, acceptance criteria and live status. Journeys auto-tick ✅ when they really complete on device (imports with their real source, edit/save, delete + Undo, share, opening ate:// links, sign up/in/out, magic link, reset, delete account, sync with rows, timer finish/background/restore, Live Activity start, relaunch with data intact, offline errors, retry after network loss) and ❌ with the captured error when they fail. Manual Pass/Fail/Skip + note for the rest, per-category progress, Export (JSON + Markdown), Reset, and optional upload to Supabase `qa_results` (RLS own rows). First-launch banner on channel builds.
 - **"What to expect in this beta"** is now its own page (it was a collapsed, unlocalized disclosure at the bottom of About) and its strings are in the String Catalog.

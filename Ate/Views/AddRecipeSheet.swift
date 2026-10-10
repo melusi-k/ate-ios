@@ -31,6 +31,10 @@ struct AddRecipeSheet: View {
     @State private var showCamera = false
     @State private var error: String?
     @State private var socialError: SocialLinks.Platform?
+    @State private var socialReason: String?
+    @State private var dishQuestion: PhotoNeedsDishError?
+    @State private var dishAnswer = ""
+    @State private var spreadPicks: Set<String> = []
 
     var body: some View {
         ScrollView {
@@ -119,7 +123,7 @@ struct AddRecipeSheet: View {
 
         if let p = socialError {
             VStack(alignment: .leading, spacing: 10) {
-                Label(SocialLinks.noCaptionMessage(p), systemImage: "text.bubble")
+                Label(socialReason ?? SocialLinks.noCaptionMessage(p), systemImage: "text.bubble")
                     .font(AteFont.body(14)).fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("socialNoCaption")
                 Text("In \(p.rawValue), tap ⋯ › Copy caption (or select the description), then paste it here.")
@@ -129,6 +133,32 @@ struct AddRecipeSheet: View {
                     mode = .prompt; socialError = nil; error = nil
                 } label: { Label("Paste caption in Prompt", systemImage: "arrow.right.circle.fill") }
                     .buttonStyle(.ate(.primary, height: 40)).accessibilityIdentifier("switchToPrompt")
+            }
+            .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.secondary, in: RoundedRectangle(cornerRadius: 14))
+        } else if let q = dishQuestion, mode == .image {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(q.errorDescription ?? "", systemImage: "questionmark.circle").font(AteFont.body(14))
+                    .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("photoDishQuestion")
+                Text("What dish is this?").font(AteFont.body(14, .semibold))
+                TextField(q.spread ? "e.g. mogodu, ujeqe, morogo" : "e.g. mogodu", text: $dishAnswer)
+                    .textFieldStyle(.roundedBorder).accessibilityIdentifier("photoDishField")
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack {
+                        ForEach(q.suggestions, id: \.self) { s in
+                            let on = spreadPicks.contains(s)
+                            Button(s) {
+                                if q.spread { if on { spreadPicks.remove(s) } else { spreadPicks.insert(s) } } else { dishAnswer = s }
+                            }
+                            .font(AteFont.body(13)).padding(.horizontal, 10).padding(.vertical, 6)
+                            .background(on ? Theme.primary.opacity(0.2) : Theme.card, in: Capsule())
+                        }
+                    }
+                }
+                if q.spread {
+                    Text("Pick one dish, or several to make a card for each (the first opens for review, the rest are saved).")
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                }
             }
             .padding(14).frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.secondary, in: RoundedRectangle(cornerRadius: 14))
@@ -146,6 +176,13 @@ struct AddRecipeSheet: View {
     @ViewBuilder private var reviewState: some View {
         Text("Review your card").font(AteFont.display(24))
         if let d = draft { SourceBadge(source: d.source) }
+        if let d = draft, let conf = d.aiConfidence {
+            Label("AI confidence \(Int((conf * 100).rounded()))%" + (conf < 0.5 ? " — check this is the right dish" : ""),
+                  systemImage: conf < 0.5 ? "exclamationmark.triangle" : "checkmark.seal")
+                .font(AteFont.body(13)).foregroundStyle(conf < 0.5 ? Theme.destructive : Theme.mutedForeground)
+                .accessibilityIdentifier("aiConfidence")
+        }
+        if let n = draft?.aiNote { Text(n).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aiNote") }
         Text("Fix anything the AI got wrong, then save it to your library.")
             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
         if editing, draft != nil {
@@ -204,10 +241,23 @@ struct AddRecipeSheet: View {
         case .image:
             guard let d = imageData else { store.show("Upload a screenshot first.", error: true); return }
             let jpeg = UIImage(data: d)?.jpegData(compressionQuality: 0.8) ?? d
-            req = ParseRequest(mode: .image, imageDataUrl: "data:image/jpeg;base64," + jpeg.base64EncodedString())
+            var dishes = spreadPicks.sorted()
+            for d in dishAnswer.split(separator: ",").map({ $0.trimmingCharacters(in: .whitespaces) }) where !d.isEmpty && !dishes.contains(d) { dishes.append(d) }
+            req = ParseRequest(mode: .image, text: dishes.first, imageDataUrl: "data:image/jpeg;base64," + jpeg.base64EncodedString())
+            if dishes.count > 1 {
+                let rest = Array(dishes.dropFirst())
+                let base = req
+                Task {
+                    for d in rest {
+                        var r = base; r.text = d
+                        if var c = try? await store.backend.parseRecipe(r) { c.origin = .photo; store.add(RecipeLogic.normalize(c)) }
+                    }
+                    if !rest.isEmpty { store.show("Saved \(rest.count) more card\(rest.count == 1 ? "" : "s") from the spread") }
+                }
+            }
         }
         loading = true
-        error = nil; socialError = nil
+        error = nil; socialError = nil; socialReason = nil
         defer { loading = false }
         do {
             let started = Date()
@@ -218,6 +268,7 @@ struct AddRecipeSheet: View {
                                                mode: mode.rawValue, date: Date())
             draft = RecipeLogic.normalize(card)
             editing = false
+            dishQuestion = nil; dishAnswer = ""; spreadPicks = []
             let src = "source \(card.source) in \(Int(Date().timeIntervalSince(started) * 1000)) ms"
             switch mode {
             case .link:
@@ -229,7 +280,11 @@ struct AddRecipeSheet: View {
             }
         } catch let e as SocialCaptionError {
             socialError = e.platform
+            socialReason = e.reason
             BetaQA.shared.pass("A-CREATE-02", note: "No caption on \(e.platform): friendly Prompt offer shown")
+            Haptics.warning()
+        } catch let e as PhotoNeedsDishError {
+            dishQuestion = e
             Haptics.warning()
         } catch let e {
             let msg = (e is URLError) ? Net.friendly(e) : e.localizedDescription

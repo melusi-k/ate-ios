@@ -319,7 +319,7 @@ struct BackBar<Trailing: View>: View {
     @ViewBuilder var trailing: () -> Trailing
     var body: some View {
         HStack {
-            Button(action: action) { Label(title, systemImage: "chevron.left") }
+            Button(action: action) { Label(title, systemImage: "chevron.left") }.accessibilityIdentifier("backBar")
                 .buttonStyle(.ate(.ghost, height: 44))
             Spacer()
             trailing()

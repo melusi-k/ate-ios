@@ -44,6 +44,9 @@ final class OnDeviceBackend: BackendService {
             let clean = SocialLinks.clean(u)
             let caption = await Self.fetchSocialCaption(clean, platform: platform)
             guard SocialLinks.isUseful(caption) else { throw SocialCaptionError(platform: platform) }
+            if CaptionAnalysis.isUngroundedPromo(caption) {
+                throw SocialCaptionError(platform: platform, reason: "This \(platform.rawValue) post is an advert with no recipe or dish name. Tell ate the dish in Prompt (e.g. “mogodu”) instead.")
+            }
             socialCaption = caption
         } else if request.mode == .url {
             if let html = try? await Self.fetchHTML(request.text ?? "") {
@@ -59,25 +62,33 @@ final class OnDeviceBackend: BackendService {
         let prompt: String
         switch request.mode {
         case .prompt:
-            prompt = "Recipe card for: \(String((request.text ?? "").prefix(500)))"
+            prompt = RecipePrompt.prompt(request.text ?? "")
         case .url where socialCaption != nil:
-            prompt = "Extract the recipe from this social media video caption (infer missing quantities sensibly):\n\(String(socialCaption!.prefix(3500)))"
+            prompt = RecipePrompt.social(caption: socialCaption!)
         case .url:
             let page: String
             if let html = pageHTML { page = String(Self.htmlToText(html).prefix(3500)) }
             else { page = try await Self.fetchPageText(request.text ?? "") }
-            prompt = "Extract the recipe from this web page text:\n\(page)"
+            prompt = RecipePrompt.page(page)
         case .image:
             let text = try await Self.ocr(dataURL: request.imageDataUrl ?? "")
-            if PhotoGuess.isScreenshotText(text) {
-                prompt = "Extract the recipe from this screenshot text:\n\(String(text.prefix(3500)))"
+            let hint = (request.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if PhotoGuess.isScreenshotText(text) && hint.isEmpty {
+                prompt = RecipePrompt.screenshot(text)
             } else {
-                // A food photo, not a screenshot: recognise the dish and draft a likely recipe.
+                // A food photo: OCR + labels; generic labels mean we ask the user before generating.
                 let labels = try await Self.classify(dataURL: request.imageDataUrl ?? "")
-                guard let p = PhotoGuess.prompt(labels: labels, ocrText: text) else {
-                    throw BackendError(message: "Couldn't recognise a dish in that photo. Try a closer shot, a screenshot of the recipe, or describe it in Prompt.")
+                let names = PhotoGuess.dishes(from: labels)
+                if !hint.isEmpty {
+                    prompt = RecipePrompt.photo(dish: hint, labels: names, ocr: text)
+                } else {
+                    switch PhotoGuess.assess(labels: labels, ocrText: text) {
+                    case .confident(let dish): prompt = RecipePrompt.photo(dish: dish, labels: names, ocr: text)
+                    case .uncertain(let s): throw PhotoNeedsDishError(suggestions: s, spread: false)
+                    case .spread(let s): throw PhotoNeedsDishError(suggestions: s, spread: true)
+                    }
                 }
-                prompt = p; source = .photoGuess
+                source = .photoGuess
             }
         case .rewrite:
             var c = request.currentRecipe ?? RecipeCard()
@@ -102,18 +113,15 @@ final class OnDeviceBackend: BackendService {
         return try await sharing.fetchShared(slug: slug)
     }
 
-    static let instructions = """
-    You are a recipe parser. Produce a clean recipe card. Numeric quantities, short units (g, ml, tbsp, tsp, cloves, pcs). \
-    timeSeconds only for waiting/cooking steps, otherwise omit. Keep description under 20 words, steps concise. \
-    If the input is not a recipe, invent a sensible recipe matching it.
-    """
+    static let instructions = RecipePrompt.instructions
 
     static func generate(_ prompt: String) async throws -> RecipeCard {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
             let session = LanguageModelSession(instructions: instructions)
             do {
-                let res = try await session.respond(to: prompt, generating: GenRecipe.self)
+                // Extraction, not creative writing: greedy decoding keeps the card grounded in the text.
+                let res = try await session.respond(to: prompt, generating: GenRecipe.self, options: GenerationOptions(sampling: .greedy, temperature: 0.1))
                 return res.content.card
             } catch {
                 throw BackendError(message: "AI returned an unreadable recipe. Try again.")
@@ -220,8 +228,8 @@ final class OnDeviceBackend: BackendService {
 @Generable
 struct GenIngredient {
     @Guide(description: "Ingredient name, e.g. 'garlic'") var name: String
-    @Guide(description: "Numeric quantity, 0 if unspecified") var quantity: Double
-    @Guide(description: "Short unit like g, ml, tbsp, tsp, cloves, pcs, or empty") var unit: String
+    @Guide(description: "Realistic numeric quantity for the servings, 0 only for 'to taste'") var quantity: Double
+    @Guide(description: "Metric or short unit: g, kg, ml, l, tbsp, tsp, cloves, pcs, or empty") var unit: String
     @Guide(description: "Optional prep notes, e.g. 'finely chopped'") var notes: String?
 }
 
@@ -235,16 +243,29 @@ struct GenStep {
 @available(iOS 26.0, *)
 @Generable
 struct GenRecipe {
-    var title: String
+    @Guide(description: "The dish name exactly as named in the text; never a place, business, hashtag or handle") var title: String
     @Guide(description: "Under 20 words") var description: String
-    @Guide(description: "Number of servings, at least 1") var servings: Int
-    @Guide(description: "Total time in minutes") var timeMinutes: Int
+    @Guide(description: "Servings that suit the dish (stews 4 to 6), at least 1") var servings: Int
+    @Guide(description: "Total minutes: prep plus the sum of all step times") var timeMinutes: Int
     @Guide(description: "Up to 5 short lowercase tags") var tags: [String]
     @Guide(description: "Cuisine in one or two words, e.g. Italian, Mexican, South African, Thai") var cuisine: String
-    var ingredients: [GenIngredient]
-    var steps: [GenStep]
+    @Guide(description: "Ingredients copied from the text when given; realistic metric quantities") var ingredients: [GenIngredient]
+    @Guide(description: "Steps in order; timed steps carry timeSeconds") var steps: [GenStep]
+    @Guide(description: "0 to 1: how sure you are this card is the dish in the text") var confidence: Double
+    @Guide(description: "Short note when the recipe is best-effort (advert/menu, unknown dish), otherwise empty") var note: String
 
     var card: RecipeCard {
+        var c = baseCard
+        c.aiConfidence = max(0, min(1, confidence))
+        let n = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        c.aiNote = n.isEmpty ? nil : n
+        // Total time = sum of timed steps when the model's own total is lower.
+        let stepMin = (steps.compactMap(\.timeSeconds).reduce(0, +) + 59) / 60
+        if stepMin > (c.timeMinutes ?? 0) { c.timeMinutes = stepMin }
+        return c
+    }
+
+    var baseCard: RecipeCard {
         RecipeCard(title: title, description: description, servings: max(1, servings),
                    timeMinutes: timeMinutes > 0 ? timeMinutes : nil, tags: tags,
                    ingredients: ingredients.map { Ingredient(name: $0.name, quantity: $0.quantity, unit: $0.unit, notes: $0.notes) },

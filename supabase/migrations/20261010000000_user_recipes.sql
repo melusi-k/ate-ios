@@ -1,5 +1,5 @@
 -- ate iOS: per-user cloud sync for recipes and shopping-list items (last-write-wins).
--- NOT applied automatically. Review, then run in the Supabase SQL editor or with `supabase db push`.
+-- Applied to project ploncuhexmwydjxljuhe on 2026-10-10.
 
 create table if not exists public.user_recipes (
   user_id    uuid    not null references auth.users (id) on delete cascade,

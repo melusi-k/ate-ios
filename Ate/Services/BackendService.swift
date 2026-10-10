@@ -56,8 +56,13 @@ enum AppConfig {
         case "supabase":
             if let url = supabaseURL { return SupabaseBackend(baseURL: url, publishableKey: supabasePublishableKey) }
             return MockBackend()
-        // Edge functions (parse/publish) aren't deployed yet, so the on-device path falls back to the mock.
-        default: return OnDeviceBackend(fallback: MockBackend())
+        // AI runs on-device (mock fallback); sharing goes to the Supabase edge function `publish-recipe`
+        // and reads `shared_recipes` (public RLS). There is no server `parse-recipe`, so AI never hits the server.
+        default:
+            if let url = supabaseURL {
+                return OnDeviceBackend(fallback: MockBackend(), sharing: SupabaseBackend(baseURL: url, publishableKey: supabasePublishableKey))
+            }
+            return OnDeviceBackend(fallback: MockBackend())
         }
     }
 }
@@ -130,12 +135,14 @@ final class MockBackend: BackendService {
     }
 }
 
-// MARK: - Supabase / Edge Functions (stub — wire up functions `parse-recipe` and `publish-recipe`)
+// MARK: - Supabase / Edge Functions (`publish-recipe` deployed; `parse-recipe` not deployed: no server AI key)
 
 final class SupabaseBackend: BackendService {
     let baseURL: URL
     let publishableKey: String
     init(baseURL: URL, publishableKey: String) { self.baseURL = baseURL; self.publishableKey = publishableKey }
+    /// Signed-in user's access token, if any (publish is attributed to them; otherwise it's an anonymous share).
+    static var userAccessToken: (() -> String?)?
 
     private func request(_ path: String, method: String = "GET", body: Data? = nil) -> URLRequest {
         var r = URLRequest(url: baseURL.appendingPathComponent(path))
@@ -168,8 +175,14 @@ final class SupabaseBackend: BackendService {
     }
 
     func publish(_ card: RecipeCard) async throws -> String {
-        let data = try await send(request("functions/v1/publish-recipe", method: "POST", body: try JSONEncoder().encode(["card": card])))
-        return try JSONDecoder().decode(SlugEnvelope.self, from: data).slug
+        var r = request("functions/v1/publish-recipe", method: "POST", body: try JSONEncoder().encode(["card": card]))
+        if let token = Self.userAccessToken?() { r.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        do {
+            let data = try await send(r)
+            return try JSONDecoder().decode(SlugEnvelope.self, from: data).slug
+        } catch let e as BackendError {
+            throw BackendError(message: e.message.hasPrefix("Rate") ? e.message : "Couldn't create a share link. Check your connection and try again.")
+        }
     }
 
     func fetchShared(slug: String) async throws -> RecipeCard? {

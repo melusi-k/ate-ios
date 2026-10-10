@@ -7,10 +7,11 @@ import FoundationModels
 
 /// On-device AI: Apple Foundation Models (iOS 26+) for structuring, Vision OCR for screenshots.
 /// Falls back to `fallback` (mock by default) when the system model is unavailable.
-/// Sharing (publish/fetch) is delegated to `fallback` until a server is wired up.
+/// Sharing (publish/fetch) goes to `sharing` (Supabase) when configured, otherwise to `fallback`.
 final class OnDeviceBackend: BackendService {
     let fallback: BackendService
-    init(fallback: BackendService) { self.fallback = fallback }
+    let sharing: BackendService
+    init(fallback: BackendService, sharing: BackendService? = nil) { self.fallback = fallback; self.sharing = sharing ?? fallback }
 
     static var isModelAvailable: Bool {
         #if canImport(FoundationModels)
@@ -61,8 +62,11 @@ final class OnDeviceBackend: BackendService {
         return RecipeLogic.normalize(card)
     }
 
-    func publish(_ card: RecipeCard) async throws -> String { try await fallback.publish(card) }
-    func fetchShared(slug: String) async throws -> RecipeCard? { try await fallback.fetchShared(slug: slug) }
+    func publish(_ card: RecipeCard) async throws -> String { try await sharing.publish(card) }
+    func fetchShared(slug: String) async throws -> RecipeCard? {
+        if slug == "demo" { return try await fallback.fetchShared(slug: slug) }
+        return try await sharing.fetchShared(slug: slug)
+    }
 
     static let instructions = """
     You are a recipe parser. Produce a clean recipe card. Numeric quantities, short units (g, ml, tbsp, tsp, cloves, pcs). \

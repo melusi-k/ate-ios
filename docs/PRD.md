@@ -16,7 +16,7 @@
 
 ### C. Accounts and cross-device sync (Supabase)
 - Free Apple IDs can't use CloudKit or Sign in with Apple, so this uses **Supabase Auth** over REST: email/password sign-up and sign-in, plus a **magic link** (`redirect_to=ate://auth-callback`). The session is stored in the Keychain and refreshed automatically.
-- Config: `ATE_SUPABASE_URL=https://fsowdtisvdctdmjymnpm.supabase.co` and the publishable key from the Lovable project `.env`. Both are public; RLS enforces access.
+- Config: `ATE_SUPABASE_URL=https://ploncuhexmwydjxljuhe.supabase.co` (Melusi's own Supabase project `ate`, eu-west-1) and its publishable key. Both are public; RLS enforces access. Email sign-up is on, `ate://auth-callback` is in the redirect allow list, and confirmation emails are required (default Supabase mailer).
 - Table `public.user_recipes(user_id, kind 'recipe'|'shopping', id, data jsonb, updated_at bigint ms, deleted)`, PK `(user_id, kind, id)`, RLS `auth.uid() = user_id`. Migration: `supabase/migrations/20261010000000_user_recipes.sql`. **Not applied.**
 - **Sync:** offline-first (SwiftData stays the source of truth), last-write-wins per item using client timestamps, deletions recorded as tombstones. It runs on sign-in, when the app becomes active, ~1.5 s after local edits, and from "Sync now". Pull, then merge (`SyncMerge`, unit-tested), then upsert (`Prefer: resolution=merge-duplicates`).
 - **Graceful degradation:** signed-out works exactly as before. A missing table (404 / PGRST205) shows "Cloud sync isn't set up on the server yet" and never blocks the app.
@@ -28,7 +28,7 @@
 - **Share as text** sends the cleaned text only: title, description, "N servings · M min", "Ingredients" with • bullets, "Steps" numbered in sentence case, optional "Source:", and a single final line "View in ate: <link>".
 - Links are `https://recipe-transform-ai.lovable.app/r/<slug>`, set in **one config value** `ATE_SHARE_HOST`, ready to switch to `https://ate.app`.
 - Custom scheme: `ate://recipe/<slug>` (canonical) plus `ate://r/<slug>` (alias) open the Shared recipe screen. `ate://cook/<id>` opens cook mode. Associated Domains placeholders live in `docs/associated-domains/` (needs a paid account).
-- ⚠️ Publishing still uses the **mock** publisher (there's no `publish-recipe` edge function), so links like `/r/btnz4l1y` **won't load for recipients** on the web or another phone yet. See the roadmap.
+- Publishing goes to the `publish-recipe` Edge Function on the new backend; the app reads shares from `shared_recipes`. The 9 existing Lovable shares were copied with their slugs, so old links still resolve in the app. ⚠️ The Lovable web page still reads the **old** backend, so links to recipes shared from iOS after 2026-10-10 open in Ate (via `ate://`) but show "not found" on the web until Lovable is repointed.
 
 ### E. Build & platform plumbing
 - CI build number: `CURRENT_PROJECT_VERSION = github.run_number`. The release ships `Ate-<version>-build<N>.ipa` plus a stable `Ate.ipa`, with the build in the title/notes.
@@ -49,8 +49,8 @@ Fixed:
 10. Running cook timers were lost when the app was killed. They now persist (App Group) and restore on launch.
 
 Open issues / gaps vs PRD:
-- **Sharing is not real yet:** recipients can't open links until `publish-recipe` (an Edge Function using the service role) is deployed and the app is switched to it. Shared-recipe reads should then query `shared_recipes` with the publishable key.
-- **AI:** Foundation Models hasn't been tested on a real iOS 26 device. URL import doesn't parse schema.org JSON-LD (the PRD wants that structured path with no AI call). Without Apple Intelligence the app returns mock cards; a server fallback (`parse-recipe`) isn't deployed.
+- **Web share page on old backend:** new iOS shares don't render on `recipe-transform-ai.lovable.app` until the Lovable app points at project `ploncuhexmwydjxljuhe` (needs Lovable credits).
+- **AI:** Foundation Models hasn't been tested on a real iOS 26 device. URL import doesn't parse schema.org JSON-LD (the PRD wants that structured path with no AI call). Without Apple Intelligence the app returns mock cards; a server fallback (`parse-recipe`) isn't deployed because there's no AI provider key on the new project.
 - **Sync:** client-clock LWW, so a wrong device clock can win. There's no field-level merge. Signing into a different account merges the local library into it.
 - **Signed IPA path:** the extension needs its own provisioning profile. The signed CI path currently passes only one profile, so signed builds with the widget will fail until a second profile secret is added. Unsigned builds plus Sideloadly are fine.
 - **Timer chime:** uses system sounds, not the 3-tone chime asset. Haptics are a single success tap.
@@ -59,8 +59,8 @@ Open issues / gaps vs PRD:
 - **Library:** Clear all doesn't clear the shopping list (by design, but worth stating in the UI).
 
 ## Updated roadmap
-1. **Now (user action):** apply the migration; enable Email auth plus the `ate://auth-callback` redirect URL in Supabase.
-2. **Next:** deploy the `publish-recipe` + `parse-recipe` Edge Functions; switch publishing/fetching to Supabase so share links work for everyone; add JSON-LD import.
+1. ✅ **Done (2026-10-10):** backend moved to Melusi's own Supabase project `ate` (`ploncuhexmwydjxljuhe`): `shared_recipes` (9 rows, slugs kept) + `user_recipes` with RLS, Edge Functions `publish-recipe` and `get-shared-recipe`, email auth + `ate://auth-callback`. The app publishes and reads shares there.
+2. **Next:** repoint the Lovable web app to the new project (needs Lovable credits) so new shares render on the web; optionally add an AI key secret and deploy `parse-recipe` as a server fallback; custom SMTP for auth emails (the built-in mailer is rate-limited); add JSON-LD import.
 3. **Domain:** register `ate.app`, serve `/r/<slug>` on the web, then (paid Apple Developer account) enable Associated Domains with `applinks:ate.app`, host the AASA (template in `docs/associated-domains/`) and set `ATE_SHARE_HOST=https://ate.app`.
 4. **Paid account also unlocks:** signed CI builds with two profiles (app + widget), TestFlight, push-to-update Live Activities, Sign in with Apple / CloudKit as options.
 5. **Later:** voice cook mode (SFSpeechRecognizer), share extension, aisle-grouped list, bundled chime, iPad layout.
@@ -271,6 +271,7 @@ Input `{mode: url|image|prompt|rewrite, text?, imageDataUrl?, currentRecipe?}` �
 Read prefs; quiet = within quiet window (handles overnight). Sound && !quiet → chime (3 sine tones: 784 Hz, 784 Hz, 1046 Hz at 0/0.28/0.56s) — iOS: bundled chime via AVAudioPlayer / notification sound. Vibration → `UINotificationFeedbackGenerator` / haptic pattern. Step alerts → local notification title "Step {i} is done", body recipe title (time-sensitive interruption level).
 
 ## 8. Backend / integrations
+> **Current backend (2026-10-10):** Supabase project `ate` (`ploncuhexmwydjxljuhe`, eu-west-1). Schema in `supabase/migrations/`, functions in `supabase/functions/`. `publish-recipe` (verify_jwt off, checks itself): accepts a user JWT or the public key (anonymous share), validates the limits below, re-sharing an identical card within 10 min returns the same slug, and returns 429 above 20 same-title shares per 10 min or 60 shares/min overall. Inserts with the service role. `get-shared-recipe?slug=` is a public read. The Lovable Cloud project `fsowdtisvdctdmjymnpm` is legacy and only used by the web app until it's repointed.
 - **Supabase** (project from `.env`; URL + publishable key). Table:
 ```sql
 create table public.shared_recipes (

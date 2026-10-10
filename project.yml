@@ -11,9 +11,9 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     # Backend config (non-secret). Mode: ondevice (default, mock fallback) | mock | supabase
     ATE_BACKEND_MODE: ondevice
-    # Public values from the Lovable "Ate" project (.env). The publishable key is safe to ship (RLS-protected).
-    ATE_SUPABASE_URL: "https://fsowdtisvdctdmjymnpm.supabase.co"
-    ATE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_b4jwqlkgC-yiIAQoZ_wLHg_Y7Dzf6rx"
+    # Public values for Melusi's own Supabase project "ate" (ploncuhexmwydjxljuhe). The publishable key is safe to ship (RLS-protected).
+    ATE_SUPABASE_URL: "https://ploncuhexmwydjxljuhe.supabase.co"
+    ATE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_iiLYpvTdIEhYk2FsvJlzTQ_3T4w77mv"
     # Single source of truth for share links (<host>/r/<slug>). Switch to https://ate.app once the domain + AASA are live.
     # Signing team from env/secret TEAM_ID at `xcodegen generate` time (empty = unsigned / free-ID sideload).
     DEVELOPMENT_TEAM: "${TEAM_ID}"

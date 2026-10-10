@@ -9,7 +9,9 @@ final class QAProbe {
     var liveActivityRequests = 0
     var chimes = 0
     var finishHaptics = 0
-    var summary: String { "la=\(liveActivityRequests) chime=\(chimes) haptic=\(finishHaptics)" }
+    var widgetPublishes = 0
+    var lastIntent = "none"
+    var summary: String { "la=\(liveActivityRequests) chime=\(chimes) haptic=\(finishHaptics) widgets=\(widgetPublishes) intent=\(lastIntent)" }
 }
 
 extension AppConfig {

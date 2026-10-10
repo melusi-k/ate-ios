@@ -28,6 +28,8 @@ struct LibraryView: View {
         .navigationTitle(store.filter.collection?.title ?? L10n.libraryTitle)
         .navigationBarTitleDisplayMode(.large)
         .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd))
+        .onChange(of: store.pendingSearch) { _, q in if let q { query = q; store.pendingSearch = nil } }
+        .onAppear { if let q = store.pendingSearch { query = q; store.pendingSearch = nil } }
     }
 
     @ViewBuilder private func emptyState(_ filtered: [RecipeCard]) -> some View {
@@ -238,6 +240,20 @@ private struct LibrarySheets: ViewModifier {
                     store.add(card)
                     store.show("Saved to your library")
                     showAdd = false
+                    store.path.append(.recipe(card.id))
+                }
+                .navigationBarTitleDisplayMode(.inline)
+            }
+            .environment(store)
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(item: Binding(get: { store.quickAdd }, set: { store.quickAdd = $0 })) { req in
+            NavigationStack {
+                AddRecipeSheet(initialMode: req.mode) { card in
+                    store.add(card)
+                    store.show("Saved to your library")
+                    store.quickAdd = nil
                     store.path.append(.recipe(card.id))
                 }
                 .navigationBarTitleDisplayMode(.inline)

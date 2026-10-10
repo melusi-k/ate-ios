@@ -45,6 +45,17 @@ struct BetaTestingView: View {
                 Text("Checks H-01…H-08: connect, state title, 3 meal ideas, prompts, save to journal, denied/unavailable/no-entitlement copy. Mock data never touches Apple Health.")
                     .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
             }
+            Section("Widgets, controls & Siri") {
+                Button { UIPasteboard.general.string = WidgetBridge.diagnostics; store.show("Widget diagnostics copied") } label: {
+                    Text(WidgetBridge.diagnostics).font(AteFont.body(13)).foregroundStyle(Theme.foreground)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }.buttonStyle(.plain).accessibilityIdentifier("beta.widgetDiagnostics")
+                Button { WidgetBridge.publishNow(store); WidgetKinds.reloadAll(); store.show("Widgets refreshed") } label: {
+                    Label("Refresh widgets now", systemImage: "arrow.clockwise")
+                }.accessibilityIdentifier("beta.refreshWidgets")
+                Text("Checks A-WIDGET, A-LOCK, A-CONTROL and A-INTENT. If the App Group shows missing, widgets can only show “Open ate”; Siri phrases and Control Center still work.")
+                    .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+            }
             let passedIDs = Set(BetaChecklist.items.filter { BetaVisibility.isPassed(device: qa.result($0.id), ci: ci[$0.id], build: AppConfig.buildNumber) }.map(\.id))
             ForEach(BetaChecklist.categories, id: \.self) { c in
                 let open = BetaChecklist.items.filter { $0.category == c && !passedIDs.contains($0.id) }

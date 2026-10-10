@@ -57,9 +57,21 @@ struct Toast: Equatable, Identifiable {
     var actionTitle: String? = nil
 }
 
+struct QuickAddRequest: Identifiable, Equatable { let id = UUID(); let mode: WidgetLinks.AddMode }
+
 @Observable
 @MainActor
 final class AppStore {
+    /// The live store, for App Intents that run in the app's process.
+    static weak var current: AppStore?
+    /// Set by the Quick add widget / control / intent: opens Add recipe on the matching tab.
+    var quickAdd: QuickAddRequest?
+    /// Set by the system search intent ("Search ate for tripe"): Library adopts it as its query.
+    var pendingSearch: String?
+    func search(_ term: String) {
+        select(.library); path = []
+        pendingSearch = term.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
     var recipes: [RecipeCard] = []
     var shopping: [ShoppingItem] = []
     /// Library tab's navigation stack (recipes, shared links, not-found).
@@ -203,6 +215,10 @@ final class AppStore {
                   s.expiresAt > Date().timeIntervalSince1970 + 30 else { return nil }
             return s.accessToken
         }
+        Self.current = self
+        WidgetBridge.installRelays(self)
+        WidgetBridge.publish(self, delay: 1)
+        if !AppConfig.isUITesting { AteShortcuts.updateAppShortcutParameters() }
     }
 
     // MARK: persistence
@@ -218,6 +234,7 @@ final class AppStore {
     private func persistRecipes(stamp: Bool = true) {
         BetaQA.shared.recipeCountChanged(recipes.count)
         if stamp { stampChanges() }
+        WidgetBridge.publish(self)
         guard let context else { return }
         try? context.delete(model: RecipeEntity.self)
         let enc = JSONEncoder()
@@ -229,6 +246,7 @@ final class AppStore {
 
     private func persistShopping(stamp: Bool = true) {
         if stamp { stampChanges() }
+        WidgetBridge.publish(self)
         guard let context else { return }
         try? context.delete(model: ShoppingEntity.self)
         let enc = JSONEncoder()
@@ -318,6 +336,11 @@ final class AppStore {
     func toggle(_ id: String) {
         guard let i = shopping.firstIndex(where: { $0.id == id }) else { return }
         shopping[i].done.toggle(); persistShopping()
+    }
+    /// Widget checkbox (idempotent: carries the wanted state, not a toggle).
+    func setShoppingDone(_ id: String, _ done: Bool) {
+        guard let i = shopping.firstIndex(where: { $0.id == id }), shopping[i].done != done else { return }
+        shopping[i].done = done; persistShopping()
     }
     func removeItem(_ id: String) { shopping.removeAll { $0.id == id }; persistShopping() }
     func clearTicked() { shopping.removeAll { $0.done }; persistShopping() }
@@ -544,6 +567,25 @@ final class AppStore {
     // MARK: deep links
     func handle(url: URL) {
         if url.scheme == "ate", url.host == "import" { checkInbox(); return }
+        if url.scheme == "ate", url.host == "open", url.pathComponents.filter({ $0 != "/" }).isEmpty { return }   // "Open ate" placeholder
+        if let target = WidgetLinks.parse(url) {
+            switch target {
+            case .recipe(let id):
+                select(.library); cookTarget = nil
+                path = [.recipe(id)]   // a deleted recipe shows "Recipe not found" with a working Back
+                BetaQA.shared.pass("A-WIDGET-02", note: "Opened a recipe from a widget/Spotlight")
+            case .cook(let id):
+                guard recipe(id) != nil else { select(.library); return }   // quick timers have no recipe
+                select(.library); cookTarget = CookTarget(id: id)
+            case .add(let m):
+                select(.library); path = []; cookTarget = nil
+                quickAdd = QuickAddRequest(mode: m)
+                BetaQA.shared.pass("A-WIDGET-04", note: "Quick add opened Add recipe (\(m.rawValue))")
+            case .shopping: select(.shopping)
+            case .timers: break
+            }
+            return
+        }
         if url.scheme == "ate", url.host == "auth-callback" {
             tab = .settings
             Task {
@@ -570,9 +612,6 @@ final class AppStore {
                 }
             }
             return
-        }
-        if url.scheme == "ate", url.host == "cook", let id = url.pathComponents.last, recipe(id) != nil {
-            tab = .library; cookTarget = CookTarget(id: id); return
         }
         let slug = ShareLinks.slug(from: url)   // ate://recipe|r/<slug>, <host>/r/<slug>, <host>/r/?s=<slug>
         tab = .library

@@ -2,7 +2,8 @@ name: Build IPA
 
 on:
   push:
-    branches: ["**"]
+    # wip/** branches only run the cheap "Compile check" workflow, so they never bump the build number.
+    branches: ["**", "!wip/**"]
   workflow_dispatch:
     inputs:
       run_tests:

@@ -6,7 +6,8 @@ s = open('docs/MVP_CHECKLIST.md').read()
 a = s.split('## Tier A')[1].split('## Tier B')[0]
 auto = {"A-CREATE-01","A-CREATE-02","A-CREATE-03","A-CREATE-04","A-CREATE-06","A-EDIT-01","A-EDIT-02","A-EDIT-03","A-EDIT-04",
         "A-AUTH-01","A-AUTH-02","A-AUTH-03","A-AUTH-04","A-AUTH-05","A-AUTH-06","A-AUTH-08","A-SYNC-01","A-SYNC-04","A-SYNC-05",
-        "A-SHARE-01","A-SHARE-02","A-SHARE-05","A-TIMER-01","A-TIMER-02","A-TIMER-03","A-OFF-02","A-REL-01","A-CI-01","A-LAUNCH-01","A-HEALTH-03","A-HEALTH-04","A-HEALTH-05","A-HEALTH-08"}
+        "A-SHARE-01","A-SHARE-02","A-SHARE-05","A-TIMER-01","A-TIMER-02","A-TIMER-03","A-OFF-02","A-REL-01","A-CI-01","A-LAUNCH-01","A-HEALTH-03","A-HEALTH-04","A-HEALTH-05","A-HEALTH-08",
+        "A-WIDGET-01","A-WIDGET-02","A-WIDGET-03","A-WIDGET-04","A-CONTROL-01","A-INTENT-02","A-INTENT-03","A-INTENT-04","A-INTENT-05","A-COVER-01"}
 cat = None; out = []
 for blk in re.split(r'\n(?=### |- \*\*A-)', a):
     m = re.match(r'### (.+?) —', blk)

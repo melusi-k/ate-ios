@@ -226,12 +226,12 @@ struct TimerRow: View {
     static func mmss(_ s: Int) -> String { String(format: "%d:%02d", s / 60, s % 60) }
     var body: some View {
         let row = HStack(spacing: 10) {
-            Button { store.cookTarget = CookTarget(id: t.recipeID) } label: {
+            Button { if store.recipe(t.recipeID) != nil { store.cookTarget = CookTarget(id: t.recipeID) } } label: {
                 HStack(spacing: 10) {
                     Image(systemName: t.isRunning ? "timer" : "pause.circle").foregroundStyle(Theme.primary)
                     VStack(alignment: .leading, spacing: 0) {
                         Text(t.recipeTitle).font(AteFont.body(13, .semibold)).lineLimit(2)
-                        Text("Step \(t.stepIndex + 1)" + (t.isRunning ? "" : " · paused")).font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
+                        Text((t.recipeID == TimerMath.quickRecipeID ? "Quick timer" : "Step \(t.stepIndex + 1)") + (t.isRunning ? "" : " · paused")).font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
                     }
                     Spacer(minLength: 4)
                     Text(Self.mmss(t.remaining(at: store.timers.now))).font(.title3.weight(.bold)).fontDesign(.rounded).monospacedDigit()

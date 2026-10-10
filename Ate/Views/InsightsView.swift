@@ -40,6 +40,10 @@ final class InsightsModel {
         loading = true; defer { loading = false }
         let s = await health.summary(days: 7)
         guard let i = HealthInsightEngine.insight(for: s) else { context = nil; return }
+        if WidgetBridge.lastHealthState != i.state {
+            WidgetBridge.lastHealthState = i.state
+            if let st = AppStore.current { WidgetBridge.publish(st, delay: 0) }
+        }
         context = HealthContext(summary: s, insight: i,
                                 suggestions: RecipeHealthMatcher.suggestions(for: i.state, recipes: recipes),
                                 prompts: await JournalSuggestionService.prompts(for: i))

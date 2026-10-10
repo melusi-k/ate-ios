@@ -4,7 +4,17 @@ import ActivityKit
 
 @main
 struct AteWidgetsBundle: WidgetBundle {
-    var body: some Widget { CookTimerLiveActivity() }
+    var body: some Widget {
+        CookTimerLiveActivity()
+        ActiveTimersWidget()
+        TonightsPickWidget()
+        ShoppingWidget()
+        ShoppingInlineWidget()
+        QuickAddWidget()
+        FavouritesWidget()
+        KitchenTimerControl()
+        QuickAddControl()
+    }
 }
 
 private let terracotta = Color(red: 0xC9 / 255, green: 0x50 / 255, blue: 0x28 / 255)

@@ -80,12 +80,14 @@ struct RootView: View {
         .onChange(of: phase) { _, p in
             if p == .active {
                 store.timers.tick(); store.timers.ensureLiveActivities(); store.scheduleSync(delay: 0.2); store.checkInbox()
+                WidgetBridge.drainInbox(store)
                 BetaQA.shared.returnedToForeground(runningTimers: store.timers.timers.filter(\.isRunning).count)
             } else if p == .background {
                 BetaQA.shared.wentToBackground(runningTimers: store.timers.timers.filter(\.isRunning).count)
             }
         }
         .task {
+            WidgetBridge.drainInbox(store)
             store.timers.ensureLiveActivities()
             BetaQA.shared.launched(recipeCount: store.recipes.count, restoredTimers: store.timers.timers.count)
             if store.session != nil { await store.syncNow() }

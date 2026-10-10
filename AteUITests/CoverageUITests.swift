@@ -370,4 +370,19 @@ extension CoverageUITests {
         wait(any("insights.entitlementMissing"))
         XCTAssertFalse(app.buttons["insights.connect"].exists)
     }
+    func testHealthOpenRecipeSheetAndClose() {
+        openInsights("recovery")
+        let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
+        wait(text("Recovery day"))
+        let sug = app.buttons["insights.suggestion"].firstMatch; scrollTo(sug); sug.tap()
+        let done = app.buttons["recipeSheet.done"]; wait(done)
+        shot("insights-recipe-sheet")
+        done.tap()
+        wait(text("Recovery day"))
+        // Back inside the sheet also returns to Insights.
+        scrollTo(sug); sug.tap(); wait(done)
+        app.buttons["backBar"].firstMatch.tap()
+        wait(text("Recovery day"))
+        XCTAssertFalse(done.exists)
+    }
 }

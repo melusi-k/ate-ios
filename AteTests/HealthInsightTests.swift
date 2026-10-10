@@ -60,4 +60,21 @@ final class HealthInsightTests: XCTestCase {
         let s = await m.summary(days: 7); XCTAssertFalse(s.hasAnyData)
     }
     func testJournalingPickerHiddenWithoutEntitlement() { XCTAssertFalse(JournalingSuggestionsGate.isAvailable) }
+    func testBetaVisibilityHidesPassesAndResurfacesFailures() {
+        var pass = BetaQA.Result(); pass.status = .pass
+        var fail = BetaQA.Result(); fail.status = .fail
+        let none = BetaQA.Result()
+        XCTAssertTrue(BetaVisibility.isPassed(device: pass, ci: nil, build: "59"))
+        XCTAssertFalse(BetaVisibility.isPassed(device: fail, ci: nil, build: "59"))
+        XCTAssertFalse(BetaVisibility.isPassed(device: none, ci: nil, build: "59"))
+        XCTAssertTrue(BetaVisibility.isPassed(device: none, ci: CIResult(status: .pass, note: "", build: "59", ts: ""), build: "59"))
+        XCTAssertFalse(BetaVisibility.isPassed(device: none, ci: CIResult(status: .pass, note: "", build: "58", ts: ""), build: "59"), "CI pass must be for this build")
+        XCTAssertFalse(BetaVisibility.isPassed(device: pass, ci: CIResult(status: .fail, note: "", build: "59", ts: ""), build: "59"), "A CI failure resurfaces the check")
+    }
+    func testChecklistIncludesHealthChecksFromSource() {
+        let ids = BetaChecklist.items.map(\.id)
+        XCTAssertTrue(ids.contains("A-HEALTH-01")); XCTAssertTrue(ids.contains("A-HEALTH-08"))
+        XCTAssertEqual(Set(ids).count, ids.count, "Duplicate checklist IDs")
+        XCTAssertTrue(BetaChecklist.categories.contains("Apple Health insights"))
+    }
 }

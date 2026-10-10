@@ -10,6 +10,9 @@ struct RecipeDetailView: View {
     @State private var confirmDelete = false
     @State private var share: ShareItems?
     @State private var shareChoice = false
+    @Environment(\.dismiss) private var dismiss
+    /// Back from a stack that isn't the Library path (Insights sheet, More) must dismiss/pop, not clear store.path.
+    private func goBack() { if store.path.isEmpty { dismiss() } else { store.path.removeAll() } }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -17,7 +20,7 @@ struct RecipeDetailView: View {
             if let recipe = store.recipe(recipeID) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        BackBar(title: "Recipes", action: { store.path.removeAll() }) {
+                        BackBar(title: "Recipes", action: { goBack() }) {
                             IconButton(symbol: recipe.favorite ? "star.fill" : "star",
                                        label: recipe.favorite ? "Remove from Favourites" : "Add to Favourites") { store.toggleFavourite(recipe.id) }
                                 .accessibilityIdentifier("favouriteButton")
@@ -68,7 +71,7 @@ struct RecipeDetailView: View {
                 store.timers.stopAll(recipeID: recipeID)
                 store.delete(recipeID)
                 store.show("Recipe deleted")
-                store.path.removeAll()
+                goBack()
             }
         }
         .confirmationDialog("Share recipe", isPresented: $shareChoice, titleVisibility: .hidden) {

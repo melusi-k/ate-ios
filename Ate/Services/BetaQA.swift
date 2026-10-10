@@ -190,3 +190,14 @@ extension BetaQA {
     func syncFailed(_ msg: String) { lastSyncFailure = msg; set("A-SYNC-04", .untested, note: "Last sync failed: \(msg) — waiting for a retry", auto: true) }
     func markNetworkLoss() { networkLossSeen = true }
 }
+
+/// Which checks the Beta testing page hides behind "Passed (N)".
+enum BetaVisibility {
+    /// Passed = device pass, or CI pass for this exact build; any failure (device or CI) shows it again.
+    static func isPassed(device: BetaQA.Result, ci: CIResult?, build: String) -> Bool {
+        if device.status == .fail || ci?.status == .fail { return false }
+        if device.status == .pass { return true }
+        if let ci, ci.status == .pass, ci.build == build { return true }
+        return false
+    }
+}

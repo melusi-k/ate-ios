@@ -6,6 +6,7 @@ struct BetaTestingView: View {
     @State private var qa = BetaQA.shared
     @State private var share: ShareItems?
     @State private var confirmReset = false
+    @State private var showPassed = false
     @State private var uploadMessage: String?
     @State private var ci = CIStatus.results
     @State private var healthScenario = UserDefaults.standard.string(forKey: HealthServiceFactory.debugKey) ?? ""
@@ -40,12 +41,26 @@ struct BetaTestingView: View {
                                 : "CI: \(ciPass)/\(ci.count) automated checks passing")
                     .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("betaCISummary")
             }
+            let passedIDs = Set(BetaChecklist.items.filter { BetaVisibility.isPassed(device: qa.result($0.id), ci: ci[$0.id], build: AppConfig.buildNumber) }.map(\.id))
             ForEach(BetaChecklist.categories, id: \.self) { c in
-                let p = qa.progress(c)
-                Section("\(c) — \(p.passed)/\(p.total)") {
-                    ForEach(BetaChecklist.items.filter { $0.category == c }) { item in
-                        NavigationLink { BetaItemView(item: item) } label: { BetaRow(item: item, result: qa.result(item.id), ci: ci[item.id]) }
+                let open = BetaChecklist.items.filter { $0.category == c && !passedIDs.contains($0.id) }
+                if !open.isEmpty {
+                    let p = qa.progress(c)
+                    Section("\(c) — \(p.passed)/\(p.total)") {
+                        ForEach(open) { item in
+                            NavigationLink { BetaItemView(item: item) } label: { BetaRow(item: item, result: qa.result(item.id), ci: ci[item.id]) }
+                        }
                     }
+                }
+            }
+            if !passedIDs.isEmpty {
+                Section {
+                    DisclosureGroup(isExpanded: $showPassed) {
+                        ForEach(BetaChecklist.items.filter { passedIDs.contains($0.id) }) { item in
+                            NavigationLink { BetaItemView(item: item) } label: { BetaRow(item: item, result: qa.result(item.id), ci: ci[item.id]) }
+                        }
+                    } label: { Text("Passed (\(passedIDs.count))").font(AteFont.body(15, .semibold)) }
+                    .accessibilityIdentifier("beta.passedGroup")
                 }
             }
             Section("Results") {

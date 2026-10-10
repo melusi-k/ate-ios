@@ -36,6 +36,7 @@ struct InsightsView: View {
     @State private var draft = ""
     @State private var prompt: JournalPrompt?
     @State private var entries: [JournalEntry] = []
+    @State private var openRecipe: RecipeSheetTarget?
 
     var body: some View {
         ZStack {
@@ -52,7 +53,7 @@ struct InsightsView: View {
                                     .accessibilityIdentifier("insights.noSuggestions")
                             }
                             ForEach(c.suggestions) { s in
-                                Button { store.morePath.append(.recipe(s.recipeID)) } label: {
+                                Button { openRecipe = RecipeSheetTarget(id: s.recipeID) } label: {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(s.title).font(AteFont.body(15, .semibold))
@@ -89,6 +90,13 @@ struct InsightsView: View {
                 .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
                 .pageWidth()
             }
+        }
+        .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id).environment(store) }
+        .onChange(of: model.context?.insight.state) { _, st in
+            if st != nil { BetaQA.shared.pass("A-HEALTH-03", note: "Insights showed \(st!.title) with \(model.context?.suggestions.count ?? 0) meal ideas") }
+        }
+        .onChange(of: model.access) { _, a in
+            if a == .denied || a == .unavailable || a == .entitlementMissing { BetaQA.shared.pass("A-HEALTH-05", note: "Graceful \(a) state shown") }
         }
         .task { await model.refresh(recipes: store.recipes); prompt = model.context?.prompts.first; entries = JournalStore.shared.entries() }
     }
@@ -150,6 +158,7 @@ struct InsightsView: View {
         let p = prompt ?? c.prompts.first
         if JournalStore.shared.save(prompt: p?.text ?? "", text: draft, state: c.insight.state, recipeIDs: c.suggestions.map(\.recipeID)) {
             draft = ""; entries = JournalStore.shared.entries(); store.show("Saved to your Ate journal")
+            BetaQA.shared.pass("A-HEALTH-04", note: "Saved a local journal entry")
         }
     }
 
@@ -183,3 +192,36 @@ struct TodayHealthCard: View {
 }
 
 @MainActor @Observable final class InsightsNavState { static let shared = InsightsNavState(); var open = false }
+
+struct RecipeSheetTarget: Identifiable, Hashable { let id: String }
+
+/// Recipe opened from Insights: its own stack + Done, so Back never strands you. Cook mode dismisses the sheet
+/// first so the root full-screen cover can present.
+struct RecipeSheet: View {
+    let recipeID: String
+    @Environment(AppStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        NavigationStack {
+            RecipeDetailView(recipeID: recipeID)
+                .toolbar(.hidden, for: .navigationBar)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    HStack {
+                        Spacer()
+                        Button("Done") { dismiss() }
+                            .font(AteFont.body(16, .semibold)).frame(minHeight: 44).padding(.horizontal, 16)
+                            .accessibilityIdentifier("recipeSheet.done")
+                    }.background(Theme.background)
+                }
+        }
+        .onDisappear { BetaQA.shared.pass("A-HEALTH-08", note: "Opened and closed a suggested recipe") }
+        .onChange(of: store.cookTarget) { _, t in
+            // Root presents cook mode full-screen; hand off after the sheet is gone.
+            guard let t else { return }
+            store.cookTarget = nil
+            dismiss()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { store.cookTarget = t }
+        }
+        .onChange(of: store.path) { _, p in if !p.isEmpty { dismiss() } }
+    }
+}

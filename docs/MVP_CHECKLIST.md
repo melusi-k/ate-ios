@@ -362,6 +362,64 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Owner:* _TBD_
 
 
+### Apple Health insights — 0 / 8
+
+- **A-HEALTH-01 · No Health prompt at launch** — 🔴
+  - *Journey:* As a cook, I get meal ideas that fit how my body is doing today.
+  - *Acceptance:* Given a fresh install, When I open Ate, Then no Apple Health permission sheet appears until I tap Connect Apple Health in Insights.
+  - *Verified by:* `CoverageUITests` (mock Health) · device
+  - *Status evidence:* new in build 59+
+  - *Owner:* _TBD_
+
+- **A-HEALTH-02 · Read-only, minimal permission** — 🔴
+  - *Journey:* As a cook, I get meal ideas that fit how my body is doing today.
+  - *Acceptance:* Given I tap Connect Apple Health, Then the sheet lists only sleep, steps, active energy and workouts, all read-only (no write rows).
+  - *Verified by:* `CoverageUITests` (mock Health) · device
+  - *Status evidence:* new in build 59+
+  - *Owner:* _TBD_
+
+- **A-HEALTH-03 · Body state + 3 meal ideas** — 🔴
+  - *Journey:* As a cook, I get meal ideas that fit how my body is doing today.
+  - *Acceptance:* Given Health has recent data, Then Insights shows a state title (e.g. Recovery day) with reasons and up to 3 saved recipes that fit it; Beta testing → Health insights mock scenarios each show a different state.
+  - *Verified by:* `CoverageUITests` (mock Health) · device
+  - *Status evidence:* new in build 59+
+  - *Owner:* _TBD_
+
+- **A-HEALTH-04 · Journal prompt + save locally** — 🔴
+  - *Journey:* As a cook, I get meal ideas that fit how my body is doing today.
+  - *Acceptance:* Given an insight, When I pick a prompt, write a note and tap Save to journal, Then the entry appears under Your Ate journal and survives relaunch; nothing syncs.
+  - *Verified by:* `CoverageUITests` (mock Health) · device
+  - *Status evidence:* new in build 59+
+  - *Owner:* _TBD_
+
+- **A-HEALTH-05 · Graceful denied / unavailable / no-data / unsigned states** — 🔴
+  - *Journey:* As a cook, I get meal ideas that fit how my body is doing today.
+  - *Acceptance:* Given Health is denied, unavailable, empty or the build lacks the HealthKit entitlement, Then Insights explains what to do with no dead buttons.
+  - *Verified by:* `CoverageUITests` (mock Health) · device
+  - *Status evidence:* new in build 59+
+  - *Owner:* _TBD_
+
+- **A-HEALTH-06 · Free-ID sideload keeps Health** — 🔴
+  - *Journey:* As a cook, I get meal ideas that fit how my body is doing today.
+  - *Acceptance:* Given the latest IPA sideloaded with my free Apple ID, Then Ate installs and Connect Apple Health works on iPhone.
+  - *Verified by:* `CoverageUITests` (mock Health) · device
+  - *Status evidence:* new in build 59+
+  - *Owner:* _TBD_
+
+- **A-HEALTH-07 · Journaling Suggestions picker hidden on free ID** — 🔴
+  - *Journey:* As a cook, I get meal ideas that fit how my body is doing today.
+  - *Acceptance:* Given a free-ID build, Then no Journaling Suggestions button appears (needs the paid entitlement).
+  - *Verified by:* `CoverageUITests` (mock Health) · device
+  - *Status evidence:* new in build 59+
+  - *Owner:* _TBD_
+
+- **A-HEALTH-08 · Open a suggested recipe and close it** — 🔴
+  - *Journey:* As a cook, I get meal ideas that fit how my body is doing today.
+  - *Acceptance:* Given a suggested meal in Insights, When I tap it, Then it opens as a sheet and Done returns me to Insights; Cook starts cook mode.
+  - *Verified by:* `CoverageUITests` (mock Health) · device
+  - *Status evidence:* new in build 59+
+  - *Owner:* _TBD_
+
 ## Tier B — Before wider/public launch
 
 
@@ -549,6 +607,3 @@ No mismatches were found on Supabase EU region, on-device AI (no server `parse-r
 - legal review done (B-PRIV-04), with the privacy audit mismatches above fixed;
 - App Store / TestFlight submission path working.
 
-
-### Apple Health insights (v1.4)
-- [ ] H-01..H-08 — see PRD "Apple Health insights + Ate journal"

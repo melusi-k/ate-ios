@@ -1,6 +1,8 @@
 name: Ate
 options:
   bundleIdPrefix: com.melusik
+  # Beta testing checklist is generated from docs/MVP_CHECKLIST.md on every `xcodegen generate` (CI included).
+  preGenCommand: python3 scripts/gen-beta-checklist.py
   deploymentTarget:
     iOS: "18.0"
     watchOS: "11.0"

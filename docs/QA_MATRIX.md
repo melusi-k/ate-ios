@@ -115,3 +115,6 @@ _Generated 2026-10-10 against build 36; automated items updated from CI run 3806
 | H-UI-07 | denied / unavailable / noEntitlement | Graceful copy, no Connect button where it can't work | `testHealthInsightsDeniedAndUnavailable` |
 | H-DEV-01 | Beta testing → Health insights picker | Switch scenarios on phone, Insights updates | manual |
 | H-DEV-02 | Real Apple Health (free-ID sideload) | Connect sheet lists 4 read types; state renders | manual |
+| H-UI-08 | recovery → tap suggestion | Recipe opens as sheet, Done closes back to Insights (A-HEALTH-08) | `testHealthOpenRecipeSheetAndClose` |
+
+Beta-screen IDs: H-UI-01..07 → A-HEALTH-03/04/05/07, H-DEV-01/02 → A-HEALTH-02/03/06.

@@ -4,12 +4,15 @@ jobs:
   probe:
     runs-on: macos-26
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1
-        with: { xcode-version: latest-stable }
       - run: |
-          ls /Applications | grep -i xcode
-          xcodebuild -version
-          F=$(find "$(xcode-select -p)/Platforms/iPhoneOS.platform" -path '*FoundationModels.framework*' -name '*.swiftinterface' | grep -m1 arm64e-apple-ios)
-          echo "FILE: $F"
-          grep -nE 'Attachment|Image|CGImage|Transcript\.(Image|Attachment)|protocol Tool|protocol LanguageModel\b|Profile|public protocol|SystemLanguageModel\.(Use|Guard)|struct GenerationOptions|SamplingMode|greedy|init\(.*model:' "$F" | grep -v '^\s*//' | head -5
-          sed -n '1180,1215p' "$F"
+          for X in /Applications/Xcode*.app; do
+            [ -L "$X" ] && { echo "== $X -> $(readlink "$X") (symlink)"; continue; }
+            V=$(DEVELOPER_DIR="$X/Contents/Developer" xcodebuild -version 2>/dev/null | tr '\n' ' ')
+            F=$(find "$X/Contents/Developer/Platforms/iPhoneOS.platform" -path '*FoundationModels.swiftmodule*' -name 'arm64e-apple-ios.swiftinterface' 2>/dev/null | head -1)
+            echo "== $X :: $V"
+            [ -z "$F" ] && { echo "   no FoundationModels interface"; continue; }
+            for P in 'Transcript\.Image|ImageSegment|struct.*Image|CGImage|Attachment' 'Profile' 'protocol LanguageModel\b' 'protocol Tool'; do
+              N=$(grep -cE "$P" "$F" | tr -d ' '); echo "   [$P] $N hits"
+              grep -nE "$P" "$F" | grep -v logFeedbackAttachment | head -6 | sed 's/^/      /'
+            done
+          done

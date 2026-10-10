@@ -79,9 +79,13 @@ final class CoverStore {
     func ensure(_ r: RecipeCard, store: AppStore) {
         if r.coverImage == Self.removed || image(for: r) != nil || attempted.contains(r.id) { return }
         if CoverLogic.source(ofFile: r.coverImage) == .userPhoto { return } // the photo lives on another device
-        guard CoverLogic.httpsURL(r.imageURL) != nil || CoverLogic.httpsURL(r.sourceURL) != nil || shouldAutoGenerate(r) else { return }
         attempted.insert(r.id)
         Task {
+            // The launch-time Playground check may not have finished yet; never decide "tile" before it has.
+            if Self.playgroundStatus == "not checked" { await Self.checkPlayground() }
+            guard CoverLogic.httpsURL(r.imageURL) != nil || CoverLogic.httpsURL(r.sourceURL) != nil || shouldAutoGenerate(r) else {
+                attempted.remove(r.id); return
+            }
             if let res = await resolve(r) { store.setCover(r.id, file: res.file, imageURL: res.imageURL) }
         }
     }
@@ -97,8 +101,10 @@ final class CoverStore {
         return nil
     }
 
+    /// Image Playground is tried for every recipe whose web image path came up empty (Instagram/TikTok pages often
+    /// expose no og:image), not only prompt recipes, so the branded tile is truly the last resort.
     private func shouldAutoGenerate(_ r: RecipeCard) -> Bool {
-        (r.origin == .prompt || (r.sourceURL == nil && r.origin != .photo)) && Self.playgroundAvailable
+        Self.playgroundAvailable
             && !UserDefaults.standard.bool(forKey: "ate.cover.gen.\(r.id)")
     }
 

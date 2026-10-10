@@ -26,7 +26,9 @@ struct RecipeCover: View {
     }
 }
 
-/// Branded fallback: warm gradient tinted by cuisine/main ingredient, dish initial in Fraunces, a faint food symbol.
+/// Branded fallback (last resort after web image and Image Playground): a cuisine-tinted gradient with a soft
+/// "plate" of the dish's food symbol, the cuisine as a small overline and the dish name set in Fraunces. No lone
+/// initial letter or watermark.
 struct BrandTile: View {
     let recipe: RecipeCard
     var symbolSize: CGFloat = 26
@@ -35,20 +37,39 @@ struct BrandTile: View {
         let p = CoverLogic.palettes[t.palette]
         GeometryReader { g in
             let side = min(g.size.width, g.size.height)
-            ZStack {
+            let large = side > 120
+            ZStack(alignment: .bottomLeading) {
                 LinearGradient(colors: [Color(UIColor(hex: p.0)), Color(UIColor(hex: p.1))],
                                startPoint: .topLeading, endPoint: .bottomTrailing)
-                Image(systemName: t.symbol)
-                    .font(.system(size: side * 0.42, weight: .regular))
-                    .foregroundStyle(.white.opacity(0.18))
-                    .offset(x: side * 0.22, y: side * 0.18)
-                Text(t.initial)
-                    .font(AteFont.display(side * 0.5, .semibold))
-                    .foregroundStyle(Color.white.opacity(0.92))
-                    .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
+                RadialGradient(colors: [.white.opacity(0.22), .clear], center: .init(x: 0.72, y: 0.32),
+                               startRadius: 0, endRadius: side * 0.6)
+                // The "plate": a ringed disc with the food symbol, top-trailing.
+                ZStack {
+                    Circle().fill(.white.opacity(0.16))
+                    Circle().strokeBorder(.white.opacity(0.35), lineWidth: max(1, side * 0.012))
+                        .padding(side * 0.05)
+                    Image(systemName: t.symbol).resizable().scaledToFit()
+                        .foregroundStyle(.white.opacity(0.85))
+                        .padding(side * 0.14)
+                }
+                .frame(width: side * (large ? 0.46 : 0.62), height: side * (large ? 0.46 : 0.62))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: large ? .topTrailing : .center)
+                .padding(large ? side * 0.08 : 0)
+                if large {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if let c = recipe.cuisine, !c.isEmpty {
+                            Text(c.uppercased()).font(AteFont.body(12, .bold)).tracking(1.6).foregroundStyle(.white.opacity(0.85))
+                        }
+                        Text(recipe.title).font(AteFont.display(min(30, side * 0.11), .semibold))
+                            .foregroundStyle(.white).lineLimit(2).minimumScaleFactor(0.7)
+                            .shadow(color: .black.opacity(0.18), radius: 3, y: 1)
+                    }
+                    .padding(side * 0.07)
+                }
             }
             .frame(width: g.size.width, height: g.size.height)
         }
+        .accessibilityIdentifier("brandTile")
     }
 }
 

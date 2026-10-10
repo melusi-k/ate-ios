@@ -390,11 +390,21 @@ extension CoverageUITests {
         let sug = app.buttons["insights.suggestion"].firstMatch; scrollTo(sug); sug.tap()
         let done = app.buttons["recipeSheet.done"]; wait(done)
         shot("insights-recipe-sheet")
+        // (1) A sheet has only Done: no custom or system "Recipes" back.
+        XCTAssertFalse(app.buttons["backBar"].exists, "custom back bar inside the sheet")
+        XCTAssertFalse(app.navigationBars.buttons["Recipes"].exists, "back to Recipes inside the sheet")
+        XCTAssertFalse(app.buttons["Recipes"].exists, "back to Recipes inside the sheet")
+        // (2) Content scrolls clear of Cook mode: the last card ends above the button.
+        let cook = app.buttons["Cook mode"]; wait(cook)
+        let ask = app.textFields["askField"]
+        for _ in 0..<8 where !(ask.exists && ask.isHittable) { app.swipeUp() }
+        app.swipeUp(); app.swipeUp()
+        XCTAssertTrue(ask.isHittable, "last card reachable")
+        XCTAssertLessThanOrEqual(ask.frame.maxY, cook.frame.minY + 1, "Cook mode covers the bottom of the content")
         done.tap()
         wait(text("Recovery day"))
-        // Back inside the sheet also returns to Insights.
         scrollTo(sug); sug.tap(); wait(done)
-        app.swipeDown(velocity: .fast)   // swipe-to-dismiss also returns to Insights
+        app.navigationBars.firstMatch.swipeDown(velocity: .fast)   // swipe-to-dismiss also returns to Insights
         wait(text("Recovery day"))
         XCTAssertFalse(done.exists)
     }

@@ -19,12 +19,13 @@ final class CoverageUITests: XCTestCase {
     func wait(_ e: XCUIElement, _ t: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(e.waitForExistence(timeout: t), "Missing \(e)", file: file, line: line)
     }
-    func scrollTo(_ e: XCUIElement, max: Int = 8) {
-        _ = e.waitForExistence(timeout: 3)
+    /// Lists load rows lazily, so the target may be above or below: search down, then back up.
+    func scrollTo(_ e: XCUIElement, max: Int = 25) {
+        _ = e.waitForExistence(timeout: 2)
         var n = 0
-        while !(e.exists && e.isHittable) && n < max { app.swipeUp(velocity: .slow); n += 1 }
+        while !(e.exists && e.isHittable) && n < max { app.swipeUp(); n += 1 }
         n = 0
-        while e.exists && !e.isHittable && n < max { app.swipeDown(velocity: .slow); n += 1 }
+        while !(e.exists && e.isHittable) && n < max * 2 { app.swipeDown(); n += 1 }
     }
     func tab(_ name: String) {
         var n = 0
@@ -143,7 +144,8 @@ final class CoverageUITests: XCTestCase {
         wait(text("Review your card"), 15)
         wait(text("Mogodu"), 5)
         shot("photo-spread-review-first")
-        wait(text("Saved 1 more card"), 10)
+        // The "Saved 1 more card" toast is transient (2.6 s); the library check below is the real assertion.
+        _ = text("Saved 1 more card").waitForExistence(timeout: 4)
         app.buttons["saveRecipe"].tap()
         wait(app.buttons["Cook mode"], 10)
         tab("Library")

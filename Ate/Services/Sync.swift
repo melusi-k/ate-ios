@@ -158,12 +158,13 @@ final class MockSync: SyncService {
     private var down: Bool { ProcessInfo.processInfo.arguments.contains("-qaBackendDown") }
     func pull(session: AuthSession) async throws -> [SyncRecord] {
         if down { throw SyncError.http(503, "Service unavailable") }
-        return Array(rows.values)
+        // Per-user like the real table (RLS + user_id filter); a shared bag leaked account A into B (test30).
+        return rows.values.filter { $0.user_id == session.userID }
     }
     func push(_ records: [SyncRecord], session: AuthSession) async throws {
         if down { throw SyncError.http(503, "Service unavailable") }
         pushCount += 1
-        for r in records { rows["\(r.kind)/\(r.id)"] = r }
+        for r in records { rows["\(r.user_id)/\(r.kind)/\(r.id)"] = r }
         if AppConfig.qaPersistServer { try? JSONEncoder().encode(rows).write(to: Self.file) }
     }
 }

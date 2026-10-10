@@ -38,7 +38,13 @@ final class AteUITests: XCTestCase {
             if s.frame.minY < app.frame.midY { app.swipeDown(velocity: .slow) } else { app.swipeUp(velocity: .slow) }
             tries += 1
         }
-        s.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        let before = s.value as? String
+        for _ in 0..<3 {
+            sleep(1) // let scroll momentum settle
+            s.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+            sleep(1)
+            if (s.value as? String) != before { return }
+        }
     }
 
     /// Opens Add sheet, picks a tab, generates via mock and saves; ends on Recipe detail.

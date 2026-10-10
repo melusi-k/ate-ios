@@ -35,6 +35,11 @@ struct AccountCard: View {
                     }
                     .buttonStyle(.ate(.outline, height: 44, full: true))
                     .accessibilityIdentifier("signOutButton")
+                    .confirmationDialog("Sign out of ate?", isPresented: $confirmSignOut, titleVisibility: .visible) {
+                        Button("Sign out, keep recipes on this iPhone") { Task { await store.signOut(removeLocalData: false) } }
+                        Button("Sign out and remove local data", role: .destructive) { Task { await store.signOut(removeLocalData: true) } }
+                        Button("Cancel", role: .cancel) {}
+                    } message: { Text("Your synced recipes stay in your account either way.") }
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 Divider().padding(.vertical, 4)
@@ -60,15 +65,10 @@ struct AccountCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface(padding: 20)
-        .confirmationDialog("Sign out of ate?", isPresented: $confirmSignOut, titleVisibility: .visible) {
-            Button("Sign out, keep recipes on this iPhone") { Task { await store.signOut(removeLocalData: false) } }
-            Button("Sign out and remove local data", role: .destructive) { Task { await store.signOut(removeLocalData: true) } }
-            Button("Cancel", role: .cancel) {}
-        } message: { Text("Your synced recipes stay in your account either way.") }
         .alert("Delete your account?", isPresented: $confirmDelete) {
             Button("Continue", role: .destructive) { deleteText = ""; typeDelete = true }
             Button("Cancel", role: .cancel) {}
-        } message: { Text("This permanently deletes your account and synced recipes. It can't be undone.") }
+        } message: { Text("This permanently deletes your account and synced recipes. It can't be undone. Recipes you shared stay viewable at their links.") }
         .alert("Type DELETE to confirm", isPresented: $typeDelete) {
             TextField("DELETE", text: $deleteText).textInputAutocapitalization(.characters).accessibilityIdentifier("deleteConfirmField")
             Button("Delete account", role: .destructive) {

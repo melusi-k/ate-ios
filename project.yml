@@ -43,6 +43,7 @@ targets:
     sources:
       - path: Ate
       - path: Shared
+      - path: SharedWidgets
     dependencies:
       - target: AteWidgets
       - target: AteShare
@@ -97,6 +98,7 @@ targets:
     sources:
       - path: AteWidgets
       - path: Shared
+      - path: SharedWidgets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.widgets
@@ -110,7 +112,7 @@ targets:
     info:
       path: AteWidgets/Info.plist
       properties:
-        CFBundleDisplayName: ate timers
+        CFBundleDisplayName: ate
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:

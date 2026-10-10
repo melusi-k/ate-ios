@@ -39,12 +39,65 @@ final class TimerCenter {
         }
     }
 
+    @ObservationIgnored private var suppressPersist = false
     private func persist() {
+        if suppressPersist { return }
         PhoneWatchBridge.shared.update(timers: timers)
-        TimerSnapshot.save(timers.map {
+        TimerSnapshot.save(snapshots)
+        WidgetKinds.reload([WidgetKinds.timers])
+    }
+    var snapshots: [TimerSnapshot] {
+        timers.map {
             TimerSnapshot(recipeID: $0.recipeID, recipeTitle: $0.recipeTitle, stepIndex: $0.stepIndex, stepCount: $0.stepCount,
                           stepText: $0.stepText, total: $0.total, endDate: $0.endDate, pausedRemaining: $0.pausedRemaining)
-        })
+        }
+    }
+
+    /// Widget buttons / controls that ran in the extension changed the App Group copy: adopt it, then fix up
+    /// Live Activities (their notifications were already rescheduled by the extension).
+    func reloadFromShared() {
+        if AppConfig.isUITesting && !ProcessInfo.processInfo.arguments.contains("-qaSharedTimers") { return }
+        let shared = TimerSnapshot.load()
+        guard shared != snapshots else { return }
+        let old = timers
+        suppressPersist = true
+        timers = shared.map {
+            ActiveTimer(recipeID: $0.recipeID, recipeTitle: $0.recipeTitle, stepIndex: $0.stepIndex, stepCount: $0.stepCount,
+                        stepText: $0.stepText, total: $0.total, endDate: $0.endDate, pausedRemaining: $0.pausedRemaining)
+        }
+        suppressPersist = false
+        PhoneWatchBridge.shared.update(timers: timers)
+        for t in old where !timers.contains(where: { $0.id == t.id }) { LiveActivities.end(t.id) }
+        for t in timers { LiveActivities.startOrUpdate(t) }
+    }
+
+    /// Runs a widget / Siri / Control Center command against the live timers.
+    func run(_ cmd: TimerMath.Command, id: String) {
+        switch cmd {
+        case .pause: pause(id)
+        case .resume: resume(id)
+        case .toggle: toggle(id)
+        case .stop: stop(id)
+        }
+    }
+
+    /// Kitchen timer control: pause the running timer, else resume a paused one, else start a 5-minute timer.
+    @discardableResult
+    func kitchenToggle(seconds: Int = TimerMath.quickSeconds) -> String {
+        if let r = timers.first(where: { $0.isRunning }) { pause(r.id); return "paused" }
+        if let p = timers.first { resume(p.id); return "resumed" }
+        startQuick(seconds: seconds); return "started"
+    }
+
+    func startQuick(seconds: Int = TimerMath.quickSeconds) {
+        let total = AppConfig.qaFastTimers ? max(2, seconds / 30) : seconds
+        var t = ActiveTimer(recipeID: TimerMath.quickRecipeID, recipeTitle: "Kitchen timer", stepIndex: 0, stepCount: 1,
+                            stepText: "Kitchen timer", total: total, endDate: nil, pausedRemaining: total)
+        if let existing = timer(TimerMath.quickRecipeID, 0) { t = existing; if t.isRunning { return } }
+        t.endDate = Date().addingTimeInterval(TimeInterval(t.pausedRemaining > 0 ? t.pausedRemaining : total))
+        upsert(t)
+        TimerAlerts.schedule(id: t.id, step: 1, recipeTitle: t.recipeTitle, at: t.endDate!, prefs: prefsProvider())
+        LiveActivities.startOrUpdate(t)
     }
     var now = Date()
     var prefsProvider: @MainActor () -> TimerPrefs = { TimerPrefs() }

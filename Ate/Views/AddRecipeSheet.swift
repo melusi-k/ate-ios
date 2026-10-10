@@ -15,8 +15,10 @@ struct AddRecipeSheet: View {
     var initial: SharedInbox.Item? = nil
     let onSave: (RecipeCard) -> Void
 
-    init(initial: SharedInbox.Item? = nil, onSave: @escaping (RecipeCard) -> Void) {
-        self.initial = initial; self.onSave = onSave
+    var initialMode: WidgetLinks.AddMode?
+
+    init(initial: SharedInbox.Item? = nil, initialMode: WidgetLinks.AddMode? = nil, onSave: @escaping (RecipeCard) -> Void) {
+        self.initial = initial; self.initialMode = initialMode; self.onSave = onSave
     }
 
     @State private var mode: Mode = .link
@@ -67,6 +69,9 @@ struct AddRecipeSheet: View {
         }
         .onDisappear { if !loading && !hasUnsaved { DraftStore.shared.clear() } }
         .task {
+            if let m = initialMode, draft == nil {
+                mode = m == .photo ? .image : m == .prompt ? .prompt : .link
+            }
             if initial == nil, draft == nil, !loading { restoreInterrupted() }
             // Arrived from the "Save to ate" share extension: prefill and start right away.
             guard let it = initial, draft == nil, !loading else { return }
@@ -258,7 +263,7 @@ struct AddRecipeSheet: View {
                             }
                             draft?.coverImage = name
                         }
-                    } label: { Label("Generate", systemImage: "wand.and.sparkles") }
+                    } label: { Label("Generate cover", systemImage: "wand.and.sparkles") }
                         .buttonStyle(.ate(.secondary, height: 36)).accessibilityIdentifier("generateCover")
                         .disabled(CoverStore.shared.isLoading(d.id))
                 }

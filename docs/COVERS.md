@@ -1,6 +1,8 @@
 # Recipe cover images
 
-**Priority** (`CoverLogic.pick`): 1. your own photo/screenshot (Image tab, camera, or "Change photo" on review) → cropped 4:3, ≤1200 px, JPEG 0.8 · 2. the page's `og:image` / `twitter:image` / JSON-LD `image`, or the YouTube/TikTok oEmbed `thumbnail_url` (Instagram: og:image) · 3. on-device Image Playground (`ImageCreator`, iOS 18.4+, Apple Intelligence devices; prompt/text recipes, or "Generate" on review) · 4. the branded tile (warm brand gradient by cuisine/main ingredient, Fraunces initial, faint SF Symbol).
+**Priority** (`CoverLogic.pick`): 1. your own photo/screenshot (Image tab, camera, or "Change photo" on review) → cropped 4:3, ≤1200 px, JPEG 0.8 · 2. the page's `og:image` / `twitter:image` / JSON-LD `image`, or the YouTube/TikTok oEmbed `thumbnail_url` (Instagram: og:image) · 3. on-device Image Playground (`ImageCreator`, iOS 18.4+, Apple Intelligence devices): tried automatically, once per recipe, for **any** recipe whose web image path came up empty, plus **Generate cover** on review and in the recipe … menu · 4. the designed tile (plate + dish name).
+
+**Widgets:** the Tonight's pick and Favourites widgets read the same `Covers/` files from the App Group (downsampled to 360 px in the extension); without the App Group they show the tile.
 
 **Storage:** `RecipeCard.coverImage` is a file name in `Covers/` (App Group, else Application Support). `imageURL` holds the https remote URL if any.
 `"none"` means the user removed the cover.

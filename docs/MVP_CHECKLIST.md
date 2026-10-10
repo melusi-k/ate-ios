@@ -420,6 +420,120 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Status evidence:* new in build 59+
   - *Owner:* _TBD_
 
+### Widgets & Intents — 0 / 16
+
+- **A-WIDGET-01 · Cook timers widget: pause / resume / stop** — 🔴
+  - *Journey:* As a cook, I control timers from my Home Screen.
+  - *Acceptance:* Given a running step timer, When I add the Cook timers widget and tap pause, Then it shows paused within a few seconds, the app shows it paused, and no 'done' alert fires; Stop removes it.
+  - *Verified by:* `WidgetLogicTests.testTimerCommands`, `testKitchenToggle` · device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-WIDGET-02 · Tonight's pick and Favourites open the recipe** — 🔴
+  - *Journey:* As a cook, one tap on a widget gets me to a recipe.
+  - *Acceptance:* Given Tonight's pick (small/medium) or Favourites (medium, 3–4 covers), When I tap a recipe, Then ate opens on that recipe; Cook on the medium pick opens cook mode.
+  - *Verified by:* `WidgetsIntentsUITests.testWidgetDeepLinkOpensRecipe`, `WidgetSnapshotBuilderTests.testPick*` · device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-WIDGET-03 · Shopping list widget: tick items off** — 🔴
+  - *Journey:* As a shopper, I tick items off without opening the app.
+  - *Acceptance:* Given 3+ unticked items, When I tap one in the widget, Then it disappears from the widget and is ticked in the app the next time it opens.
+  - *Verified by:* `WidgetLogicTests.testInboxDrain`, `AppIntentsTests.testWidgetRelaysActOnLiveStore` · device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-WIDGET-04 · Quick add widget opens Add recipe** — 🔴
+  - *Journey:* As a cook, I add a recipe from my Home Screen in one tap.
+  - *Acceptance:* Given the Quick add widget, When I tap Link, Photo or Prompt, Then ate opens on Add recipe with that tab selected.
+  - *Verified by:* `WidgetsIntentsUITests.testQuickAddDeepLink` · device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-WIDGET-05 · Widgets read ate's data on a sideloaded build** — 🔴
+  - *Journey:* As a tester, widgets show my data, not a placeholder.
+  - *Acceptance:* Given a Sideloadly free-ID install, When I open Beta testing → Widgets, Then it says App Group OK and at least one widget kind loaded; otherwise widgets show “Open ate” and the limitation is noted in BETA.md.
+  - *Verified by:* Beta testing → Widgets diagnostics · device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-LOCK-01 · Lock Screen circular timer ring** — 🔴
+  - *Journey:* As a cook, I glance at the next timer on my Lock Screen.
+  - *Acceptance:* Given a running timer, Then the circular accessory shows a countdown ring that empties as it runs, and a pause icon when paused.
+  - *Verified by:* device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-LOCK-02 · Lock Screen rectangular step timer** — 🔴
+  - *Journey:* As a cook, I see which step is timing.
+  - *Acceptance:* Given a running timer, Then the rectangular accessory shows 'Step N · title' and 'mm:ss left' (or 'paused'), and tapping opens cook mode.
+  - *Verified by:* `WidgetLogicTests.testStepLineAndFormat` · device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-LOCK-03 · Lock Screen inline next shopping item** — 🔴
+  - *Journey:* As a shopper, the next item sits by the clock.
+  - *Acceptance:* Given unticked items, Then the inline accessory shows the next item and how many more; with none it says 'List done'.
+  - *Verified by:* `WidgetSnapshotBuilderTests.testSnapshotBuilder` · device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-CONTROL-01 · Control Center Kitchen timer** — 🔴
+  - *Journey:* As a cook, I start or pause a timer from Control Center or the Action button.
+  - *Acceptance:* Given no timers, When I tap Kitchen timer, Then a 5-minute timer starts (Live Activity + alert); tapping again pauses it, then resumes it.
+  - *Verified by:* `WidgetLogicTests.testKitchenToggle` · device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-CONTROL-02 · Control Center Quick add** — 🔴
+  - *Journey:* As a cook, I add a recipe from Control Center.
+  - *Acceptance:* Given the Add to ate control, When I tap it, Then ate opens on Add recipe.
+  - *Verified by:* device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-INTENT-01 · Siri: Start cook mode in ate** — 🔴
+  - *Journey:* As a cook with messy hands, I start cook mode by voice.
+  - *Acceptance:* When I say 'Start cook mode in ate' (or 'Cook Mogodu with ate'), Then ate opens cook mode for that recipe, or tonight's pick when none is named.
+  - *Verified by:* `AppIntentsTests.testStartCookMode` · device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-INTENT-02 · Siri: Add milk to my ate list** — 🔴
+  - *Journey:* As a shopper, I add items by voice.
+  - *Acceptance:* When I say 'Add milk to my ate list', Then Milk is on the shopping list, without opening ate.
+  - *Verified by:* `AppIntentsTests.testAddToShoppingList` · device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-INTENT-03 · Siri: What's tonight's pick in ate** — 🔴
+  - *Journey:* As a cook, I ask what to make tonight.
+  - *Acceptance:* When I ask, Then Siri answers with one recipe from my library (and the Health state when Health is connected).
+  - *Verified by:* `AppIntentsTests.testTonightsPick` · device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-INTENT-04 · Search ate from Siri / Spotlight** — 🔴
+  - *Journey:* As a cook, I find recipes from Spotlight.
+  - *Acceptance:* Given saved recipes, When I search Spotlight for one, Then it appears and opens in ate; 'Search ate for tripe' opens Library filtered by 'tripe'.
+  - *Verified by:* `AppIntentsTests.testSearchIntent`, `testRecipeEntityAndQuery` · device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-INTENT-05 · Siri: save a journal entry in ate** — 🔴
+  - *Journey:* As a cook, I add a note to ate's journal by voice.
+  - *Acceptance:* When I ask Siri to save a journal entry in ate, Then it appears in Insights → Journal (ate's journal, not Apple's Journal app).
+  - *Verified by:* `AppIntentsTests.testJournalEntry` · device (iOS 18.x Apple Intelligence)
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
+- **A-COVER-01 · Image Playground covers** — 🔴
+  - *Journey:* As a cook, recipes without a photo get a nice cover.
+  - *Acceptance:* Given a recipe with no photo or web image on an Apple Intelligence iPhone, Then a Playground cover is generated automatically; 'Generate cover' in the … menu makes a new one; elsewhere the designed tile shows.
+  - *Verified by:* `CoverTests` · device
+  - *Status evidence:* new in the Widgets & Intents build
+  - *Owner:* _TBD_
+
 ## Tier B — Before wider/public launch
 
 

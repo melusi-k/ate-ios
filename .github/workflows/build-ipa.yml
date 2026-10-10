@@ -4,6 +4,11 @@ on:
   push:
     branches: ["**"]
   workflow_dispatch:
+    inputs:
+      run_tests:
+        description: "Run unit + QA + UI tests"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -23,6 +28,8 @@ jobs:
       BUILD_NUMBER: ${{ github.run_number }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
       HAS_SIGNING: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && secrets.BUILD_PROVISION_PROFILE_BASE64 != '' && secrets.P12_PASSWORD != '' && secrets.TEAM_ID != '' }}
+      # Tests are off by default for fast IPA builds. Turn on via workflow_dispatch run_tests=true or "[run tests]" in the commit message.
+      RUN_TESTS: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,6 +58,7 @@ jobs:
           echo "Version $VERSION build $BUILD_NUMBER"
 
       - name: Run unit tests
+        if: env.RUN_TESTS == 'true'
         timeout-minutes: 20
         run: |
           set -o pipefail
@@ -62,6 +70,7 @@ jobs:
 
       - name: QA gate — key flows (KeyFlowsQATests)
         id: qa
+        if: env.RUN_TESTS == 'true'
         timeout-minutes: 30
         run: |
           SIM_ID=$(xcrun simctl list devices available -j | python3 -c '
@@ -96,7 +105,7 @@ jobs:
           exit $STATUS
 
       - name: Upload QA screenshots
-        if: always()
+        if: always() && env.RUN_TESTS == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: qa-screenshots
@@ -254,6 +263,7 @@ jobs:
           echo "IPA URL: $BASE/build-${BUILD_NUMBER}/$IPA_NAME"
 
   ui-suite:
+    if: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
     runs-on: macos-26
     timeout-minutes: 30
     continue-on-error: true

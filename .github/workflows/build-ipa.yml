@@ -287,7 +287,7 @@ jobs:
           c=c or [(k,x) for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")]
           c.sort(key=lambda t:t[0]); print(c[-1][1]["udid"])')
           xcrun simctl boot "$SIM_ID" || true
-          xcodebuild build -project Ate.xcodeproj -scheme "$SCHEME" -configuration Release -sdk iphonesimulator \
+          xcodebuild build -project Ate.xcodeproj -scheme "$SCHEME" -configuration Release \
             -destination "id=$SIM_ID" -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO -quiet 2>&1 | tail -20
           APP=$(ls -d build/sim/Build/Products/Release-iphonesimulator/Ate.app)
           [ "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "$BUILD_NUMBER" ] || { echo "::error::sim build number mismatch"; exit 1; }

@@ -28,7 +28,22 @@ struct ActiveTimer: Identifiable, Equatable {
 @Observable
 @MainActor
 final class TimerCenter {
-    private(set) var timers: [ActiveTimer] = []
+    private(set) var timers: [ActiveTimer] = [] { didSet { persist() } }
+
+    init() {
+        if AppConfig.isUITesting { TimerSnapshot.save([]); return }
+        timers = TimerSnapshot.load().map {
+            ActiveTimer(recipeID: $0.recipeID, recipeTitle: $0.recipeTitle, stepIndex: $0.stepIndex, stepCount: $0.stepCount,
+                        stepText: $0.stepText, total: $0.total, endDate: $0.endDate, pausedRemaining: $0.pausedRemaining)
+        }
+    }
+
+    private func persist() {
+        TimerSnapshot.save(timers.map {
+            TimerSnapshot(recipeID: $0.recipeID, recipeTitle: $0.recipeTitle, stepIndex: $0.stepIndex, stepCount: $0.stepCount,
+                          stepText: $0.stepText, total: $0.total, endDate: $0.endDate, pausedRemaining: $0.pausedRemaining)
+        })
+    }
     var now = Date()
     var prefsProvider: @MainActor () -> TimerPrefs = { TimerPrefs() }
     private var permissionAsked = false

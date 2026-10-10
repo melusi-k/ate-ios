@@ -15,6 +15,8 @@ settings:
     ATE_SUPABASE_URL: "https://fsowdtisvdctdmjymnpm.supabase.co"
     ATE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_b4jwqlkgC-yiIAQoZ_wLHg_Y7Dzf6rx"
     # Single source of truth for share links (<host>/r/<slug>). Switch to https://ate.app once the domain + AASA are live.
+    # Signing team from env/secret TEAM_ID at `xcodegen generate` time (empty = unsigned / free-ID sideload).
+    DEVELOPMENT_TEAM: "${TEAM_ID}"
     ATE_SHARE_HOST: "https://recipe-transform-ai.lovable.app"
 targets:
   Ate:
@@ -32,6 +34,9 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Ate/Info.plist
+        # App Group only by default; CI switches to Ate-Signed.entitlements (adds associated domains) when TEAM_ID is set.
+        ATE_ENTITLEMENTS: Ate/Ate.entitlements
+        CODE_SIGN_ENTITLEMENTS: $(ATE_ENTITLEMENTS)
     info:
       path: Ate/Info.plist
       properties:
@@ -64,6 +69,7 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: AteWidgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: AteWidgets/AteWidgets.entitlements
         SKIP_INSTALL: YES
     info:
       path: AteWidgets/Info.plist

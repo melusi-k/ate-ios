@@ -51,3 +51,26 @@ gh secret set TEAM_ID
 
 ## Fonts
 Fraunces and DM Sans (SIL OFL, licenses in `Ate/Resources/Fonts`) are bundled. If a font fails to load, the app falls back to the system serif or sans font.
+
+## v1.1 additions
+- **Live Activity** for cook timers (`AteWidgets` extension, embedded in `PlugIns/`). **Sticky timer bar** on every screen.
+- **Accounts & sync** with Supabase Auth (email/password + magic link). Recipes and shopping list sync last-write-wins and offline-first. Works signed-out.
+- **Sharing:** "Share link" sends one link with a rich preview; "Share as text" sends clean text. Deep links: `ate://recipe/<slug>` (alias `ate://r/<slug>`). The share domain lives in one setting, `ATE_SHARE_HOST`.
+- **Build number:** every CI build sets `CURRENT_PROJECT_VERSION` from the GitHub run number. The release has `Ate-<version>-build<N>.ipa` plus a stable `Ate.ipa`.
+- **Entitlements:** the App Group `group.com.melusik.ate` is used by both targets, with a fallback to standard storage if it isn't granted. Associated domains (`applinks:ate.app`, `applinks:recipe-transform-ai.lovable.app`) are added only for signed builds (`Ate/Ate-Signed.entitlements`). `DEVELOPMENT_TEAM` comes from the `TEAM_ID` env/secret.
+- `PrivacyInfo.xcprivacy` for the app and the widget: no tracking; UserDefaults reasons CA92.1 and 1C8F.1; collects email, user ID and recipe content for app functionality.
+
+### One-time Supabase setup (needed for sync)
+1. Run `supabase/migrations/20261010000000_user_recipes.sql` (SQL editor or `supabase db push`).
+2. Under Authentication → Providers, enable **Email**. Decide whether new accounts need to confirm their email.
+3. Under Authentication → URL Configuration, add `ate://auth-callback` to the allowed **Redirect URLs** (for magic links and email confirmation).
+
+### Free Apple ID vs paid
+| Works with a free Apple ID (Sideloadly) | Needs a paid Developer account |
+|---|---|
+| App, SwiftData, cook timers, local notifications, timer bar | Universal Links / Associated Domains (`ate.app`) |
+| Live Activity + Dynamic Island (re-signed extension) | Signed CI builds / TestFlight / push-updated Live Activities |
+| Supabase accounts & sync, deep links `ate://…` | Sign in with Apple, CloudKit |
+| App Group (usually granted; falls back gracefully) | Apps that don't expire every 7 days |
+
+Free IDs also allow only about 3 sideloaded apps and 10 App IDs per week. Ate uses 2 App IDs (app + widget).

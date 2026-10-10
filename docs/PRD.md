@@ -1,4 +1,65 @@
-# Ate — Product Requirements Document (native iOS / SwiftUI rebuild)
+# Ate — PRD (native iOS)
+
+## Feature additions (v1.1) — 2026-10-10
+
+### A. Live Activity for cook-mode timers
+- ActivityKit plus a WidgetKit extension (`AteWidgets`, `com.melusik.ate.widgets`) embedded under `Ate.app/PlugIns/`. CI fails the build if it's missing. `NSSupportsLiveActivities = YES`.
+- `CookTimerAttributes` (shared): recipe ID/title and timer ID. State: step index/count, step text, start/end date, remaining, total, finished.
+- **Lock Screen:** recipe name, "Step i of n" (· paused), step text, and a big countdown via `Text(timerInterval:countsDown:)`. Shows a static m:ss when paused.
+- **Dynamic Island:** compact (timer icon + countdown), minimal (timer/pause icon), expanded (step label, countdown, recipe title, step text). Tapping opens `ate://cook/<recipeID>`.
+- **Lifecycle:** start on timer start; update on pause/resume/reset; end when the timer finishes (stays 2 min showing "Done") or is stopped. When you exit cook mode, idle (paused/reset) timers and their activities end. **Running** timers keep their activity and appear in the timer bar, since that's the point of a Live Activity.
+
+### B. Sticky in-app timer bar
+- `TimerCenter` (app-wide, `@Observable`) owns every cook timer. Several can run at once, one per recipe step.
+- The bar is a `safeAreaInset(.bottom)` on the root, so it shows on every screen whenever a timer exists and cook mode isn't open. Each row shows the recipe, step, (paused) and a live countdown. Tapping it reopens cook mode on that step; there are pause/resume and stop buttons.
+- Cook mode shows chips for other running steps of the same recipe. Timers no longer reset when you change steps.
+
+### C. Accounts and cross-device sync (Supabase)
+- Free Apple IDs can't use CloudKit or Sign in with Apple, so this uses **Supabase Auth** over REST: email/password sign-up and sign-in, plus a **magic link** (`redirect_to=ate://auth-callback`). The session is stored in the Keychain and refreshed automatically.
+- Config: `ATE_SUPABASE_URL=https://fsowdtisvdctdmjymnpm.supabase.co` and the publishable key from the Lovable project `.env`. Both are public; RLS enforces access.
+- Table `public.user_recipes(user_id, kind 'recipe'|'shopping', id, data jsonb, updated_at bigint ms, deleted)`, PK `(user_id, kind, id)`, RLS `auth.uid() = user_id`. Migration: `supabase/migrations/20261010000000_user_recipes.sql`. **Not applied.**
+- **Sync:** offline-first (SwiftData stays the source of truth), last-write-wins per item using client timestamps, deletions recorded as tombstones. It runs on sign-in, when the app becomes active, ~1.5 s after local edits, and from "Sync now". Pull, then merge (`SyncMerge`, unit-tested), then upsert (`Prefer: resolution=merge-duplicates`).
+- **Graceful degradation:** signed-out works exactly as before. A missing table (404 / PGRST205) shows "Cloud sync isn't set up on the server yet" and never blocks the app.
+- **Settings → Account & sync:** email, password, Sign in / Create account / Email me a magic link; when signed in, email, sync status, Sync now and Sign out. Signing out keeps your local data.
+- `-UITesting` uses `MockAuth` (password `password123`) and an in-memory `MockSync`.
+
+### D. Sharing
+- **Share link** (default) sends **one** URL item through a `UIActivityItemSource` with `LPLinkMetadata` (title = recipe name, icon/image = the rendered recipe thumbnail), so Messages shows a rich preview card. The old code shared both the text (which contained the URL) and the URL, so the link appeared twice.
+- **Share as text** sends the cleaned text only: title, description, "N servings · M min", "Ingredients" with • bullets, "Steps" numbered in sentence case, optional "Source:", and a single final line "View in ate: <link>".
+- Links are `https://recipe-transform-ai.lovable.app/r/<slug>`, set in **one config value** `ATE_SHARE_HOST`, ready to switch to `https://ate.app`.
+- Custom scheme: `ate://recipe/<slug>` (canonical) plus `ate://r/<slug>` (alias) open the Shared recipe screen. `ate://cook/<id>` opens cook mode. Associated Domains placeholders live in `docs/associated-domains/` (needs a paid account).
+- ⚠️ Publishing still uses the **mock** publisher (there's no `publish-recipe` edge function), so links like `/r/btnz4l1y` **won't load for recipients** on the web or another phone yet. See the roadmap.
+
+## Review findings (v1.1 review)
+Fixed:
+1. The share link appeared twice (text + URL items). Fixed in D.
+2. Step instructions were shared in lowercase. Now sentence case.
+3. Deleting ingredient/step rows in the editor could crash from stale index bindings. Now bounds-checked.
+4. The delete confirmation button had the same label as the trash icon ("Delete"), which was ambiguous for VoiceOver and tests. Renamed "Delete recipe".
+5. Timers reset whenever you changed steps in cook mode, and only one could exist. Now handled by `TimerCenter` (multi-timer, survives navigation).
+6. Without the edge functions deployed, the on-device fallback could route to the Supabase backend. The fallback is now always the mock.
+7. Deleting a recipe left its timers running. They're now stopped.
+
+Open issues / gaps vs PRD:
+- **Sharing is not real yet:** recipients can't open links until `publish-recipe` (an Edge Function using the service role) is deployed and the app is switched to it. Shared-recipe reads should then query `shared_recipes` with the publishable key.
+- **AI:** Foundation Models hasn't been tested on a real iOS 26 device. URL import doesn't parse schema.org JSON-LD (the PRD wants that structured path with no AI call). Without Apple Intelligence the app returns mock cards; a server fallback (`parse-recipe`) isn't deployed.
+- **Sync:** client-clock LWW, so a wrong device clock can win. There's no field-level merge. Signing into a different account merges the local library into it.
+- **Signed IPA path:** the extension needs its own provisioning profile. The signed CI path currently passes only one profile, so signed builds with the widget will fail until a second profile secret is added. Unsigned builds plus Sideloadly are fine.
+- **Timer chime:** uses system sounds, not the 3-tone chime asset. Haptics are a single success tap.
+- **Not built:** aisle grouping in the shopping list (optional), voice commands in cook mode, the "Save to ate" share extension, the camera option.
+- **Branding:** the logo is an SF Symbol stand-in; real `ate-logo.png` assets still need importing.
+- **Library:** Clear all doesn't clear the shopping list (by design, but worth stating in the UI).
+
+## Updated roadmap
+1. **Now (user action):** apply the migration; enable Email auth plus the `ate://auth-callback` redirect URL in Supabase.
+2. **Next:** deploy the `publish-recipe` + `parse-recipe` Edge Functions; switch publishing/fetching to Supabase so share links work for everyone; add JSON-LD import.
+3. **Domain:** register `ate.app`, serve `/r/<slug>` on the web, then (paid Apple Developer account) enable Associated Domains with `applinks:ate.app`, host the AASA (template in `docs/associated-domains/`) and set `ATE_SHARE_HOST=https://ate.app`.
+4. **Paid account also unlocks:** signed CI builds with two profiles (app + widget), TestFlight, push-to-update Live Activities, Sign in with Apple / CloudKit as options.
+5. **Later:** voice cook mode (SFSpeechRecognizer), share extension, aisle-grouped list, bundled chime, iPad layout.
+
+---
+
+## v1.0 baseline spec
 
 Source: Lovable project **"Ate"** (id `88fe6d64-6eec-4bcb-9f12-7ad3a0c02bbf`), reviewed read-only on 2026-10-10.
 Web stack today: TanStack Start (React) + Tailwind/shadcn, localStorage persistence, Supabase (one table), Lovable AI Gateway (Gemini). Published at `recipe-transform-ai.lovable.app`.

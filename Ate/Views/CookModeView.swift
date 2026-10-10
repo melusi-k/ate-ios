@@ -24,6 +24,7 @@ struct CookModeView: View {
         }
         .foregroundStyle(Theme.warmForeground)
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.visible, for: .bottomBar)
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
             store.markCooked(recipeID)
@@ -49,7 +50,8 @@ struct CookModeView: View {
         let others = store.timers.timers.filter { $0.recipeID == recipeID && $0.stepIndex != index && $0.isRunning }
         VStack(spacing: 20) {
             HStack {
-                Button(action: exit) { Label("Exit", systemImage: "chevron.left") }.buttonStyle(.ate(.ghost, height: 44))
+                Button(action: exit) { Label("Exit", systemImage: "xmark") }.buttonStyle(.ate(.ghost, height: 44))
+                    .accessibilityLabel("Exit")
                 Spacer()
                 Text("Step \(index + 1) of \(n)").font(AteFont.body(14, .medium))
                 Button {
@@ -106,8 +108,8 @@ struct CookModeView: View {
                 let running = active?.isRunning == true
                 HStack(spacing: 14) {
                     HStack(spacing: 10) {
-                        Image(systemName: "timer").foregroundStyle(Theme.primary).font(.system(size: 24))
-                        Text(format(remaining)).font(.system(size: 36, weight: .bold, design: .rounded)).monospacedDigit()
+                        Image(systemName: "timer").foregroundStyle(Theme.primary).font(.title2)
+                        Text(format(remaining)).font(.largeTitle.weight(.bold)).fontDesign(.rounded).monospacedDigit()
                             .accessibilityIdentifier("cookTimerValue")
                     }
                     .padding(.horizontal, 20).padding(.vertical, 12)
@@ -122,16 +124,17 @@ struct CookModeView: View {
                 .foregroundStyle(Theme.foreground)
             }
             Spacer()
-            HStack(spacing: 12) {
-                Button("Back") { index -= 1 }
-                    .buttonStyle(.ate(.secondary, height: 56, full: true)).disabled(index == 0)
-                Button("Next step") { index += 1 }
-                    .buttonStyle(.ate(.primary, height: 56, full: true)).disabled(index >= n - 1)
-                    .layoutPriority(1).frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 12)
+        .pageWidth()
+        .toolbar {
+            // Back / Next live in the system bottom toolbar (bottom-bar semantics, glass on iOS 26).
+            ToolbarItemGroup(placement: .bottomBar) {
+                Button("Back") { index -= 1 }.disabled(index == 0).frame(minHeight: 44)
+                Spacer()
+                Button("Next step") { index += 1 }.buttonStyle(.borderedProminent).controlSize(.large).disabled(index >= n - 1)
             }
         }
-        .padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 32)
-        .pageWidth()
     }
 
     private func format(_ s: Int) -> String { String(format: "%d:%02d", s / 60, s % 60) }
@@ -158,43 +161,83 @@ struct CookModeView: View {
     }
 }
 
-/// Sticky bar showing running/paused cook timers on every screen outside cook mode.
+/// Sticky timer summary: one bar no matter how many timers run. One timer shows inline controls;
+/// two or more collapse to "N timers · next 04:12", which opens a half sheet with every timer.
 struct TimerBar: View {
     @Environment(AppStore.self) private var store
+    @State private var showAll = false
     var body: some View {
-        VStack(spacing: 6) {
-            ForEach(store.timers.timers) { t in
-                HStack(spacing: 10) {
-                    Button { store.cookTarget = CookTarget(id: t.recipeID) } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: t.isRunning ? "timer" : "pause.circle").foregroundStyle(Theme.primary)
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(t.recipeTitle).font(AteFont.body(13, .semibold)).lineLimit(1)
-                                Text("Step \(t.stepIndex + 1)" + (t.isRunning ? "" : " · paused")).font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
-                            }
-                            Spacer(minLength: 4)
-                            Text(String(format: "%d:%02d", t.remaining(at: store.timers.now) / 60, t.remaining(at: store.timers.now) % 60))
-                                .font(.system(size: 20, weight: .bold, design: .rounded)).monospacedDigit()
-                        }
-                        .contentShape(Rectangle())
+        let timers = store.timers.timers
+        Group {
+            if timers.count == 1, let t = timers.first {
+                TimerRow(t: t)
+            } else if !timers.isEmpty {
+                let next = timers.filter(\.isRunning).map { $0.remaining(at: store.timers.now) }.min()
+                Button { showAll = true } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "timer").foregroundStyle(Theme.primary)
+                        Text("\(timers.count) timers").font(AteFont.body(15, .semibold))
+                        Spacer(minLength: 4)
+                        if let next { Text("next " + TimerRow.mmss(next)).font(.title3.weight(.bold)).fontDesign(.rounded).monospacedDigit() }
+                        Image(systemName: "chevron.up").foregroundStyle(Theme.mutedForeground)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("timerBarOpen")
-                    .accessibilityLabel("Open cook mode for \(t.recipeTitle)")
-                    IconButton(symbol: t.isRunning ? "pause.fill" : "play.fill", label: t.isRunning ? "Pause bar timer" : "Resume bar timer") {
-                        store.timers.toggle(t.id)
-                    }
-                    IconButton(symbol: "stop.fill", label: "Stop bar timer", tint: Theme.destructive) { store.timers.stop(t.id) }
+                    .frame(minHeight: 44).padding(.horizontal, 14).contentShape(Rectangle())
                 }
-                .foregroundStyle(Theme.foreground)
-                .padding(.leading, 14).padding(.trailing, 4).padding(.vertical, 4)
-                .background(Theme.card, in: Capsule())
-                .overlay(Capsule().stroke(Theme.border))
+                .buttonStyle(.plain).foregroundStyle(Theme.foreground)
+                .background(Theme.card, in: Capsule()).overlay(Capsule().stroke(Theme.border))
                 .shadow(color: Theme.brown.opacity(0.15), radius: 10, y: 4)
+                .accessibilityIdentifier("timerBarSummary")
+                .accessibilityLabel("\(timers.count) timers running. Show all timers")
             }
         }
         .padding(.horizontal, 12).padding(.bottom, 4)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("timerBar")
+        .sheet(isPresented: $showAll) {
+            NavigationStack {
+                List(store.timers.timers) { t in TimerRow(t: t, chrome: false).listRowBackground(Theme.card) }
+                    .navigationTitle("Timers").navigationBarTitleDisplayMode(.inline)
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showAll = false } } }
+            }
+            .presentationDetents([.medium, .large])
+            .onChange(of: store.timers.timers.count) { _, n in if n < 2 { showAll = false } }
+            .onChange(of: store.cookTarget) { _, t in if t != nil { showAll = false } }
+        }
+    }
+}
+
+struct TimerRow: View {
+    @Environment(AppStore.self) private var store
+    let t: ActiveTimer
+    var chrome = true
+    static func mmss(_ s: Int) -> String { String(format: "%d:%02d", s / 60, s % 60) }
+    var body: some View {
+        let row = HStack(spacing: 10) {
+            Button { store.cookTarget = CookTarget(id: t.recipeID) } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: t.isRunning ? "timer" : "pause.circle").foregroundStyle(Theme.primary)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(t.recipeTitle).font(AteFont.body(13, .semibold)).lineLimit(1)
+                        Text("Step \(t.stepIndex + 1)" + (t.isRunning ? "" : " · paused")).font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
+                    }
+                    Spacer(minLength: 4)
+                    Text(Self.mmss(t.remaining(at: store.timers.now))).font(.title3.weight(.bold)).fontDesign(.rounded).monospacedDigit()
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("timerBarOpen")
+            .accessibilityLabel("Open cook mode for \(t.recipeTitle)")
+            IconButton(symbol: t.isRunning ? "pause.fill" : "play.fill", label: t.isRunning ? "Pause bar timer" : "Resume bar timer") {
+                store.timers.toggle(t.id)
+            }
+            IconButton(symbol: "stop.fill", label: "Stop bar timer", tint: Theme.destructive) { store.timers.stop(t.id) }
+        }
+        .foregroundStyle(Theme.foreground)
+        if chrome {
+            row.padding(.leading, 14).padding(.trailing, 4).padding(.vertical, 4)
+                .background(Theme.card, in: Capsule()).overlay(Capsule().stroke(Theme.border))
+                .shadow(color: Theme.brown.opacity(0.15), radius: 10, y: 4)
+        } else { row }
     }
 }

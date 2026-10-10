@@ -67,6 +67,15 @@ final class AppStore {
     var shoppingPath: [Route] = []
     var settingsPath: [Route] = []
     var morePath: [Route] = []
+    /// True when the selected tab shows its root screen (banners that belong to tab roots hide on pushed screens).
+    var isAtTabRoot: Bool {
+        switch tab {
+        case .library, .collection: return path.isEmpty
+        case .shopping: return shoppingPath.isEmpty
+        case .settings: return settingsPath.isEmpty
+        case .more: return morePath.isEmpty
+        }
+    }
     var tab: AppTab = .library
     /// Item handed over by the "Save to ate" share extension, waiting for the Add sheet.
     var pendingImport: SharedInbox.Item?

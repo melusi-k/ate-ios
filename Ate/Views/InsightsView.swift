@@ -255,14 +255,10 @@ struct RecipeSheet: View {
     var body: some View {
         NavigationStack {
             RecipeDetailView(recipeID: recipeID)
-                .toolbar(.hidden, for: .navigationBar)
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    HStack {
-                        Spacer()
-                        Button("Done") { dismiss() }
-                            .font(AteFont.body(16, .semibold)).frame(minHeight: 44).padding(.horizontal, 16)
-                            .accessibilityIdentifier("recipeSheet.done")
-                    }.background(Theme.background)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { dismiss() }.accessibilityIdentifier("recipeSheet.done")
+                    }
                 }
         }
         .onDisappear { BetaQA.shared.pass("A-HEALTH-08", note: "Opened and closed a suggested recipe") }

@@ -189,4 +189,7 @@ enum Route: Hashable {
     case settings
     case shared(String)
     case notFound
+    case insights
+    case beta
+    case betaNote
 }

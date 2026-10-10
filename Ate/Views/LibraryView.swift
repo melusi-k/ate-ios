@@ -12,13 +12,17 @@ struct LibraryView: View {
 
     var body: some View {
         let filtered = store.filter.apply(store.recipes, query: query)
-        ZStack(alignment: .bottom) {
+        ZStack {
             Theme.background.ignoresSafeArea()
             if useGrid { grid(filtered) } else { list(filtered) }
-            Button { showAdd = true } label: { Label("Add recipe", systemImage: "plus").padding(.horizontal, 10) }
-                .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.bottom, 20)
         }
-        .toolbar(.hidden, for: .navigationBar)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Same bottom system as recipe detail: sits directly above the stack's timer bar.
+            Button { showAdd = true } label: { Label("Add recipe", systemImage: "plus").padding(.horizontal, 10) }
+                .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8).frame(maxWidth: .infinity)
+        }
+        .navigationTitle(store.filter.collection?.title ?? L10n.libraryTitle)
+        .navigationBarTitleDisplayMode(.large)
         .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd))
     }
 
@@ -175,7 +179,6 @@ struct LibraryView: View {
                         Image("AteLogo").resizable().scaledToFit().frame(width: 28, height: 28).accessibilityHidden(true)
                         Text("ate").font(AteFont.body(14, .bold)).tracking(2.8).foregroundStyle(Theme.primary)
                     }
-                    Text(store.filter.collection?.title ?? L10n.libraryTitle).font(AteFont.display(36)).accessibilityAddTraits(.isHeader)
                     Text("\(store.recipes.count) recipe\(store.recipes.count == 1 ? "" : "s") saved on this device.")
                         .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
                 }

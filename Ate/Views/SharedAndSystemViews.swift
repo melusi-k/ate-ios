@@ -15,7 +15,6 @@ struct SharedRecipeView: View {
             } else if let r = recipe {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        BackBar(title: "Open ate") { store.path.removeAll() }
                         RecipeCardView(recipe: r, units: store.settings.units)
                     }
                     .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 112).pageWidth()
@@ -32,7 +31,6 @@ struct SharedRecipeView: View {
                     .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.bottom, 20)
             } else if let loadError {
                 VStack(spacing: 16) {
-                    BackBar(title: "Open ate") { store.path.removeAll() }
                     Spacer()
                     Text("Couldn't load this recipe").font(AteFont.display(24))
                     ErrorRetryCard(message: loadError, retryID: "sharedRetry") { Task { await load() } }

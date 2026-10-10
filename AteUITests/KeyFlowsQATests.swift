@@ -202,7 +202,7 @@ final class KeyFlowsQATests: XCTestCase {
     func testQA7_SyncAccount() {
         launch(["-qaPersistServer", "-qaResetServer"])
         addPrompt("Synced stew")
-        app.buttons["editButton"].tap()
+        app.buttons["recipeMenu"].tap(); app.buttons["editButton"].tap()
         replace(app.textFields["editorTitle"], "Synced stew v2")
         app.buttons["Done"].firstMatch.tap()
         signIn()

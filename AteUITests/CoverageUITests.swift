@@ -382,12 +382,13 @@ extension CoverageUITests {
         wait(text("Recovery day"))
         // Back inside the sheet also returns to Insights.
         scrollTo(sug); sug.tap(); wait(done)
-        app.buttons["backBar"].firstMatch.tap()
+        app.swipeDown(velocity: .fast)   // swipe-to-dismiss also returns to Insights
         wait(text("Recovery day"))
         XCTAssertFalse(done.exists)
     }
 
-    /// Offline banner + sticky timer bar must sit below the Cook mode button and the Ask Ate field, never on top.
+    /// Bottom area is one system: Cook mode sits above the (single) timer bar, the Ask Ate field scrolls clear of both,
+    /// and the offline banner lives at the top.
     func testBottomBarsDoNotOverlapRecipeDetail() {
         launch(["-simulateOffline"])
         addPrompt("miso salmon")
@@ -398,18 +399,34 @@ extension CoverageUITests {
         wait(app.buttons["Pause timer"], 5)
         app.buttons["Exit"].tap()
         let cook = app.buttons["Cook mode"]; wait(cook)
-        let bar = app.otherElements["timerBar"].firstMatch.exists ? app.otherElements["timerBar"].firstMatch : app.buttons["timerBarOpen"].firstMatch
+        let bar = app.buttons["timerBarOpen"].firstMatch
         let banner = app.descendants(matching: .any)["offlineBanner"].firstMatch
         wait(bar, 5); wait(banner, 5)
         shot("detail-bottom-bars")
-        XCTAssertLessThanOrEqual(cook.frame.maxY, banner.frame.minY + 1, "Cook mode overlaps the offline banner")
+        XCTAssertLessThan(banner.frame.midY, app.frame.midY, "offline banner belongs at the top")
         XCTAssertLessThanOrEqual(cook.frame.maxY, bar.frame.minY + 1, "Cook mode overlaps the timer bar")
-        XCTAssertFalse(banner.frame.intersects(bar.frame), "offline banner overlaps the timer bar")
+        XCTAssertEqual(app.buttons.matching(identifier: "timerBarOpen").count, 1, "timer bar shown once")
         let ask = app.textFields["askField"]
         scrollTo(ask)
         XCTAssertTrue(ask.isHittable)
-        XCTAssertLessThanOrEqual(ask.frame.maxY, banner.frame.minY + 1, "Ask Ate field hidden behind bottom bars")
         XCTAssertFalse(ask.frame.intersects(cook.frame), "Ask Ate field under Cook mode")
+        XCTAssertFalse(ask.frame.intersects(bar.frame), "Ask Ate field under the timer bar")
+    }
+
+    /// Gap 1: system Back from a recipe always returns, from Library and from a More collection.
+    func testSystemBackFromRecipeNeverDead() {
+        launch()
+        addPrompt("miso salmon")
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        wait(back); back.tap()
+        wait(app.buttons["Add recipe"])
+        XCTAssertFalse(app.buttons["Cook mode"].exists)
+        tab("More")
+        wait(app.buttons["more.betaTesting"])
+        app.buttons["more.betaTesting"].tap()
+        let back2 = app.navigationBars.buttons.element(boundBy: 0)
+        wait(back2); back2.tap()
+        wait(app.buttons["more.insights"])
     }
     /// Regression guard (StepTrackerTCA lesson): Connect must still ask for Health when access is undecided.
     func testHealthPermissionPromptAppearsWhenUndecided() {

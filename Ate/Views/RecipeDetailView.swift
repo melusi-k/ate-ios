@@ -11,8 +11,9 @@ struct RecipeDetailView: View {
     @State private var share: ShareItems?
     @State private var shareChoice = false
     @Environment(\.dismiss) private var dismiss
-    /// Back from a stack that isn't the Library path (Insights sheet, More) must dismiss/pop, not clear store.path.
-    private func goBack() { if store.path.isEmpty { dismiss() } else { store.path.removeAll() } }
+    /// Pops whichever stack (or sheet) presented this screen. Never touches store.path directly: the recipe may have been
+    /// pushed from More/Settings/Insights while Library has its own path, which made the old custom Back a dead tap.
+    private func goBack() { dismiss() }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -20,15 +21,6 @@ struct RecipeDetailView: View {
             if let recipe = store.recipe(recipeID) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        BackBar(title: "Recipes", action: { goBack() }) {
-                            IconButton(symbol: recipe.favorite ? "star.fill" : "star",
-                                       label: recipe.favorite ? "Remove from Favourites" : "Add to Favourites") { store.toggleFavourite(recipe.id) }
-                                .accessibilityIdentifier("favouriteButton")
-                            IconButton(symbol: "square.and.arrow.up", label: "Share recipe") { shareChoice = true }
-                            IconButton(symbol: "pencil", label: "Edit") { editing.toggle() }.accessibilityIdentifier("editButton")
-                            IconButton(symbol: "trash", label: "Delete", tint: Theme.destructive) { confirmDelete = true }
-                                .accessibilityIdentifier("deleteButton")
-                        }
                         if editing {
                             VStack(spacing: 16) {
                                 RecipeEditor(recipe: Binding(get: { store.recipe(recipeID) ?? recipe },
@@ -36,12 +28,12 @@ struct RecipeDetailView: View {
                                 Button("Done") { editing = false }.buttonStyle(.ate(.primary, full: true))
                             }.cardSurface(padding: 20)
                         } else {
-                            HStack(spacing: 8) {
-                                ForEach([1.0, 2.0, 3.0], id: \.self) { f in
-                                    Button("x\(Int(f)) servings") { factor = f }
-                                        .buttonStyle(.ate(factor == f ? .primary : .secondary, height: 34))
-                                }
+                            Picker("Servings", selection: $factor) {
+                                ForEach([1.0, 2.0, 3.0], id: \.self) { f in Text("\(Int(f))×").tag(f) }
                             }
+                            .pickerStyle(.segmented).controlSize(.large)
+                            .accessibilityIdentifier("servingsPicker")
+                            .accessibilityHint("Scales ingredient amounts. Cooking times stay the same.")
                             RecipeHero(recipe: recipe)
                             SourceBadge(source: recipe.source)
                             RecipeCardView(recipe: recipe, factor: factor, units: store.settings.units)
@@ -54,18 +46,43 @@ struct RecipeDetailView: View {
                         }
                     }
                     .foregroundStyle(Theme.foreground)
-                    .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 112)
+                    .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 16)
                     .pageWidth()
-                }
-                if !editing {
-                    Button { store.cookTarget = CookTarget(id: recipeID) } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
-                        .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.bottom, 20)
                 }
             } else {
                 RecipeNotFoundView(title: "Recipe not found")
             }
         }
         .toolbar(.hidden, for: .tabBar)   // full-height detail; Cook mode pinned at the bottom, never under the tab bar
+        .navigationTitle(store.recipe(recipeID)?.title ?? "Recipe")
+        .navigationBarTitleDisplayMode(.inline)
+        // Bottom area, one system: this inset (Cook mode) sits directly above the stack's timer bar inset.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !editing, store.recipe(recipeID) != nil {
+                Button { store.cookTarget = CookTarget(id: recipeID) } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
+                    .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .toolbar {
+            if let recipe = store.recipe(recipeID) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button { store.toggleFavourite(recipe.id) } label: {
+                        Image(systemName: recipe.favorite ? "star.fill" : "star")
+                    }
+                    .accessibilityLabel(recipe.favorite ? "Remove from Favourites" : "Add to Favourites")
+                    .accessibilityIdentifier("favouriteButton")
+                    Button { shareChoice = true } label: { Image(systemName: "square.and.arrow.up") }.accessibilityLabel("Share recipe")
+                    Menu {
+                        Button { editing.toggle() } label: { Label(editing ? "Done editing" : "Edit", systemImage: "pencil") }
+                            .accessibilityIdentifier("editButton")
+                        Button(role: .destructive) { confirmDelete = true } label: { Label("Delete", systemImage: "trash") }
+                            .accessibilityIdentifier("deleteButton")
+                    } label: { Image(systemName: "ellipsis.circle") }
+                    .accessibilityLabel("More actions").accessibilityIdentifier("recipeMenu")
+                }
+            }
+        }
         .confirmationDialog("Delete this recipe?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete recipe", role: .destructive) {
                 store.timers.stopAll(recipeID: recipeID)

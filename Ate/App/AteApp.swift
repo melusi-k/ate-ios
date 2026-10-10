@@ -39,15 +39,14 @@ struct AteApp: App {
     }
 }
 
-/// Sticky timer bar, applied per screen so it reserves layout space (floating buttons sit above it).
+/// Sticky timer summary bar, one per stack; it reserves layout space so bottom actions sit above it.
 struct TimerBarInset: ViewModifier {
     @Environment(AppStore.self) private var store
     func body(content: Content) -> some View {
+        // Applied once per NavigationStack (not per screen), so it can never show twice. Screen-level bottom
+        // actions (Cook mode, Add recipe) use their own inner safeAreaInset and therefore sit directly above it.
         content.safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 6) {
-                if !NetworkMonitor.shared.isOnline && store.cookTarget == nil { OfflineBanner().transition(.opacity) }
-                if !store.timers.timers.isEmpty && store.cookTarget == nil { TimerBar() }
-            }
+            if !store.timers.timers.isEmpty && store.cookTarget == nil { TimerBar() }
         }
     }
 }
@@ -73,7 +72,7 @@ struct RootView: View {
             if v != .compact, case .collection = store.tab { store.tab = .library }
         }
         .fullScreenCover(item: $store.cookTarget) { target in
-            CookModeView(recipeID: target.id, onExit: { store.cookTarget = nil }).environment(store)
+            NavigationStack { CookModeView(recipeID: target.id, onExit: { store.cookTarget = nil }) }.environment(store)
         }
         .fullScreenCover(isPresented: $store.showOnboarding) { OnboardingView().environment(store) }
         .sheet(item: $store.authSheet) { m in AuthSheet(mode: m).environment(store) }
@@ -93,8 +92,12 @@ struct RootView: View {
         }
         .tint(Theme.primary)
         .dynamicTypeSize(...DynamicTypeSize.accessibility3)
-        .overlay(alignment: .top) {
-            if !store.showOnboarding { BetaBanner { store.tab = .more; BetaQA.shared.openRequested = true }.padding(.top, 4) }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            // One top area: beta banner (tab roots only) and the slim offline strip. Nothing at the bottom competes with actions.
+            VStack(spacing: 0) {
+                if !store.showOnboarding && store.isAtTabRoot { BetaBanner { store.tab = .more; BetaQA.shared.openRequested = true }.padding(.vertical, 4) }
+                if !NetworkMonitor.shared.isOnline { OfflineBanner().transition(.move(edge: .top).combined(with: .opacity)) }
+            }
         }
         .overlay(alignment: .bottomTrailing) {
             if AppConfig.isUITesting {
@@ -117,24 +120,24 @@ extension RootView {
         TabView(selection: tabSelection) {
             Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
                 NavigationStack(path: $store.path) {
-                    LibraryView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                }
+                    LibraryView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }.withTimerBar()
             }
             Tab("Shopping", systemImage: "basket", value: AppTab.shopping) {
                 NavigationStack(path: $store.shoppingPath) {
-                    ShoppingListView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                }
+                    ShoppingListView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }.withTimerBar()
             }
             .badge(store.pendingShoppingCount)
             Tab("More", systemImage: "square.grid.2x2", value: AppTab.more) {
                 NavigationStack(path: $store.morePath) {
-                    MoreView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                }
+                    MoreView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }.withTimerBar()
             }
             Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
                 NavigationStack(path: $store.settingsPath) {
-                    SettingsView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                }
+                    SettingsView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }.withTimerBar()
             }
         }
         .tabViewStyle(.tabBarOnly)
@@ -168,10 +171,12 @@ struct RouteView: View {
             case .settings: SettingsView()
             case .shared(let slug): SharedRecipeView(slug: slug)
             case .notFound: NotFoundView()
+            case .insights: InsightsView()
+            case .beta: BetaTestingView()
+            case .betaNote: BetaExpectationsView()
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
-        .withTimerBar()
+        .toolbarTitleDisplayMode(.inline)
     }
 }
 
@@ -214,20 +219,20 @@ struct LandscapeSplitView: View {
                 switch store.tab {
                 case .library, .collection:
                     NavigationStack(path: $store.path) {
-                        LibraryView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                    }
+                        LibraryView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    }.withTimerBar()
                 case .shopping:
                     NavigationStack(path: $store.shoppingPath) {
-                        ShoppingListView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                    }
+                        ShoppingListView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    }.withTimerBar()
                 case .more:
                     NavigationStack(path: $store.morePath) {
-                        MoreView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                    }
+                        MoreView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    }.withTimerBar()
                 case .settings:
                     NavigationStack(path: $store.settingsPath) {
-                        SettingsView().withTimerBar().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                    }
+                        SettingsView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    }.withTimerBar()
                 }
             }
             .frame(maxWidth: .infinity)
@@ -262,6 +267,19 @@ struct LandscapeSplitView: View {
 /// Selected tab = brand tint (via `.tint`), unselected = secondary label; same symbol weight for every item.
 enum TabBarStyle {
     static func apply() {
+        // System navigation bars keep the brand serif on large and inline titles.
+        let nav = UINavigationBarAppearance()
+        nav.configureWithDefaultBackground()
+        let serif = { (size: CGFloat) -> UIFont in
+            UIFont(name: "Fraunces", size: size)
+                ?? UIFont.systemFont(ofSize: size, weight: .bold).fontDescriptor.withDesign(.serif).map { UIFont(descriptor: $0, size: size) }
+                ?? .boldSystemFont(ofSize: size)
+        }
+        nav.largeTitleTextAttributes = [.font: UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: serif(32))]
+        nav.titleTextAttributes = [.font: UIFontMetrics(forTextStyle: .headline).scaledFont(for: serif(18))]
+        UINavigationBar.appearance().standardAppearance = nav
+        UINavigationBar.appearance().compactAppearance = nav
+        UINavigationBar.appearance().tintColor = UIColor(Theme.primary)
         let a = UITabBarAppearance()
         a.configureWithDefaultBackground()
         let sel = UIColor(Theme.primary), off = UIColor.secondaryLabel

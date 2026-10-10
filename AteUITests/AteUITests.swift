@@ -135,17 +135,17 @@ final class AteUITests: XCTestCase {
         launch()
         addPromptRecipe()
         shot("detail-x1")
-        app.buttons["x2 servings"].tap()
+        app.buttons["2×"].tap()
         wait(text("4 servings"))
         shot("detail-x2")
 
-        app.buttons["editButton"].tap()
+        app.buttons["recipeMenu"].tap(); app.buttons["editButton"].tap()
         let title = app.textFields["editorTitle"]
         wait(title)
         title.tap()
         title.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 60) + "Edited salmon")
         shot("detail-editing")
-        app.buttons["Done"].tap()
+        app.buttons["Done"].firstMatch.tap()
         wait(text("Edited salmon"))
         shot("detail-edited")
 
@@ -153,7 +153,7 @@ final class AteUITests: XCTestCase {
         wait(text("Added to your shopping list"), 5)
         shot("detail-added-to-list")
 
-        app.buttons["deleteButton"].tap()
+        app.buttons["recipeMenu"].tap(); app.buttons["deleteButton"].tap()
         let confirm = app.buttons["Delete recipe"]
         wait(confirm)
         shot("detail-delete-confirm")

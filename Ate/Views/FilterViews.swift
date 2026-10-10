@@ -90,10 +90,10 @@ struct FilterChips: View {
     private func chip(_ title: String, symbol: String?, on: Bool, id: String, action: @escaping () -> Void) -> some View {
         Button { action(); Haptics.toggle() } label: {
             HStack(spacing: 5) {
-                if let symbol { Image(systemName: symbol).font(.system(size: 11, weight: .semibold)) }
+                if let symbol { Image(systemName: symbol).font(.caption.weight(.semibold)) }
                 Text(title).font(AteFont.body(13, .semibold)).lineLimit(1)
             }
-            .padding(.horizontal, 12).frame(minHeight: 34)
+            .padding(.horizontal, 14).frame(minHeight: 44)
             .background(on ? Theme.primary : Theme.card, in: Capsule())
             .overlay(Capsule().stroke(on ? Color.clear : Theme.input))
             .foregroundStyle(on ? Theme.primaryForeground : Theme.foreground)

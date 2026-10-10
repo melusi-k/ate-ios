@@ -10,83 +10,58 @@ struct MoreView: View {
     @State private var nav = InsightsNavState.shared
 
     var body: some View {
-        ZStack {
-            Theme.background.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("More").font(AteFont.display(30))
-
-                    section("Beta testing") {
-                        NavigationLink { BetaTestingView() } label: {
-                            HStack {
-                                Image(systemName: "checklist").foregroundStyle(Theme.primary)
-                                Text("Beta testing").font(AteFont.body(15, .semibold))
-                                Spacer()
-                                Text("\(qa.progress().passed)/\(qa.progress().total)").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-                                Image(systemName: "chevron.right").foregroundStyle(Theme.mutedForeground)
-                            }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
-                        }.buttonStyle(.plain).accessibilityIdentifier("more.betaTesting")
-                        NavigationLink { BetaExpectationsView() } label: {
-                            HStack {
-                                Image(systemName: "info.circle").foregroundStyle(Theme.primary)
-                                Text(Transparency.betaTitle).font(AteFont.body(15, .semibold))
-                                Spacer()
-                                Image(systemName: "chevron.right").foregroundStyle(Theme.mutedForeground)
-                            }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
-                        }.buttonStyle(.plain).accessibilityIdentifier("betaNote")
+        List {
+            Section {
+                NavigationLink(value: Route.beta) {
+                    LabeledContent { Text("\(qa.progress().passed)/\(qa.progress().total)").monospacedDigit() } label: {
+                        Label("Beta testing", systemImage: "checklist")
                     }
-                    section("Health") {
-                        NavigationLink { InsightsView() } label: {
-                            HStack {
-                                Image(systemName: "heart.text.square").foregroundStyle(Theme.primary)
-                                Text("Insights & journal").font(AteFont.body(15, .semibold))
-                                Spacer()
-                                Image(systemName: "chevron.right").foregroundStyle(Theme.mutedForeground)
-                            }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
-                        }.buttonStyle(.plain).accessibilityIdentifier("more.insights")
-                    }
-                    section("Collections") {
-                        ForEach([RecipeCollection.quick, .favourites, .recentlyAdded, .recentlyCooked], id: \.self) { c in
-                            collectionRow(c)
-                        }
-                    }
-                    let tags = IngredientTags.collections(in: store.recipes)
-                    if !tags.isEmpty {
-                        section("By ingredient") {
-                            ForEach(tags, id: \.self) { collectionRow(.ingredient($0)) }
-                        }
-                    }
-                    section("Tools") {
-                        row("Export recipes", "arrow.down.doc", id: "more.export") {
-                            if let u = writeTemp("ate-recipes.json", store.exportJSON()) { share = ShareItems(items: [u]) }
-                        }
-                        row("Import recipes", "square.and.arrow.down", id: "more.import") { importing = true }
-                        row("Replay intro", "sparkles", id: "replayOnboarding") { store.replayOnboarding() }
-                        if let u = AppConfig.privacyURL { linkRow("Privacy Policy", "hand.raised", u, id: "settingsPrivacy") }
-                        if let u = AppConfig.termsURL { linkRow("Terms of Use", "doc.text", u, id: "settingsTerms") }
-                    }
-                    section("About") {
-                        Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))" + (AppConfig.channel.isEmpty ? "" : " · \(AppConfig.channel)"))
-                            .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aboutVersion")
-                        Text(Transparency.ai).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-                            .accessibilityIdentifier("aiTransparency")
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("AI diagnostics").font(AteFont.body(12, .semibold))
-                            Text("Model: " + OnDeviceBackend.availabilityDescription)
-                            Text("Last generation: " + (GenerationLog.last?.summary ?? "none yet"))
-                                .accessibilityIdentifier("lastGeneration")
-                        }
-                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                        .textSelection(.enabled)
-                        .accessibilityElement(children: .combine).accessibilityIdentifier("aiDiagnostics")
-                        LiveActivityDiagnosticsView()
-                    }
+                }.accessibilityIdentifier("more.betaTesting")
+                NavigationLink(value: Route.betaNote) { Label(Transparency.betaTitle, systemImage: "info.circle") }
+                    .accessibilityIdentifier("betaNote")
+            } header: { Text("Beta testing") }
+            Section {
+                NavigationLink(value: Route.insights) { Label("Insights & journal", systemImage: "heart.text.square") }
+                    .accessibilityIdentifier("more.insights")
+            } header: { Text("Health") } footer: { Text("Read-only Apple Health signals turned into meal ideas and journal prompts.") }
+            Section("Collections") {
+                ForEach([RecipeCollection.quick, .favourites, .recentlyAdded, .recentlyCooked], id: \.self) { collectionRow($0) }
+            }
+            let tags = IngredientTags.collections(in: store.recipes)
+            if !tags.isEmpty {
+                Section("By ingredient") { ForEach(tags, id: \.self) { collectionRow(.ingredient($0)) } }
+            }
+            Section("Tools") {
+                row("Export recipes", "arrow.down.doc", id: "more.export") {
+                    if let u = writeTemp("ate-recipes.json", store.exportJSON()) { share = ShareItems(items: [u]) }
                 }
-                .foregroundStyle(Theme.foreground)
-                .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
-                .pageWidth()
+                row("Import recipes", "square.and.arrow.down", id: "more.import") { importing = true }
+                row("Replay intro", "sparkles", id: "replayOnboarding") { store.replayOnboarding() }
+                if let u = AppConfig.privacyURL { Link(destination: u) { Label("Privacy Policy", systemImage: "hand.raised") }.accessibilityIdentifier("settingsPrivacy") }
+                if let u = AppConfig.termsURL { Link(destination: u) { Label("Terms of Use", systemImage: "doc.text") }.accessibilityIdentifier("settingsTerms") }
+            }
+            Section {
+                Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))" + (AppConfig.channel.isEmpty ? "" : " · \(AppConfig.channel)"))
+                    .accessibilityIdentifier("aboutVersion")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("AI diagnostics").font(AteFont.body(12, .semibold))
+                    Text("Model: " + OnDeviceBackend.availabilityDescription)
+                    Text("Last generation: " + (GenerationLog.last?.summary ?? "none yet"))
+                        .accessibilityIdentifier("lastGeneration")
+                }
+                .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                .textSelection(.enabled)
+                .accessibilityElement(children: .combine).accessibilityIdentifier("aiDiagnostics")
+                LiveActivityDiagnosticsView()
+            } header: { Text("About") } footer: {
+                Text(Transparency.ai).accessibilityIdentifier("aiTransparency")
             }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.background)
+        .navigationTitle("More")
+        .navigationBarTitleDisplayMode(.large)
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
             guard case .success(let url) = result else { return }
             let scoped = url.startAccessingSecurityScopedResource()
@@ -97,17 +72,9 @@ struct MoreView: View {
             } catch { store.show("That file isn't a ate export.", error: true) }
         }
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
-        .navigationDestination(isPresented: $qa.openRequested) { BetaTestingView() }
-        .navigationDestination(isPresented: $nav.open) { InsightsView() }
-    }
-
-    private func section<C: View>(_ title: String, @ViewBuilder _ c: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(AteFont.display(18))
-            c()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardSurface(padding: 20)
+        // Deep requests (beta banner, Today card) push values onto the More path, so path state never desyncs.
+        .onChange(of: qa.openRequested, initial: true) { _, v in if v { qa.openRequested = false; store.morePath = [.beta] } }
+        .onChange(of: nav.open, initial: true) { _, v in if v { nav.open = false; store.morePath = [.insights] } }
     }
 
     private func collectionRow(_ c: RecipeCollection) -> some View {
@@ -123,27 +90,11 @@ struct MoreView: View {
 
     private func row(_ title: String, _ symbol: String, trailing: String? = nil, id: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: symbol).font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.primary).frame(width: 24)
-                Text(title).font(AteFont.body(16, .medium))
-                Spacer()
-                if let trailing { Text(trailing).font(AteFont.body(14)).monospacedDigit().foregroundStyle(Theme.mutedForeground) }
-                Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.mutedForeground)
-            }
-            .frame(minHeight: 44).contentShape(Rectangle())
+            LabeledContent { if let trailing { Text(trailing).monospacedDigit() } } label: { Label(title, systemImage: symbol) }
+                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain).accessibilityIdentifier(id)
-    }
-
-    private func linkRow(_ title: String, _ symbol: String, _ url: URL, id: String) -> some View {
-        Link(destination: url) {
-            HStack(spacing: 12) {
-                Image(systemName: symbol).font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.primary).frame(width: 24)
-                Text(title).font(AteFont.body(16, .medium)).foregroundStyle(Theme.foreground)
-                Spacer()
-                Image(systemName: "arrow.up.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.mutedForeground)
-            }.frame(minHeight: 44)
-        }.accessibilityIdentifier(id)
+        .foregroundStyle(Theme.foreground)
+        .accessibilityIdentifier(id)
     }
 }
 

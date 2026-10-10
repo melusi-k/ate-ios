@@ -13,7 +13,6 @@ struct ShoppingListView: View {
             Theme.background.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Shopping list").font(AteFont.display(30))
                     Text("\(pending.count) to buy" + (done.isEmpty ? "" : " · \(done.count) in the basket"))
                         .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
                     HStack(spacing: 8) {
@@ -57,6 +56,7 @@ struct ShoppingListView: View {
                 .pageWidth()
             }
         }
+        .navigationTitle("Shopping list").navigationBarTitleDisplayMode(.large)
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
     }
 

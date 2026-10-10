@@ -10,13 +10,8 @@ struct SettingsView: View {
 
     var body: some View {
         @Bindable var store = store
-        ZStack {
-            Theme.background.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Settings").font(AteFont.display(30))
-
-                    AccountCard()
+        Form {
+                    Section { AccountCard().listRowInsets(EdgeInsets()).listRowBackground(Color.clear) }
                     card {
                         toggle("Private mode", "Keep everything local — no new AI generations, only your saved cards.",
                                $store.settings.onDeviceOnly)
@@ -35,16 +30,12 @@ struct SettingsView: View {
                         .tint(Theme.primary).disabled(!JournalingSuggestionsGate.isAvailable)
                         .accessibilityIdentifier("toggle.journalingSuggestions")
                     }
-                    card {
-                        Text("Units").font(AteFont.body(16, .semibold))
+                    Section("Units") {
                         Picker("Units", selection: $store.settings.units) {
                             Text("Metric").tag(UnitSystem.metric); Text("Imperial").tag(UnitSystem.imperial)
                         }.pickerStyle(.segmented)
                     }
-                    card {
-                        Text("Timer notifications").font(AteFont.display(18))
-                        Text("Choose how ate lets you know a cook-mode step timer has finished.")
-                            .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
+                    Section {
                         toggle("Sound", "Play a chime when a timer ends.", $store.timerPrefs.sound)
                         toggle("Vibration", "Buzz your device (where supported).", $store.timerPrefs.vibration)
                         toggle("Step-by-step alerts", "Show a system notification for each step.", $store.timerPrefs.stepAlerts)
@@ -57,39 +48,37 @@ struct SettingsView: View {
                                 timePicker("Until", $store.timerPrefs.quietEnd)
                             }
                         }
+                    } header: { Text("Timer notifications") } footer: {
+                        Text("Choose how ate lets you know a cook-mode step timer has finished.")
                     }
-                    card {
-                        Text("Your data").font(AteFont.display(18))
+                    Section {
+                        Button { if let u = writeTemp("ate-recipes.json", store.exportJSON()) { share = ShareItems(items: [u]) } } label: {
+                            Label("Export data", systemImage: "arrow.down.doc")
+                        }
+                        Button { importing = true } label: { Label("Import recipes", systemImage: "square.and.arrow.down") }
+                        Button("Clear all", role: .destructive) { confirmClear = true }
+                    } header: { Text("Your data") } footer: {
                         Text(store.session == nil
                              ? "Recipes are stored on this iPhone only. Sign in to sync them to your account."
                              : "Recipes and your shopping list sync to your ate account (Supabase, EU). Shared recipes are public to anyone with the link.")
-                            .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
-                        WrapLayout(spacing: 8) {
-                            Button { if let u = writeTemp("ate-recipes.json", store.exportJSON()) { share = ShareItems(items: [u]) } } label: {
-                                Label("Export data", systemImage: "arrow.down.doc")
-                            }.buttonStyle(.ate(.secondary, height: 40))
-                            Button { importing = true } label: { Label("Import recipes", systemImage: "square.and.arrow.down") }
-                                .buttonStyle(.ate(.secondary, height: 40))
-                            Button("Clear all") { confirmClear = true }.buttonStyle(.ate(.destructiveGhost, height: 40))
-                        }
                     }
-                }
-                .foregroundStyle(Theme.foreground)
-                .padding(.horizontal, 16).padding(.top, 8)
-                .pageWidth()
 
-                Button {
+                Section { Button {
                     UIPasteboard.general.string = AppConfig.versionLine
                     store.show("Version info copied")
                 } label: {
                     Text(AppConfig.versionLine).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                         .multilineTextAlignment(.center).frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.plain).padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("versionFooter").accessibilityHint("Copies version info")
-                .pageWidth()
-            }
+                }.listRowBackground(Color.clear)
         }
+        .scrollContentBackground(.hidden)
+        .background(Theme.background)
+        .foregroundStyle(Theme.foreground)
+        .navigationTitle("Settings")
+        .navigationBarTitleDisplayMode(.large)
         .onChange(of: store.timerPrefs.stepAlerts) { _, on in if on { Task { _ = await TimerAlerts.requestPermission() } } }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
             guard case .success(let url) = result else { return }
@@ -106,9 +95,7 @@ struct SettingsView: View {
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
     }
 
-    private func card<C: View>(@ViewBuilder _ c: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 12) { c() }.frame(maxWidth: .infinity, alignment: .leading).cardSurface(padding: 20)
-    }
+    private func card<C: View>(@ViewBuilder _ c: () -> C) -> some View { Section { c() } }
 
     private func toggle(_ title: String, _ detail: String, _ b: Binding<Bool>) -> some View {
         Toggle(isOn: b) {

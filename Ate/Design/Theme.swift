@@ -17,6 +17,8 @@ extension Color {
 
 /// PRD §9.1 design tokens.
 enum Theme {
+    /// Card corner radius (cards, drag and context-menu previews).
+    static let radius: CGFloat = 20
     static let background = Color.dyn(0xFCF7ED, 0x1A120C)
     static let foreground = Color.dyn(0x311F16, 0xF3EEE4)
     static let card = Color.dyn(0xFFFDF7, 0x271D16)
@@ -104,8 +106,8 @@ struct CardSurface: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Theme.border, lineWidth: 1))
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).stroke(Theme.border, lineWidth: 1))
             .shadow(color: Theme.brown.opacity(0.06), radius: 1, y: 1)
             .shadow(color: Theme.brown.opacity(0.18), radius: 15, y: 12)
     }

@@ -190,6 +190,11 @@ struct RecipeEditor: View {
         VStack(alignment: .leading, spacing: 14) {
             labeled("Title") { TextField("Title", text: $recipe.title).ateField().accessibilityIdentifier("editorTitle") }
             labeled("Description") { TextField("Description", text: descText, axis: .vertical).lineLimit(2...4).ateField() }
+            labeled("Cuisine") {
+                TextField("e.g. Italian", text: Binding(get: { recipe.cuisine ?? "" },
+                                                       set: { recipe.cuisine = $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }))
+                    .ateField().accessibilityIdentifier("editorCuisine")
+            }
             HStack(spacing: 12) {
                 labeled("Servings") {
                     TextField("2", value: $recipe.servings, format: .number).keyboardType(.numberPad).ateField()
@@ -271,11 +276,17 @@ struct RecipeEditor: View {
 
 struct ToastView: View {
     let toast: Toast
+    @Environment(AppStore.self) private var store: AppStore?
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: toast.isError ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
                 .foregroundStyle(toast.isError ? Theme.destructive : Theme.accent)
             Text(toast.message).font(AteFont.body(14, .medium)).foregroundStyle(Theme.foreground)
+            if let a = toast.actionTitle {
+                Button(a) { store?.runToastAction() }
+                    .font(AteFont.body(14, .bold)).foregroundStyle(Theme.primary)
+                    .accessibilityIdentifier("toastAction")
+            }
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
         .background(Theme.card, in: Capsule())

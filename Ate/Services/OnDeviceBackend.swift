@@ -91,7 +91,7 @@ final class OnDeviceBackend: BackendService {
             card.sourceURL = SocialLinks.clean(u).absoluteString
         }
         if request.mode == .rewrite, let cur = request.currentRecipe {
-            card.id = cur.id; card.createdAt = cur.createdAt; card.source = .appleIntelligence; card.imageURL = cur.imageURL; card.sourceURL = cur.sourceURL
+            card.id = cur.id; card.createdAt = cur.createdAt; card.favorite = cur.favorite; card.sortIndex = cur.sortIndex; card.lastCookedAt = cur.lastCookedAt; card.source = .appleIntelligence; card.imageURL = cur.imageURL; card.sourceURL = cur.sourceURL
         }
         return RecipeLogic.normalize(card)
     }
@@ -240,6 +240,7 @@ struct GenRecipe {
     @Guide(description: "Number of servings, at least 1") var servings: Int
     @Guide(description: "Total time in minutes") var timeMinutes: Int
     @Guide(description: "Up to 5 short lowercase tags") var tags: [String]
+    @Guide(description: "Cuisine in one or two words, e.g. Italian, Mexican, South African, Thai") var cuisine: String
     var ingredients: [GenIngredient]
     var steps: [GenStep]
 
@@ -248,7 +249,8 @@ struct GenRecipe {
                    timeMinutes: timeMinutes > 0 ? timeMinutes : nil, tags: tags,
                    ingredients: ingredients.map { Ingredient(name: $0.name, quantity: $0.quantity, unit: $0.unit, notes: $0.notes) },
                    steps: steps.enumerated().map { Step(order: $0.offset + 1, instruction: $0.element.instruction,
-                                                        timeSeconds: ($0.element.timeSeconds ?? 0) > 0 ? $0.element.timeSeconds : nil) })
+                                                        timeSeconds: ($0.element.timeSeconds ?? 0) > 0 ? $0.element.timeSeconds : nil) },
+                   cuisine: cuisine.trimmingCharacters(in: .whitespaces).isEmpty ? nil : cuisine.trimmingCharacters(in: .whitespaces))
     }
 }
 #endif

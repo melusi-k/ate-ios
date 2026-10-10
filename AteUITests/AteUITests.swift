@@ -508,14 +508,19 @@ final class AteUITests: XCTestCase {
         shot("library-context-menu")
         app.buttons["Add to shopping list"].tap()
         wait(text("Added to your shopping list"), 5)
-        // swipe to delete
+        // swipe to delete → undo → delete again
         row.swipeLeft()
         let del = app.buttons["Delete"].firstMatch
         wait(del, 5)
         shot("library-swipe-delete")
         del.tap()
-        wait(app.buttons["Delete recipe"], 5)
-        app.buttons["Delete recipe"].tap()
+        wait(app.buttons["toastAction"], 3)
+        shot("library-delete-undo-toast")
+        app.buttons["toastAction"].tap()
+        wait(row, 5)
+        row.swipeLeft()
+        wait(app.buttons["Delete"].firstMatch, 5)
+        app.buttons["Delete"].firstMatch.tap()
         wait(text("Nothing saved yet"), 5)
     }
 
@@ -715,5 +720,73 @@ final class AteUITests: XCTestCase {
         sleep(2)
         wait(app.tabBars.firstMatch, 5)
         shot("portrait-after-rotate")
+    }
+
+    // MARK: group / sort / reorder / menus
+
+    func addNamed(_ name: String) {
+        app.buttons["Add recipe"].tap()
+        app.buttons["Prompt"].tap()
+        let e = app.textViews["promptEditor"]; e.tap(); e.typeText(name)
+        app.buttons["generateButton"].tap()
+        wait(app.buttons["saveRecipe"], 15)
+        app.buttons["saveRecipe"].tap()
+        wait(app.buttons["Cook mode"], 5)
+        app.tabBars.buttons["Library"].tap()
+        wait(text("Your kitchen library"), 5)
+    }
+
+    func pick(_ menu: String, _ option: String) {
+        app.buttons[menu].tap()
+        let b = app.buttons[option].firstMatch
+        wait(b, 3); b.tap()
+    }
+
+    func test28_GroupSortAndMenus() {
+        launch()
+        addNamed("Zesty tacos")
+        addNamed("Apple crumble")
+        pick("sortMenu", "A–Z")
+        let a = text("Apple crumble"), z = text("Zesty tacos")
+        wait(a)
+        XCTAssertLessThan(a.frame.minY, z.frame.minY, "A–Z order")
+        shot("library-sort-az")
+        pick("groupByMenu", "Recently added")
+        wait(app.descendants(matching: .any)["section.Today"].firstMatch, 3)
+        shot("library-group-added")
+        pick("groupByMenu", "Cook time")
+        wait(app.descendants(matching: .any)["section.Under 30 min"].firstMatch, 3)
+        shot("library-group-cooktime")
+        pick("groupByMenu", "None")
+        // leading swipe: favourite + add to list
+        a.swipeRight()
+        wait(app.buttons["Favourite"].firstMatch, 3)
+        shot("library-swipe-leading")
+        app.buttons["Favourite"].firstMatch.tap()
+        wait(text("Added to Favourites"), 3)
+        pick("sortMenu", "Favourites first")
+        // context menu with preview
+        z.press(forDuration: 1.2)
+        wait(app.buttons["Cook"], 3)
+        XCTAssertTrue(app.buttons["Share"].exists)
+        XCTAssertTrue(app.buttons["Add to shopping list"].exists)
+        shot("library-context-menu-full")
+        app.buttons["Add to shopping list"].tap()
+        wait(text("Added to your shopping list"), 3)
+    }
+
+    func test29_ReorderMyOrder() {
+        launch()
+        addNamed("First dish")
+        addNamed("Second dish")
+        pick("sortMenu", "My order")
+        let first = text("First dish"), second = text("Second dish")
+        wait(first)
+        XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
+        // drag "First dish" above "Second dish"
+        first.press(forDuration: 1.0, thenDragTo: second)
+        sleep(1)
+        shot("library-reorder")
+        XCTAssertLessThan(text("First dish").frame.minY, text("Second dish").frame.minY, "drag reordered")
     }
 }

@@ -36,18 +36,31 @@ struct LibraryView: View {
         if store.session != nil { await store.syncNow() } else { store.show("Sign in from Settings to sync across devices") }
     }
 
+    private func sectionHeader(_ title: String, count: Int) -> some View {
+        HStack {
+            Text(title).overline().accessibilityAddTraits(.isHeader)
+            Spacer()
+            Text("\(count)").font(AteFont.body(12, .medium)).foregroundStyle(Theme.mutedForeground)
+        }
+        .padding(.top, 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("section." + title)
+    }
+
     private func grid(_ filtered: [RecipeCard]) -> some View {
-        ScrollView {
+        let sections = store.layout.sections(filtered)
+        let ordered = sections.flatMap(\.recipes)
+        return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header
                 FilterChips(resultCount: filtered.count)
                 emptyState(filtered)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 250, maximum: 420), spacing: 14)], spacing: 14) {
-                    ForEach(filtered) { r in
-                        Button { store.path.append(.recipe(r.id)) } label: { RecipeGridCard(recipe: r) }
-                            .buttonStyle(PressScale())
-                            .contextMenu { menu(r) }
-                            .accessibilityIdentifier("gridCard")
+                ForEach(sections) { sec in
+                    if !sec.title.isEmpty { sectionHeader(sec.title, count: sec.recipes.count) }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 250, maximum: 420), spacing: 14)], spacing: 14) {
+                        ForEach(sec.recipes) { r in
+                            gridCell(r, ordered: ordered)
+                        }
                     }
                 }
                 Color.clear.frame(height: 96)
@@ -59,38 +72,98 @@ struct LibraryView: View {
         .accessibilityIdentifier("libraryGrid")
     }
 
-    private func list(_ filtered: [RecipeCard]) -> some View {
-            List {
-                Group {
-                    header
-                    FilterChips(resultCount: filtered.count)
-                    emptyState(filtered)
-                    if !filtered.isEmpty {
-                        ForEach(filtered) { r in
-                            Button { store.path.append(.recipe(r.id)) } label: { RecipeRowView(recipe: r) }
-                                .buttonStyle(PressScale())
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    Button(role: .destructive) { confirmDelete = r } label: { Label("Delete", systemImage: "trash") }
-                                        .tint(Theme.destructive)
-                                }
-                                .swipeActions(edge: .leading) {
-                                    Button { store.cookTarget = CookTarget(id: r.id) } label: { Label("Cook", systemImage: "flame") }
-                                        .tint(Theme.primary)
-                                }
-                                .contextMenu { menu(r) } preview: { RecipeRowView(recipe: r).frame(width: 340) }
-                        }
-                    }
-                    Color.clear.frame(height: 96)
+    @ViewBuilder private func gridCell(_ r: RecipeCard, ordered: [RecipeCard]) -> some View {
+        let cell = Button { store.path.append(.recipe(r.id)) } label: { RecipeGridCard(recipe: r) }
+            .buttonStyle(PressScale())
+            .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+            .contextMenu { menu(r) } preview: { RecipeGridCard(recipe: r).frame(width: 300) }
+            .accessibilityIdentifier("gridCard")
+        if store.layout.canReorder {
+            cell
+                .draggable(r.id) { RecipeGridCard(recipe: r).frame(width: 260).opacity(0.9) }
+                .dropDestination(for: String.self) { ids, _ in
+                    guard let id = ids.first, id != r.id else { return false }
+                    withAnimation(.snappy) { store.move(id, before: r.id, in: ordered) }
+                    return true
                 }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                .foregroundStyle(Theme.foreground)
-                .pageWidth()
+        } else {
+            cell
+        }
+    }
+
+    private func list(_ filtered: [RecipeCard]) -> some View {
+        let sections = store.layout.sections(filtered)
+        let ordered = sections.flatMap(\.recipes)
+        let mover: ((IndexSet, Int) -> Void)? = store.layout.canReorder
+            ? { from, to in withAnimation { store.move(fromOffsets: from, toOffset: to, in: ordered) } } : nil
+        return List {
+            Group {
+                header
+                FilterChips(resultCount: filtered.count)
+                emptyState(filtered)
+                ForEach(sections) { sec in
+                    if !sec.title.isEmpty { sectionHeader(sec.title, count: sec.recipes.count) }
+                    ForEach(sec.recipes) { r in row(r) }
+                        .onMove(perform: mover)
+                }
+                Color.clear.frame(height: 96)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .refreshable { await refresh() }
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+            .foregroundStyle(Theme.foreground)
+            .pageWidth()
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .refreshable { await refresh() }
+    }
+
+    private func row(_ r: RecipeCard) -> some View {
+        Button { store.path.append(.recipe(r.id)) } label: { RecipeRowView(recipe: r) }
+            .buttonStyle(PressScale())
+            .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                Button(role: .destructive) { store.deleteWithUndo(r.id) } label: { Label("Delete", systemImage: "trash") }
+                    .tint(Theme.destructive)
+            }
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                Button { store.toggleFavourite(r.id) } label: {
+                    Label(r.favorite ? "Unfavourite" : "Favourite", systemImage: r.favorite ? "star.slash" : "star.fill")
+                }.tint(Theme.accent)
+                Button { store.addToShopping(r, factor: 1); store.show("Added to your shopping list") } label: {
+                    Label("Add to list", systemImage: "basket")
+                }.tint(Theme.primary)
+            }
+            .contextMenu { menu(r) } preview: { RecipeRowView(recipe: r).frame(width: 340) }
+    }
+
+    /// Group by + Sort menus next to the search field.
+    private var layoutMenus: some View {
+        @Bindable var store = store
+        return HStack(spacing: 8) {
+            Menu {
+                Picker("Group by", selection: $store.layout.group) {
+                    ForEach(LibraryLayout.GroupBy.allCases) { Label($0.rawValue, systemImage: $0.symbol).tag($0) }
+                }
+            } label: { menuLabel("Group: " + store.layout.group.rawValue, "rectangle.3.group") }
+                .accessibilityIdentifier("groupByMenu")
+            Menu {
+                Picker("Sort", selection: $store.layout.sort) {
+                    ForEach(LibraryLayout.SortBy.allCases) { Text($0.rawValue).tag($0) }
+                }
+            } label: { menuLabel("Sort: " + store.layout.sort.rawValue, "arrow.up.arrow.down") }
+                .accessibilityIdentifier("sortMenu")
+            Spacer()
+        }
+    }
+
+    private func menuLabel(_ t: String, _ sym: String) -> some View {
+        Label(t, systemImage: sym).font(AteFont.body(13, .semibold)).lineLimit(1)
+            .padding(.horizontal, 12).frame(minHeight: 34)
+            .background(Theme.secondary, in: Capsule()).foregroundStyle(Theme.secondaryForeground)
     }
 
     private var header: some View {
@@ -114,24 +187,24 @@ struct LibraryView: View {
             }
             .padding(.horizontal, 18).frame(minHeight: 48)
             .background(Theme.card, in: Capsule()).overlay(Capsule().stroke(Theme.input))
+            layoutMenus
         }
         .padding(.top, 24)
     }
 
     @ViewBuilder private func menu(_ r: RecipeCard) -> some View {
-        Button { store.path.append(.recipe(r.id)) } label: { Label("Open", systemImage: "book") }
-        Button { store.cookTarget = CookTarget(id: r.id) } label: { Label("Start cooking", systemImage: "flame") }
+        Button { store.cookTarget = CookTarget(id: r.id) } label: { Label("Cook", systemImage: "flame") }
+        ShareLink(item: RecipeLogic.text(for: r, units: store.settings.units), subject: Text(r.title)) {
+            Label("Share", systemImage: "square.and.arrow.up")
+        }
         Button { store.toggleFavourite(r.id) } label: {
-            Label(r.favorite ? "Remove from Favourites" : "Add to Favourites", systemImage: r.favorite ? "star.slash" : "star")
+            Label(r.favorite ? "Remove from Favourites" : "Favourite", systemImage: r.favorite ? "star.slash" : "star")
         }
         Button { store.addToShopping(r, factor: 1); store.show("Added to your shopping list") } label: {
             Label("Add to shopping list", systemImage: "basket")
         }
-        Button { UIPasteboard.general.string = RecipeLogic.text(for: r, units: store.settings.units); store.show("Recipe copied") } label: {
-            Label("Copy as text", systemImage: "doc.on.doc")
-        }
         Divider()
-        Button(role: .destructive) { confirmDelete = r } label: { Label("Delete", systemImage: "trash") }
+        Button(role: .destructive) { store.deleteWithUndo(r.id) } label: { Label("Delete", systemImage: "trash") }
     }
 }
 

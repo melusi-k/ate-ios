@@ -64,17 +64,21 @@ struct RecipeCard: Codable, Identifiable, Hashable {
     var favorite: Bool = false
     /// ms since epoch when cook mode was last opened.
     var lastCookedAt: Double?
+    /// AI-filled (editable) cuisine, e.g. "Italian".
+    var cuisine: String?
+    /// Position in "My order" (synced with the recipe).
+    var sortIndex: Double?
 
     enum CodingKeys: String, CodingKey {
         case id, title, description, servings, timeMinutes, tags, ingredients, steps, imageURL, sourceURL, createdAt, source, generatedAt
-        case origin, favorite, lastCookedAt
+        case origin, favorite, lastCookedAt, cuisine, sortIndex
     }
 
     init(id: String = UUID().uuidString, title: String = "Untitled recipe", description: String? = nil,
          servings: Int = 2, timeMinutes: Int? = nil, tags: [String] = [], ingredients: [Ingredient] = [],
          steps: [Step] = [], imageURL: String? = nil, sourceURL: String? = nil,
-         createdAt: Double = Date().timeIntervalSince1970 * 1000, source: RecipeSource = .manual, generatedAt: Double? = nil) {
-        self.source = source; self.generatedAt = generatedAt
+         createdAt: Double = Date().timeIntervalSince1970 * 1000, source: RecipeSource = .manual, generatedAt: Double? = nil, cuisine: String? = nil) {
+        self.source = source; self.generatedAt = generatedAt; self.cuisine = cuisine
         self.id = id; self.title = title; self.description = description; self.servings = servings
         self.timeMinutes = timeMinutes; self.tags = tags; self.ingredients = ingredients; self.steps = steps
         self.imageURL = imageURL; self.sourceURL = sourceURL; self.createdAt = createdAt
@@ -101,6 +105,8 @@ struct RecipeCard: Codable, Identifiable, Hashable {
         origin = try? c.decodeIfPresent(RecipeOrigin.self, forKey: .origin)
         favorite = (try? c.decodeIfPresent(Bool.self, forKey: .favorite)) ?? false
         lastCookedAt = try? c.decodeIfPresent(Double.self, forKey: .lastCookedAt)
+        cuisine = (try? c.decodeIfPresent(String.self, forKey: .cuisine)).flatMap { $0?.isEmpty == false ? $0 : nil }
+        sortIndex = try? c.decodeIfPresent(Double.self, forKey: .sortIndex)
     }
 }
 

@@ -53,6 +53,7 @@ struct Toast: Equatable, Identifiable {
     let id = UUID()
     let message: String
     let isError: Bool
+    var actionTitle: String? = nil
 }
 
 @Observable
@@ -80,6 +81,44 @@ final class AppStore {
         case .library: filter.collection = nil; tab = t
         default: tab = t
         }
+    }
+
+    /// Delete with a 5-second Undo toast.
+    func deleteWithUndo(_ id: String) {
+        guard let r = recipe(id), let idx = recipes.firstIndex(where: { $0.id == id }) else { return }
+        delete(id); Haptics.warning()
+        show("Deleted “\(r.title)”", action: "Undo", perform: { [weak self] in
+            guard let self else { return }
+            self.recipes.insert(r, at: min(idx, self.recipes.count)); self.persistRecipes()
+            self.toast = nil
+        }, seconds: 5)
+    }
+
+    func runToastAction() { let a = toastAction; toastAction = nil; a?() }
+
+    var layout: LibraryLayout = AppConfig.isUITesting ? LibraryLayout() : LibraryLayout.load() {
+        didSet { if !AppConfig.isUITesting { layout.save() } }
+    }
+
+    /// Reorder for "My order": `ordered` is the full current display order; moves `id` to `target`'s slot.
+    func move(_ id: String, before target: String, in ordered: [RecipeCard]) {
+        var ids = ordered.map(\.id)
+        guard let from = ids.firstIndex(of: id), let to = ids.firstIndex(of: target), from != to else { return }
+        ids.remove(at: from); ids.insert(id, at: to)
+        applyOrder(ids)
+    }
+    func move(fromOffsets: IndexSet, toOffset: Int, in ordered: [RecipeCard]) {
+        var ids = ordered.map(\.id)
+        ids.move(fromOffsets: fromOffsets, toOffset: toOffset)
+        applyOrder(ids)
+    }
+    private func applyOrder(_ ids: [String]) {
+        for (i, id) in ids.enumerated() {
+            if let k = recipes.firstIndex(where: { $0.id == id }) { recipes[k].sortIndex = Double(i) }
+        }
+        persistRecipes()
+        layout.sort = .myOrder
+        Haptics.step()
     }
 
     func toggleFavourite(_ id: String) {
@@ -194,12 +233,16 @@ final class AppStore {
     }
 
     // MARK: toasts
-    func show(_ message: String, error: Bool = false) {
-        let t = Toast(message: message, isError: error)
+    /// Runs when the toast's action button (e.g. Undo) is tapped.
+    @ObservationIgnored var toastAction: (() -> Void)?
+
+    func show(_ message: String, error: Bool = false, action: String? = nil, perform: (() -> Void)? = nil, seconds: Double = 2.6) {
+        let t = Toast(message: message, isError: error, actionTitle: action)
+        toastAction = perform
         withAnimation { toast = t }
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 2_600_000_000)
-            if toast?.id == t.id { withAnimation { toast = nil } }
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            if toast?.id == t.id { withAnimation { toast = nil }; toastAction = nil }
         }
     }
 

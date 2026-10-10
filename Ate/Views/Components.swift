@@ -391,3 +391,19 @@ struct OfflineBanner: View {
             .accessibilityIdentifier("offlineBanner")
     }
 }
+
+/// Small provenance pill ("Made with Apple Intelligence", "Imported from page data", "Demo").
+struct SourceBadge: View {
+    let source: RecipeSource
+    var body: some View {
+        if let text = source.badge {
+            Label(text, systemImage: source.symbol)
+                .font(AteFont.body(12, .semibold))
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(Theme.secondary, in: Capsule())
+                .foregroundStyle(Theme.secondaryForeground)
+                .accessibilityIdentifier("sourceBadge")
+                .accessibilityLabel(text)
+        }
+    }
+}

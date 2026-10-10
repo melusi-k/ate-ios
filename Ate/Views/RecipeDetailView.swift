@@ -36,6 +36,7 @@ struct RecipeDetailView: View {
                                         .buttonStyle(.ate(factor == f ? .primary : .secondary, height: 34))
                                 }
                             }
+                            SourceBadge(source: recipe.source)
                             RecipeCardView(recipe: recipe, factor: factor, units: store.settings.units)
                             Button {
                                 store.addToShopping(recipe, factor: factor)

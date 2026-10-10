@@ -124,6 +124,7 @@ struct AddRecipeSheet: View {
 
     @ViewBuilder private var reviewState: some View {
         Text("Review your card").font(AteFont.display(24))
+        if let d = draft { SourceBadge(source: d.source) }
         Text("Fix anything the AI got wrong, then save it to your library.")
             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
         if editing, draft != nil {
@@ -172,8 +173,11 @@ struct AddRecipeSheet: View {
         error = nil
         defer { loading = false }
         do {
+            let started = Date()
             var card = try await store.backend.parseRecipe(req)
             if mode == .link { card.sourceURL = link }
+            GenerationLog.last = GenerationLog(source: card.source, latencyMs: Int(Date().timeIntervalSince(started) * 1000),
+                                               mode: mode.rawValue, date: Date())
             draft = RecipeLogic.normalize(card)
             editing = false
         } catch let e {

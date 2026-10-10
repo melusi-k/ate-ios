@@ -5,6 +5,7 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 ## Unreleased
 
 ### ✨ New
+- **Where did this recipe come from?** Cards show a small badge on review and in the recipe: “Made with Apple Intelligence”, “Imported from page data” or “Demo”. Settings › About shows AI diagnostics (model status, plus the last run's source and speed). Older recipes are left as they were.
 - **Tab bar** – Library, Shopping list (with a badge for items still to buy) and Settings, each keeping its place when you switch. It uses the iOS 26 Liquid Glass look. Cook mode and onboarding are full screen.
 - **Save to ate** – share a link, a caption or a photo from Safari, TikTok, Instagram or Photos straight into ate.
 - **Recipe links import instantly** – schema.org/JSON-LD data on recipe sites is read directly (exact ingredients, steps, times, servings, photo) before any AI is used.

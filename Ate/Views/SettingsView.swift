@@ -54,6 +54,15 @@ struct SettingsView: View {
                         }.font(AteFont.body(14, .medium)).tint(Theme.primary)
                         Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))")
                             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aboutVersion")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("AI diagnostics").font(AteFont.body(12, .semibold))
+                            Text("Model: " + OnDeviceBackend.availabilityDescription)
+                            Text("Last generation: " + (GenerationLog.last?.summary ?? "none yet"))
+                                .accessibilityIdentifier("lastGeneration")
+                        }
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                        .textSelection(.enabled)
+                        .accessibilityElement(children: .combine).accessibilityIdentifier("aiDiagnostics")
                     }
                     card {
                         Text("Your data").font(AteFont.display(18))

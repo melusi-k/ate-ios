@@ -603,6 +603,30 @@ final class AteUITests: XCTestCase {
         wait(text("Your kitchen library"), 5)
     }
 
+    func test24_Provenance() {
+        launch()
+        app.buttons["Add recipe"].tap()
+        app.buttons["Prompt"].tap()
+        let e = app.textViews["promptEditor"]; e.tap(); e.typeText("Lentil soup")
+        app.buttons["generateButton"].tap()
+        wait(text("Review your card"), 15)
+        let badge = app.descendants(matching: .any)["sourceBadge"].firstMatch
+        wait(badge, 5)
+        XCTAssertEqual(badge.label, "Demo")
+        shot("provenance-review-badge")
+        app.buttons["saveRecipe"].tap()
+        wait(app.buttons["Cook mode"], 5)
+        XCTAssertTrue(app.descendants(matching: .any)["sourceBadge"].firstMatch.exists)
+        app.tabBars.buttons["Settings"].tap()
+        let diag = app.descendants(matching: .any)["aiDiagnostics"].firstMatch
+        var n = 0
+        while !diag.exists && n < 8 { app.swipeUp(); n += 1 }
+        wait(diag, 3)
+        XCTAssertTrue(diag.label.contains("Demo"), diag.label)
+        XCTAssertTrue(diag.label.contains("ms"), diag.label)
+        shot("settings-ai-diagnostics")
+    }
+
     func test23_DeepLinkSelectsLibraryTab() {
         launch(["-ateOpenURL", "ate://recipe/demo"])
         let tabs = app.tabBars.firstMatch

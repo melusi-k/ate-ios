@@ -98,6 +98,7 @@ final class MockBackend: BackendService {
                 }
                 if !card.tags.contains("vegan") { card.tags.append("vegan") }
             }
+            card.source = .mock; card.generatedAt = Date().timeIntervalSince1970 * 1000
             return card
         }
         let seed = (request.text ?? "").trimmingCharacters(in: .whitespaces)
@@ -125,7 +126,8 @@ final class MockBackend: BackendService {
                 Step(order: 3, instruction: "Roast the salmon until just flaky.", timeSeconds: 600),
                 Step(order: 4, instruction: "Rest for a minute, then serve over rice.", timeSeconds: 60),
             ],
-            sourceURL: request.mode == .url ? seed : nil)
+            sourceURL: request.mode == .url ? seed : nil,
+            source: .mock, generatedAt: Date().timeIntervalSince1970 * 1000)
     }
 
     func publish(_ card: RecipeCard) async throws -> String {

@@ -41,7 +41,10 @@ final class OnDeviceBackend: BackendService {
         if request.mode == .url {
             if let html = try? await Self.fetchHTML(request.text ?? "") {
                 pageHTML = html
-                if let card = JSONLD.recipe(fromHTML: html, sourceURL: request.text) { return RecipeLogic.normalize(card) }
+                if var card = JSONLD.recipe(fromHTML: html, sourceURL: request.text) {
+                    card.source = .jsonLD; card.generatedAt = Date().timeIntervalSince1970 * 1000
+                    return RecipeLogic.normalize(card)
+                }
             }
         }
         guard Self.isModelAvailable else { return try await fallback.parseRecipe(request) }
@@ -65,9 +68,10 @@ final class OnDeviceBackend: BackendService {
             prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"
         }
         var card = try await Self.generate(prompt)
+        card.source = .appleIntelligence; card.generatedAt = Date().timeIntervalSince1970 * 1000
         if request.mode == .url { card.sourceURL = request.text }
         if request.mode == .rewrite, let cur = request.currentRecipe {
-            card.id = cur.id; card.createdAt = cur.createdAt; card.imageURL = cur.imageURL; card.sourceURL = cur.sourceURL
+            card.id = cur.id; card.createdAt = cur.createdAt; card.source = .appleIntelligence; card.imageURL = cur.imageURL; card.sourceURL = cur.sourceURL
         }
         return RecipeLogic.normalize(card)
     }

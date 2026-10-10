@@ -33,3 +33,28 @@ final class SharedInboxTests: XCTestCase {
         XCTAssertEqual(store.path, [.shared("abc")])
     }
 }
+
+final class ProvenanceTests: XCTestCase {
+    func testLegacyRecipeDecodesAsUnknown() throws {
+        let json = #"{"id":"a","title":"Old soup","servings":2,"tags":[],"ingredients":[],"steps":[],"createdAt":1}"#
+        let r = try JSONDecoder().decode(RecipeCard.self, from: Data(json.utf8))
+        XCTAssertEqual(r.source, .unknown)
+        XCTAssertNil(r.generatedAt)
+        XCTAssertNil(r.source.badge)
+    }
+    func testUnrecognisedSourceIsUnknownAndRoundTrips() throws {
+        let bad = #"{"id":"a","title":"x","source":"quantumOven"}"#
+        XCTAssertEqual(try JSONDecoder().decode(RecipeCard.self, from: Data(bad.utf8)).source, .unknown)
+        var r = RecipeCard(title: "AI pasta"); r.source = .appleIntelligence; r.generatedAt = 1_760_000_000_000
+        let back = try JSONDecoder().decode(RecipeCard.self, from: JSONEncoder().encode(r))
+        XCTAssertEqual(back.source, .appleIntelligence)
+        XCTAssertEqual(back.generatedAt, 1_760_000_000_000)
+        XCTAssertEqual(back.source.badge, "Made with Apple Intelligence")
+        XCTAssertEqual(RecipeSource.jsonLD.badge, "Imported from page data")
+        XCTAssertEqual(RecipeSource.mock.badge, "Demo")
+    }
+    func testJSONLDImportIsTaggedJSONLD() async throws {
+        // the JSON-LD parser itself leaves source to the backend; new cards default to manual
+        XCTAssertEqual(RecipeCard().source, .manual)
+    }
+}

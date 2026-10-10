@@ -99,7 +99,8 @@ Fixed:
 
 Open issues / gaps vs PRD:
 - **Web share page on old backend:** new iOS shares don't render on `recipe-transform-ai.lovable.app` until the Lovable app points at project `ploncuhexmwydjxljuhe` (needs Lovable credits).
-- **AI:** Foundation Models hasn't been tested on a real iOS 26 device. URL import doesn't parse schema.org JSON-LD (the PRD wants that structured path with no AI call). Without Apple Intelligence the app returns mock cards; a server fallback (`parse-recipe`) isn't deployed because there's no AI provider key on the new project.
+- **AI:** ✅ Foundation Models verified on a real iOS 26 device (iPhone 17, 2026-10-10). Queries return real, relevant recipes. ✅ URL import now parses schema.org JSON-LD first, with no AI call (`JSONLD.swift`, tagged `source: jsonLD`). Still open: without Apple Intelligence the app returns mock cards (badged “Demo”); a server fallback (`parse-recipe`) isn't deployed because there's no AI provider key on the new project.
+- **Provenance:** every card stores `source` (`appleIntelligence | jsonLD | mock | manual | shared | imported | unknown`) and `generatedAt`. Recipes saved before v1.3 decode as `unknown`, with no badge. The badge shows on the review step and the recipe detail. Settings › About › AI diagnostics shows model availability and the last run's source, mode and latency.
 - **Sync:** client-clock LWW, so a wrong device clock can win. There's no field-level merge. Signing into a different account merges the local library into it.
 - **Signed IPA path:** the extension needs its own provisioning profile. The signed CI path currently passes only one profile, so signed builds with the widget will fail until a second profile secret is added. Unsigned builds plus Sideloadly are fine.
 - **Timer chime:** uses system sounds, not the 3-tone chime asset. Haptics are a single success tap.
@@ -110,7 +111,7 @@ Open issues / gaps vs PRD:
 ## Updated roadmap
 1. ✅ **Done (2026-10-10):** backend moved to Melusi's own Supabase project `ate` (`ploncuhexmwydjxljuhe`): `shared_recipes` (9 rows, slugs kept) + `user_recipes` with RLS, Edge Functions `publish-recipe` and `get-shared-recipe`, email auth + `ate://auth-callback`. The app publishes and reads shares there.
 2. **Before TestFlight:** custom SMTP so confirmation and reset emails aren't rate-limited.
-3. **Next:** repoint the Lovable web app to the new project (needs Lovable credits) so new shares render on the web; optionally add an AI key secret and deploy `parse-recipe` as a server fallback; custom SMTP for auth emails (the built-in mailer is rate-limited); add JSON-LD import.
+3. **Next:** repoint the Lovable web app to the new project (needs Lovable credits) so new shares render on the web; optionally add an AI key secret and deploy `parse-recipe` as a server fallback; custom SMTP for auth emails (the built-in mailer is rate-limited).
 4. **Domain:** register `ate.app`, serve `/r/<slug>` on the web, then (paid Apple Developer account) enable Associated Domains with `applinks:ate.app`, host the AASA (template in `docs/associated-domains/`) and set `ATE_SHARE_HOST=https://ate.app`.
 5. **Paid account also unlocks:** signed CI builds with two profiles (app + widget), TestFlight, push-to-update Live Activities, Sign in with Apple / CloudKit as options.
 6. **Later:** voice cook mode (SFSpeechRecognizer), share extension, aisle-grouped list, bundled chime, iPad layout.

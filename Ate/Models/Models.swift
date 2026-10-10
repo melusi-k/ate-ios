@@ -13,6 +13,35 @@ struct Step: Codable, Hashable {
     var timeSeconds: Int?
 }
 
+/// Where a recipe card came from (provenance). Unknown raw values (and pre-v1.3 recipes) decode as `.unknown`.
+enum RecipeSource: String, Codable, Hashable, CaseIterable {
+    case appleIntelligence, jsonLD, mock, manual, shared, imported, unknown
+    init(from decoder: Decoder) throws {
+        self = RecipeSource(rawValue: (try? decoder.singleValueContainer().decode(String.self)) ?? "") ?? .unknown
+    }
+    /// Badge text; nil when no badge should be shown.
+    var badge: String? {
+        switch self {
+        case .appleIntelligence: return "Made with Apple Intelligence"
+        case .jsonLD: return "Imported from page data"
+        case .mock: return "Demo"
+        case .shared: return "Shared with you"
+        case .imported: return "Imported"
+        case .manual, .unknown: return nil
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .appleIntelligence: return "apple.intelligence"
+        case .jsonLD: return "curlybraces"
+        case .mock: return "theatermasks"
+        case .shared: return "person.2"
+        case .imported: return "square.and.arrow.down"
+        case .manual, .unknown: return "pencil"
+        }
+    }
+}
+
 struct RecipeCard: Codable, Identifiable, Hashable {
     var id: String = UUID().uuidString
     var title: String = "Untitled recipe"
@@ -25,15 +54,19 @@ struct RecipeCard: Codable, Identifiable, Hashable {
     var imageURL: String?
     var sourceURL: String?
     var createdAt: Double = Date().timeIntervalSince1970 * 1000
+    var source: RecipeSource = .manual
+    /// ms since epoch when the card was generated/parsed (nil for manual/legacy).
+    var generatedAt: Double?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, description, servings, timeMinutes, tags, ingredients, steps, imageURL, sourceURL, createdAt
+        case id, title, description, servings, timeMinutes, tags, ingredients, steps, imageURL, sourceURL, createdAt, source, generatedAt
     }
 
     init(id: String = UUID().uuidString, title: String = "Untitled recipe", description: String? = nil,
          servings: Int = 2, timeMinutes: Int? = nil, tags: [String] = [], ingredients: [Ingredient] = [],
          steps: [Step] = [], imageURL: String? = nil, sourceURL: String? = nil,
-         createdAt: Double = Date().timeIntervalSince1970 * 1000) {
+         createdAt: Double = Date().timeIntervalSince1970 * 1000, source: RecipeSource = .manual, generatedAt: Double? = nil) {
+        self.source = source; self.generatedAt = generatedAt
         self.id = id; self.title = title; self.description = description; self.servings = servings
         self.timeMinutes = timeMinutes; self.tags = tags; self.ingredients = ingredients; self.steps = steps
         self.imageURL = imageURL; self.sourceURL = sourceURL; self.createdAt = createdAt
@@ -55,6 +88,8 @@ struct RecipeCard: Codable, Identifiable, Hashable {
         imageURL = try? c.decodeIfPresent(String.self, forKey: .imageURL)
         sourceURL = try? c.decodeIfPresent(String.self, forKey: .sourceURL)
         createdAt = (try? c.decode(Double.self, forKey: .createdAt)) ?? Date().timeIntervalSince1970 * 1000
+        source = (try? c.decodeIfPresent(RecipeSource.self, forKey: .source)) ?? .unknown
+        generatedAt = try? c.decodeIfPresent(Double.self, forKey: .generatedAt)
     }
 }
 

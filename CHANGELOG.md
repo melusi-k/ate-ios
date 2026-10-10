@@ -16,6 +16,7 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 - **Offline & retry** – an offline banner, and failed imports or shared links show the reason with Try again.
 - **Accessibility** – text follows your Dynamic Type size, more VoiceOver labels, stronger orange for contrast.
 - Localization scaffolding (String Catalog).
+- **Hands-free cook mode** – tap the mic and say “next”, “back”, “start timer”, “pause timer” or “repeat” (reads the step aloud). Recognition runs on your iPhone.
 
 ### 🐛 Fixed
 - Recipe pages that block the default downloader now load (browser user agent).

@@ -5,6 +5,8 @@ struct CookModeView: View {
     var onExit: (() -> Void)? = nil
     @Environment(AppStore.self) private var store
     @State private var index = 0
+    @State private var voice = VoiceController()
+    @State private var testUtterance = ""
 
     init(recipeID: String, onExit: (() -> Void)? = nil) {
         self.recipeID = recipeID
@@ -27,7 +29,8 @@ struct CookModeView: View {
             // Resume at the step whose timer is running, if any.
             if let t = store.timers.timers.first(where: { $0.recipeID == recipeID && $0.isRunning }) { index = t.stepIndex }
         }
-        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false; voice.stop() }
+        .onChange(of: index) { Haptics.step() }
     }
 
     private func exit() {
@@ -48,6 +51,31 @@ struct CookModeView: View {
                 Button(action: exit) { Label("Exit", systemImage: "chevron.left") }.buttonStyle(.ate(.ghost, height: 44))
                 Spacer()
                 Text("Step \(index + 1) of \(n)").font(AteFont.body(14, .medium))
+                Button {
+                    voice.onCommand = { handle($0, recipe) }
+                    voice.toggle()
+                } label: { Image(systemName: voice.isListening ? "mic.fill" : "mic") }
+                    .buttonStyle(.ate(voice.isListening ? .primary : .secondary, height: 44))
+                    .accessibilityLabel(voice.isListening ? "Stop voice control" : "Start voice control")
+                    .accessibilityIdentifier("voiceToggle")
+            }
+            if voice.isListening {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(L10n.voiceListening, systemImage: "waveform").font(AteFont.body(13, .semibold))
+                    if !voice.lastHeard.isEmpty {
+                        Text("“\(voice.lastHeard.suffix(60))”").font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                            .accessibilityIdentifier("voiceHeard")
+                    }
+                    if AppConfig.isUITesting {
+                        TextField("say…", text: $testUtterance).accessibilityIdentifier("voiceTestInput")
+                            .onSubmit { voice.heard(testUtterance) }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12).background(Theme.card.opacity(0.7), in: RoundedRectangle(cornerRadius: 14))
+                .accessibilityElement(children: .contain).accessibilityIdentifier("voicePanel")
+            } else if case .unavailable(let why) = voice.state {
+                Text(why).font(AteFont.body(13)).foregroundStyle(Theme.destructive).accessibilityIdentifier("voiceUnavailable")
             }
             GeometryReader { g in
                 ZStack(alignment: .leading) {
@@ -102,6 +130,27 @@ struct CookModeView: View {
     }
 
     private func format(_ s: Int) -> String { String(format: "%d:%02d", s / 60, s % 60) }
+
+    private func handle(_ cmd: VoiceCommand, _ recipe: RecipeCard) {
+        let n = recipe.steps.count
+        switch cmd {
+        case .next: if index < n - 1 { index += 1; voice.speak(stepSpeech(recipe)) }
+        case .back: if index > 0 { index -= 1; voice.speak(stepSpeech(recipe)) }
+        case .repeatStep: voice.speak(stepSpeech(recipe))
+        case .startTimer:
+            guard (step(recipe).timeSeconds ?? 0) > 0 else { voice.speak("This step has no timer."); return }
+            if let a = store.timers.timer(recipeID, index) { if !a.isRunning { store.timers.toggle(a.id) } }
+            else { store.timers.start(recipe: recipe, stepIndex: index) }
+            store.show("Timer started")
+        case .pauseTimer:
+            if let a = store.timers.timer(recipeID, index), a.isRunning { store.timers.toggle(a.id) }
+        case .exit: exit()
+        }
+    }
+
+    private func stepSpeech(_ r: RecipeCard) -> String {
+        "Step \(index + 1). " + Units.convertTemperatures(in: step(r).instruction, to: store.settings.units)
+    }
 }
 
 /// Sticky bar showing running/paused cook timers on every screen outside cook mode.

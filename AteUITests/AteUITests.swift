@@ -541,4 +541,31 @@ final class AteUITests: XCTestCase {
         wait(text("Review your card"), 15)
         shot("a11y-large-text-review")
     }
+
+    func test21_VoiceCookMode() {
+        launch()
+        addPromptRecipe()
+        app.buttons["Cook mode"].tap()
+        wait(text("Step 1 of 4"))
+        app.buttons["voiceToggle"].tap()
+        wait(app.descendants(matching: .any)["voicePanel"].firstMatch, 5)
+        let say = app.textFields["voiceTestInput"]
+        func speak(_ t: String) { say.tap(); replaceText(say, t, placeholder: "say…"); say.typeText("\n") }
+        speak("next")
+        wait(text("Step 2 of 4"))
+        speak("next please next")
+        wait(text("Step 3 of 4"))
+        speak("start the timer")
+        wait(app.buttons["Pause timer"], 5)
+        shot("cook-voice-timer")
+        speak("pause timer")
+        wait(app.buttons["Start timer"], 5)
+        speak("go back")
+        wait(text("Step 2 of 4"))
+        speak("repeat")
+        wait(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'speaking: Step 2'")).firstMatch, 5)
+        shot("cook-voice-listening")
+        app.buttons["voiceToggle"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["voicePanel"].firstMatch.waitForNonExistence(timeout: 3))
+    }
 }

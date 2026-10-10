@@ -40,18 +40,31 @@ enum Theme {
 enum Palette {
     /// Darkened from the web's #C95028 so text/buttons reach 4.5:1 on the cream background.
     static let primaryLight: UInt32 = 0xB9481F
-    static let pairs: [(name: String, fg: UInt32, bg: UInt32)] = [
-        ("foreground/background", 0x311F16, 0xFCF7ED), ("muted/background", 0x7B675B, 0xFCF7ED), ("muted/card", 0x7B675B, 0xFFFDF7),
-        ("primary/background", primaryLight, 0xFCF7ED), ("primaryForeground/primary", 0xFEFAF1, primaryLight),
-        ("destructive/card", 0xCC2827, 0xFFFDF7), ("secondaryForeground/secondary", 0x442C21, 0xF3EAD7),
-        ("dark foreground/background", 0xF3EEE4, 0x1A120C), ("dark muted/card", 0xADA397, 0x271D16),
-        ("dark primary/background", 0xE77140, 0x1A120C), ("dark primaryForeground/primary", 0x190F0A, 0xE77140),
-        ("dark destructive/card", 0xFF6467, 0x271D16), ("warmForeground/warm", 0x512E1A, 0xF5E2C0),
-    ]
+    struct Pair { let name: String; let fg: UInt32; let bg: UInt32 }
+    static let pairs: [Pair] = {
+        var p: [Pair] = []
+        p.append(Pair(name: "foreground/background", fg: 0x311F16, bg: 0xFCF7ED))
+        p.append(Pair(name: "muted/background", fg: 0x7B675B, bg: 0xFCF7ED))
+        p.append(Pair(name: "muted/card", fg: 0x7B675B, bg: 0xFFFDF7))
+        p.append(Pair(name: "primary/background", fg: primaryLight, bg: 0xFCF7ED))
+        p.append(Pair(name: "primaryForeground/primary", fg: 0xFEFAF1, bg: primaryLight))
+        p.append(Pair(name: "destructive/card", fg: 0xCC2827, bg: 0xFFFDF7))
+        p.append(Pair(name: "secondaryForeground/secondary", fg: 0x442C21, bg: 0xF3EAD7))
+        p.append(Pair(name: "dark foreground/background", fg: 0xF3EEE4, bg: 0x1A120C))
+        p.append(Pair(name: "dark muted/card", fg: 0xADA397, bg: 0x271D16))
+        p.append(Pair(name: "dark primary/background", fg: 0xE77140, bg: 0x1A120C))
+        p.append(Pair(name: "dark primaryForeground/primary", fg: 0x190F0A, bg: 0xE77140))
+        p.append(Pair(name: "dark destructive/card", fg: 0xFF6467, bg: 0x271D16))
+        p.append(Pair(name: "warmForeground/warm", fg: 0x512E1A, bg: 0xF5E2C0))
+        return p
+    }()
     static func luminance(_ h: UInt32) -> Double {
-        let c = [16, 8, 0].map { Double((h >> UInt32($0)) & 0xFF) / 255 }
-            .map { $0 <= 0.03928 ? $0 / 12.92 : pow(($0 + 0.055) / 1.055, 2.4) }
-        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+        func lin(_ shift: UInt32) -> Double {
+            let v = Double((h >> shift) & 0xFF) / 255.0
+            return v <= 0.03928 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4)
+        }
+        let r: Double = lin(16), g: Double = lin(8), b: Double = lin(0)
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
     }
     static func contrast(_ a: UInt32, _ b: UInt32) -> Double {
         let (x, y) = (luminance(a), luminance(b))

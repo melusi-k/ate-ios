@@ -61,6 +61,8 @@ targets:
         UIAppFonts: [Fraunces.ttf, DMSans.ttf]
         NSSupportsLiveActivities: true
         NSPhotoLibraryUsageDescription: ate reads the recipe screenshot you pick to turn it into a recipe card.
+        NSSpeechRecognitionUsageDescription: ate listens on your iPhone for “next”, “back”, “start timer” and “repeat” while you cook. Audio never leaves your device.
+        NSMicrophoneUsageDescription: ate uses the microphone for hands-free cook mode commands.
         NSCameraUsageDescription: ate uses the camera to snap a recipe.
         ITSAppUsesNonExemptEncryption: false
         AteBackendMode: $(ATE_BACKEND_MODE)

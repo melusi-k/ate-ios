@@ -135,6 +135,14 @@ def qa_results():
     return res, f"qa_results: {len(rows)} latest rows (device + ci)"
 
 
+def job_log(job_id, name):
+    tok = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or sh("gh", "auth", "token").strip()
+    req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/actions/jobs/{job_id}/logs",
+                                 headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json"})
+    try: return urllib.request.urlopen(req, timeout=60).read().decode("utf-8", "ignore")
+    except Exception as e: print(f"log for job {name} unavailable: {e}", file=sys.stderr); return ""
+
+
 def find_run(run_id):
     if run_id: return gh_api(f"repos/{REPO}/actions/runs/{run_id}")
     runs = gh_api(f"repos/{REPO}/actions/workflows/build-ipa.yml/runs?branch=main&status=success&per_page=1")["workflow_runs"]
@@ -148,9 +156,7 @@ def run_data(run):
     unit = [0, 0]; ui = [0, 0]; qa = {}
     for j in jobs:
         if j["conclusion"] in ("skipped", None): continue
-        lr = subprocess.run(["gh", "api", f"repos/{REPO}/actions/jobs/{j['id']}/logs"], capture_output=True, text=True, errors="ignore")
-        log = lr.stdout
-        if lr.returncode: print(f"log for job {j['name']} unavailable: {lr.stderr[:200]}", file=sys.stderr)
+        log = job_log(j["id"], j["name"])
         for m in re.finditer(r"Test Case '-\[\S+ testQA(\d)_\w+\]' (passed|failed)", log):
             qa[int(m.group(1))] = m.group(2)
         if "ui-suite" in j["name"]:

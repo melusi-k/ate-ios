@@ -74,7 +74,7 @@ jobs:
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
             -only-testing:AteUITests/KeyFlowsQATests -resultBundlePath build/QA.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
-            CODE_SIGNING_ALLOWED=NO > qa.log 2>&1 && STATUS=0 || STATUS=$?
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee qa.log | grep --line-buffered -E "Test Case|Test Suite|error:|Testing (started|failed)|Restarting after" ; STATUS=${PIPESTATUS[0]}
           python3 scripts/qa-summary.py qa.log > build/qa.md || true
           cat build/qa.md
           cat build/qa.md >> "$GITHUB_STEP_SUMMARY"
@@ -306,7 +306,7 @@ jobs:
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
             -only-testing:AteUITests -skip-testing:AteUITests/KeyFlowsQATests -resultBundlePath build/UITests.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
-            CODE_SIGNING_ALLOWED=NO > uitest.log 2>&1 && STATUS=0 || STATUS=$?
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee uitest.log | grep --line-buffered -E "Test Case|Test Suite|error:|Testing (started|failed)|Restarting after" ; STATUS=${PIPESTATUS[0]}
           grep -E "Test Case .*(passed|failed)|error:|Executed" uitest.log | tail -60
           mkdir -p ui-screenshots/raw
           xcrun xcresulttool export attachments --path build/UITests.xcresult --output-path ui-screenshots/raw || true

@@ -1,0 +1,14 @@
+name: Probe FoundationModels SDK
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: macos-26
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: { xcode-version: latest-stable }
+      - run: |
+          ls /Applications | grep -i xcode
+          xcodebuild -version
+          F=$(find "$(xcode-select -p)/Platforms/iPhoneOS.platform" -path '*FoundationModels.framework*' -name '*.swiftinterface' | grep -m1 arm64e-apple-ios)
+          echo "FILE: $F"
+          grep -nE 'Attachment|Image|CGImage|Transcript\.(Image|Attachment)|protocol Tool|protocol LanguageModel\b|Profile|public protocol|SystemLanguageModel\.(Use|Guard)|struct GenerationOptions|SamplingMode|greedy|init\(.*model:' "$F" | grep -v '^\s*//' | head -200

@@ -55,8 +55,9 @@ final class TimerCenter {
     func start(recipe: RecipeCard, stepIndex: Int) {
         guard recipe.steps.indices.contains(stepIndex) else { return }
         let step = recipe.steps[stepIndex]
-        let total = step.timeSeconds ?? 0
+        var total = step.timeSeconds ?? 0
         guard total > 0 else { return }
+        if AppConfig.qaFastTimers { total = max(2, total / 30) }
         if !permissionAsked, prefsProvider().stepAlerts {
             permissionAsked = true
             Task { _ = await TimerAlerts.requestPermission() }
@@ -155,6 +156,7 @@ enum LiveActivities {
     #endif
 
     static func startOrUpdate(_ t: ActiveTimer) {
+        if AppConfig.isUITesting { Task { @MainActor in QAProbe.shared.liveActivityRequests += 1 } }
         #if canImport(ActivityKit)
         guard enabled else { return }
         let content = ActivityContent(state: state(t), staleDate: t.endDate?.addingTimeInterval(60))

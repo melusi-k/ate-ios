@@ -147,14 +147,31 @@ final class SupabaseSync: SyncService {
 /// In-memory server for UI tests.
 final class MockSync: SyncService {
     private var rows: [String: SyncRecord] = [:]
+    /// With `-qaPersistServer` the "server" is a file that survives relaunches (second-device / second-launch pull).
+    private static var file: URL { FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("qa-mock-server.json") }
+    var pushCount = 0
+    init() {
+        if AppConfig.qaPersistServer, let d = try? Data(contentsOf: Self.file),
+           let r = try? JSONDecoder().decode([String: SyncRecord].self, from: d) { rows = r }
+        if ProcessInfo.processInfo.arguments.contains("-qaResetServer") { try? FileManager.default.removeItem(at: Self.file); rows = [:] }
+    }
     func pull(session: AuthSession) async throws -> [SyncRecord] { Array(rows.values) }
     func push(_ records: [SyncRecord], session: AuthSession) async throws {
+        pushCount += 1
         for r in records { rows["\(r.kind)/\(r.id)"] = r }
+        if AppConfig.qaPersistServer { try? JSONEncoder().encode(rows).write(to: Self.file) }
     }
 }
 
 /// Pure last-write-wins merge, unit-testable.
 enum SyncMerge {
+    /// Account-switch safety: signing in as a different user than the one this device last synced with
+    /// must not merge (or push tombstones of) the previous account's library into the new one.
+    static func isAccountSwitch(lastSyncedUser: String?, newUser: String) -> Bool {
+        guard let lastSyncedUser else { return false }
+        return lastSyncedUser != newUser
+    }
+
     struct Local { var data: [String: Data]; var stamps: [String: Double]; var tombstones: [String: Double] }
     struct Result { var data: [String: Data]; var stamps: [String: Double]; var tombstones: [String: Double]; var push: [String] ; var pushDeletes: [String] }
 
@@ -163,7 +180,8 @@ enum SyncMerge {
         var remoteStamp: [String: Double] = [:]
         for r in remote {
             remoteStamp[r.id] = Double(r.updated_at)
-            let localStamp = max(stamps[r.id] ?? -1, tomb[r.id] ?? -1)
+            // Stamps travel as whole ms (bigint); compare rounded so a re-sync is a no-op.
+            let localStamp = max(stamps[r.id] ?? -1, tomb[r.id] ?? -1).rounded()
             guard Double(r.updated_at) > localStamp else { continue }
             if r.deleted {
                 data[r.id] = nil; stamps[r.id] = nil; tomb[r.id] = Double(r.updated_at)
@@ -171,8 +189,8 @@ enum SyncMerge {
                 data[r.id] = raw; stamps[r.id] = Double(r.updated_at); tomb[r.id] = nil
             }
         }
-        let push = data.keys.filter { (stamps[$0] ?? 0) > (remoteStamp[$0] ?? -1) }
-        let pushDeletes = tomb.keys.filter { (tomb[$0] ?? 0) > (remoteStamp[$0] ?? -1) }
+        let push = data.keys.filter { (stamps[$0] ?? 0).rounded() > (remoteStamp[$0] ?? -1) }
+        let pushDeletes = tomb.keys.filter { (tomb[$0] ?? 0).rounded() > (remoteStamp[$0] ?? -1) }
         return Result(data: data, stamps: stamps, tombstones: tomb, push: push.sorted(), pushDeletes: pushDeletes.sorted())
     }
 }

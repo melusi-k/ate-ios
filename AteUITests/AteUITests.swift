@@ -772,6 +772,43 @@ final class AteUITests: XCTestCase {
         wait(text("Added to your shopping list"), 3)
     }
 
+    func test30_SessionExpiryAndAccountSwitch() {
+        // Expired session: clear message, user signed out locally, recipes kept.
+        launch(["-qaExpireSession"])
+        addRecipe(tab: "Prompt", input: { a in let e = a.textViews["promptEditor"]; e.tap(); e.typeText("Keep me safe") }, shotPrefix: "expiry")
+        signInViaSettingsAllowingExpiry()
+        wait(text("Your session expired"), 10)
+        wait(app.buttons["openSignIn"], 5)
+        shot("auth-session-expired")
+        app.tabBars.buttons["Library"].tap()
+        wait(text("Keep me safe"), 5)
+
+        // Account switch: the previous account's library doesn't leak into the next one.
+        launch()
+        addRecipe(tab: "Prompt", input: { a in let e = a.textViews["promptEditor"]; e.tap(); e.typeText("Account A stew") }, shotPrefix: "switch")
+        signInViaSettings()
+        wait(text("Synced"), 10)
+        app.buttons["signOutButton"].tap()
+        let keep = app.buttons["Sign out, keep recipes on this iPhone"]; wait(keep, 5); keep.tap()
+        wait(app.buttons["openSignIn"], 5)
+        app.buttons["openSignIn"].tap()
+        wait(app.staticTexts["authTitle"])
+        fillAuth("other@example.com", "password123")
+        app.buttons["authSubmit"].tap()
+        wait(text("Switched accounts"), 10)
+        shot("auth-account-switch")
+        app.tabBars.buttons["Library"].tap()
+        XCTAssertFalse(text("Account A stew").waitForExistence(timeout: 2), "account A's recipe leaked into account B")
+    }
+
+    func signInViaSettingsAllowingExpiry() {
+        openSettingsAccount()
+        app.buttons["openSignIn"].tap()
+        wait(app.staticTexts["authTitle"])
+        fillAuth("cook@example.com", "password123")
+        app.buttons["authSubmit"].tap()
+    }
+
     func test29_ReorderMyOrder() {
         launch()
         addNamed("First dish")

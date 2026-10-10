@@ -96,6 +96,8 @@ struct AddRecipeSheet: View {
             if AppConfig.isUITesting {
                 Button("Use sample screenshot") { imageData = Self.sampleImage() }
                     .buttonStyle(.ate(.secondary, height: 40)).accessibilityIdentifier("sampleImage")
+                Button("Use sample food photo") { imageData = Self.sampleFoodPhoto() }
+                    .buttonStyle(.ate(.secondary, height: 40)).accessibilityIdentifier("sampleFoodPhoto")
             }
             if let d = imageData, let ui = UIImage(data: d) {
                 Image(uiImage: ui).resizable().scaledToFill().frame(maxWidth: .infinity, maxHeight: 192)
@@ -160,6 +162,17 @@ struct AddRecipeSheet: View {
             }
             .buttonStyle(.ate(.ghost)).disabled(loading).accessibilityLabel("Regenerate")
         }
+    }
+
+    /// A text-free "photo" (a round dish of colour blobs) to exercise the food-photo path.
+    static func sampleFoodPhoto() -> Data? {
+        UIGraphicsImageRenderer(size: CGSize(width: 400, height: 300)).image { ctx in
+            UIColor(red: 0.55, green: 0.35, blue: 0.2, alpha: 1).setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 400, height: 300))
+            UIColor(white: 0.96, alpha: 1).setFill(); ctx.cgContext.fillEllipse(in: CGRect(x: 60, y: 20, width: 280, height: 260))
+            UIColor(red: 0.85, green: 0.25, blue: 0.1, alpha: 1).setFill(); ctx.cgContext.fillEllipse(in: CGRect(x: 100, y: 60, width: 200, height: 180))
+            UIColor(red: 1, green: 0.85, blue: 0.4, alpha: 1).setFill()
+            for (x, y) in [(150, 100), (220, 120), (180, 170), (240, 180)] { ctx.cgContext.fillEllipse(in: CGRect(x: x, y: y, width: 34, height: 30)) }
+        }.jpegData(compressionQuality: 0.9)
     }
 
     static func sampleImage() -> Data? {

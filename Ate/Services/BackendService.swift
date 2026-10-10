@@ -102,6 +102,30 @@ final class MockBackend: BackendService {
             return card
         }
         let seed = (request.text ?? "").trimmingCharacters(in: .whitespaces)
+        // QA fixtures: real JSON-LD + social-caption parsers on bundled pages.
+        if request.mode == .url, seed.hasPrefix(QAFixtures.jsonLDURL), var c = JSONLD.recipe(fromHTML: QAFixtures.jsonLDHTML, sourceURL: seed) {
+            c.source = .jsonLD; c.generatedAt = Date().timeIntervalSince1970 * 1000; return c
+        }
+        if request.mode == .url, let u = URL(string: seed), let p = SocialLinks.platform(of: u), seed.contains("qafixture") {
+            let caption = SocialLinks.caption(platform: p, oEmbed: nil, meta: SocialLinks.meta(QAFixtures.instagramHTML))
+            guard SocialLinks.isUseful(caption) else { throw SocialCaptionError(platform: p) }
+            var c = QAFixtures.cardFromCaption(caption, sourceURL: SocialLinks.clean(u).absoluteString)
+            c.source = .mock; c.generatedAt = Date().timeIntervalSince1970 * 1000; return c
+        }
+        // Photos: real Vision OCR decides screenshot vs food photo, even in the mock.
+        if request.mode == .image {
+            let text = (try? await OnDeviceBackend.ocr(dataURL: request.imageDataUrl ?? "")) ?? ""
+            if !PhotoGuess.isScreenshotText(text) {
+                let labels = (try? await OnDeviceBackend.classify(dataURL: request.imageDataUrl ?? "")) ?? []
+                guard let dish = PhotoGuess.dishes(from: labels).first, PhotoGuess.prompt(labels: labels, ocrText: text) != nil else {
+                    throw BackendError(message: "Couldn't recognise a dish in that photo. Try a closer shot, a screenshot of the recipe, or describe it in Prompt.")
+                }
+                var c = RecipeCard(title: "Guessed: " + dish.capitalized, description: "Drafted from a photo — check quantities.",
+                                   servings: 2, timeMinutes: 30, ingredients: [Ingredient(name: dish, quantity: 1, unit: "pcs", notes: nil)],
+                                   steps: [Step(order: 1, instruction: "Prepare the \(dish).", timeSeconds: nil)])
+                c.source = .photoGuess; c.generatedAt = Date().timeIntervalSince1970 * 1000; return c
+            }
+        }
         // UI-test hook: a social link with no caption.
         if request.mode == .url, let u = URL(string: seed), let p = SocialLinks.platform(of: u), seed.contains("nocaption") {
             throw SocialCaptionError(platform: p)

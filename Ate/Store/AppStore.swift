@@ -47,6 +47,7 @@ private struct SyncMeta: Codable {
     var recipeTombs: [String: Double] = [:]
     var shopStamps: [String: Double] = [:]
     var shopTombs: [String: Double] = [:]
+    var userID: String?
 }
 
 struct Toast: Equatable, Identifiable {
@@ -331,7 +332,18 @@ final class AppStore {
         guard var s = session, let sync, let auth else { syncState = .signedOut; return }
         syncState = .syncing
         do {
-            if s.expiresAt < Date().timeIntervalSince1970 + 60 { s = try await auth.refresh(s); setSession(s) }
+            if s.expiresAt < Date().timeIntervalSince1970 + 60 {
+                do { s = try await auth.refresh(s); setSession(s) }
+                catch let e as AuthError where e.kind == .unauthorized { expireSession(); return }
+            }
+            if SyncMerge.isAccountSwitch(lastSyncedUser: meta.userID, newUser: s.userID) {
+                // The previous account's copy is safe on the server; don't leak it into this one.
+                recipes = []; shopping = []; recipeSnapshot = [:]; shopSnapshot = [:]
+                persistRecipes(stamp: false); persistShopping(stamp: false)
+                meta = SyncMeta()
+                show("Switched accounts — the other account's recipes were removed from this iPhone (they're still in that account).")
+            }
+            meta.userID = s.userID
             let remote = try await sync.pull(session: s)
             let enc = JSONEncoder()
             let dec = JSONDecoder()
@@ -368,13 +380,24 @@ final class AppStore {
         } catch SyncError.tableMissing {
             syncState = .unavailable(SyncError.tableMissing.errorDescription ?? "")
         } catch SyncError.unauthorized {
-            syncState = .failed("session expired — sign in again")
+            expireSession()
         } catch {
             syncState = .failed(error.localizedDescription)
         }
     }
 
+    /// Session can't be refreshed: sign out locally (keep recipes) and say so plainly.
+    var sessionExpired = false
+    func expireSession() {
+        setSession(nil)
+        sessionExpired = true
+        syncState = .failed(Self.sessionExpiredMessage)
+        show(Self.sessionExpiredMessage, error: true)
+    }
+    static let sessionExpiredMessage = "Your session expired — sign in again to keep syncing. Your recipes are safe on this iPhone."
+
     private func setSession(_ s: AuthSession?) {
+        if s != nil { sessionExpired = false }
         session = s
         Keychain.save(s.flatMap { try? JSONEncoder().encode($0) }, account: "session")
     }
@@ -395,7 +418,8 @@ final class AppStore {
         guard let auth else { return AuthError(message: "Accounts aren't configured in this build.") }
         let email = email.trimmingCharacters(in: .whitespaces)
         do {
-            setSession(try await auth.signIn(email: email, password: password))
+            let new = try await auth.signIn(email: email, password: password)
+            setSession(new)
             pendingConfirmation = nil
             show("Signed in")
             Task { await syncNow() }

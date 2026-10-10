@@ -74,6 +74,12 @@ struct RootView: View {
                 OfflineBanner().padding(.bottom, 84).transition(.opacity)
             }
         }
+        .overlay(alignment: .bottomTrailing) {
+            if AppConfig.isUITesting {
+                Text(QAProbe.shared.summary).font(.system(size: 6)).opacity(0.05)
+                    .accessibilityIdentifier("qa.probe").allowsHitTesting(false)
+            }
+        }
         .overlay(alignment: .top) {
             if let t = store.toast {
                 ToastView(toast: t).padding(.top, 8).transition(.move(edge: .top).combined(with: .opacity)).id(t.id)

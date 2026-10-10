@@ -1,5 +1,25 @@
 # Ate — PRD (native iOS)
 
+## What's coming next — v1.3 hardening
+
+**Release blockers**
+1. **Universal links for cross-device sharing.** Associated Domains are placeholder-only on a free Apple ID. Needs a paid account, the ate.app domain, and a hosted AASA file before shared links open the app for other people.
+2. **Production security review.** Write and complete a checklist covering RLS on every table, edge-function auth (JWT checks, rate limits, input validation, CORS), data retention and deletion rules, and the service-role key never leaving the server.
+
+**Actions**
+3. **Align the docs with real behaviour.** Fix the README (sharing now uses Supabase, not the mock publisher), and state the default runtime mode for AI, sharing, and sync per build type.
+4. **Separate config from secrets.** Keep the public values (Supabase URL, publishable key, share host) in one clearly labelled block in `project.yml`, and only ever put real secrets in GitHub secrets or Supabase.
+5. **Test auth and sync on real devices.** Sign up, confirm, sign in, magic link, password reset, sign out, delete account, and two-device sync conflicts.
+6. **Confirm the Apple Intelligence fallback on every device class.** Cover a supported phone (iPhone 17), one with Apple Intelligence off or unsupported, and one on iOS 18 without Foundation Models. Make sure the badge and the fallback (JSON-LD, demo, or a future server parse) are right, and document the minimum iOS and hardware.
+7. **End-to-end coverage.** Add automated tests for auth, sharing (publish, then open on a second simulator), and sync against a staging Supabase project in CI.
+8. **Lower integration risk.** Split auth, sync, AI parsing, sharing, timers, and deep links into separate Swift packages or modules with clear interfaces and contract tests, so a change in one area can't quietly break another.
+
+## Beta gate & QA release gate
+
+- **Beta gate:** [MVP_CHECKLIST.md](MVP_CHECKLIST.md) — every item rated ✅/🟡/❌/⛔ with evidence. Current score **65/73 (89%)** ([MVP_SCORE.md](MVP_SCORE.md)). Verdict: a strong MVP candidate for a **controlled beta**, not public-launch ready; remaining gaps are mostly product and infrastructure polish. Non-code blockers: the web share page still reads the old Lovable backend (Lovable credits), universal links (paid account + domain), real-device checks ([QA.md](QA.md)).
+- **QA pass on key flows (release gate criteria):** a build may only be published when all 8 flows pass in `KeyFlowsQATests` — 1 add from URL (JSON-LD + social caption), 2 add from photo (screenshot + food-photo fallback), 3 generate & edit, 4 save, 5 share (link + text, single link), 6 open shared (`ate://recipe/<slug>` + expired/not found), 7 sync (sign in, edit, sync, second launch pulls), 8 timers (start/pause/resume, timer bar, finish chime/haptic, Live Activity request). CI writes the flow → pass/fail table into the job summary and release notes. Before giving a build to testers, run the manual on-device checklist in [QA.md](QA.md).
+- Hardening landed with the gate: clear session-expiry handling (local sign-out, recipes kept), account-switch safety, idempotent repeat syncs (fixed a re-push loop from fractional stamps), a 500-recipe performance test, AI transparency copy in onboarding and Settings, and an in-app "What to expect in this beta" note ([BETA.md](BETA.md)).
+
 ## Feature additions (v1.2) — 2026-10-10
 
 ### F. Sign-in reliability fix

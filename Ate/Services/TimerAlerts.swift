@@ -44,7 +44,7 @@ enum TimerAlerts {
 
     /// Foreground finish: chime + haptics (the scheduled notification covers background).
     @MainActor static func timerFinished(prefs: TimerPrefs) {
-        if prefs.sound && !isQuiet(prefs) { Haptics.chime() }
-        if prefs.vibration { Haptics.timerDone() }
+        if prefs.sound && !isQuiet(prefs) { Haptics.chime(); if AppConfig.isUITesting { Task { @MainActor in QAProbe.shared.chimes += 1 } } }
+        if prefs.vibration { Haptics.timerDone(); if AppConfig.isUITesting { Task { @MainActor in QAProbe.shared.finishHaptics += 1 } } }
     }
 }

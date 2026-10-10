@@ -72,6 +72,10 @@ struct OnboardingView: View {
             Text("Ready to cook?").font(AteFont.display(28)).accessibilityIdentifier("onboardingChoice")
             Text("An account is optional. Everything works offline on this iPhone.")
                 .font(AteFont.body(15)).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)
+            Text(Transparency.ai).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                .multilineTextAlignment(.center).accessibilityIdentifier("onboardingAITransparency")
+            Text("Beta build — see Settings › About for what to expect.").font(AteFont.body(12, .medium))
+                .foregroundStyle(Theme.primary).accessibilityIdentifier("onboardingBetaNote")
             Spacer()
             if store.accountAvailable {
                 Button("Create account") { auth = .signUp }.buttonStyle(.ate(.primary, full: true)).accessibilityIdentifier("onboardingSignUp")

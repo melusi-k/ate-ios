@@ -54,6 +54,14 @@ struct SettingsView: View {
                         }.font(AteFont.body(14, .medium)).tint(Theme.primary)
                         Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))")
                             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aboutVersion")
+                        Text(Transparency.ai).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                            .accessibilityIdentifier("aiTransparency")
+                        DisclosureGroup {
+                            VStack(alignment: .leading, spacing: 6) {
+                                ForEach(Transparency.beta, id: \.self) { Label($0, systemImage: "info.circle").font(AteFont.body(13)) }
+                            }.padding(.top, 4)
+                        } label: { Text(Transparency.betaTitle).font(AteFont.body(14, .semibold)) }
+                            .tint(Theme.primary).accessibilityIdentifier("betaNote")
                         VStack(alignment: .leading, spacing: 2) {
                             Text("AI diagnostics").font(AteFont.body(12, .semibold))
                             Text("Model: " + OnDeviceBackend.availabilityDescription)
@@ -66,7 +74,9 @@ struct SettingsView: View {
                     }
                     card {
                         Text("Your data").font(AteFont.display(18))
-                        Text("Recipes are stored on this device only. Nothing is uploaded when you browse or cook.")
+                        Text(store.session == nil
+                             ? "Recipes are stored on this iPhone only. Sign in to sync them to your account."
+                             : "Recipes and your shopping list sync to your ate account (Supabase, EU). Shared recipes are public to anyone with the link.")
                             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
                         WrapLayout(spacing: 8) {
                             Button { if let u = writeTemp("ate-recipes.json", store.exportJSON()) { share = ShareItems(items: [u]) } } label: {

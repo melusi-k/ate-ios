@@ -26,10 +26,22 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 - Localization scaffolding (String Catalog).
 - **Hands-free cook mode** – tap the mic and say “next”, “back”, “start timer”, “pause timer” or “repeat” (reads the step aloud). Recognition runs on your iPhone.
 
+- **QA release gate.** A dedicated `KeyFlowsQATests` suite covers the 8 key flows; CI only publishes a build when all pass, and the release notes carry the QA table and the MVP checklist score.
+- **MVP checklist** (`docs/MVP_CHECKLIST.md`) with an honest status per item, plus `docs/BETA.md` and an in-app “What to expect in this beta” note in Settings › About.
+- **AI transparency** line in onboarding and Settings.
+- **Session expiry** is explained clearly: you're signed out on this iPhone, your recipes stay, sign in again to keep syncing.
+- **Safer account switching:** signing in as a different account no longer mixes the previous account's recipes into it.
+
 ### 🐛 Fixed
+- Repeat syncs could re-upload the same recipes forever (fractional timestamps vs whole-millisecond server stamps). Sync is now idempotent.
+- Settings › Your data no longer says recipes are “on this device only” when you're signed in and syncing.
 - **Food photos work on the Image tab.** A photo of a dish (no text) no longer fails with “Couldn't read any text”. ate recognises the dish and drafts a likely recipe, badged “Guessed from photo”, for you to review and edit. The copy now explains screenshots versus photos.
 - **Instagram, TikTok and YouTube links** no longer time out. ate reads the caption or description from the link preview (oEmbed/OpenGraph, ~8 s), strips tracking parameters, and builds the card from that. When Instagram hides the caption, ate says so and offers one tap to paste it into Prompt. Other pages now give up after 10 s with a clear message.
 - Recipe pages that block the default downloader now load (browser user agent).
+
+### 🗺️ Planned (v1.3 hardening, see the PRD)
+- Release blockers: universal links (paid account, ate.app, AASA) and a production security review (RLS, edge-function auth, retention, service-role key).
+- Docs match real behaviour, config is separated from secrets, real-device auth and sync testing, the Apple Intelligence fallback checked on every device class, end-to-end tests against a staging Supabase, and modularisation with contract tests.
 
 ### ⚠️ Known issues
 - Unsigned: install with Sideloadly/AltStore (free Apple ID: expires after 7 days, needs Developer Mode).

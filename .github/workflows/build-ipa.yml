@@ -67,10 +67,10 @@ jobs:
           c=[(k,x) for k,v in d.items() if "iOS-26" in k for x in v if x["name"]=="iPhone 17"]
           c=c or [(k,x) for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")]
           c.sort(key=lambda t:t[0]); print(c[-1][1]["udid"]); print(c[-1][0], c[-1][1]["name"], file=sys.stderr)')
-          echo "UI test simulator: $SIM_ID"
+          echo "UI test simulator: $SIM_ID"; echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
           xcrun simctl boot "$SIM_ID" || true
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
-            -only-testing:AteUITests -resultBundlePath build/UITests.xcresult \
+            -only-testing:AteUITests -skip-testing:AteUITests/KeyFlowsQATests -resultBundlePath build/UITests.xcresult \
             CODE_SIGNING_ALLOWED=NO > uitest.log 2>&1 && STATUS=0 || STATUS=$?
           grep -E "Test Case .*(passed|failed)|error:|Executed" uitest.log | tail -60
           mkdir -p ui-screenshots/raw
@@ -91,6 +91,32 @@ jobs:
           print("\n".join(sorted(f for f in os.listdir(out) if f != "raw")))
           PY
           if [ $STATUS -ne 0 ]; then tail -120 uitest.log; fi
+          exit $STATUS
+
+      - name: QA gate — key flows (KeyFlowsQATests)
+        id: qa
+        run: |
+          xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/KeyFlowsQATests -resultBundlePath build/QA.xcresult \
+            CODE_SIGNING_ALLOWED=NO > qa.log 2>&1 && STATUS=0 || STATUS=$?
+          python3 scripts/qa-summary.py qa.log > build/qa.md || true
+          cat build/qa.md
+          cat build/qa.md >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p ui-screenshots/qa-raw
+          xcrun xcresulttool export attachments --path build/QA.xcresult --output-path ui-screenshots/qa-raw || true
+          python3 - <<'PY'
+          import json, os, shutil
+          raw = "ui-screenshots/qa-raw"
+          try: man = json.load(open(os.path.join(raw, "manifest.json")))
+          except Exception: man = []
+          for t in man:
+              tn = t.get("testIdentifier", "t").split("/")[-1].replace("()", "")
+              for a in t.get("attachments", []):
+                  n = a.get("suggestedHumanReadableName") or a["exportedFileName"]
+                  base = n.split("_0_")[0] if "_0_" in n else os.path.splitext(n)[0]
+                  shutil.copy(os.path.join(raw, a["exportedFileName"]), f"ui-screenshots/{tn}__{base}{os.path.splitext(a['exportedFileName'])[1] or '.png'}")
+          PY
+          if [ $STATUS -ne 0 ]; then grep -vi coredata qa.log | grep -E "error:|failed" | head -40; fi
           exit $STATUS
 
       - name: Upload UI test screenshots
@@ -240,6 +266,8 @@ jobs:
           git fetch --tags --force -q || true
           scripts/release-notes.sh "$APP_VERSION" "$BUILD_NUMBER" "$GITHUB_SHA" \
             "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" "$IPA_NAME" "$IPA_KIND" > build/notes.md
+          [ -f build/qa.md ] && { echo; cat build/qa.md; } >> build/notes.md
+          [ -f docs/MVP_SCORE.md ] && { echo; cat docs/MVP_SCORE.md; } >> build/notes.md
           cat build/notes.md >> "$GITHUB_STEP_SUMMARY"
           # Immutable per-build prerelease.
           gh release create "build-${BUILD_NUMBER}" "dist/$IPA_NAME" --prerelease --target "$GITHUB_SHA" \

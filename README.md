@@ -1,18 +1,26 @@
 # ate — iOS
 
-Native SwiftUI (iOS 17+, iPhone) rebuild of the **ate** AI recipe library. Full spec: [docs/PRD.md](docs/PRD.md).
+Native SwiftUI (iOS 18+, iPhone; Apple Intelligence features need iOS 26 on supported hardware) rebuild of the **ate** AI recipe library. Full spec: [docs/PRD.md](docs/PRD.md).
+
+**Beta gate:** [docs/MVP_CHECKLIST.md](docs/MVP_CHECKLIST.md) (score in [docs/MVP_SCORE.md](docs/MVP_SCORE.md)) · **QA gate:** [docs/QA.md](docs/QA.md) — `KeyFlowsQATests` must pass before CI publishes a release · Testers: [docs/BETA.md](docs/BETA.md).
 
 ## Features
-Library + search · Add recipe sheet (Link / Image / Prompt → review/edit/regenerate/save) · Recipe detail (x1/x2/x3 scaling, inline edit, Ask ate rewrite, share, add to shopping list, delete) · Cook mode (big text, progress, step timers with background notifications, screen stays awake) · Shopping list (merge, manual add, tick, share/copy/.txt/.csv, clear) · Settings (private mode, units, timer prefs + quiet hours, export/import/clear) · Shared recipe deep links (`ate://r/<slug>`) · 404 / error states.
+Library + search · Add recipe sheet (Link / Image / Prompt → review/edit/regenerate/save) · Recipe detail (x1/x2/x3 scaling, inline edit, Ask ate rewrite, share, add to shopping list, delete) · Cook mode (big text, progress, step timers with background notifications, screen stays awake) · Shopping list (merge, manual add, tick, share/copy/.txt/.csv, clear) · Settings (private mode, units, timer prefs + quiet hours, export/import/clear) · Shared recipe deep links (`ate://recipe/<slug>`, legacy `ate://r/<slug>`) · 404 / error states.
 
 Data is stored on-device with SwiftData. Settings live in UserDefaults.
 
 ## AI
 - **Default: on-device.** Apple Foundation Models (`LanguageModelSession` + `@Generable` recipe type) on iOS 26+ devices with Apple Intelligence. Screenshots go through Vision OCR (`VNRecognizeTextRequest`). For links, the app fetches the page and passes its text to the model.
-- If the system model isn't available (older iOS, unsupported device, Apple Intelligence off), the app **falls back to a mock backend** that returns demo cards. The Add sheet and Settings show which one is active.
-- Everything goes through the `BackendService` protocol (`Ate/Services`). `SupabaseBackend` is a stub for the Edge Functions `parse-recipe` / `publish-recipe` and the `shared_recipes` table.
+- If the system model isn't available (older iOS, unsupported device, Apple Intelligence off), links with schema.org page data still import via JSON-LD; everything else **falls back to demo cards** badged "Demo". The Add sheet and Settings show which one is active.
+- Everything goes through the `BackendService` protocol (`Ate/Services`). Sharing is live on Supabase (`publish-recipe` edge function → `shared_recipes`); a server-side `parse-recipe` fallback is not deployed yet.
 - Config lives in `project.yml` build settings and is read from Info.plist: `ATE_BACKEND_MODE` (`ondevice` | `mock` | `supabase`), `ATE_SUPABASE_URL`, `ATE_SUPABASE_PUBLISHABLE_KEY` (publishable/anon key only), `ATE_SHARE_HOST`. **No secret keys in the app.**
-- Sharing currently uses the mock publisher, so share links only resolve inside the same app session until the server is wired up.
+- **Default runtime modes:**
+
+  | Build | AI parsing | Sharing | Sync / accounts |
+  |---|---|---|---|
+  | CI / sideload `.ipa` (`ATE_BACKEND_MODE=ondevice`) | On-device Apple Intelligence (iOS 26 + supported hardware). JSON-LD for recipe pages; otherwise demo cards badged "Demo" | Supabase Edge Function `publish-recipe` → `shared_recipes` (links `<ATE_SHARE_HOST>/r/<slug>` and `ate://recipe/<slug>`) | Supabase Auth + `user_recipes` (RLS), when signed in |
+  | `ATE_BACKEND_MODE=supabase` | Server `parse-recipe` (not deployed) | Supabase | Supabase |
+  | `ATE_BACKEND_MODE=mock` and UI tests (`-UITesting`) | Mock | In-memory mock | Mock auth |
 
 ## Build locally (macOS)
 ```sh

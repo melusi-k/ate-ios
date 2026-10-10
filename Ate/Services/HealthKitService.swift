@@ -14,9 +14,34 @@ enum HealthAccess: Equatable {
 /// Read-only Health access. Live implementation + mock (UI tests / simulator demo).
 protocol HealthKitServicing {
     var access: HealthAccess { get }
+    /// Human-readable error from the last authorization request, shown in Insights (nil = none).
+    var lastError: String? { get }
     /// Asks only for the MVP read types (sleep, steps, active energy, workouts). Never writes.
     func requestAccess() async -> HealthAccess
     func summary(days: Int) async -> HealthSummary
+}
+
+/// Beta diagnostics for Apple Health: why Connect did (or didn't) show the system sheet. Never silent.
+enum HealthDiagnostics {
+    static let resultKey = "ate.health.lastRequestResult"
+    static let atKey = "ate.health.lastRequestAt"
+    static var lastResult: String? { UserDefaults.standard.string(forKey: resultKey) }
+    static var lastAt: Date? { UserDefaults.standard.object(forKey: atKey) as? Date }
+    static func record(_ result: String) {
+        UserDefaults.standard.set(result, forKey: resultKey); UserDefaults.standard.set(Date(), forKey: atKey)
+    }
+    static var available: Bool {
+        #if canImport(HealthKit)
+        return HKHealthStore.isHealthDataAvailable()
+        #else
+        return false
+        #endif
+    }
+    /// One-line summary for the Beta page / copied diagnostics.
+    static var line: String {
+        let when = lastAt.map { $0.formatted(date: .omitted, time: .shortened) } ?? "never"
+        return "Health: available=\(available ? "yes" : "no") · entitlement=\(LiveHealthKitService.hasEntitlement ? "yes" : "no") · last request=\(lastResult ?? "none") (\(when))"
+    }
 }
 
 enum HealthServiceFactory {
@@ -36,6 +61,7 @@ enum HealthServiceFactory {
 
 final class MockHealthKitService: HealthKitServicing {
     let scenario: String
+    var lastError: String? { scenario == "noEntitlement" ? "Missing com.apple.developer.healthkit entitlement (mock)" : nil }
     private(set) var access: HealthAccess
     init(scenario: String) {
         self.scenario = scenario
@@ -72,6 +98,7 @@ final class MockHealthKitService: HealthKitServicing {
 
 final class LiveHealthKitService: HealthKitServicing {
     private(set) var access: HealthAccess = .notDetermined
+    private(set) var lastError: String?
     private static let askedKey = "ate.health.asked.v1"
 
     /// True when the running binary was signed with the HealthKit entitlement. Sideloaded builds re-signed
@@ -93,7 +120,6 @@ final class LiveHealthKitService: HealthKitServicing {
     init() {
         #if canImport(HealthKit)
         if !HKHealthStore.isHealthDataAvailable() { access = .unavailable }
-        else if !Self.hasEntitlement { access = .entitlementMissing }
         else if UserDefaults.standard.bool(forKey: Self.askedKey) { access = .requested }
         #else
         access = .unavailable
@@ -102,12 +128,21 @@ final class LiveHealthKitService: HealthKitServicing {
 
     func requestAccess() async -> HealthAccess {
         #if canImport(HealthKit)
-        guard access == .notDetermined || access == .requested else { return access }
+        // Always try on tap (except no-Health devices): HealthKit itself decides whether the sheet appears,
+        // and any failure is recorded + shown rather than swallowed. The profile check is diagnostic only.
+        guard HKHealthStore.isHealthDataAvailable() else {
+            HealthDiagnostics.record("unavailable (isHealthDataAvailable=false)"); access = .unavailable; return access
+        }
         do {
             try await store.requestAuthorization(toShare: [], read: Self.readTypes)
             UserDefaults.standard.set(true, forKey: Self.askedKey)
+            lastError = nil
             access = .requested
+            HealthDiagnostics.record("ok")
         } catch {
+            let ns = error as NSError
+            lastError = "\(ns.localizedDescription) (\(ns.domain) \(ns.code))"
+            HealthDiagnostics.record("error: " + (lastError ?? ""))
             let msg = String(describing: error).lowercased()
             access = msg.contains("entitlement") || msg.contains("application-identifier") ? .entitlementMissing : .denied
         }

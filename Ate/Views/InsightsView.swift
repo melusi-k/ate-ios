@@ -27,7 +27,12 @@ final class InsightsModel {
         if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaHealthPrompt") { mockPromptShown = true; return }
         await connect(recipes: recipes)
     }
-    func connect(recipes: [RecipeCard]) async { access = await health.requestAccess(); await refresh(recipes: recipes) }
+    /// Last authorization error, shown under the Health card so a failed request is never silent.
+    var requestError: String?
+    func connect(recipes: [RecipeCard]) async {
+        access = await health.requestAccess(); requestError = health.lastError
+        await refresh(recipes: recipes)
+    }
     func useSampleData(recipes: [RecipeCard]) async { await useScenario("recovery", recipes: recipes) }
     func refresh(recipes: [RecipeCard]) async {
         access = health.access
@@ -122,6 +127,11 @@ struct InsightsView: View {
 
     @ViewBuilder private var bodyToday: some View {
         card("Your body today") {
+            if let err = model.requestError {
+                Label("Apple Health request failed: \(err)", systemImage: "exclamationmark.triangle")
+                    .font(AteFont.body(13)).foregroundStyle(Theme.destructive)
+                    .accessibilityIdentifier("insights.healthError")
+            }
             switch model.access {
             case .unavailable:
                 unavailable("Apple Health isn't available", "heart.slash", "This device has no Health app (e.g. iPad).", id: "insights.unavailable")

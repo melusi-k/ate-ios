@@ -251,6 +251,13 @@ final class AteUITests: XCTestCase {
         tapSwitch("toggle.Private mode")
         XCTAssertEqual(app.switches["toggle.Private mode"].value as? String, "1")
         shot("settings-changed")
+        // Bottom: the last row (version footer) scrolls fully clear of the tab bar.
+        let footer = app.buttons["versionFooter"]
+        for _ in 0..<8 where !(footer.exists && footer.isHittable) { app.swipeUp() }
+        app.swipeUp()
+        if app.tabBars.firstMatch.exists, footer.exists {
+            XCTAssertLessThanOrEqual(footer.frame.maxY, app.tabBars.firstMatch.frame.minY + 1, "Settings content sits under the tab bar")
+        }
         tab("Library")
         app.buttons["Add recipe"].tap()
         app.buttons["Prompt"].tap()
@@ -392,6 +399,13 @@ final class AteUITests: XCTestCase {
         wait(app.staticTexts["accountEmail"], 8)
         wait(text("Synced"), 8)
         shot("account-signed-in")
+        // Layout: Sync now + Sign out are equal-width 44pt rows side by side (not a tall narrow box).
+        let sync = app.buttons["syncNowButton"], out = app.buttons["signOutButton"]
+        wait(sync, 5)
+        XCTAssertGreaterThanOrEqual(sync.frame.height, 44); XCTAssertLessThan(sync.frame.height, 80)
+        XCTAssertGreaterThanOrEqual(out.frame.height, 44)
+        XCTAssertEqual(sync.frame.width, out.frame.width, accuracy: 4)
+        XCTAssertEqual(sync.frame.midY, out.frame.midY, accuracy: 4)
         app.buttons["signOutButton"].tap()
         let keep = app.buttons["Sign out, keep recipes on this iPhone"]
         wait(keep, 5)

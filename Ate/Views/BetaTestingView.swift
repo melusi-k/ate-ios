@@ -35,6 +35,10 @@ struct BetaTestingView: View {
                     ForEach(HealthServiceFactory.scenarios, id: \.self) { Text("Mock: " + $0).tag($0) }
                 }
                 .accessibilityIdentifier("beta.healthScenario")
+                Button { UIPasteboard.general.string = HealthDiagnostics.line; store.show("Health diagnostics copied") } label: {
+                    Text(HealthDiagnostics.line).font(AteFont.body(13)).foregroundStyle(Theme.foreground)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }.buttonStyle(.plain).accessibilityIdentifier("beta.healthDiagnostics")
                 .onChange(of: healthScenario) { _, v in Task { await InsightsModel.shared.useScenario(v, recipes: store.recipes) } }
                 NavigationLink { InsightsView() } label: { Label("Open Insights & journal", systemImage: "heart.text.square") }
                     .accessibilityIdentifier("beta.openInsights")

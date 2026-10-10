@@ -265,6 +265,7 @@ jobs:
           lipo -archs "$A/$EXE" | grep -q arm64 || { echo "::error::no arm64 slice"; exit 1; }
           codesign --verify --strict "$A" || { echo "::error::codesign verify failed for Ate.app"; exit 1; }
           codesign -d --entitlements - "$A" 2>/dev/null | grep -q application-groups || { echo "::error::app entitlements missing"; exit 1; }
+          codesign -d --entitlements - "$A" 2>/dev/null | grep -q com.apple.developer.healthkit || { echo "::error::HealthKit entitlement missing from IPA (A-HEALTH-01)"; exit 1; }
           for B in $A/PlugIns/*.appex; do
             if codesign --verify --strict "$B" 2>/dev/null; then echo "codesign ok: $B"
             elif [ "$HAS_SIGNING" = true ]; then echo "::error::codesign verify failed for $B"; exit 1

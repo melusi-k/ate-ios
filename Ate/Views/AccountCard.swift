@@ -22,12 +22,21 @@ struct AccountCard: View {
                     Text(store.syncState.label).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
                         .accessibilityIdentifier("syncStatus")
                 }
-                WrapLayout(spacing: 8) {
-                    Button { Task { await store.syncNow() } } label: { Label("Sync now", systemImage: "arrow.triangle.2.circlepath") }
-                        .buttonStyle(.ate(.secondary, height: 40)).disabled(store.syncState == .syncing)
-                    Button("Sign out") { confirmSignOut = true }.buttonStyle(.ate(.outline, height: 40))
-                        .accessibilityIdentifier("signOutButton")
+                // Equal-width, full-height 44pt rows (was a wrap layout that squeezed Sync into a tall narrow box).
+                HStack(spacing: 8) {
+                    Button { Task { await store.syncNow() } } label: {
+                        Label("Sync now", systemImage: "arrow.triangle.2.circlepath").lineLimit(1).minimumScaleFactor(0.8)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.ate(.secondary, height: 44, full: true)).disabled(store.syncState == .syncing)
+                    .accessibilityIdentifier("syncNowButton")
+                    Button { confirmSignOut = true } label: {
+                        Text("Sign out").lineLimit(1).frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.ate(.outline, height: 44, full: true))
+                    .accessibilityIdentifier("signOutButton")
                 }
+                .fixedSize(horizontal: false, vertical: true)
                 Divider().padding(.vertical, 4)
                 Text("Danger zone").font(AteFont.body(14, .semibold)).foregroundStyle(Theme.destructive)
                 Text("Deleting your account permanently removes it and your synced recipes from ate's server and this iPhone.")

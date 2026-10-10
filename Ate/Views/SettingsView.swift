@@ -25,6 +25,7 @@ struct SettingsView: View {
                                      ? "Pick a moment (photo, workout, place) in Insights and turn it into an Ate entry or recipe draft."
                                      : "Needs a paid Apple Developer build with Apple's Journaling Suggestions entitlement. Not available in this build.")
                                     .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                         .tint(Theme.primary).disabled(!JournalingSuggestionsGate.isAvailable)
@@ -75,6 +76,8 @@ struct SettingsView: View {
                 }.listRowBackground(Color.clear)
         }
         .scrollContentBackground(.hidden)
+        // Let the last rows scroll fully clear of the floating tab bar instead of sitting under it.
+        .contentMargins(.bottom, 96, for: .scrollContent)
         .background(Theme.background)
         .foregroundStyle(Theme.foreground)
         .navigationTitle("Settings")

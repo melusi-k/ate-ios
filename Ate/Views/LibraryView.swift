@@ -53,6 +53,7 @@ struct LibraryView: View {
         return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header
+                TodayHealthCard()
                 FilterChips(resultCount: filtered.count)
                 emptyState(filtered)
                 ForEach(sections) { sec in

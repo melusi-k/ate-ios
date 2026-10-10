@@ -548,3 +548,7 @@ No mismatches were found on Supabase EU region, on-device AI (no server `parse-r
 - **no P0/P1** issues open;
 - legal review done (B-PRIV-04), with the privacy audit mismatches above fixed;
 - App Store / TestFlight submission path working.
+
+
+### Apple Health insights (v1.4)
+- [ ] H-01..H-08 — see PRD "Apple Health insights + Ate journal"

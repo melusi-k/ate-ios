@@ -99,3 +99,7 @@ _Generated 2026-10-10 against build 36; automated items updated from CI run 3806
 | C-POL-04 | As a cook on iPad, I get the sidebar + grid. | — | Sidebar/grid used on iPad with no layout breaks. | `—` | n/a | n/a | n/a | ❌ | Planned phase |
 | C-POL-05 | As the developer, a change in one area can't silently break another. | — | Each area is its own module with its own tests. | `—` | n/a | n/a | n/a | ❌ | PRD v1.3 action 8 |
 | C-POL-06 | As the developer, E2E tests hit a real but separate backend. | — | CI runs auth/share/sync E2E against staging when secrets exist. | `—` | n/a | n/a | n/a | ❌ | Staging secrets not configured |
+
+
+### Apple Health insights (v1.4)
+- [ ] H-01..H-08 — see PRD "Apple Health insights + Ate journal"

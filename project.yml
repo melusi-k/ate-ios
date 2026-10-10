@@ -75,6 +75,7 @@ targets:
         NSSpeechRecognitionUsageDescription: ate listens on your iPhone for “next”, “back”, “start timer” and “repeat” while you cook. Audio never leaves your device.
         NSMicrophoneUsageDescription: ate uses the microphone for hands-free cook mode commands.
         NSCameraUsageDescription: ate uses the camera to snap a recipe.
+        NSHealthShareUsageDescription: ate reads your sleep, steps, active energy and workouts (read-only, on this iPhone) to suggest meals that fit your day. Health data never leaves your device.
         ITSAppUsesNonExemptEncryption: false
         AteBackendMode: $(ATE_BACKEND_MODE)
         AteSupabaseURL: $(ATE_SUPABASE_URL)

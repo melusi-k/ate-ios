@@ -14,6 +14,43 @@
 7. **End-to-end coverage.** Add automated tests for auth, sharing (publish, then open on a second simulator), and sync against a staging Supabase project in CI.
 8. **Lower integration risk.** Split auth, sync, AI parsing, sharing, timers, and deep links into separate Swift packages or modules with clear interfaces and contract tests, so a change in one area can't quietly break another.
 
+## Apple Health insights + Ate journal (v1.4 MVP) — 2026-10-10
+
+**Architecture.** Apple Health = data source (read-only). Ate = recommendation engine. Apple Journal = limited / future only.
+
+**Research (2026-10-10).**
+- HealthKit works with a free Apple ID: Apple's capability table lists HealthKit for the free "Apple Developer" tier ([Supported capabilities (iOS)](https://developer.apple.com/help/account/reference/supported-capabilities-ios)). The unsigned CI IPA is ad-hoc signed with `Ate/Ate.entitlements` (now incl. `com.apple.developer.healthkit`), so Sideloadly can carry it into the free profile. If a re-sign drops it, the app detects that from `embedded.mobileprovision` and shows "signed without Apple Health access" instead of a misleading Settings hint.
+- Journaling Suggestions (`JournalingSuggestionsPicker`, iOS 17.2+) is a **picker that reads** a moment the user selects from the system's suggestions into the app. It is **not** a way for Ate to put suggestions into Apple's Journal app. It needs `com.apple.developer.journal.allow`, which Apple lists for the paid Apple Developer Program only ([entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.journal.allow), [framework](https://developer.apple.com/documentation/journalingsuggestions)).
+- No API lets a third-party app write entries or suggestions into Apple Journal. The only indirect route Apple describes: data an app saves to HealthKit, or donates via SiriKit/CallKit, *may* surface in Journaling Suggestions, chosen by the system ([Apple forums 740559](https://developer.apple.com/forums/thread/740559), [Journaling Suggestions & Privacy](https://www.apple.com/legal/privacy/data/en/journaling-suggestions/)). So Health meal logging (write) is also our best chance for Ate meals to show up in Journal.
+
+**MVP scope (built).**
+- `HealthKitService` (protocol + live + mock via `-qaMockHealth <recovery|lowEnergy|performance|underactive|empty|denied|unavailable>`): read-only sleep, steps, active energy, workouts, last 1–7 days. Heart rate / resting energy later; body mass only on explicit opt-in (not requested).
+- Incremental permission: nothing is asked at launch; the ask happens only when the user taps "Connect Apple Health" in Insights, and only for the four MVP types. No write types → no `NSHealthUpdateUsageDescription`.
+- `HealthInsightEngine`: recovery / low-energy / performance / underactive / balanced, with plain-language reasons.
+- `RecipeHealthMatcher`: top 3 saved recipes for the state (ingredient/tag heuristics, not nutrition advice).
+- `JournalSuggestionService`: 1–2 prompts; Foundation Models when available, templated fallback.
+- `JournalEntry` (SwiftData, separate local store, never synced).
+- UI: More → Health → "Insights & journal" (Your body today · Suggested meals · Reflect on your day · Save to journal · Your Ate journal), plus a "Today" card in Library once Health has data.
+- States: unavailable, entitlement missing, denied, no data.
+- Journaling Suggestions picker: compiled in, shown only when the installed profile has `com.apple.developer.journal.allow` (hidden on free-ID builds). Picking a photo moment starts a journal prompt about that meal; a workout moment points to recovery meals.
+
+**Later phases.**
+1. Health meal nutrition logging (write dietary energy/macros after cooking; adds `NSHealthUpdateUsageDescription`, per-recipe nutrition estimates).
+2. Paid account: add `com.apple.developer.journal.allow` to `Ate-Signed.entitlements`, enable the picker; "dinner photo → recipe" via the photo import pipeline.
+3. "Ate suggestions in Apple Journal": only if Apple opens an API. Not planned.
+
+**MVP checklist / QA**
+| ID | Check | How |
+|---|---|---|
+| H-01 | No Health prompt at launch | manual |
+| H-02 | Connect asks only sleep/steps/energy/workouts, read-only | device |
+| H-03 | Recovery state + 3 suggestions from mock data | UI test `testHealthInsightsRecoverySavesJournalEntry` |
+| H-04 | Save to journal persists locally | UI + unit (`JournalStore`) |
+| H-05 | Denied / unavailable / no-data copy | UI test `testHealthInsightsDeniedAndUnavailable` |
+| H-06 | Free-ID sideload installs, Health connects on device | device |
+| H-07 | Journaling picker hidden on free-ID build | UI + unit |
+| H-08 | Engine/matcher rules | unit `HealthInsightTests` |
+
 ## Beta gate & QA release gate
 
 - **Beta / launch gate:** [MVP_CHECKLIST.md](MVP_CHECKLIST.md) — tiered: **A** must-pass before pilot, **B** before public launch, **C** later polish; every item has a user journey, acceptance criteria, verification and an honest status. Platform constraints and pilot vs public rollout criteria are up front and at the end. Scored pass/fail test matrix: [QA_MATRIX.md](QA_MATRIX.md); scores: [MVP_SCORE.md](MVP_SCORE.md); tester FAQ: [SUPPORT.md](SUPPORT.md). Auth (with a real-device gate) and backend/share are launch gates. Verdict (build 36): pilot candidate, but Tier A isn't green yet; not public-launch ready.

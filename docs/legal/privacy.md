@@ -66,3 +66,7 @@ If this policy changes, I'll update the date above. If the changes are significa
 
 ## Contact
 Melusi Khumalo, South Africa · **melusi.l.k@gmail.com**
+
+
+## Apple Health (optional)
+If you connect Apple Health, ate reads sleep, step count, active energy and workouts on your iPhone to suggest recipes and journal prompts. This is read-only. Health data is processed on your device, is never uploaded, synced, sold, or used for advertising, and is not shared with third parties. Ate journal entries are stored only on your device. You can revoke access at any time in Settings › Health › Data Access & Devices.

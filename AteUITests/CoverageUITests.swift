@@ -313,3 +313,32 @@ final class CoverageUITests: XCTestCase {
         shot("auth-expired-session-refreshed")
     }
 }
+
+/// Health insights MVP with mock Health data (`-qaMockHealth`). Extension so it runs in the CoverageUITests shard.
+extension CoverageUITests {
+    func openInsights(_ scenario: String) {
+        launch(["-qaMockHealth", scenario])
+        tab("More")
+        let row = app.buttons["more.insights"]
+        scrollTo(row); row.tap()
+    }
+    func testHealthInsightsRecoverySavesJournalEntry() {
+        openInsights("recovery")
+        let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
+        wait(text("Recovery day"))
+        shot("insights-recovery")
+        let field = app.descendants(matching: .any)["insights.journalText"]
+        scrollTo(field); field.tap(); field.typeText("Legs tired, chicken bowl tonight")
+        let save = app.buttons["insights.save"]; scrollTo(save); save.tap()
+        wait(app.descendants(matching: .any)["insights.entry"])
+        XCTAssertFalse(app.descendants(matching: .any)["insights.journalingPicker"].exists, "Picker must be hidden without the paid entitlement")
+    }
+    func testHealthInsightsDeniedAndUnavailable() {
+        openInsights("denied")
+        let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
+        wait(app.descendants(matching: .any)["insights.denied"])
+        app.terminate()
+        openInsights("unavailable")
+        wait(app.descendants(matching: .any)["insights.unavailable"])
+    }
+}

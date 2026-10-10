@@ -7,6 +7,7 @@ struct MoreView: View {
     @State private var importing = false
     @State private var share: ShareItems?
     @State private var qa = BetaQA.shared
+    @State private var nav = InsightsNavState.shared
 
     var body: some View {
         ZStack {
@@ -33,6 +34,16 @@ struct MoreView: View {
                                 Image(systemName: "chevron.right").foregroundStyle(Theme.mutedForeground)
                             }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
                         }.buttonStyle(.plain).accessibilityIdentifier("betaNote")
+                    }
+                    section("Health") {
+                        NavigationLink { InsightsView() } label: {
+                            HStack {
+                                Image(systemName: "heart.text.square").foregroundStyle(Theme.primary)
+                                Text("Insights & journal").font(AteFont.body(15, .semibold))
+                                Spacer()
+                                Image(systemName: "chevron.right").foregroundStyle(Theme.mutedForeground)
+                            }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+                        }.buttonStyle(.plain).accessibilityIdentifier("more.insights")
                     }
                     section("Collections") {
                         ForEach([RecipeCollection.quick, .favourites, .recentlyAdded, .recentlyCooked], id: \.self) { c in
@@ -87,6 +98,7 @@ struct MoreView: View {
         }
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
         .navigationDestination(isPresented: $qa.openRequested) { BetaTestingView() }
+        .navigationDestination(isPresented: $nav.open) { InsightsView() }
     }
 
     private func section<C: View>(_ title: String, @ViewBuilder _ c: () -> C) -> some View {

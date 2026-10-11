@@ -2,7 +2,7 @@ import XCTest
 @testable import Ate
 
 final class CookingHistoryTests: XCTestCase {
-    private let suiteName = "CookingHistoryTests"
+    private let suiteName = "CookingHistoryTests-\(UUID().uuidString)"
 
     override func setUp() {
         super.setUp()

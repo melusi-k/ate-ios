@@ -188,6 +188,87 @@ Open issues / gaps vs PRD:
 - **Branding:** the logo is an SF Symbol stand-in; real `ate-logo.png` assets still need importing.
 - **Library:** Clear all doesn't clear the shopping list (by design, but worth stating in the UI).
 
+## Future phase — StoreKit / Ate Plus (planned, not in current build)
+
+Status: planned. Docs only; no app code yet. Blocked on a **paid Apple Developer Program account** ($99/yr), which is needed for App Store Connect products, sandbox testers, App Store Server API keys and TestFlight. Same dependency as Journaling Suggestions; schedule both together.
+
+### Free core vs Ate Plus
+Free forever: recipe library (add, edit, sections, sort, search), cook mode, timers + Live Activities/Dynamic Island, shopping list, accounts + cross-device sync, sharing, Siri/Shortcuts basics, a basic widget, a fair AI allowance (e.g. 10 AI imports/regenerations a month).
+
+Ate Plus candidates:
+- Unlimited AI imports, regenerations and "Ask Ate" revisions
+- Image Playground covers (on-device AI cover generation)
+- Health-aware meal plans (Apple Health insights)
+- Extra widgets, Lock Screen widgets and app themes/icons
+- Ate journal export (PDF/CSV)
+- Optional later: online photo check for hard dishes (if approved)
+
+Rule: never gate data the user already owns. Recipes made with Plus features stay readable, cookable and exportable after a lapse.
+
+### Tier and pricing options (pick one)
+All include a **7-day free trial** (intro offer, new subscribers only). ZAR prices are App Store price points, so final figures snap to Apple's tier table.
+
+| Option | Monthly | Annual | Lifetime |
+|---|---|---|---|
+| A. Simple single tier | R39.99 / $2.99 | R349.99 / $24.99 (~27% off) | none |
+| B. Single tier + lifetime | R49.99 / $3.99 | R399.99 / $29.99 (~33% off) | R999.99 / $69.99 (non-consumable) |
+| C. Two tiers | Plus R29.99 / $1.99 (unlimited AI, covers, widgets); Plus Family Kitchen R59.99 / $4.99 (adds meal plans, journal export, Family Sharing) | R249.99 / $16.99; R499.99 / $39.99 | none |
+
+Recommendation: Option A to launch (least review/support overhead), then add lifetime (B) once retention data exists.
+
+### Technical design (StoreKit 2)
+- Products defined in App Store Connect; one subscription group "Ate Plus" (levels if Option C). Lifetime is a non-consumable.
+- Paywall: `SubscriptionStoreView` (+ `.subscriptionStoreControlStyle`, marketing header, policies), `ProductView` for lifetime. Entry points: AI limit reached, Playground cover button, meal plans, settings > Ate Plus.
+- `EntitlementManager` (@Observable): reads `Transaction.currentEntitlements` at launch; listens to `Transaction.updates` for the whole app lifetime; calls `transaction.finish()`; handles revocation, refunds, expiry, grace period and billing retry via `Product.SubscriptionInfo.Status`.
+- **Restore purchases** button in the paywall and Settings (`AppStore.sync()`).
+- **Entitlement caching in the App Group** (shared `UserDefaults`/file with expiry date + product id) so widgets, the Live Activity and App Intents can check Plus without StoreKit calls; refreshed on each update.
+- Server-side validation: Supabase Edge Function `appstore-notifications` receives **App Store Server Notifications V2** (JWS verified against Apple root certs), and `verify-transaction` calls the **App Store Server API** (Get Transaction Info / subscription status) with the signed transaction from the device. Results land in an `entitlements` table (user_id, original_transaction_id, product_id, status, expires_at, environment, updated_at) with RLS so a user only reads their own row. `appAccountToken` = Supabase user UUID links purchases to accounts. Server is source of truth for sync across devices; on-device StoreKit is the offline fallback.
+- **Family Sharing** enabled on subscriptions (and lifetime); handle `ownershipType == .familyShared`.
+- **Offer codes** (one-time codes for testers/partners) via `.offerCodeRedemption`; **intro offer** = free trial; promotional/win-back offers later.
+- Manage subscription: `.manageSubscriptionsSheet`; refund request: `.refundRequestSheet` (Apple handles refunds).
+
+### App Review rules
+- **3.1.1**: digital features must be unlocked via In-App Purchase only; no external payment links or prices for them.
+- **3.1.2**: auto-renewing subscriptions must give ongoing value, run at least 7 days, work on all the user's devices, and must not take away features the user already has.
+- Required disclosure on the paywall (near the buy button): title, length, price per period, free-trial length, and: "Payment will be charged to your Apple ID account at confirmation of purchase. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. You can manage and cancel your subscriptions in your App Store account settings."
+- Functional links to **Terms of Use (EULA)** and **Privacy Policy** in the paywall, Settings and App Store Connect metadata.
+- Restore purchases must be available; no misleading trial copy.
+
+### Legal pages to update (ate-legal)
+- Terms: subscriptions section (auto-renewal, trial, price changes, cancellation, Family Sharing, what happens to content after lapse); refunds handled by Apple per its policies, with link to reportaproblem.apple.com.
+- Privacy policy: purchase data (Apple transaction IDs, entitlement status) stored in Supabase; no card data ever received.
+- New/updated: subscription FAQ / support page; reference Apple's standard EULA or custom EULA.
+
+### Testing
+- `Ate.storekit` StoreKit configuration file (all products, trial, offer codes, Family Sharing) wired into a test scheme; sandbox testers later.
+- Unit tests (StoreKitTest `SKTestSession`): purchase, trial, renewal, expiry, refund/revocation, grace period, restore, Family Sharing, App Group cache read/write, AI quota counting.
+- UI tests: paywall shows prices + disclosure + Terms/Privacy links; purchase unlocks Playground covers; restore flow; lapsed user keeps recipes.
+- Edge Function tests: JWS verification (valid/forged), each notification type updates `entitlements`, idempotency.
+- CI: StoreKit unit tests join the release gate; no real purchases in CI.
+
+### Acceptance criteria
+- [ ] Free users can use library, cook mode, timers, sync and sharing with no paywall.
+- [ ] Paywall uses `SubscriptionStoreView`, shows localized ZAR/USD prices, trial, disclosure text and working Terms/Privacy links.
+- [ ] Purchase, restore and Family Sharing unlock Plus within 2 s; entitlement survives relaunch and offline.
+- [ ] Widgets and App Intents respect Plus via the App Group cache.
+- [ ] Refund/expiry/revocation removes Plus within one notification cycle without deleting user content.
+- [ ] Server `entitlements` row matches device state across two devices on one account.
+- [ ] Offer code redemption works; intro trial only offered to eligible users.
+- [ ] Legal pages updated and linked before submission; app passes review against 3.1.1/3.1.2.
+- [ ] All StoreKit unit, UI and Edge Function tests green in CI.
+
+### Open questions
+1. Which pricing option (A, B or C), and final ZAR/USD points?
+2. Trial length: 7 days or 14? Annual-only trial?
+3. Free AI allowance size (5, 10, 20 a month), and does it apply to signed-out users?
+4. Lifetime purchase: yes or no?
+5. Family Sharing on from day one?
+6. Grandfather beta testers with offer codes or free Plus period?
+7. Apple's standard EULA or a custom one?
+8. Small Business Program enrolment (15% commission) — yes?
+9. Which features are definitely Plus vs free (e.g. journal export)?
+10. Launch Plus with v1.x or wait for the paid-account phase alongside Journaling Suggestions?
+
 ## Updated roadmap
 1. ✅ **Done (2026-10-10):** backend moved to Melusi's own Supabase project `ate` (`ploncuhexmwydjxljuhe`): `shared_recipes` (9 rows, slugs kept) + `user_recipes` with RLS, Edge Functions `publish-recipe` and `get-shared-recipe`, email auth + `ate://auth-callback`. The app publishes and reads shares there.
 2. **Before TestFlight:** custom SMTP so confirmation and reset emails aren't rate-limited.
@@ -209,6 +290,7 @@ Open issues / gaps vs PRD:
 8. **Phase: iPad kitchen display.** A landscape `NavigationSplitView` with the library sidebar, the recipe and a full-height cook column. Cook mode becomes a "kitchen display": large-type step, ingredient checklist for that step, and every running timer as a tile grid, with Stage Manager / Split View support. Keyboard shortcuts (→ / ← / space for timer). Always-on with the idle timer disabled while cooking. Pointer and Pencil scribble in the editor.
 9. **Phase: foldable / "duo" iPhone layouts.** If Apple ships a foldable iPhone, size-class-driven layouts: folded = the current phone UI; unfolded = a two-pane "duo" layout (recipe on the left, cook step and timers on the right; in the list, aisles on the left and items on the right). Hinge-aware spacing comes from the window geometry, and a book posture puts the step on top with controls below. Build this on adaptive `ViewThatFits` / `horizontalSizeClass` so the iPad work carries over. Verify in the simulator once a device profile exists.
 
+10. **Phase: StoreKit / Ate Plus** (needs paid Apple Developer account). See the "Future phase — StoreKit / Ate Plus" section above.
 ---
 
 ## v1.0 baseline spec

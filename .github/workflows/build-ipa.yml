@@ -2,8 +2,8 @@ name: Build IPA
 
 on:
   push:
-    # wip/** branches only run the cheap "Compile check" workflow, so they never bump the build number.
-    branches: ["**", "!wip/**"]
+    # IPA builds are release artifacts: build only from main. PRs and feature branches use Compile check.
+    branches: ["main"]
   workflow_dispatch:
     inputs:
       run_tests:

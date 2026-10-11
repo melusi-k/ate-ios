@@ -639,12 +639,12 @@ jobs:
           {
             echo "# Validated beta candidate"
             echo
-            echo "- Commit: `$GITHUB_SHA`"
-            echo "- Build tag: `$TAG`"
+            echo "- Commit: $GITHUB_SHA"
+            echo "- Build tag: $TAG"
             echo "- Validation: unit tests, key-flow QA, all UI test shards, backend E2E"
             echo "- This release promotes the exact IPA from the immutable build release; it does not rebuild."
             echo
-            echo "SHA-256: `$(awk '{print $1}' "$CHECKSUM")`"
+            echo "SHA-256: $(awk '{print $1}' "$CHECKSUM")"
           } > beta-notes.md
           gh release create latest-beta "$IPA" "$CHECKSUM" --repo "$GITHUB_REPOSITORY" --prerelease \
             --verify-tag --title "Validated beta — build ${BUILD_NUMBER} @ ${GITHUB_SHA::7}" \

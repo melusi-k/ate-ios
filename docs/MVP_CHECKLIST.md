@@ -51,11 +51,11 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Status evidence:* Foundation Models confirmed on the user's iPhone 17 (2026-10-10); fallback never tried on a non-AI device
   - *Owner:* _TBD_
 
-- **A-CREATE-05 · State recovery after interrupted AI generation** — ❌
+- **A-CREATE-05 · State recovery after interrupted AI generation** — 🟡
   - *Journey:* As a cook, I leave the app mid-generation and come back to something sane.
   - *Acceptance:* Given generation is running, When I background the app or lock the phone for 30 s and return, Then either the finished card or a Retry is shown; no endless spinner, no half-saved recipe in the library.
-  - *Verified by:* `none` · QA.md (new step)
-  - *Status evidence:* No test; no explicit cancellation/resume handling verified
+  - *Verified by:* `DraftStoreTests` (pending request and unsaved-card persistence) · QA.md (device interruption step still required)
+  - *Status evidence:* Pending generation input and completed unsaved cards are persisted and restored by `DraftStore`; unit tests cover the storage contract, but interruption/resume still needs real-device verification.
   - *Owner:* _TBD_
 
 - **A-CREATE-06 · Offline while the AI / import route is attempted** — 🟡

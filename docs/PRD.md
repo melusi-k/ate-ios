@@ -205,19 +205,31 @@ Ate Plus candidates:
 
 Rule: never gate data the user already owns. Recipes made with Plus features stay readable, cookable and exportable after a lapse.
 
-### Tier and pricing options (pick one)
-All include a **7-day free trial** (intro offer, new subscribers only). ZAR prices are App Store price points, so final figures snap to Apple's tier table.
+### Tier and pricing — DECISION: Option B (chosen 2026-10-11)
+**Chosen: B. Single tier "Ate Plus" + lifetime**, 7-day free trial (intro offer on monthly and annual, new subscribers only). ZAR prices are App Store price points, so final figures snap to Apple's tier table.
 
-| Option | Monthly | Annual | Lifetime |
+| Product | Price | Product ID | Type |
 |---|---|---|---|
-| A. Simple single tier | R39.99 / $2.99 | R349.99 / $24.99 (~27% off) | none |
-| B. Single tier + lifetime | R49.99 / $3.99 | R399.99 / $29.99 (~33% off) | R999.99 / $69.99 (non-consumable) |
-| C. Two tiers | Plus R29.99 / $1.99 (unlimited AI, covers, widgets); Plus Family Kitchen R59.99 / $4.99 (adds meal plans, journal export, Family Sharing) | R249.99 / $16.99; R499.99 / $39.99 | none |
+| Ate Plus Monthly | R49.99 / $3.99 | `com.melusik.ate.plus.monthly` | Auto-renewable (group "Ate Plus"), 7-day free trial |
+| Ate Plus Annual | R399.99 / $29.99 (~33% off) | `com.melusik.ate.plus.annual` | Auto-renewable (same group, same level), 7-day free trial |
+| Ate Plus Lifetime | R999.99 / $69.99 once | `com.melusik.ate.plus.lifetime` | Non-consumable, Family Sharing on |
 
-Recommendation: Option A to launch (least review/support overhead), then add lifetime (B) once retention data exists.
+Rejected alternatives (kept for reference):
+- ~~A. Simple single tier: R39.99 / $2.99 monthly, R349.99 / $24.99 annual, no lifetime~~ — rejected: no one-off purchase for users who dislike subscriptions.
+- ~~C. Two tiers: Plus R29.99 / $1.99 (R249.99 / $16.99 yr) and Plus Family Kitchen R59.99 / $4.99 (R499.99 / $39.99 yr)~~ — rejected: more review, paywall and support overhead; harder to explain.
+
+### Lifetime entitlement handling
+- Plus is active if **any** of: a verified, non-revoked `com.melusik.ate.plus.lifetime` transaction in `Transaction.currentEntitlements`, or an active/grace-period/billing-retry subscription in the "Ate Plus" group.
+- Lifetime wins: when present, entitlement source = `lifetime`, `expires_at = null`, and subscription expiry/renewal events don't remove Plus.
+- Subscriber buys lifetime: paywall prompts them to cancel the subscription via `.manageSubscriptionsSheet` (Apple won't auto-cancel); app shows "You own Ate Plus Lifetime — cancel your subscription to stop renewals". Lifetime product is hidden from the paywall once owned; subscriptions are hidden too.
+- Revocation (`revocationDate` set, refund via Apple, or Family Sharing removed) removes lifetime Plus; fall back to any active subscription, otherwise free. Content is never deleted.
+- Family Sharing: `ownershipType == .familyShared` lifetime counts as Plus; revoked if the family member leaves.
+- Restore (`AppStore.sync()`) restores lifetime on new devices; App Group cache stores `{source: lifetime|subscription, productId, expiresAt|null}` for widgets/App Intents.
+- Server: `entitlements.product_type` (`subscription` | `lifetime`), lifetime rows have `expires_at = null`; Edge Function handles `REFUND`/`REVOKE` notifications for the non-consumable. Server status = lifetime OR active subscription.
+- Tests: lifetime purchase unlocks; lifetime + active sub shows lifetime; sub expires while lifetime owned keeps Plus; lifetime refund falls back correctly; family-shared lifetime; restore on clean install.
 
 ### Technical design (StoreKit 2)
-- Products defined in App Store Connect; one subscription group "Ate Plus" (levels if Option C). Lifetime is a non-consumable.
+- Products defined in App Store Connect; one subscription group "Ate Plus" (monthly + annual, same level). Lifetime `com.melusik.ate.plus.lifetime` is a non-consumable.
 - Paywall: `SubscriptionStoreView` (+ `.subscriptionStoreControlStyle`, marketing header, policies), `ProductView` for lifetime. Entry points: AI limit reached, Playground cover button, meal plans, settings > Ate Plus.
 - `EntitlementManager` (@Observable): reads `Transaction.currentEntitlements` at launch; listens to `Transaction.updates` for the whole app lifetime; calls `transaction.finish()`; handles revocation, refunds, expiry, grace period and billing retry via `Product.SubscriptionInfo.Status`.
 - **Restore purchases** button in the paywall and Settings (`AppStore.sync()`).
@@ -258,10 +270,10 @@ Recommendation: Option A to launch (least review/support overhead), then add lif
 - [ ] All StoreKit unit, UI and Edge Function tests green in CI.
 
 ### Open questions
-1. Which pricing option (A, B or C), and final ZAR/USD points?
-2. Trial length: 7 days or 14? Annual-only trial?
+1. ✅ Resolved: Option B — R49.99 / $3.99 monthly, R399.99 / $29.99 annual, R999.99 / $69.99 lifetime, 7-day trial.
+2. ✅ Trial: 7 days (monthly and annual). Annual-only trial? Open.
 3. Free AI allowance size (5, 10, 20 a month), and does it apply to signed-out users?
-4. Lifetime purchase: yes or no?
+4. ✅ Resolved: yes — `com.melusik.ate.plus.lifetime` non-consumable, Family Sharing on.
 5. Family Sharing on from day one?
 6. Grandfather beta testers with offer codes or free Plus period?
 7. Apple's standard EULA or a custom one?

@@ -83,7 +83,8 @@ enum WidgetBridge {
         ((SharedContainer.defaults.dictionary(forKey: WidgetKinds.heartbeatKey) as? [String: Double]) ?? [:]).mapValues { Date(timeIntervalSince1970: $0) }
     }
     static var diagnostics: String {
-        var parts = ["App Group " + (SharedContainer.isAvailable ? "OK" : "missing (widgets can't read ate's data)")]
+        let g = AppGroupResolver.current
+        var parts = [g.available ? "App Group OK: \(g.id) (\(g.source))" : "App Group missing (widgets can't read ate's data; tried \(g.id))"]
         parts.append(LiveActivityDiagnostics.widgetAppexPresent ? "widget extension installed" : "widget extension missing (Sideloadly removed it?)")
         if let id = LiveActivityDiagnostics.widgetBundleID { parts.append(id) }
         let hb = heartbeats

@@ -3,10 +3,9 @@ import Foundation
 /// App Group shared between the app and the widget extension.
 /// Free-Apple-ID sideloads may not get the group; then we fall back to standard UserDefaults (app-only).
 enum SharedContainer {
-    static let groupID = "group.com.melusik.ate"
-    static var isAvailable: Bool {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID) != nil
-    }
+    /// Resolved at runtime (sideloaders may rename the group); see AppGroupResolver.
+    static var groupID: String { AppGroupResolver.current.id }
+    static var isAvailable: Bool { AppGroupResolver.current.available }
     static var defaults: UserDefaults {
         if isAvailable, let d = UserDefaults(suiteName: groupID) { return d }
         return .standard

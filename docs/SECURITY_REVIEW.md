@@ -24,14 +24,14 @@ findings are printed under "Security review: open findings" in that job's summar
 | Auth | Leaked-password check (HIBP) | ⛔ off; needs the Pro plan | F-01 |
 | DB | Function `search_path` | 🟡 `user_recipes_touch` must use an empty `search_path`; a later migration currently overrides the hardening migration with `public` | F-04, corrected by `20261012100000_pin_empty_trigger_search_path.sql`; apply and verify |
 | DB | Anon grants | 🟡 anon still has default table grants on user tables (RLS blocks them) | F-03, fixed in migration |
-| DB | `shared_recipes` listing | 🟡 public `SELECT USING (true)` still lets the anon key enumerate slugs. Native iOS now reads through `get-shared-recipe`; public table SELECT must remain until the hosted share page is migrated too | F-02 |
+| DB | `shared_recipes` listing | 🟡 public `SELECT USING (true)` still lets the anon key enumerate slugs. Native iOS now reads through `get-shared-recipe`; hosted share page migration is deployed; table SELECT must remain until browser smoke tests pass | F-02 |
 
 ## Findings and fixes
 
 | ID | Severity | Finding | Fix | State |
 |---|---|---|---|---|
 | F-01 | Medium | Leaked-password protection off | Dashboard › Auth › Passwords › "Prevent use of leaked passwords" (Pro plan) | **Needs you** |
-| F-02 | Low | `shared_recipes` enumerable with the anon key | Native app and edge function are routed through `get-shared-recipe` in PR #20. Next, migrate the hosted share page to that function, verify it end-to-end, then revoke table SELECT. Do not revoke yet: the existing share page may still query PostgREST directly | In progress |
+| F-02 | Low | `shared_recipes` enumerable with the anon key | Native app and edge function are routed through `get-shared-recipe` in PR #20. Hosted page migration merged in `melusi-k/ate-legal#1`; the Pages deployment succeeded and the source no longer contains a direct PostgREST fallback. **Still verify a real valid share, an unknown slug, and function-outage retry behavior in a browser before revoking table SELECT. Do not revoke yet.** | Cutover deployed; verification pending |
 | F-03 | Low | anon holds table grants on `user_recipes`/`qa_results` | `20261011090000_security_hardening.sql`: `revoke all … from anon` + default privileges | Migration written, **apply needed** |
 | F-04 | Low | trigger function uses `search_path = public` rather than the empty path recommended by Supabase | `20261012100000_pin_empty_trigger_search_path.sql` sets `search_path = ''`; A-SEC-06 now reports if the deployed function is not pinned to the empty path | Migration written, **apply + backend-e2e verification needed** |
 | F-05 | Info | write privileges on `shared_recipes` for anon/authenticated are implicit | same migration revokes insert/update/delete (only the service role writes) | Migration written, **apply needed** |

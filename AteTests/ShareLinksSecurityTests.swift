@@ -8,6 +8,8 @@ final class ShareLinksSecurityTests: XCTestCase {
             XCTAssertNil(ShareLinks.slug(from: URL(string: "https://ate.app/r/?s=\(encoded)")!), raw)
         }
         XCTAssertNil(ShareLinks.slug(from: URL(string: "ate://recipe/../../etc")!))
+        XCTAssertNil(ShareLinks.slug(from: URL(string: "file:///r/abc12345")!))
+        XCTAssertNil(ShareLinks.slug(from: URL(string: "ftp://ate.app/r/abc12345")!))
     }
 
     func testAcceptsEdgeFunctionSlugContract() {

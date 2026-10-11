@@ -8,13 +8,19 @@ struct MoreView: View {
     var body: some View {
         List {
             Section {
-                NavigationLink(value: Route.beta) {
+                // More's path is also changed by the beta banner/deep-link handler. A direct
+                // destination avoids iOS resolving a typed path destination while that path changes.
+                NavigationLink {
+                    BetaTestingView()
+                } label: {
                     LabeledContent { Text("\(qa.progress().passed)/\(qa.progress().total)").monospacedDigit() } label: {
                         Label("Beta testing", systemImage: "checklist")
                     }
                 }
                 .accessibilityIdentifier("more.betaTesting")
-                NavigationLink(value: Route.betaNote) {
+                NavigationLink {
+                    BetaExpectationsView()
+                } label: {
                     Label(Transparency.betaTitle, systemImage: "info.circle")
                 }
                 .accessibilityIdentifier("betaNote")

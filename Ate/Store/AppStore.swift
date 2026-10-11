@@ -337,7 +337,11 @@ final class AppStore {
         persistRecipes()
     }
 
-    func clearLibrary() { recipes = []; CookingHistory.shared.clear(); path = []; persistRecipes() }
+    func clearLibrary() {
+        recipes = []; CookingHistory.shared.clear()
+        path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
+        persistRecipes()
+    }
 
     func importJSON(_ data: Data) throws -> Int {
         let cards = try JSONDecoder().decode([RecipeCard].self, from: data)
@@ -375,7 +379,11 @@ final class AppStore {
     }
     func removeItem(_ id: String) { shopping.removeAll { $0.id == id }; persistShopping() }
     func clearTicked() { shopping.removeAll { $0.done }; persistShopping() }
-    func clearShopping() { shopping = []; shoppingPath = []; persistShopping() }
+    func clearShopping() {
+        shopping = []
+        path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
+        persistShopping()
+    }
 
     // MARK: sync bookkeeping (last-write-wins)
     private func nowMs() -> Double { (Date().timeIntervalSince1970 * 1000).rounded() }

@@ -244,6 +244,23 @@ final class CoverageUITests: XCTestCase {
         shot("beta-reset")
     }
 
+    /// Regression for the reported crash: destructive data clearing must not leave navigation
+    /// state that crashes when More › Beta testing is opened afterward.
+    func test35b_BetaOpensAfterLibraryClear() {
+        launch()
+        tab("Settings")
+        let clear = app.buttons["Clear all"].firstMatch
+        scrollTo(clear); wait(clear, 5); clear.tap()
+        let confirm = app.buttons["Clear all"].firstMatch
+        wait(confirm, 3); confirm.tap()
+        wait(text("Library cleared"), 5)
+        tab("More")
+        let beta = app.buttons["more.betaTesting"]
+        wait(beta, 5); beta.tap()
+        wait(app.staticTexts["betaProgress"], 8)
+        XCTAssertTrue(app.navigationBars.staticTexts["Beta testing"].exists)
+    }
+
     func passed() -> Int {
         let l = app.staticTexts["betaProgress"].label   // "Tier A: 3/44 passed"
         return Int(l.components(separatedBy: ": ").last?.components(separatedBy: "/").first ?? "") ?? -1

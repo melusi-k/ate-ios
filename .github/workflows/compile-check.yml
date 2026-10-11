@@ -1,10 +1,12 @@
 name: Compile check
 
-# Fast iteration for wip/** branches: builds the app (with all extensions) for the simulator and runs the unit tests.
-# Build IPA ignores wip/** pushes, so this never consumes a build number.
+# Fast validation for work-in-progress branches and pull requests: compile the app, run unit tests,
+# and exercise widget/intents UI flows before changes are merged. Build IPA ignores wip/** pushes.
 on:
   push:
     branches: ["wip/**"]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:

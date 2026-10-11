@@ -50,6 +50,10 @@ struct BetaTestingView: View {
                     Text(WidgetBridge.diagnostics).font(AteFont.body(13)).foregroundStyle(Theme.foreground)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }.buttonStyle(.plain).accessibilityIdentifier("beta.widgetDiagnostics")
+                Button { UIPasteboard.general.string = AteShortcuts.diagnostics; store.show("Siri diagnostics copied") } label: {
+                    Text(AteShortcuts.diagnostics).font(AteFont.body(12)).foregroundStyle(Theme.foreground)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }.buttonStyle(.plain).accessibilityIdentifier("beta.siriDiagnostics")
                 Button { WidgetBridge.publishNow(store); WidgetKinds.reloadAll(); store.show("Widgets refreshed") } label: {
                     Label("Refresh widgets now", systemImage: "arrow.clockwise")
                 }.accessibilityIdentifier("beta.refreshWidgets")

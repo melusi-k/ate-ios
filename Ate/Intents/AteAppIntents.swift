@@ -31,7 +31,18 @@ struct RecipeAppEntity: AppEntity, IndexedEntity {
         if let m = minutes { sub.append("\(m) min") }
         if let c = cuisine { sub.append(c) }
         return DisplayRepresentation(title: "\(title)", subtitle: sub.isEmpty ? nil : "\(sub.joined(separator: " · "))",
-                                     image: .init(systemName: "fork.knife"))
+                                     image: .init(systemName: "fork.knife"),
+                                     synonyms: Self.synonyms(title: title).map { "\($0)" })
+    }
+
+    /// Key words from the title ("rice", "chicken", "chicken and rice") so a partial spoken name resolves.
+    static func synonyms(title: String) -> [String] {
+        let words = RecipeMatcher.tokens(title).filter { $0.count >= 3 }
+        var out = words
+        if words.count >= 2 { out.append(words.suffix(2).joined(separator: " ")); out.append(words.suffix(2).joined(separator: " and ")) }
+        let full = RecipeMatcher.norm(title).lowercased()
+        var seen = Set<String>()
+        return out.filter { $0 != full && seen.insert($0).inserted }
     }
 
     var attributeSet: CSSearchableItemAttributeSet {
@@ -98,10 +109,10 @@ struct OpenRecipeIntent: OpenIntent {
     @Parameter(title: "Recipe") var target: RecipeAppEntity
     init() {}
     init(target: RecipeAppEntity) { self.target = target }
-    @MainActor func perform() async throws -> some IntentResult {
+    @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
         AppStore.current?.handle(url: WidgetLinks.recipe(target.id))
         QAProbe.shared.lastIntent = "open"
-        return .result()
+        return .result(dialog: "Opening \(target.title).")
     }
 }
 
@@ -180,11 +191,11 @@ struct ImportRecipeFromURLIntent: AppIntent {
     @Parameter(title: "Link") var url: URL
     init() {}
     init(url: URL) { self.url = url }
-    @MainActor func perform() async throws -> some IntentResult {
+    @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
         SharedInbox.push(.init(url: url.absoluteString))
         AppStore.current?.checkInbox()
         QAProbe.shared.lastIntent = "import"
-        return .result()
+        return .result(dialog: "Adding that link to ate.")
     }
 }
 
@@ -194,11 +205,23 @@ struct ImportRecipeFromURLIntent: AppIntent {
 struct SearchRecipesIntent: ShowInAppSearchResultsIntent {
     static let searchScopes: [StringSearchScope] = [.general]
     var criteria: StringSearchCriteria
-    @MainActor func perform() async throws -> some IntentResult {
-        AppStore.current?.search(criteria.term)
-        QAProbe.shared.lastIntent = "search:\(criteria.term)"
-        BetaQA.shared.pass("A-INTENT-04", note: "Searched for \(criteria.term)")
-        return .result()
+    @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
+        // Siri sometimes routes "Cook Rice in ate" here with the whole sentence as the term.
+        let (verb, q) = RecipeMatcher.cleanQuery(criteria.term)
+        guard let store = AppStore.current else { return .result(dialog: "Open ate first.") }
+        let hits = RecipeMatcher.rank(store.recipes, query: q)
+        if let v = verb, [.cook, .make, .start, .open].contains(v), RecipeMatcher.isConfident(hits) {
+            let r = hits[0].recipe
+            if v == .open { store.handle(url: WidgetLinks.recipe(r.id)); QAProbe.shared.lastIntent = "open"; return .result(dialog: "Opening \(r.title).") }
+            store.handle(url: WidgetLinks.cook(r.id)); QAProbe.shared.lastIntent = "cook"
+            return .result(dialog: "Starting cook mode for \(r.title).")
+        }
+        store.search(q)
+        QAProbe.shared.lastIntent = "search:\(q)"
+        BetaQA.shared.pass("A-INTENT-04", note: "Searched for \(q)")
+        let n = store.recipes.filter { RecipeLogic.matches($0, query: q) }.count
+        if q.isEmpty { return .result(dialog: "Here's your ate library.") }
+        return .result(dialog: n == 0 ? "No ate recipes match \(q)." : "Found \(n) ate recipe\(n == 1 ? "" : "s") for \(q).")
     }
 }
 
@@ -271,8 +294,10 @@ struct AteShortcuts: AppShortcutsProvider {
         AppShortcut(intent: StartCookModeIntent(), phrases: [
             "Start cook mode in \(.applicationName)",
             "Start cook mode for \(\.$recipe) in \(.applicationName)",
-            "Cook \(\.$recipe) with \(.applicationName)",
             "Cook \(\.$recipe) in \(.applicationName)",
+            "Cook \(\.$recipe) with \(.applicationName)",
+            "Make \(\.$recipe) with \(.applicationName)",
+            "Open \(\.$recipe) in \(.applicationName)",
             "Start cook mode for \(\.$recipe) with \(.applicationName)",
             "Make \(\.$recipe) in \(.applicationName)",
         ], shortTitle: "Cook mode", systemImageName: "frying.pan")
@@ -282,6 +307,11 @@ struct AteShortcuts: AppShortcutsProvider {
         AppShortcut(intent: TonightsPickIntent(), phrases: [
             "What's tonight's pick in \(.applicationName)",
             "What should I cook tonight with \(.applicationName)",
+            "Tonight's pick in \(.applicationName)",
+            "What's for dinner in \(.applicationName)",
+            "What's for dinner with \(.applicationName)",
+            "What should I cook tonight in \(.applicationName)",
+            "\(.applicationName) tonight's pick",
         ], shortTitle: "Tonight's pick", systemImageName: "sparkles")
         AppShortcut(intent: ShoppingListSnippetIntent(), phrases: [
             "What's on my \(.applicationName) shopping list",
@@ -309,3 +339,35 @@ struct AteShortcuts: AppShortcutsProvider {
         ], shortTitle: "Add recipe", systemImageName: "plus.circle")
     }
 }
+
+extension AteShortcuts {
+    /// Mirror of the registered phrases (AppShortcut doesn't expose them) for the Beta page's Siri row. Keep in sync; a test checks counts.
+    static let phraseCatalog: [(title: String, phrases: [String])] = [
+        ("Cook mode", ["Start cook mode in ate", "Start cook mode for <recipe> in ate", "Cook <recipe> in ate", "Cook <recipe> with ate",
+                       "Make <recipe> with ate", "Open <recipe> in ate", "Start cook mode for <recipe> with ate", "Make <recipe> in ate"]),
+        ("Add to list", ["Add to my ate list"]),
+        ("Tonight's pick", ["What's tonight's pick in ate", "What should I cook tonight with ate", "Tonight's pick in ate",
+                            "What's for dinner in ate", "What's for dinner with ate", "What should I cook tonight in ate", "ate tonight's pick"]),
+        ("Shopping list", ["What's on my ate shopping list", "What's on my ate list"]),
+        ("Time left", ["How long left on my ate timer", "How long is left on my ate timer"]),
+        ("Quick recipes", ["What can I cook in under 30 minutes with ate", "Quick recipes in ate"]),
+        ("Kitchen timer", ["Start a kitchen timer in ate"]),
+        ("Stop timer", ["Stop my ate timer"]),
+        ("Add from link", ["Add a recipe link to ate"]),
+        ("Add recipe", ["Add a recipe in ate"]),
+    ]
+    @MainActor static var diagnostics: String {
+        let meta = Bundle.main.url(forResource: "Metadata", withExtension: "appintents") != nil
+        let alt = (Bundle.main.object(forInfoDictionaryKey: "INAlternativeAppNames") as? [[String: Any]])?
+            .compactMap { $0["INAlternativeAppName"] as? String } ?? []
+        let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "?"
+        var lines = ["Siri: \(phraseCatalog.count)/10 shortcuts · \(phraseCatalog.map(\.phrases.count).reduce(0, +)) phrases",
+                     "App Intents metadata: \(meta ? "OK" : "MISSING (re-sign dropped Metadata.appintents)")",
+                     "App name: \(name) · alternatives: \(alt.isEmpty ? "none" : alt.joined(separator: ", "))",
+                     "Recipes for Siri: \(IntentStoreSnapshot.count)"]
+        lines += phraseCatalog.map { "\($0.title): " + $0.phrases.joined(separator: " | ") }
+        return lines.joined(separator: "\n")
+    }
+}
+
+@MainActor enum IntentStoreSnapshot { static var count: Int { AppStore.current?.recipes.count ?? 0 } }

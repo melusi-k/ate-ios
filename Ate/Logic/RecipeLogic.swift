@@ -63,9 +63,14 @@ enum RecipeLogic {
     static func matches(_ card: RecipeCard, query: String) -> Bool {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
         if q.isEmpty { return true }
-        let hay = ([card.title, card.description ?? ""] + card.tags + card.ingredients.map(\.name))
+        let hay = ([card.title, card.description ?? "", card.cuisine ?? ""] + card.tags + card.ingredients.map(\.name))
             .joined(separator: " ").lowercased()
-        return hay.contains(q)
+        if hay.contains(q) { return true }
+        // Token search: every meaningful word must appear somewhere (title, ingredients, tags), so "Cook Rice" finds rice dishes.
+        let toks = RecipeMatcher.tokens(q)
+        guard !toks.isEmpty else { return false }
+        let words = Set(RecipeMatcher.norm(hay).lowercased().split(separator: " ").map(String.init))
+        return toks.allSatisfy { t in words.contains { $0.hasPrefix(t) } }
     }
 
     /// Merge imported cards (PRD §6): skip empty cards, replace same id, count new ones.

@@ -214,6 +214,8 @@ jobs:
           mkdir -p build/Payload dist
           cp -R build/Ate.xcarchive/Products/Applications/Ate.app build/Payload/
           test -d build/Payload/Ate.app/PlugIns/AteWidgets.appex || { echo "Widget extension missing from app bundle"; exit 1; }
+          test -e build/Payload/Ate.app/Metadata.appintents || { echo "::error::Metadata.appintents missing from main app (Siri phrases won't register)"; exit 1; }
+          ls build/Payload/Ate.app/Metadata.appintents
           ls build/Payload/Ate.app/PlugIns
           test -d build/Payload/Ate.app/Watch/AteWatch.app || { echo "::error::Watch app missing from app bundle"; exit 1; }
           ls build/Payload/Ate.app/Watch build/Payload/Ate.app/Watch/AteWatch.app/PlugIns || true

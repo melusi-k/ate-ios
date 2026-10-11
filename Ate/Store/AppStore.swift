@@ -235,6 +235,8 @@ final class AppStore {
         BetaQA.shared.recipeCountChanged(recipes.count)
         if stamp { stampChanges() }
         WidgetBridge.publish(self)
+        // Recipe names/synonyms feed the "Cook <recipe> in ate" phrases.
+        if !AppConfig.isUITesting { AteShortcuts.updateAppShortcutParameters() }
         guard let context else { return }
         try? context.delete(model: RecipeEntity.self)
         let enc = JSONEncoder()

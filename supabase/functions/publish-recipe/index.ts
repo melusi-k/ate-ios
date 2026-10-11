@@ -1,15 +1,16 @@
 // publish-recipe: validates a recipe card and stores a read-only public copy in shared_recipes.
-// Caller must send a valid user access token OR the project's public (anon/publishable) key.
-// Inserts with the service role; returns { slug }.
+// Publishing requires a valid user access token. Reading remains public by slug.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
+const allowedOrigin = Deno.env.get("ATE_WEB_ORIGIN") ?? "https://melusi-k.github.io";
+const cors = (req: Request) => ({
+  ...(req.headers.get("origin") === allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin } : {}),
+  "Vary": "Origin",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-const json = (b: unknown, status = 200) =>
-  new Response(JSON.stringify(b), { status, headers: { ...cors, "Content-Type": "application/json" } });
+});
+const json = (req: Request, body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...cors(req), "Content-Type": "application/json" } });
 
 const URL_ = Deno.env.get("SUPABASE_URL")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -27,7 +28,6 @@ const num = (v: unknown, min: number, max: number, req = false) => {
   if (typeof v !== "number" || !isFinite(v) || v < min || v > max) throw "bad number";
   return v;
 };
-// Cover images: https only; anything else is dropped (not rejected) so older apps still share.
 const httpsImage = (v: unknown) => { try { const s = str(v, 2000); return s && /^https:\/\//i.test(s) ? s : null; } catch { return null; } };
 const httpURL = (v: unknown) => { const s = str(v, 2000); if (s && !/^https?:\/\//i.test(s)) throw "bad url"; return s; };
 
@@ -58,65 +58,58 @@ function validate(c: any) {
   return card;
 }
 
-// jsonb reorders keys, so compare cards with sorted keys.
 const canon = (v: unknown): string =>
   Array.isArray(v) ? `[${v.map(canon).join(",")}]`
   : v && typeof v === "object" ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canon((v as any)[k])}`).join(",")}}`
   : JSON.stringify(v ?? null);
-
 const slug = () => {
   const a = "0123456789abcdefghijklmnopqrstuvwxyz", b = crypto.getRandomValues(new Uint8Array(8));
   return Array.from(b, (x) => a[x % 36]).join("");
 };
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors(req) });
+  if (req.method !== "POST") return json(req, { error: "Method not allowed" }, 405);
 
-  // Auth: a signed-in user's JWT, or the app's public key (anonymous share).
   const bearer = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-  const apikey = req.headers.get("apikey") ?? "";
-  let userId: string | null = null;
-  if (bearer && !PUBLIC_KEYS.includes(bearer)) {
-    const { data, error } = await admin.auth.getUser(bearer);
-    if (error || !data.user) return json({ error: "Invalid session" }, 401);
-    userId = data.user.id;
-  } else if (!PUBLIC_KEYS.includes(bearer || apikey)) {
-    return json({ error: "Unauthorized" }, 401);
+  if (!bearer || PUBLIC_KEYS.includes(bearer)) {
+    return json(req, { error: "Sign in to create a share link" }, 401);
   }
+  const { data: authData, error: authError } = await admin.auth.getUser(bearer);
+  if (authError || !authData.user) return json(req, { error: "Invalid session" }, 401);
+  const userId = authData.user.id;
 
   const len = Number(req.headers.get("content-length") ?? 0);
-  if (len > 200_000) return json({ error: "Recipe too large" }, 413);
+  if (len > 200_000) return json(req, { error: "Recipe too large" }, 413);
   let card;
   try {
     const body = await req.json();
     card = validate(body?.card ?? body);
     if (!card.imageURL && body?.image_url) card.imageURL = httpsImage(body.image_url);
   } catch (e) {
-    return json({ error: `Invalid recipe (${typeof e === "string" ? e : "json"})` }, 400);
+    return json(req, { error: `Invalid recipe (${typeof e === "string" ? e : "json"})` }, 400);
   }
 
-  // Rate-limit-ish: global burst cap, and re-sharing the same card within 10 min returns the same slug.
   const since = new Date(Date.now() - 10 * 60_000).toISOString();
   const { data: recent, count } = await admin.from("shared_recipes")
-    .select("slug, card", { count: "exact" }).gte("created_at", since).eq("title", card.title).limit(50);
+    .select("slug, card", { count: "exact" }).gte("created_at", since).eq("owner_id", userId).eq("title", card.title).limit(50);
   const same = recent?.find((r) => canon(r.card) === canon(card));
-  if (same) return json({ slug: same.slug, reused: true });
-  if ((count ?? 0) >= 20) return json({ error: "Too many shares, try again shortly" }, 429);
+  if (same) return json(req, { slug: same.slug, reused: true });
+  if ((count ?? 0) >= 20) return json(req, { error: "Too many shares, try again shortly" }, 429);
   const { count: burst } = await admin.from("shared_recipes").select("slug", { count: "exact", head: true })
-    .gte("created_at", new Date(Date.now() - 60_000).toISOString());
-  if ((burst ?? 0) >= 60) return json({ error: "Too many shares, try again shortly" }, 429);
+    .eq("owner_id", userId).gte("created_at", new Date(Date.now() - 60_000).toISOString());
+  if ((burst ?? 0) >= 20) return json(req, { error: "Too many shares, try again shortly" }, 429);
 
   for (let i = 0; i < 3; i++) {
     const s = slug();
     const { error } = await admin.from("shared_recipes").insert({
-      slug: s, title: card.title, description: card.description, image_url: card.imageURL, card,
+      slug: s, owner_id: userId, title: card.title, description: card.description, image_url: card.imageURL, card,
     });
     if (!error) {
-      console.log(JSON.stringify({ published: s, user: userId ?? "anon" }));
-      return json({ slug: s });
+      console.log(JSON.stringify({ published: s, user: userId }));
+      return json(req, { slug: s });
     }
     if (error.code !== "23505") { console.error(error); break; }
   }
-  return json({ error: "Could not publish this recipe right now." }, 500);
+  return json(req, { error: "Could not publish this recipe right now." }, 500);
 });

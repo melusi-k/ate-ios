@@ -15,11 +15,12 @@ Email **melusi.l.k@gmail.com** from the address on your account, with the subjec
 ## What gets deleted
 - Your account (email address, password hash and sign-in records).
 - Your synced recipes and shopping list.
+- Shares created by your account.
 - Any beta test results you uploaded.
 
 Database backups roll off within the hosting provider's normal cycle (up to about 7 days).
 
 ## What isn't deleted automatically
-- **Shared recipe links.** They aren't tied to your account, so they stay viewable. Email me each link (for example `https://melusi-k.github.io/ate-legal/r/abc123`) and I'll remove it.
+- **Older anonymous shared recipe links.** New shares require sign-in and are deleted with your account. Older anonymous links aren't tied to your account, so they may stay viewable; email me each link (for example `https://melusi-k.github.io/ate-legal/r/abc123`) and I'll remove it.
 - **Data on your phone.** Recipes stay until you use **Settings › Clear library** or delete the app. Insights and journal entries stay until you delete the app. Export first with **Settings › Export data** if you want to keep your recipes.
 - **Apple Health** data was never stored by ate. To stop access, use iOS Settings › Health › Data Access & Devices › ate.

@@ -158,6 +158,14 @@ struct RecipeDetailView: View {
     /// "Share link" (default): one URL item with a rich preview. "Share as text": text with the link once at the end.
     private func doShare(_ recipe: RecipeCard, asText: Bool) async {
         let units = store.settings.units
+        // UI tests use MockBackend and intentionally avoid auth/network setup; production backends still require a session.
+        guard store.session != nil || AppConfig.isUITesting else {
+            store.show("Sign in to create a share link. You can still share the recipe as text.", error: true)
+            if asText {
+                share = ShareItems(items: [RecipeLogic.text(for: recipe, factor: factor, units: units)])
+            }
+            return
+        }
         do {
             let slug = try await store.backend.publish(RecipeLogic.scaled(recipe, factor: factor))
             let link = AppConfig.shareURL(slug: slug)

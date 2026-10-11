@@ -21,7 +21,7 @@ ate is a recipe app made by **Melusi Khumalo**, an individual developer based in
 - **Synced content:** your recipes and shopping-list items, so they stay in sync across your devices.
 - **Beta test results (optional):** if you tap upload on **More › Beta testing**, ate stores your check results and notes for that build, linked to your account, so I can fix bugs. They're deleted with your account.
 
-**If you share a recipe:** ate publishes a read-only copy of that recipe (title, description, ingredients, steps and any image link) at a share link. **Anyone who has the link can view it.** Shared recipes aren't linked to your account, so deleting your account doesn't remove them. To remove one, email me the link (see [Delete your account](delete-account/)).
+**If you share a recipe:** you must be signed in to create a share. ate publishes a read-only copy of that recipe (title, description, ingredients, steps and any image link) at a share link and records that it belongs to your account. **Anyone who has the link can view it.** Deleting your account removes the shares belonging to that account; older anonymous shares may remain available until you email me the link for removal (see [Delete your account](delete-account/)).
 
 **Recipe links, screenshots and voice:** to read a recipe from a link, your device downloads that web page directly. Screenshots are read on your device with Apple's text recognition. Voice commands in cook mode use Apple's on-device speech recognition; if your device can't do it on-device, ate doesn't listen. None of these are uploaded to me.
 
@@ -63,7 +63,7 @@ ate uses **Apple Intelligence (Foundation Models) on your device** to turn links
 
 ## How long data is kept
 - **Account and synced data:** kept while your account exists. When you delete your account, your account, synced recipes, shopping list and beta results are deleted from the database straight away. Backups held by the hosting provider roll off within their normal backup cycle (typically up to 7 days).
-- **Shared recipes:** stay available at their link until you ask me to remove one. I'll remove it within 30 days, usually much sooner.
+- **Shared recipes:** stay available at their link while your account exists. Deleting your account removes owned shares; older anonymous shares stay available until you ask me to remove one. I'll remove requested links within 30 days, usually much sooner.
 - **Data on your device**, including Health-derived Insights and journal entries: stays until you delete it, sign out and remove local data, or delete the app.
 
 ## Your rights (POPIA and GDPR)

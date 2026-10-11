@@ -13,7 +13,7 @@ Recipes, notes and lists you add are yours. You give me only the permission need
 ## 3. Sharing
 Shared recipes must follow the [shared-recipe rules](acceptable-use.html), which also explain how to report a link or ask for one to be taken down.
 
-When you share a recipe, a read-only copy becomes viewable by **anyone with the link**. Don't share anything private. Email me if you need a shared link removed.
+To create a share link, you must be signed in to an Ate account. The resulting read-only copy becomes viewable by **anyone with the link**. Don't share anything private. Deleting your account removes shares created by that account; email me if you need an older shared link removed.
 
 ## 4. Acceptable use
 Don't use ate to break the law, infringe others' rights, upload malware, overload or attack the service, or share content that is harmful, hateful or explicit. I may remove content or suspend accounts that break these rules.

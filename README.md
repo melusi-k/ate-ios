@@ -87,7 +87,7 @@ Fraunces and DM Sans (SIL OFL, licenses in `Ate/Resources/Fonts`) are bundled. I
 - `PrivacyInfo.xcprivacy` for the app and the widget: no tracking; UserDefaults reasons CA92.1 and 1C8F.1; collects email, user ID and recipe content for app functionality.
 
 ### One-time Supabase setup (needed for sync)
-1. Run `supabase/migrations/20261010000000_user_recipes.sql` (SQL editor or `supabase db push`).
+1. Apply `supabase/migrations/20261010000000_user_recipes.sql`, `20261011130000_authenticated_sharing.sql`, and `20261011130500_security_function_search_path.sql` (already applied to the Ate production project; use the Supabase migration workflow for new environments).
 2. Under Authentication → Providers, enable **Email**. Decide whether new accounts need to confirm their email.
 3. Under Authentication → URL Configuration, add `ate://auth-callback` to the allowed **Redirect URLs** (for magic links and email confirmation).
 

@@ -212,7 +212,7 @@ final class SupabaseBackend: BackendService {
     let baseURL: URL
     let publishableKey: String
     init(baseURL: URL, publishableKey: String) { self.baseURL = baseURL; self.publishableKey = publishableKey }
-    /// Signed-in user's access token, if any (publish is attributed to them; otherwise it's an anonymous share).
+    /// Signed-in user's access token. Production publishing requires this token.
     static var userAccessToken: (() -> String?)?
 
     private func request(_ path: String, method: String = "GET", body: Data? = nil) -> URLRequest {

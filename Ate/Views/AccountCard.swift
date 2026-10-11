@@ -44,7 +44,7 @@ struct AccountCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 Divider().padding(.vertical, 4)
                 Text("Danger zone").font(AteFont.body(14, .semibold)).foregroundStyle(Theme.destructive)
-                Text("Deleting your account permanently removes it and your synced recipes from ate's server and this iPhone.")
+                Text("Deleting your account permanently removes it, your synced recipes, and shares created by this account from ate's server and this iPhone.")
                     .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
                 Button { confirmDelete = true } label: {
                     HStack { if deleting { ProgressView() }; Label("Delete account", systemImage: "trash") }
@@ -68,7 +68,7 @@ struct AccountCard: View {
         .alert("Delete your account?", isPresented: $confirmDelete) {
             Button("Continue", role: .destructive) { deleteText = ""; typeDelete = true }
             Button("Cancel", role: .cancel) {}
-        } message: { Text("This permanently deletes your account and synced recipes. It can't be undone. Recipes you shared stay viewable at their links.") }
+        } message: { Text("This permanently deletes your account, synced recipes, and shares created by this account. It can't be undone. Older anonymous shares may remain viewable until removed by request.") }
         .alert("Type DELETE to confirm", isPresented: $typeDelete) {
             TextField("DELETE", text: $deleteText).textInputAutocapitalization(.characters).accessibilityIdentifier("deleteConfirmField")
             Button("Delete account", role: .destructive) {

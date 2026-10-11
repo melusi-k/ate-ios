@@ -146,7 +146,7 @@
 ### C. Accounts and cross-device sync (Supabase)
 - Free Apple IDs can't use CloudKit or Sign in with Apple, so this uses **Supabase Auth** over REST: email/password sign-up and sign-in, plus a **magic link** (`redirect_to=ate://auth-callback`). The session is stored in the Keychain and refreshed automatically.
 - Config: `ATE_SUPABASE_URL=https://ploncuhexmwydjxljuhe.supabase.co` (Melusi's own Supabase project `ate`, eu-west-1) and its publishable key. Both are public; RLS enforces access. Email sign-up is on, `ate://auth-callback` is in the redirect allow list, and confirmation emails are required (default Supabase mailer).
-- Table `public.user_recipes(user_id, kind 'recipe'|'shopping', id, data jsonb, updated_at bigint ms, deleted)`, PK `(user_id, kind, id)`, RLS `auth.uid() = user_id`. Migration: `supabase/migrations/20261010000000_user_recipes.sql`. **Not applied.**
+- Table `public.user_recipes(user_id, kind 'recipe'|'shopping', id, data jsonb, updated_at bigint ms, deleted)`, PK `(user_id, kind, id)`, RLS `auth.uid() = user_id`. Migration: `supabase/migrations/20261010000000_user_recipes.sql`. Applied to production on 2026-10-10.
 - **Sync:** offline-first (SwiftData stays the source of truth), last-write-wins per item using client timestamps, deletions recorded as tombstones. It runs on sign-in, when the app becomes active, ~1.5 s after local edits, and from "Sync now". Pull, then merge (`SyncMerge`, unit-tested), then upsert (`Prefer: resolution=merge-duplicates`).
 - **Graceful degradation:** signed-out works exactly as before. A missing table (404 / PGRST205) shows "Cloud sync isn't set up on the server yet" and never blocks the app.
 - **Settings → Account & sync:** email, password, Sign in / Create account / Email me a magic link; when signed in, email, sync status, Sync now and Sign out. Signing out keeps your local data.
@@ -516,18 +516,18 @@ Input `{mode: url|image|prompt|rewrite, text?, imageDataUrl?, currentRecipe?}` �
 Read prefs; quiet = within quiet window (handles overnight). Sound && !quiet → chime (3 sine tones: 784 Hz, 784 Hz, 1046 Hz at 0/0.28/0.56s) — iOS: bundled chime via AVAudioPlayer / notification sound. Vibration → `UINotificationFeedbackGenerator` / haptic pattern. Step alerts → local notification title "Step {i} is done", body recipe title (time-sensitive interruption level).
 
 ## 8. Backend / integrations
-> **Current backend (2026-10-10):** Supabase project `ate` (`ploncuhexmwydjxljuhe`, eu-west-1). Schema in `supabase/migrations/`, functions in `supabase/functions/`. `publish-recipe` (verify_jwt off, checks itself): accepts a user JWT or the public key (anonymous share), validates the limits below, re-sharing an identical card within 10 min returns the same slug, and returns 429 above 20 same-title shares per 10 min or 60 shares/min overall. Inserts with the service role. `get-shared-recipe?slug=` is a public read. The Lovable Cloud project `fsowdtisvdctdmjymnpm` is legacy and only used by the web app until it's repointed.
+> **Current backend (2026-10-11):** Supabase project `ate` (`ploncuhexmwydjxljuhe`, eu-west-1). Schema in `supabase/migrations/`, functions in `supabase/functions/`. `publish-recipe` requires a valid user JWT at the gateway and in the function; anonymous publishing is disabled. It validates the limits below, attributes new rows to `owner_id`, re-sharing an identical card within 10 minutes returns the same slug, and applies per-owner rate limits. Inserts use the service role. `get-shared-recipe?slug=` remains a public read. The Lovable Cloud project `fsowdtisvdctdmjymnpm` is legacy and only used by the web app until it's repointed.
 - **Supabase** (project from `.env`; URL + publishable key). Table:
 ```sql
 create table public.shared_recipes (
   slug text primary key, title text not null, description text, image_url text,
-  card jsonb not null, created_at timestamptz not null default now());
+  card jsonb not null, created_at timestamptz not null default now(), owner_id uuid references auth.users(id) on delete cascade);
 -- RLS: SELECT for anon & authenticated (USING true). Inserts only via service role.
 ```
-- Publish: server (service role) inserts `{slug: 8-char base36, title, description, image_url, card}`; validation limits: title ≤200, description ≤1000, servings 1–200, tags ≤20 (≤60 chars), ingredients ≤100, steps ≤100, instruction ≤2000, urls ≤2000. iOS needs a server endpoint for this (Edge Function `publish-recipe`) since anon cannot insert. Read: iOS can query directly with `supabase-swift` + publishable key: `from("shared_recipes").select("slug,title,description,image_url,card").eq("slug", s).maybeSingle()`.
-- Share URLs: `https://recipe-transform-ai.lovable.app/r/<slug>` (add Associated Domains for Universal Links later).
+- Publish: only a signed-in user can create a share. The server (service role) inserts `{slug: 8-char base36, owner_id, title, description, image_url, card}`; validation limits: title ≤200, description ≤1000, servings 1–200, tags ≤20 (≤60 chars), ingredients ≤100, steps ≤100, instruction ≤2000, urls ≤2000. Read: iOS can query directly with `supabase-swift` + publishable key: `from("shared_recipes").select("slug,title,description,image_url,card").eq("slug", s).maybeSingle()`.
+- Share URLs: `https://melusi-k.github.io/ate-legal/r/?s=<slug>` until the production custom domain is live (add Associated Domains for Universal Links later).
 - Lovable AI Gateway (server-side only) — see §7.5.
-- No auth, no analytics beyond Lovable error reporting (iOS: none / optional crash reporting).
+- Auth is Supabase email/password plus magic links; share publishing requires a valid account. No analytics beyond Lovable error reporting (iOS: none / optional crash reporting).
 
 ## 9. Visual design
 ### 9.1 Colors (OKLCH source → sRGB hex approx)

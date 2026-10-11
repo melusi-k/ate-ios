@@ -89,7 +89,7 @@ MAP = {
 BLOCKERS = [
  ("unresolved", "Universal links need a paid Apple Developer account plus the ate.app domain (B-APPLE-01, B-SHARE-01); `Open in ate` uses the ate:// scheme meanwhile."),
  ("accepted", "Supabase built-in mailer rate-limits confirmation/reset/magic-link emails (~2/hour) until custom SMTP (Resend) is set up, see docs/SMTP.md (A-AUTH-05)."),
- ("fixed", "Lovable web share page reads the old backend; superseded by the GitHub Pages share page melusi-k.github.io/ate-legal/r/ on the new Supabase (A-SHARE-03)."),
+ ("unresolved", "The GitHub Pages share page is deployed and no longer falls back to PostgREST, but browser smoke tests for a valid share, unknown slug, and retryable function outage are still pending; keep shared_recipes SELECT until verified (A-SHARE-03)."),
  ("accepted", "Apple Watch install needs a paid account or Xcode on a Mac (free-ID sideload fails with an app-integrity error)."),
  ("accepted", "Unsigned sideload builds expire after 7 days on a free Apple ID; signed/TestFlight path needs the paid account (B-APPLE-02)."),
 ]

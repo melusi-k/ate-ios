@@ -56,7 +56,10 @@ struct RecipeEntityQuery: EntityStringQuery {
     }
     func entities(matching string: String) async throws -> [RecipeAppEntity] {
         let all = await IntentStore.recipes
-        return RecipeFilter().apply(all, query: string).prefix(20).map(RecipeAppEntity.init)
+        // Ranked fuzzy match; several near matches come back together so Siri asks which one.
+        let hits = RecipeMatcher.rank(all, query: string)
+        let pool = RecipeMatcher.isConfident(hits) ? Array(hits.prefix(1)) : Array(RecipeMatcher.nearTop(hits).prefix(5))
+        return pool.map { RecipeAppEntity($0.recipe) }
     }
     func suggestedEntities() async throws -> [RecipeAppEntity] {
         let all = await IntentStore.recipes
@@ -107,11 +110,25 @@ struct StartCookModeIntent: AppIntent {
     static let description = IntentDescription("Opens a recipe in ate's hands-free cook mode. Without a recipe, uses tonight's pick.")
     static let openAppWhenRun = true
     @Parameter(title: "Recipe") var recipe: RecipeAppEntity?
+    /// Typed name (Shortcuts/tests). Resolved with RecipeMatcher; never falls back to an unrelated recipe.
+    var recipeName: String?
     init() {}
     init(recipe: RecipeAppEntity?) { self.recipe = recipe }
+    init(name: String) { self.recipeName = name }
     @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let store = AppStore.current else { return .result(dialog: "Open ate first.") }
-        let id = recipe?.id ?? WidgetSnapshotBuilder.pick(recipes: store.recipes, health: WidgetBridge.lastHealthState)?.recipeID
+        var chosen = recipe
+        if chosen == nil, let n = recipeName, !n.trimmingCharacters(in: .whitespaces).isEmpty {
+            let hits = RecipeMatcher.rank(store.recipes, query: n)
+            if hits.isEmpty { return .result(dialog: "I couldn't find a recipe called \(n) in ate.") }
+            if RecipeMatcher.isConfident(hits) || RecipeMatcher.nearTop(hits).count == 1 {
+                chosen = RecipeAppEntity(hits[0].recipe)
+            } else {
+                chosen = try await $recipe.requestDisambiguation(among: RecipeMatcher.nearTop(hits).prefix(5).map { RecipeAppEntity($0.recipe) },
+                                                                dialog: "Which recipe did you mean?")
+            }
+        }
+        let id = chosen?.id ?? WidgetSnapshotBuilder.pick(recipes: store.recipes, health: WidgetBridge.lastHealthState)?.recipeID
         guard let id, let r = store.recipe(id) else {
             return .result(dialog: store.recipes.isEmpty ? "Your ate library is empty. Add a recipe first." : "I couldn't find that recipe.")
         }
@@ -253,6 +270,9 @@ struct AteShortcuts: AppShortcutsProvider {
             "Start cook mode in \(.applicationName)",
             "Start cook mode for \(\.$recipe) in \(.applicationName)",
             "Cook \(\.$recipe) with \(.applicationName)",
+            "Cook \(\.$recipe) in \(.applicationName)",
+            "Start cook mode for \(\.$recipe) with \(.applicationName)",
+            "Make \(\.$recipe) in \(.applicationName)",
         ], shortTitle: "Cook mode", systemImageName: "frying.pan")
         AppShortcut(intent: AddToShoppingListIntent(), phrases: [
             "Add to my \(.applicationName) list",

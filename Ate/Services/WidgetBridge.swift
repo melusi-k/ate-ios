@@ -104,6 +104,7 @@ enum WidgetBridge {
         indexTask = Task {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             if Task.isCancelled { return }
+            AteShortcuts.updateAppShortcutParameters()
             try? await CSSearchableIndex.default().deleteAllSearchableItems()
             try? await CSSearchableIndex.default().indexAppEntities(entities)
             lastIndexed = entities.count

@@ -26,6 +26,7 @@ enum ShareLinks {
             if let f = parts.first, f == "recipe" || f == "r", parts.count > 1 { return validSlug(parts[1]) }
             return nil
         }
+        guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return nil }
         let comps = url.pathComponents.filter { $0 != "/" }
         if let q = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
            let s = q.first(where: { $0.name == "s" || $0.name == "slug" })?.value,

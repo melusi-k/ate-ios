@@ -41,7 +41,12 @@ private struct CookingDotGrid: View {
     @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
     private let calendar = Calendar.current
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 7), count: 7)
-    private let weekdays = Calendar.current.veryShortStandaloneWeekdaySymbols
+    private var weekdays: [String] {
+        let symbols = calendar.veryShortStandaloneWeekdaySymbols
+        guard !symbols.isEmpty else { return [] }
+        let start = min(max(calendar.firstWeekday - 1, 0), symbols.count - 1)
+        return (0..<symbols.count).map { symbols[(start + $0) % symbols.count] }
+    }
 
     private var monthDates: [Date?] {
         guard let interval = calendar.dateInterval(of: .month, for: displayedMonth),

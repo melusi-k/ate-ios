@@ -4,6 +4,23 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 
 ## Unreleased
 
+### 🛠 Tier C build 81 feedback (one build)
+- **Step times:** plausibility minimums by verb (braise/stew/oxtail ≥ 60 min, simmer ≥ 20, pap ≥ 15, roast/bake ≥ 15, rice ≥ 12, brown/sear ≥ 5, steam ≥ 3). An implausible AI time with no time in the text is dropped (no "(N min)", no timer) and the card is flagged. The sanitizer now also runs on sync, edits and imports, not just on launch, and repaired recipes are saved and synced.
+- **Empty steps:** blank steps are removed on decode, normalise, scaling, display and cook mode, and saved data is cleaned.
+- **Offline strip:** moved inside each navigation stack, so it sits below the nav bar and never covers the title.
+- **Siri/Shortcuts covers:** remote covers are downloaded into the shared cache before the card shows. If a recipe still has no image, the designed tile is used instead of the fork-and-knife icon.
+- **Spotlight:** "Cook …" suggestions are capped at 3 (favourites first) and use real cover thumbnails. Indexed recipes carry thumbnails too.
+- **Shortcuts "What's on my shopping list"** now returns the items as text, so it works with Show When Run off.
+- **Siri diagnostics:** shows the bundle ID (re-signed or not), Siri language and voice-name count. Phrases are re-registered on every launch.
+- **Duplicate saves (P0):** saves are idempotent by draft ID, the stored draft is cleared on save, Save is disabled while saving, an already-saved draft is never restored, and sync dedupes. A one-time merge combines exact duplicates created within 15 minutes of each other.
+- **80% confidence:** dish identification happens inside the same generation pass. At 80% or above there's no question. Below 80%, Ate asks "What dish is this?" pre-filled with its guesses, then regenerates with the name you confirm. If it's still unsure, it shows "Draft, needs your input" and Save stays disabled until you edit or confirm.
+- **Recipe quality bar:** a main dish needs at least 4 ingredients with amounts, oven steps need a °C temperature, there are no vague steps like "cook ribs", and times must be plausible.
+- **Foundation Models:** nested @Generable output (DishIdentification → ingredients → steps with minutes and temperatureC) with guide constraints, a South African cook persona with rules and two example recipes, a streamed live preview, prewarm when the Add sheet opens, a clear message for each GenerationError, and Ask Ate revises the card in the same session.
+- **Tile icons by dish type:** ribs → flame, chicken sandwich → takeaway, drinks → cup. Matching uses whole words ("tea" no longer matches "teaspoon" or "steak").
+- **Library header:** the native large title "Your Kitchen", the logo in the toolbar, "Search N recipes" in the search bar, a quiet count, and one icon-only Group & sort menu.
+- **Cook mode:** the ✕ is now icon-only with a 44 pt target.
+- **Beta:** new checks C-FIX-01…08, C-AI-01…03 and C-LIB-01.
+
 ### 🧩 Widgets & Intents
 - **Home Screen widgets** (one "ate" widget extension, no new App ID): **Cook timers** (small/medium, live countdown with Pause/Resume and Stop buttons), **Tonight's pick** (small/medium: one recipe from your library that fits today's Health state, tap to open, Cook button on medium), **Shopping list** (small/medium/large, tap an item to tick it off), **Quick add** (small: Link / Photo / Prompt straight into Add recipe) and **Favourites** (medium: 3–4 covers, each opens its recipe).
 - **Lock Screen:** circular countdown ring for the next timer, rectangular "Step 4 · Simmer · 12:40 left", and an inline "next shopping item · N more" by the clock.

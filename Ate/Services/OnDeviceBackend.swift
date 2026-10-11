@@ -65,6 +65,7 @@ final class OnDeviceBackend: BackendService {
         var reviseID: String?
         var visibleLabels: [String] = []
         var visionLabels: [(String, Float)] = []
+        var photoOCR = ""
         switch request.mode {
         case .prompt:
             prompt = RecipePrompt.prompt(request.text ?? "")
@@ -77,6 +78,7 @@ final class OnDeviceBackend: BackendService {
             prompt = RecipePrompt.page(page); input = .link
         case .image:
             let text = try await Self.ocr(dataURL: request.imageDataUrl ?? "")
+            photoOCR = text
             let hint = (request.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             if PhotoGuess.isScreenshotText(text) && hint.isEmpty {
                 prompt = RecipePrompt.screenshot(text); input = .screenshot
@@ -114,6 +116,11 @@ final class OnDeviceBackend: BackendService {
         }
         let ctx = RecipePrompt.context(for: request.text ?? "")
         var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx)
+        // Never show a confident recipe for an object the camera saw instead of food.
+        // Send the user back through the dish question so the next pass is grounded by a human label.
+        if source == .photoGuess && RecipeQuality.isNonFoodTitle(card) {
+            throw PhotoNeedsDishError(suggestions: PhotoGuess.suggestions(labels: visionLabels, ocrText: photoOCR), spread: false)
+        }
         // Too thin, or missing what the photo shows: regenerate ONCE with the gaps spelled out.
         let gaps = RecipeQuality.shortfall(card, labels: visibleLabels)
         if request.mode != .rewrite, !gaps.isEmpty {
@@ -451,7 +458,7 @@ struct GenStep {
 @available(iOS 26.0, *)
 @Generable
 struct DishIdentification {
-    @Guide(description: "Most likely dish name from the caption/OCR/image labels and glossary; never a place, business, hashtag or handle") var name: String
+    @Guide(description: "Most likely edible dish name from the caption/OCR/image labels and glossary; never a utensil, plate, bowl, cookware, tableware, place, business, hashtag or handle; use Unknown dish when no food is established") var name: String
     @Guide(description: "Cuisine in one or two words, e.g. South African, Italian") var cuisine: String
     @Guide(description: "How sure you are the dish is `name`; below 0.8 when the input doesn't clearly name or show it", .range(0.0...1.0)) var confidence: Double
     @Guide(description: "Other plausible dish names, most likely first; empty when sure", .maximumCount(4)) var alternatives: [String]
@@ -462,7 +469,7 @@ struct DishIdentification {
 @Generable
 struct GenRecipe {
     @Guide(description: "Identify the dish first") var dish: DishIdentification
-    @Guide(description: "The card title: the identified dish name as written") var title: String
+    @Guide(description: "The card title: the identified edible dish name as written; never an object such as utensil or plate") var title: String
     @Guide(description: "Under 20 words") var description: String
     @Guide(description: "Servings that suit the dish (stews 4 to 6); for one plated item in a photo (one sandwich, one bowl) use 1", .range(1...24)) var servings: Int
     @Guide(description: "Total minutes: the sum of all step minutes plus a short prep time; never more than that", .range(1...2880)) var timeMinutes: Int

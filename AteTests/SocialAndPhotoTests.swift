@@ -90,4 +90,12 @@ final class PhotoGuessTests: XCTestCase {
         XCTAssertNil(PhotoGuess.prompt(labels: [("plate", 0.8), ("table", 0.5)], ocrText: ""))
         XCTAssertNil(PhotoGuess.prompt(labels: [], ocrText: ""))
     }
+    func testObjectsCannotBecomeDishCandidates() {
+        let labels: [(String, Float)] = [("food", 0.95), ("wooden_utensil", 0.95), ("plate", 0.82), ("tableware", 0.7)]
+        XCTAssertTrue(PhotoGuess.dishes(from: labels).isEmpty)
+        guard case .uncertain = PhotoGuess.assess(labels: labels, ocrText: "") else {
+            return XCTFail("an object-only recognition must ask the user rather than generate")
+        }
+        XCTAssertTrue(PhotoGuess.isNonDishObject("wooden utensil"))
+    }
 }

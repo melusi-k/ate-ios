@@ -18,7 +18,7 @@ enum PhotoGuess {
     static func dishes(from labels: [(String, Float)]) -> [String] {
         labels.sorted { $0.1 > $1.1 }
             .map { $0.0.lowercased() }
-            .filter { !generic.contains($0) }
+            .filter { !generic.contains($0) && !PhotoGuess.isNonDishObject($0) }
             .map { $0.replacingOccurrences(of: "_", with: " ") }
     }
 

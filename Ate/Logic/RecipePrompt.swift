@@ -69,7 +69,7 @@ enum RecipePrompt {
         switch input {
         case .link: brief = "Input: text scraped from a recipe web page. Ignore navigation, ads and comments."
         case .social: brief = "Input: a social media caption. It may be an advert or menu; follow rule 3 and 4 strictly."
-        case .photo: brief = "Input: a food photo the user named. If you need any text printed in the photo (menu boards, labels), call the readPhotoText tool. Never invent a different dish than the one named."
+        case .photo: brief = "Input: a food photo the user named. If you need any text printed in the photo (menu boards, labels), call the readPhotoText tool. Never invent a different dish than the one named. A plate, utensil, wooden object, cookware or tableware is not a dish; if the image does not establish an edible dish, return Unknown dish with confidence below 0.2 instead of inventing a recipe."
         case .screenshot: brief = "Input: OCR text of a recipe screenshot. Keep the original quantities and order."
         case .prompt: brief = "Input: the user's own description. A sensible traditional recipe is fine; still follow the units and timing rules."
         case .rewrite: brief = "Input: an existing recipe card as JSON plus the user's change request. Change only what is asked."
@@ -111,7 +111,7 @@ enum RecipePrompt {
 
     /// Food photo with no confident name: the model identifies the dish in the same pass (dishName first).
     static func photoUnnamed(labels: [String], candidates: [String], ocr: String, ocrViaTool: Bool = false) -> String {
-        var p = "A food photo. Identify the dish first, then write a traditional home-cook recipe for it."
+        var p = "A food photo. Identify the edible dish first, then write a traditional home-cook recipe for it. Object labels such as utensil, wooden utensil, plate, bowl, tableware, cookware, or serving dish are not dishes. If no edible dish is established, return title Unknown dish, confidence below 0.2, empty or minimal recipe fields, and explain that the user must name the dish; never invent a recipe around an object."
         if !labels.isEmpty { p += " Image labels: \(labels.prefix(6).joined(separator: ", "))." }
         if !candidates.isEmpty { p += " Likely regional candidates: \(candidates.prefix(8).joined(separator: ", "))." }
         let o = ocr.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -165,6 +165,19 @@ enum PhotoAssessment: Equatable {
 }
 
 extension PhotoGuess {
+    /// Vision often labels the serving context or an object more confidently than the food itself.
+    /// These labels must never become recipe titles or confidence anchors.
+    static let nonDishObjects: Set<String> = [
+        "utensil", "wooden utensil", "wood utensil", "kitchen utensil", "serving utensil", "wooden spoon",
+        "spoon", "fork", "knife", "chopsticks", "plate", "serving plate", "dish", "serving dish",
+        "bowl", "pot", "pan", "saucepan", "cooking pot", "cookware", "tableware", "dishware",
+        "cutlery", "container", "tray", "platter", "table", "wood", "wood processed"
+    ]
+    static func isNonDishObject(_ raw: String) -> Bool {
+        let n = raw.lowercased().replacingOccurrences(of: "_", with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        return nonDishObjects.contains(n) || n.contains("utensil") || n.contains("tableware") || n.contains("dishware")
+    }
+
     static let weak: Set<String> = ["potato", "potatoes", "french fries", "chicken", "meat", "vegetable", "stew", "soup", "bread",
                                     "rice", "salad", "baked goods", "fried food", "sauce", "curry", "produce"]
     static let spreadHints: Set<String> = ["bowl", "buffet", "platter", "tableware", "dishware", "table"]
@@ -174,7 +187,7 @@ extension PhotoGuess {
         var seen = Set<String>(), out: [(String, Float)] = []
         for (id, c) in labels.sorted(by: { $0.1 > $1.1 }) where c >= minConfidence {
             let n = id.lowercased().replacingOccurrences(of: "_", with: " ")
-            if generic.contains(id.lowercased()) || generic.contains(n) || spreadHints.contains(n) { continue }
+            if generic.contains(id.lowercased()) || generic.contains(n) || spreadHints.contains(n) || isNonDishObject(n) { continue }
             let key = n.hasSuffix("es") ? String(n.dropLast(2)) : (n.hasSuffix("s") ? String(n.dropLast()) : n)
             if seen.insert(key).inserted { out.append((n, c)) }
         }
@@ -199,7 +212,7 @@ extension PhotoGuess {
         let named = CuisineGlossary.matches(in: ocrText).map(\.name)
         let suggestions = Self.suggestions(labels: labels, ocrText: ocrText)
         // A spread means 3+ DIFFERENT specific foods, not several plates/bowls of the same thing.
-        let specific = distinctFoods(labels).filter { !weak.contains($0.0) }
+        let specific = distinctFoods(labels).filter { !weak.contains($0.0) && !isNonDishObject($0.0) }
         if specific.filter({ $0.1 >= 0.45 }).count >= 3 { return .spread(suggestions: suggestions) }
         if let n = named.first { return .confident(n) }
         if let top = specific.first, top.1 >= 0.5 {
@@ -211,7 +224,7 @@ extension PhotoGuess {
 
     /// Confidence calibrated from Vision: when the card is the dish Vision clearly saw, trust Vision's score.
     static func calibratedConfidence(model: Double?, title: String, labels: [(String, Float)]) -> Double? {
-        guard let top = distinctFoods(labels).first(where: { !weak.contains($0.0) }) else { return model }
+        guard let top = distinctFoods(labels).first(where: { !weak.contains($0.0) && !isNonDishObject($0.0) }) else { return model }
         let tw = CoverLogic.words(title)
         let hit = CoverLogic.words(top.0).allSatisfy { w in tw.contains(w) || tw.contains(w + "s") }
         guard hit else { return model }

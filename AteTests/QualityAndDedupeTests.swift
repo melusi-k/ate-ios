@@ -191,6 +191,12 @@ final class PhotoRegressionTests: XCTestCase {
         XCTAssertTrue(RecipeQuality.shouldAskDish(c, alreadyConfirmed: false))
         XCTAssertEqual(RecipeQuality.guesses(c).first, "cheese and polony sandwich")
     }
+    func testObjectTitleIsNeverARecipeDraft() {
+        var c = thinSandwich(); c.title = "Utensil"; c.aiConfidence = 0.95
+        XCTAssertTrue(RecipeQuality.isNonFoodTitle(c))
+        XCTAssertTrue(RecipeQuality.issues(c).contains { $0.contains("edible dish") })
+        XCTAssertTrue(RecipeQuality.needsInput(c))
+    }
     func testThinPhotoRecipeTriggersRegenerationWithVisibleItems() {
         let labels = PhotoGuess.distinctFoods(Self.cheeseSandwich, minConfidence: 0.25).map(\.0)
         let gaps = RecipeQuality.shortfall(thinSandwich(), labels: labels)

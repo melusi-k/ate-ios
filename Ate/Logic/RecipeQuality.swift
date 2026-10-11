@@ -8,6 +8,13 @@ enum RecipeQuality {
 
     static func isGenerated(_ c: RecipeCard) -> Bool { [.appleIntelligence, .photoGuess].contains(c.source) }
 
+    /// A photo classifier may recognise the plate or a utensil instead of the food. Such output is not a recipe draft.
+    static func isNonFoodTitle(_ c: RecipeCard) -> Bool {
+        let t = c.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let l = t.lowercased()
+        return l.isEmpty || l == "unknown dish" || PhotoGuess.isNonDishObject(l)
+    }
+
     /// Should the sheet ask "What dish is this?" before showing the card at all?
     static func shouldAskDish(_ c: RecipeCard, alreadyConfirmed: Bool) -> Bool {
         isGenerated(c) && !alreadyConfirmed && (c.aiConfidence ?? 1) < threshold
@@ -58,6 +65,9 @@ enum RecipeQuality {
     /// Human-readable gaps; empty means the card meets the bar.
     static func issues(_ c: RecipeCard) -> [String] {
         var out: [String] = []
+        if c.source == .photoGuess && isNonFoodTitle(c) {
+            out.append("The photo did not establish an edible dish; name the dish before generating a recipe.")
+        }
         let real = c.ingredients.filter { $0.quantity > 0 && !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
         if isMainDish(c) && real.count < 4 { out.append("Needs at least 4 ingredients with quantities (has \(real.count)).") }
         let vague = c.ingredients.map { $0.name.lowercased().trimmingCharacters(in: .whitespaces) }.filter { vagueIngredients.contains($0) }

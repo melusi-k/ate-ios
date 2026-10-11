@@ -53,27 +53,51 @@ struct SettingsView: View {
                         Text("Choose how ate lets you know a cook-mode step timer has finished.")
                     }
                     Section {
-                        Button { if let u = writeTemp("ate-recipes.json", store.exportJSON()) { share = ShareItems(items: [u]) } } label: {
-                            Label("Export data", systemImage: "arrow.down.doc")
-                        }
-                        Button { importing = true } label: { Label("Import recipes", systemImage: "square.and.arrow.down") }
                         Button("Clear all", role: .destructive) { confirmClear = true }
                     } header: { Text("Your data") } footer: {
                         Text(store.session == nil
                              ? "Recipes are stored on this iPhone only. Sign in to sync them to your account."
                              : "Recipes and your shopping list sync to your ate account (Supabase, EU). Shared recipes are public to anyone with the link.")
                     }
-
-                Section { Button {
-                    UIPasteboard.general.string = AppConfig.versionLine
-                    store.show("Version info copied")
-                } label: {
-                    Text(AppConfig.versionLine).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                        .multilineTextAlignment(.center).frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("versionFooter").accessibilityHint("Copies version info")
-                }.listRowBackground(Color.clear)
+                    Section("Tools") {
+                        Button { if let u = writeTemp("ate-recipes.json", store.exportJSON()) { share = ShareItems(items: [u]) } } label: {
+                            Label("Export data", systemImage: "arrow.down.doc")
+                        }.accessibilityIdentifier("settings.export")
+                        Button { importing = true } label: {
+                            Label("Import recipes", systemImage: "square.and.arrow.down")
+                        }.accessibilityIdentifier("settings.import")
+                        Button { store.replayOnboarding() } label: {
+                            Label("Replay intro", systemImage: "sparkles")
+                        }.accessibilityIdentifier("settings.replayOnboarding")
+                    }
+                    Section("About") {
+                        Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))" + (AppConfig.channel.isEmpty ? "" : " · \(AppConfig.channel)"))
+                            .accessibilityIdentifier("aboutVersion")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("AI diagnostics").font(AteFont.body(12, .semibold))
+                            Text("Model: " + OnDeviceBackend.availabilityDescription)
+                            Text("Last generation: " + (GenerationLog.last?.summary ?? "none yet"))
+                                .accessibilityIdentifier("lastGeneration")
+                        }
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                        .textSelection(.enabled)
+                        .accessibilityElement(children: .combine).accessibilityIdentifier("aiDiagnostics")
+                        LiveActivityDiagnosticsView()
+                        if let u = AppConfig.privacyURL { Link(destination: u) { Label("Privacy Policy", systemImage: "hand.raised") }.accessibilityIdentifier("settingsPrivacy") }
+                        if let u = AppConfig.termsURL { Link(destination: u) { Label("Terms of Use", systemImage: "doc.text") }.accessibilityIdentifier("settingsTerms") }
+                    } footer: {
+                        Text(Transparency.ai).accessibilityIdentifier("aiTransparency")
+                    }
+                    Section { Button {
+                        UIPasteboard.general.string = AppConfig.versionLine
+                        store.show("Version info copied")
+                    } label: {
+                        Text(AppConfig.versionLine).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                            .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("versionFooter").accessibilityHint("Copies version info")
+                    }.listRowBackground(Color.clear)
         }
         .scrollContentBackground(.hidden)
         // Let the last rows scroll fully clear of the floating tab bar instead of sitting under it.

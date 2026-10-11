@@ -38,7 +38,7 @@ struct LibraryView: View {
                 Image("AteLogo").resizable().scaledToFit().frame(width: 28, height: 28)
                     .accessibilityLabel("ate").accessibilityIdentifier("libraryLogo")
             }
-            ToolbarItem(placement: .topBarTrailing) { layoutMenu }
+            ToolbarItem(placement: .topBarTrailing) { libraryMenu }
         }
         .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd, global: searchPlacement != .tabBar))
         .onChange(of: store.pendingSearch) { _, q in if let q { query = q; store.pendingSearch = nil } }
@@ -178,6 +178,58 @@ struct LibraryView: View {
                 .pickerStyle(.menu).accessibilityIdentifier("sortMenu")
         } label: { Label("Group & sort", systemImage: "line.3.horizontal.decrease.circle") }
             .accessibilityIdentifier("groupSortMenu")
+    }
+
+    /// The landing page owns discovery: collections, ingredient filters and health/journal entry points.
+    private var libraryMenu: some View {
+        @Bindable var store = store
+        return Menu {
+            Section("Collections") {
+                ForEach([RecipeCollection.quick, .favourites, .recentlyAdded, .recentlyCooked], id: \.self) { c in
+                    Button { selectCollection(c) } label: {
+                        Label(c.title, systemImage: c.symbol)
+                    }
+                    .accessibilityIdentifier("library.collection.\(c.title)")
+                }
+            }
+            let tags = IngredientTags.collections(in: store.recipes)
+            if !tags.isEmpty {
+                Section("By ingredient") {
+                    ForEach(tags, id: \.self) { tag in
+                        Button { store.filter.tags = [tag] } label: {
+                            Label(tag, systemImage: "leaf")
+                        }
+                        .accessibilityIdentifier("library.ingredient.\(tag)")
+                    }
+                }
+            }
+            Section("Explore") {
+                Button { store.path.append(.insights) } label: {
+                    Label("Insights & journal", systemImage: "heart.text.square")
+                }
+                .accessibilityIdentifier("library.insights")
+                Button { store.path.append(.journal) } label: {
+                    Label("Journal", systemImage: "book.closed")
+                }
+                .accessibilityIdentifier("library.journal")
+            }
+            Section("Arrange") {
+                Picker(selection: $store.layout.group) {
+                    ForEach(LibraryLayout.GroupBy.allCases) { Label($0.rawValue, systemImage: $0.symbol).tag($0) }
+                } label: { Label("Group by", systemImage: "rectangle.3.group") }
+                Picker(selection: $store.layout.sort) {
+                    ForEach(LibraryLayout.SortBy.allCases) { Text($0.rawValue).tag($0) }
+                } label: { Label("Sort", systemImage: "arrow.up.arrow.down") }
+            }
+        } label: {
+            Label("Browse and arrange", systemImage: "line.3.horizontal.decrease.circle")
+        }
+        .accessibilityIdentifier("libraryBrowseMenu")
+    }
+
+    private func selectCollection(_ c: RecipeCollection) {
+        store.filter.clear()
+        store.filter.collection = c
     }
 
     /// Quiet count under the search bar; the logo lives in the toolbar and the title is the native large title.

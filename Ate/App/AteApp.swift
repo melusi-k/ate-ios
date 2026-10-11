@@ -251,7 +251,9 @@ extension RootView {
         .tabViewStyle(.tabBarOnly)
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory {
-            if store.cookTarget == nil { AteBottomAccessory() }
+            // Pushed screens reserve their own timer-bar inset. Keeping the accessory
+            // at tab roots avoids a second timer bar beneath RecipeDetailView's Cook mode.
+            if store.cookTarget == nil && store.isAtTabRoot { AteBottomAccessory() }
         }
     }
 

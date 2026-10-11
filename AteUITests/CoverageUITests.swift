@@ -96,32 +96,33 @@ final class CoverageUITests: XCTestCase {
         shot("cover-detail-branded-tile")
     }
 
-    // MARK: More
+    // MARK: Library discovery + Settings tools/About
 
     func test32_MoreCollectionsToolsAbout() {
         launch()
         addPrompt("Miso salmon for two")
-        tab("More")
-        wait(app.buttons["more.Recently added"])
-        XCTAssertTrue(app.buttons["more.Favourites"].exists || app.buttons["more.Favorites"].exists)
-        shot("more-collections")
-        app.buttons["more.Recently added"].tap()
+        tab("Library")
+        app.buttons["libraryBrowseMenu"].tap()
+        wait(app.buttons["library.collection.Recently added"])
+        XCTAssertTrue(app.buttons["library.collection.Favourites"].exists || app.buttons["library.collection.Favorites"].exists)
+        shot("library-collections")
+        app.buttons["library.collection.Recently added"].tap()
         wait(app.tabBars.buttons["Library"], 5)
         XCTAssertTrue(app.tabBars.buttons["Library"].isSelected, "collection should open the Library tab")
         wait(text("Miso salmon"), 5)
-        shot("more-collection-filtered-library")
-        tab("More")
-        let export = app.buttons["more.export"]; scrollTo(export); wait(export, 3)
-        XCTAssertTrue(app.buttons["more.import"].exists)
-        XCTAssertTrue(app.buttons["replayOnboarding"].exists)
-        shot("more-tools")
+        shot("collection-filtered-library")
+        tab("Settings")
+        let export = app.buttons["settings.export"]; scrollTo(export); wait(export, 3)
+        XCTAssertTrue(app.buttons["settings.import"].exists)
+        XCTAssertTrue(app.buttons["settings.replayOnboarding"].exists)
+        shot("settings-tools")
         export.tap(); sleep(2); shot("more-export-sheet")
         if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
         let about = app.staticTexts["aboutVersion"]; scrollTo(about); wait(about, 3)
         XCTAssertTrue(about.label.contains("(build "))
         XCTAssertTrue(app.staticTexts["aiTransparency"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["aiDiagnostics"].firstMatch.exists)
-        shot("more-about")
+        shot("settings-about")
     }
 
     // MARK: photo dish step
@@ -331,9 +332,10 @@ final class CoverageUITests: XCTestCase {
 extension CoverageUITests {
     func openInsights(_ scenario: String) {
         launch(["-qaMockHealth", scenario, "-qaHealthRecipes"])
-        tab("More")
-        let row = app.buttons["more.insights"]
-        scrollTo(row); row.tap()
+        tab("Library")
+        app.buttons["libraryBrowseMenu"].tap()
+        let row = app.buttons["library.insights"]
+        wait(row); row.tap()
     }
     func any(_ id: String) -> XCUIElement { app.descendants(matching: .any)[id] }
     /// Connects, checks title + prompts, returns suggestion titles, saves a journal entry.
@@ -438,7 +440,7 @@ extension CoverageUITests {
         XCTAssertFalse(ask.frame.intersects(bar.frame), "Ask Ate field under the timer bar")
     }
 
-    /// Gap 1: system Back from a recipe always returns, from Library and from a More collection.
+    /// Gap 1: system Back from a recipe and the Beta screen never strands navigation.
     func testSystemBackFromRecipeNeverDead() {
         launch()
         addPrompt("miso salmon")
@@ -451,12 +453,12 @@ extension CoverageUITests {
         app.buttons["more.betaTesting"].tap()
         let back2 = app.navigationBars.buttons.element(boundBy: 0)
         wait(back2); back2.tap()
-        wait(app.buttons["more.insights"])
+        wait(app.buttons["more.betaTesting"])
     }
     /// Regression guard (StepTrackerTCA lesson): Connect must still ask for Health when access is undecided.
     func testHealthPermissionPromptAppearsWhenUndecided() {
         launch(["-qaMockHealth", "recovery", "-qaHealthRecipes", "-qaHealthPrompt"])
-        tab("More"); let row = app.buttons["more.insights"]; scrollTo(row); row.tap()
+        tab("Library"); app.buttons["libraryBrowseMenu"].tap(); let row = app.buttons["library.insights"]; wait(row); row.tap()
         let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
         let alert = app.alerts.firstMatch; wait(alert, 5)
         XCTAssertTrue(alert.label.contains("Health"), alert.label)
@@ -473,7 +475,7 @@ extension CoverageUITests {
     /// Journaling Suggestions picker is never presented under UI tests; check the context row instead.
     func testJournalMomentContextRow() {
         launch(["-qaMockHealth", "recovery", "-qaJournalMomentEntry"])
-        tab("More"); let row = app.buttons["more.insights"]; scrollTo(row); row.tap()
+        tab("Library"); app.buttons["libraryBrowseMenu"].tap(); let row = app.buttons["library.insights"]; wait(row); row.tap()
         let ctx = any("insights.entryMomentContext"); scrollTo(ctx); wait(ctx)
         XCTAssertTrue(ctx.label.contains("Dinner at Mama"), ctx.label)
         XCTAssertFalse(any("insights.journalingPicker").exists)

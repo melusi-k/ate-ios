@@ -53,7 +53,7 @@ final class AteUITests: XCTestCase {
 
     func tapSwitch(_ id: String) {
         let s = app.switches[id].firstMatch
-        wait(s)
+        _ = s.waitForExistence(timeout: 5)
         var tries = 0
         while !s.isHittable && tries < 8 {
             if s.frame.minY < app.frame.midY { app.swipeDown(velocity: .slow) } else { app.swipeUp(velocity: .slow) }
@@ -238,6 +238,8 @@ final class AteUITests: XCTestCase {
         if clear.isHittable { clear.tap() } else { clear.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap() }
         wait(text("5 to buy"))
         app.buttons["Clear all"].tap()
+        wait(app.buttons["Clear all items"], 3)
+        app.buttons["Clear all items"].tap()
         wait(text("Nothing on the list"))
     }
 
@@ -466,9 +468,9 @@ final class AteUITests: XCTestCase {
         if app.buttons["onboardingContinue"].waitForExistence(timeout: 3) { app.buttons["onboardingContinue"].tap() }
         wait(app.tabBars.firstMatch, 8)
         XCTAssertFalse(app.staticTexts["onboardingChoice"].exists)
-        // Replay intro now lives in More
-        tab("More")
-        let replay = app.buttons["replayOnboarding"]
+        // Replay intro now lives in Settings › Tools.
+        tab("Settings")
+        let replay = app.buttons["settings.replayOnboarding"]
         scrollTo(replay)
         wait(replay, 5)
         shot("more-replay-intro")
@@ -626,11 +628,14 @@ final class AteUITests: XCTestCase {
         app.buttons["Mark honey as bought"].firstMatch.tap()
         wait(text("4 to buy"))
         shot("tabbar-shopping-badge-4")
-        XCTAssertEqual(tabs.buttons.count, 4)
+        // iOS 26 adds the system search tab beside the four primary tabs.
+        let expectedTabCount = ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26 ? 5 : 4
+        XCTAssertEqual(tabs.buttons.count, expectedTabCount)
         XCTAssertFalse(tabs.buttons["Quick (≤30 min)"].exists)
-        tabs.buttons["More"].tap()
-        wait(app.buttons["more.Quick (≤30 min)"])
-        shot("tabbar-more")
+        tabs.buttons["Library"].tap()
+        app.buttons["libraryBrowseMenu"].tap()
+        wait(app.buttons["library.collection.Quick (≤30 min)"])
+        shot("library-browse-menu")
         tabs.buttons["Settings"].tap()
         wait(text("Timer notifications"))
         shot("tabbar-settings")

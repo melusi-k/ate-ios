@@ -54,16 +54,16 @@ enum Durations {
         (["braise", "stew", "slow cook", "slow-cook", "mogodu", "tripe", "oxtail"], 60 * 60),
         (["simmer", "boil until tender", "until tender", "potjie"], 20 * 60),
         (["pap", "phutu", "mealie", "maize meal", "polenta"], 15 * 60),
-        (["roast", "bake", "oven"], 15 * 60),
+        (["roast", "bake", "baking", "oven"], 15 * 60),
         (["rice"], 12 * 60),
-        (["brown", "sear", "fry the onion", "caramelis", "caramelize"], 5 * 60),
+        (["brown", "sear", "fry the onion", "caramelise", "caramelised", "caramelize", "caramelized"], 5 * 60),
         (["steam", "wilt"], 3 * 60),
     ]
     static func minimumSeconds(for instruction: String) -> Int? {
         let l = instruction.lowercased()
         func has(_ k: String) -> Bool {
             if k.contains(" ") { return l.contains(k) }
-            return l.range(of: "\\b\(NSRegularExpression.escapedPattern(for: k))", options: .regularExpression) != nil
+            return l.range(of: "\\b\(NSRegularExpression.escapedPattern(for: k))(?:s|es|d|ed|ing)?\\b", options: .regularExpression) != nil
         }
         return plausibilityRules.filter { $0.keywords.contains(where: has) }.map(\.minSeconds).max()
     }

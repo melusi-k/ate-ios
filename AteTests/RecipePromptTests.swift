@@ -72,6 +72,7 @@ final class RecipePromptTests: XCTestCase {
         XCTAssertEqual(PhotoGuess.assess(labels: [("pizza", 0.85), ("food", 0.9)], ocrText: ""), .confident("pizza"))
         XCTAssertEqual(PhotoGuess.assess(labels: generic, ocrText: "Mogodu Saturday"), .confident("Mogodu / ulusu (tripe)"))
         let p = RecipePrompt.photo(dish: "ujeqe", labels: ["bread"], ocr: "")
-        XCTAssertTrue(p.contains("exactly that dish")); XCTAssertTrue(p.contains("steam 1 h"))
+        XCTAssertTrue(p.contains("exactly that dish")); XCTAssertTrue(p.contains("lookupRegionalDish"))
+        XCTAssertTrue(RecipePrompt.lookupRegionalDish("ujeqe").contains("steam 1 h"), "glossary detail now comes from the tool")
     }
 }

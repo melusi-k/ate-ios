@@ -20,16 +20,16 @@ final class DraftStoreTests: XCTestCase {
         super.tearDown()
     }
 
-    func testPendingGenerationSurvivesStoreRecreationAndCanBeRetried() {
+    func testPendingGenerationSurvivesStoreRecreationAndCanBeRetried() throws {
         let input = String(repeating: "recipe ", count: 700)
         store.begin(mode: "Prompt", text: input)
 
         // A fresh instance models a new app process reading the same persisted defaults.
         let relaunched = DraftStore(defaults: defaults, enabled: true)
-        let pending = try? XCTUnwrap(relaunched.pending)
-        XCTAssertEqual(pending??.mode, "Prompt")
-        XCTAssertEqual(pending??.text.count, 4000)
-        XCTAssertNotNil(pending??.startedAt)
+        let pending = try XCTUnwrap(relaunched.pending)
+        XCTAssertEqual(pending.mode, "Prompt")
+        XCTAssertEqual(pending.text.count, 4000)
+        XCTAssertGreaterThan(pending.startedAt, 0)
 
         relaunched.end()
         XCTAssertNil(DraftStore(defaults: defaults, enabled: true).pending)

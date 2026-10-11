@@ -86,12 +86,6 @@ struct GroceryQuery: EntityStringQuery {
         let hits = GroceryEntity.common.filter { $0.localizedCaseInsensitiveContains(s) }
         return ([s.lowercased()] + hits.filter { $0 != s.lowercased() }).map(GroceryEntity.init)
     }
-    func suggestedEntities() async throws -> [GroceryEntity] {
-        let recent = await MainActor.run { AppStore.current?.shopping.map { $0.name.lowercased() } ?? [] }
-        var seen = Set<String>(); var out: [String] = []
-        for n in recent + GroceryEntity.common where seen.insert(n).inserted { out.append(n) }
-        return out.prefix(60).map(GroceryEntity.init)
-    }
 }
 
 // MARK: intents
@@ -261,8 +255,6 @@ struct AteShortcuts: AppShortcutsProvider {
             "Cook \(\.$recipe) with \(.applicationName)",
         ], shortTitle: "Cook mode", systemImageName: "frying.pan")
         AppShortcut(intent: AddToShoppingListIntent(), phrases: [
-            "Add \(\.$item) to my \(.applicationName) list",
-            "Add \(\.$item) to my \(.applicationName) shopping list",
             "Add to my \(.applicationName) list",
         ], shortTitle: "Add to list", systemImageName: "basket")
         AppShortcut(intent: TonightsPickIntent(), phrases: [

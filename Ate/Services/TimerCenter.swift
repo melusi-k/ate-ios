@@ -238,6 +238,21 @@ enum LiveActivityDiagnostics {
         guard let u = Bundle.main.builtInPlugInsURL?.appendingPathComponent("AteWidgets.appex") else { return nil }
         return Bundle(url: u)?.bundleIdentifier
     }
+    /// Why the widget gallery might skip the extension: id must be `<app id>.<suffix>`, and its profile must name it.
+    static var widgetSigningIssues: [String] {
+        guard let u = Bundle.main.builtInPlugInsURL?.appendingPathComponent("AteWidgets.appex"),
+              let wid = Bundle(url: u)?.bundleIdentifier, let app = Bundle.main.bundleIdentifier else { return [] }
+        var out: [String] = []
+        if !wid.hasPrefix(app + ".") { out.append("widget id \(wid) is not under app id \(app)") }
+        if let d = try? Data(contentsOf: u.appendingPathComponent("embedded.mobileprovision")),
+           let s = d.range(of: Data("<?xml".utf8)), let e = d.range(of: Data("</plist>".utf8), in: s.lowerBound..<d.endIndex),
+           let pl = try? PropertyListSerialization.propertyList(from: d[s.lowerBound..<e.upperBound], format: nil) as? [String: Any],
+           let ent = pl["Entitlements"] as? [String: Any], let appID = ent["application-identifier"] as? String {
+            let idPart = appID.split(separator: ".", maxSplits: 1).last.map(String.init) ?? appID
+            if idPart != wid && idPart != "*" { out.append("widget profile is for \(idPart), not \(wid)") }
+        } else { out.append("widget has no provisioning profile") }
+        return out
+    }
     static func record(_ s: String) { LiveActivityLog.shared.add(s); log.notice("\(s, privacy: .public)") }
 }
 

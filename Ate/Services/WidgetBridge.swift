@@ -87,6 +87,7 @@ enum WidgetBridge {
         var parts = [g.available ? "App Group OK: \(g.id) (\(g.source))" : "App Group missing (widgets can't read ate's data; tried \(g.id))"]
         parts.append(LiveActivityDiagnostics.widgetAppexPresent ? "widget extension installed" : "widget extension missing (Sideloadly removed it?)")
         if let id = LiveActivityDiagnostics.widgetBundleID { parts.append(id) }
+        parts += LiveActivityDiagnostics.widgetSigningIssues.map { "⚠︎ " + $0 }
         let hb = heartbeats
         parts.append(hb.isEmpty ? "no widget has loaded yet" : "\(hb.count) widget kind(s) loaded, last \(hb.values.max()!.formatted(date: .omitted, time: .shortened))")
         parts.append("Spotlight: \(lastIndexed) recipes")

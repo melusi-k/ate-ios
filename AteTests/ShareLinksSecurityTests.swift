@@ -5,7 +5,7 @@ final class ShareLinksSecurityTests: XCTestCase {
     func testRejectsMalformedSlugsFromQueryAndPath() {
         for raw in ["../../etc", "abc/def", "abc?x=y", "abc", String(repeating: "a", count: 41)] {
             let encoded = raw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? raw
-            XCTAssertNil(ShareLinks.slug(from: URL(string: "https://ate.app/r/?s=\\(encoded)")!), raw)
+            XCTAssertNil(ShareLinks.slug(from: URL(string: "https://ate.app/r/?s=\(encoded)")!), raw)
         }
         XCTAssertNil(ShareLinks.slug(from: URL(string: "ate://recipe/../../etc")!))
     }

@@ -2,7 +2,7 @@
 
 Native SwiftUI (iOS 18+, iPhone; Apple Intelligence features need iOS 26 on supported hardware) rebuild of the **ate** AI recipe library. Full spec: [docs/PRD.md](docs/PRD.md).
 
-**Beta / launch gate:** [docs/MVP_CHECKLIST.md](docs/MVP_CHECKLIST.md) (tiered A/B/C, score in [docs/MVP_SCORE.md](docs/MVP_SCORE.md), test matrix [docs/QA_MATRIX.md](docs/QA_MATRIX.md)) · **Support FAQ:** [docs/SUPPORT.md](docs/SUPPORT.md) · **QA gate:** [docs/QA.md](docs/QA.md) — `KeyFlowsQATests` must pass before CI publishes a release · Testers: [docs/BETA.md](docs/BETA.md).
+**Beta / launch gate:** [docs/MVP_CHECKLIST.md](docs/MVP_CHECKLIST.md) (tiered A/B/C, score in [docs/MVP_SCORE.md](docs/MVP_SCORE.md), test matrix [docs/QA_MATRIX.md](docs/QA_MATRIX.md)) · **Support FAQ:** [docs/SUPPORT.md](docs/SUPPORT.md) · **QA gate:** [docs/QA.md](docs/QA.md) — the full test matrix is required for `latest-beta` promotion; ordinary `latest-build` releases run smoke checks but not the full suite by default · Testers: [docs/BETA.md](docs/BETA.md).
 
 ## Features
 Library + search · Add recipe sheet (Link / Image / Prompt → review/edit/regenerate/save) · Recipe detail (x1/x2/x3 scaling, inline edit, Ask ate rewrite, share, add to shopping list, delete) · Cook mode (big text, progress, step timers with background notifications, screen stays awake) · Shopping list (merge, manual add, tick, share/copy/.txt/.csv, clear) · Settings (private mode, units, timer prefs + quiet hours, export/import/clear) · Shared recipe deep links (`ate://recipe/<slug>`, legacy `ate://r/<slug>`) · 404 / error states.
@@ -34,7 +34,7 @@ open Ate.xcodeproj   # Xcode 26 (iOS 26 SDK) required for the Foundation Models 
 ```
 
 ## CI → .ipa
-`.github/workflows/build-ipa.yml` runs on every push to any branch, and you can also start it manually. It generates the project, runs the unit tests, archives the app, uploads `Ate-<version>-build<N>.ipa` as a workflow artifact, and replaces the **`latest-build`** prerelease:
+`.github/workflows/build-ipa.yml` runs on pushes to `main`, and you can also start it manually. Ordinary pushes generate and archive the app, run release smoke checks, and replace the **`latest-build`** prerelease. Unit tests, `KeyFlowsQATests`, all UI-test shards, and backend E2E run only when a manual run sets `run_tests=true` or the pushed commit message contains `[run tests]`; a successful full validation promotes that exact build to **`latest-beta`**:
 
 **Download on your phone:** https://github.com/melusi-k/ate-ios/releases/tag/latest-build
 

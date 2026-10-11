@@ -1,6 +1,6 @@
-# QA pass on key flows (release gate)
+# QA pass on key flows (beta-promotion gate)
 
-Every build runs `KeyFlowsQATests` in CI as a **required gate**: the release step only runs if all 8 flows pass. The flow → pass/fail table goes into the job summary and the release notes (`scripts/qa-summary.py`).
+The `KeyFlowsQATests` suite runs when a `Build IPA` workflow is manually dispatched with `run_tests=true`, or when the pushed commit message contains `[run tests]`. It is **not run on every ordinary `main` push**: those builds still run the IPA smoke checks and publish `latest-build`. For a validated beta promotion, the unit tests, all eight key flows, every UI-test shard, and backend E2E must pass; only then does CI publish `latest-beta`. The flow → pass/fail table goes into the job summary and release notes (`scripts/qa-summary.py`).
 
 | # | Flow | Automated test | What it checks |
 |---|---|---|---|

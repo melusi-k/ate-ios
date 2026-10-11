@@ -255,3 +255,17 @@ Run on **iOS 18** (opaque bars) and **iOS 26** (Liquid Glass), in **light** and 
 | ID | Journey | Steps | Expected | Automated test | Sim result | iPhone 17 result | Older/non-AI device result | Status | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | A-CI-06 | As a cook, published IPA verified. | — | Each release publishes <ipa>.sha256 and the SHA-256 in the notes; the smoke step downloads the published asset, verifies the checksum, version/build, bundle ID, extensions (widgets, watch), entitlements, privacy manifest, app icon and size limits, and withdraws the release on failure. | auto `scripts/verify-ipa.sh` | Not run | Not run | Not run | ❌ | Added build 97; first CI run pending |
+
+
+## Cooking Tracker focused acceptance (issue #31)
+
+| Area | Acceptance / expected behavior | Evidence required | Status |
+|---|---|---|---|
+| Calendar month | Shows every date in the displayed month with weekday alignment, leading/trailing empty cells, a distinct today marker, and cooked-day markers. Month title always matches the visible dates. | Simulator UI test + visual check | Pending |
+| Month navigation | Previous/next month controls work; future months cannot be selected. Navigating months clears an out-of-month selected day. | Simulator UI test | Pending |
+| Selected day | Tapping a date opens that date's details; empty dates explain that nothing was recorded; missing/deleted recipes have a fallback label. | Simulator UI test | Pending |
+| History persistence | Local event history survives service re-instantiation/relaunch and uses isolated test storage. | Unit tests | Partial — persistence unit test added; relaunch/device evidence pending |
+| Streak rules | Empty history, today, yesterday, gaps, month/year boundaries, and multiple recipes in one day are deterministic. | Unit tests | Partial — core today/yesterday/gap cases covered; boundary cases pending |
+| Accessibility | Month controls and dates have descriptive labels, selected state is exposed, weekday decoration is hidden from VoiceOver, and layout remains usable at larger text sizes. | VoiceOver + Dynamic Type device QA | Pending |
+
+This section supplements the canonical IDs in `MVP_CHECKLIST.md`; do not mark the tracker complete until automated and device evidence is attached to [issue #31](https://github.com/melusi-k/ate-ios/issues/31).

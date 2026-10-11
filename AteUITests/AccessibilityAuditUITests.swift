@@ -38,7 +38,7 @@ final class AccessibilityAuditUITests: XCTestCase {
 
     func testAuditMainScreens() throws {
         launch()
-        XCTAssertTrue(text("Your kitchen library").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
         try audit("library-empty")
         addRecipe()
         try audit("recipe-detail")
@@ -67,7 +67,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     /// AX5 sweep: largest accessibility text size. Recorded (not gating yet) so clipping can be tracked per build.
     func testAuditLargestDynamicType() throws {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
-        XCTAssertTrue(text("Your kitchen library").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
         try audit("ax5-library", strict: false)
         addRecipe()
         try audit("ax5-recipe-detail", strict: false)

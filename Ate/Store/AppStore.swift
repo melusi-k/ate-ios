@@ -226,7 +226,17 @@ final class AppStore {
         guard let context else { return }
         let dec = JSONDecoder()
         let r = (try? context.fetch(FetchDescriptor<RecipeEntity>(sortBy: [SortDescriptor(\.position)]))) ?? []
-        recipes = r.compactMap { try? dec.decode(RecipeCard.self, from: $0.json) }.map { Durations.sanitize($0).card }  // repairs recipes saved with bad times
+        let loaded = r.compactMap { try? dec.decode(RecipeCard.self, from: $0.json) }
+        // Repairs saved recipes: blank steps, implausible times (flagged), duplicate saves (P0, build 81).
+        let dd = RecipeLogic.dedupe(loaded.map(RecipeLogic.normalize))
+        recipes = dd.cards
+        if recipes != loaded {
+            let t = nowMs(), before = Dictionary(loaded.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            for c in recipes where before[c.id] != c { meta.recipeStamps[c.id] = t }          // repaired copies sync up
+            for id in dd.removedIDs where !recipes.contains(where: { $0.id == id }) { meta.recipeTombs[id] = t; meta.recipeStamps[id] = nil }
+            saveDefaults(meta, key: "ate.sync.v1")
+            persistRecipes(stamp: false)
+        }
         let s = (try? context.fetch(FetchDescriptor<ShoppingEntity>(sortBy: [SortDescriptor(\.position)]))) ?? []
         shopping = s.compactMap { try? dec.decode(ShoppingItem.self, from: $0.json) }
     }
@@ -282,14 +292,17 @@ final class AppStore {
     // MARK: recipes
     func recipe(_ id: String) -> RecipeCard? { recipes.first { $0.id == id } }
 
+    /// Idempotent: saving the same draft id again (restored draft, double tap) replaces instead of copying.
     func add(_ card: RecipeCard) {
-        recipes.insert(RecipeLogic.normalize(card), at: 0)
+        let c = RecipeLogic.normalize(card)
+        if let i = recipes.firstIndex(where: { $0.id == c.id }) { recipes[i] = c } else { recipes.insert(c, at: 0) }
+        DraftStore.shared.clear()
         persistRecipes()
     }
 
     func update(_ card: RecipeCard) {
         guard let i = recipes.firstIndex(where: { $0.id == card.id }) else { return }
-        recipes[i] = card
+        recipes[i] = RecipeLogic.normalize(card)
         persistRecipes()
         BetaQA.shared.pass("A-EDIT-03", note: "Edited “\(card.title)” without a crash")
     }
@@ -313,7 +326,7 @@ final class AppStore {
     func importJSON(_ data: Data) throws -> Int {
         let cards = try JSONDecoder().decode([RecipeCard].self, from: data)
         let res = RecipeLogic.importCards(cards, into: recipes)
-        recipes = res.result
+        recipes = res.result.map(RecipeLogic.normalize)
         persistRecipes()
         return res.added
     }
@@ -404,12 +417,14 @@ final class AppStore {
                                                   stamps: meta.shopStamps, tombstones: meta.shopTombs),
                                      remote: remote.filter { $0.kind == "shopping" })
 
-            recipes = r.data.values.compactMap { try? dec.decode(RecipeCard.self, from: $0) }.sorted { $0.createdAt > $1.createdAt }
+            recipes = r.data.values.compactMap { try? dec.decode(RecipeCard.self, from: $0) }.map(RecipeLogic.normalize).sorted { $0.createdAt > $1.createdAt }
+            let dd = RecipeLogic.dedupe(recipes); recipes = dd.cards
             let newShop = sh.data.compactMapValues { try? dec.decode(ShoppingItem.self, from: $0) }
             var ordered = shopping.compactMap { newShop[$0.id] }
             for (id, it) in newShop where !ordered.contains(where: { $0.id == id }) { ordered.append(it) }
             shopping = ordered
             meta.recipeStamps = r.stamps; meta.recipeTombs = r.tombstones
+            for id in dd.removedIDs { meta.recipeTombs[id] = nowMs(); meta.recipeStamps[id] = nil }   // merged duplicates delete remotely too
             meta.shopStamps = sh.stamps; meta.shopTombs = sh.tombstones
             recipeSnapshot = Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
             shopSnapshot = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })

@@ -52,6 +52,19 @@ struct TimerBarInset: ViewModifier {
 }
 extension View { func withTimerBar() -> some View { modifier(TimerBarInset()) } }
 
+/// Offline strip applied to each screen INSIDE its NavigationStack, so it takes real layout space below the
+/// nav bar (C-FIX-03). It used to sit in a root-level safeAreaInset above the stacks and overlapped the
+/// nav bar/large title on pushed screens.
+struct OfflineStripInset: ViewModifier {
+    func body(content: Content) -> some View {
+        let isOnline = NetworkMonitor.shared.isOnline
+        return content.safeAreaInset(edge: .top, spacing: 0) {
+            if !isOnline { OfflineBanner().padding(.vertical, 4).frame(maxWidth: .infinity).transition(.opacity) }
+        }
+    }
+}
+extension View { func offlineStrip() -> some View { modifier(OfflineStripInset()) } }
+
 struct RootView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.scenePhase) private var phase
@@ -81,6 +94,8 @@ struct RootView: View {
             if p == .active {
                 store.timers.tick(); store.timers.ensureLiveActivities(); store.scheduleSync(delay: 0.2); store.checkInbox()
                 WidgetBridge.drainInbox(store)
+            // Re-register App Shortcut phrases + parameter values on every launch (Siri learns them after first launch).
+            if !AppConfig.isUITesting { AteShortcuts.updateAppShortcutParameters() }
                 BetaQA.shared.returnedToForeground(runningTimers: store.timers.timers.filter(\.isRunning).count)
             } else if p == .background {
                 BetaQA.shared.wentToBackground(runningTimers: store.timers.timers.filter(\.isRunning).count)
@@ -98,7 +113,6 @@ struct RootView: View {
             // One top area: beta banner (tab roots only) and the slim offline strip. Nothing at the bottom competes with actions.
             VStack(spacing: 0) {
                 if !store.showOnboarding && store.isAtTabRoot { BetaBanner { store.tab = .more; BetaQA.shared.openRequested = true }.padding(.vertical, 4) }
-                if !NetworkMonitor.shared.isOnline { OfflineBanner().transition(.move(edge: .top).combined(with: .opacity)) }
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -122,23 +136,23 @@ extension RootView {
         TabView(selection: tabSelection) {
             Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
                 NavigationStack(path: $store.path) {
-                    LibraryView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    LibraryView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
             }
             Tab("Shopping", systemImage: "basket", value: AppTab.shopping) {
                 NavigationStack(path: $store.shoppingPath) {
-                    ShoppingListView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    ShoppingListView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
             }
             .badge(store.pendingShoppingCount)
             Tab("More", systemImage: "square.grid.2x2", value: AppTab.more) {
                 NavigationStack(path: $store.morePath) {
-                    MoreView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    MoreView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
             }
             Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
                 NavigationStack(path: $store.settingsPath) {
-                    SettingsView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    SettingsView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
             }
         }
@@ -181,6 +195,7 @@ struct RouteView: View {
             }
         }
         .toolbarTitleDisplayMode(.inline)
+        .offlineStrip()
     }
 }
 
@@ -223,19 +238,19 @@ struct LandscapeSplitView: View {
                 switch store.tab {
                 case .library, .collection:
                     NavigationStack(path: $store.path) {
-                        LibraryView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                        LibraryView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                     }.withTimerBar()
                 case .shopping:
                     NavigationStack(path: $store.shoppingPath) {
-                        ShoppingListView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                        ShoppingListView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                     }.withTimerBar()
                 case .more:
                     NavigationStack(path: $store.morePath) {
-                        MoreView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                        MoreView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                     }.withTimerBar()
                 case .settings:
                     NavigationStack(path: $store.settingsPath) {
-                        SettingsView().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                        SettingsView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                     }.withTimerBar()
                 }
             }

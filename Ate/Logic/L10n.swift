@@ -3,7 +3,7 @@ import Foundation
 /// Typed keys into Localizable.xcstrings (English source; add languages in Xcode's String Catalog editor).
 /// SwiftUI `Text("literal")` strings are also extracted into the catalog on build (SWIFT_EMIT_LOC_STRINGS).
 enum L10n {
-    static var libraryTitle: String { String(localized: "library.title", defaultValue: "Your kitchen library") }
+    static var libraryTitle: String { String(localized: "library.title", defaultValue: "Your Kitchen") }
     static var libraryEmptyTitle: String { String(localized: "library.empty.title", defaultValue: "Nothing saved yet") }
     static var libraryEmptyMessage: String { String(localized: "library.empty.message", defaultValue: "Paste a link or a screenshot and get a clean recipe card in seconds.") }
     static var libraryAdd: String { String(localized: "library.add", defaultValue: "Add recipe") }

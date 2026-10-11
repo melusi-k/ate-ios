@@ -8,10 +8,13 @@ struct ShoppingListSnippetIntent: AppIntent {
     static let title: LocalizedStringResource = "What's on my shopping list"
     static let description = IntentDescription("Shows the next items on your ate shopping list, with tick buttons.")
     static let openAppWhenRun = false
-    @MainActor func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
+    /// C-FIX-07: returns the open items as text so the action is usable in a Shortcut with "Show When Run" off
+    /// (it used to return only a dialog + snippet, i.e. an empty result card / no output).
+    @MainActor func perform() async throws -> some IntentResult & ReturnsValue<[String]> & ProvidesDialog & ShowsSnippetView {
         let items = SiriAnswers.openItems(AppStore.current?.shopping ?? [])
         QAProbe.shared.lastIntent = "list:\(items.count)"
-        return .result(dialog: IntentDialog(stringLiteral: SiriAnswers.listLine(items)), view: ShoppingSnippet(items: Array(items.prefix(5))))
+        return .result(value: SiriAnswers.listValues(items), dialog: IntentDialog(stringLiteral: SiriAnswers.listLine(items)),
+                       view: ShoppingSnippet(items: Array(items.prefix(5))))
     }
 }
 
@@ -36,7 +39,8 @@ struct QuickRecipesIntent: AppIntent {
     static let description = IntentDescription("Suggests three recipes you can cook in 30 minutes or less.")
     static let openAppWhenRun = false
     @MainActor func perform() async throws -> some IntentResult & ReturnsValue<[RecipeAppEntity]> & ProvidesDialog & ShowsSnippetView {
-        let quick = SiriAnswers.quick(AppStore.current?.recipes ?? [])
+        var quick = SiriAnswers.quick(AppStore.current?.recipes ?? [])
+        await SnippetCovers.prepare(quick); quick = quick.map(SnippetCovers.fresh)
         QAProbe.shared.lastIntent = "quick:\(quick.count)"
         let line = quick.isEmpty ? "None of your ate recipes take under 30 minutes."
             : "You could make " + ListFormatter.localizedString(byJoining: quick.map(\.title)) + "."
@@ -59,6 +63,8 @@ enum SiriAnswers {
         return lead + tidy(title) + "." + (w.isEmpty ? "" : " " + w.prefix(1).uppercased() + w.dropFirst() + ".")
     }
     static func openItems(_ s: [ShoppingItem]) -> [ShoppingItem] { s.filter { !$0.done } }
+    /// One line per open item ("Milk (2 l)"), for the Shortcut output.
+    static func listValues(_ items: [ShoppingItem]) -> [String] { items.map(WidgetSnapshotBuilder.label) }
     static func listLine(_ items: [ShoppingItem]) -> String {
         guard !items.isEmpty else { return "Your ate shopping list is empty." }
         let top = items.prefix(3).map(\.name)
@@ -87,8 +93,34 @@ struct SnippetEmpty: View {
     var body: some View { Text(text).font(.headline).foregroundStyle(.secondary).padding() }
 }
 
-private struct Cover: View {
+/// C-FIX-04: snippets used to read ONLY `coverImage` (a local file). Recipes whose cover was a remote `imageURL`
+/// that had never been shown in the app (CoverStore.ensure is lazy, on appear) had no file, so Siri drew the
+/// fork.knife SF Symbol. Intents now download missing remote covers into the shared Covers folder first (short
+/// time budget), and anything still missing gets the designed BrandTile.
+enum SnippetCovers {
+    @MainActor static func prepare(_ recipes: [RecipeCard], budget: Duration = .seconds(3)) async {
+        guard let store = AppStore.current else { return }
+        let missing = recipes.filter { Cover.load(WidgetSnapshotBuilder.coverFile($0)) == nil && CoverLogic.httpsURL($0.imageURL) != nil }
+        guard !missing.isEmpty else { return }
+        await withTaskGroup(of: Void.self) { g in
+            g.addTask { @MainActor in
+                for r in missing {
+                    if let res = await CoverStore.shared.resolve(r, allowGenerate: false) {
+                        store.setCover(r.id, file: res.file, imageURL: res.imageURL)
+                    }
+                }
+            }
+            g.addTask { try? await Task.sleep(for: budget) }
+            await g.next(); g.cancelAll()
+        }
+    }
+    /// Re-read after prepare() so the snippet sees the new cover file.
+    @MainActor static func fresh(_ r: RecipeCard) -> RecipeCard { AppStore.current?.recipe(r.id) ?? r }
+}
+
+struct Cover: View {
     let file: String?
+    var recipe: RecipeCard? = nil
     /// App Group copy first (widgets), then the app's own cover file (works when sideloading dropped the App Group).
     static func load(_ file: String?) -> UIImage? {
         guard let f = file else { return nil }
@@ -100,7 +132,8 @@ private struct Cover: View {
             if let img = Self.load(file) {
                 Image(uiImage: img).resizable().scaledToFill()
             } else {
-                ZStack { accent.opacity(0.15); Image(systemName: "fork.knife").foregroundStyle(accent) }
+                if let recipe { BrandTile(recipe: recipe, symbolSize: 22) }
+                else { ZStack { accent.opacity(0.15); Image(systemName: "fork.knife").foregroundStyle(accent) } }
             }
         }
         .frame(width: 64, height: 64).clipShape(RoundedRectangle(cornerRadius: 12))
@@ -114,7 +147,7 @@ struct PickSnippet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                Cover(file: WidgetSnapshotBuilder.coverFile(recipe))
+                Cover(file: WidgetSnapshotBuilder.coverFile(recipe), recipe: recipe)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(recipe.title).font(.headline).lineLimit(2)
                     if let m = recipe.timeMinutes { Text("\(m) min").font(.subheadline).foregroundStyle(.secondary) }
@@ -176,7 +209,7 @@ struct QuickSnippet: View {
             ForEach(recipes) { r in
                 Button(intent: OpenRecipeIntent(target: RecipeAppEntity(r))) {
                     HStack(spacing: 10) {
-                        Cover(file: WidgetSnapshotBuilder.coverFile(r)).scaleEffect(0.7).frame(width: 46, height: 46)
+                        Cover(file: WidgetSnapshotBuilder.coverFile(r), recipe: r).scaleEffect(0.7).frame(width: 46, height: 46)
                         VStack(alignment: .leading) {
                             Text(r.title).font(.subheadline.weight(.semibold)).lineLimit(1)
                             Text("\(Durations.plausibleQuickMinutes(r) ?? r.timeMinutes ?? 0) min").font(.caption).foregroundStyle(.secondary)

@@ -92,7 +92,7 @@ final class AteUITests: XCTestCase {
 
     func test01_EmptyLibrary() {
         launch()
-        wait(text("Your kitchen library"))
+        wait(text("Your Kitchen"))
         XCTAssertTrue(text("Nothing saved yet").exists)
         XCTAssertTrue(text("0 recipes saved on this device.").exists)
         shot("library-empty")
@@ -194,7 +194,7 @@ final class AteUITests: XCTestCase {
 
     func test07_ShoppingList() {
         launch()
-        wait(text("Your kitchen library"))
+        wait(text("Your Kitchen"))
         tab("Shopping")
         wait(text("Nothing on the list"))
         shot("shopping-empty")
@@ -290,7 +290,7 @@ final class AteUITests: XCTestCase {
         wait(open, 5)
         shot("timerbar-detail")
         tab("Library")
-        wait(text("Your kitchen library"))
+        wait(text("Your Kitchen"))
         XCTAssertTrue(open.exists, "timer bar should persist on Library")
         shot("timerbar-library")
         app.buttons["Pause bar timer"].tap()
@@ -500,13 +500,13 @@ final class AteUITests: XCTestCase {
         wait(text("This recipe link has expired"), 15)
         shot("shared-expired")
         app.buttons["Open ate"].tap()
-        wait(text("Your kitchen library"))
+        wait(text("Your Kitchen"))
 
         launch(["-ateOpenURL", "ate://somewhere/else"])
         wait(text("Page not found"), 10)
         shot("not-found-404")
         app.buttons["Go home"].tap()
-        wait(text("Your kitchen library"))
+        wait(text("Your Kitchen"))
     }
 
     // MARK: batch v1.3
@@ -560,7 +560,7 @@ final class AteUITests: XCTestCase {
 
     func test20_CameraOptionAndLargeText() {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityL"])
-        wait(text("Your kitchen library"))
+        wait(text("Your Kitchen"))
         shot("a11y-large-text-library")
         app.buttons["Add recipe"].tap()
         app.buttons["Image"].tap()
@@ -645,7 +645,7 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 3)
         // back to root
         tab("Library")
-        wait(text("Your kitchen library"), 5)
+        wait(text("Your Kitchen"), 5)
     }
 
     func test24_Provenance() {
@@ -702,7 +702,7 @@ final class AteUITests: XCTestCase {
         launch()
         addPromptRecipe()
         tab("Library")
-        wait(text("Your kitchen library"), 5)
+        wait(text("Your Kitchen"), 5)
         wait(app.buttons["chip.time30"])
         shot("library-filter-chips")
         app.buttons["chip.time30"].tap()     // mock recipe is 25 min
@@ -771,11 +771,15 @@ final class AteUITests: XCTestCase {
         app.buttons["saveRecipe"].tap()
         wait(app.buttons["Cook mode"], 5)
         tab("Library")
-        wait(text("Your kitchen library"), 5)
+        wait(text("Your Kitchen"), 5)
     }
 
     func pick(_ menu: String, _ option: String) {
-        app.buttons[menu].tap()
+        // Group and Sort live inside one icon-only "Group & sort" toolbar menu.
+        if !app.buttons[menu].exists { app.buttons["groupSortMenu"].firstMatch.tap() }
+        var m = app.buttons[menu].firstMatch
+        if !m.waitForExistence(timeout: 2) { m = app.buttons[menu == "sortMenu" ? "Sort" : "Group by"].firstMatch }
+        wait(m, 3); m.tap()
         let b = app.buttons[option].firstMatch
         wait(b, 3); b.tap()
     }

@@ -426,6 +426,9 @@ extension CoverageUITests {
         wait(bar, 5); wait(banner, 5)
         shot("detail-bottom-bars")
         XCTAssertLessThan(banner.frame.midY, app.frame.midY, "offline banner belongs at the top")
+        // C-FIX-03: the strip sits below the nav bar, never on top of it or the title.
+        let nav = app.navigationBars.firstMatch
+        if nav.exists { XCTAssertGreaterThanOrEqual(banner.frame.minY + 1, nav.frame.maxY, "offline banner overlaps the nav bar") }
         XCTAssertLessThanOrEqual(cook.frame.maxY, bar.frame.minY + 1, "Cook mode overlaps the timer bar")
         XCTAssertEqual(app.buttons.matching(identifier: "timerBarOpen").count, 1, "timer bar shown once")
         let ask = app.textFields["askField"]

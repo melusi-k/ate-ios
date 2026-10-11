@@ -1,3 +1,4 @@
+import Intents
 import AppIntents
 import CoreLocation
 import CoreSpotlight
@@ -16,8 +17,11 @@ struct RecipeAppEntity: AppEntity, IndexedEntity {
     @Property(title: "Cuisine") var cuisine: String?
     @Property(title: "Favourite") var favorite: Bool
     var ingredients: [String] = []
+    /// Local cover file (App Group / app container) for real thumbnails in Spotlight and Shortcuts (C-FIX-05).
+    var coverURL: URL?
 
     init(_ r: RecipeCard) {
+        coverURL = RecipeAppEntity.coverURL(r)
         id = r.id
         title = r.title
         minutes = r.timeMinutes
@@ -31,7 +35,7 @@ struct RecipeAppEntity: AppEntity, IndexedEntity {
         if let m = minutes { sub.append("\(m) min") }
         if let c = cuisine { sub.append(c) }
         return DisplayRepresentation(title: "\(title)", subtitle: sub.isEmpty ? nil : "\(sub.joined(separator: " · "))",
-                                     image: .init(systemName: "fork.knife"),
+                                     image: coverURL.map { .init(url: $0) } ?? .init(systemName: "fork.knife"),
                                      synonyms: Self.synonyms(title: title).map { "\($0)" })
     }
 
@@ -51,7 +55,14 @@ struct RecipeAppEntity: AppEntity, IndexedEntity {
         a.displayName = title
         a.contentDescription = ([cuisine, minutes.map { "\($0) min" }].compactMap { $0 } + ingredients).joined(separator: " · ")
         a.keywords = ingredients + [cuisine].compactMap { $0 }
+        a.thumbnailURL = coverURL
         return a
+    }
+
+    static func coverURL(_ r: RecipeCard) -> URL? {
+        guard let f = WidgetSnapshotBuilder.coverFile(r) else { return nil }
+        for u in [WidgetCovers.url(f), CoverStore.url(f)].compactMap({ $0 }) where FileManager.default.fileExists(atPath: u.path) { return u }
+        return nil
     }
 }
 
@@ -73,9 +84,17 @@ struct RecipeEntityQuery: EntityStringQuery {
         return pool.map { RecipeAppEntity($0.recipe) }
     }
     func suggestedEntities() async throws -> [RecipeAppEntity] {
-        let all = await IntentStore.recipes
-        let favs = all.filter(\.favorite)
-        return (favs + all.filter { !$0.favorite }).prefix(15).map(RecipeAppEntity.init)
+        RecipeEntityQuery.suggestions(await IntentStore.recipes).map(RecipeAppEntity.init)
+    }
+
+    /// C-FIX-05: suggested entities expand the parameterised "Cook \(recipe)" App Shortcut into one Spotlight
+    /// action PER recipe (the "every recipe as a fork-and-knife action" clutter). Cap at the top 3 favourites
+    /// (falling back to most recently cooked). Trade-off: Siri voice only knows these 3 names for "Cook X in ate";
+    /// "Start cook mode in ate" still asks which recipe and resolves any name through entities(matching:).
+    static func suggestions(_ all: [RecipeCard], limit: Int = 3) -> [RecipeCard] {
+        let favs = all.filter(\.favorite).sorted { ($0.lastCookedAt ?? 0) > ($1.lastCookedAt ?? 0) }
+        let rest = all.filter { !$0.favorite }.sorted { ($0.lastCookedAt ?? 0, $0.createdAt) > ($1.lastCookedAt ?? 0, $1.createdAt) }
+        return Array((favs + rest).prefix(limit))
     }
 }
 
@@ -173,9 +192,10 @@ struct TonightsPickIntent: AppIntent {
     @MainActor func perform() async throws -> some IntentResult & ReturnsValue<RecipeAppEntity?> & ProvidesDialog & ShowsSnippetView {
         let recipes = AppStore.current?.recipes ?? []
         guard let p = WidgetSnapshotBuilder.pick(recipes: recipes, health: WidgetBridge.lastHealthState),
-              let r = recipes.first(where: { $0.id == p.recipeID }) else {
+              var r = recipes.first(where: { $0.id == p.recipeID }) else {
             return .result(value: nil, dialog: "Save a recipe to ate first, then I can pick one for tonight.", view: SnippetEmpty(text: "No recipes yet"))
         }
+        await SnippetCovers.prepare([r]); r = SnippetCovers.fresh(r)
         QAProbe.shared.lastIntent = "pick:\(r.title)"
         BetaQA.shared.pass("A-INTENT-03", note: "Tonight's pick: \(r.title)")
         return .result(value: RecipeAppEntity(r), dialog: "\(SiriAnswers.pickLine(title: r.title, health: p.healthTitle, why: p.why))",
@@ -401,10 +421,15 @@ extension AteShortcuts {
         let alt = (Bundle.main.object(forInfoDictionaryKey: "INAlternativeAppNames") as? [[String: Any]])?
             .compactMap { $0["INAlternativeAppName"] as? String } ?? []
         let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "?"
+        let bundle = Bundle.main.bundleIdentifier ?? "?"
+        let siriLang = INPreferences.siriLanguageCode()
         var lines = ["Siri: \(phraseCatalog.count)/10 shortcuts · \(phraseCatalog.map(\.phrases.count).reduce(0, +)) phrases",
                      "App Intents metadata: \(meta ? "OK" : "MISSING (re-sign dropped Metadata.appintents)")",
                      "App name: \(name) · alternatives: \(alt.isEmpty ? "none" : alt.joined(separator: ", "))",
-                     "Recipes for Siri: \(IntentStoreSnapshot.count)"]
+                     "Recipes for Siri: \(IntentStoreSnapshot.count) (voice names: top \(RecipeEntityQuery.suggestions(AppStore.current?.recipes ?? []).count))",
+                     "Bundle ID: \(bundle)\(bundle == "com.melusik.ate" ? "" : " (re-signed; Siri registers phrases per bundle ID, so this is a new app to Siri)")",
+                     "Siri language: \(siriLang)\(siriLang.hasPrefix("en") ? "" : " (phrases are English only; set Siri to English)")",
+                     "If voice still fails while Shortcuts works: open Ate once, wait a minute, then try. Sideloadly/free-team installs often never get their App Shortcut phrases indexed by Siri; install via SideStore or Xcode (or TestFlight/App Store) for voice."]
         lines += phraseCatalog.map { "\($0.title): " + $0.phrases.joined(separator: " | ") }
         return lines.joined(separator: "\n")
     }

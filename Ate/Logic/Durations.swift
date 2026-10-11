@@ -48,6 +48,26 @@ enum Durations {
         return "\(r.lower / 60)–\(r.upper / 60) min"
     }
 
+    /// Minimum believable seconds for a step, by verb/keyword (nil when no rule applies).
+    /// Used only for model-supplied times; a time written in the step text always wins.
+    static let plausibilityRules: [(keywords: [String], minSeconds: Int)] = [
+        (["braise", "stew", "slow cook", "slow-cook", "mogodu", "tripe", "oxtail"], 60 * 60),
+        (["simmer", "boil until tender", "until tender", "potjie"], 20 * 60),
+        (["pap", "phutu", "mealie", "maize meal", "polenta"], 15 * 60),
+        (["roast", "bake", "oven"], 15 * 60),
+        (["rice"], 12 * 60),
+        (["brown", "sear", "fry the onion", "caramelis", "caramelize"], 5 * 60),
+        (["steam", "wilt"], 3 * 60),
+    ]
+    static func minimumSeconds(for instruction: String) -> Int? {
+        let l = instruction.lowercased()
+        func has(_ k: String) -> Bool {
+            if k.contains(" ") { return l.contains(k) }
+            return l.range(of: "\\b\(NSRegularExpression.escapedPattern(for: k))", options: .regularExpression) != nil
+        }
+        return plausibilityRules.filter { $0.keywords.contains(where: has) }.map(\.minSeconds).max()
+    }
+
     /// Sanitised total minutes if believable for a "quick" list; nil when missing or implausibly short (e.g. "3 min" chicken feet).
     static func plausibleQuickMinutes(_ card: RecipeCard) -> Int? {
         let c = sanitize(card).card
@@ -72,7 +92,7 @@ enum Durations {
             let model = (s.timeSeconds ?? 0) > 0 ? s.timeSeconds : nil
             let fixed: Int?
             if let t = fromText { fixed = t }                                   // the written time always wins
-            else if let m = model, !unitsBroken, m <= maxUntimedStepSeconds { fixed = m }
+            else if let m = model, !unitsBroken, m <= maxUntimedStepSeconds, m >= (minimumSeconds(for: s.instruction) ?? 0) { fixed = m }
             else { fixed = nil }
             if fixed != s.timeSeconds { corrected = corrected || model != nil; s.timeSeconds = fixed }
             return s

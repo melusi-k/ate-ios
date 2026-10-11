@@ -74,13 +74,15 @@ struct RecipeCard: Codable, Identifiable, Hashable {
     var aiConfidence: Double?
     /// Model note, e.g. "Caption was an ad; best-effort traditional recipe for mogodu".
     var aiNote: String?
+    /// Other dishes the model considered (identification pass), for "What dish is this?" when confidence < 80%.
+    var aiAlternatives: [String]?
     /// Local cover file name (Covers folder in the App Group / app container). Bytes never sync;
     /// on another device a missing file falls back to `imageURL` or the branded tile.
     var coverImage: String?
 
     enum CodingKeys: String, CodingKey {
         case id, title, description, servings, timeMinutes, tags, ingredients, steps, imageURL, sourceURL, createdAt, source, generatedAt
-        case origin, favorite, lastCookedAt, cuisine, sortIndex, aiConfidence, aiNote, coverImage
+        case origin, favorite, lastCookedAt, cuisine, sortIndex, aiConfidence, aiNote, coverImage, aiAlternatives
     }
 
     init(id: String = UUID().uuidString, title: String = "Untitled recipe", description: String? = nil,
@@ -105,7 +107,7 @@ struct RecipeCard: Codable, Identifiable, Hashable {
         else if let d = try? c.decode(Double.self, forKey: .timeMinutes) { timeMinutes = Int(d) } else { timeMinutes = nil }
         tags = (try? c.decode([String].self, forKey: .tags)) ?? []
         ingredients = (try? c.decode([Ingredient].self, forKey: .ingredients)) ?? []
-        steps = (try? c.decode([Step].self, forKey: .steps)) ?? []
+        steps = ((try? c.decode([Step].self, forKey: .steps)) ?? []).filter { $0.instruction.rangeOfCharacter(from: .alphanumerics) != nil }
         imageURL = try? c.decodeIfPresent(String.self, forKey: .imageURL)
         sourceURL = try? c.decodeIfPresent(String.self, forKey: .sourceURL)
         createdAt = (try? c.decode(Double.self, forKey: .createdAt)) ?? Date().timeIntervalSince1970 * 1000
@@ -119,6 +121,7 @@ struct RecipeCard: Codable, Identifiable, Hashable {
         aiConfidence = try? c.decodeIfPresent(Double.self, forKey: .aiConfidence)
         aiNote = try? c.decodeIfPresent(String.self, forKey: .aiNote)
         coverImage = try? c.decodeIfPresent(String.self, forKey: .coverImage)
+        aiAlternatives = try? c.decodeIfPresent([String].self, forKey: .aiAlternatives)
     }
 }
 

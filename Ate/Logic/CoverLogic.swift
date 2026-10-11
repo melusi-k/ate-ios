@@ -80,23 +80,38 @@ enum CoverLogic {
         (0xF7D2C4, 0xC25A4A), // blush → tomato
     ]
 
+    /// Dish TYPE wins over protein ("chicken sandwich" is a sandwich, not a bird); rules are checked against the
+    /// title first, then the first ingredients, with whole-word matching ("tea" must not match "teaspoon"/"steak").
     private static let symbolRules: [([String], String, Int)] = [
-        (["fish", "salmon", "tuna", "prawn", "shrimp", "seafood", "hake", "snoek"], "fish", 0),
-        (["chicken", "turkey", "duck", "egg", "amanqina"], "bird", 2),
-        (["beef", "lamb", "pork", "steak", "mince", "braai", "boerewors", "mogodu", "tripe", "nyama", "oxtail"], "flame", 1),
-        (["cake", "cookie", "dessert", "chocolate", "tart", "pudding", "sweet", "malva", "koeksister"], "birthday.cake", 5),
-        (["bread", "ujeqe", "pap", "maize", "rice", "pasta", "noodle", "flour", "pizza"], "takeoutbag.and.cup.and.straw", 4),
-        (["salad", "spinach", "morogo", "cabbage", "vegetable", "chakalaka", "tomato", "carrot", "bean"], "carrot", 3),
-        (["coffee", "tea", "smoothie", "drink", "juice"], "cup.and.saucer", 4),
+        (["coffee", "tea", "chai", "rooibos", "smoothie", "drink", "juice", "latte", "cocktail", "lemonade"], "cup.and.saucer", 4),
+        (["cake", "cookie", "cookies", "dessert", "chocolate", "tart", "pudding", "malva", "koeksister", "brownie", "muffin", "pancake", "pancakes"], "birthday.cake", 5),
+        (["sandwich", "burger", "wrap", "toastie", "sub", "bunny chow", "kota", "taco", "tacos", "hotdog", "vetkoek"], "takeoutbag.and.cup.and.straw", 4),
+        (["soup", "stew", "curry", "potjie", "chakalaka", "casserole", "braise"], "frying.pan", 1),
+        (["salad", "bowl", "slaw"], "carrot", 3),
+        (["fish", "salmon", "tuna", "prawn", "prawns", "shrimp", "seafood", "hake", "snoek", "calamari"], "fish", 0),
+        (["ribs", "beef", "lamb", "pork", "steak", "mince", "braai", "boerewors", "mogodu", "tripe", "nyama", "oxtail", "chops", "brisket", "sausage", "wors"], "flame", 1),
+        (["chicken", "turkey", "duck", "amanqina", "wings", "drumsticks"], "bird", 2),
+        (["bread", "ujeqe", "pap", "maize", "rice", "pasta", "noodle", "noodles", "pizza", "gnocchi", "risotto"], "fork.knife.circle", 4),
+        (["spinach", "morogo", "cabbage", "vegetable", "vegetables", "tomato", "carrot", "bean", "beans", "mushroom", "mushrooms"], "carrot", 3),
+        (["egg", "eggs", "omelette", "shakshuka"], "frying.pan", 2),
     ]
+
+    static func words(_ s: String) -> Set<String> {
+        Set(s.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init))
+    }
+    static func matches(_ text: String, _ key: String) -> Bool {
+        let l = text.lowercased()
+        return key.contains(" ") ? l.contains(key) : words(l).contains(key)
+    }
 
     /// Deterministic tile for a recipe: same title/cuisine/ingredients → same tile.
     static func tile(title: String, cuisine: String?, ingredients: [String]) -> Tile {
         let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let initial = t.first(where: { $0.isLetter || $0.isNumber }).map { String($0).uppercased() } ?? "A"
-        let hay = ([t] + ingredients.prefix(4)).joined(separator: " ").lowercased()
-        for (words, symbol, pal) in symbolRules where words.contains(where: { hay.contains($0) }) {
-            return Tile(palette: (pal + stableHash(cuisine ?? "")) % palettes.count, initial: initial, symbol: symbol)
+        for hay in [t, ingredients.prefix(4).joined(separator: " ")] {
+            for (keys, symbol, pal) in symbolRules where keys.contains(where: { matches(hay, $0) }) {
+                return Tile(palette: (pal + stableHash(cuisine ?? "")) % palettes.count, initial: initial, symbol: symbol)
+            }
         }
         let h = stableHash((cuisine ?? "") + "|" + t.lowercased())
         return Tile(palette: h % palettes.count, initial: initial, symbol: "fork.knife")

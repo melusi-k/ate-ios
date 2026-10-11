@@ -23,10 +23,17 @@ struct LibraryView: View {
         }
         // System search (glass on iOS 26). The query lives in SceneStorage so switching tabs or cancelling and
         // coming back restores it; the List keeps its own scroll position per tab stack.
-        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search chicken, pasta, vegan…")
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search \(store.recipes.count) recipe\(store.recipes.count == 1 ? "" : "s")")
         .textInputAutocapitalization(.never)
         .navigationTitle(store.filter.collection?.title ?? L10n.libraryTitle)
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Image("AteLogo").resizable().scaledToFit().frame(width: 28, height: 28)
+                    .accessibilityLabel("ate").accessibilityIdentifier("libraryLogo")
+            }
+            ToolbarItem(placement: .topBarTrailing) { layoutMenu }
+        }
         .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd))
         .onChange(of: store.pendingSearch) { _, q in if let q { query = q; store.pendingSearch = nil } }
         .onAppear { if let q = store.pendingSearch { query = q; store.pendingSearch = nil } }
@@ -151,48 +158,28 @@ struct LibraryView: View {
             .contextMenu { menu(r) } preview: { RecipeRowView(recipe: r).frame(width: 340) }
     }
 
-    /// Group by + Sort menus next to the search field.
-    private var layoutMenus: some View {
+    /// One icon-only "Group & sort" toolbar menu (the two text pills truncated).
+    private var layoutMenu: some View {
         @Bindable var store = store
-        return HStack(spacing: 8) {
-            Menu {
-                Picker("Group by", selection: $store.layout.group) {
-                    ForEach(LibraryLayout.GroupBy.allCases) { Label($0.rawValue, systemImage: $0.symbol).tag($0) }
-                }
-            } label: { menuLabel("Group: " + store.layout.group.rawValue, "rectangle.3.group") }
-                .accessibilityIdentifier("groupByMenu")
-            Menu {
-                Picker("Sort", selection: $store.layout.sort) {
-                    ForEach(LibraryLayout.SortBy.allCases) { Text($0.rawValue).tag($0) }
-                }
-            } label: { menuLabel("Sort: " + store.layout.sort.rawValue, "arrow.up.arrow.down") }
-                .accessibilityIdentifier("sortMenu")
-            Spacer()
-        }
+        return Menu {
+            Picker(selection: $store.layout.group) {
+                ForEach(LibraryLayout.GroupBy.allCases) { Label($0.rawValue, systemImage: $0.symbol).tag($0) }
+            } label: { Label("Group by", systemImage: "rectangle.3.group") }
+                .pickerStyle(.menu).accessibilityIdentifier("groupByMenu")
+            Picker(selection: $store.layout.sort) {
+                ForEach(LibraryLayout.SortBy.allCases) { Text($0.rawValue).tag($0) }
+            } label: { Label("Sort", systemImage: "arrow.up.arrow.down") }
+                .pickerStyle(.menu).accessibilityIdentifier("sortMenu")
+        } label: { Label("Group & sort", systemImage: "line.3.horizontal.decrease.circle") }
+            .accessibilityIdentifier("groupSortMenu")
     }
 
-    private func menuLabel(_ t: String, _ sym: String) -> some View {
-        Label(t, systemImage: sym).font(AteFont.body(13, .semibold)).lineLimit(1)
-            .padding(.horizontal, 12).frame(minHeight: 34)
-            .background(Theme.secondary, in: Capsule()).foregroundStyle(Theme.secondaryForeground)
-    }
-
+    /// Quiet count under the search bar; the logo lives in the toolbar and the title is the native large title.
     private var header: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Image("AteLogo").resizable().scaledToFit().frame(width: 28, height: 28).accessibilityHidden(true)
-                        Text("ate").font(AteFont.body(14, .bold)).tracking(2.8).foregroundStyle(Theme.primary)
-                    }
-                    Text("\(store.recipes.count) recipe\(store.recipes.count == 1 ? "" : "s") saved on this device.")
-                        .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
-                }
-                Spacer()
-            }
-            layoutMenus
-        }
-        .padding(.top, 24)
+        Text("\(store.recipes.count) recipe\(store.recipes.count == 1 ? "" : "s") saved on this device.")
+            .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("libraryCount")
     }
 
     @ViewBuilder private func menu(_ r: RecipeCard) -> some View {

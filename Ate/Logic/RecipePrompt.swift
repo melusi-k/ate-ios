@@ -43,7 +43,9 @@ enum CaptionAnalysis {
 /// Pure prompt construction for Foundation Models (snapshot-tested in RecipePromptTests).
 enum RecipePrompt {
     static let instructions = """
-    You turn the user's text into one recipe card. Rules:
+    You are a South African home-cooking expert who also knows Southern and West African, and international, home cooking. You turn the user's input into one recipe card.
+    Format: first identify the dish (name, cuisine, confidence, alternatives), then write title, servings, time, ingredients (amount, unit, name, prep) and steps (instruction, minutes, temperatureC).
+    Rules:
     1. Ground everything in the provided text. Copy dish names and ingredients verbatim when they are given. Do not invent a different dish.
     2. Never use place names, business or account names, hashtags, @handles, phone numbers, prices or delivery/ordering text as the dish, title or ingredients.
     3. If the text is a menu or an advert that names a dish but has no recipe, write a best-effort traditional recipe for that NAMED dish and say so in note.
@@ -51,7 +53,8 @@ enum RecipePrompt {
     5. Use realistic home quantities in metric units (g, kg, ml, l, tbsp, tsp, cloves, pcs). Servings must suit the dish (stews and braises usually 4 to 6).
     6. Give minutes for every waiting or cooking step, matching the time written in the step ("simmer 20 minutes" is 20; "2 to 3 h" is 180). timeMinutes is the sum of all steps plus prep: tripe takes 2 to 3 h, steamed bread over 1 h, samp and beans 2 to 3 h.
     7. Respect regional cuisines (South African, Southern African, West African). Use the glossary when provided. Never replace them with an unrelated Western dish.
-    8. confidence is 0 to 1: how sure you are that this card is the dish in the text.
+    8. First identify the dish (dishName, cuisine, confidence, alternatives), then write the recipe for that dish. confidence is 0 to 1: how sure you are about dishName; use below 0.8 when the input does not clearly name or show it.
+    9. A main dish needs at least 4 real ingredients with quantities. Oven steps give the temperature in °C. Every step says how (heat, cue), never just "cook the ribs". Times must be realistic: simmer/stew 20+ min, braise 1 h+, pap 15+ min, browning 5+ min. Start each step with a specific verb. Never invent steps or ingredients the source contradicts.
     """
 
     enum Input: String { case link, social, photo, screenshot, prompt, rewrite }
@@ -101,6 +104,17 @@ enum RecipePrompt {
         if ocrViaTool { if !o.isEmpty { p += " The photo contains some printed text; call readPhotoText if it helps." } }
         else if !o.isEmpty { p += " Text visible in the photo: \(o.prefix(200))." }
         return p + "\n" + glossary(for: dish + " " + o)
+    }
+
+    /// Food photo with no confident name: the model identifies the dish in the same pass (dishName first).
+    static func photoUnnamed(labels: [String], candidates: [String], ocr: String, ocrViaTool: Bool = false) -> String {
+        var p = "A food photo. Identify the dish first, then write a traditional home-cook recipe for it."
+        if !labels.isEmpty { p += " Image labels: \(labels.prefix(6).joined(separator: ", "))." }
+        if !candidates.isEmpty { p += " Likely regional candidates: \(candidates.prefix(8).joined(separator: ", "))." }
+        let o = ocr.trimmingCharacters(in: .whitespacesAndNewlines)
+        if ocrViaTool { if !o.isEmpty { p += " The photo contains printed text; call readPhotoText if it helps." } }
+        else if !o.isEmpty { p += " Text visible in the photo: \(o.prefix(200))." }
+        return p + "\n" + glossary(for: (labels + candidates).joined(separator: " ") + " " + o)
     }
 
     static func glossary(for text: String) -> String {

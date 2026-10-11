@@ -40,9 +40,13 @@ struct AddRecipeSheet: View {
     @State private var coverItem: PhotosPickerItem?
     @State private var showCoverCamera = false
     @State private var confirmDiscard = false
+    @State private var saving = false
+    @State private var confirmedDraft = false
+    /// Name the user confirmed in "What dish is this?" (C-AI-01); the regenerated card is not asked about again.
+    @State private var confirmedDish: String?
     @Environment(\.dismiss) private var dismiss
     private var hasUnsaved: Bool {
-        draft != nil || !link.trimmingCharacters(in: .whitespaces).isEmpty || !prompt.trimmingCharacters(in: .whitespaces).isEmpty || imageData != nil
+        (draft != nil && !saving) || !link.trimmingCharacters(in: .whitespaces).isEmpty || !prompt.trimmingCharacters(in: .whitespaces).isEmpty || imageData != nil
     }
 
     var body: some View {
@@ -168,7 +172,7 @@ struct AddRecipeSheet: View {
             }
             .padding(14).frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.secondary, in: RoundedRectangle(cornerRadius: 14))
-        } else if let q = dishQuestion, mode == .image {
+        } else if let q = dishQuestion {
             VStack(alignment: .leading, spacing: 10) {
                 Label(q.errorDescription ?? "", systemImage: "questionmark.circle").font(AteFont.body(14))
                     .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("photoDishQuestion")
@@ -209,10 +213,25 @@ struct AddRecipeSheet: View {
         Text("Review your card").font(AteFont.display(24))
         if let d = draft { SourceBadge(source: d.source) }
         if let d = draft, let conf = d.aiConfidence {
-            Label("AI confidence \(Int((conf * 100).rounded()))%" + (conf < 0.5 ? " — check this is the right dish" : ""),
-                  systemImage: conf < 0.5 ? "exclamationmark.triangle" : "checkmark.seal")
-                .font(AteFont.body(13)).foregroundStyle(conf < 0.5 ? Theme.destructive : Theme.mutedForeground)
+            Label("AI confidence \(Int((conf * 100).rounded()))%" + (conf < RecipeQuality.threshold ? " — check this is the right dish" : ""),
+                  systemImage: conf < RecipeQuality.threshold ? "exclamationmark.triangle" : "checkmark.seal")
+                .font(AteFont.body(13)).foregroundStyle(conf < RecipeQuality.threshold ? Theme.destructive : Theme.mutedForeground)
                 .accessibilityIdentifier("aiConfidence")
+        }
+        if let d = draft, RecipeQuality.needsInput(d), !didEdit, !confirmedDraft {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Draft, needs your input", systemImage: "exclamationmark.bubble").font(AteFont.body(14, .semibold))
+                if (d.aiConfidence ?? 1) < RecipeQuality.threshold {
+                    Text("Ate is only \(Int(((d.aiConfidence ?? 0) * 100).rounded()))% sure this is \(d.title).").font(AteFont.body(13))
+                }
+                ForEach(RecipeQuality.issues(d), id: \.self) { Text("• " + $0).font(AteFont.body(13)) }
+                Text("Edit the card, or confirm it's right, before saving.").font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                Button("It's right, let me save") { confirmedDraft = true }.buttonStyle(.ate(.secondary, height: 36))
+                    .accessibilityIdentifier("confirmDraft")
+            }
+            .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.warm.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+            .accessibilityIdentifier("draftNeedsInput")
         }
         if let n = draft?.aiNote { Text(n).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aiNote") }
         Text("Fix anything the AI got wrong, then save it to your library.")
@@ -224,13 +243,15 @@ struct AddRecipeSheet: View {
             RecipeCardView(recipe: d, units: store.settings.units)
         }
         HStack(spacing: 8) {
-            Button("Save recipe") {
-                if let d = draft {
-                    BetaQA.shared.pass("A-EDIT-01", note: (didEdit ? "Edited and saved" : "Reviewed and saved") + " “\(d.title)”")
-                    onSave(RecipeLogic.normalize(d))
-                }
+            Button(saving ? "Saving…" : "Save recipe") {
+                guard !saving, let d = draft else { return }
+                saving = true                       // P0: one save per draft; double taps are ignored
+                DraftStore.shared.clear()           // the stored draft must not be restored (and saved again) later
+                BetaQA.shared.pass("A-EDIT-01", note: (didEdit ? "Edited and saved" : "Reviewed and saved") + " “\(d.title)”")
+                onSave(RecipeLogic.normalize(d))
             }
                 .buttonStyle(.ate(.primary, full: true)).accessibilityIdentifier("saveRecipe")
+                .disabled(saving || (draft.map { RecipeQuality.needsInput($0) } ?? false) && !didEdit && !confirmedDraft)
             Button(editing ? "Preview" : "Edit") { editing.toggle(); didEdit = true }.buttonStyle(.ate(.secondary))
             Button { Task { await generate() } } label: {
                 Image(systemName: "arrow.clockwise").rotationEffect(.degrees(loading ? 360 : 0))
@@ -320,7 +341,9 @@ struct AddRecipeSheet: View {
 
     /// A-CREATE-05: the app was closed mid-generation (or with an unsaved card) last time.
     private func restoreInterrupted() {
-        if let c = DraftStore.shared.draft {
+        if let c = DraftStore.shared.draft, store.recipe(c.id) != nil {
+            DraftStore.shared.clear()   // P0: this draft was already saved; restoring it made duplicate copies
+        } else if let c = DraftStore.shared.draft {
             draft = c; store.show("Restored your unsaved card")
             BetaQA.shared.pass("A-CREATE-05", note: "Restored unsaved draft “\(c.title)” after relaunch")
         } else if let p = DraftStore.shared.pending {
@@ -339,6 +362,12 @@ struct AddRecipeSheet: View {
         }
         var req: ParseRequest
         switch mode {
+        case _ where mode != .image && dishQuestion != nil && !dishAnswer.trimmingCharacters(in: .whitespaces).isEmpty:
+            // Low-confidence card: regenerate conditioned on the confirmed name (+ glossary via RecipePrompt.prompt).
+            let name = dishAnswer.trimmingCharacters(in: .whitespaces)
+            confirmedDish = name
+            let ctx = (mode == .link ? link : prompt).trimmingCharacters(in: .whitespacesAndNewlines)
+            req = ParseRequest(mode: .prompt, text: ctx.isEmpty ? name : "\(name). Context: \(ctx.prefix(400))")
         case .link:
             guard !link.trimmingCharacters(in: .whitespaces).isEmpty else { store.show("Paste a recipe link first.", error: true); return }
             req = ParseRequest(mode: .url, text: link)
@@ -350,6 +379,7 @@ struct AddRecipeSheet: View {
             let jpeg = UIImage(data: d)?.jpegData(compressionQuality: 0.8) ?? d
             var dishes = spreadPicks.sorted()
             for d in dishAnswer.split(separator: ",").map({ $0.trimmingCharacters(in: .whitespaces) }) where !d.isEmpty && !dishes.contains(d) { dishes.append(d) }
+            if dishQuestion != nil, let f = dishes.first { confirmedDish = f }
             req = ParseRequest(mode: .image, text: dishes.first, imageDataUrl: "data:image/jpeg;base64," + jpeg.base64EncodedString())
             if dishes.count > 1 {
                 let rest = Array(dishes.dropFirst())
@@ -374,7 +404,18 @@ struct AddRecipeSheet: View {
             if mode == .link, let u = URL(string: link.trimmingCharacters(in: .whitespaces)) { card.sourceURL = SocialLinks.clean(u).absoluteString }
             GenerationLog.last = GenerationLog(source: card.source, latencyMs: Int(Date().timeIntervalSince(started) * 1000),
                                                mode: mode.rawValue, date: Date())
-            draft = RecipeLogic.normalize(card)
+            let normalized = RecipeLogic.normalize(card)
+            // C-AI-01: under 80% confidence the card is NOT presented as a recipe; ask "What dish is this?" with the
+            // model's own guesses pre-filled. ≥ 80% skips the question entirely.
+            if RecipeQuality.shouldAskDish(normalized, alreadyConfirmed: confirmedDish != nil) {
+                let g = RecipeQuality.guesses(normalized)
+                dishQuestion = PhotoNeedsDishError(suggestions: g, spread: false)
+                dishAnswer = g.first ?? ""; spreadPicks = []
+                Haptics.warning()
+                return
+            }
+            draft = normalized
+            confirmedDraft = false
             if let d = draft { chooseInitialCover(for: d); DraftStore.shared.saveDraft(d) }
             editing = false
             dishQuestion = nil; dishAnswer = ""; spreadPicks = []

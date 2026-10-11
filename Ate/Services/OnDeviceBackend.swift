@@ -88,7 +88,9 @@ final class OnDeviceBackend: BackendService {
                 } else {
                     switch PhotoGuess.assess(labels: labels, ocrText: text) {
                     case .confident(let dish): prompt = RecipePrompt.photo(dish: dish, labels: names, ocr: text, ocrViaTool: viaTool)
-                    case .uncertain(let s): throw PhotoNeedsDishError(suggestions: s, spread: false)
+                    case .uncertain(let s):
+                        // Identify inside the generation pass; the sheet only asks when confidence < 80%.
+                        prompt = RecipePrompt.photoUnnamed(labels: names, candidates: s, ocr: text, ocrViaTool: viaTool)
                     case .spread(let s): throw PhotoNeedsDishError(suggestions: s, spread: true)
                     }
                 }
@@ -255,54 +257,77 @@ struct PhotoTextTool: Tool {
     }
 }
 
-@available(iOS 26.0, *)
 @Generable
 struct GenIngredient {
-    @Guide(description: "Ingredient name, e.g. 'garlic'") var name: String
-    @Guide(description: "Realistic numeric quantity for the servings, 0 only for 'to taste'") var quantity: Double
+    @Guide(description: "Realistic numeric amount for the servings; 0 only for 'to taste'", .range(0...5000)) var quantity: Double
     @Guide(description: "Metric or short unit: g, kg, ml, l, tbsp, tsp, cloves, pcs, or empty") var unit: String
-    @Guide(description: "Optional prep notes, e.g. 'finely chopped'") var notes: String?
+    @Guide(description: "Ingredient name, e.g. 'beef short rib'") var name: String
+    @Guide(description: "Optional prep, e.g. 'finely chopped'") var prep: String?
 }
 
 @available(iOS 26.0, *)
 @Generable
 struct GenStep {
-    @Guide(description: "Concise instruction") var instruction: String
-    @Guide(description: "Minutes this step takes (e.g. 20 for 'simmer 20 minutes', 180 for '2 to 3 h'); omit for untimed steps") var minutes: Int?
+    @Guide(description: "One specific action starting with a precise verb (sear, simmer, roast, stir in) plus heat level and a doneness cue; never a vague step like 'cook ribs', never a step the source doesn't support") var instruction: String
+    @Guide(description: "Minutes this step takes (20 for 'simmer 20 minutes', 180 for '2 to 3 h'); omit for untimed steps, 1 to 720") var minutes: Int?
+    @Guide(description: "Oven or oil temperature in °C when the step uses one (oven, deep-fry); otherwise omit; 50 to 300") var temperatureC: Int?
 }
 
+/// Step 1 of the single guided pass: who is this dish? Generated BEFORE the recipe, so the recipe is conditioned on it.
+@available(iOS 26.0, *)
+@Generable
+struct DishIdentification {
+    @Guide(description: "Most likely dish name from the caption/OCR/image labels and glossary; never a place, business, hashtag or handle") var name: String
+    @Guide(description: "Cuisine in one or two words, e.g. South African, Italian") var cuisine: String
+    @Guide(description: "How sure you are the dish is `name`; below 0.8 when the input doesn't clearly name or show it", .range(0.0...1.0)) var confidence: Double
+    @Guide(description: "Other plausible dish names, most likely first; empty when sure", .maximumCount(4)) var alternatives: [String]
+}
+
+/// Nested structured output (Foundation Models code-along pattern): identification first, then the recipe.
 @available(iOS 26.0, *)
 @Generable
 struct GenRecipe {
-    @Guide(description: "The dish name exactly as named in the text; never a place, business, hashtag or handle") var title: String
+    @Guide(description: "Identify the dish first") var dish: DishIdentification
+    @Guide(description: "The card title: the identified dish name as written") var title: String
     @Guide(description: "Under 20 words") var description: String
-    @Guide(description: "Servings that suit the dish (stews 4 to 6), at least 1") var servings: Int
-    @Guide(description: "Total minutes: prep plus the sum of all step times") var timeMinutes: Int
-    @Guide(description: "Up to 5 short lowercase tags") var tags: [String]
-    @Guide(description: "Cuisine in one or two words, e.g. Italian, Mexican, South African, Thai") var cuisine: String
-    @Guide(description: "Ingredients copied from the text when given; realistic metric quantities") var ingredients: [GenIngredient]
-    @Guide(description: "Steps in order; timed steps carry minutes") var steps: [GenStep]
-    @Guide(description: "0 to 1: how sure you are this card is the dish in the text") var confidence: Double
+    @Guide(description: "Servings that suit the dish (stews 4 to 6)", .range(1...24)) var servings: Int
+    @Guide(description: "Total minutes: prep plus the sum of all step times", .range(1...2880)) var timeMinutes: Int
+    @Guide(description: "Short lowercase tags, include the dish type (main, side, dessert, drink)", .maximumCount(5)) var tags: [String]
+    @Guide(description: "Ingredients for the identified dish, copied from the text when given; a main dish has at least 4 with amounts", .count(1...30)) var ingredients: [GenIngredient]
+    @Guide(description: "Steps in order; timed steps carry minutes, oven steps carry temperatureC", .count(1...20)) var steps: [GenStep]
     @Guide(description: "Short note when the recipe is best-effort (advert/menu, unknown dish), otherwise empty") var note: String
 
     var card: RecipeCard {
         var c = baseCard
-        c.aiConfidence = max(0, min(1, confidence))
+        c.aiConfidence = max(0, min(1, dish.confidence))
+        let alts = dish.alternatives.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        c.aiAlternatives = alts.isEmpty ? nil : alts
+        if title.trimmingCharacters(in: .whitespaces).isEmpty { c.title = dish.name }
         let n = note.trimmingCharacters(in: .whitespacesAndNewlines)
         c.aiNote = n.isEmpty ? nil : n
-        // Total time = sum of timed steps when the model's own total is lower.
         let stepMin = steps.compactMap(\.minutes).reduce(0, +)
         if stepMin > (c.timeMinutes ?? 0) { c.timeMinutes = stepMin }
         return c
     }
 
+    /// Rendered straight from the structured fields (no text parsing). temperatureC is folded into the instruction
+    /// only when the model didn't already write a temperature, so the card always shows it.
     var baseCard: RecipeCard {
-        RecipeCard(title: title, description: description, servings: max(1, servings),
+        let cu = dish.cuisine.trimmingCharacters(in: .whitespaces)
+        return RecipeCard(title: title, description: description, servings: max(1, servings),
                    timeMinutes: timeMinutes > 0 ? timeMinutes : nil, tags: tags,
-                   ingredients: ingredients.map { Ingredient(name: $0.name, quantity: $0.quantity, unit: $0.unit, notes: $0.notes) },
-                   steps: steps.enumerated().map { Step(order: $0.offset + 1, instruction: $0.element.instruction,
-                                                        timeSeconds: ($0.element.minutes ?? 0) > 0 ? $0.element.minutes! * 60 : nil) },
-                   cuisine: cuisine.trimmingCharacters(in: .whitespaces).isEmpty ? nil : cuisine.trimmingCharacters(in: .whitespaces))
+                   ingredients: ingredients.map { Ingredient(name: $0.name, quantity: $0.quantity, unit: $0.unit, notes: $0.prep) },
+                   steps: steps.enumerated().map { i, s in
+                       Step(order: i + 1, instruction: GenRecipe.instruction(s.instruction, temperatureC: s.temperatureC),
+                            timeSeconds: (s.minutes ?? 0) > 0 ? s.minutes! * 60 : nil) },
+                   cuisine: cu.isEmpty ? nil : cu)
+    }
+
+    static func instruction(_ text: String, temperatureC: Int?) -> String {
+        guard let t = temperatureC, !RecipeQuality.hasTemperature(text) else { return text }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let body = trimmed.hasSuffix(".") ? String(trimmed.dropLast()) : trimmed
+        return body + " at \(t)°C."
     }
 }
 #endif

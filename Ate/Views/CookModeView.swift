@@ -56,8 +56,8 @@ struct CookModeView: View {
         let others = store.timers.timers.filter { $0.recipeID == recipeID && $0.stepIndex != index && $0.isRunning }
         VStack(spacing: 20) {
             HStack {
-                Button(action: exit) { Label("Exit", systemImage: "xmark") }.buttonStyle(.ate(.ghost, height: 44))
-                    .accessibilityLabel("Exit")
+                Button(action: exit) { Image(systemName: "xmark").font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44) }
+                    .buttonStyle(.ate(.ghost, height: 44)).accessibilityLabel("Exit")   // design review: icon-only ✕
                 Spacer()
                 Text("Step \(index + 1) of \(n)").font(AteFont.body(14, .medium))
                 Button {

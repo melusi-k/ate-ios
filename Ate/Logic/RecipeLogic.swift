@@ -7,6 +7,7 @@ enum RecipeLogic {
         var c = card
         c.ingredients = card.ingredients.map { var i = $0; i.quantity = round2($0.quantity * factor); return i }
         c.servings = Int((Double(card.servings) * factor).rounded())
+        c.steps = nonBlank(card.steps)
         return c
     }
 
@@ -17,7 +18,7 @@ enum RecipeLogic {
         c.servings = max(1, c.servings)
         c.tags = c.tags.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         c.ingredients = c.ingredients.map { var i = $0; if !i.quantity.isFinite { i.quantity = 0 }; return i }
-        c.steps = c.steps.enumerated().map { idx, s in var s = s; s.order = idx + 1; return s }
+        c.steps = nonBlank(c.steps).enumerated().map { idx, s in var s = s; s.order = idx + 1; return s }
         let fixed = Durations.sanitize(c)
         c = fixed.card
         if fixed.corrected {
@@ -25,6 +26,37 @@ enum RecipeLogic {
             if !(c.aiNote ?? "").contains("cooking times") { c.aiNote = [c.aiNote, note].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " ") }
         }
         return c
+    }
+
+    /// P0 duplicate-save cleanup: one card per id, and exact duplicates (same title, ingredients and steps, created
+    /// within `window` ms of each other) merged into the earliest copy (keeps favourite/cover/cook date if any copy has them).
+    static func dedupe(_ cards: [RecipeCard], window: Double = 15 * 60 * 1000) -> (cards: [RecipeCard], removedIDs: [String]) {
+        func key(_ c: RecipeCard) -> String {
+            let t = c.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            let i = c.ingredients.map { "\($0.name.lowercased())|\($0.quantity)|\($0.unit.lowercased())" }.joined(separator: ";")
+            let s = nonBlank(c.steps).map { $0.instruction.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) }.joined(separator: ";")
+            return t + "#" + i + "#" + s
+        }
+        var out: [RecipeCard] = [], removed: [String] = [], seenIDs = Set<String>()
+        for c in cards {
+            if seenIDs.contains(c.id) { continue }
+            seenIDs.insert(c.id)
+            if let k = out.firstIndex(where: { key($0) == key(c) && abs($0.createdAt - c.createdAt) <= window }) {
+                var keep = out[k].createdAt <= c.createdAt ? out[k] : c
+                let other = keep.id == c.id ? out[k] : c
+                keep.favorite = keep.favorite || other.favorite
+                if keep.coverImage == nil { keep.coverImage = other.coverImage }
+                if keep.imageURL == nil { keep.imageURL = other.imageURL }
+                keep.lastCookedAt = [keep.lastCookedAt, other.lastCookedAt].compactMap { $0 }.max()
+                out[k] = keep; removed.append(other.id)
+            } else { out.append(c) }
+        }
+        return (out, removed)
+    }
+
+    /// Drops steps whose instruction is empty/whitespace/punctuation only.
+    static func nonBlank(_ steps: [Step]) -> [Step] {
+        steps.filter { $0.instruction.rangeOfCharacter(from: .alphanumerics) != nil }
     }
 
     /// Plain-text share format (PRD §7.4).

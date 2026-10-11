@@ -45,7 +45,7 @@ final class CoverTests: XCTestCase {
         let b = CoverLogic.tile(title: "Mogodu stew", cuisine: "South African", ingredients: ["tripe", "onion"])
         XCTAssertEqual(a, b)
         XCTAssertEqual(a.initial, "M")
-        XCTAssertEqual(a.symbol, "flame")
+        XCTAssertEqual(a.symbol, "frying.pan", "a stew is a stew first")
         XCTAssertTrue(CoverLogic.palettes.indices.contains(a.palette))
         XCTAssertEqual(CoverLogic.tile(title: "  ujeqe", cuisine: nil, ingredients: []).initial, "U")
         XCTAssertEqual(CoverLogic.stableHash("ate"), CoverLogic.stableHash("ate"))

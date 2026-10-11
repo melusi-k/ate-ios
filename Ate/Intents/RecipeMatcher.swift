@@ -62,9 +62,10 @@ enum RecipeMatcher {
     enum Verb: String { case cook, make, start, open, find, show, search }
     /// Strips a leading verb ("cook", "start cook mode for", "search for") and a trailing "in/with/on ate".
     static func cleanQuery(_ raw: String) -> (verb: Verb?, query: String) {
-        var w = raw.lowercased().folding(options: .diacriticInsensitive, locale: nil)
-            .map { $0.isLetter || $0.isNumber || $0 == " " || $0 == "'" ? $0 : " " }
-            .split(separator: " ").map(String.init)
+        let folded: String = raw.lowercased().folding(options: .diacriticInsensitive, locale: nil)
+        var cleaned = ""
+        for ch in folded { cleaned.append(ch.isLetter || ch.isNumber || ch == "'" ? ch : " ") }
+        var w: [String] = cleaned.split(separator: " ").map { String($0) }
         while let l = w.last, ["ate", "app", "please"].contains(l) {
             w.removeLast()
             if let p = w.last, ["in", "with", "on", "using", "from"].contains(p) { w.removeLast() }

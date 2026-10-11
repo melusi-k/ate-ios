@@ -70,7 +70,7 @@ struct SettingsView: View {
                             Label("Replay intro", systemImage: "sparkles")
                         }.accessibilityIdentifier("settings.replayOnboarding")
                     }
-                    Section("About") {
+                    Section {
                         Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))" + (AppConfig.channel.isEmpty ? "" : " · \(AppConfig.channel)"))
                             .accessibilityIdentifier("aboutVersion")
                         VStack(alignment: .leading, spacing: 2) {
@@ -85,7 +85,7 @@ struct SettingsView: View {
                         LiveActivityDiagnosticsView()
                         if let u = AppConfig.privacyURL { Link(destination: u) { Label("Privacy Policy", systemImage: "hand.raised") }.accessibilityIdentifier("settingsPrivacy") }
                         if let u = AppConfig.termsURL { Link(destination: u) { Label("Terms of Use", systemImage: "doc.text") }.accessibilityIdentifier("settingsTerms") }
-                    } footer: {
+                    } header: { Text("About") } footer: {
                         Text(Transparency.ai).accessibilityIdentifier("aiTransparency")
                     }
                     Section { Button {

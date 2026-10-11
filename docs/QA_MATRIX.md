@@ -165,3 +165,13 @@ Run on **iOS 18** (opaque bars) and **iOS 26** (Liquid Glass), in **light** and 
 | N-11 | Reduce Transparency | Bars and materials turn opaque; text stays readable. | Manual |
 | N-12 | Increase Contrast + Bold Text | Muted text and borders darken; custom fonts get heavier with Bold Text. Brand pairs ≥ 4.5:1 (AccessibilityTests). | AccessibilityTests |
 | N-13 | Offline / model unavailable | Typed link/prompt and review drafts are kept; Retry works without retyping. | A-OFF-02 |
+
+### iOS 26 tab bar (build 97+)
+| ID | Check | How | Coverage |
+|---|---|---|---|
+| C-TAB-01 | Add recipe accessory | `.tabViewBottomAccessory` "Add recipe" on every tab opens the Add sheet; no floating button | testTab_AccessoryAndSearchTab, key flows (Add recipe) |
+| C-TAB-02 | Timer in accessory | Running timer → timer summary + "+" in the accessory; no duplicate timer bar at tab roots; detail Cook mode clear | testDetailTimerBarLayout (detail), Manual |
+| C-TAB-03 | Minimise on scroll | `.tabBarMinimizeBehavior(.onScrollDown)`; accessory compact via `tabViewBottomAccessoryPlacement == .inline` | Manual |
+| C-TAB-04 | Search tab | `Tab(role: .search)` + `.searchable`; `.searchPresentationToolbarBehavior(.avoidHidingContent)` keeps "Your Kitchen" | testTab_AccessoryAndSearchTab, test04 |
+| C-TAB-05 | Soft scroll edge | `.scrollEdgeEffectStyle(.soft, for: .top)` on Library, Shopping, More, Settings | Manual |
+| C-TAB-06 | Concentric cards | `ConcentricRectangle` for cards in the Add/Review sheet | Manual |

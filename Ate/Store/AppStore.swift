@@ -79,6 +79,8 @@ final class AppStore {
     var shoppingPath: [Route] = []
     var settingsPath: [Route] = []
     var morePath: [Route] = []
+    /// iOS 26 search tab (Tab(role: .search)) has its own stack.
+    var searchPath: [Route] = []
     /// True when the selected tab shows its root screen (banners that belong to tab roots hide on pushed screens).
     var isAtTabRoot: Bool {
         switch tab {
@@ -86,6 +88,7 @@ final class AppStore {
         case .shopping: return shoppingPath.isEmpty
         case .settings: return settingsPath.isEmpty
         case .more: return morePath.isEmpty
+        case .search: return searchPath.isEmpty
         }
     }
     var tab: AppTab = .library

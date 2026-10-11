@@ -57,7 +57,7 @@ struct ShoppingListView: View {
                 .pageWidth()
             }
         }
-        .navigationTitle("Shopping list").navigationBarTitleDisplayMode(.large)
+        .navigationTitle("Shopping list").navigationBarTitleDisplayMode(.large).softTopEdge()
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
     }
 

@@ -46,7 +46,8 @@ struct TimerBarInset: ViewModifier {
         // Applied once per NavigationStack (not per screen), so it can never show twice. Screen-level bottom
         // actions (Cook mode, Add recipe) use their own inner safeAreaInset and therefore sit directly above it.
         content.safeAreaInset(edge: .bottom, spacing: 0) {
-            if !store.timers.timers.isEmpty && store.cookTarget == nil { TimerBar() }
+            // iOS 26: at tab roots the timer lives in the tab bar's bottom accessory, so the inset only shows on pushed screens.
+            if !store.timers.timers.isEmpty && store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot) { TimerBar() }
         }
     }
 }
@@ -77,7 +78,7 @@ struct RootView: View {
             if vSize == .compact {
                 LandscapeSplitView()      // iPhone landscape: custom collapsible sidebar
             } else {
-                tabs                      // portrait iPhone: bottom tab bar; iPad: adaptable sidebar
+                if #available(iOS 26, *) { tabs26 } else { tabs }   // portrait iPhone: bottom tab bar; iPad: adaptable sidebar
             }
         }
         .onChange(of: vSize) { _, v in
@@ -129,7 +130,87 @@ struct RootView: View {
     }
 }
 
+extension View {
+    /// iOS 26 soft scroll-edge effect under the nav bar on long lists (C-TAB-05).
+    @ViewBuilder func softTopEdge() -> some View {
+        if #available(iOS 26, *) { scrollEdgeEffectStyle(.soft, for: .top) } else { self }
+    }
+}
+
+/// iOS 26 tab chrome switches (C-TAB-xx). Older systems keep the floating Add button and the in-app timer bar.
+enum TabChrome {
+    static var usesAccessory: Bool { if #available(iOS 26, *) { return true }; return false }
+}
+
+/// Bottom accessory above the tab bar: "Add recipe", or the timer summary plus a + when timers exist.
+@available(iOS 26, *)
+struct AteBottomAccessory: View {
+    @Environment(AppStore.self) private var store
+    @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+    var body: some View {
+        let compact = placement == .inline
+        HStack(spacing: 8) {
+            if !store.timers.timers.isEmpty {
+                TimerBar().padding(.bottom, -4).padding(.horizontal, -12)
+                Button { add() } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
+                    .accessibilityLabel("Add recipe").accessibilityIdentifier("accessoryAdd")
+            } else {
+                Button { add() } label: {
+                    Label(compact ? "Add" : "Add recipe", systemImage: "plus").font(AteFont.body(15, .semibold))
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .accessibilityLabel("Add recipe").accessibilityIdentifier("accessoryAdd")
+            }
+        }
+        .padding(.horizontal, compact ? 4 : 12)
+        .accessibilityElement(children: .contain).accessibilityIdentifier("bottomAccessory")
+    }
+    private func add() {
+        if store.tab != .library { store.select(.library) }
+        store.quickAdd = QuickAddRequest(mode: .link)
+    }
+}
+
 extension RootView {
+    /// iOS 26: four main tabs + the search tab, bottom accessory, minimise on scroll.
+    @available(iOS 26, *)
+    @ViewBuilder var tabs26: some View {
+        @Bindable var store = store
+        TabView(selection: tabSelection) {
+            Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
+                NavigationStack(path: $store.path) {
+                    LibraryView(searchPlacement: .none).offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }.withTimerBar()
+            }
+            Tab("Shopping", systemImage: "basket", value: AppTab.shopping) {
+                NavigationStack(path: $store.shoppingPath) {
+                    ShoppingListView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }.withTimerBar()
+            }
+            .badge(store.pendingShoppingCount)
+            Tab("More", systemImage: "square.grid.2x2", value: AppTab.more) {
+                NavigationStack(path: $store.morePath) {
+                    MoreView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }.withTimerBar()
+            }
+            Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
+                NavigationStack(path: $store.settingsPath) {
+                    SettingsView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }.withTimerBar()
+            }
+            Tab(value: AppTab.search, role: .search) {
+                NavigationStack(path: $store.searchPath) {
+                    LibraryView(searchPlacement: .tabBar).offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }.withTimerBar()
+            }
+        }
+        .tabViewStyle(.tabBarOnly)
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .tabViewBottomAccessory {
+            if store.cookTarget == nil { AteBottomAccessory() }
+        }
+    }
+
     /// Compact tab bar: exactly four tabs. Collections live in More (portrait) and the landscape sidebar only.
     @ViewBuilder var tabs: some View {
         @Bindable var store = store
@@ -168,6 +249,7 @@ extension RootView {
                 case .shopping: store.shoppingPath = []
                 case .settings: store.settingsPath = []
                 case .more: store.morePath = []
+                case .search: store.searchPath = []
                 }
             }
             store.select(new)
@@ -248,7 +330,7 @@ struct LandscapeSplitView: View {
                     NavigationStack(path: $store.morePath) {
                         MoreView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                     }.withTimerBar()
-                case .settings:
+                case .settings, .search:
                     NavigationStack(path: $store.settingsPath) {
                         SettingsView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                     }.withTimerBar()

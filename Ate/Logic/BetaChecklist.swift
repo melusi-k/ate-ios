@@ -138,6 +138,12 @@ enum BetaChecklist {
         BetaItem(id: "C-AI-02", title: "Main dishes meet the bar", category: "Recipe quality", how: "A generated main dish has at least 4 ingredients with quantities, oven steps give °C, and no vague steps like 'cook ribs'; otherwise it's a draft listing what's missing.", auto: false),
         BetaItem(id: "C-AI-03", title: "Tile icons fit the dish", category: "Covers", how: "Ribs show a flame (not a teacup), a chicken sandwich shows a takeaway icon (not a bird), drinks show a cup.", auto: false),
         BetaItem(id: "C-LIB-01", title: "Library header", category: "Design review", how: "Library shows the logo in the toolbar, the native large title 'Your Kitchen', 'Search N recipes' in the search bar, a quiet count, and one icon-only Group & sort menu that never truncates.", auto: false),
+        BetaItem(id: "C-TAB-01", title: "Add recipe in the tab bar accessory", category: "iOS 26 tab bar", how: "On iOS 26 a persistent 'Add recipe' control sits above the tab bar on every tab and opens the Add sheet; no floating Add button.", auto: false),
+        BetaItem(id: "C-TAB-02", title: "Timer in the accessory", category: "iOS 26 tab bar", how: "With a timer running, the accessory shows the timer summary plus a + (Add recipe), the old in-app timer bar doesn't also show on tab roots, and recipe detail's Cook mode button never clashes with it.", auto: false),
+        BetaItem(id: "C-TAB-03", title: "Compact when minimised", category: "iOS 26 tab bar", how: "Scrolling down minimises the tab bar and the accessory switches to its compact layout; scrolling up restores both.", auto: false),
+        BetaItem(id: "C-TAB-04", title: "Search tab", category: "iOS 26 tab bar", how: "Library search sits in the tab bar (search tab) next to the 4 main tabs, and 'Your Kitchen' stays visible while searching.", auto: false),
+        BetaItem(id: "C-TAB-05", title: "Soft scroll edges", category: "iOS 26 tab bar", how: "Library, Shopping, More and Settings fade softly under the nav bar when scrolled.", auto: false),
+        BetaItem(id: "C-TAB-06", title: "Concentric sheet cards", category: "iOS 26 tab bar", how: "Cards inside the Add/Review sheet follow the sheet's corner curve.", auto: false),
     ]
     /// The checklist for this build's channel: TierC builds test the Tier C polish items, everything else Tier A.
     static var isTierC: Bool { AppConfig.channel.uppercased() == "TIERC" }

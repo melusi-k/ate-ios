@@ -3,6 +3,9 @@ import SwiftUI
 struct LibraryView: View {
     @Environment(AppStore.self) private var store
     @SceneStorage("ate.library.query") private var query = ""
+    enum SearchPlacement { case drawer, none, tabBar }
+    /// iOS 26: the Library tab has no field (.none); the search tab hosts it in the tab bar (.tabBar).
+    var searchPlacement: SearchPlacement = .drawer
     @State private var showAdd = false
     @State private var confirmDelete: RecipeCard?
     @Environment(\.verticalSizeClass) private var vSize
@@ -11,19 +14,22 @@ struct LibraryView: View {
     private var useGrid: Bool { vSize == .compact || hSize == .regular }
 
     var body: some View {
-        let filtered = store.filter.apply(store.recipes, query: query)
+        let filtered = store.filter.apply(store.recipes, query: searchPlacement == .none ? "" : query)
         ZStack {
             Theme.background.ignoresSafeArea()
             if useGrid { grid(filtered) } else { list(filtered) }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Same bottom system as recipe detail: sits directly above the stack's timer bar.
-            Button { showAdd = true } label: { Label("Add recipe", systemImage: "plus").padding(.horizontal, 10) }
-                .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8).frame(maxWidth: .infinity)
+            // iOS 26: the tab bar's bottom accessory carries "Add recipe" instead (C-TAB-01).
+            if !TabChrome.usesAccessory {
+                Button { showAdd = true } label: { Label("Add recipe", systemImage: "plus").padding(.horizontal, 10) }
+                    .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8).frame(maxWidth: .infinity)
+            }
         }
         // System search (glass on iOS 26). The query lives in SceneStorage so switching tabs or cancelling and
         // coming back restores it; the List keeps its own scroll position per tab stack.
-        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search \(store.recipes.count) recipe\(store.recipes.count == 1 ? "" : "s")")
+        .modifier(LibrarySearch(query: $query, placement: searchPlacement, prompt: "Search \(store.recipes.count) recipe\(store.recipes.count == 1 ? "" : "s")"))
         .textInputAutocapitalization(.never)
         .navigationTitle(store.filter.collection?.title ?? L10n.libraryTitle)
         .navigationBarTitleDisplayMode(.large)
@@ -34,7 +40,7 @@ struct LibraryView: View {
             }
             ToolbarItem(placement: .topBarTrailing) { layoutMenu }
         }
-        .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd))
+        .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd, global: searchPlacement != .tabBar))
         .onChange(of: store.pendingSearch) { _, q in if let q { query = q; store.pendingSearch = nil } }
         .onAppear { if let q = store.pendingSearch { query = q; store.pendingSearch = nil } }
     }
@@ -212,6 +218,8 @@ private struct LibrarySheets: ViewModifier {
     @Environment(AppStore.self) private var store
     @Binding var confirmDelete: RecipeCard?
     @Binding var showAdd: Bool
+    /// Only one LibraryView (the Library tab) presents the store-wide quick-add / import sheets.
+    var global: Bool = true
     func body(content: Content) -> some View {
         content
         .confirmationDialog("Delete “\(confirmDelete?.title ?? "")”?", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
@@ -235,7 +243,7 @@ private struct LibrarySheets: ViewModifier {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
-        .sheet(item: Binding(get: { store.quickAdd }, set: { store.quickAdd = $0 })) { req in
+        .sheet(item: Binding(get: { global ? store.quickAdd : nil }, set: { store.quickAdd = $0 })) { req in
             NavigationStack {
                 AddRecipeSheet(initialMode: req.mode) { card in
                     store.add(card)
@@ -249,7 +257,7 @@ private struct LibrarySheets: ViewModifier {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
-        .sheet(item: Binding(get: { store.pendingImport }, set: { store.pendingImport = $0 })) { item in
+        .sheet(item: Binding(get: { global ? store.pendingImport : nil }, set: { store.pendingImport = $0 })) { item in
             NavigationStack {
                 AddRecipeSheet(initial: item) { card in
                     store.add(card)
@@ -263,5 +271,29 @@ private struct LibrarySheets: ViewModifier {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
+    }
+}
+
+
+/// Search placement + iOS 26 search/scroll-edge behaviour (C-TAB-03/04/05).
+struct LibrarySearch: ViewModifier {
+    @Binding var query: String
+    let placement: LibraryView.SearchPlacement
+    let prompt: String
+    func body(content: Content) -> some View {
+        switch placement {
+        case .none:
+            styled(content)
+        case .drawer:
+            styled(content.searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: prompt))
+        case .tabBar:
+            styled(content.searchable(text: $query, prompt: prompt))
+        }
+    }
+    @ViewBuilder private func styled<V: View>(_ v: V) -> some View {
+        if #available(iOS 26, *) {
+            v.searchPresentationToolbarBehavior(.avoidHidingContent)   // "Your Kitchen" stays visible while searching
+             .scrollEdgeEffectStyle(.soft, for: .top)
+        } else { v }
     }
 }

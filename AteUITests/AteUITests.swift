@@ -125,7 +125,10 @@ final class AteUITests: XCTestCase {
         tab("Library")
         wait(text("1 recipe saved on this device."))
         shot("library-one-recipe")
+        // iOS 26: Library search lives in the tab bar's search tab (Tab(role: .search)).
+        if !app.searchFields.firstMatch.waitForExistence(timeout: 2) { app.tabBars.buttons["Search"].firstMatch.tap() }
         let search = app.searchFields.firstMatch
+        wait(search, 5)
         search.tap(); search.typeText("zzz")
         wait(text("No matches"))
         shot("library-no-matches")
@@ -782,6 +785,24 @@ final class AteUITests: XCTestCase {
         wait(m, 3); m.tap()
         let b = app.buttons[option].firstMatch
         wait(b, 3); b.tap()
+    }
+
+    /// C-TAB-01…04: iOS 26 tab chrome — bottom accessory Add, search tab, title visible while searching.
+    func testTab_AccessoryAndSearchTab() {
+        launch()
+        guard #available(iOS 26, *) else { return }
+        let add = app.buttons["accessoryAdd"].firstMatch
+        wait(add, 8)
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label == 'Add recipe' AND identifier != 'accessoryAdd'")).firstMatch.exists,
+                       "floating Add button replaced by the accessory")
+        shot("tab-accessory")
+        add.tap()
+        wait(app.buttons["addCancel"], 5); app.buttons["addCancel"].tap()
+        app.tabBars.buttons["Search"].firstMatch.tap()
+        let field = app.searchFields.firstMatch
+        wait(field, 5); field.tap(); field.typeText("soup")
+        XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 3), "title stays visible while searching")
+        shot("tab-search")
     }
 
     func test28_GroupSortAndMenus() {

@@ -63,7 +63,7 @@ struct MoreView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background)
         .navigationTitle("More")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.large).softTopEdge()
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
             guard case .success(let url) = result else { return }
             let scoped = url.startAccessingSecurityScopedResource()

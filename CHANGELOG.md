@@ -4,6 +4,15 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 
 ## Unreleased
 
+### 📱 iOS 26 tab bar (build after 96; iOS 18–25 keep the previous UI)
+- **Bottom accessory:** "Add recipe" now sits above the tab bar on every tab and replaces the floating button. When a timer is running, it shows the timer summary plus a + button, and the in-app timer bar no longer repeats on tab roots. It switches to a compact layout when the tab bar is minimised.
+- **Tab bar** minimises when you scroll down.
+- **Search tab:** Library search lives in the tab bar (Tab(role: .search)) next to the 4 main tabs, and "Your Kitchen" stays visible while searching.
+- **Soft scroll edges** under the nav bar on Library, Shopping, More and Settings.
+- **Sheet cards** in Add and Review follow the sheet's corner curve (ConcentricRectangle).
+- **Recipe detail** hides the tab bar, so Cook mode and its bottom area never clash with the accessory.
+- **Checks and tests:** new Beta checks C-TAB-01…06, QA matrix rows, a new UI test, and updated search and key-flow tests.
+
 ### 🛠 Tier C build 81 feedback (one build)
 - **Step times:** plausibility minimums by verb (braise/stew/oxtail ≥ 60 min, simmer ≥ 20, pap ≥ 15, roast/bake ≥ 15, rice ≥ 12, brown/sear ≥ 5, steam ≥ 3). An implausible AI time with no time in the text is dropped (no "(N min)", no timer) and the card is flagged. The sanitizer now also runs on sync, edits and imports, not just on launch, and repaired recipes are saved and synced.
 - **Empty steps:** blank steps are removed on decode, normalise, scaling, display and cook mode, and saved data is cleaned.

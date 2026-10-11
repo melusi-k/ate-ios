@@ -177,7 +177,7 @@ struct AddRecipeSheet: View {
                     .buttonStyle(.ate(.primary, height: 40)).accessibilityIdentifier("switchToPrompt")
             }
             .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.secondary, in: RoundedRectangle(cornerRadius: 14))
+            .sheetCard(Theme.secondary)
         } else if let q = dishQuestion {
             VStack(alignment: .leading, spacing: 10) {
                 Label(q.errorDescription ?? "", systemImage: "questionmark.circle").font(AteFont.body(14))
@@ -203,7 +203,7 @@ struct AddRecipeSheet: View {
                 }
             }
             .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.secondary, in: RoundedRectangle(cornerRadius: 14))
+            .sheetCard(Theme.secondary)
         } else if let error {
             ErrorRetryCard(message: error, retryID: "generateRetry") { Task { await generate() } }
         }
@@ -238,7 +238,7 @@ struct AddRecipeSheet: View {
                     .accessibilityIdentifier("confirmDraft")
             }
             .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.warm.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+            .sheetCard(Theme.warm.opacity(0.5))
             .accessibilityIdentifier("draftNeedsInput")
         }
         if let n = draft?.aiNote { Text(n).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aiNote") }
@@ -475,5 +475,13 @@ struct StreamPreviewCard: View {
         .frame(maxWidth: .infinity, alignment: .leading).cardSurface(padding: 16)
         .animation(Motion.anim(), value: preview)
         .accessibilityIdentifier("streamPreview")
+    }
+}
+
+extension View {
+    /// Cards inside sheets: concentric with the sheet's corners on iOS 26 (C-TAB-06), rounded rect before.
+    @ViewBuilder func sheetCard(_ fill: Color) -> some View {
+        if #available(iOS 26, *) { background(fill, in: ConcentricRectangle()) }
+        else { background(fill, in: RoundedRectangle(cornerRadius: 14)) }
     }
 }

@@ -98,6 +98,12 @@ def t_storage_and_functions_sql(ctx):
     fn = sql(ctx, "select p.proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace "
                   "where n.nspname='public' and (p.proconfig is null or not exists (select 1 from unnest(p.proconfig) c where c like 'search_path=%'))")
     if fn: finding(ctx, f"public functions without a fixed search_path: {[x['proname'] for x in fn]}")
+    trigger = sql(ctx, "select p.proconfig from pg_proc p join pg_namespace n on n.oid=p.pronamespace "
+                       "where n.nspname='public' and p.proname='user_recipes_touch'")
+    if trigger:
+        config = trigger[0].get("proconfig") or []
+        if not any(c in ('search_path=""', 'search_path=') for c in config):
+            finding(ctx, f"user_recipes_touch search_path is not empty (expected search_path=''): {config}")
     grants = sql(ctx, "select table_name, privilege_type from information_schema.role_table_grants "
                       "where grantee='anon' and table_schema='public' and table_name in ('user_recipes','qa_results')")
     if grants: finding(ctx, f"anon still holds table grants (RLS blocks them; revoke for defence in depth): {sorted({g['table_name'] for g in grants})}")

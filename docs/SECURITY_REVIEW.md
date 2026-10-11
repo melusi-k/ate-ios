@@ -22,7 +22,7 @@ findings are printed under "Security review: open findings" in that job's summar
 | Auth | Email confirmation | ✅ on (`mailer_autoconfirm=false`) | A-SEC-05 |
 | Auth | OTP expiry | ✅ ≤ 1 h asserted | A-SEC-05 |
 | Auth | Leaked-password check (HIBP) | ⛔ off; needs the Pro plan | F-01 |
-| DB | Function `search_path` | 🟡 `user_recipes_touch` has no fixed `search_path` (linter 0011) | F-04, fixed in migration |
+| DB | Function `search_path` | 🟡 `user_recipes_touch` must use an empty `search_path`; a later migration currently overrides the hardening migration with `public` | F-04, corrected by `20261012100000_pin_empty_trigger_search_path.sql`; apply and verify |
 | DB | Anon grants | 🟡 anon still has default table grants on user tables (RLS blocks them) | F-03, fixed in migration |
 | DB | `shared_recipes` listing | 🟡 public `SELECT USING (true)` lets the anon key list every share (slugs enumerable). Shares are public by design, but listing isn't needed | F-02 |
 
@@ -33,7 +33,7 @@ findings are printed under "Security review: open findings" in that job's summar
 | F-01 | Medium | Leaked-password protection off | Dashboard › Auth › Passwords › "Prevent use of leaked passwords" (Pro plan) | **Needs you** |
 | F-02 | Low | `shared_recipes` enumerable with the anon key | Next step: app reads shares via `get-shared-recipe` only, the function switches to the service role, then `revoke select on shared_recipes from anon, authenticated`. Not done in this build, so older installs keep opening links | Planned |
 | F-03 | Low | anon holds table grants on `user_recipes`/`qa_results` | `20261011090000_security_hardening.sql`: `revoke all … from anon` + default privileges | Migration written, **apply needed** |
-| F-04 | Low | trigger function without `search_path` | same migration: `set search_path = ''` | Migration written, **apply needed** |
+| F-04 | Low | trigger function uses `search_path = public` rather than the empty path recommended by Supabase | `20261012100000_pin_empty_trigger_search_path.sql` sets `search_path = ''`; A-SEC-06 now reports if the deployed function is not pinned to the empty path | Migration written, **apply + backend-e2e verification needed** |
 | F-05 | Info | write privileges on `shared_recipes` for anon/authenticated are implicit | same migration revokes insert/update/delete (only the service role writes) | Migration written, **apply needed** |
 | F-06 | Info | `qa_results.note` unbounded | same migration: length check | Migration written, **apply needed** |
 | F-07 | Low | no per-user/IP rate limit on `publish-recipe` | Consider a `share_events(ip_hash, ts)` limiter; Auth rate limits are in the dashboard | Accepted for beta |
@@ -53,7 +53,7 @@ findings are printed under "Security review: open findings" in that job's summar
 
 ## You need to do (dashboard access)
 
-1. Apply `supabase/migrations/20261011090000_security_hardening.sql` (SQL editor, or `supabase db push`).
+1. Apply `supabase/migrations/20261011090000_security_hardening.sql` and the later `20261012100000_pin_empty_trigger_search_path.sql` (SQL editor, or `supabase db push`).
 2. Auth › Passwords: turn on leaked-password protection (Pro plan) — F-01.
 3. Edge Functions: confirm the Verify JWT settings in F-09.
 4. Rotate `SUPABASE_ACCESS_TOKEN` if it is older than 90 days; keep it scoped to this project.

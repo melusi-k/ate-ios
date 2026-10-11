@@ -2,6 +2,10 @@ name: Compile check
 
 # Run expensive simulator checks only when app, test, build, or CI inputs change.
 # Documentation-only PRs still get the lightweight docs/ID consistency check.
+permissions:
+  contents: read
+  pull-requests: read
+
 on:
   push:
     branches: ["wip/**"]
@@ -20,6 +24,8 @@ jobs:
       app: ${{ steps.filter.outputs.app }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Classify changed files
         id: filter
         uses: dorny/paths-filter@v3

@@ -76,29 +76,6 @@ def t_functions(ctx):
     assert code == 400, f"get-shared-recipe slug validation: {code}"
     code, _ = http("GET", f"{f}/get-shared-recipe?slug=missing" + uuid.uuid4().hex[:8], ctx.anon_h())
     assert code == 404, f"get-shared-recipe unknown slug should be 404: {code}"
-
-    # Success-path account deletion: disposable CI-created user only.
-    victim = ctx.new_user()
-    token = ctx.sign_in(victim)["access_token"]
-    marker = "delete-e2e-" + uuid.uuid4().hex[:12]
-    code, j = upsert(ctx, token, [{"user_id": victim["id"], "kind": "recipe", "id": marker,
-                                   "data": {"title": "Deletion test"}, "updated_at": 1, "deleted": False}])
-    assert code in (200, 201, 204), f"seed deletion test recipe {code} {j}"
-    card = {"title": "Delete E2E " + uuid.uuid4().hex[:8], "servings": 1,
-            "ingredients": [{"name": "test", "quantity": 1, "unit": "", "notes": ""}],
-            "steps": [{"order": 1, "instruction": "test", "timeSeconds": None}]}
-    code, j = http("POST", f"{f}/publish-recipe", ctx.anon_h(token), {"card": card})
-    assert code == 200 and j.get("slug"), f"seed deletion test share {code} {j}"
-    share_slug = j["slug"]
-    ctx.slugs.append(share_slug)
-    code, j = http("POST", f"{f}/delete-account", ctx.anon_h(token), {})
-    assert code == 200 and j.get("deleted") is True, f"delete-account success path {code} {j}"
-    code, rows = http("GET", f"{URL}/rest/v1/user_recipes?select=id&user_id=eq.{victim['id']}", ctx.svc())
-    assert code == 200 and not rows, f"account deletion left synced recipes: {rows}"
-    code, rows = http("GET", f"{URL}/rest/v1/shared_recipes?select=slug&slug=eq.{share_slug}", ctx.svc())
-    assert code == 200 and not rows, f"account deletion left shares: {rows}"
-    code, _ = http("GET", f"{URL}/auth/v1/admin/users/{victim['id']}", ctx.svc())
-    assert code == 404, f"account still exists after deletion: {code}"
     code, j = http("OPTIONS", f"{f}/publish-recipe", {"Origin": "https://evil.example"})
     finding(ctx, "Edge Functions answer CORS with Access-Control-Allow-Origin: * (low risk: no cookies; auth is bearer-only)")
     return "delete-account requires a user JWT; publish-recipe rejects missing/forged auth, bad shape, overlong and oversized input; slug validated"

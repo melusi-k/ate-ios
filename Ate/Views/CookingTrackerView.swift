@@ -26,7 +26,7 @@ struct CookingTrackerView: View {
             }
         }
         .cardSurface(padding: 16)
-        .sheet(item: Binding(get: { selectedDate.map { TrackerDate($0) } }, set: { selectedDate = $0?.date })) { item in
+        .sheet(item: Binding(get: { selectedDate.map { TrackerDate(date: $0) } }, set: { selectedDate = $0?.date })) { item in
             CookingDaySheet(date: item.date, recipeIDs: history.recipeIDs(on: item.date), recipes: store.recipes)
                 .presentationDetents([.medium])
         }

@@ -408,6 +408,14 @@ Toasts (sonner, top-center) → implement a lightweight top toast/banner overlay
 - Not found: "Recipe not found" + button "Back to library".
 **Share flow:** build plain text (§7.4) for the current factor; call publish to get slug; url = `<host>/r/<slug>`; present `ShareLink`/`UIActivityViewController` with title, text, url. If publish fails, toast "Could not create a share link. Sharing the text instead." and share text only. Fallback copy to clipboard toast "Share link copied to clipboard" / "Recipe copied to clipboard".
 
+### Cooking Tracker — local cooking history
+
+The Insights screen includes a month-based cooking calendar and a consecutive-day streak. The calendar displays every day in the selected month, follows the user's current calendar and time zone, marks today and recorded cooking days distinctly, and lets users navigate to past months but not future months. Selecting a day shows the recipes recorded for that date, with a clear empty state and a fallback label if a recipe has since been deleted.
+
+A cooking event is currently recorded when Cook Mode opens, matching the existing `Recently cooked` collection semantics. This is an intent signal, not proof that a meal was completed; do not label it as a completed meal or add health/nutrition claims. Multiple opens of the same recipe on one calendar day count as one recipe-day entry. The tracker is local-first and does not request new permissions or sync cooking history in this MVP.
+
+Date keys use the device's current calendar/time zone when an event is recorded and when dates are displayed. Streaks continue through consecutive calendar days; if nothing is recorded today, yesterday's streak remains visible. Calendar and streak tests must cover empty history, today/yesterday, gaps, month/year boundaries, multiple recipes per day, persistence across service instances, and deleted recipes. All date cells and month navigation must have useful VoiceOver labels and remain usable with Dynamic Type.
+
 ### 4.4 Cook mode — `/cook/:id`
 **Purpose:** hands-free, big-text, step-by-step cooking with timers.
 - Full-screen, background **warm**, text warm-foreground, padding 20pt h / 24pt top / 32pt bottom. Keep screen awake (`isIdleTimerDisabled = true`).

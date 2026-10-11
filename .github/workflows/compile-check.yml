@@ -19,7 +19,6 @@ jobs:
     timeout-minutes: 45
     env:
       ATE_SIGN_STYLE: Automatic
-      RESULTS_DIR: ${{ runner.temp }}/ate-test-results
     steps:
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@v1
@@ -34,7 +33,7 @@ jobs:
             macos-26-homebrew-
       - run: brew install xcodegen && xcodegen generate
       - name: Prepare diagnostics directory
-        run: mkdir -p "$RESULTS_DIR"
+        run: mkdir -p "$RUNNER_TEMP/ate-test-results"
       - name: Build for testing (iOS simulator)
         id: build
         run: |
@@ -43,7 +42,7 @@ jobs:
           echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
 
           set +e
-          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RESULTS_DIR/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
           status=$?
           set -e
 
@@ -61,7 +60,7 @@ jobs:
       - name: Unit tests
         run: |
           set +e
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RESULTS_DIR/unit-tests.xcresult" -only-testing:AteTests CODE_SIGNING_ALLOWED=NO > test.log 2>&1
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/unit-tests.xcresult" -only-testing:AteTests CODE_SIGNING_ALLOWED=NO > test.log 2>&1
           status=$?
           set -e
 
@@ -80,7 +79,7 @@ jobs:
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
           set +e
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RESULTS_DIR/widget-intents-ui-tests.xcresult" -only-testing:AteUITests/WidgetsIntentsUITests CODE_SIGNING_ALLOWED=NO > ui.log 2>&1
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/widget-intents-ui-tests.xcresult" -only-testing:AteUITests/WidgetsIntentsUITests CODE_SIGNING_ALLOWED=NO > ui.log 2>&1
           status=$?
           set -e
 

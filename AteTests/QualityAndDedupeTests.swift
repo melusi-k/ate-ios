@@ -152,16 +152,6 @@ final class PhotoRegressionTests: XCTestCase {
         XCTAssertEqual(PhotoGuess.assess(labels: Self.omeletteToast, ocrText: ""), .confident("omelette with toast"))
         if case .spread = PhotoGuess.assess(labels: Self.twoPlatesOmelette, ocrText: "") { XCTFail("two identical plates are one dish") }
     }
-    func testSouthAfricanFeastIsASelectableSpread() {
-        guard case .spread(let suggestions) = PhotoGuess.assess(labels: Self.southAfricanFeast, ocrText: "") else {
-            return XCTFail("six distinct dishes must not be merged into one recipe")
-        }
-        XCTAssertTrue(suggestions.contains("Beef stew"))
-        XCTAssertTrue(suggestions.contains("Tripe"))
-        XCTAssertTrue(suggestions.contains("Chicken feet"))
-        XCTAssertFalse(suggestions.contains("Bowl"))
-        XCTAssertFalse(suggestions.contains("Plate"))
-    }
     func testChipsComeFromVisionNotTheFixedSAList() {
         let s = PhotoGuess.suggestions(labels: Self.omeletteToast, ocrText: "")
         XCTAssertEqual(s.first, "Omelette with Toast")

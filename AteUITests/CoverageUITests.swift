@@ -498,3 +498,33 @@ extension CoverageUITests {
         XCTAssertFalse(any("insights.journalingPicker").exists)
     }
 }
+
+
+extension CoverageUITests {
+    func testCookingTrackerMonthNavigationAndSelectedDay() {
+        launch(["-qaMockHealth", "empty", "-qaHealthRecipes"])
+        tab("Library")
+        app.buttons["libraryBrowseMenu"].tap()
+        let insights = app.buttons["library.insights"]
+        wait(insights); insights.tap()
+
+        let month = any("tracker.displayedMonth")
+        scrollTo(month)
+        wait(month)
+        let currentMonth = month.label
+        let previous = any("tracker.previousMonth")
+        wait(previous); previous.tap()
+        XCTAssertNotEqual(month.label, currentMonth, "Previous month should update the calendar title")
+
+        let next = any("tracker.nextMonth")
+        wait(next); next.tap()
+        XCTAssertEqual(month.label, currentMonth, "Next month should return to the current month")
+        XCTAssertFalse(next.isEnabled, "Future months must not be selectable")
+
+        let day = any("tracker.day.1")
+        scrollTo(day); wait(day); day.tap()
+        wait(app.navigationBars["Cooked that day"])
+        XCTAssertTrue(text("Nothing recorded for this day").exists || app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Recipe no longer in your library")).firstMatch.exists,
+                      "The selected-day sheet should provide useful content or a deleted-recipe fallback")
+    }
+}

@@ -634,8 +634,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           gh release delete latest-beta --repo "$GITHUB_REPOSITORY" --cleanup-tag -y || true
           git push origin ":refs/tags/latest-beta" 2>/dev/null || true
-          git tag latest-beta "$GITHUB_SHA"
-          git push origin refs/tags/latest-beta
+          git tag -f latest-beta "$GITHUB_SHA"
+          git push --force origin refs/tags/latest-beta
           {
             echo "# Validated beta candidate"
             echo

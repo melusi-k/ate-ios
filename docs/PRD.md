@@ -206,13 +206,13 @@ Ate Plus candidates:
 Rule: never gate data the user already owns. Recipes made with Plus features stay readable, cookable and exportable after a lapse.
 
 ### Tier and pricing — DECISION: Option B (chosen 2026-10-11)
-**Chosen: B. Single tier "Ate Plus" + lifetime**, 7-day free trial (intro offer on monthly and annual, new subscribers only). ZAR prices are App Store price points, so final figures snap to Apple's tier table.
+**Chosen: B. Single tier "Ate Plus" + lifetime**, **7-day free trial on the annual plan only** (introductory offer configured on `com.melusik.ate.plus.annual`, new subscribers only; eligibility checked with `isEligibleForIntroOffer`). Monthly and lifetime have **no trial**. ZAR prices are App Store price points, so final figures snap to Apple's tier table.
 
 | Product | Price | Product ID | Type |
 |---|---|---|---|
-| Ate Plus Monthly | R49.99 / $3.99 | `com.melusik.ate.plus.monthly` | Auto-renewable (group "Ate Plus"), 7-day free trial |
-| Ate Plus Annual | R399.99 / $29.99 (~33% off) | `com.melusik.ate.plus.annual` | Auto-renewable (same group, same level), 7-day free trial |
-| Ate Plus Lifetime | R999.99 / $69.99 once | `com.melusik.ate.plus.lifetime` | Non-consumable, Family Sharing on |
+| Ate Plus Monthly | R49.99 / $3.99 | `com.melusik.ate.plus.monthly` | Auto-renewable (group "Ate Plus"), no trial |
+| Ate Plus Annual | R399.99 / $29.99 (~33% off) | `com.melusik.ate.plus.annual` | Auto-renewable (same group, same level), 7-day free trial (intro offer, annual only) |
+| Ate Plus Lifetime | R999.99 / $69.99 once | `com.melusik.ate.plus.lifetime` | Non-consumable, Family Sharing on, no trial |
 
 Rejected alternatives (kept for reference):
 - ~~A. Simple single tier: R39.99 / $2.99 monthly, R349.99 / $24.99 annual, no lifetime~~ — rejected: no one-off purchase for users who dislike subscriptions.
@@ -236,7 +236,7 @@ Rejected alternatives (kept for reference):
 - **Entitlement caching in the App Group** (shared `UserDefaults`/file with expiry date + product id) so widgets, the Live Activity and App Intents can check Plus without StoreKit calls; refreshed on each update.
 - Server-side validation: Supabase Edge Function `appstore-notifications` receives **App Store Server Notifications V2** (JWS verified against Apple root certs), and `verify-transaction` calls the **App Store Server API** (Get Transaction Info / subscription status) with the signed transaction from the device. Results land in an `entitlements` table (user_id, original_transaction_id, product_id, status, expires_at, environment, updated_at) with RLS so a user only reads their own row. `appAccountToken` = Supabase user UUID links purchases to accounts. Server is source of truth for sync across devices; on-device StoreKit is the offline fallback.
 - **Family Sharing** enabled on subscriptions (and lifetime); handle `ownershipType == .familyShared`.
-- **Offer codes** (one-time codes for testers/partners) via `.offerCodeRedemption`; **intro offer** = free trial; promotional/win-back offers later.
+- **Offer codes** (one-time codes for testers/partners) via `.offerCodeRedemption`; **intro offer** = 7-day free trial on annual only (none on monthly; non-consumables can't have one); promotional/win-back offers later.
 - Manage subscription: `.manageSubscriptionsSheet`; refund request: `.refundRequestSheet` (Apple handles refunds).
 
 ### App Review rules
@@ -245,6 +245,11 @@ Rejected alternatives (kept for reference):
 - Required disclosure on the paywall (near the buy button): title, length, price per period, free-trial length, and: "Payment will be charged to your Apple ID account at confirmation of purchase. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. You can manage and cancel your subscriptions in your App Store account settings."
 - Functional links to **Terms of Use (EULA)** and **Privacy Policy** in the paywall, Settings and App Store Connect metadata.
 - Restore purchases must be available; no misleading trial copy.
+- Paywall copy notes (trial is annual-only):
+  - Annual option: "Try 7 days free, then R399.99/year" (localized price from `Product.displayPrice`), shown only if the user is eligible; ineligible users see "R399.99/year".
+  - Monthly option: "R49.99/month", with no trial wording anywhere near it.
+  - Lifetime: "R999.99 once — no subscription".
+  - Never use a generic "Start free trial" button that could apply to monthly; the trial line sits on the annual option only. Disclosure mentions the trial converts to the annual price unless cancelled at least 24 hours before it ends.
 
 ### Legal pages to update (ate-legal)
 - Terms: subscriptions section (auto-renewal, trial, price changes, cancellation, Family Sharing, what happens to content after lapse); refunds handled by Apple per its policies, with link to reportaproblem.apple.com.
@@ -252,26 +257,28 @@ Rejected alternatives (kept for reference):
 - New/updated: subscription FAQ / support page; reference Apple's standard EULA or custom EULA.
 
 ### Testing
-- `Ate.storekit` StoreKit configuration file (all products, trial, offer codes, Family Sharing) wired into a test scheme; sandbox testers later.
+- `Ate.storekit` StoreKit configuration file (all products; 7-day free intro offer on annual only, none on monthly; offer codes; Family Sharing) wired into a test scheme; sandbox testers later.
 - Unit tests (StoreKitTest `SKTestSession`): purchase, trial, renewal, expiry, refund/revocation, grace period, restore, Family Sharing, App Group cache read/write, AI quota counting.
+- Trial tests: annual shows and grants the 7-day trial for eligible users; monthly purchase starts paid immediately with no intro offer; lifetime has none; ineligible user (past annual trial) gets no trial; trial converts to paid annual; cancelling during trial ends Plus at trial end.
+- UI tests: trial copy appears only on the annual option; monthly and lifetime show no trial text.
 - UI tests: paywall shows prices + disclosure + Terms/Privacy links; purchase unlocks Playground covers; restore flow; lapsed user keeps recipes.
 - Edge Function tests: JWS verification (valid/forged), each notification type updates `entitlements`, idempotency.
 - CI: StoreKit unit tests join the release gate; no real purchases in CI.
 
 ### Acceptance criteria
 - [ ] Free users can use library, cook mode, timers, sync and sharing with no paywall.
-- [ ] Paywall uses `SubscriptionStoreView`, shows localized ZAR/USD prices, trial, disclosure text and working Terms/Privacy links.
+- [ ] Paywall uses `SubscriptionStoreView`, shows localized ZAR/USD prices, the 7-day trial on annual only (none on monthly/lifetime), disclosure text and working Terms/Privacy links.
 - [ ] Purchase, restore and Family Sharing unlock Plus within 2 s; entitlement survives relaunch and offline.
 - [ ] Widgets and App Intents respect Plus via the App Group cache.
 - [ ] Refund/expiry/revocation removes Plus within one notification cycle without deleting user content.
 - [ ] Server `entitlements` row matches device state across two devices on one account.
-- [ ] Offer code redemption works; intro trial only offered to eligible users.
+- [ ] Offer code redemption works; intro trial only offered on annual and only to eligible users.
 - [ ] Legal pages updated and linked before submission; app passes review against 3.1.1/3.1.2.
 - [ ] All StoreKit unit, UI and Edge Function tests green in CI.
 
 ### Open questions
-1. ✅ Resolved: Option B — R49.99 / $3.99 monthly, R399.99 / $29.99 annual, R999.99 / $69.99 lifetime, 7-day trial.
-2. ✅ Trial: 7 days (monthly and annual). Annual-only trial? Open.
+1. ✅ Resolved: Option B — R49.99 / $3.99 monthly, R399.99 / $29.99 annual, R999.99 / $69.99 lifetime, 7-day trial on annual only.
+2. ✅ Resolved: 7-day free trial on the annual plan only; monthly and lifetime have no trial.
 3. Free AI allowance size (5, 10, 20 a month), and does it apply to signed-out users?
 4. ✅ Resolved: yes — `com.melusik.ate.plus.lifetime` non-consumable, Family Sharing on.
 5. Family Sharing on from day one?

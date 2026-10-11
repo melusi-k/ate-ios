@@ -44,6 +44,8 @@ enum CuisineGlossary {
               ingredients: "cake flour, yeast, sugar, salt, water, oil for frying", minutes: 90, servings: 8, note: "prove 1 h, deep-fry"),
         .init(name: "Kota", aliases: ["kota", "skhambane", "bunny chow", "sphatlho", "spatlo"], region: "South African",
               ingredients: "quarter white loaf, chips, polony, russian, cheese, atchar, egg", minutes: 30, servings: 1, note: "hollowed quarter loaf filled"),
+        .init(name: "Spring rolls", aliases: ["spring roll", "spring rolls", "springroll", "springrolls"], region: "International / South African home cooking",
+              ingredients: "spring-roll wrappers, cabbage or mixed vegetables, carrot, onion, garlic, ginger, soy sauce, oil for frying", minutes: 45, servings: 4, note: "season and cool the filling, seal wrappers, fry until crisp"),
         .init(name: "Ting", aliases: ["ting", "setswana ting", "fermented sorghum"], region: "Botswana / Setswana",
               ingredients: "sorghum meal, water (fermented 1 to 2 days)", minutes: 30, servings: 4, note: "ferment, then cook like soft porridge"),
         .init(name: "Sadza", aliases: ["sadza", "nshima", "nsima", "ugali"], region: "Southern / East African",

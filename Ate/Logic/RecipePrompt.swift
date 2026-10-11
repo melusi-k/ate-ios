@@ -55,6 +55,7 @@ enum RecipePrompt {
     7. Respect regional cuisines (South African, Southern African, West African). Use the glossary when provided. Never replace them with an unrelated Western dish.
     8. First identify the dish (dishName, cuisine, confidence, alternatives), then write the recipe for that dish. confidence is 0 to 1: how sure you are about dishName; use below 0.8 when the input does not clearly name or show it.
     9. A main dish needs at least 4 real ingredients with quantities. Oven steps give the temperature in °C. Every step says how (heat, cue), never just "cook the ribs". Times must be realistic: simmer/stew 20+ min, braise 1 h+, pap 15+ min, browning 5+ min. Start each step with a specific verb. Never invent steps or ingredients the source contradicts.
+    10. Ingredient–step consistency is mandatory: every named food, wrapper, sauce, fat or binder used in a step must appear as a measured ingredient. Conversely, do not list ingredients that the steps never use. For a photo, account for the dish's structure (for example, a spring roll needs a wrapper and a named filling); do not turn a generic vegetable mixture into a complete recipe.
     Example 1 (South African), input "chakalaka": dish Chakalaka, South African, confidence 0.95. Ingredients: 2 tbsp oil; 1 onion, diced; 2 carrots, grated; 1 green pepper, diced; 2 tsp curry powder; 400 g tinned baked beans. Steps: Sauté the onion in the oil over medium heat until soft, 5 min. Stir in the carrot, pepper and curry powder and fry 3 min. Add the beans and simmer uncovered until thick, 15 min.
     Example 2, input "sticky oven ribs": dish Sticky pork ribs, American, confidence 0.9. Ingredients: 1.2 kg pork ribs; 3 tbsp brown sugar; 2 tsp smoked paprika; 3 cloves garlic, crushed; 125 ml barbecue sauce. Steps: Rub the ribs with sugar, paprika and garlic. Wrap in foil and bake at 160°C until tender, 120 min. Unwrap, brush with sauce and roast at 220°C until sticky, 15 min.
     """
@@ -100,7 +101,7 @@ enum RecipePrompt {
     /// Food photo where the user (or a confident label) named the dish.
     /// `ocr` is inlined only on the fallback path; with the readPhotoText tool the model fetches it on demand.
     static func photo(dish: String, labels: [String], ocr: String, ocrViaTool: Bool = false) -> String {
-        var p = "A photo shows this dish: \(dish). Write a traditional home-cook recipe for exactly that dish."
+        var p = "A photo shows this dish: \(dish). Write a traditional home-cook recipe for exactly that dish. List every visible structural component and make every component used in the steps a measured ingredient; never write a step using an unlisted wrapper, pastry, sauce, binder or filling."
         if !labels.isEmpty { p += " Image labels (generic hints only): \(labels.prefix(5).joined(separator: ", "))." }
         let o = ocr.trimmingCharacters(in: .whitespacesAndNewlines)
         if ocrViaTool { if !o.isEmpty { p += " The photo contains some printed text; call readPhotoText if it helps." } }

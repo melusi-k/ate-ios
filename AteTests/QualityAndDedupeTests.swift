@@ -163,6 +163,21 @@ final class PhotoRegressionTests: XCTestCase {
         let d = PhotoGuess.sceneDescription(labels: Self.omeletteToast, salientObjects: 2, colours: ["yellow", "brown"])
         XCTAssertTrue(d.contains("omelette 71%")); XCTAssertTrue(d.contains("About 2 separate items")); XCTAssertTrue(d.contains("yellow"))
     }
+    func testSpringRollPhotoCannotUseAnUnlistedWrapper() {
+        let c = RecipeCard(title: "Springroll", servings: 4, timeMinutes: 40,
+                           ingredients: [.init(name: "vegetables mix", quantity: 100, unit: "g"),
+                                         .init(name: "cumin", quantity: 2, unit: "tsp"),
+                                         .init(name: "paprika", quantity: 1, unit: "tsp"),
+                                         .init(name: "oil", quantity: 150, unit: "ml")],
+                           steps: [.init(order: 1, instruction: "Mix the vegetables, cumin and paprika in a bowl", timeSeconds: 300),
+                                   .init(order: 2, instruction: "Wrap the filling in pastry sheets", timeSeconds: 600),
+                                   .init(order: 3, instruction: "Fry the spring rolls in hot oil until golden", timeSeconds: 900)],
+                           source: .photoGuess)
+        let gaps = RecipeQuality.shortfall(c)
+        XCTAssertTrue(gaps.contains { $0.contains("Missing essentials") && $0.contains("spring roll wrapper") })
+        XCTAssertTrue(gaps.contains { $0.contains("wrapping step") })
+        XCTAssertTrue(RecipePrompt.photo(dish: "springroll", labels: [], ocr: "").contains("every visible structural component"))
+    }
     // Cheese and polony sandwich device bug
     private func thinSandwich() -> RecipeCard {
         RecipeCard(title: "cheese and polony sandwich", servings: 4, timeMinutes: 30,

@@ -21,7 +21,7 @@ enum RecipeQuality {
     }
 
     static let ovenWords = ["bake", "roast", "oven", "grill in the oven", "broil"]
-    static let mainWords = ["ribs", "wings", "chicken", "beef", "lamb", "pork", "stew", "curry", "steak", "fish", "mogodu", "nyama",
+    static let mainWords = ["ribs", "wings", "chicken", "beef", "lamb", "pork", "stew", "curry", "steak", "fish", "mogodu", "nyama", "springroll", "spring roll",
                             "oxtail", "pasta", "chops", "braai", "potjie", "casserole", "roast"]
     static let genericVerbs: Set<String> = ["cook", "prepare", "make", "finish", "serve", "do"]
 
@@ -46,6 +46,7 @@ enum RecipeQuality {
         ("sushi", [["nori", "seaweed"], ["rice vinegar", "sushi vinegar"], ["salmon", "tuna", "cucumber", "avocado", "crab", "prawn", "tofu", "egg", "carrot", "fish"]]),
         ("pap", [["maize", "mealie", "maize meal"]]),
         ("chakalaka", [["beans", "baked beans"], ["carrot", "carrots"]]),
+        ("springroll", [["spring roll wrapper", "spring-roll wrapper", "pastry", "filo", "phyllo", "wonton"], ["vegetable", "cabbage", "carrot", "bean sprout", "meat", "chicken", "prawn"]]),
     ]
     static func missingEssentials(_ c: RecipeCard) -> [String] {
         let have = c.ingredients.map { $0.name.lowercased() }.joined(separator: " | ")
@@ -63,6 +64,13 @@ enum RecipeQuality {
         if !vague.isEmpty { out.append("Name the actual ingredients instead of “\(vague.joined(separator: "”, “"))”.") }
         let miss = missingEssentials(c)
         if !miss.isEmpty { out.append("Missing essentials: \(miss.joined(separator: ", ")).") }
+        let ingredientText = c.ingredients.map { $0.name.lowercased() }.joined(separator: " | ")
+        let stepText = c.steps.map { $0.instruction.lowercased() }.joined(separator: " | ")
+        if (CoverLogic.matches(c.title, "springroll") || CoverLogic.matches(c.title, "spring roll")),
+           (stepText.contains("wrap") || stepText.contains("pastry") || stepText.contains("wrapper")),
+           !["pastry", "wrapper", "filo", "phyllo", "wonton", "spring roll"].contains(where: { ingredientText.contains($0) }) {
+            out.append("A wrapping step uses pastry/wrappers that are not listed as ingredients.")
+        }
         if isMainDish(c) || !miss.isEmpty || !vague.isEmpty, c.tags.contains(where: { ["condiment", "condiments"].contains($0.lowercased()) }) {
             out.append("The “condiment” tag doesn't fit this dish.")
         }

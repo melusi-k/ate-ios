@@ -158,16 +158,18 @@ struct AddToShoppingListIntent: AppIntent {
 struct TonightsPickIntent: AppIntent {
     static let title: LocalizedStringResource = "Tonight's pick"
     static let description = IntentDescription("Suggests one recipe from your library that fits your day.")
-    @MainActor func perform() async throws -> some IntentResult & ReturnsValue<RecipeAppEntity?> & ProvidesDialog {
+    static let openAppWhenRun = false
+    @MainActor func perform() async throws -> some IntentResult & ReturnsValue<RecipeAppEntity?> & ProvidesDialog & ShowsSnippetView {
         let recipes = AppStore.current?.recipes ?? []
         guard let p = WidgetSnapshotBuilder.pick(recipes: recipes, health: WidgetBridge.lastHealthState),
               let r = recipes.first(where: { $0.id == p.recipeID }) else {
-            return .result(value: nil, dialog: "Save a recipe to ate first, then I can pick one for tonight.")
+            return .result(value: nil, dialog: "Save a recipe to ate first, then I can pick one for tonight.", view: SnippetEmpty(text: "No recipes yet"))
         }
         QAProbe.shared.lastIntent = "pick:\(r.title)"
         BetaQA.shared.pass("A-INTENT-03", note: "Tonight's pick: \(r.title)")
         let lead = p.healthTitle.map { "It's a \($0.lowercased()), so " } ?? ""
-        return .result(value: RecipeAppEntity(r), dialog: "\(lead)tonight's pick is \(r.title). \(p.why).")
+        return .result(value: RecipeAppEntity(r), dialog: "\(lead)tonight's pick is \(r.title). \(p.why).",
+                       view: PickSnippet(recipe: r, why: p.why))
     }
 }
 
@@ -281,15 +283,21 @@ struct AteShortcuts: AppShortcutsProvider {
             "What's tonight's pick in \(.applicationName)",
             "What should I cook tonight with \(.applicationName)",
         ], shortTitle: "Tonight's pick", systemImageName: "sparkles")
+        AppShortcut(intent: ShoppingListSnippetIntent(), phrases: [
+            "What's on my \(.applicationName) shopping list",
+            "What's on my \(.applicationName) list",
+        ], shortTitle: "Shopping list", systemImageName: "checklist")
+        AppShortcut(intent: TimerStatusIntent(), phrases: [
+            "How long left on my \(.applicationName) timer",
+            "How long is left on my \(.applicationName) timer",
+        ], shortTitle: "Time left", systemImageName: "hourglass")
+        AppShortcut(intent: QuickRecipesIntent(), phrases: [
+            "What can I cook in under 30 minutes with \(.applicationName)",
+            "Quick recipes in \(.applicationName)",
+        ], shortTitle: "Quick recipes", systemImageName: "bolt")
         AppShortcut(intent: KitchenTimerIntent(), phrases: [
             "Start a kitchen timer in \(.applicationName)",
         ], shortTitle: "Kitchen timer", systemImageName: "timer")
-        AppShortcut(intent: PauseTimersIntent(), phrases: [
-            "Pause my \(.applicationName) timer",
-        ], shortTitle: "Pause timer", systemImageName: "pause.circle")
-        AppShortcut(intent: ResumeTimersIntent(), phrases: [
-            "Resume my \(.applicationName) timer",
-        ], shortTitle: "Resume timer", systemImageName: "play.circle")
         AppShortcut(intent: StopTimersIntent(), phrases: [
             "Stop my \(.applicationName) timer",
         ], shortTitle: "Stop timer", systemImageName: "stop.circle")

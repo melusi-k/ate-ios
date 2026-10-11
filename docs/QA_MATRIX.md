@@ -266,6 +266,7 @@ Run on **iOS 18** (opaque bars) and **iOS 26** (Liquid Glass), in **light** and 
 | Selected day | Tapping a date opens that date's details; empty dates explain that nothing was recorded; missing/deleted recipes have a fallback label. | Simulator UI test | Pending |
 | History persistence | Local event history survives service re-instantiation/relaunch and uses isolated test storage. | Unit tests | Partial — persistence unit test added; relaunch/device evidence pending |
 | Streak rules | Empty history, today, yesterday, gaps, month/year boundaries, and multiple recipes in one day are deterministic. | Unit tests | Partial — core today/yesterday/gap cases covered; boundary cases pending |
+| Calendar/time-zone change | Historical events stay assigned to the local day key captured at record time; changing device time zone/calendar must not silently rewrite history. | Unit test + device setting-change check | Pending |
 | Accessibility | Month controls and dates have descriptive labels, selected state is exposed, weekday decoration is hidden from VoiceOver, and layout remains usable at larger text sizes. | VoiceOver + Dynamic Type device QA | Pending |
 
 This section supplements the canonical IDs in `MVP_CHECKLIST.md`; do not mark the tracker complete until automated and device evidence is attached to [issue #31](https://github.com/melusi-k/ate-ios/issues/31).

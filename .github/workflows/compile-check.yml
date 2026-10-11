@@ -1,7 +1,11 @@
 name: Compile check
 
-# Fast validation for work-in-progress branches and pull requests: compile the app, run unit tests,
-# and exercise widget/intents UI flows before changes are merged. Build IPA ignores wip/** pushes.
+# Run expensive simulator checks only when app, test, build, or CI inputs change.
+# Documentation-only PRs still get the lightweight docs/ID consistency check.
+permissions:
+  contents: read
+  pull-requests: read
+
 on:
   push:
     branches: ["wip/**"]
@@ -14,7 +18,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Classify changed files
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            app:
+              - 'Ate/**'
+              - 'AteTests/**'
+              - 'AteUITests/**'
+              - 'AteWidgets/**'
+              - 'AteWatch/**'
+              - 'Ate.xcodeproj/**'
+              - 'project.yml'
+              - 'Package.swift'
+              - 'Package.resolved'
+              - 'scripts/**'
+              - 'supabase/**'
+              - '.github/workflows/**'
+
+  docs-validation:
+    needs: changes
+    if: needs.changes.outputs.app != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docs IDs and generated checklist consistency
+        run: python3 scripts/check-ids.py
+
   compile:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: macos-26
     timeout-minutes: 45
     env:

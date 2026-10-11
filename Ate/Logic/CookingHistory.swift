@@ -7,10 +7,13 @@ final class CookingHistory {
     private static let key = "ate.cooking.history.v1"
     private(set) var events: [String: Set<String>] = [:] // day key -> recipe IDs
     private let calendar: Calendar
+    private let defaults: UserDefaults
 
-    init(calendar: Calendar = .current) {
+    /// Inject storage so tests can verify persistence without mutating the user's standard defaults.
+    init(calendar: Calendar = .current, defaults: UserDefaults = .standard) {
         self.calendar = calendar
-        if let data = UserDefaults.standard.data(forKey: Self.key),
+        self.defaults = defaults
+        if let data = defaults.data(forKey: Self.key),
            let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) {
             events = decoded.mapValues(Set.init)
         }
@@ -56,6 +59,6 @@ final class CookingHistory {
 
     private func save() {
         let value = events.mapValues { Array($0).sorted() }
-        UserDefaults.standard.set(try? JSONEncoder().encode(value), forKey: Self.key)
+        defaults.set(try? JSONEncoder().encode(value), forKey: Self.key)
     }
 }

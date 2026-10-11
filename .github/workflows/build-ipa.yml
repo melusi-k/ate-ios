@@ -59,6 +59,14 @@ jobs:
           { echo "### Foundation Models image-input probe"; echo "SDK: $(xcrun --sdk iphoneos --show-sdk-version)";
             if [ -n "$IF" ]; then echo '```'; grep -nE 'CGImage|UIImage|ImageAttachment|Transcript\.Image|image:' "$IF" | head -20 || echo "no image symbols"; echo '```'; else echo "FoundationModels interface not found"; fi; } | tee -a "$GITHUB_STEP_SUMMARY"
 
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: macos-26-homebrew-xcodegen-v1
+          restore-keys: |
+            macos-26-homebrew-
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
@@ -432,6 +440,14 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: macos-26-homebrew-xcodegen-v1
+          restore-keys: |
+            macos-26-homebrew-
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
@@ -526,6 +542,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Cache Playwright browser binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ubuntu-playwright-chromium-${{ hashFiles('scripts/e2e/*.py') }}
+          restore-keys: |
+            ubuntu-playwright-chromium-
+
       - name: Install Playwright
         run: pip install -q playwright && python -m playwright install --with-deps chromium
       - name: Run backend-e2e

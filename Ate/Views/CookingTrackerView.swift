@@ -38,22 +38,108 @@ private struct TrackerDate: Identifiable { let date: Date; var id: Date { date }
 private struct CookingDotGrid: View {
     let history: CookingHistory
     @Binding var selectedDate: Date?
+    @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
     private let calendar = Calendar.current
-    private var dates: [Date] {
-        let today = calendar.startOfDay(for: Date())
-        return (0..<28).compactMap { calendar.date(byAdding: .day, value: -27 + $0, to: today) }
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 7), count: 7)
+    private let weekdays = Calendar.current.veryShortStandaloneWeekdaySymbols
+
+    private var monthDates: [Date?] {
+        guard let interval = calendar.dateInterval(of: .month, for: displayedMonth),
+              let dayRange = calendar.range(of: .day, in: .month, for: displayedMonth) else { return [] }
+        let firstWeekday = calendar.component(.weekday, from: interval.start)
+        let leading = (firstWeekday - calendar.firstWeekday + 7) % 7
+        let days = dayRange.compactMap { day -> Date? in
+            calendar.date(byAdding: .day, value: day - 1, to: interval.start)
+        }
+        let cells: [Date?] = Array(repeating: nil, count: leading) + days.map(Optional.some)
+        let trailing = (7 - cells.count % 7) % 7
+        return cells + Array(repeating: nil, count: trailing)
     }
+
+    private var isCurrentMonth: Bool {
+        calendar.isDate(displayedMonth, equalTo: Date(), toGranularity: .month)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(Date().formatted(.dateTime.month(.wide).year())).font(AteFont.body(12, .semibold))
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 7), spacing: 7) {
-                ForEach(dates, id: \.self) { date in
-                    Button { selectedDate = date } label: {
-                        Circle().fill(history.cooked(on: date) ? Theme.primary : Theme.input)
-                            .frame(width: 24, height: 24)
-                            .overlay(Text(calendar.component(.day, from: date).description).font(.system(size: 9, weight: .semibold)).foregroundStyle(history.cooked(on: date) ? .white : Theme.mutedForeground))
-                    }.buttonStyle(.plain).accessibilityLabel(date.formatted(date: .abbreviated, time: .omitted) + (history.cooked(on: date) ? ", cooked" : ", no cooking recorded"))
+        VStack(alignment: .leading, spacing: 9) {
+            HStack {
+                Button {
+                    if let previous = calendar.date(byAdding: .month, value: -1, to: displayedMonth) {
+                        withAnimation(Motion.anim(.snappy)) { displayedMonth = previous }
+                    }
+                } label: {
+                    Image(systemName: "chevron.left").frame(width: 36, height: 36)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Previous month")
+                .accessibilityIdentifier("tracker.previousMonth")
+
+                Spacer()
+                Text(displayedMonth.formatted(.dateTime.month(.wide).year()))
+                    .font(AteFont.body(14, .semibold))
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("tracker.displayedMonth")
+                Spacer()
+
+                Button {
+                    if let next = calendar.date(byAdding: .month, value: 1, to: displayedMonth) {
+                        withAnimation(Motion.anim(.snappy)) { displayedMonth = next }
+                    }
+                } label: {
+                    Image(systemName: "chevron.right").frame(width: 36, height: 36)
+                }
+                .buttonStyle(.plain)
+                .disabled(isCurrentMonth)
+                .accessibilityLabel("Next month")
+                .accessibilityIdentifier("tracker.nextMonth")
+            }
+
+            LazyVGrid(columns: columns, spacing: 7) {
+                ForEach(Array(weekdays.enumerated()), id: \.offset) { _, weekday in
+                    Text(weekday.uppercased())
+                        .font(AteFont.body(9, .semibold))
+                        .foregroundStyle(Theme.mutedForeground)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityHidden(true)
+                }
+                ForEach(Array(monthDates.enumerated()), id: \.offset) { _, date in
+                    if let date {
+                        let cooked = history.cooked(on: date)
+                        let isSelected = selectedDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
+                        let isToday = calendar.isDateInToday(date)
+                        Button { selectedDate = date } label: {
+                            Circle()
+                                .fill(cooked ? Theme.primary : Theme.input)
+                                .frame(width: 32, height: 32)
+                                .overlay {
+                                    Text(calendar.component(.day, from: date).description)
+                                        .font(.system(size: 11, weight: isToday ? .bold : .medium))
+                                        .foregroundStyle(cooked ? .white : Theme.mutedForeground)
+                                }
+                                .overlay {
+                                    Circle().strokeBorder(isSelected ? Theme.foreground : .clear, lineWidth: 2)
+                                }
+                                .overlay {
+                                    if isToday && !isSelected {
+                                        Circle().strokeBorder(Theme.primary, lineWidth: 1)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(date.formatted(date: .complete, time: .omitted) + (cooked ? ", cooked" : ", no cooking recorded") + (isToday ? ", today" : ""))
+                        .accessibilityAddTraits(isSelected ? .isSelected : [])
+                        .accessibilityIdentifier("tracker.day.\(calendar.component(.day, from: date))")
+                    } else {
+                        Color.clear.frame(height: 32).accessibilityHidden(true)
+                    }
+                }
+            }
+        }
+        .onChange(of: displayedMonth) { _, month in
+            if let selectedDate, !calendar.isDate(selectedDate, equalTo: month, toGranularity: .month) {
+                self.selectedDate = nil
             }
         }
     }

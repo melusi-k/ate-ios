@@ -195,14 +195,18 @@ final class MockBackend: BackendService {
     }
 
     func fetchShared(slug: String) async throws -> RecipeCard? {
-        try await Task.sleep(nanoseconds: 300_000_000)
-        if let c = Self.published[slug] { return c }
-        if slug == "offline" {
-            if Self.offlineOnce { Self.offlineOnce = false; throw URLError(.notConnectedToInternet) }
-            return try await parseRecipe(ParseRequest(mode: .prompt, text: "Back online soup"))
-        }
-        if slug == "demo" { return try await parseRecipe(ParseRequest(mode: .prompt, text: "Shared miso salmon")) }
-        return nil
+        // Read by opaque slug through the edge function, not PostgREST table SELECT.
+        // This lets the database revoke public table listing without breaking this client.
+        guard var comps = URLComponents(url: baseURL.appendingPathComponent("functions/v1/get-shared-recipe"), resolvingAgainstBaseURL: false) else { return nil }
+        comps.queryItems = [URLQueryItem(name: "slug", value: slug)]
+        guard let url = comps.url else { return nil }
+        var r = request("")
+        r.url = url
+        let (data, response) = try await Net.data(for: r)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if code == 404 { return nil }
+        guard (200..<300).contains(code) else { throw BackendError.http(code) }
+        return try JSONDecoder().decode(CardEnvelope.self, from: data).card
     }
 }
 

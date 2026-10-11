@@ -33,9 +33,20 @@ enum SharedInbox {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: SharedContainer.groupID)?
             .appendingPathComponent("Inbox", isDirectory: true)
     }
+    /// Resolve only the UUID-named JPEG files produced by the share extension.
+    /// Inbox metadata is persisted in a shared container, so never trust a stored path.
+    static func safeImageURL(_ filename: String, in directory: URL) -> URL? {
+        guard filename.hasSuffix(".jpg"),
+              let id = UUID(uuidString: String(filename.dropLast(4))),
+              id.uuidString.caseInsensitiveCompare(String(filename.dropLast(4))) == .orderedSame else { return nil }
+        let root = directory.standardizedFileURL
+        let candidate = root.appendingPathComponent(filename, isDirectory: false).standardizedFileURL
+        guard candidate.deletingLastPathComponent() == root else { return nil }
+        return candidate
+    }
+
     static func imageData(_ item: Item) -> Data? {
-        guard let f = item.imageFile, let dir = folder else { return nil }
-        let u = dir.appendingPathComponent(f)
+        guard let f = item.imageFile, let dir = folder, let u = safeImageURL(f, in: dir) else { return nil }
         defer { try? FileManager.default.removeItem(at: u) }
         return try? Data(contentsOf: u)
     }

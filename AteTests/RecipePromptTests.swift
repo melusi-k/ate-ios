@@ -67,7 +67,7 @@ final class RecipePromptTests: XCTestCase {
         let generic: [(String, Float)] = [("food", 0.9), ("potato", 0.4), ("meal", 0.5)]
         guard case .uncertain(let s) = PhotoGuess.assess(labels: generic, ocrText: "") else { return XCTFail("generic labels must ask") }
         XCTAssertTrue(s.contains("Mogodu (tripe)"))
-        let spread: [(String, Float)] = [("food", 0.9), ("bowl", 0.7), ("curry", 0.6), ("salad", 0.5), ("pizza", 0.45), ("rice", 0.4)]
+        let spread: [(String, Float)] = [("food", 0.9), ("bowl", 0.7), ("pizza", 0.6), ("sushi", 0.5), ("hamburger", 0.45), ("rice", 0.4)]
         guard case .spread = PhotoGuess.assess(labels: spread, ocrText: "") else { return XCTFail("3+ different foods = spread") }
         let bowls: [(String, Float)] = [("food", 0.9), ("bowl", 0.7), ("tableware", 0.6), ("stew", 0.4), ("bread", 0.3)]
         if case .spread = PhotoGuess.assess(labels: bowls, ocrText: "") { XCTFail("bowls/plates alone are not a spread") }

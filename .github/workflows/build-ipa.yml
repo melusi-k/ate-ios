@@ -304,24 +304,51 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          SIM_ID=$(xcrun simctl list devices available -j | python3 -c '
+          profile() {
+            local label="$1"; shift
+            local start end status
+            start=$(date +%s)
+            "$@"
+            status=$?
+            end=$(date +%s)
+            echo "::notice::PROFILE step=\"$label\" duration_seconds=$((end-start)) exit_code=$status"
+            return "$status"
+          }
+          SIM_ID=$(profile_sim_start=$(date +%s); xcrun simctl list devices available -j | python3 -c '
           import json,sys
           d=json.load(sys.stdin)["devices"]
           c=[(k,x) for k,v in d.items() if "iOS-26" in k for x in v if x["name"]=="iPhone 17"]
           c=c or [(k,x) for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")]
           c.sort(key=lambda t:t[0]); print(c[-1][1]["udid"])')
+          profile_sim_end=$(date +%s); echo "::notice::PROFILE step=select_simulator duration_seconds=$((profile_sim_end-profile_sim_start))"
+          profile_sim_boot_start=$(date +%s)
           xcrun simctl boot "$SIM_ID" || true
+          profile_sim_boot_end=$(date +%s); echo "::notice::PROFILE step=simulator_boot duration_seconds=$((profile_sim_boot_end-profile_sim_boot_start))"
+          profile_build_start=$(date +%s)
           xcodebuild build -project Ate.xcodeproj -scheme "$SCHEME" -configuration Release \
             -destination "id=$SIM_ID" -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO -quiet 2>&1 | tail -20
+          profile_build_status=$?
+          profile_build_end=$(date +%s); echo "::notice::PROFILE step=simulator_build duration_seconds=$((profile_build_end-profile_build_start)) exit_code=$profile_build_status"
+          [ "$profile_build_status" -eq 0 ] || exit "$profile_build_status"
           APP=$(ls -d build/sim/Build/Products/Release-iphonesimulator/Ate.app)
           [ "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "$BUILD_NUMBER" ] || { echo "::error::sim build number mismatch"; exit 1; }
+          profile_bootstatus_start=$(date +%s)
           xcrun simctl bootstatus "$SIM_ID" -b
+          profile_bootstatus_end=$(date +%s); echo "::notice::PROFILE step=simulator_bootstatus duration_seconds=$((profile_bootstatus_end-profile_bootstatus_start))"
+          profile_install_start=$(date +%s)
           xcrun simctl install "$SIM_ID" "$APP"
+          profile_install_end=$(date +%s); echo "::notice::PROFILE step=simulator_install duration_seconds=$((profile_install_end-profile_install_start))"
+          profile_launch_start=$(date +%s)
           OUT=$(xcrun simctl launch "$SIM_ID" com.melusik.ate); echo "$OUT"
+          profile_launch_status=$?
+          profile_launch_end=$(date +%s); echo "::notice::PROFILE step=simulator_launch duration_seconds=$((profile_launch_end-profile_launch_start)) exit_code=$profile_launch_status"
+          [ "$profile_launch_status" -eq 0 ] || exit "$profile_launch_status"
           PID=$(echo "$OUT" | awk -F': ' '{print $NF}')
+          profile_wait_start=$(date +%s)
           sleep 10
           mkdir -p smoke
           xcrun simctl io "$SIM_ID" screenshot smoke/launch-10s.png
+          profile_wait_end=$(date +%s); echo "::notice::PROFILE step=alive_wait_and_screenshot duration_seconds=$((profile_wait_end-profile_wait_start))"
           if kill -0 "$PID" 2>/dev/null; then
             echo "SMOKE_STATUS=pass" >> $GITHUB_ENV; echo "✅ Ate alive 10 s after launch (pid $PID)" | tee -a "$GITHUB_STEP_SUMMARY"
           else

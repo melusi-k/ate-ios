@@ -693,6 +693,198 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Status evidence:* Staging secrets not configured
   - *Owner:* _TBD_
 
+### Design review polish — 0 / 7
+
+- **C-DES-01 · Native nav bars** — ❌
+  - *Acceptance:* Library, Shopping, More and Settings show system large serif titles that collapse on scroll; pushed screens use the system chevron Back and swipe-back; no custom bar chrome.
+  - *Verified by:* auto: UI test testSystemBackFromRecipeNeverDead
+  - *Owner:* _TBD_
+
+- **C-DES-02 · One bottom area on recipe detail** — ❌
+  - *Acceptance:* Cook mode sits directly above a single timer bar; nothing overlaps the tab bar; Ask Ate scrolls clear; the offline strip is at the top.
+  - *Verified by:* auto: UI test testBottomBarsDoNotOverlapRecipeDetail
+  - *Owner:* _TBD_
+
+- **C-DES-03 · Timer summary bar** — ❌
+  - *Acceptance:* With 2+ timers running, one compact summary bar shows the soonest timer and '+N more'; tapping it lists all timers with pause/stop.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-DES-04 · 44 pt tap targets** — ❌
+  - *Acceptance:* Every button, chip, stepper and icon in Library, recipe detail, cook mode and Settings is at least 44×44 pt.
+  - *Verified by:* auto: accessibility audit (hit region)
+  - *Owner:* _TBD_
+
+- **C-DES-05 · Segmented servings control** — ❌
+  - *Acceptance:* Servings uses a system segmented/stepper control; changing it rescales every ingredient instantly and VoiceOver reads the value.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-DES-06 · The … menu** — ❌
+  - *Acceptance:* The recipe … menu is a system menu with Edit, Share, Generate cover, Add to list and a red Delete last; nothing is clipped or duplicated.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-DES-07 · Cook mode ✕** — ❌
+  - *Acceptance:* Cook mode closes with a top-leading ✕ (labelled 'Close cook mode'); closing with running timers keeps them running and shows them on the timer bar.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+
+### Accessibility — 0 / 4
+
+- **C-AX-01 · AX5 Larger Text** — ❌
+  - *Acceptance:* At the largest accessibility text size every screen is readable, nothing is clipped or truncated mid-word, and no fixed-size fonts remain.
+  - *Verified by:* auto: detected when the app runs at an accessibility text size + testAuditLargestDynamicType
+  - *Owner:* _TBD_
+
+- **C-AX-02 · VoiceOver** — ❌
+  - *Acceptance:* Every icon button has a spoken label; timers read '4 minutes 12 seconds'; cook steps are headers 'Step 2 of 5'; chips announce Selected.
+  - *Verified by:* auto: detected when VoiceOver runs + testAuditMainScreens
+  - *Owner:* _TBD_
+
+- **C-AX-03 · Reduce Motion** — ❌
+  - *Acceptance:* With Reduce Motion on, onboarding, progress, list moves and shimmer don't animate.
+  - *Verified by:* auto: detected when Reduce Motion is on
+  - *Owner:* _TBD_
+
+- **C-AX-04 · Contrast and Bold Text** — ❌
+  - *Acceptance:* With Increase Contrast and Bold Text, muted text and borders darken and fonts get heavier; brand colour pairs are ≥4.5:1.
+  - *Verified by:* auto: detected when Increase Contrast/Bold Text is on + AccessibilityTests
+  - *Owner:* _TBD_
+
+
+### Native acceptance — 0 / 13
+
+- **C-NAT-01 · N-01 System chrome only** — ❌
+  - *Acceptance:* Tab bar, nav bars, Back, menus, search and sheet chrome are system; no custom glassEffect without an opaque iOS 18 fallback; cards, buttons, chips and fields stay opaque.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-NAT-02 · N-02 Large titles + system Back** — ❌
+  - *Acceptance:* Large serif titles collapse on scroll; pushed screens have chevron Back and swipe-back; Back is never dead from Library, More, Settings or the Insights sheet.
+  - *Verified by:* auto: UI test
+  - *Owner:* _TBD_
+
+- **C-NAT-03 · N-03 One bottom area** — ❌
+  - *Acceptance:* Recipe detail: Cook mode above a single timer bar; Ask Ate scrolls clear; offline strip at the top.
+  - *Verified by:* auto: UI test
+  - *Owner:* _TBD_
+
+- **C-NAT-04 · N-04 Search** — ❌
+  - *Acceptance:* Library uses system search; the query survives tab switches and cancel-and-return; scroll position is kept per tab.
+  - *Verified by:* auto: UI test test04
+  - *Owner:* _TBD_
+
+- **C-NAT-05 · N-05 Destructive actions** — ❌
+  - *Acceptance:* Delete recipe, clear list and sign out use a confirmation dialog anchored to the control; delete account is an alert with a safe Cancel.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-NAT-06 · N-06 Editing sheets** — ❌
+  - *Acceptance:* The add/import sheet has a grabber and Cancel, and won't swipe-dismiss with unsaved input (discard prompt).
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-NAT-07 · N-07 Filter rail** — ❌
+  - *Acceptance:* One non-wrapping row of 44 pt chips; the selected chip has a checkmark and scrolls into view.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-NAT-08 · N-08 AX5 text** — ❌
+  - *Acceptance:* At max Larger Text every screen is readable with nothing clipped.
+  - *Verified by:* auto: same detection as C-AX-01
+  - *Owner:* _TBD_
+
+- **C-NAT-09 · N-09 VoiceOver** — ❌
+  - *Acceptance:* Icon buttons labelled; timers spoken in words; steps are headers; onboarding dots read 'Page x of y' and are adjustable.
+  - *Verified by:* auto: same detection as C-AX-02
+  - *Owner:* _TBD_
+
+- **C-NAT-10 · N-10 Reduce Motion** — ❌
+  - *Acceptance:* Onboarding, progress, list moves and shimmer don't animate.
+  - *Verified by:* auto: same detection as C-AX-03
+  - *Owner:* _TBD_
+
+- **C-NAT-11 · N-11 Reduce Transparency** — ❌
+  - *Acceptance:* Bars and materials turn opaque and text stays readable.
+  - *Verified by:* auto: detected when Reduce Transparency is on
+  - *Owner:* _TBD_
+
+- **C-NAT-12 · N-12 Increase Contrast + Bold Text** — ❌
+  - *Acceptance:* Muted text and borders darken; custom fonts get heavier with Bold Text.
+  - *Verified by:* auto: same detection as C-AX-04
+  - *Owner:* _TBD_
+
+- **C-NAT-13 · N-13 Offline / model unavailable** — ❌
+  - *Acceptance:* Typed link/prompt and review drafts are kept offline; Retry works without retyping.
+  - *Verified by:* auto: mirrors A-OFF-02
+  - *Owner:* _TBD_
+
+
+### Widgets, Lock Screen & Control Center — 0 / 4
+
+- **C-WID-01 · Widgets read live data** — ❌
+  - *Acceptance:* Beta testing › Widgets says App Group OK and at least one widget kind has loaded; no widget is stuck on 'Open ate'.
+  - *Verified by:* auto: App Group + widget heartbeat detected
+  - *Owner:* _TBD_
+
+- **C-WID-02 · Widget gallery polish** — ❌
+  - *Acceptance:* All five Ate widgets appear in the gallery with names, descriptions and correct previews in light, dark and tinted modes.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-WID-03 · Lock Screen accessories** — ❌
+  - *Acceptance:* Circular ring, rectangular step timer and inline shopping item render legibly in every Lock Screen font/colour and update within a few seconds.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-WID-04 · Control Center controls** — ❌
+  - *Acceptance:* Kitchen timer and Quick add appear in the Controls gallery with icons and labels, and work from the Lock Screen and Action button.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+
+### Siri polish — 0 / 4
+
+- **C-SIRI-01 · Phrases recognised by voice** — ❌
+  - *Acceptance:* 'Cook Mogodu in Ate', 'What's tonight's pick in Ate' and 'What's on my Ate shopping list' are all handled by Ate by voice, not a web answer; Beta › Siri lists the registered phrases.
+  - *Verified by:* auto: registered phrases detected
+  - *Owner:* _TBD_
+
+- **C-SIRI-02 · Clean Siri dialog** — ❌
+  - *Acceptance:* Every Siri reply starts with a capital, has no stray spaces before punctuation, and is never blank.
+  - *Verified by:* auto: SiriPolishTests
+  - *Owner:* _TBD_
+
+- **C-SIRI-03 · Snippet cards show covers** — ❌
+  - *Acceptance:* Tonight's pick, Quick recipes and timer cards show the recipe cover, not a generic icon, with working buttons.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-SIRI-04 · Fuzzy recipe names** — ❌
+  - *Acceptance:* 'Cook Mugod' finds Mogodu, ambiguous names ask which one, unknown names say so, and the wrong recipe is never started.
+  - *Verified by:* auto: SiriRoutingTests
+  - *Owner:* _TBD_
+
+
+### Covers — 0 / 3
+
+- **C-COV-01 · Fallback cover tile** — ❌
+  - *Acceptance:* A recipe with no image shows the designed plate-and-name tile (never a letter or bird), legible in light and dark mode.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-COV-02 · Generate cover** — ❌
+  - *Acceptance:* On an Apple Intelligence iPhone, … › Generate cover makes a new Playground cover in ≤30 s and keeps it after relaunch; elsewhere the option explains why it's unavailable.
+  - *Verified by:* auto: mirrors A-COVER-01
+  - *Owner:* _TBD_
+
+- **C-COV-03 · Covers everywhere** — ❌
+  - *Acceptance:* The same cover appears in Library, recipe detail, widgets, Spotlight and Siri cards.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
 ## Privacy-language audit (docs/legal vs code, 2026-10-10)
 
 | # | Policy says | Code does | Fix |

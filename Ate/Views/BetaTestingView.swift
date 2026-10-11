@@ -1,12 +1,13 @@
 import SwiftUI
 
-/// More › Beta testing: every Tier A item with live ✅/❌ status, manual verdicts, export, upload and reset.
+/// More › Beta testing: every item for this build's tier (Tier A, or Tier C on TierC builds) with live ✅/❌ status, manual verdicts, export, upload and reset.
 struct BetaTestingView: View {
     @Environment(AppStore.self) private var store
     @State private var qa = BetaQA.shared
     @State private var share: ShareItems?
     @State private var confirmReset = false
     @State private var showPassed = false
+    @State private var showTierA = false
     @State private var uploadMessage: String?
     @State private var ci = CIStatus.results
     @State private var healthScenario = UserDefaults.standard.string(forKey: HealthServiceFactory.debugKey) ?? ""
@@ -17,7 +18,7 @@ struct BetaTestingView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Build \(AppConfig.buildLabel)").font(AteFont.body(13, .semibold)).accessibilityIdentifier("betaBuildLabel")
                     let p = qa.progress()
-                    Text("Tier A: \(p.passed)/\(p.total) passed").font(AteFont.display(20)).accessibilityIdentifier("betaProgress")
+                    Text("\(BetaChecklist.tierName): \(p.passed)/\(p.total) passed").font(AteFont.display(20)).accessibilityIdentifier("betaProgress")
                     ProgressView(value: Double(p.passed), total: Double(max(1, p.total))).tint(Theme.primary)
                     Text("Items marked ‘auto’ tick themselves when the journey really completes on this iPhone, and turn ❌ with the error if it fails. Others need your verdict.")
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
@@ -82,6 +83,19 @@ struct BetaTestingView: View {
                     .accessibilityIdentifier("beta.passedGroup")
                 }
             }
+            if BetaChecklist.isTierC {
+                Section {
+                    DisclosureGroup(isExpanded: $showTierA) {
+                        ForEach(BetaChecklist.tierA) { item in
+                            NavigationLink { BetaItemView(item: item) } label: { BetaRow(item: item, result: qa.result(item.id), ci: ci[item.id]) }
+                        }
+                    } label: {
+                        let done = BetaChecklist.tierA.filter { qa.result($0.id).status == .pass }.count
+                        Text("Tier A results (\(done)/\(BetaChecklist.tierA.count) passed)").font(AteFont.body(15, .semibold))
+                    }
+                    .accessibilityIdentifier("beta.tierAGroup")
+                }
+            }
             Section("Results") {
                 Button("Export results (JSON + Markdown)") {
                     let j = writeTemp("ate-beta-\(AppConfig.buildNumber).json", qa.exportJSON())
@@ -96,6 +110,7 @@ struct BetaTestingView: View {
             }
         }
         .navigationTitle("Beta testing")
+        .onAppear { qa.detectTierC() }
         .task { if let s = store.session { await CIStatus.refresh(session: s); ci = CIStatus.results } }
         .refreshable { if let s = store.session { await CIStatus.refresh(session: s); ci = CIStatus.results } }
         .confirmationDialog("Reset every beta result on this iPhone?", isPresented: $confirmReset, titleVisibility: .visible) {

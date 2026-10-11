@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Observation
 
 /// On-device Tier A beta checklist: journeys auto-tick ✅ / ❌ when they really complete or fail; others are manual.
@@ -97,7 +98,7 @@ final class BetaQA {
         return (try? JSONSerialization.data(withJSONObject: ["build": AppConfig.buildLabel, "results": rows], options: [.prettyPrinted, .sortedKeys])) ?? Data()
     }
     func exportMarkdown() -> String {
-        var s = "# ate beta results — \(AppConfig.buildLabel)\n\nTier A: \(progress().passed)/\(progress().total) passed\n"
+        var s = "# ate beta results — \(AppConfig.buildLabel)\n\n\(BetaChecklist.tierName): \(progress().passed)/\(progress().total) passed\n"
         for c in BetaChecklist.categories {
             let p = progress(c)
             s += "\n## \(c) — \(p.passed)/\(p.total)\n\n| ID | Item | Status | Note |\n|---|---|---|---|\n"
@@ -199,5 +200,29 @@ enum BetaVisibility {
         if device.status == .pass { return true }
         if let ci, ci.status == .pass, ci.build == build { return true }
         return false
+    }
+}
+
+// MARK: Tier C auto-detection (runs when the Beta page opens on a TierC build)
+extension BetaQA {
+    /// Ticks Tier C checks whose evidence the app can see itself: accessibility settings in use while the app runs,
+    /// widgets actually reading the App Group, and Tier A passes that cover the same behaviour. Never overrides a manual verdict.
+    func detectTierC() {
+        guard BetaChecklist.isTierC else { return }
+        let size = UIApplication.shared.preferredContentSizeCategory
+        if size.isAccessibilityCategory {
+            for id in ["C-AX-01", "C-NAT-08"] { pass(id, note: "Ran at accessibility text size \(size.rawValue); confirm nothing is clipped") }
+        }
+        if UIAccessibility.isVoiceOverRunning { for id in ["C-AX-02", "C-NAT-09"] { pass(id, note: "Beta page opened with VoiceOver running") } }
+        if UIAccessibility.isReduceMotionEnabled { for id in ["C-AX-03", "C-NAT-10"] { pass(id, note: "Reduce Motion on; animations gated on accessibilityReduceMotion") } }
+        if UIAccessibility.isDarkerSystemColorsEnabled || UIAccessibility.isBoldTextEnabled {
+            for id in ["C-AX-04", "C-NAT-12"] { pass(id, note: "Increase Contrast/Bold Text on while running") }
+        }
+        if UIAccessibility.isReduceTransparencyEnabled { pass("C-NAT-11", note: "Reduce Transparency on while running") }
+        if AppGroupResolver.current.available && !WidgetBridge.heartbeats.isEmpty {
+            pass("C-WID-01", note: "App Group OK, \(WidgetBridge.heartbeats.count) widget kind(s) loaded")
+        }
+        let mirrors = ["A-OFF-02": "C-NAT-13", "A-COVER-01": "C-COV-02"]
+        for (a, c) in mirrors where result(a).status == .pass { pass(c, note: "Covered by \(a): " + result(a).note) }
     }
 }

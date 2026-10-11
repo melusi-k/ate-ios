@@ -72,10 +72,17 @@ final class HealthInsightTests: XCTestCase {
         XCTAssertFalse(BetaVisibility.isPassed(device: pass, ci: CIResult(status: .fail, note: "", build: "59", ts: ""), build: "59"), "A CI failure resurfaces the check")
     }
     func testChecklistIncludesHealthChecksFromSource() {
-        let ids = BetaChecklist.items.map(\.id)
+        let ids = BetaChecklist.tierA.map(\.id)
         XCTAssertTrue(ids.contains("A-HEALTH-01")); XCTAssertTrue(ids.contains("A-HEALTH-08"))
         XCTAssertEqual(Set(ids).count, ids.count, "Duplicate checklist IDs")
-        XCTAssertTrue(BetaChecklist.categories.contains("Apple Health insights"))
+        XCTAssertTrue(BetaChecklist.tierA.contains { $0.category == "Apple Health insights" })
+    }
+    func testTierCChecklistHasPolishChecks() {
+        let ids = BetaChecklist.tierC.map(\.id)
+        for id in ["C-POL-01", "C-DES-07", "C-AX-04", "C-NAT-01", "C-NAT-13", "C-WID-01", "C-SIRI-04", "C-COV-03"] { XCTAssertTrue(ids.contains(id), id) }
+        XCTAssertEqual(Set(ids).count, ids.count, "Duplicate Tier C IDs")
+        XCTAssertTrue(Set(ids).isDisjoint(with: BetaChecklist.tierA.map(\.id)))
+        XCTAssertTrue(BetaChecklist.tierC.allSatisfy { !$0.how.isEmpty }, "Every Tier C check needs an acceptance criterion")
     }
     // MARK: JournalingMomentMapper (pure)
     func testMapperWorkoutBecomesRecoveryEntry() {

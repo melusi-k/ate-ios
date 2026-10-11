@@ -37,17 +37,43 @@ jobs:
           set -o pipefail
           SIM_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=json.load(sys.stdin)["devices"];print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
           echo "SIM_ID=$SIM_ID" >> $GITHUB_ENV
-          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" CODE_SIGNING_ALLOWED=NO > build.log 2>&1 \
-            || { grep -E "error:|\.swift:[0-9]+:[0-9]+: error" build.log | sort -u | head -80; tail -40 build.log; exit 1; }
-          grep -E "warning: .*(Widgets|Intents|Snapshot)" build.log | sort -u | head -30 || true
+          if ! xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" CODE_SIGNING_ALLOWED=NO > build.log 2>&1; then
+            echo "::error::Simulator build failed. Last 200 log lines:"
+            tail -n 200 build.log
+            exit 1
+          fi
+          grep -E "warning: .*(Widgets|Intents|Snapshot)" build.log > build-warnings.log || true
+          tail -n 30 build-warnings.log || true
       - name: Unit tests
         run: |
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -only-testing:AteTests CODE_SIGNING_ALLOWED=NO > test.log 2>&1 \
-            || { grep -E "error:|failed|XCTAssert" test.log | head -60; tail -30 test.log; exit 1; }
-          grep -E "Executed" test.log | tail -2
+          if ! xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -only-testing:AteTests CODE_SIGNING_ALLOWED=NO > test.log 2>&1; then
+            echo "::error::Unit tests failed. Full log follows (no grep/head pipeline, preserving xcodebuild exit status):"
+            tail -n 250 test.log
+            exit 1
+          fi
+          grep -E "Executed|Test Suite .* (passed|failed)" test.log > test-summary.log || true
+          tail -n 30 test-summary.log
       - name: Widget/intents UI tests
         if: always()
         run: |
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -only-testing:AteUITests/WidgetsIntentsUITests CODE_SIGNING_ALLOWED=NO > ui.log 2>&1 \
-            || { grep -E "error:|failed|XCTAssert" ui.log | head -60; tail -30 ui.log; exit 1; }
-          grep -E "Executed" ui.log | tail -2
+          if ! xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -only-testing:AteUITests/WidgetsIntentsUITests CODE_SIGNING_ALLOWED=NO > ui.log 2>&1; then
+            echo "::error::Widget/intents UI tests failed. Full log follows (no grep/head pipeline, preserving xcodebuild exit status):"
+            tail -n 250 ui.log
+            exit 1
+          fi
+          grep -E "Executed|Test Suite .* (passed|failed)" ui.log > ui-summary.log || true
+          tail -n 30 ui-summary.log
+      - name: Upload test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-check-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            build.log
+            build-warnings.log
+            test.log
+            test-summary.log
+            ui.log
+            ui-summary.log
+            ~/Library/Developer/Xcode/DerivedData/**/Logs/Test/*.xcresult

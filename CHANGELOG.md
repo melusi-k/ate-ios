@@ -12,7 +12,7 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 - `docs/SECURITY_REVIEW.md`: RLS, anon and other-user tokens, Edge Function auth and validation, rate limits, CORS, secrets inventory, storage, auth settings and the leaked-password check, with findings and a sign-off checklist.
 - backend-e2e now runs these checks on every build. Hardening migration `20261011090000_security_hardening.sql` (revoke anon grants, fixed search_path, explicit share write lock, note length) is ready to apply.
 
-### 📦 Release integrity (A-CI-04/05)
+### 📦 Release integrity (A-CI-05/06)
 - Each IPA ships with a `.sha256` asset, and its SHA-256 is in the notes. A smoke step downloads the published asset, verifies the checksum, version and build, bundle ID, widgets and watch app, entitlements, privacy manifest, app icon and size limits, and withdraws the release if anything fails.
 - One source of truth for docs: README, BETA, MVP_CHECKLIST and QA_MATRIX are reconciled (SideStore-first install, current build). `scripts/check-ids.py` fails CI when IDs drift between the checklist, the QA matrix and the in-app Beta checks, or when a service key shows up in client code.
 

@@ -249,3 +249,9 @@ Run on **iOS 18** (opaque bars) and **iOS 26** (Liquid Glass), in **light** and 
 | C-WID-02 | Widget gallery polish | — | All five Ate widgets appear in the gallery with names, descriptions and correct previews in light, dark and tinted modes. | manual | Not run | Not run | Not run | ❌ | — |
 | C-WID-03 | Lock Screen accessories | — | Circular ring, rectangular step timer and inline shopping item render legibly in every Lock Screen font/colour and update within a few seconds. | manual | Not run | Not run | Not run | ❌ | — |
 | C-WID-04 | Control Center controls | — | Kitchen timer and Quick add appear in the Controls gallery with icons and labels, and work from the Lock Screen and Action button. | manual | Not run | Not run | Not run | ❌ | — |
+
+## Added from MVP_CHECKLIST (check-ids --fix)
+
+| ID | Journey | Steps | Expected | Automated test | Sim result | iPhone 17 result | Older/non-AI device result | Status | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| A-CI-06 | As a cook, published IPA verified. | — | Each release publishes <ipa>.sha256 and the SHA-256 in the notes; the smoke step downloads the published asset, verifies the checksum, version/build, bundle ID, extensions (widgets, watch), entitlements, privacy manifest, app icon and size limits, and withdraws the release on failure. | auto `scripts/verify-ipa.sh` | Not run | Not run | Not run | ❌ | Added build 97; first CI run pending |

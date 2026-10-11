@@ -16,6 +16,8 @@ for blk in re.split(r'\n(?=- \*\*[ABC]-)', ck):
     f = lambda k: (re.search(r'\*%s:\* (.*)' % k, blk) or [None, '—'])[1].strip()
     defined[m.group(1)] = dict(title=m.group(2), mark=m.group(3) or '❌', j=f('Journey'), acc=f('Acceptance'), ver=f('Verified by'), ev=f('Status evidence'))
 errors = []
+heads = re.findall(r'^- \*\*([ABC]-[A-Z0-9]+-\d{2}) · ', ck, re.M)
+errors += [f"{i}: defined more than once in MVP_CHECKLIST" for i in sorted({x for x in heads if heads.count(x) > 1})]
 
 def matrix_row(i):
     d = defined[i]; mark, j, acc, ver, ev = d['mark'], d['j'] if d['j'] != '—' else d['title'], d['acc'], d['ver'], d['ev']

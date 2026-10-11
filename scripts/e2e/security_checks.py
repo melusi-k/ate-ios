@@ -64,11 +64,13 @@ def t_functions(ctx):
     assert code == 401, f"publish-recipe without key: {code}"
     code, _ = http("POST", f"{f}/publish-recipe", ctx.anon_h("eyJhbGciOiJIUzI1NiJ9.e30.forged"), {"card": {}})
     assert code == 401, f"publish-recipe forged JWT: {code}"
-    code, j = http("POST", f"{f}/publish-recipe", ctx.anon_h(), {"card": {"title": "x", "servings": 1, "ingredients": "nope", "steps": []}})
+    # Validation is checked with a real user session (the legacy anon JWT isn't one of the function's public keys).
+    u = ctx.sign_in(ctx.new_user())["access_token"]; uh = ctx.anon_h(u)
+    code, j = http("POST", f"{f}/publish-recipe", uh, {"card": {"title": "x", "servings": 1, "ingredients": "nope", "steps": []}})
     assert code == 400, f"publish-recipe bad body: {code} {j}"
-    code, j = http("POST", f"{f}/publish-recipe", ctx.anon_h(), {"card": {"title": "x" * 500, "servings": 1, "ingredients": [], "steps": [{"instruction": "a"}]}})
+    code, j = http("POST", f"{f}/publish-recipe", uh, {"card": {"title": "x" * 500, "servings": 1, "ingredients": [], "steps": [{"instruction": "a"}]}})
     assert code == 400, f"publish-recipe overlong title: {code}"
-    code, j = http("POST", f"{f}/publish-recipe", ctx.anon_h(), {"card": {"title": "x", "servings": 1, "ingredients": [{"name": "y" * 150_000}], "steps": []}})
+    code, j = http("POST", f"{f}/publish-recipe", uh, {"card": {"title": "x", "servings": 1, "ingredients": [{"name": "y" * 150_000}], "steps": []}})
     assert code in (400, 413), f"publish-recipe oversized: {code}"
     code, _ = http("GET", f"{f}/get-shared-recipe?slug=../../etc", ctx.anon_h())
     assert code == 400, f"get-shared-recipe slug validation: {code}"

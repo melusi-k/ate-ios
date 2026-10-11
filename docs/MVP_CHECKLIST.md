@@ -550,7 +550,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Status evidence:* Added build 97; first CI run pending
   - *Owner:* _TBD_
 
-- **A-CI-04 · Published IPA verified** — ❌
+- **A-CI-06 · Published IPA verified** — ❌
   - *Journey:* As a cook, published IPA verified.
   - *Acceptance:* Each release publishes <ipa>.sha256 and the SHA-256 in the notes; the smoke step downloads the published asset, verifies the checksum, version/build, bundle ID, extensions (widgets, watch), entitlements, privacy manifest, app icon and size limits, and withdraws the release on failure.
   - *Verified by:* auto `scripts/verify-ipa.sh` · CI release job

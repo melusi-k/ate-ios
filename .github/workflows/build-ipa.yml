@@ -354,7 +354,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           git fetch --tags --force -q || true
-          # SHA-256 per IPA: published as a .sha256 asset and in the notes (A-CI-04).
+          # SHA-256 per IPA: published as a .sha256 asset and in the notes (A-CI-06).
           (cd dist && shasum -a 256 "$IPA_NAME" > "$IPA_NAME.sha256"); IPA_SHA=$(awk '{print $1}' "dist/$IPA_NAME.sha256")
           scripts/release-notes.sh "$APP_VERSION" "$BUILD_NUMBER" "$GITHUB_SHA" \
             "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" "$IPA_NAME" "$IPA_KIND" > build/notes.md
@@ -392,7 +392,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           echo "IPA URL: $BASE/build-${BUILD_NUMBER}${CH_SUFFIX}/$IPA_NAME"
 
-      - name: Published artifact smoke test (A-CI-04) — download, checksum, contents
+      - name: Published artifact smoke test (A-CI-06) — download, checksum, contents
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

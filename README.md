@@ -43,7 +43,7 @@ open Ate.xcodeproj   # Xcode 26 (iOS 26 SDK) required for the Foundation Models 
 2. **AltStore / Sideloadly:** same IPA; re-sign every 7 days. In Sideloadly leave *Remove app extensions* off.
 3. **Xcode (Mac):** build with your Personal Team (see *Build locally*).
 
-Verify the download first: each release has `<ipa>.sha256` and lists the SHA-256 in its notes (`shasum -a 256 -c Ate-…ipa.sha256`). CI downloads the published asset and re-checks it (A-CI-04) before the release stands.
+Verify the download first: each release has `<ipa>.sha256` and lists the SHA-256 in its notes (`shasum -a 256 -c Ate-…ipa.sha256`). CI downloads the published asset and re-checks it (A-CI-06) before the release stands.
 
 - **Unsigned build** (the default, when no signing secrets are set): any of the sideload routes above re-signs the app for your device. A free Apple ID gives you a 7-day signature.
 - **Signed build** (when the secrets below are set): install via Apple Configurator / Finder, or a tool like Diawi. Your device's UDID must be in the provisioning profile.

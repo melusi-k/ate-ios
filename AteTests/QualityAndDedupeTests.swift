@@ -143,10 +143,24 @@ final class PhotoRegressionTests: XCTestCase {
     static let twoPlatesOmelette: [(String, Float)] = [("food", 0.9), ("omelette", 0.7), ("omelettes", 0.4), ("plate", 0.7), ("tableware", 0.6), ("toast", 0.5)]
     static let cheeseSandwich: [(String, Float)] = [("food", 0.9), ("sandwich", 0.82), ("bread", 0.6), ("cheese", 0.48), ("lettuce", 0.36),
                                                     ("sausage", 0.3), ("sauce", 0.27), ("plate", 0.5)]
+    /// Ground truth for the live South African feast run: beef stew, mogodu, amanqina, dombolo, chakalaka and morogo.
+    static let southAfricanFeast: [(String, Float)] = [("food", 0.98), ("beef_stew", 0.91), ("tripe", 0.88),
+                                                       ("chicken_feet", 0.84), ("steamed_bread", 0.81), ("chakalaka", 0.76),
+                                                       ("leafy_greens", 0.69), ("bowl", 0.82), ("plate", 0.78)]
 
     func testOmeletteWithToastIsConfidentNotSpread() {
         XCTAssertEqual(PhotoGuess.assess(labels: Self.omeletteToast, ocrText: ""), .confident("omelette with toast"))
         if case .spread = PhotoGuess.assess(labels: Self.twoPlatesOmelette, ocrText: "") { XCTFail("two identical plates are one dish") }
+    }
+    func testSouthAfricanFeastIsASelectableSpread() {
+        guard case .spread(let suggestions) = PhotoGuess.assess(labels: Self.southAfricanFeast, ocrText: "") else {
+            return XCTFail("six distinct dishes must not be merged into one recipe")
+        }
+        XCTAssertTrue(suggestions.contains("Beef stew"))
+        XCTAssertTrue(suggestions.contains("Tripe"))
+        XCTAssertTrue(suggestions.contains("Chicken feet"))
+        XCTAssertFalse(suggestions.contains("Bowl"))
+        XCTAssertFalse(suggestions.contains("Plate"))
     }
     func testChipsComeFromVisionNotTheFixedSAList() {
         let s = PhotoGuess.suggestions(labels: Self.omeletteToast, ocrText: "")

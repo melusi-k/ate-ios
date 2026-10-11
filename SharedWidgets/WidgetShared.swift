@@ -36,6 +36,8 @@ struct WidgetSnapshot: Codable, Equatable {
     var shopping: [Item] = []
     var pick: Pick?
     var recipeCount: Int = 0
+    var cookingStreak: Int = 0
+    var cookedToday: Bool = false
 
     static let key = "ate.widgets.snapshot.v1"
     static let maxFavourites = 4
@@ -195,6 +197,8 @@ enum WidgetKinds {
     static let shoppingInline = "ate.widget.shopping.inline"
     static let quickAdd = "ate.widget.quickadd"
     static let favourites = "ate.widget.favourites"
+    static let cooking = "ate.widget.cooking"
+    static let cooking = "ate.widget.cooking"
     static let kitchenControl = "ate.control.kitchentimer"
     static let quickAddControl = "ate.control.quickadd"
     /// Written by the widget extension when it builds a timeline: proves the extension can read the App Group.

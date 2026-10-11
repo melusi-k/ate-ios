@@ -70,6 +70,7 @@ struct InsightsView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Insights").font(AteFont.display(30)).accessibilityAddTraits(.isHeader)
                     bodyToday
+                    CookingTrackerView()
                     if let c = model.context {
                         card("Suggested meals") {
                             Text(c.insight.state.mealFocus).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)

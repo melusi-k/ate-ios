@@ -12,6 +12,7 @@ struct AteWidgetsBundle: WidgetBundle {
         ShoppingInlineWidget()
         QuickAddWidget()
         FavouritesWidget()
+        CookingWidget()
         KitchenTimerControl()
         QuickAddControl()
     }

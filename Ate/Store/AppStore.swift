@@ -170,6 +170,7 @@ final class AppStore {
     func markCooked(_ id: String) {
         guard var r = recipe(id) else { return }
         r.lastCookedAt = (Date().timeIntervalSince1970 * 1000).rounded(); update(r)
+        CookingHistory.shared.record(recipeID: id)
     }
 
     /// Picks up the next item queued by the share extension (called when the app becomes active).
@@ -336,7 +337,7 @@ final class AppStore {
         persistRecipes()
     }
 
-    func clearLibrary() { recipes = []; persistRecipes() }
+    func clearLibrary() { recipes = []; CookingHistory.shared.clear(); path = []; persistRecipes() }
 
     func importJSON(_ data: Data) throws -> Int {
         let cards = try JSONDecoder().decode([RecipeCard].self, from: data)
@@ -374,7 +375,7 @@ final class AppStore {
     }
     func removeItem(_ id: String) { shopping.removeAll { $0.id == id }; persistShopping() }
     func clearTicked() { shopping.removeAll { $0.done }; persistShopping() }
-    func clearShopping() { shopping = []; persistShopping() }
+    func clearShopping() { shopping = []; shoppingPath = []; persistShopping() }
 
     // MARK: sync bookkeeping (last-write-wins)
     private func nowMs() -> Double { (Date().timeIntervalSince1970 * 1000).rounded() }
@@ -602,7 +603,8 @@ final class AppStore {
 
     private func wipeLocalData() {
         recipes = []; shopping = []
-        tab = .library; path = []; shoppingPath = []; settingsPath = []
+        CookingHistory.shared.clear()
+        tab = .library; path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
         persistRecipes(stamp: false); persistShopping(stamp: false)
         meta = SyncMeta(); saveDefaults(meta, key: "ate.sync.v1")
         recipeSnapshot = [:]; shopSnapshot = [:]

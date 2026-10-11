@@ -9,6 +9,8 @@ enum WidgetSnapshotBuilder {
         s.favourites = favourites(recipes).prefix(WidgetSnapshot.maxFavourites).map(lite)
         s.shopping = shopping.filter { !$0.done }.prefix(WidgetSnapshot.maxShopping).map { .init(id: $0.id, name: label($0), done: false) }
         s.pick = pick(recipes: recipes, health: health, now: now, calendar: calendar)
+        s.cookingStreak = CookingHistory.shared.streak(asOf: now)
+        s.cookedToday = CookingHistory.shared.cooked(on: now)
         return s
     }
 

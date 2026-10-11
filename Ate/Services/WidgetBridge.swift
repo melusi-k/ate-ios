@@ -35,9 +35,10 @@ enum WidgetBridge {
             if old.favourites != snap.favourites { kinds.append(WidgetKinds.favourites) }
             if old.shopping != snap.shopping { kinds += [WidgetKinds.shopping, WidgetKinds.shoppingInline] }
             if old.pick != snap.pick { kinds.append(WidgetKinds.pick) }
+            if old.cookingStreak != snap.cookingStreak || old.cookedToday != snap.cookedToday { kinds.append(WidgetKinds.cooking) }
             changed = kinds
         } else {
-            changed = [WidgetKinds.favourites, WidgetKinds.shopping, WidgetKinds.shoppingInline, WidgetKinds.pick]
+            changed = [WidgetKinds.favourites, WidgetKinds.shopping, WidgetKinds.shoppingInline, WidgetKinds.pick, WidgetKinds.cooking]
         }
         if let old = lastPublished, changed.isEmpty { snap.updatedAt = old.updatedAt; return }
         snap.save()

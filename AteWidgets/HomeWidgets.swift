@@ -100,6 +100,32 @@ extension WidgetSnapshot {
     }
 }
 
+struct CookingWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: WidgetKinds.cooking, provider: SnapshotProvider(kind: WidgetKinds.cooking)) { entry in
+            CookingWidgetView(entry: entry).containerBackground(for: .widget) { WTheme.cream }
+        }
+        .configurationDisplayName("Cooking streak")
+        .description("See your current cooking streak and whether you cooked today.")
+        .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+
+private struct CookingWidgetView: View {
+    let entry: SnapshotEntry
+    var body: some View {
+        if let s = entry.snapshot {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Cooking tracker", systemImage: "flame.fill").font(.caption.weight(.semibold)).foregroundStyle(WTheme.primary)
+                Text("\(s.cookingStreak) day\(s.cookingStreak == 1 ? \"\" : \"s\")").font(.system(size: 28, weight: .bold, design: .rounded)).foregroundStyle(WTheme.brown)
+                Text(s.cookedToday ? "Cooked today" : "Not cooked today").font(.caption).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Link("Open tracker", destination: URL(string: "ate://open")!).font(.caption.weight(.semibold)).foregroundStyle(WTheme.primary)
+            }.padding(4)
+        } else { NoDataView(text: "Open ate to see your cooking streak") }
+    }
+}
+
 // MARK: Tonight's pick
 
 struct TonightsPickWidget: Widget {

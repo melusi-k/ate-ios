@@ -110,3 +110,27 @@ final class FoundationModelsPatternTests: XCTestCase {
         XCTAssertNotEqual(RecipeStreamPreview(title: nil), RecipeStreamPreview(title: "Mogodu"))
     }
 }
+
+/// Code-along 205: tool-backed glossary, conditional prompt lines, schema A/B default.
+final class CodeAlong205Tests: XCTestCase {
+    func testLookupRegionalDishReturnsGlossaryEntries() {
+        XCTAssertTrue(RecipePrompt.lookupRegionalDish("mogodu").contains("tripe"))
+        XCTAssertTrue(RecipePrompt.lookupRegionalDish("umngqusho").contains("samp"))
+        XCTAssertTrue(RecipePrompt.lookupRegionalDish("chakalaka").contains("Chakalaka"))
+        XCTAssertTrue(RecipePrompt.lookupRegionalDish("lasagne").hasPrefix("No glossary entry"))
+    }
+    func testInstructionsNoLongerDumpTheGlossary() {
+        XCTAssertFalse(RecipePrompt.prompt("mogodu").contains("about 180 min total"), "entries come from the tool, not the prompt")
+        XCTAssertTrue(RecipePrompt.prompt("mogodu").contains("lookupRegionalDish"))
+    }
+    func testConditionalContextLines() {
+        let c = RecipePrompt.context(for: "Vegan chakalaka for 6", region: "ZA")
+        XCTAssertEqual(c.dietary, ["vegan"]); XCTAssertEqual(c.servings, 6); XCTAssertEqual(c.region, "South Africa")
+        XCTAssertEqual(RecipePrompt.contextLines(c).count, 3)
+        XCTAssertEqual(RecipePrompt.contextLines(RecipePrompt.context(for: "pasta", region: "US")), [])
+    }
+    func testSchemaLeftOutByDefault() {
+        XCTAssertFalse(RecipePrompt.includeSchemaInPrompt)
+        XCTAssertTrue(RecipePrompt.exampleLead.contains("don't copy its content"))
+    }
+}

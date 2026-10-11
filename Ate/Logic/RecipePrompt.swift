@@ -119,10 +119,41 @@ enum RecipePrompt {
         return p + "\n" + glossary(for: (labels + candidates).joined(separator: " ") + " " + o)
     }
 
+    /// Short pointer only; the full entries come from the lookupRegionalDish tool on demand (saves context).
     static func glossary(for text: String) -> String {
         let m = CuisineGlossary.matches(in: text)
-        return m.isEmpty ? "" : "Glossary:\n" + CuisineGlossary.promptLines(m) + "\n"
+        return m.isEmpty ? "" : "Regional dishes mentioned: " + m.map(\.name).joined(separator: "; ") + ". Call lookupRegionalDish for each before writing ingredients.\n"
     }
+
+    /// Tool body for lookupRegionalDish: glossary entries (traditional ingredients, method, time) for a dish name.
+    static func lookupRegionalDish(_ name: String) -> String {
+        var m = CuisineGlossary.matches(in: name)
+        if m.isEmpty { m = CuisineGlossary.dishes.filter { $0.name.lowercased().contains(name.lowercased().trimmingCharacters(in: .whitespaces)) } }
+        return m.isEmpty ? "No glossary entry for \(name). Use a traditional home-cook version." : CuisineGlossary.promptLines(m)
+    }
+
+    /// Conditional prompt lines (code-along 205 Prompt { } builder): dietary preference, servings and region.
+    struct Context: Equatable { var dietary: [String] = []; var servings: Int? = nil; var region: String? = nil }
+    static let dietaryWords = ["vegan", "vegetarian", "halal", "kosher", "gluten-free", "dairy-free", "pescatarian", "low-carb"]
+    static func context(for text: String, region: String? = Locale.current.region?.identifier) -> Context {
+        let l = text.lowercased()
+        var c = Context()
+        c.dietary = dietaryWords.filter { l.contains($0) }
+        if let r = l.range(of: #"(?:for|serves)\s+(\d{1,2})"#, options: .regularExpression),
+           let n = Int(l[r].filter(\.isNumber)), n > 0 { c.servings = n }
+        c.region = region == "ZA" ? "South Africa" : nil
+        return c
+    }
+    static func contextLines(_ c: Context) -> [String] {
+        var out: [String] = []
+        if !c.dietary.isEmpty { out.append("Dietary preference: \(c.dietary.joined(separator: ", ")). Every ingredient must fit it.") }
+        if let n = c.servings { out.append("Write it for \(n) servings.") }
+        if let r = c.region { out.append("The cook is in \(r): use locally available ingredients and names.") }
+        return out
+    }
+    /// A/B switch for code-along 205 step 3: with the one-shot GenRecipe example in the prompt, the schema can be left out.
+    static var includeSchemaInPrompt: Bool { ProcessInfo.processInfo.arguments.contains("-qaIncludeSchema") || UserDefaults.standard.bool(forKey: "ate.ai.includeSchema") }
+    static let exampleLead = "Here is an example of the desired format, but don't copy its content:"
 }
 
 /// What the photo path should do before generating.

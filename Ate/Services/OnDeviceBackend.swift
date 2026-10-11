@@ -104,7 +104,8 @@ final class OnDeviceBackend: BackendService {
             prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"; input = .rewrite
             reviseID = c.id
         }
-        var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID)
+        var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID,
+                                           context: RecipePrompt.context(for: request.text ?? ""))
         if let r = reviseID { await Self.rekeySession(from: card.id, to: r) }
         card.source = source; card.generatedAt = Date().timeIntervalSince1970 * 1000
         if request.mode == .url, let u = URL(string: (request.text ?? "").trimmingCharacters(in: .whitespaces)) {
@@ -145,7 +146,7 @@ final class OnDeviceBackend: BackendService {
     @MainActor static func prewarm() {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *), isModelAvailable, warm == nil {
-            let s = LanguageModelSession(instructions: RecipePrompt.instructions(for: .prompt))
+            let s = makeSession(tools: [RegionalDishTool()], input: .prompt)
             s.prewarm()
             warm = s
         }
@@ -170,20 +171,33 @@ final class OnDeviceBackend: BackendService {
 
     @MainActor
     static func generate(_ prompt: String, input: RecipePrompt.Input = .prompt, photoDataURL: String? = nil,
-                         reviseID: String? = nil) async throws -> RecipeCard {
+                         reviseID: String? = nil, context: RecipePrompt.Context = .init()) async throws -> RecipeCard {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
-            var tools: [any Tool] = []
+            var tools: [any Tool] = [RegionalDishTool()]
             if let photoDataURL { tools.append(PhotoTextTool(dataURL: photoDataURL)) }
             let session: LanguageModelSession
             if let id = reviseID, let s = sessions[id] { session = s }                       // Ask Ate: same session
-            else if input == .prompt, tools.isEmpty, let w = warm { session = w; warm = nil } // prewarmed
-            else { session = LanguageModelSession(tools: tools, instructions: RecipePrompt.instructions(for: input)) }
+            else if input == .prompt, photoDataURL == nil, let w = warm { session = w; warm = nil } // prewarmed
+            else { session = makeSession(tools: tools, input: input) }
             do {
                 // Extraction, not creative writing: greedy decoding keeps the card grounded in the text.
                 // Streamed so the review sheet renders the PartiallyGenerated card live.
-                let stream = session.streamResponse(to: prompt, generating: GenRecipe.self,
-                                                    options: GenerationOptions(sampling: .greedy, temperature: 0.1))
+                // Code-along 205: Prompt { } builder with conditional context lines and a one-shot GenRecipe example;
+                // with the example in place the JSON schema is left out of the prompt (A/B: -qaIncludeSchema).
+                let lines = RecipePrompt.contextLines(context)
+                let isRevision = reviseID != nil && sessions[reviseID!] != nil
+                let fullPrompt = Prompt {
+                    prompt
+                    if !lines.isEmpty { lines.joined(separator: "\n") }
+                    if !isRevision {
+                        RecipePrompt.exampleLead
+                        GenRecipe.exampleMogodu
+                    }
+                }
+                let stream = session.streamResponse(to: fullPrompt, generating: GenRecipe.self,
+                                                    includeSchemaInPrompt: RecipePrompt.includeSchemaInPrompt || isRevision,
+                                                    options: GenerationOptions(sampling: .greedy))
                 for try await snap in stream {
                     partialSink?(RecipeStreamPreview(snap.content))
                 }
@@ -201,6 +215,17 @@ final class OnDeviceBackend: BackendService {
         #endif
         throw BackendError(message: "On-device AI isn't available on this device.")
     }
+
+    #if canImport(FoundationModels)
+    /// Instructions { } builder: persona, rules and format; the glossary now comes from lookupRegionalDish on demand.
+    @available(iOS 26.0, *)
+    static func makeSession(tools: [any Tool], input: RecipePrompt.Input) -> LanguageModelSession {
+        LanguageModelSession(tools: tools, instructions: Instructions {
+            RecipePrompt.instructions(for: input)
+            "For any regional or unfamiliar dish name, call lookupRegionalDish before writing ingredients."
+        })
+    }
+    #endif
 
     /// Move a revised card's session to the recipe's stable id (rewrite keeps the original id).
     @MainActor static func rekeySession(from old: String, to new: String) {
@@ -319,6 +344,18 @@ struct PhotoTextTool: Tool {
     }
 }
 
+/// Glossary on demand (replaces dumping every matching entry into the prompt).
+@available(iOS 26.0, *)
+struct RegionalDishTool: Tool {
+    let name = "lookupRegionalDish"
+    let description = "Looks up traditional ingredients, method and cooking time for Southern African dishes (e.g. mogodu, ujeqe, chakalaka, umngqusho, pap, morogo)."
+    @Generable
+    struct Arguments {
+        @Guide(description: "The dish name to look up, e.g. 'mogodu'") var dishName: String
+    }
+    func call(arguments: Arguments) async throws -> String { RecipePrompt.lookupRegionalDish(arguments.dishName) }
+}
+
 @available(iOS 26.0, *)
 @Generable
 struct GenIngredient {
@@ -385,6 +422,21 @@ struct GenRecipe {
                             timeSeconds: (s.minutes ?? 0) > 0 ? s.minutes! * 60 : nil) },
                    cuisine: cu.isEmpty ? nil : cu)
     }
+
+    /// One-shot example for the Prompt (format only; the prompt says not to copy its content).
+    static let exampleMogodu = GenRecipe(
+        dish: DishIdentification(name: "Mogodu", cuisine: "South African", confidence: 0.95, alternatives: ["Ulusu"]),
+        title: "Mogodu", description: "Slow-simmered beef tripe with onion and curry, served with pap.",
+        servings: 6, timeMinutes: 200, tags: ["main", "south african", "slow cook"],
+        ingredients: [GenIngredient(quantity: 1.5, unit: "kg", name: "beef tripe", prep: "cleaned and cut into strips"),
+                      GenIngredient(quantity: 2, unit: "pcs", name: "onions", prep: "chopped"),
+                      GenIngredient(quantity: 3, unit: "cloves", name: "garlic", prep: "crushed"),
+                      GenIngredient(quantity: 2, unit: "tsp", name: "curry powder", prep: nil),
+                      GenIngredient(quantity: 500, unit: "ml", name: "beef stock", prep: nil)],
+        steps: [GenStep(instruction: "Cover the tripe with salted water and simmer, covered, until tender", minutes: 150, temperatureC: nil),
+                GenStep(instruction: "Fry the onion and garlic in oil over medium heat until golden", minutes: 8, temperatureC: nil),
+                GenStep(instruction: "Stir in the curry powder, tripe and stock and simmer until thick", minutes: 30, temperatureC: nil)],
+        note: "")
 
     static func instruction(_ text: String, temperatureC: Int?) -> String {
         guard let t = temperatureC, !RecipeQuality.hasTemperature(text) else { return text }

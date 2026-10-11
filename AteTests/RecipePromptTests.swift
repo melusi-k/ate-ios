@@ -50,10 +50,7 @@ final class RecipePromptTests: XCTestCase {
         Saturday special 🔥 Mogodu, ujeqe and morogo R85. Order on WhatsApp
         \"\"\"
         This caption looks like an advert or menu, not a recipe. Only use dish names that appear in it.
-        Glossary:
-        - Ujeqe (steamed bread) (South African): cake flour, instant yeast, sugar, salt, warm water; about 75 min total, serves 6; prove about 40 min, steam 1 h or more.
-        - Mogodu / ulusu (tripe) (South African): beef tripe (and mala), onion, garlic, curry powder or stock, salt, pepper; about 180 min total, serves 6; clean well, simmer 2 to 3 h until tender.
-        - Morogo (South African): morogo or spinach, onion, tomato, oil, salt (optional peanut); about 25 min total, serves 4; wilt leaves, simmer until soft.
+        Regional dishes mentioned: Ujeqe (steamed bread); Mogodu / ulusu (tripe); Morogo. Call lookupRegionalDish for each before writing ingredients.
 
         """
         XCTAssertEqual(p, expected)

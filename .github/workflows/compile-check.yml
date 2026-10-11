@@ -136,14 +136,14 @@ jobs:
         run: |
           STEP_START=$(date +%s)
           set +e
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/widget-intents-ui-tests.xcresult" -only-testing:AteUITests/WidgetsIntentsUITests CODE_SIGNING_ALLOWED=NO > ui.log 2>&1
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/widget-intents-ui-tests.xcresult" -only-testing:AteUITests/WidgetsIntentsUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > ui.log 2>&1
           status=$?
           set -e
           STEP_END=$(date +%s)
           echo "::notice::CI_TIMING step=widget-intents-ui-tests duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
 
           if [ "$status" -ne 0 ]; then
-            echo "::error::Widget/intents UI tests failed (xcodebuild exit $status). Failure diagnostics follow; the complete ui.log and xcresult are uploaded as artifacts."
+            echo "::error::Widget/intents UI tests failed or exceeded a per-test timeout (xcodebuild exit $status). Failure diagnostics follow; the complete ui.log and xcresult are uploaded as artifacts."
             grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" ui.log || true
             echo "::group::Last 100 UI-test log lines"
             tail -n 100 ui.log

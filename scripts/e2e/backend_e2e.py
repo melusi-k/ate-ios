@@ -265,6 +265,8 @@ def main():
         run(["A-AUTH-07"], t_auth07)
         run(["A-SYNC-02", "A-SYNC-03"], t_sync)
         run(["A-SHARE-03", "A-SHARE-04"], t_share, os.path.join(a.out, "screens"))
+        import security_checks
+        for ids, fn in security_checks.CHECKS: run(ids, fn)
     except StopIteration:
         pass
     finally:
@@ -275,6 +277,8 @@ def main():
     with open(os.path.join(a.out, "summary.md"), "w") as f:
         f.write("### backend-e2e\n\n| Item | Result | Note |\n|---|---|---|\n")
         for i, r in sorted(results.items()): f.write(f"| {i} | {'✅' if r['status']=='pass' else '❌'} {r['status']} | {r['note'].replace('|','/')} |\n")
+        if getattr(ctx, "findings", None):
+            f.write("\n#### Security review: open findings\n\n" + "".join(f"- {x}\n" for x in ctx.findings))
     if a.upload:
         run_url = os.environ.get("GITHUB_SERVER_URL", "") and f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
         upload(ctx, results, a.build, run_url or None)

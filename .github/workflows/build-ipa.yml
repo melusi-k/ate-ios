@@ -42,6 +42,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Docs ID drift + client secret scan (A-CI-05)
+        run: python3 scripts/check-ids.py
+
       - name: Select Xcode 26
         uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -351,8 +354,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           git fetch --tags --force -q || true
+          # SHA-256 per IPA: published as a .sha256 asset and in the notes (A-CI-04).
+          (cd dist && shasum -a 256 "$IPA_NAME" > "$IPA_NAME.sha256"); IPA_SHA=$(awk '{print $1}' "dist/$IPA_NAME.sha256")
           scripts/release-notes.sh "$APP_VERSION" "$BUILD_NUMBER" "$GITHUB_SHA" \
             "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" "$IPA_NAME" "$IPA_KIND" > build/notes.md
+          echo -e "\n**SHA-256** \`$IPA_NAME\`: \`$IPA_SHA\` (also attached as \`$IPA_NAME.sha256\`; check with \`shasum -a 256 -c $IPA_NAME.sha256\`)" >> build/notes.md
           [ -f build/qa.md ] && { echo; cat build/qa.md; } >> build/notes.md
           echo -e "\nFull UI suite runs as a separate non-blocking job (ui-suite) in this run." >> build/notes.md
           [ -f docs/MVP_SCORE.md ] && { echo; cat docs/MVP_SCORE.md; } >> build/notes.md
@@ -367,17 +373,17 @@ jobs:
           git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           TAG="build-${BUILD_NUMBER}${CH_SUFFIX}"
           git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || { git tag "$TAG" "$GITHUB_SHA" && git push origin "refs/tags/$TAG"; }
-          gh release create "$TAG" "dist/$IPA_NAME" --prerelease --verify-tag \
+          gh release create "$TAG" "dist/$IPA_NAME" "dist/$IPA_NAME.sha256" --prerelease --verify-tag \
             --title "Build ${APP_VERSION} (${BUILD_NUMBER})${CH_TITLE} @ ${GITHUB_SHA::7}" --notes-file build/notes.md \
             || echo "$TAG already exists, leaving it untouched"
           # Rolling latest-build: recreated so its ONLY asset is the current versioned .ipa (no plain Ate.ipa).
           gh release delete latest-build --cleanup-tag -y || true
           git push origin ":refs/tags/latest-build" 2>/dev/null || true
           git tag -f latest-build "$GITHUB_SHA" && git push origin "refs/tags/latest-build"
-          gh release create latest-build "dist/$IPA_NAME" --prerelease --verify-tag \
+          gh release create latest-build "dist/$IPA_NAME" "dist/$IPA_NAME.sha256" --prerelease --verify-tag \
             --title "Latest build ${APP_VERSION} (${BUILD_NUMBER})${RT:+ — $RT} — ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}" --notes-file build/notes.md
-          ASSETS=$(gh release view latest-build --json assets -q '.assets[].name')
-          [ "$ASSETS" = "$IPA_NAME" ] || { echo "::error::latest-build assets are: $ASSETS"; exit 1; }
+          ASSETS=$(gh release view latest-build --json assets -q '[.assets[].name]|sort|join(" ")')
+          [ "$ASSETS" = "$IPA_NAME $IPA_NAME.sha256" ] || { echo "::error::latest-build assets are: $ASSETS"; exit 1; }
           BASE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download"
           {
             echo "### Download"
@@ -385,6 +391,23 @@ jobs:
             echo "- This build (permanent): [$IPA_NAME]($BASE/build-${BUILD_NUMBER}${CH_SUFFIX}/$IPA_NAME)"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "IPA URL: $BASE/build-${BUILD_NUMBER}${CH_SUFFIX}/$IPA_NAME"
+
+      - name: Published artifact smoke test (A-CI-04) — download, checksum, contents
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          TAG="build-${BUILD_NUMBER}${CH_SUFFIX}"
+          rm -rf build/published && mkdir -p build/published
+          gh release download "$TAG" -D build/published -p "$IPA_NAME" -p "$IPA_NAME.sha256"
+          if scripts/verify-ipa.sh "build/published/$IPA_NAME" "build/published/$IPA_NAME.sha256" "$APP_VERSION" "$BUILD_NUMBER" | tee build/verify-ipa.log; then
+            { echo "### Published artifact smoke test"; echo '```'; cat build/verify-ipa.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::Published IPA failed the artifact smoke test; withdrawing the release"
+            gh release delete "$TAG" --cleanup-tag -y || true
+            gh release delete latest-build --cleanup-tag -y || true
+            exit 1
+          fi
 
   ui-suite:
     if: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}

@@ -57,6 +57,16 @@ struct Toast: Equatable, Identifiable {
     var actionTitle: String? = nil
 }
 
+struct RecoveryInfo: Identifiable, Equatable {
+    let id = UUID()
+    var backupPath: String?
+    var inMemory: Bool
+    var restoredFromSync = false
+    var restoredCount = 0
+    var exportURL: URL?
+    var error: String?
+}
+
 struct QuickAddRequest: Identifiable, Equatable { let id = UUID(); let mode: WidgetLinks.AddMode }
 
 @Observable
@@ -79,6 +89,8 @@ final class AppStore {
     var shoppingPath: [Route] = []
     var settingsPath: [Route] = []
     var morePath: [Route] = []
+    /// Set when the local store had to be repaired at launch (shows the recovery screen).
+    var recovery: RecoveryInfo?
     /// iOS 26 search tab (Tab(role: .search)) has its own stack.
     var searchPath: [Route] = []
     /// True when the selected tab shows its root screen (banners that belong to tab roots hide on pushed screens).
@@ -256,7 +268,7 @@ final class AppStore {
         for (i, c) in recipes.enumerated() {
             if let d = try? enc.encode(c) { context.insert(RecipeEntity(id: c.id, createdAt: c.createdAt, position: i, json: d)) }
         }
-        try? context.save()
+        StoreSaver.save(context, what: "recipes")
     }
 
     private func persistShopping(stamp: Bool = true) {
@@ -268,7 +280,7 @@ final class AppStore {
         for (i, it) in shopping.enumerated() {
             if let d = try? enc.encode(it) { context.insert(ShoppingEntity(id: it.id, position: i, json: d)) }
         }
-        try? context.save()
+        StoreSaver.save(context, what: "shopping list")
     }
 
     private func saveDefaults<T: Encodable>(_ v: T, key: String) {
@@ -389,6 +401,19 @@ final class AppStore {
             if Task.isCancelled { return }
             await syncNow()
         }
+    }
+
+    /// After a store repair: pull everything back from Supabase (if signed in) and export what we have as JSON.
+    func completeRecovery() async {
+        guard var r = recovery else { return }
+        if session != nil {
+            meta = SyncMeta()                       // fresh store: treat the server as the source of truth
+            await syncNow()
+            r.restoredFromSync = true
+        }
+        r.restoredCount = recipes.count
+        r.exportURL = StoreRecovery.exportRecovered(recipes)
+        recovery = r
     }
 
     func syncNow() async {

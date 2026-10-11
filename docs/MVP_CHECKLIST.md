@@ -534,6 +534,78 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Status evidence:* new in the Widgets & Intents build
   - *Owner:* _TBD_
 
+### Data safety & security — 0 / 10
+
+- **A-DATA-01 · Corrupt store recovers** — ❌
+  - *Journey:* As a cook, corrupt store recovers.
+  - *Acceptance:* A broken on-device store is moved to Backups/ate-<timestamp>.store, a fresh store opens, recipes come back from sync when signed in, a 'Library repaired' screen offers a JSON export, and the app never crashes.
+  - *Verified by:* auto `StoreRecoveryTests` (corrupt store fixture) · Unit + `-qaCorruptStore` launch
+  - *Status evidence:* Added build 97; first CI run pending
+  - *Owner:* _TBD_
+
+- **A-DATA-02 · Save failures are visible** — ❌
+  - *Journey:* As a cook, save failures are visible.
+  - *Acceptance:* Every SwiftData save goes through StoreSaver: 2 retries, an os_log error, and a non-blocking error banner; on-screen state is kept.
+  - *Verified by:* auto `StoreRecoveryTests.testInjectedSaveFailure*` · Unit
+  - *Status evidence:* Added build 97; first CI run pending
+  - *Owner:* _TBD_
+
+- **A-CI-04 · Published IPA verified** — ❌
+  - *Journey:* As a cook, published IPA verified.
+  - *Acceptance:* Each release publishes <ipa>.sha256 and the SHA-256 in the notes; the smoke step downloads the published asset, verifies the checksum, version/build, bundle ID, extensions (widgets, watch), entitlements, privacy manifest, app icon and size limits, and withdraws the release on failure.
+  - *Verified by:* auto `scripts/verify-ipa.sh` · CI release job
+  - *Status evidence:* Added build 97; first CI run pending
+  - *Owner:* _TBD_
+
+- **A-CI-05 · Docs IDs never drift** — ❌
+  - *Journey:* As a cook, docs IDs never drift.
+  - *Acceptance:* CI fails when an item ID exists in MVP_CHECKLIST, QA_MATRIX or the in-app Beta checks but not the others, or when BetaChecklist.swift is stale, or a service-role key appears in the client.
+  - *Verified by:* auto `scripts/check-ids.py` · CI docs job
+  - *Status evidence:* Added build 97; first CI run pending
+  - *Owner:* _TBD_
+
+- **A-SEC-01 · RLS on every table** — ❌
+  - *Journey:* As a cook, rLS on every table.
+  - *Acceptance:* Every public table has RLS on; user tables are owner-only (auth.uid() = user_id), no anon policies.
+  - *Verified by:* auto backend-e2e `security_checks.t_rls_every_table`
+  - *Status evidence:* Added build 97; first CI run pending
+  - *Owner:* _TBD_
+
+- **A-SEC-02 · Anon key is read-only for shares** — ❌
+  - *Journey:* As a cook, anon key is read-only for shares.
+  - *Acceptance:* With the anon key, user_recipes and qa_results can't be read or written and shared_recipes can't be inserted directly.
+  - *Verified by:* auto backend-e2e `t_anon_denied`
+  - *Status evidence:* Added build 97; first CI run pending
+  - *Owner:* _TBD_
+
+- **A-SEC-03 · Other users are walled off** — ❌
+  - *Journey:* As a cook, other users are walled off.
+  - *Acceptance:* Another user's token can't read, update, delete or spoof rows, and users can't write ci QA rows.
+  - *Verified by:* auto backend-e2e `t_other_user`
+  - *Status evidence:* Added build 97; first CI run pending
+  - *Owner:* _TBD_
+
+- **A-SEC-04 · Edge Functions check auth and input** — ❌
+  - *Journey:* As a cook, edge Functions check auth and input.
+  - *Acceptance:* delete-account needs a user JWT; publish-recipe rejects missing/forged auth, bad shapes, overlong and oversized input; get-shared-recipe validates slugs; rate limits respond 429.
+  - *Verified by:* auto backend-e2e `t_functions`
+  - *Status evidence:* Added build 97; first CI run pending
+  - *Owner:* _TBD_
+
+- **A-SEC-05 · Auth settings hardened** — ❌
+  - *Journey:* As a cook, auth settings hardened.
+  - *Acceptance:* Password min 8 with letters+digits, email confirmation on, email OTP ≤ 1 h, leaked-password check reported.
+  - *Verified by:* auto backend-e2e `t_auth_settings`
+  - *Status evidence:* Added build 97; first CI run pending
+  - *Owner:* _TBD_
+
+- **A-SEC-06 · Storage, grants and functions reviewed** — ❌
+  - *Journey:* As a cook, storage, grants and functions reviewed.
+  - *Acceptance:* Storage buckets, anon grants and function search_path are inventoried; open findings land in docs/SECURITY_REVIEW.md.
+  - *Verified by:* auto backend-e2e `t_storage_and_functions_sql`
+  - *Status evidence:* Added build 97; first CI run pending
+  - *Owner:* _TBD_
+
 ## Tier B — Before wider/public launch
 
 
@@ -925,6 +997,140 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 - **C-JRN-08 · Image prompts are never journal entries** — ❌
   - *Acceptance:* Sending an image-generation prompt (e.g. 'A top-down, highly detailed photograph…') to New journal entry is refused with a clear message, and old ones are cleaned up.
   - *Verified by:* auto: JournalTextGuardTests
+  - *Owner:* _TBD_
+
+### Build 81 fixes — 0 / 8
+
+- **C-FIX-01 · Believable step times** — ❌
+  - *Journey:* As a cook, believable step times.
+  - *Acceptance:* On Nyama yenkomo (and any saved recipe) 'brown beef (2 min)', 'simmer (4 min)', 'pap (3 min)' are gone: implausible AI times show no '(N min)' and no timer, a time written in the step wins, and the card notes that times were corrected.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-FIX-02 · No empty steps** — ❌
+  - *Journey:* As a cook, no empty steps.
+  - *Acceptance:* At 1x, 2x and 3x servings, in detail and cook mode, there are no empty numbered step bubbles.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-FIX-03 · Offline strip below the nav bar** — ❌
+  - *Journey:* As a cook, offline strip below the nav bar.
+  - *Acceptance:* With Wi-Fi and data off, the offline strip sits under the nav bar on Library and recipe detail and never covers the title or back button.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-FIX-04 · Real covers in Siri cards** — ❌
+  - *Journey:* As a cook, real covers in Siri cards.
+  - *Acceptance:* Tonight's pick and Quick recipes from Shortcuts show the recipe photo, or the designed plate tile, never a bare fork-and-knife.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-FIX-05 · Tidy Spotlight** — ❌
+  - *Journey:* As a cook, tidy Spotlight.
+  - *Acceptance:* Searching 'Ate' in Spotlight shows at most 3 'Cook …' suggestions (favourites first) with cover thumbnails, not every recipe.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-FIX-06 · Siri voice diagnostics** — ❌
+  - *Journey:* As a cook, siri voice diagnostics.
+  - *Acceptance:* Beta › Siri explains whether phrases are registered; after opening Ate once, 'What's tonight's pick in Ate' is tried by voice and the result noted (sideloaded installs may need SideStore/Xcode).
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-FIX-07 · Shopping list as Shortcut output** — ❌
+  - *Journey:* As a cook, shopping list as Shortcut output.
+  - *Acceptance:* A Shortcut 'What's on my shopping list' with Show When Run off passes the items as text to the next action (e.g. Show Result), not an empty card.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-FIX-08 · One save, one recipe** — ❌
+  - *Journey:* As a cook, one save, one recipe.
+  - *Acceptance:* Saving a card, restoring an unsaved card or tapping Save twice never creates copies; the earlier duplicate 'Ribs and lemon pepper wings' copies are merged into one.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+### Recipe quality — 0 / 3
+
+- **C-AI-01 · 80% confidence threshold** — ❌
+  - *Journey:* As a cook, 80% confidence threshold.
+  - *Acceptance:* A generated card under 80% confidence isn't shown as a recipe: Ate asks 'What dish is this?' pre-filled with its guesses; after you confirm, it regenerates; if still under 80% it shows 'Draft, needs your input' with Save disabled until you edit or confirm. 80%+ skips the question.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-AI-02 · Main dishes meet the bar** — ❌
+  - *Journey:* As a cook, main dishes meet the bar.
+  - *Acceptance:* A generated main dish has at least 4 ingredients with quantities, oven steps give °C, and no vague steps like 'cook ribs'; otherwise it's a draft listing what's missing.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-AI-03 · Tile icons fit the dish** — ❌
+  - *Journey:* As a cook, tile icons fit the dish.
+  - *Acceptance:* Ribs show a flame (not a teacup), a chicken sandwich shows a takeaway icon (not a bird), drinks show a cup.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+### Library header — 0 / 1
+
+- **C-LIB-01 · Library header** — ❌
+  - *Journey:* As a cook, library header.
+  - *Acceptance:* Library shows the logo in the toolbar, the native large title 'Your Kitchen', 'Search N recipes' in the search bar, a quiet count, and one icon-only Group & sort menu that never truncates.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+### iOS 26 tab bar — 0 / 6
+
+- **C-TAB-01 · Add recipe in the tab bar accessory** — ❌
+  - *Journey:* As a cook, add recipe in the tab bar accessory.
+  - *Acceptance:* On iOS 26 a persistent 'Add recipe' control sits above the tab bar on every tab and opens the Add sheet; no floating Add button.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-TAB-02 · Timer in the accessory** — ❌
+  - *Journey:* As a cook, timer in the accessory.
+  - *Acceptance:* With a timer running, the accessory shows the timer summary plus a + (Add recipe), the old in-app timer bar doesn't also show on tab roots, and recipe detail's Cook mode button never clashes with it.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-TAB-03 · Compact when minimised** — ❌
+  - *Journey:* As a cook, compact when minimised.
+  - *Acceptance:* Scrolling down minimises the tab bar and the accessory switches to its compact layout; scrolling up restores both.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-TAB-04 · Search tab** — ❌
+  - *Journey:* As a cook, search tab.
+  - *Acceptance:* Library search sits in the tab bar (search tab) next to the 4 main tabs, and 'Your Kitchen' stays visible while searching.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-TAB-05 · Soft scroll edges** — ❌
+  - *Journey:* As a cook, soft scroll edges.
+  - *Acceptance:* Library, Shopping, More and Settings fade softly under the nav bar when scrolled.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
+  - *Owner:* _TBD_
+
+- **C-TAB-06 · Concentric sheet cards** — ❌
+  - *Journey:* As a cook, concentric sheet cards.
+  - *Acceptance:* Cards inside the Add/Review sheet follow the sheet's corner curve.
+  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 ## Privacy-language audit (docs/legal vs code, 2026-10-10)

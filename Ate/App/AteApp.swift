@@ -11,10 +11,23 @@ struct AteApp: App {
         if AppConfig.isUITesting {
             for k in ["ate.settings.v1", "ate.timerprefs.v1"] { UserDefaults.standard.removeObject(forKey: k) }
         }
-        let config = ModelConfiguration(isStoredInMemoryOnly: AppConfig.isUITesting)
-        let c = try? ModelContainer(for: RecipeEntity.self, ShoppingEntity.self, configurations: config)
+        // Corruption-safe open: a broken store is moved aside and a fresh one opened; never crashes (R-DATA-01).
+        let corruptQA = AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaCorruptStore")
+        let outcome: StoreRecovery.Outcome
+        if corruptQA {
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("qa-corrupt-\(UUID().uuidString).store")
+            try? Data("not a sqlite database".utf8).write(to: url)
+            outcome = StoreRecovery.open(url: url)
+        } else {
+            outcome = StoreRecovery.open(inMemory: AppConfig.isUITesting)
+        }
+        let c = outcome.container
         container = c
         let st = AppStore(context: c?.mainContext)
+        if outcome.recovered || outcome.inMemoryFallback || (c == nil && !AppConfig.isUITesting) {
+            st.recovery = RecoveryInfo(backupPath: outcome.backupURL?.lastPathComponent, inMemory: outcome.inMemoryFallback || c == nil, error: outcome.error)
+        }
+        StoreSaver.onFailure = { [weak st] msg in st?.show(msg, error: true, seconds: 4) }
         if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaHealthRecipes") && st.recipes.isEmpty {
             st.recipes = HealthFixtures.library
         }
@@ -31,6 +44,7 @@ struct AteApp: App {
                     Task { await CoverStore.checkPlayground() }
                     PhoneWatchBridge.shared.update(session: store.session)
                     if let u = AppConfig.launchURL { store.handle(url: u) }
+                    if store.recovery != nil { await store.completeRecovery() }
                 }
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { a in
                     if let u = a.webpageURL { store.handle(url: u) }
@@ -127,6 +141,36 @@ struct RootView: View {
                 ToastView(toast: t).padding(.top, 8).transition(.move(edge: .top).combined(with: .opacity)).id(t.id)
             }
         }
+        .sheet(item: Binding(get: { store.recovery }, set: { store.recovery = $0 })) { info in
+            NavigationStack { RecoveryView(info: info) }.environment(store)
+        }
+    }
+}
+
+/// Shown once after the local library had to be repaired at launch (R-DATA-01).
+struct RecoveryView: View {
+    @Environment(AppStore.self) private var store
+    let info: RecoveryInfo
+    var body: some View {
+        List {
+            Section {
+                Label("Ate repaired its library on this iPhone", systemImage: "wrench.and.screwdriver").font(AteFont.body(16, .semibold))
+                Text("The saved data couldn't be opened, so Ate moved it aside and started a fresh library. Nothing was deleted.")
+                    .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
+            }
+            Section("What happened") {
+                if let b = info.backupPath { LabeledContent("Backup", value: b) }
+                if info.inMemory { Text("Running without on-device storage this session; changes sync if you're signed in.") }
+                if info.restoredFromSync { LabeledContent("Restored from sync", value: "\(info.restoredCount) recipes") }
+                else if store.session == nil { Text("Sign in from Settings to restore your recipes from sync.") }
+            }
+            if let u = info.exportURL {
+                Section { ShareLink(item: u) { Label("Export recovered recipes (JSON)", systemImage: "square.and.arrow.up") } }
+            }
+        }
+        .navigationTitle("Library repaired").navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { store.recovery = nil } } }
+        .accessibilityIdentifier("recoveryView")
     }
 }
 

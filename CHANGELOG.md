@@ -4,6 +4,18 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 
 ## Unreleased
 
+### 🛟 Data safety (A-DATA-01/02)
+- **Corrupt library recovery:** if the on-device store can't be opened, Ate moves it to `Backups/ate-<timestamp>.store`, opens a fresh store (in-memory as a last resort, never a crash), restores from sync when you're signed in, writes a JSON export of the recovered recipes, and shows a "Library repaired" screen with Export.
+- **Save failures:** every SwiftData save retries twice, logs the error and shows a non-blocking banner; what's on screen is kept. Tests use a corrupt-store fixture and an injected save failure.
+
+### 🔐 Supabase security review (A-SEC-01…06)
+- `docs/SECURITY_REVIEW.md`: RLS, anon and other-user tokens, Edge Function auth and validation, rate limits, CORS, secrets inventory, storage, auth settings and the leaked-password check, with findings and a sign-off checklist.
+- backend-e2e now runs these checks on every build. Hardening migration `20261011090000_security_hardening.sql` (revoke anon grants, fixed search_path, explicit share write lock, note length) is ready to apply.
+
+### 📦 Release integrity (A-CI-04/05)
+- Each IPA ships with a `.sha256` asset, and its SHA-256 is in the notes. A smoke step downloads the published asset, verifies the checksum, version and build, bundle ID, widgets and watch app, entitlements, privacy manifest, app icon and size limits, and withdraws the release if anything fails.
+- One source of truth for docs: README, BETA, MVP_CHECKLIST and QA_MATRIX are reconciled (SideStore-first install, current build). `scripts/check-ids.py` fails CI when IDs drift between the checklist, the QA matrix and the in-app Beta checks, or when a service key shows up in client code.
+
 ### 📱 iOS 26 tab bar (build after 96; iOS 18–25 keep the previous UI)
 - **Bottom accessory:** "Add recipe" now sits above the tab bar on every tab and replaces the floating button. When a timer is running, it shows the timer summary plus a + button, and the in-app timer bar no longer repeats on tab roots. It switches to a compact layout when the tab bar is minimised.
 - **Tab bar** minimises when you scroll down.

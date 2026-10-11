@@ -7,7 +7,11 @@ Native SwiftUI (iOS 18+, iPhone; Apple Intelligence features need iOS 26 on supp
 ## Features
 Library + search · Add recipe sheet (Link / Image / Prompt → review/edit/regenerate/save) · Recipe detail (x1/x2/x3 scaling, inline edit, Ask ate rewrite, share, add to shopping list, delete) · Cook mode (big text, progress, step timers with background notifications, screen stays awake) · Shopping list (merge, manual add, tick, share/copy/.txt/.csv, clear) · Settings (private mode, units, timer prefs + quiet hours, export/import/clear) · Shared recipe deep links (`ate://recipe/<slug>`, legacy `ate://r/<slug>`) · 404 / error states.
 
-Data is stored on-device with SwiftData. Settings live in UserDefaults.
+Also: Journal, widgets / Lock Screen / Control Center, Siri & Shortcuts, Apple Watch timers, iOS 26 tab bar (Add recipe accessory, Search tab), 80% confidence gate for AI cards.
+
+Data is stored on-device with SwiftData. A corrupt store is moved to `Backups/` and rebuilt from sync with a JSON export (A-DATA-01); failed saves retry and show a banner (A-DATA-02). Settings live in UserDefaults.
+
+**Docs are one source of truth:** item IDs and statuses are defined in `docs/MVP_CHECKLIST.md`; `docs/QA_MATRIX.md` and the in-app Beta checks (`Ate/Logic/BetaChecklist.swift`, generated) follow it, and `scripts/check-ids.py` fails CI on drift (A-CI-05). Security: [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md).
 
 ## AI
 - **Default: on-device.** Apple Foundation Models (`LanguageModelSession` + `@Generable` recipe type) on iOS 26+ devices with Apple Intelligence. Screenshots go through Vision OCR (`VNRecognizeTextRequest`). For links, the app fetches the page and passes its text to the model.
@@ -34,8 +38,14 @@ open Ate.xcodeproj   # Xcode 26 (iOS 26 SDK) required for the Foundation Models 
 
 **Download on your phone:** https://github.com/melusi-k/ate-ios/releases/tag/latest-build
 
-### Installing the .ipa
-- **Unsigned build** (the default, when no signing secrets are set): sideload with [Sideloadly](https://sideloadly.io) or [AltStore](https://altstore.io) using your Apple ID. They re-sign the app for your device. A free Apple ID gives you a 7-day signature.
+### Installing the .ipa (current: 0.1.0 build 99)
+1. **SideStore (recommended):** in SideStore tap **+**, pick the downloaded `Ate-<version>-build<N>.ipa`, choose **Keep** app extensions. SideStore registers the App Group for free Apple IDs (widgets work) and refreshes on-device every 7 days.
+2. **AltStore / Sideloadly:** same IPA; re-sign every 7 days. In Sideloadly leave *Remove app extensions* off.
+3. **Xcode (Mac):** build with your Personal Team (see *Build locally*).
+
+Verify the download first: each release has `<ipa>.sha256` and lists the SHA-256 in its notes (`shasum -a 256 -c Ate-…ipa.sha256`). CI downloads the published asset and re-checks it (A-CI-04) before the release stands.
+
+- **Unsigned build** (the default, when no signing secrets are set): any of the sideload routes above re-signs the app for your device. A free Apple ID gives you a 7-day signature.
 - **Signed build** (when the secrets below are set): install via Apple Configurator / Finder, or a tool like Diawi. Your device's UDID must be in the provisioning profile.
 
 ### Signing secrets

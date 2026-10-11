@@ -74,6 +74,8 @@ def t_functions(ctx):
     assert code in (400, 413), f"publish-recipe oversized: {code}"
     code, _ = http("GET", f"{f}/get-shared-recipe?slug=../../etc", ctx.anon_h())
     assert code == 400, f"get-shared-recipe slug validation: {code}"
+    code, _ = http("GET", f"{f}/get-shared-recipe?slug=missing" + uuid.uuid4().hex[:8], ctx.anon_h())
+    assert code == 404, f"get-shared-recipe unknown slug should be 404: {code}"
     code, j = http("OPTIONS", f"{f}/publish-recipe", {"Origin": "https://evil.example"})
     finding(ctx, "Edge Functions answer CORS with Access-Control-Allow-Origin: * (low risk: no cookies; auth is bearer-only)")
     return "delete-account requires a user JWT; publish-recipe rejects missing/forged auth, bad shape, overlong and oversized input; slug validated"

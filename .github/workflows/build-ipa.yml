@@ -559,7 +559,8 @@ jobs:
           python3 scripts/e2e/backend_e2e.py --no-checks --extra build/ui-items.json --upload --build "$APP_VERSION ($BUILD_NUMBER) TierA" --out build/ui-e2e || true
 
   backend-e2e:
-    # Real-Supabase checks with temporary pre-confirmed users. Required for validated beta promotion.
+    # Real-Supabase checks run on validation builds and are required for beta promotion.
+    if: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

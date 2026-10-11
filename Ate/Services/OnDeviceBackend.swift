@@ -62,6 +62,7 @@ final class OnDeviceBackend: BackendService {
         let prompt: String
         var input: RecipePrompt.Input = .prompt
         var photoForTool: String?
+        var reviseID: String?
         switch request.mode {
         case .prompt:
             prompt = RecipePrompt.prompt(request.text ?? "")
@@ -101,8 +102,10 @@ final class OnDeviceBackend: BackendService {
             c.imageURL = nil; c.sourceURL = nil
             let json = (try? String(data: JSONEncoder().encode(c), encoding: .utf8)) ?? ""
             prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"; input = .rewrite
+            reviseID = c.id
         }
-        var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool)
+        var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID)
+        if let r = reviseID { await Self.rekeySession(from: card.id, to: r) }
         card.source = source; card.generatedAt = Date().timeIntervalSince1970 * 1000
         if request.mode == .url, let u = URL(string: (request.text ?? "").trimmingCharacters(in: .whitespaces)) {
             card.sourceURL = SocialLinks.clean(u).absoluteString
@@ -129,22 +132,81 @@ final class OnDeviceBackend: BackendService {
         return false
     }
 
-    static func generate(_ prompt: String, input: RecipePrompt.Input = .prompt, photoDataURL: String? = nil) async throws -> RecipeCard {
+    /// Live preview sink for the review sheet (set while the Add sheet / Ask Ate is generating).
+    @MainActor static var partialSink: ((RecipeStreamPreview) -> Void)?
+
+    #if canImport(FoundationModels)
+    /// Sessions kept per recipe id so Ask Ate ("Make this vegan") revises the card in the SAME conversation.
+    @available(iOS 26.0, *) @MainActor private static var sessions: [String: LanguageModelSession] = [:]
+    @available(iOS 26.0, *) @MainActor private static var warm: LanguageModelSession?
+    #endif
+
+    /// Called when the Add recipe sheet opens: loads the model + prompt-instructions prefix ahead of the tap.
+    @MainActor static func prewarm() {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *), isModelAvailable, warm == nil {
+            let s = LanguageModelSession(instructions: RecipePrompt.instructions(for: .prompt))
+            s.prewarm()
+            warm = s
+        }
+        #endif
+    }
+
+    /// Readable reason when the model isn't usable (graceful fallback to the template backend is used instead).
+    static var availabilityNote: String {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            switch SystemLanguageModel.default.availability {
+            case .available: return "Apple Intelligence ready"
+            case .unavailable(.deviceNotEligible): return "This iPhone doesn't support Apple Intelligence"
+            case .unavailable(.appleIntelligenceNotEnabled): return "Turn on Apple Intelligence in Settings"
+            case .unavailable(.modelNotReady): return "Apple Intelligence is still downloading"
+            case .unavailable: return "Apple Intelligence unavailable"
+            }
+        }
+        #endif
+        return "Needs iOS 26"
+    }
+
+    @MainActor
+    static func generate(_ prompt: String, input: RecipePrompt.Input = .prompt, photoDataURL: String? = nil,
+                         reviseID: String? = nil) async throws -> RecipeCard {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
             var tools: [any Tool] = []
             if let photoDataURL { tools.append(PhotoTextTool(dataURL: photoDataURL)) }
-            let session = LanguageModelSession(tools: tools, instructions: RecipePrompt.instructions(for: input))
+            let session: LanguageModelSession
+            if let id = reviseID, let s = sessions[id] { session = s }                       // Ask Ate: same session
+            else if input == .prompt, tools.isEmpty, let w = warm { session = w; warm = nil } // prewarmed
+            else { session = LanguageModelSession(tools: tools, instructions: RecipePrompt.instructions(for: input)) }
             do {
                 // Extraction, not creative writing: greedy decoding keeps the card grounded in the text.
-                let res = try await session.respond(to: prompt, generating: GenRecipe.self, options: GenerationOptions(sampling: .greedy, temperature: 0.1))
-                return res.content.card
+                // Streamed so the review sheet renders the PartiallyGenerated card live.
+                let stream = session.streamResponse(to: prompt, generating: GenRecipe.self,
+                                                    options: GenerationOptions(sampling: .greedy, temperature: 0.1))
+                for try await snap in stream {
+                    partialSink?(RecipeStreamPreview(snap.content))
+                }
+                let res = try await stream.collect()
+                let card = res.content.card
+                sessions[card.id] = session
+                if sessions.count > 8, let k = sessions.keys.first(where: { $0 != card.id }) { sessions[k] = nil }
+                return card
+            } catch let e as LanguageModelSession.GenerationError {
+                throw BackendError(message: GenerationFailure(e).message)
             } catch {
-                throw BackendError(message: "AI returned an unreadable recipe. Try again.")
+                throw BackendError(message: GenerationFailure.decoding.message)
             }
         }
         #endif
         throw BackendError(message: "On-device AI isn't available on this device.")
+    }
+
+    /// Move a revised card's session to the recipe's stable id (rewrite keeps the original id).
+    @MainActor static func rekeySession(from old: String, to new: String) {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *), old != new, let s = sessions[old] { sessions[new] = s; sessions[old] = nil }
+        #endif
     }
 
     static func fetchPageText(_ link: String) async throws -> String {
@@ -257,6 +319,7 @@ struct PhotoTextTool: Tool {
     }
 }
 
+@available(iOS 26.0, *)
 @Generable
 struct GenIngredient {
     @Guide(description: "Realistic numeric amount for the servings; 0 only for 'to taste'", .range(0...5000)) var quantity: Double
@@ -328,6 +391,37 @@ struct GenRecipe {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let body = trimmed.hasSuffix(".") ? String(trimmed.dropLast()) : trimmed
         return body + " at \(t)°C."
+    }
+}
+
+@available(iOS 26.0, *)
+extension RecipeStreamPreview {
+    init(_ p: GenRecipe.PartiallyGenerated) {
+        self.init(title: p.title ?? p.dish?.name,
+                  cuisine: p.dish?.cuisine,
+                  confidence: p.dish?.confidence,
+                  ingredients: (p.ingredients ?? []).compactMap { i in
+                      guard let n = i.name, !n.isEmpty else { return nil }
+                      return [i.quantity.map { RecipeLogic.round2($0) == $0.rounded() ? String(Int($0)) : String($0) }, i.unit, n]
+                          .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " ")
+                  },
+                  steps: (p.steps ?? []).compactMap { $0.instruction }.filter { !$0.isEmpty })
+    }
+}
+
+@available(iOS 26.0, *)
+extension GenerationFailure {
+    init(_ e: LanguageModelSession.GenerationError) {
+        switch e {
+        case .exceededContextWindowSize: self = .tooLong
+        case .assetsUnavailable: self = .assetsUnavailable
+        case .guardrailViolation: self = .guardrail
+        case .unsupportedGuide: self = .unsupportedGuide
+        case .unsupportedLanguageOrLocale: self = .language
+        case .decodingFailure: self = .decoding
+        case .rateLimited: self = .rateLimited
+        default: self = .other
+        }
     }
 }
 #endif

@@ -81,3 +81,32 @@ final class QualityAndDedupeTests: XCTestCase {
         XCTAssertEqual(SiriAnswers.listValues(items), ["milk (2 l)", "eggs"])
     }
 }
+
+/// Foundation Models round: errors, examples, streamed preview, rendering from structured data.
+final class FoundationModelsPatternTests: XCTestCase {
+    func testEveryGenerationFailureHasADistinctClearMessage() {
+        let msgs = GenerationFailure.allCases.map(\.message)
+        XCTAssertEqual(Set(msgs).count, msgs.count)
+        XCTAssertTrue(GenerationFailure.tooLong.message.contains("too long"))
+        XCTAssertTrue(GenerationFailure.guardrail.message.contains("wouldn't"))
+        XCTAssertTrue(GenerationFailure.assetsUnavailable.message.contains("getting ready"))
+    }
+    func testInstructionsHavePersonaRulesAndExamples() {
+        let i = RecipePrompt.instructions
+        for must in ["South African home-cooking expert", "at least 4 real ingredients", "°C", "Chakalaka", "bake at 160°C", "First identify the dish"] {
+            XCTAssertTrue(i.contains(must), must)
+        }
+    }
+    func testExampleRecipesMeetTheQualityBar() {
+        let ribs = RecipeCard(title: "Sticky pork ribs", servings: 4,
+                              ingredients: [.init(name: "pork ribs", quantity: 1.2, unit: "kg"), .init(name: "brown sugar", quantity: 3, unit: "tbsp"),
+                                            .init(name: "smoked paprika", quantity: 2, unit: "tsp"), .init(name: "garlic", quantity: 3, unit: "cloves")],
+                              steps: [.init(order: 1, instruction: "Rub the ribs with sugar, paprika and garlic", timeSeconds: nil),
+                                      .init(order: 2, instruction: "Wrap in foil and bake at 160°C until tender", timeSeconds: 7200)],
+                              source: .appleIntelligence)
+        XCTAssertEqual(RecipeQuality.issues(ribs), [])
+    }
+    func testStreamPreviewIsEquatableForLiveAnimation() {
+        XCTAssertNotEqual(RecipeStreamPreview(title: nil), RecipeStreamPreview(title: "Mogodu"))
+    }
+}

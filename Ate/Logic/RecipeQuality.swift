@@ -61,3 +61,29 @@ enum RecipeQuality {
         isGenerated(c) && ((c.aiConfidence ?? 1) < threshold || !issues(c).isEmpty)
     }
 }
+
+/// Live, partially generated card shown while Foundation Models streams (built from GenRecipe.PartiallyGenerated).
+struct RecipeStreamPreview: Equatable {
+    var title: String?
+    var cuisine: String?
+    var confidence: Double?
+    var ingredients: [String] = []
+    var steps: [String] = []
+}
+
+/// One clear message per LanguageModelSession.GenerationError case (mapped in OnDeviceBackend).
+enum GenerationFailure: Equatable, CaseIterable {
+    case tooLong, assetsUnavailable, guardrail, unsupportedGuide, language, decoding, rateLimited, other
+    var message: String {
+        switch self {
+        case .tooLong: return "That page or caption is too long for on-device AI. Paste just the recipe part and try again."
+        case .assetsUnavailable: return "Apple Intelligence is still getting ready on this iPhone. Try again in a few minutes."
+        case .guardrail: return "Apple Intelligence wouldn't write this one. Try describing the dish differently."
+        case .unsupportedGuide: return "Ate asked the model for something it can't do. Please report this from Beta testing."
+        case .language: return "On-device AI doesn't support this language yet. Try the recipe in English."
+        case .decoding: return "AI returned an unreadable recipe. Try again."
+        case .rateLimited: return "Apple Intelligence is busy. Wait a moment and try again."
+        case .other: return "Something went wrong generating the recipe. Try again."
+        }
+    }
+}

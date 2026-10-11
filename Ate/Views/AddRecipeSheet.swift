@@ -41,6 +41,7 @@ struct AddRecipeSheet: View {
     @State private var showCoverCamera = false
     @State private var confirmDiscard = false
     @State private var saving = false
+    @State private var live: RecipeStreamPreview?
     @State private var confirmedDraft = false
     /// Name the user confirmed in "What dish is this?" (C-AI-01); the regenerated card is not asked about again.
     @State private var confirmedDish: String?
@@ -73,6 +74,7 @@ struct AddRecipeSheet: View {
         }
         .onDisappear { if !loading && !hasUnsaved { DraftStore.shared.clear() } }
         .task {
+            OnDeviceBackend.prewarm()
             if let m = initialMode, draft == nil {
                 mode = m == .photo ? .image : m == .prompt ? .prompt : .link
             }
@@ -201,6 +203,8 @@ struct AddRecipeSheet: View {
         } else if let error {
             ErrorRetryCard(message: error, retryID: "generateRetry") { Task { await generate() } }
         }
+
+        if loading, let p = live { StreamPreviewCard(preview: p) }
 
         Button { Task { await generate() } } label: {
             HStack { if loading { ProgressView().tint(Theme.primaryForeground); Text("Cooking up your card…") }
@@ -395,8 +399,10 @@ struct AddRecipeSheet: View {
         }
         loading = true
         error = nil; socialError = nil; socialReason = nil
+        live = nil
+        OnDeviceBackend.partialSink = { p in live = p }
         DraftStore.shared.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""))
-        defer { loading = false; DraftStore.shared.end() }
+        defer { loading = false; DraftStore.shared.end(); OnDeviceBackend.partialSink = nil; live = nil }
         do {
             let started = Date()
             var card = try await store.backend.parseRecipe(req)
@@ -449,5 +455,21 @@ struct AddRecipeSheet: View {
             }
             Haptics.error()
         }
+    }
+}
+
+/// The card as it streams in (title → ingredients → steps), rendered from the structured partial output.
+struct StreamPreviewCard: View {
+    let preview: RecipeStreamPreview
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(preview.title ?? "Identifying the dish…").font(AteFont.display(20)).redacted(reason: preview.title == nil ? .placeholder : [])
+            if let c = preview.cuisine, !c.isEmpty { Text(c.uppercased()).overline() }
+            ForEach(Array(preview.ingredients.enumerated()), id: \.offset) { Text("• " + $0.element).font(AteFont.body(14)) }
+            ForEach(Array(preview.steps.enumerated()), id: \.offset) { Text("\($0.offset + 1). " + $0.element).font(AteFont.body(14)) }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading).cardSurface(padding: 16)
+        .animation(Motion.anim(), value: preview)
+        .accessibilityIdentifier("streamPreview")
     }
 }

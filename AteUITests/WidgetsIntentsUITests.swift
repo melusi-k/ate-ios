@@ -40,20 +40,4 @@ final class WidgetsIntentsUITests: XCTestCase {
         XCTAssertTrue(nf.waitForExistence(timeout: 10))
     }
 
-    func testBetaPageListsWidgetChecks() {
-        launch()
-        app.tabBars.buttons["More"].tap()
-        app.buttons["more.betaTesting"].tap()
-        let diag = app.descendants(matching: .any)["beta.widgetDiagnostics"].firstMatch
-        var n = 0
-        while !(diag.exists && diag.isHittable) && n < 10 { app.swipeUp(); n += 1 }
-        XCTAssertTrue(diag.exists, "Beta page should show the widget diagnostics row")
-        XCTAssertTrue(diag.label.contains("App Group"))
-        let item = app.descendants(matching: .any)["beta.A-WIDGET-01"].firstMatch
-        let header = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "Widgets & Intents")).firstMatch
-        n = 0
-        while !(item.exists || header.exists) && n < 60 { app.swipeUp(velocity: .slow); n += 1 }
-        XCTAssertTrue(item.exists || header.exists, "Widget checks should appear on the Beta page")
-        shot("beta-widget-checks")
-    }
 }

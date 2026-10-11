@@ -63,6 +63,9 @@
 
 ## Beta gate & QA release gate
 
+**PRD gap register:** [docs/PRD_GAP_REGISTER.md](PRD_GAP_REGISTER.md) maps the PRD, MVP checklist, QA matrix, and known external dependencies to tracked GitHub issues. This register is an index; the detailed acceptance criteria remain in [MVP_CHECKLIST.md](MVP_CHECKLIST.md).
+
+
 - **Beta / launch gate:** [MVP_CHECKLIST.md](MVP_CHECKLIST.md) — tiered: **A** must-pass before pilot, **B** before public launch, **C** later polish; every item has a user journey, acceptance criteria, verification and an honest status. Platform constraints and pilot vs public rollout criteria are up front and at the end. Scored pass/fail test matrix: [QA_MATRIX.md](QA_MATRIX.md); scores: [MVP_SCORE.md](MVP_SCORE.md); tester FAQ: [SUPPORT.md](SUPPORT.md). Auth (with a real-device gate) and backend/share are launch gates. Verdict (build 36): pilot candidate, but Tier A isn't green yet; not public-launch ready.
 - **QA pass on key flows (release gate criteria):** a build may only be published when all 8 flows pass in `KeyFlowsQATests` — 1 add from URL (JSON-LD + social caption), 2 add from photo (screenshot + food-photo fallback), 3 generate & edit, 4 save, 5 share (link + text, single link), 6 open shared (`ate://recipe/<slug>` + expired/not found), 7 sync (sign in, edit, sync, second launch pulls), 8 timers (start/pause/resume, timer bar, finish chime/haptic, Live Activity request). CI writes the flow → pass/fail table into the job summary and release notes. Before giving a build to testers, run the manual on-device checklist in [QA.md](QA.md).
 - Hardening landed with the gate: clear session-expiry handling (local sign-out, recipes kept), account-switch safety, idempotent repeat syncs (fixed a re-push loop from fractional stamps), a 500-recipe performance test, AI transparency copy in onboarding and Settings, and an in-app "What to expect in this beta" note ([BETA.md](BETA.md)).

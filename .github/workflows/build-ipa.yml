@@ -396,7 +396,7 @@ jobs:
             "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" "$IPA_NAME" "$IPA_KIND" > build/notes.md
           echo -e "\n**SHA-256** \`$IPA_NAME\`: \`$IPA_SHA\` (also attached as \`$IPA_NAME.sha256\`; check with \`shasum -a 256 -c $IPA_NAME.sha256\`)" >> build/notes.md
           [ -f build/qa.md ] && { echo; cat build/qa.md; } >> build/notes.md
-          echo -e "\nFull UI suite runs as a separate non-blocking job (ui-suite) in this run." >> build/notes.md
+          echo -e "\n**Channel:** Internal build. This rolling release is not a validated beta candidate. A validated candidate is published separately as \`latest-beta\` only after unit tests, key-flow QA, all UI test shards, and backend E2E pass." >> build/notes.md
           cat build/notes.md >> "$GITHUB_STEP_SUMMARY"
           # Immutable per-build prerelease.
           CH_TITLE=""; [ -n "$ATE_CHANNEL" ] && CH_TITLE=" — ${ATE_CHANNEL/TierA/Tier A}"
@@ -451,7 +451,6 @@ jobs:
     name: ui-suite (${{ matrix.shard }})
     runs-on: macos-26
     timeout-minutes: 45
-    continue-on-error: true
     env:
       SCHEME: Ate
       ATE_SIGN_STYLE: Automatic
@@ -493,10 +492,9 @@ jobs:
           echo "IPA_NAME=Ate-$VERSION-build$BUILD_NUMBER.ipa" >> $GITHUB_ENV
           echo "Version $VERSION build $BUILD_NUMBER"
 
-      - name: Run UI tests (full suite, non-blocking)
+      - name: Run UI tests (full suite; required for beta promotion)
         id: uitests
         timeout-minutes: 42
-        continue-on-error: true
         run: |
           SIM_ID=$(xcrun simctl list devices available -j | python3 -c '
           import json,sys
@@ -561,10 +559,9 @@ jobs:
           python3 scripts/e2e/backend_e2e.py --no-checks --extra build/ui-items.json --upload --build "$APP_VERSION ($BUILD_NUMBER) TierA" --out build/ui-e2e || true
 
   backend-e2e:
-    # Real-Supabase checks with temporary pre-confirmed users. Non-blocking while it beds in.
+    # Real-Supabase checks with temporary pre-confirmed users. Required for validated beta promotion.
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -595,3 +592,60 @@ jobs:
           name: backend-e2e
           path: build/e2e
           if-no-files-found: warn
+
+
+  publish-beta:
+    name: Promote validated beta candidate
+    if: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
+    needs: [release, ui-suite, backend-e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      ATE_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'TierA' }}
+    steps:
+      - name: Download the exact tested build
+        run: |
+          set -euo pipefail
+          SUFFIX=""; [ -n "$ATE_CHANNEL" ] && SUFFIX="-$ATE_CHANNEL"
+          TAG="build-${BUILD_NUMBER}${SUFFIX}"
+          mkdir -p dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist
+          ls -l dist
+          test "$(find dist -maxdepth 1 -name '*.ipa' | wc -l | tr -d ' ')" = "1"
+          test "$(find dist -maxdepth 1 -name '*.ipa.sha256' | wc -l | tr -d ' ')" = "1"
+          (cd dist && shasum -a 256 -c *.ipa.sha256)
+
+      - name: Publish rolling latest-beta candidate
+        run: |
+          set -euo pipefail
+          SUFFIX=""; [ -n "$ATE_CHANNEL" ] && SUFFIX="-$ATE_CHANNEL"
+          TAG="build-${BUILD_NUMBER}${SUFFIX}"
+          IPA=$(find dist -maxdepth 1 -name '*.ipa' -print -quit)
+          CHECKSUM="$IPA.sha256"
+          git init
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git fetch origin "$GITHUB_SHA" --depth=1
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          gh release delete latest-beta --repo "$GITHUB_REPOSITORY" --cleanup-tag -y || true
+          git push origin ":refs/tags/latest-beta" 2>/dev/null || true
+          git tag latest-beta "$GITHUB_SHA"
+          git push origin refs/tags/latest-beta
+          {
+            echo "# Validated beta candidate"
+            echo
+            echo "- Commit: `$GITHUB_SHA`"
+            echo "- Build tag: `$TAG`"
+            echo "- Validation: unit tests, key-flow QA, all UI test shards, backend E2E"
+            echo "- This release promotes the exact IPA from the immutable build release; it does not rebuild."
+            echo
+            echo "SHA-256: `$(awk '{print $1}' "$CHECKSUM")`"
+          } > beta-notes.md
+          gh release create latest-beta "$IPA" "$CHECKSUM" --repo "$GITHUB_REPOSITORY" --prerelease \
+            --verify-tag --title "Validated beta — build ${BUILD_NUMBER} @ ${GITHUB_SHA::7}" \
+            --notes-file beta-notes.md
+          echo "Published validated beta candidate from build $BUILD_NUMBER."

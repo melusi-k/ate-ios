@@ -23,6 +23,8 @@ struct MoreView: View {
             Section {
                 NavigationLink(value: Route.insights) { Label("Insights & journal", systemImage: "heart.text.square") }
                     .accessibilityIdentifier("more.insights")
+                NavigationLink(value: Route.journal) { Label("Journal", systemImage: "book.closed") }
+                    .accessibilityIdentifier("more.journal")
             } header: { Text("Health") } footer: { Text("Read-only Apple Health signals turned into meal ideas and journal prompts.") }
             Section("Collections") {
                 ForEach([RecipeCollection.quick, .favourites, .recentlyAdded, .recentlyCooked], id: \.self) { collectionRow($0) }

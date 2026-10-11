@@ -52,6 +52,14 @@ final class JournalStore {
         container = try? ModelContainer(for: JournalEntry.self,
                                         configurations: ModelConfiguration("AteJournal", isStoredInMemoryOnly: inMemory))
         seedMomentEntryForUITests()
+        removeImagePromptEntriesOnce()
+    }
+    /// One-time cleanup (b81): earlier builds saved image-generation prompts routed through the journal schema as entries.
+    private func removeImagePromptEntriesOnce() {
+        let k = "ate.journal.imagePromptCleanup.v1"
+        guard !UserDefaults.standard.bool(forKey: k), let ctx = container?.mainContext else { return }
+        for e in entries() where e.source != .journalMoment && JournalTextGuard.looksLikeImagePrompt(e.text) { ctx.delete(e) }
+        try? ctx.save(); UserDefaults.standard.set(true, forKey: k)
     }
     func entries() -> [JournalEntry] {
         (try? container?.mainContext.fetch(FetchDescriptor<JournalEntry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []
@@ -70,5 +78,47 @@ final class JournalStore {
             save(prompt: p, text: "Seeded from a Journal moment", state: state, recipeIDs: [], momentTitle: title, momentDate: date)
         }
     }
-    func delete(_ e: JournalEntry) { container?.mainContext.delete(e); try? container?.mainContext.save() }
+    func delete(_ e: JournalEntry) {
+        for f in e.mediaFileNames { try? FileManager.default.removeItem(at: Self.mediaURL(f)) }
+        container?.mainContext.delete(e); try? container?.mainContext.save()
+    }
+    func entry(_ id: String) -> JournalEntry? { entries().first { $0.id == id } }
+    func update(_ e: JournalEntry, text: String) {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines); guard !t.isEmpty else { return }
+        e.text = t; e.editedAt = .now; try? container?.mainContext.save()
+    }
+    /// Entry saved from Siri/Shortcuts, keeping location and media (media files live in Application Support/JournalMedia).
+    @discardableResult
+    func saveFromIntent(title: String?, text: String, date: Date?, state: HealthState, locationName: String?, latitude: Double?, longitude: Double?,
+                        media: [(data: Data, ext: String)]) -> JournalEntry? {
+        guard let ctx = container?.mainContext, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        let e = JournalEntry(createdAt: date ?? .now, prompt: title ?? "Note from Siri", text: text, state: state, source: .siri)
+        e.locationName = locationName; e.latitude = latitude; e.longitude = longitude
+        try? FileManager.default.createDirectory(at: Self.mediaDir, withIntermediateDirectories: true)
+        e.mediaFileNames = media.prefix(10).compactMap { m in
+            let name = "\(e.id)-\(UUID().uuidString.prefix(8)).\(m.ext.isEmpty ? "jpg" : m.ext)"
+            return (try? m.data.write(to: Self.mediaURL(name))) != nil ? name : nil
+        }
+        ctx.insert(e)
+        return (try? ctx.save()) != nil ? e : nil
+    }
+    nonisolated static var mediaDir: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("JournalMedia", isDirectory: true)
+    }
+    nonisolated static func mediaURL(_ name: String) -> URL { mediaDir.appendingPathComponent(name) }
+}
+
+/// Image-generation prompts are not journal entries. Apple Intelligence can route any "create a journal entry" request
+/// (journal.createEntry schema) to Ate, including Image Playground / Shortcuts model output, which is how an
+/// "A top-down, highly detailed photograph…" prompt ended up in the journal (10 Oct). Reject those.
+enum JournalTextGuard {
+    static func looksLikeImagePrompt(_ text: String) -> Bool {
+        let t = text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let markers = ["highly detailed", "photorealistic", "top-down", "overhead shot", "4k", "8k", "studio lighting", "depth of field",
+                       "shallow focus", "bokeh", "food photography", "hyperrealistic", "cinematic lighting", "rendered", "octane", "plated food",
+                       "photograph of", "a photo of", "an image of", "illustration of", "aspect ratio", "--ar"]
+        let hits = markers.filter { t.contains($0) }.count
+        let startsLikePrompt = ["a top-down", "a highly detailed", "a photorealistic", "a close-up photograph", "an overhead", "a photograph of", "generate an image", "create an image"].contains { t.hasPrefix($0) }
+        return startsLikePrompt || hits >= 2
+    }
 }

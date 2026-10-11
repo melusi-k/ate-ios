@@ -118,6 +118,14 @@ enum BetaChecklist {
         BetaItem(id: "C-COV-01", title: "Fallback cover tile", category: "Covers", how: "A recipe with no image shows the designed plate-and-name tile (never a letter or bird), legible in light and dark mode.", auto: false),
         BetaItem(id: "C-COV-02", title: "Generate cover", category: "Covers", how: "On an Apple Intelligence iPhone, … › Generate cover makes a new Playground cover in ≤30 s and keeps it after relaunch; elsewhere the option explains why it's unavailable.", auto: true),
         BetaItem(id: "C-COV-03", title: "Covers everywhere", category: "Covers", how: "The same cover appears in Library, recipe detail, widgets, Spotlight and Siri cards.", auto: false),
+        BetaItem(id: "C-JRN-01", title: "Journal entry opens on its own", category: "Journal", how: "Tapping an entry in Insights › Your Ate journal or More › Journal opens a detail view with the full text, date, state, and any linked recipe, location or media.", auto: true),
+        BetaItem(id: "C-JRN-02", title: "Journal list with search", category: "Journal", how: "More › Journal lists every entry newest first; searching by words, place or state filters it, and an empty search says so.", auto: false),
+        BetaItem(id: "C-JRN-03", title: "Edit an entry", category: "Journal", how: "… › Edit opens the text in a sheet; Save updates it and shows 'Edited'; Cancel or swipe-down never loses the original.", auto: true),
+        BetaItem(id: "C-JRN-04", title: "Delete with confirmation", category: "Journal", how: "… › Delete asks in a confirmation dialog with a safe Cancel; Delete removes the entry and its media and goes back to the list.", auto: true),
+        BetaItem(id: "C-JRN-05", title: "Share an entry", category: "Journal", how: "Share sends the date, state, text and place as plain text via the share sheet.", auto: false),
+        BetaItem(id: "C-JRN-06", title: "Shortcuts Open journal entry", category: "Journal", how: "The 'Open journal entry' action in Shortcuts lets me pick an entry and opens its detail view in Ate; a deleted entry gives a clear error.", auto: true),
+        BetaItem(id: "C-JRN-07", title: "Location and media from Siri/Shortcuts", category: "Journal", how: "'New journal entry' with a Location and Media Items saves them; the entry detail shows the place (with a map) and the photos.", auto: false),
+        BetaItem(id: "C-JRN-08", title: "Image prompts are never journal entries", category: "Journal", how: "Sending an image-generation prompt (e.g. 'A top-down, highly detailed photograph…') to New journal entry is refused with a clear message, and old ones are cleaned up.", auto: true),
     ]
     /// The checklist for this build's channel: TierC builds test the Tier C polish items, everything else Tier A.
     static var isTierC: Bool { AppConfig.channel.uppercased() == "TIERC" }

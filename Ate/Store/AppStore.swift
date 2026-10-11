@@ -567,6 +567,10 @@ final class AppStore {
     }
 
     // MARK: deep links
+    func openJournalEntry(_ id: String) {
+        select(.more); morePath = [.journal, .journalEntry(id)]
+    }
+
     func handle(url: URL) {
         if url.scheme == "ate", url.host == "import" { checkInbox(); return }
         if url.scheme == "ate", url.host == "open", url.pathComponents.filter({ $0 != "/" }).isEmpty { return }   // "Open ate" placeholder

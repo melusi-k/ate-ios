@@ -261,6 +261,7 @@ struct AteJournalEntryEntity {
     }
     @MainActor init(_ e: JournalEntry) {
         self.init(id: e.id, title: e.prompt, message: AttributedString(e.text), entryDate: e.createdAt)
+        self.mediaItems = e.mediaFileNames.map { IntentFile(fileURL: JournalStore.mediaURL($0)) }
     }
 }
 
@@ -276,13 +277,52 @@ struct CreateAteJournalEntryIntent {
     var mediaItems: [IntentFile]
 
     @MainActor func perform() async throws -> some ReturnsValue<AteJournalEntryEntity> {
-        let text = String(message.characters)
+        let text = String(message.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty { throw JournalIntentError.empty }
+        if JournalTextGuard.looksLikeImagePrompt(text) { throw JournalIntentError.imagePrompt }
         let state = WidgetBridge.lastHealthState ?? .balanced
-        _ = JournalStore.shared.save(prompt: title ?? "Note from Siri", text: text, state: state, recipeIDs: [])
+        let place = location.map { [$0.name, $0.locality].compactMap { $0 }.removingDuplicates().joined(separator: ", ") }
+        var media: [(data: Data, ext: String)] = []
+        for f in mediaItems { media.append((f.data, f.filename.split(separator: ".").last.map(String.init) ?? "jpg")) }
+        let saved = JournalStore.shared.saveFromIntent(title: title, text: text, date: entryDate, state: state,
+                                                       locationName: place?.isEmpty == false ? place : nil,
+                                                       latitude: location?.location?.coordinate.latitude, longitude: location?.location?.coordinate.longitude,
+                                                       media: media)
         QAProbe.shared.lastIntent = "journal"
         BetaQA.shared.pass("A-INTENT-05", note: "Journal entry saved from Siri/Shortcuts")
-        if let e = JournalStore.shared.entries().first { return .result(value: AteJournalEntryEntity(e)) }
+        if let e = saved { return .result(value: AteJournalEntryEntity(e)) }
         return .result(value: AteJournalEntryEntity(id: UUID().uuidString, title: title, message: message, entryDate: entryDate ?? Date()))
+    }
+}
+
+enum JournalIntentError: Error, CustomLocalizedStringResourceConvertible {
+    case empty, imagePrompt, notFound
+    var localizedStringResource: LocalizedStringResource {
+        switch self {
+        case .empty: return "There's nothing to save. Say or type what you'd like in your Ate journal."
+        case .imagePrompt: return "That looks like an image prompt, not a journal entry, so Ate didn't save it."
+        case .notFound: return "That journal entry isn't in Ate any more."
+        }
+    }
+}
+
+extension Array where Element: Hashable {
+    func removingDuplicates() -> [Element] { var seen = Set<Element>(); return filter { seen.insert($0).inserted } }
+}
+
+/// Shortcuts: "Open journal entry" opens one entry's detail view in More › Journal.
+@available(iOS 18.0, *)
+struct OpenJournalEntryIntent: OpenIntent {
+    static let title: LocalizedStringResource = "Open journal entry"
+    static let description = IntentDescription("Opens an entry from your Ate journal.")
+    @Parameter(title: "Entry") var target: AteJournalEntryEntity
+    init() {}
+    @MainActor func perform() async throws -> some IntentResult {
+        guard JournalStore.shared.entry(target.id) != nil else { throw JournalIntentError.notFound }
+        AppStore.current?.openJournalEntry(target.id)
+        QAProbe.shared.lastIntent = "openJournal"
+        BetaQA.shared.pass("C-JRN-06", note: "Opened a journal entry from Shortcuts")
+        return .result()
     }
 }
 

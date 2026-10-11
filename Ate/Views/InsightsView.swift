@@ -29,6 +29,8 @@ final class InsightsModel {
     }
     /// Last authorization error, shown under the Health card so a failed request is never silent.
     var requestError: String?
+    /// True when Beta testing › Health data is a mock scenario: show a "Sample data" badge, never a red entitlement error.
+    var isSample: Bool { health is MockHealthKitService }
     func connect(recipes: [RecipeCard]) async {
         access = await health.requestAccess(); requestError = health.lastError
         await refresh(recipes: recipes)
@@ -123,6 +125,7 @@ struct InsightsView: View {
         }
         .refreshable { await model.refresh(recipes: store.recipes); prompt = model.context?.prompts.first }
         .task { await model.loadIfNeeded(recipes: store.recipes); prompt = prompt ?? model.context?.prompts.first; entries = JournalStore.shared.entries() }
+        .onAppear { entries = JournalStore.shared.entries() }
         .alert("“ate” would like to access your Health data", isPresented: $model.mockPromptShown) {
             Button("Don't Allow", role: .cancel) {}
             Button("Allow") { Task { await model.connect(recipes: store.recipes); prompt = model.context?.prompts.first } }
@@ -131,7 +134,11 @@ struct InsightsView: View {
 
     @ViewBuilder private var bodyToday: some View {
         card("Your body today") {
-            if let err = model.requestError {
+            if model.isSample {
+                Label("Sample data", systemImage: "testtube.2").font(AteFont.body(12, .semibold)).foregroundStyle(Theme.primary)
+                    .padding(.horizontal, 8).padding(.vertical, 4).background(Theme.primary.opacity(0.12), in: Capsule())
+                    .accessibilityIdentifier("insights.sampleBadge")
+            } else if let err = model.requestError {
                 Label("Apple Health request failed: \(err)", systemImage: "exclamationmark.triangle")
                     .font(AteFont.body(13)).foregroundStyle(Theme.destructive)
                     .accessibilityIdentifier("insights.healthError")
@@ -173,7 +180,8 @@ struct InsightsView: View {
             if entries.isEmpty {
                 Text("No entries yet.").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
             }
-            ForEach(entries, id: \.id) { e in
+            ForEach(entries.prefix(5), id: \.id) { e in
+                NavigationLink { JournalEntryDetailView(entryID: e.id) } label: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(e.createdAt.formatted(date: .abbreviated, time: .shortened) + " · " + e.state.title)
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
@@ -181,11 +189,16 @@ struct InsightsView: View {
                         Label(line, systemImage: "book.pages").font(AteFont.body(12)).foregroundStyle(Theme.primary)
                             .accessibilityIdentifier("insights.entryMomentContext")
                     }
-                    Text(e.text).font(AteFont.body(14))
+                    Text(e.text).font(AteFont.body(14)).lineLimit(3).multilineTextAlignment(.leading)
                 }.frame(maxWidth: .infinity, alignment: .leading)
+                }.buttonStyle(.plain)
                 .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
                 .accessibilityIdentifier("insights.entry")
                 .contextMenu { Button("Delete", role: .destructive) { JournalStore.shared.delete(e); entries = JournalStore.shared.entries() } }
+            }
+            if entries.count > 5 {
+                NavigationLink { JournalListView() } label: { Text("See all \(entries.count) entries").font(AteFont.body(14, .semibold)) }
+                    .accessibilityIdentifier("insights.allEntries")
             }
         }
     }
@@ -294,14 +307,29 @@ struct StepsSparkline: View {
         let pts: [StepPoint] = days.compactMap { d in d.steps.map { StepPoint(date: d.date, steps: $0) } }
         if pts.count >= 2 {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Steps, last \(pts.count) days").font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Steps, last \(pts.count) days").font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
+                    Spacer()
+                    if let today = pts.last { Text("Today \(today.steps.formatted())").font(AteFont.body(12, .semibold)).monospacedDigit()
+                        .accessibilityIdentifier("insights.stepsToday") }
+                }
                 Chart(pts) { p in
                     LineMark(x: .value("Day", p.date, unit: .day), y: .value("Steps", p.steps)).interpolationMethod(.catmullRom)
                     AreaMark(x: .value("Day", p.date, unit: .day), y: .value("Steps", p.steps)).foregroundStyle(Theme.primary.opacity(0.15))
                 }
-                .chartXAxis(.hidden).chartYAxis(.hidden).foregroundStyle(Theme.primary).frame(height: 44)
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day)) { _ in AxisValueLabel(format: .dateTime.weekday(.narrow)) }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .trailing, values: .automatic(desiredCount: 2)) { v in
+                        AxisGridLine()
+                        AxisValueLabel { if let n = v.as(Int.self) { Text(n >= 1000 ? "\(n / 1000)k" : "\(n)") } }
+                    }
+                }
+                .foregroundStyle(Theme.primary).frame(height: 84)
             }
-            .accessibilityElement(children: .ignore).accessibilityLabel("Steps trend over \(pts.count) days")
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Steps trend over \(pts.count) days, today \(pts.last?.steps.formatted() ?? "no data") steps")
             .accessibilityIdentifier("insights.sparkline")
         }
     }

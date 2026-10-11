@@ -192,4 +192,6 @@ enum Route: Hashable {
     case insights
     case beta
     case betaNote
+    case journal
+    case journalEntry(String)
 }

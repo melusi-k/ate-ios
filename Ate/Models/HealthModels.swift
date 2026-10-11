@@ -93,7 +93,7 @@ struct JournalPrompt: Hashable, Identifiable, Codable {
     var generated: Bool = false
 }
 
-enum JournalEntrySource: String, Codable { case ate, journalMoment }
+enum JournalEntrySource: String, Codable { case ate, journalMoment, siri }
 
 /// Local-only journal entry (SwiftData). Never synced or sent anywhere.
 @Model
@@ -108,6 +108,12 @@ final class JournalEntry {
     var journalingSuggestionTitle: String? = nil
     var momentDate: Date? = nil
     var sourceRaw: String = JournalEntrySource.ate.rawValue
+    // Additive (b81): location and media from the "New journal entry" intent, plus edit time.
+    var locationName: String? = nil
+    var latitude: Double? = nil
+    var longitude: Double? = nil
+    var mediaFileNames: [String] = []
+    var editedAt: Date? = nil
     init(id: String = UUID().uuidString, createdAt: Date = .now, prompt: String, text: String, state: HealthState, recipeIDs: [String] = [],
          journalingSuggestionTitle: String? = nil, momentDate: Date? = nil, source: JournalEntrySource = .ate) {
         self.id = id; self.createdAt = createdAt; self.prompt = prompt; self.text = text; self.stateRaw = state.rawValue; self.recipeIDs = recipeIDs

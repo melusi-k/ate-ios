@@ -176,6 +176,8 @@ struct RouteView: View {
             case .insights: InsightsView()
             case .beta: BetaTestingView()
             case .betaNote: BetaExpectationsView()
+            case .journal: JournalListView()
+            case .journalEntry(let id): JournalEntryDetailView(entryID: id)
             }
         }
         .toolbarTitleDisplayMode(.inline)

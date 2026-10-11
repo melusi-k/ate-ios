@@ -29,7 +29,7 @@ final class HealthInsightTests: XCTestCase {
     }
     func testHeadlineMentionsSleepAndWorkout() {
         let h = HealthInsightEngine.insight(for: MockHealthKitService.fixture("recovery"))!.headline
-        XCTAssertTrue(h.contains("6 hours")); XCTAssertTrue(h.contains("55-minute running"))
+        XCTAssertTrue(h.contains("6 hours")); XCTAssertTrue(h.hasPrefix("You slept 6 hours and ran for 55 minutes."), h)
     }
     func testRecoveryPrefersProtein() {
         let s = RecipeHealthMatcher.suggestions(for: .recovery, recipes: library)

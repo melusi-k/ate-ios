@@ -15,8 +15,7 @@ enum HealthInsightEngine {
         var reasons: [String] = []
         if let sleep { reasons.append("You slept \(fmt(sleep)) hours") }
         if let w = recent.compactMap(\.workoutMinutes).max(), w > 0 {
-            let type = recent.flatMap(\.workoutTypes).first.map { " \($0.lowercased())" } ?? " workout"
-            reasons.append("a \(Int(w))-minute\(type)")
+            reasons.append(workoutPhrase(minutes: Int(w), type: recent.flatMap(\.workoutTypes).first))
         }
         if let avg = s.averageSteps { reasons.append("about \(avg.formatted()) steps a day") }
 
@@ -30,8 +29,17 @@ enum HealthInsightEngine {
         return HealthInsight(state: state, reasons: reasons, headline: headline(state, reasons))
     }
 
+    /// "ran for 55 minutes", "cycled for 40 minutes", "did a 30-minute yoga workout".
+    static func workoutPhrase(minutes m: Int, type: String?) -> String {
+        let t = (type ?? "").lowercased()
+        let verbs: [(String, String)] = [("run", "ran"), ("walk", "walked"), ("hik", "hiked"), ("cycl", "cycled"), ("bik", "cycled"), ("swim", "swam"), ("row", "rowed"), ("danc", "danced")]
+        if let v = verbs.first(where: { t.contains($0.0) }) { return "\(v.1) for \(m) minutes" }
+        return t.isEmpty || t == "workout" ? "did a \(m)-minute workout" : "did a \(m)-minute \(t) workout"
+    }
+
     static func headline(_ state: HealthState, _ reasons: [String]) -> String {
-        let lead = reasons.isEmpty ? "" : reasons.prefix(2).joined(separator: " and ") + ". "
+        var lead = reasons.isEmpty ? "" : reasons.prefix(2).joined(separator: " and ") + ". "
+        if let f = lead.first { lead = f.uppercased() + lead.dropFirst() }
         switch state {
         case .recovery: return lead + "Favour protein-rich recovery meals today."
         case .lowEnergy: return lead + "Go for something lighter and comforting."

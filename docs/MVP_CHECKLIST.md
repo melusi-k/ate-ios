@@ -885,6 +885,48 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Verified by:* manual
   - *Owner:* _TBD_
 
+### Journal — 0 / 8
+
+- **C-JRN-01 · Journal entry opens on its own** — ❌
+  - *Acceptance:* Tapping an entry in Insights › Your Ate journal or More › Journal opens a detail view with the full text, date, state, and any linked recipe, location or media.
+  - *Verified by:* auto: detected when an entry detail opens
+  - *Owner:* _TBD_
+
+- **C-JRN-02 · Journal list with search** — ❌
+  - *Acceptance:* More › Journal lists every entry newest first; searching by words, place or state filters it, and an empty search says so.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-JRN-03 · Edit an entry** — ❌
+  - *Acceptance:* … › Edit opens the text in a sheet; Save updates it and shows 'Edited'; Cancel or swipe-down never loses the original.
+  - *Verified by:* auto: detected when an edit is saved
+  - *Owner:* _TBD_
+
+- **C-JRN-04 · Delete with confirmation** — ❌
+  - *Acceptance:* … › Delete asks in a confirmation dialog with a safe Cancel; Delete removes the entry and its media and goes back to the list.
+  - *Verified by:* auto: detected when a confirmed delete runs
+  - *Owner:* _TBD_
+
+- **C-JRN-05 · Share an entry** — ❌
+  - *Acceptance:* Share sends the date, state, text and place as plain text via the share sheet.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-JRN-06 · Shortcuts Open journal entry** — ❌
+  - *Acceptance:* The 'Open journal entry' action in Shortcuts lets me pick an entry and opens its detail view in Ate; a deleted entry gives a clear error.
+  - *Verified by:* auto: detected when the intent opens an entry
+  - *Owner:* _TBD_
+
+- **C-JRN-07 · Location and media from Siri/Shortcuts** — ❌
+  - *Acceptance:* 'New journal entry' with a Location and Media Items saves them; the entry detail shows the place (with a map) and the photos.
+  - *Verified by:* manual
+  - *Owner:* _TBD_
+
+- **C-JRN-08 · Image prompts are never journal entries** — ❌
+  - *Acceptance:* Sending an image-generation prompt (e.g. 'A top-down, highly detailed photograph…') to New journal entry is refused with a clear message, and old ones are cleaned up.
+  - *Verified by:* auto: JournalTextGuardTests
+  - *Owner:* _TBD_
+
 ## Privacy-language audit (docs/legal vs code, 2026-10-10)
 
 | # | Policy says | Code does | Fix |

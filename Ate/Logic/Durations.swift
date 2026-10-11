@@ -60,8 +60,8 @@ enum Durations {
         (["braise", "stew", "slow cook", "slow-cook", "mogodu", "tripe", "oxtail"], 60 * 60),
         (["simmer", "boil until tender", "until tender", "potjie"], 20 * 60),
         (["pap", "phutu", "mealie", "maize meal", "polenta"], 15 * 60),
-        (["roast", "bake", "baking", "oven"], 15 * 60),
-        (["rice"], 12 * 60),
+        (["roast", "bake", "baking", "oven"], 8 * 60),
+        (["cook the rice", "boil the rice", "simmer the rice", "steam the rice"], 12 * 60),
         (["brown", "sear", "fry the onion", "caramelise", "caramelised", "caramelize", "caramelized"], 5 * 60),
         (["steam", "wilt"], 3 * 60),
     ]

@@ -163,7 +163,7 @@ final class KeyFlowsQATests: XCTestCase {
         waitHittable(app.buttons["Share recipe"])
         app.buttons["Share recipe"].tap()
         wait(app.buttons["Share link"], 5)
-        XCTAssertTrue(app.buttons["Share as text"].exists)
+        XCTAssertTrue(app.buttons["Share as text"].waitForExistence(timeout: 3), "Missing \"Share as text\" Button")
         shot("5-share-options")
         app.buttons["Share link"].tap()
         let sheet = app.otherElements["ActivityListView"].firstMatch

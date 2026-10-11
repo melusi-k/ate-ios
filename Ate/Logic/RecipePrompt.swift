@@ -168,19 +168,64 @@ extension PhotoGuess {
                                     "rice", "salad", "baked goods", "fried food", "sauce", "curry", "produce"]
     static let spreadHints: Set<String> = ["bowl", "buffet", "platter", "tableware", "dishware", "table"]
 
+    /// Distinct specific foods (generic scene words removed, plurals folded so two plates of toast = one "toast").
+    static func distinctFoods(_ labels: [(String, Float)], minConfidence: Float = 0.3) -> [(String, Float)] {
+        var seen = Set<String>(), out: [(String, Float)] = []
+        for (id, c) in labels.sorted(by: { $0.1 > $1.1 }) where c >= minConfidence {
+            let n = id.lowercased().replacingOccurrences(of: "_", with: " ")
+            if generic.contains(id.lowercased()) || generic.contains(n) || spreadHints.contains(n) { continue }
+            let key = n.hasSuffix("es") ? String(n.dropLast(2)) : (n.hasSuffix("s") ? String(n.dropLast()) : n)
+            if seen.insert(key).inserted { out.append((n, c)) }
+        }
+        return out
+    }
+
+    static func titled(_ s: String) -> String { RecipeQuality.titleCased(s.lowercased()) }
+
+    /// Chips: Vision's own food labels first; the SA glossary only when the labels are ambiguous.
+    static func suggestions(labels: [(String, Float)], ocrText: String) -> [String] {
+        let named = CuisineGlossary.matches(in: ocrText).map(\.name)
+        let foods = distinctFoods(labels, minConfidence: 0.1).map(\.0)
+        var out = named + foods.prefix(5).map(titled)
+        if foods.count >= 2 { out.insert(titled("\(foods[0]) with \(foods[1])"), at: named.count) }
+        let ambiguous = distinctFoods(labels).filter { !weak.contains($0.0) }.isEmpty
+        if ambiguous { out += CuisineGlossary.photoSuggestions }
+        var seen = Set<String>()
+        return Array(out.filter { seen.insert($0.lowercased()).inserted }.prefix(8))
+    }
+
     static func assess(labels: [(String, Float)], ocrText: String) -> PhotoAssessment {
         let named = CuisineGlossary.matches(in: ocrText).map(\.name)
-        let d = dishes(from: labels).filter { !weak.contains($0) }
-        let lower = labels.map { $0.0.lowercased() }
-        let bowls = lower.filter { spreadHints.contains($0) }.count
-        let specificFoods = dishes(from: labels).count
-        let suggestions = Array((named + CuisineGlossary.photoSuggestions).prefix(8))
-        if bowls >= 2 || specificFoods >= 4 { return .spread(suggestions: suggestions) }
+        let suggestions = Self.suggestions(labels: labels, ocrText: ocrText)
+        // A spread means 3+ DIFFERENT specific foods, not several plates/bowls of the same thing.
+        let specific = distinctFoods(labels).filter { !weak.contains($0.0) }
+        if specific.filter({ $0.1 >= 0.45 }).count >= 3 { return .spread(suggestions: suggestions) }
         if let n = named.first { return .confident(n) }
-        if let top = labels.sorted(by: { $0.1 > $1.1 }).first(where: { d.contains($0.0.lowercased().replacingOccurrences(of: "_", with: " ")) }), top.1 >= 0.6 {
-            return .confident(top.0.replacingOccurrences(of: "_", with: " "))
+        if let top = specific.first, top.1 >= 0.5 {
+            if specific.count >= 2, specific[1].1 >= 0.35 { return .confident("\(top.0) with \(specific[1].0)") }
+            return .confident(top.0)
         }
         return .uncertain(suggestions: suggestions)
+    }
+
+    /// Confidence calibrated from Vision: when the card is the dish Vision clearly saw, trust Vision's score.
+    static func calibratedConfidence(model: Double?, title: String, labels: [(String, Float)]) -> Double? {
+        guard let top = distinctFoods(labels).first(where: { !weak.contains($0.0) }) else { return model }
+        let tw = CoverLogic.words(title)
+        let hit = CoverLogic.words(top.0).allSatisfy { w in tw.contains(w) || tw.contains(w + "s") }
+        guard hit else { return model }
+        return max(model ?? 0, min(0.95, 0.45 + Double(top.1)))
+    }
+
+    /// Visual description for the prompt: top labels with %, distinct item count, colours.
+    static func sceneDescription(labels: [(String, Float)], salientObjects: Int, colours: [String]) -> String {
+        let top = labels.sorted { $0.1 > $1.1 }.prefix(10).map { "\($0.0.replacingOccurrences(of: "_", with: " ")) \(Int(($0.1 * 100).rounded()))%" }
+        var p = "Vision labels: \(top.joined(separator: ", "))."
+        let foods = distinctFoods(labels)
+        if !foods.isEmpty { p += " Distinct foods: \(foods.map(\.0).joined(separator: ", "))." }
+        if salientObjects > 0 { p += " About \(salientObjects) separate item\(salientObjects == 1 ? "" : "s") in frame (plates of the same food are one dish)." }
+        if !colours.isEmpty { p += " Main colours: \(colours.joined(separator: ", "))." }
+        return p
     }
 }
 

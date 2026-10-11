@@ -62,6 +62,10 @@ struct AddRecipeSheet: View {
         .overlay(alignment: .top) { if let t = store.toast { ToastView(toast: t).padding(.top, 8) } }
         // Unsaved input can't be swiped away by accident; the drag asks first. Input and drafts survive offline / model-unavailable errors.
         .interactiveDismissDisabled(hasUnsaved)
+        // Proper nav bar: Cancel sits in a solid bar instead of floating over the cover while scrolling.
+        .navigationTitle(draft == nil ? "Add recipe" : "Review your card")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.visible, for: .navigationBar)
         .presentationDragIndicator(.visible)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

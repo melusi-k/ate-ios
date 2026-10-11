@@ -14,7 +14,7 @@ enum RecipeLogic {
     static func normalize(_ card: RecipeCard) -> RecipeCard {
         var c = card
         let t = c.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        c.title = t.isEmpty ? "Untitled recipe" : t
+        c.title = t.isEmpty ? "Untitled recipe" : (RecipeQuality.isGenerated(c) ? RecipeQuality.titleCased(t) : t)
         c.servings = max(1, c.servings)
         c.tags = c.tags.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         c.ingredients = c.ingredients.map { var i = $0; if !i.quantity.isFinite { i.quantity = 0 }; return i }

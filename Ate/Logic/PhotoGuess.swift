@@ -12,7 +12,7 @@ enum PhotoGuess {
     /// Vision taxonomy labels that are not dishes (scene/object/very generic).
     static let generic: Set<String> = ["food", "dish", "meal", "cuisine", "recipe", "plate", "bowl", "table", "tableware", "dishware",
         "cutlery", "fork", "spoon", "knife", "indoor", "outdoor", "kitchen", "people", "adult", "hand", "wood", "wood_processed",
-        "textile", "structure", "container", "drinking_glass", "cup", "napkin", "dining_room", "restaurant", "interior_room", "furniture"]
+        "textile", "structure", "container", "breakfast", "lunch", "dinner", "brunch", "snack", "dessert_food", "drinking_glass", "cup", "napkin", "dining_room", "restaurant", "interior_room", "furniture"]
 
     /// Ordered dish candidates (specific first) from `(identifier, confidence)` labels.
     static func dishes(from labels: [(String, Float)]) -> [String] {

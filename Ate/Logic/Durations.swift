@@ -100,8 +100,11 @@ enum Durations {
         let stepMin = (c.steps.compactMap(\.timeSeconds).reduce(0, +) + 59) / 60
         if let total = c.timeMinutes, total > 0 {
             let implausible = total > maxTotalMinutes || (stepMin > 0 && total > stepMin * 2 + 60)
+            // Total = step times + prep, with prep capped at ~2 min per ingredient (min 5): a 7-min sandwich isn't 30 min.
+            let maxPrep = max(5, c.ingredients.count * 2)
             if implausible { c.timeMinutes = stepMin > 0 ? stepMin : nil; corrected = true }
             else if stepMin > total { c.timeMinutes = stepMin }
+            else if stepMin > 0 && total > stepMin + maxPrep { c.timeMinutes = stepMin + maxPrep; corrected = true }
         } else if stepMin > 0 { c.timeMinutes = stepMin }
         return (c, corrected)
     }

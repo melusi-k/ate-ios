@@ -56,6 +56,48 @@ enum RecipeQuality {
         return out
     }
 
+    static let minIngredients = 3, minSteps = 3
+
+    /// Visible things (Vision labels) that should be ingredients but aren't, e.g. bread/lettuce on a sandwich photo.
+    static let nonIngredientLabels: Set<String> = ["sandwich", "burger", "plate", "dish", "meal", "food", "snack", "lunch", "breakfast",
+                                                   "dinner", "baked goods", "fast food", "produce", "fried food", "cuisine"]
+    static func missingVisible(_ c: RecipeCard, labels: [String]) -> [String] {
+        let have = c.ingredients.map { $0.name.lowercased() }.joined(separator: " ")
+        let hw = CoverLogic.words(have)
+        return labels.map { $0.lowercased() }.filter { l in
+            !nonIngredientLabels.contains(l) && !hw.contains(l) && !hw.contains(l + "s") && !have.contains(l)
+                && !CoverLogic.words(c.title).contains(l)
+        }
+    }
+
+    /// Too thin to show: fewer than 3 ingredients or 3 steps, or visible items missing. Triggers one regeneration.
+    static func shortfall(_ c: RecipeCard, labels: [String] = []) -> [String] {
+        var out = issues(c)
+        if c.ingredients.filter({ !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }).count < minIngredients { out.append("Needs at least \(minIngredients) ingredients.") }
+        if RecipeLogic.nonBlank(c.steps).count < minSteps { out.append("Needs at least \(minSteps) steps.") }
+        let miss = missingVisible(c, labels: labels)
+        if !miss.isEmpty { out.append("Missing what's visible in the photo: \(miss.joined(separator: ", ")).") }
+        return out
+    }
+
+    /// One plated item in a photo (one sandwich, burger, wrap, bowl) serves 1 unless the model saw several.
+    static let singleItems = ["sandwich", "burger", "wrap", "toastie", "sub", "bowl", "omelette", "taco", "hotdog", "smoothie"]
+    static func inferredServings(_ c: RecipeCard, fromPhoto: Bool) -> Int {
+        guard fromPhoto, singleItems.contains(where: { CoverLogic.matches(c.title, $0) }),
+              !CoverLogic.words(c.title).contains(where: { ["sandwiches", "burgers", "wraps", "platter", "tray"].contains($0) }) else { return c.servings }
+        return 1
+    }
+
+    /// "cheese and polony sandwich" → "Cheese and Polony Sandwich" (only when the model wrote it all lowercase).
+    static func titleCased(_ t: String) -> String {
+        guard t == t.lowercased(), t.contains(where: \.isLetter) else { return t }
+        let small: Set<String> = ["and", "or", "with", "of", "the", "a", "an", "in", "on", "en", "na", "ne", "le"]
+        return t.split(separator: " ", omittingEmptySubsequences: false).enumerated().map { i, w in
+            let s = String(w)
+            return (i > 0 && small.contains(s)) ? s : s.prefix(1).uppercased() + s.dropFirst()
+        }.joined(separator: " ")
+    }
+
     /// "Draft, needs your input": Save stays disabled until the user edits or confirms.
     static func needsInput(_ c: RecipeCard) -> Bool {
         isGenerated(c) && ((c.aiConfidence ?? 1) < threshold || !issues(c).isEmpty)

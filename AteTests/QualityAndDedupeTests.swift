@@ -134,3 +134,67 @@ final class CodeAlong205Tests: XCTestCase {
         XCTAssertTrue(RecipePrompt.exampleLead.contains("don't copy its content"))
     }
 }
+
+/// Photo regressions from device testing. Fixtures are the Vision outputs (labels + confidences) recorded for the
+/// photos; the simulator has no Vision food model parity, so the pure decision logic is tested on these.
+final class PhotoRegressionTests: XCTestCase {
+    static let omeletteToast: [(String, Float)] = [("food", 0.93), ("omelette", 0.71), ("toast", 0.58), ("bread", 0.41), ("plate", 0.66),
+                                                   ("tableware", 0.6), ("egg", 0.35), ("breakfast", 0.52), ("dishware", 0.4), ("cheese", 0.12)]
+    static let twoPlatesOmelette: [(String, Float)] = [("food", 0.9), ("omelette", 0.7), ("omelettes", 0.4), ("plate", 0.7), ("tableware", 0.6), ("toast", 0.5)]
+    static let cheeseSandwich: [(String, Float)] = [("food", 0.9), ("sandwich", 0.82), ("bread", 0.6), ("cheese", 0.48), ("lettuce", 0.36),
+                                                    ("sausage", 0.3), ("sauce", 0.27), ("plate", 0.5)]
+
+    func testOmeletteWithToastIsConfidentNotSpread() {
+        XCTAssertEqual(PhotoGuess.assess(labels: Self.omeletteToast, ocrText: ""), .confident("omelette with toast"))
+        if case .spread = PhotoGuess.assess(labels: Self.twoPlatesOmelette, ocrText: "") { XCTFail("two identical plates are one dish") }
+    }
+    func testChipsComeFromVisionNotTheFixedSAList() {
+        let s = PhotoGuess.suggestions(labels: Self.omeletteToast, ocrText: "")
+        XCTAssertEqual(s.first, "Omelette with Toast")
+        XCTAssertTrue(s.contains("Omelette")); XCTAssertFalse(s.contains("Mogodu (tripe)"))
+        XCTAssertTrue(PhotoGuess.suggestions(labels: [("food", 0.9), ("meal", 0.5)], ocrText: "").contains("Mogodu (tripe)"), "glossary only when ambiguous")
+    }
+    func testConfidenceCalibratedFromVision() {
+        let c = PhotoGuess.calibratedConfidence(model: 0.1, title: "Omelette with Toast", labels: Self.omeletteToast) ?? 0
+        XCTAssertGreaterThan(c, RecipeQuality.threshold)
+        XCTAssertEqual(PhotoGuess.calibratedConfidence(model: 0.1, title: "Mogodu", labels: Self.omeletteToast), 0.1, "only when the card is what Vision saw")
+    }
+    func testSceneDescriptionGoesIntoThePrompt() {
+        let d = PhotoGuess.sceneDescription(labels: Self.omeletteToast, salientObjects: 2, colours: ["yellow", "brown"])
+        XCTAssertTrue(d.contains("omelette 71%")); XCTAssertTrue(d.contains("About 2 separate items")); XCTAssertTrue(d.contains("yellow"))
+    }
+    // Cheese and polony sandwich device bug
+    private func thinSandwich() -> RecipeCard {
+        RecipeCard(title: "cheese and polony sandwich", servings: 4, timeMinutes: 30,
+                   ingredients: [.init(name: "cheese", quantity: 2, unit: "slices"), .init(name: "polony", quantity: 3, unit: "slices")],
+                   steps: [.init(order: 1, instruction: "Layer cheese and polony", timeSeconds: 120),
+                           .init(order: 2, instruction: "Toast the sandwich in a pan over medium heat", timeSeconds: 300)],
+                   source: .photoGuess)
+    }
+    func testLowConfidencePhotoAsksFirst() {
+        var c = thinSandwich(); c.aiConfidence = 0.2
+        XCTAssertTrue(RecipeQuality.shouldAskDish(c, alreadyConfirmed: false))
+        XCTAssertEqual(RecipeQuality.guesses(c).first, "cheese and polony sandwich")
+    }
+    func testThinPhotoRecipeTriggersRegenerationWithVisibleItems() {
+        let labels = PhotoGuess.distinctFoods(Self.cheeseSandwich, minConfidence: 0.25).map(\.0)
+        let gaps = RecipeQuality.shortfall(thinSandwich(), labels: labels)
+        XCTAssertTrue(gaps.contains { $0.contains("at least 3 ingredients") })
+        XCTAssertTrue(gaps.contains { $0.contains("at least 3 steps") })
+        XCTAssertTrue(gaps.contains { $0.contains("bread") && $0.contains("lettuce") })
+        XCTAssertFalse(gaps.contains { $0.contains("sandwich,") }, "the dish itself isn't an ingredient")
+    }
+    func testTotalTimeComesFromStepsPlusPrep() {
+        let c = Durations.sanitize(thinSandwich()).card
+        XCTAssertEqual(c.timeMinutes, 7 + 5, "7 min of steps + capped prep, not 30")
+    }
+    func testServingsInferredFromPhoto() {
+        XCTAssertEqual(RecipeQuality.inferredServings(thinSandwich(), fromPhoto: true), 1)
+        var tray = thinSandwich(); tray.title = "Party sandwiches platter"
+        XCTAssertEqual(RecipeQuality.inferredServings(tray, fromPhoto: true), 4)
+    }
+    func testTitleCased() {
+        XCTAssertEqual(RecipeLogic.normalize(thinSandwich()).title, "Cheese and Polony Sandwich")
+        XCTAssertEqual(RecipeQuality.titleCased("Mac and cheese"), "Mac and cheese", "only all-lowercase titles change")
+    }
+}

@@ -47,6 +47,15 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      - name: Probe Foundation Models image input (report only)
+        continue-on-error: true
+        run: |
+          ls /Applications | grep -i '^Xcode' || true
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          IF=$(find "$SDK/System/Library/Frameworks/FoundationModels.framework" -name '*.swiftinterface' 2>/dev/null | head -1)
+          { echo "### Foundation Models image-input probe"; echo "SDK: $(xcrun --sdk iphoneos --show-sdk-version)";
+            if [ -n "$IF" ]; then echo '```'; grep -nE 'CGImage|UIImage|ImageAttachment|Transcript\.Image|image:' "$IF" | head -20 || echo "no image symbols"; echo '```'; else echo "FoundationModels interface not found"; fi; } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Install XcodeGen
         run: brew install xcodegen
 

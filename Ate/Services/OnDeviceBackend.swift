@@ -63,6 +63,8 @@ final class OnDeviceBackend: BackendService {
         var input: RecipePrompt.Input = .prompt
         var photoForTool: String?
         var reviseID: String?
+        var visibleLabels: [String] = []
+        var visionLabels: [(String, Float)] = []
         switch request.mode {
         case .prompt:
             prompt = RecipePrompt.prompt(request.text ?? "")
@@ -82,19 +84,25 @@ final class OnDeviceBackend: BackendService {
                 // A food photo: OCR + labels; generic labels mean we ask the user before generating.
                 let labels = try await Self.classify(dataURL: request.imageDataUrl ?? "")
                 let names = PhotoGuess.dishes(from: labels)
+                visibleLabels = PhotoGuess.distinctFoods(labels, minConfidence: 0.25).map(\.0)
+                visionLabels = labels
+                let scene = PhotoGuess.sceneDescription(labels: labels, salientObjects: await Self.salientObjectCount(dataURL: request.imageDataUrl ?? ""),
+                                                        colours: Self.dominantColours(dataURL: request.imageDataUrl ?? ""))
                 input = .photo; photoForTool = request.imageDataUrl
                 let viaTool = Self.toolsAvailable
+                let pp: String
                 if !hint.isEmpty {
-                    prompt = RecipePrompt.photo(dish: hint, labels: names, ocr: text, ocrViaTool: viaTool)
+                    pp = RecipePrompt.photo(dish: hint, labels: names, ocr: text, ocrViaTool: viaTool)
                 } else {
                     switch PhotoGuess.assess(labels: labels, ocrText: text) {
-                    case .confident(let dish): prompt = RecipePrompt.photo(dish: dish, labels: names, ocr: text, ocrViaTool: viaTool)
+                    case .confident(let dish): pp = RecipePrompt.photo(dish: dish, labels: names, ocr: text, ocrViaTool: viaTool)
                     case .uncertain(let s):
                         // Identify inside the generation pass; the sheet only asks when confidence < 80%.
-                        prompt = RecipePrompt.photoUnnamed(labels: names, candidates: s, ocr: text, ocrViaTool: viaTool)
+                        pp = RecipePrompt.photoUnnamed(labels: names, candidates: s, ocr: text, ocrViaTool: viaTool)
                     case .spread(let s): throw PhotoNeedsDishError(suggestions: s, spread: true)
                     }
                 }
+                prompt = pp + "\n" + scene
                 source = .photoGuess
             }
         case .rewrite:
@@ -104,8 +112,24 @@ final class OnDeviceBackend: BackendService {
             prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"; input = .rewrite
             reviseID = c.id
         }
-        var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID,
-                                           context: RecipePrompt.context(for: request.text ?? ""))
+        let ctx = RecipePrompt.context(for: request.text ?? "")
+        var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx)
+        // Too thin, or missing what the photo shows: regenerate ONCE with the gaps spelled out.
+        let gaps = RecipeQuality.shortfall(card, labels: visibleLabels)
+        if request.mode != .rewrite, !gaps.isEmpty {
+            let fix = prompt + "\nThe previous draft fell short: " + gaps.joined(separator: " ")
+                + (visibleLabels.isEmpty ? "" : " Include every visible component: \(visibleLabels.prefix(8).joined(separator: ", ")).")
+            if let again = try? await Self.generate(fix, input: input, photoDataURL: photoForTool, context: ctx),
+               RecipeQuality.shortfall(again, labels: visibleLabels).count < gaps.count { card = again }
+        }
+        if source == .photoGuess {
+            card.servings = RecipeQuality.inferredServings(card, fromPhoto: true)
+            card.aiConfidence = PhotoGuess.calibratedConfidence(model: card.aiConfidence, title: card.title, labels: visionLabels)
+            // "What dish is this?" chips: the model's guesses, then what Vision saw (glossary only when ambiguous).
+            let extra = PhotoGuess.suggestions(labels: visionLabels, ocrText: "")
+            var seen = Set([card.title.lowercased()])
+            card.aiAlternatives = ((card.aiAlternatives ?? []) + extra).filter { seen.insert($0.lowercased()).inserted }
+        }
         if let r = reviseID { await Self.rekeySession(from: card.id, to: r) }
         card.source = source; card.generatedAt = Date().timeIntervalSince1970 * 1000
         if request.mode == .url, let u = URL(string: (request.text ?? "").trimmingCharacters(in: .whitespaces)) {
@@ -290,9 +314,59 @@ final class OnDeviceBackend: BackendService {
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
                     try VNImageRequestHandler(cgImage: cg).perform([req])
-                    let obs = (req.results ?? []).filter { $0.confidence > 0.05 }.prefix(12).map { ($0.identifier, $0.confidence) }
+                    // Full VNClassifyImageRequest taxonomy, top 10 with confidences.
+                    let obs = (req.results ?? []).sorted { $0.confidence > $1.confidence }.filter { $0.confidence > 0.03 }.prefix(10).map { ($0.identifier, $0.confidence) }
                     cont.resume(returning: Array(obs))
                 } catch { cont.resume(throwing: error) }
+            }
+        }
+    }
+
+    /// Objectness saliency: how many separate things are in frame (counts items, used with labels to tell plates from dishes).
+    static func salientObjectCount(dataURL: String) async -> Int {
+        let b64 = dataURL.components(separatedBy: ",").last ?? ""
+        guard let data = Data(base64Encoded: b64), let cg = UIImage(data: data)?.cgImage else { return 0 }
+        return await withCheckedContinuation { cont in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let req = VNGenerateObjectnessBasedSaliencyImageRequest()
+                try? VNImageRequestHandler(cgImage: cg).perform([req])
+                let n = (req.results?.first?.salientObjects ?? []).filter { $0.confidence > 0.3 }.count
+                cont.resume(returning: n)
+            }
+        }
+    }
+
+    /// Two or three coarse colour names from a 4×4 downsample.
+    static func dominantColours(dataURL: String) -> [String] {
+        let b64 = dataURL.components(separatedBy: ",").last ?? ""
+        guard let data = Data(base64Encoded: b64), let img = UIImage(data: data) else { return [] }
+        let size = CGSize(width: 4, height: 4)
+        let fmt = UIGraphicsImageRendererFormat(); fmt.scale = 1
+        let small = UIGraphicsImageRenderer(size: size, format: fmt).image { _ in img.draw(in: CGRect(origin: .zero, size: size)) }
+        guard let cg = small.cgImage, let px = cg.dataProvider?.data, let p = CFDataGetBytePtr(px) else { return [] }
+        var counts: [String: Int] = [:]
+        let bpp = cg.bitsPerPixel / 8
+        for i in 0..<(cg.width * cg.height) {
+            let o = i * bpp
+            let c = UIColor(red: CGFloat(p[o]) / 255, green: CGFloat(p[o + 1]) / 255, blue: CGFloat(p[o + 2]) / 255, alpha: 1)
+            counts[ColourName.name(c), default: 0] += 1
+        }
+        return counts.sorted { $0.value > $1.value }.prefix(3).map(\.key)
+    }
+
+    enum ColourName {
+        static func name(_ c: UIColor) -> String {
+            var h: CGFloat = 0, sat: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            c.getHue(&h, saturation: &sat, brightness: &b, alpha: &a)
+            if b < 0.2 { return "black" }
+            if sat < 0.15 { return b > 0.85 ? "white" : "grey" }
+            switch h * 360 {
+            case ..<15, 345...: return "red"
+            case ..<40: return b < 0.6 ? "brown" : "orange"
+            case ..<70: return "yellow"
+            case ..<170: return "green"
+            case ..<260: return "blue"
+            default: return "purple"
             }
         }
     }
@@ -390,8 +464,8 @@ struct GenRecipe {
     @Guide(description: "Identify the dish first") var dish: DishIdentification
     @Guide(description: "The card title: the identified dish name as written") var title: String
     @Guide(description: "Under 20 words") var description: String
-    @Guide(description: "Servings that suit the dish (stews 4 to 6)", .range(1...24)) var servings: Int
-    @Guide(description: "Total minutes: prep plus the sum of all step times", .range(1...2880)) var timeMinutes: Int
+    @Guide(description: "Servings that suit the dish (stews 4 to 6); for one plated item in a photo (one sandwich, one bowl) use 1", .range(1...24)) var servings: Int
+    @Guide(description: "Total minutes: the sum of all step minutes plus a short prep time; never more than that", .range(1...2880)) var timeMinutes: Int
     @Guide(description: "Short lowercase tags, include the dish type (main, side, dessert, drink)", .maximumCount(5)) var tags: [String]
     @Guide(description: "Ingredients for the identified dish, copied from the text when given; a main dish has at least 4 with amounts", .count(1...30)) var ingredients: [GenIngredient]
     @Guide(description: "Steps in order; timed steps carry minutes, oven steps carry temperatureC", .count(1...20)) var steps: [GenStep]

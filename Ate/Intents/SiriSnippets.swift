@@ -47,6 +47,17 @@ struct QuickRecipesIntent: AppIntent {
 
 /// Pure helpers (unit-tested).
 enum SiriAnswers {
+    /// "Tonight's pick is X. Why." with tidy spacing, capitalisation and a single full stop.
+    static func pickLine(title: String, health: String?, why: String) -> String {
+        func tidy(_ x: String) -> String {
+            var t = x.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            while let l = t.last, ".!? ".contains(l) { t.removeLast() }
+            return t
+        }
+        let lead = health.map { "It's a \(tidy($0).lowercased()), so tonight's pick is " } ?? "Tonight's pick is "
+        let w = tidy(why)
+        return lead + tidy(title) + "." + (w.isEmpty ? "" : " " + w.prefix(1).uppercased() + w.dropFirst() + ".")
+    }
     static func openItems(_ s: [ShoppingItem]) -> [ShoppingItem] { s.filter { !$0.done } }
     static func listLine(_ items: [ShoppingItem]) -> String {
         guard !items.isEmpty else { return "Your ate shopping list is empty." }
@@ -55,7 +66,7 @@ enum SiriAnswers {
         return "You need " + ListFormatter.localizedString(byJoining: Array(top)) + more + "."
     }
     static func quick(_ r: [RecipeCard], limit: Int = 30) -> [RecipeCard] {
-        Array(r.filter { ($0.timeMinutes ?? .max) <= limit && ($0.timeMinutes ?? 0) > 0 }
+        Array(r.filter { Durations.plausibleQuickMinutes($0).map { $0 <= limit } ?? false }
             .sorted { ($0.favorite ? 0 : 1, $0.timeMinutes ?? 0) < ($1.favorite ? 0 : 1, $1.timeMinutes ?? 0) }.prefix(3))
     }
     static func remaining(_ t: TimerSnapshot, now: Date = Date()) -> Int {
@@ -78,9 +89,15 @@ struct SnippetEmpty: View {
 
 private struct Cover: View {
     let file: String?
+    /// App Group copy first (widgets), then the app's own cover file (works when sideloading dropped the App Group).
+    static func load(_ file: String?) -> UIImage? {
+        guard let f = file else { return nil }
+        if let u = WidgetCovers.url(f), let img = UIImage(contentsOfFile: u.path) { return img }
+        return UIImage(contentsOfFile: CoverStore.url(f).path)
+    }
     var body: some View {
         Group {
-            if let f = file, let u = WidgetCovers.url(f), let img = UIImage(contentsOfFile: u.path) {
+            if let img = Self.load(file) {
                 Image(uiImage: img).resizable().scaledToFill()
             } else {
                 ZStack { accent.opacity(0.15); Image(systemName: "fork.knife").foregroundStyle(accent) }
@@ -162,7 +179,7 @@ struct QuickSnippet: View {
                         Cover(file: WidgetSnapshotBuilder.coverFile(r)).scaleEffect(0.7).frame(width: 46, height: 46)
                         VStack(alignment: .leading) {
                             Text(r.title).font(.subheadline.weight(.semibold)).lineLimit(1)
-                            Text("\(r.timeMinutes ?? 0) min").font(.caption).foregroundStyle(.secondary)
+                            Text("\(Durations.plausibleQuickMinutes(r) ?? r.timeMinutes ?? 0) min").font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
                         Image(systemName: "chevron.right").foregroundStyle(.tertiary)

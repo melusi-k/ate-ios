@@ -48,6 +48,16 @@ enum Durations {
         return "\(r.lower / 60)–\(r.upper / 60) min"
     }
 
+    /// Sanitised total minutes if believable for a "quick" list; nil when missing or implausibly short (e.g. "3 min" chicken feet).
+    static func plausibleQuickMinutes(_ card: RecipeCard) -> Int? {
+        let c = sanitize(card).card
+        guard let t = c.timeMinutes, t >= 5 else { return nil }
+        let stepMin = (c.steps.compactMap(\.timeSeconds).reduce(0, +) + 59) / 60
+        if stepMin > t { return nil }
+        if c.steps.count >= 4 && t < 10 { return nil }
+        return t
+    }
+
     /// Reconciles model/import times with the step text and caps nonsense. Returns the fixed card and whether anything changed.
     static func sanitize(_ card: RecipeCard) -> (card: RecipeCard, corrected: Bool) {
         var c = card, corrected = false

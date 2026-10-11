@@ -41,3 +41,17 @@ final class SiriRoutingTests: XCTestCase {
         XCTAssertTrue(AteShortcuts.phraseCatalog.flatMap(\.phrases).allSatisfy { $0.lowercased().contains("ate") })
     }
 }
+
+@MainActor
+final class SiriPolishTests: XCTestCase {
+    func testPickLinePunctuation() {
+        XCTAssertEqual(SiriAnswers.pickLine(title: "Chotlo with Setswana Ting ", health: nil, why: "one of your favourites."),
+                       "Tonight's pick is Chotlo with Setswana Ting. One of your favourites.")
+    }
+    func testImplausibleQuickTimeExcluded() {
+        let feet = RecipeCard(id: "f", title: "Amanqina Enkukhu", timeMinutes: 3)
+        let ok = RecipeCard(id: "o", title: "Omelette", timeMinutes: 10)
+        XCTAssertNil(Durations.plausibleQuickMinutes(feet))
+        XCTAssertEqual(SiriAnswers.quick([feet, ok]).map(\.id), ["o"])
+    }
+}

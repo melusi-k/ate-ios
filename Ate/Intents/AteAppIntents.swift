@@ -178,8 +178,7 @@ struct TonightsPickIntent: AppIntent {
         }
         QAProbe.shared.lastIntent = "pick:\(r.title)"
         BetaQA.shared.pass("A-INTENT-03", note: "Tonight's pick: \(r.title)")
-        let lead = p.healthTitle.map { "It's a \($0.lowercased()), so " } ?? ""
-        return .result(value: RecipeAppEntity(r), dialog: "\(lead)tonight's pick is \(r.title). \(p.why).",
+        return .result(value: RecipeAppEntity(r), dialog: "\(SiriAnswers.pickLine(title: r.title, health: p.healthTitle, why: p.why))",
                        view: PickSnippet(recipe: r, why: p.why))
     }
 }
@@ -269,6 +268,7 @@ struct AteJournalEntryEntity {
 @available(iOS 18.0, *)
 @AssistantIntent(schema: .journal.createEntry)
 struct CreateAteJournalEntryIntent {
+    static let title: LocalizedStringResource = "New journal entry"
     var message: AttributedString
     var title: String?
     var entryDate: Date?

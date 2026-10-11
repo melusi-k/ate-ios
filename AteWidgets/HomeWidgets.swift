@@ -117,7 +117,7 @@ private struct CookingWidgetView: View {
         if let s = entry.snapshot {
             VStack(alignment: .leading, spacing: 6) {
                 Label("Cooking tracker", systemImage: "flame.fill").font(.caption.weight(.semibold)).foregroundStyle(WTheme.primary)
-                Text("\(s.cookingStreak) day\(s.cookingStreak == 1 ? \"\" : \"s\")").font(.system(size: 28, weight: .bold, design: .rounded)).foregroundStyle(WTheme.brown)
+                Text("\(s.cookingStreak) day\(s.cookingStreak == 1 ? "" : "s")").font(.system(size: 28, weight: .bold, design: .rounded)).foregroundStyle(WTheme.brown)
                 Text(s.cookedToday ? "Cooked today" : "Not cooked today").font(.caption).foregroundStyle(.secondary)
                 Spacer(minLength: 0)
                 Link("Open tracker", destination: URL(string: "ate://open")!).font(.caption.weight(.semibold)).foregroundStyle(WTheme.primary)

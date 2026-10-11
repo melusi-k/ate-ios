@@ -38,6 +38,7 @@ jobs:
         id: build
         run: |
           set -o pipefail
+          STEP_START=$(date +%s)
           SIM_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=json.load(sys.stdin)["devices"];print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
           echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
 
@@ -45,6 +46,8 @@ jobs:
           xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
           status=$?
           set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=build-for-testing duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
 
           if [ "$status" -ne 0 ]; then
             echo "::error::Simulator build failed (xcodebuild exit $status). Matching diagnostics and recent log follow:"
@@ -59,10 +62,13 @@ jobs:
           tail -n 30 build-warnings.log || true
       - name: Unit tests
         run: |
+          STEP_START=$(date +%s)
           set +e
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/unit-tests.xcresult" -only-testing:AteTests CODE_SIGNING_ALLOWED=NO > test.log 2>&1
           status=$?
           set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=unit-tests duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
 
           if [ "$status" -ne 0 ]; then
             echo "::error::Unit tests failed (xcodebuild exit $status). Failure diagnostics follow; the complete test.log and xcresult are uploaded as artifacts."
@@ -78,10 +84,13 @@ jobs:
       - name: Widget/intents UI tests
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
+          STEP_START=$(date +%s)
           set +e
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/widget-intents-ui-tests.xcresult" -only-testing:AteUITests/WidgetsIntentsUITests CODE_SIGNING_ALLOWED=NO > ui.log 2>&1
           status=$?
           set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=widget-intents-ui-tests duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
 
           if [ "$status" -ne 0 ]; then
             echo "::error::Widget/intents UI tests failed (xcodebuild exit $status). Failure diagnostics follow; the complete ui.log and xcresult are uploaded as artifacts."

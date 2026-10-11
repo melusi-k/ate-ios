@@ -2,6 +2,12 @@ import Foundation
 
 /// Duration parsing + sanity checks for recipe times (seconds for steps, minutes for totals).
 /// Times NEVER scale with servings: RecipeLogic.scaled only touches ingredients and servings.
+/// Step time editing in minutes (stored as seconds).
+enum StepMinutes {
+    static func minutes(_ seconds: Int?) -> Int { Int((Double(seconds ?? 0) / 60).rounded()) }
+    static func seconds(_ minutes: Int) -> Int? { minutes > 0 ? minutes * 60 : nil }
+}
+
 enum Durations {
     struct Span: Equatable { var lower: Int; var upper: Int }   // seconds
 
@@ -59,6 +65,17 @@ enum Durations {
         (["brown", "sear", "fry the onion", "caramelise", "caramelised", "caramelize", "caramelized"], 5 * 60),
         (["steam", "wilt"], 3 * 60),
     ]
+    /// Quick hands-on actions: a model time above this (with no time in the text) isn't believable.
+    static let quickActions = ["roll", "slice", "assemble", "garnish", "serve", "season", "toss", "layer", "spread", "drizzle", "plate", "cut"]
+    static let maxQuickSeconds = 10 * 60
+    static func maximumSeconds(for instruction: String) -> Int? {
+        let l = instruction.lowercased()
+        guard minimumSeconds(for: l) == nil else { return nil }     // "roll and bake" is governed by the bake
+        let first = l.split(whereSeparator: { !$0.isLetter }).first.map(String.init) ?? ""
+        let stem = quickActions.first { first == $0 || first == $0 + "s" || first == $0 + "ing" || first.hasPrefix($0) && first.count <= $0.count + 3 }
+        return stem == nil ? nil : maxQuickSeconds
+    }
+
     static func minimumSeconds(for instruction: String) -> Int? {
         let l = instruction.lowercased()
         func has(_ k: String) -> Bool {
@@ -92,7 +109,8 @@ enum Durations {
             let model = (s.timeSeconds ?? 0) > 0 ? s.timeSeconds : nil
             let fixed: Int?
             if let t = fromText { fixed = t }                                   // the written time always wins
-            else if let m = model, !unitsBroken, m <= maxUntimedStepSeconds, m >= (minimumSeconds(for: s.instruction) ?? 0) { fixed = m }
+            else if let m = model, !unitsBroken, m <= maxUntimedStepSeconds, m >= (minimumSeconds(for: s.instruction) ?? 0),
+                    m <= (maximumSeconds(for: s.instruction) ?? Int.max) { fixed = m }
             else { fixed = nil }
             if fixed != s.timeSeconds { corrected = corrected || model != nil; s.timeSeconds = fixed }
             return s

@@ -202,20 +202,22 @@ struct RecipeEditor: View {
                 }.buttonStyle(.ate(.secondary, height: 32))
             }
             ForEach(recipe.ingredients.indices, id: \.self) { i in
+                // Name gets its own full-width, multiline row (it truncated to "sea…" beside qty/unit).
                 VStack(spacing: 6) {
+                    TextField("ingredient", text: ing(i, \.name, ""), axis: .vertical).lineLimit(1...4).ateField()
+                        .accessibilityIdentifier("editorIngredientName")
                     HStack(spacing: 6) {
                         TextField("qty", value: ing(i, \.quantity, 0), format: .number)
-                            .keyboardType(.decimalPad).frame(width: 80).ateField()
-                        TextField("unit", text: ing(i, \.unit, "")).frame(width: 80).ateField()
-                        TextField("ingredient", text: ing(i, \.name, "")).ateField()
+                            .keyboardType(.decimalPad).frame(maxWidth: 90).ateField()
+                        TextField("unit", text: ing(i, \.unit, "")).frame(maxWidth: 90).ateField()
+                        TextField("notes (e.g. finely chopped)", text: Binding(
+                            get: { recipe.ingredients.indices.contains(i) ? (recipe.ingredients[i].notes ?? "") : "" },
+                            set: { if recipe.ingredients.indices.contains(i) { recipe.ingredients[i].notes = $0.isEmpty ? nil : $0 } }))
+                            .ateField()
                         IconButton(symbol: "trash", label: "Remove ingredient", tint: Theme.mutedForeground) {
                             if recipe.ingredients.indices.contains(i) { recipe.ingredients.remove(at: i) }
                         }
                     }
-                    TextField("notes (e.g. finely chopped)", text: Binding(
-                        get: { recipe.ingredients.indices.contains(i) ? (recipe.ingredients[i].notes ?? "") : "" },
-                        set: { if recipe.ingredients.indices.contains(i) { recipe.ingredients[i].notes = $0.isEmpty ? nil : $0 } }))
-                        .ateField()
                 }
             }
 
@@ -229,8 +231,13 @@ struct RecipeEditor: View {
             ForEach(recipe.steps.indices, id: \.self) { i in
                 HStack(alignment: .top, spacing: 6) {
                     TextField("Instruction", text: stp(i, \.instruction, ""), axis: .vertical).lineLimit(2...6).ateField()
-                    TextField("sec", value: optInt(stp(i, \.timeSeconds, nil)), format: .number)
-                        .keyboardType(.numberPad).frame(width: 96).ateField()
+                    // Edited in minutes; seconds stay internal (fields used to show raw 600 / 1 500).
+                    HStack(spacing: 4) {
+                        TextField("0", value: minutes(stp(i, \.timeSeconds, nil)), format: .number)
+                            .keyboardType(.numberPad).frame(width: 56).ateField()
+                            .accessibilityLabel("Step \(i + 1) minutes").accessibilityIdentifier("editorStepMinutes")
+                        Text("min").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                    }
                     IconButton(symbol: "trash", label: "Remove step", tint: Theme.mutedForeground) {
                         if recipe.steps.indices.contains(i) { recipe.steps.remove(at: i) }
                         for j in recipe.steps.indices { recipe.steps[j].order = j + 1 }
@@ -249,6 +256,10 @@ struct RecipeEditor: View {
     private func stp<T>(_ i: Int, _ kp: WritableKeyPath<Step, T>, _ fallback: T) -> Binding<T> {
         Binding(get: { recipe.steps.indices.contains(i) ? recipe.steps[i][keyPath: kp] : fallback },
                 set: { if recipe.steps.indices.contains(i) { recipe.steps[i][keyPath: kp] = $0 } })
+    }
+
+    private func minutes(_ b: Binding<Int?>) -> Binding<Int> {
+        Binding(get: { StepMinutes.minutes(b.wrappedValue) }, set: { b.wrappedValue = StepMinutes.seconds($0) })
     }
 
     private func optInt(_ b: Binding<Int?>) -> Binding<Int> {

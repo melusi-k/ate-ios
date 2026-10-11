@@ -27,6 +27,7 @@ enum RecipeQuality {
 
     static func isMainDish(_ c: RecipeCard) -> Bool {
         let hay = ([c.title] + c.tags).joined(separator: " ").lowercased()
+        if CoverLogic.matches(hay, "sushi") { return true }
         return mainWords.contains { CoverLogic.matches(hay, $0) }
     }
     static func hasTemperature(_ s: String) -> Bool {
@@ -39,11 +40,32 @@ enum RecipeQuality {
         return w.count <= 3 && genericVerbs.contains(first)
     }
 
+    static let vagueIngredients: Set<String> = ["seasoning", "seasonings", "spices", "condiment", "condiments", "toppings", "filling", "fillings", "sauce"]
+    /// Dish-specific essentials (beyond the count): sushi without nori or rice vinegar isn't sushi.
+    static let essentials: [(dish: String, needs: [[String]])] = [
+        ("sushi", [["nori", "seaweed"], ["rice vinegar", "sushi vinegar"], ["salmon", "tuna", "cucumber", "avocado", "crab", "prawn", "tofu", "egg", "carrot", "fish"]]),
+        ("pap", [["maize", "mealie", "maize meal"]]),
+        ("chakalaka", [["beans", "baked beans"], ["carrot", "carrots"]]),
+    ]
+    static func missingEssentials(_ c: RecipeCard) -> [String] {
+        let have = c.ingredients.map { $0.name.lowercased() }.joined(separator: " | ")
+        return essentials.filter { CoverLogic.matches(c.title, $0.dish) }.flatMap { e in
+            e.needs.filter { alts in !alts.contains { have.contains($0) } }.map { $0[0] == "salmon" ? "a filling" : $0[0] }
+        }
+    }
+
     /// Human-readable gaps; empty means the card meets the bar.
     static func issues(_ c: RecipeCard) -> [String] {
         var out: [String] = []
         let real = c.ingredients.filter { $0.quantity > 0 && !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
         if isMainDish(c) && real.count < 4 { out.append("Needs at least 4 ingredients with quantities (has \(real.count)).") }
+        let vague = c.ingredients.map { $0.name.lowercased().trimmingCharacters(in: .whitespaces) }.filter { vagueIngredients.contains($0) }
+        if !vague.isEmpty { out.append("Name the actual ingredients instead of “\(vague.joined(separator: "”, “"))”.") }
+        let miss = missingEssentials(c)
+        if !miss.isEmpty { out.append("Missing essentials: \(miss.joined(separator: ", ")).") }
+        if isMainDish(c) || !miss.isEmpty || !vague.isEmpty, c.tags.contains(where: { ["condiment", "condiments"].contains($0.lowercased()) }) {
+            out.append("The “condiment” tag doesn't fit this dish.")
+        }
         let steps = RecipeLogic.nonBlank(c.steps)
         if steps.isEmpty { out.append("No steps.") }
         for s in steps where ovenWords.contains(where: { s.instruction.lowercased().contains($0) }) && !hasTemperature(s.instruction) {
@@ -96,6 +118,12 @@ enum RecipeQuality {
             let s = String(w)
             return (i > 0 && small.contains(s)) ? s : s.prefix(1).uppercased() + s.dropFirst()
         }.joined(separator: " ")
+    }
+
+    /// Ask Ate request used by "Improve with AI" on an existing thin recipe.
+    static func improvePrompt(_ c: RecipeCard) -> String {
+        "Improve this recipe so it is complete and specific: " + issues(c).joined(separator: " ")
+            + " Keep the dish the same, list real ingredients with amounts and write specific steps with realistic times."
     }
 
     /// "Draft, needs your input": Save stays disabled until the user edits or confirms.

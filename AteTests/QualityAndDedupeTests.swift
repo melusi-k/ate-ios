@@ -198,3 +198,40 @@ final class PhotoRegressionTests: XCTestCase {
         XCTAssertEqual(RecipeQuality.titleCased("Mac and cheese"), "Mac and cheese", "only all-lowercase titles change")
     }
 }
+
+/// Edit-screen regressions on a saved "sushi" recipe.
+final class EditorRegressionTests: XCTestCase {
+    private func sushi() -> RecipeCard {
+        RecipeCard(title: "sushi", servings: 2, timeMinutes: 40, tags: ["condiment"],
+                   ingredients: [.init(name: "sushi rice", quantity: 300, unit: "g"), .init(name: "seasonings", quantity: 1, unit: "")],
+                   steps: [.init(order: 1, instruction: "Cook the rice", timeSeconds: 600),
+                           .init(order: 2, instruction: "Season the rice", timeSeconds: 300),
+                           .init(order: 3, instruction: "Roll the sushi", timeSeconds: 1500)],
+                   source: .unknown)
+    }
+    func testStepTimesEditInMinutes() {
+        XCTAssertEqual(StepMinutes.minutes(1500), 25); XCTAssertEqual(StepMinutes.minutes(nil), 0)
+        XCTAssertEqual(StepMinutes.seconds(10), 600); XCTAssertNil(StepMinutes.seconds(0))
+    }
+    func testImplausibleRollingTimeIsDropped() {
+        XCTAssertEqual(Durations.maximumSeconds(for: "Roll the sushi"), 600)
+        XCTAssertNil(Durations.maximumSeconds(for: "Roll the dough and bake 20 minutes"))
+        let c = Durations.sanitize(sushi()).card
+        XCTAssertNil(c.steps[2].timeSeconds, "25 min of rolling with no time in the text isn't believable")
+        XCTAssertEqual(c.steps[2].instruction, "Roll the sushi")
+        XCTAssertEqual(Durations.sanitize(RecipeCard(steps: [.init(order: 1, instruction: "Roll for 25 minutes", timeSeconds: 1500)])).card.steps[0].timeSeconds, 1500)
+    }
+    func testThinSushiFailsQualityAndOffersImprove() {
+        let i = RecipeQuality.issues(sushi())
+        XCTAssertTrue(i.contains { $0.contains("nori") && $0.contains("rice vinegar") && $0.contains("a filling") })
+        XCTAssertTrue(i.contains { $0.contains("seasonings") })
+        XCTAssertTrue(i.contains { $0.contains("condiment") })
+        XCTAssertTrue(i.contains { $0.contains("4 ingredients") })
+        XCTAssertTrue(RecipeQuality.improvePrompt(sushi()).hasPrefix("Improve this recipe"))
+    }
+    func testSavedLowercaseTitleIsTitleCased() {
+        XCTAssertEqual(RecipeLogic.normalize(sushi()).title, "Sushi")
+        var manual = sushi(); manual.source = .manual
+        XCTAssertEqual(RecipeLogic.normalize(manual).title, "sushi", "what the user typed is left alone")
+    }
+}

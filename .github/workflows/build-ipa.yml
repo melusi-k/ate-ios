@@ -607,6 +607,10 @@ jobs:
       BUILD_NUMBER: ${{ github.run_number }}
       ATE_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'TierA' }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download the exact tested build
         run: |
           set -euo pipefail
@@ -626,9 +630,6 @@ jobs:
           TAG="build-${BUILD_NUMBER}${SUFFIX}"
           IPA=$(find dist -maxdepth 1 -name '*.ipa' -print -quit)
           CHECKSUM="$IPA.sha256"
-          git init
-          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
-          git fetch origin "$GITHUB_SHA" --depth=1
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           gh release delete latest-beta --repo "$GITHUB_REPOSITORY" --cleanup-tag -y || true

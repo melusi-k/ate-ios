@@ -258,12 +258,17 @@ final class SupabaseBackend: BackendService {
     }
 
     func fetchShared(slug: String) async throws -> RecipeCard? {
-        guard var comps = URLComponents(url: baseURL.appendingPathComponent("rest/v1/shared_recipes"), resolvingAgainstBaseURL: false) else { return nil }
-        comps.queryItems = [URLQueryItem(name: "slug", value: "eq.\(slug)"), URLQueryItem(name: "select", value: "card")]
+        // Read by opaque slug through the edge function, not PostgREST table SELECT.
+        // This lets the database revoke public table listing without breaking this client.
+        guard var comps = URLComponents(url: baseURL.appendingPathComponent("functions/v1/get-shared-recipe"), resolvingAgainstBaseURL: false) else { return nil }
+        comps.queryItems = [URLQueryItem(name: "slug", value: slug)]
         guard let url = comps.url else { return nil }
         var r = request("")
         r.url = url
-        let data = try await send(r)
-        return try JSONDecoder().decode([CardEnvelope].self, from: data).first?.card
+        let (data, response) = try await Net.data(for: r)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if code == 404 { return nil }
+        guard (200..<300).contains(code) else { throw BackendError.http(code) }
+        return try JSONDecoder().decode(CardEnvelope.self, from: data).card
     }
 }

@@ -1,5 +1,5 @@
 // get-shared-recipe: public read of a shared recipe by slug. GET ?slug=abc12345 or POST { slug }.
-// Mirrors Lovable's getSharedRecipe; the iOS app can also read shared_recipes via PostgREST (RLS: public SELECT).
+// Public read by opaque slug. The service role is server-only; clients must not SELECT the table directly.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const cors = {
@@ -10,10 +10,11 @@ const cors = {
 const json = (b: unknown, status = 200, extra: Record<string, string> = {}) =>
   new Response(JSON.stringify(b), { status, headers: { ...cors, "Content-Type": "application/json", ...extra } });
 
-const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { auth: { persistSession: false } });
+const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "GET" && req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   let slug = new URL(req.url).searchParams.get("slug");
   if (!slug && req.method === "POST") slug = (await req.json().catch(() => ({})))?.slug ?? null;
   if (!slug || !/^[a-z0-9]{4,40}$/i.test(slug)) return json({ error: "Invalid slug" }, 400);

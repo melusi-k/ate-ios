@@ -236,10 +236,10 @@ final class AteUITests: XCTestCase {
         // Completion must update the persistent Tracker, not merely dismiss Cook Mode.
         tab("Tracker")
         let day = Calendar.current.component(.day, from: Date())
-        let today = app.buttons["tracker.day.\\(day)"]
+        let today = app.buttons["tracker.day.\(day)"]
         wait(today, 5)
         XCTAssertTrue(today.label.contains("cooked") && today.label.contains("today"),
-                      "Finish cooking should mark today's Tracker date as cooked: \\(today.label)")
+                      "Finish cooking should mark today's Tracker date as cooked: \(today.label)")
         today.tap()
         wait(app.navigationBars["Cooked that day"], 5)
         XCTAssertFalse(app.staticTexts["Nothing recorded for this day."].exists,

@@ -261,12 +261,12 @@ Run on **iOS 18** (opaque bars) and **iOS 26** (Liquid Glass), in **light** and 
 
 | Area | Acceptance / expected behavior | Evidence required | Status |
 |---|---|---|---|
-| Calendar month | Shows every date in the displayed month with weekday alignment, leading/trailing empty cells, a distinct today marker, and cooked-day markers. Month title always matches the visible dates. | Simulator UI test + visual check | Pending |
-| Month navigation | Previous/next month controls work; future months cannot be selected. Navigating months clears an out-of-month selected day. | Simulator UI test | Pending |
-| Selected day | Tapping a date opens that date's details; empty dates explain that nothing was recorded; missing/deleted recipes have a fallback label. | Simulator UI test | Pending |
-| History persistence | Local event history survives service re-instantiation/relaunch and uses isolated test storage. | Unit tests | Partial — persistence unit test added; relaunch/device evidence pending |
-| Streak rules | Empty history, today, yesterday, gaps, month/year boundaries, and multiple recipes in one day are deterministic. | Unit tests | Partial — core today/yesterday/gap cases covered; boundary cases pending |
-| Calendar/time-zone change | Historical events stay assigned to the local day key captured at record time; changing device time zone/calendar must not silently rewrite history. | Unit test + device setting-change check | Pending |
-| Accessibility | Month controls and dates have descriptive labels, selected state is exposed, weekday decoration is hidden from VoiceOver, and layout remains usable at larger text sizes. | VoiceOver + Dynamic Type device QA | Pending |
+| Calendar month | Shows every date in the displayed month with weekday alignment, leading/trailing empty cells, a distinct today marker, and cooked-day markers. Month title always matches the visible dates. | CookingTrackerEntryUITests + visual check | Automated check added; CI pending |
+| Month navigation | Previous/next month controls work; future months cannot be selected. Navigating months clears an out-of-month selected day. | testMonthNavigationAndFutureMonthRestriction | Automated check added; CI pending |
+| Selected day | Tapping a date opens that date's details; empty dates explain that nothing was recorded; missing/deleted recipes have a fallback label. | testSelectingTodayShowsDayDetailsAndExplicitEmptyState; deleted-recipe fallback still needs dedicated coverage | Partial — empty-state check added; CI pending |
+| History persistence | Local event history survives service re-instantiation/relaunch and uses isolated test storage. | testHistoryPersistsAcrossInstancesWithoutUsingStandardDefaults + device relaunch check | Unit coverage present; relaunch/device evidence pending |
+| Streak rules | Empty history, today, yesterday, gaps, month/year boundaries, leap day, and multiple recipes in one day are deterministic. | CookingHistoryTests | Boundary tests added; CI pending |
+| Calendar/time-zone change | Historical events stay assigned to the local day key captured at record time; changing device time zone/calendar must not silently rewrite history. | testLocalDayKeysRemainStableAcrossTimezoneChange + device setting-change check | Unit check added; device evidence pending |
+| Accessibility | Month controls have 44pt hit areas; date buttons have a larger hit area and descriptive labels; selected state is exposed; weekday decoration is hidden from VoiceOver. Dynamic Type still needs device verification. | UI tests + VoiceOver/Dynamic Type device QA | Hit-area polish and labels implemented; device evidence pending |
 
 This section supplements the canonical IDs in `MVP_CHECKLIST.md`; do not mark the tracker complete until automated and device evidence is attached to [issue #31](https://github.com/melusi-k/ate-ios/issues/31).

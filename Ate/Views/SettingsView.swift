@@ -60,11 +60,13 @@ struct SettingsView: View {
                              ? "Recipes are stored on this iPhone only. Sign in to sync them to your account."
                              : "Recipes and your shopping list sync to your ate account (Supabase, EU). Shared recipes are public to anyone with the link.")
                     }
-                    Section("Beta & diagnostics") {
-                        NavigationLink(value: Route.beta) {
-                            Label("Beta testing", systemImage: "checklist")
+                    if AppConfig.isBetaBuild {
+                        Section("Beta & diagnostics") {
+                            NavigationLink(value: Route.beta) {
+                                Label("Beta testing", systemImage: "checklist")
+                            }
+                            .accessibilityIdentifier("settings.betaTesting")
                         }
-                        .accessibilityIdentifier("settings.betaTesting")
                     }
                     Section("Tools") {
                         Button { if let u = writeTemp("ate-recipes.json", store.exportJSON()) { share = ShareItems(items: [u]) } } label: {
@@ -130,6 +132,7 @@ struct SettingsView: View {
         .onChange(of: qa.openRequested, initial: true) { _, requested in
             guard requested else { return }
             qa.openRequested = false
+            guard AppConfig.isBetaBuild else { return }
             store.select(.settings)
             store.settingsPath = [.beta]
         }

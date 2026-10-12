@@ -138,7 +138,7 @@ jobs:
         run: |
           STEP_START=$(date +%s)
           set +e
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/settings-tab-qa.xcresult" -only-testing:AteUITests/KeyFlowsQATests/testQA7_SyncAccount -only-testing:AteUITests/ProductionChannelUITests/testProductionChannelHidesBetaDiagnostics -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 CODE_SIGNING_ALLOWED=NO > settings-tab-qa.log 2>&1
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/settings-tab-qa.xcresult" -only-testing:AteUITests/KeyFlowsQATests/testQA7_SyncAccount -only-testing:AteUITests/ProductionChannelUITests/testProductionChannelHidesBetaDiagnostics -only-testing:AteUITests/ProductionChannelUITests/testBetaChannelShowsBetaDiagnosticsEntry -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 CODE_SIGNING_ALLOWED=NO > settings-tab-qa.log 2>&1
           status=$?
           set -e
           STEP_END=$(date +%s)

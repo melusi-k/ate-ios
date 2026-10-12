@@ -3,7 +3,7 @@ import XCTest
 final class CookingTrackerEntryUITests: XCTestCase {
     private func launchTracker() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITesting"]
+        app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
         app.launch()
         let trackerTab = app.tabBars.buttons["Tracker"]
         XCTAssertTrue(trackerTab.waitForExistence(timeout: 10), "Cooking Tracker should be a first-class tab")
@@ -49,6 +49,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
         let today = app.buttons["tracker.day.\(day)"]
         XCTAssertTrue(today.waitForExistence(timeout: 5), "Today should be an accessible calendar button")
         XCTAssertTrue(today.label.contains("today"))
+        XCTAssertGreaterThanOrEqual(today.frame.height, 44, "Date hit targets must meet the 44pt accessibility minimum")
         today.tap()
 
         XCTAssertTrue(app.navigationBars["Cooked that day"].waitForExistence(timeout: 5))

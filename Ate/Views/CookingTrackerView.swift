@@ -14,7 +14,7 @@ struct CookingTrackerView: View {
                 Label("\(history.streak()) day streak", systemImage: "flame.fill")
                     .font(AteFont.body(12, .semibold)).foregroundStyle(Theme.primary)
             }
-            Text("Cook mode adds a day automatically. Tap a dot to see what you cooked.")
+            Text("Finish cooking in Cook Mode to record a day. Tap a date to see what you cooked.")
                 .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
             CookingDotGrid(history: history, selectedDate: $selectedDate)
                 .accessibilityIdentifier("insights.cookingCalendar")
@@ -135,7 +135,7 @@ private struct CookingDotGrid: View {
                                         Circle().strokeBorder(Theme.primary, lineWidth: 1)
                                     }
                                 }
-                                .frame(maxWidth: .infinity, minHeight: 40)
+                                .frame(maxWidth: .infinity, minHeight: 44)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)

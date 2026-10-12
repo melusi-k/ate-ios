@@ -31,7 +31,7 @@ final class AteUITests: XCTestCase {
     @discardableResult
     func launch(_ extra: [String] = []) -> XCUIApplication {
         app = XCUIApplication()
-        app.launchArguments = ["-UITesting"] + extra
+        app.launchArguments = ["-UITesting", "-qaResetCookingHistory"] + extra
         app.launch()
         return app
     }
@@ -189,10 +189,30 @@ final class AteUITests: XCTestCase {
         wait(text("10:00"))
         app.buttons["Next step"].tap()
         wait(text("Step 4 of 4"))
-        XCTAssertFalse(app.buttons["Next step"].isEnabled)
+        XCTAssertFalse(app.buttons["Next step"].exists, "The final step should offer explicit completion, not a disabled Next step.")
+        let finish = app.buttons["cookFinish"]
+        wait(finish)
+        XCTAssertEqual(finish.label, "Finish cooking")
         shot("cook-last-step")
+        finish.tap()
+        wait(app.buttons["Cook mode"], 5)
+    }
+
+    func testCookModeExitDoesNotRecordCookingDay() {
+        launch()
+        addPromptRecipe()
+        app.buttons["Cook mode"].tap()
+        wait(text("Step 1 of 4"))
         app.buttons["Exit"].tap()
-        wait(app.buttons["Cook mode"])
+        wait(app.buttons["Cook mode"], 5)
+
+        // Leaving Cook Mode is not completion. Inspect the calendar's accessible day label.
+        tab("Tracker")
+        let todayWithoutCooking = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@", "no cooking recorded", "today")
+        ).firstMatch
+        wait(todayWithoutCooking, 5)
+        XCTAssertTrue(todayWithoutCooking.label.contains("no cooking recorded"))
     }
 
     func test07_ShoppingList() {

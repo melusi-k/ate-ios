@@ -15,7 +15,7 @@ final class KeyFlowsQATests: XCTestCase {
     @discardableResult
     func launch(_ extra: [String] = []) -> XCUIApplication {
         app = XCUIApplication()
-        app.launchArguments = ["-UITesting"] + extra
+        app.launchArguments = ["-UITesting", "-qaResetCookingHistory"] + extra
         app.launch()
         return app
     }

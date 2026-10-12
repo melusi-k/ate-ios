@@ -131,6 +131,27 @@ jobs:
 
           grep -E "Executed|Test Suite .* (passed|failed)" test.log > test-summary.log || true
           tail -n 30 test-summary.log
+      - name: Settings-tab key-flow regression test
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          STEP_START=$(date +%s)
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/settings-tab-qa.xcresult" -only-testing:AteUITests/KeyFlowsQATests/testQA7_SyncAccount -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 CODE_SIGNING_ALLOWED=NO > settings-tab-qa.log 2>&1
+          status=$?
+          set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=settings-tab-key-flow duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
+
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Settings-tab key-flow regression test failed (xcodebuild exit $status). Exact test diagnostics follow; the full log and xcresult are uploaded as artifacts."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" settings-tab-qa.log || true
+            echo "::group::Last 100 Settings-tab QA log lines"
+            tail -n 100 settings-tab-qa.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
+
+          grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" settings-tab-qa.log | tail -n 30
       - name: Widget/intents UI tests
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
@@ -166,4 +187,5 @@ jobs:
             test-summary.log
             ui.log
             ui-summary.log
+            settings-tab-qa.log
             ${{ runner.temp }}/ate-test-results/*.xcresult

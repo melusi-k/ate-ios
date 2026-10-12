@@ -30,7 +30,7 @@
 - `RecipeHealthMatcher`: top 3 saved recipes for the state (ingredient/tag heuristics, not nutrition advice).
 - `JournalSuggestionService`: 1–2 prompts; Foundation Models when available, templated fallback.
 - `JournalEntry` (SwiftData, separate local store, never synced).
-- UI: More → Health → "Insights & journal" (Your body today · Suggested meals · Reflect on your day · Save to journal · Your Ate journal), plus a "Today" card in Library once Health has data.
+- UI: In beta-channel builds, open Settings › Beta testing › Open Insights & journal (Your body today · Suggested meals · Reflect on your day · Save to journal · Your Ate journal), plus a "Today" card in Library once Health has data.
 - States: unavailable, entitlement missing, denied, no data.
 - Journaling Suggestions picker: compiled in, shown only when the installed profile has `com.apple.developer.journal.allow` (hidden on free-ID builds). Picking a photo moment starts a journal prompt about that meal; a workout moment points to recovery meals.
 

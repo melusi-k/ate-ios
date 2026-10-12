@@ -12,6 +12,7 @@ struct AccountCard: View {
         @Bindable var store = store
         VStack(alignment: .leading, spacing: 12) {
             Text("Account & sync").font(AteFont.display(18))
+                .accessibilityIdentifier("accountSyncTitle")
             if !store.accountAvailable {
                 Text("Cloud sync isn't configured in this build.").font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
             } else if let s = store.session {

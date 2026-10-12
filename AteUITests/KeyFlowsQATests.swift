@@ -15,7 +15,7 @@ final class KeyFlowsQATests: XCTestCase {
     @discardableResult
     func launch(_ extra: [String] = []) -> XCUIApplication {
         app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-qaResetCookingHistory"] + extra
+        app.launchArguments = ["-UITesting"] + extra
         app.launch()
         return app
     }
@@ -84,14 +84,9 @@ final class KeyFlowsQATests: XCTestCase {
     }
     func signIn() {
         tab("Settings")
-        wait(text("Account & sync"))
-        let betaEntry = app.buttons["settings.betaTesting"]
-        XCTAssertTrue(betaEntry.waitForExistence(timeout: 5) && betaEntry.isHittable,
-                      "Beta testing should be reachable from Settings in UI-test builds")
-        betaEntry.tap()
-        wait(text("Beta testing"), 5)
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-        wait(text("Account & sync"))
+        wait(app.staticTexts["accountSyncTitle"])
+        // Beta-channel visibility has its own focused test. Keep the sync key flow
+        // independent of the diagnostics dashboard's long checklist rendering.
         app.buttons["openSignIn"].tap()
         replace(app.textFields["authEmail"], "qa@example.com")
         let p = app.secureTextFields["authPassword"]; p.tap(); p.typeText("password123")

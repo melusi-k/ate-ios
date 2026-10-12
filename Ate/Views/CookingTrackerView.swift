@@ -4,8 +4,6 @@ struct CookingTrackerView: View {
     @Environment(AppStore.self) private var store
     @State private var history = CookingHistory.shared
     @State private var selectedDate: Date?
-    private let calendar = Calendar.current
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
@@ -17,6 +15,8 @@ struct CookingTrackerView: View {
             Text("Finish cooking in Cook Mode to record a day. Tap a date to see what you cooked.")
                 .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
             CookingDotGrid(history: history, selectedDate: $selectedDate)
+                // Preserve child accessibility so month navigation and day buttons remain individually testable.
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("insights.cookingCalendar")
             HStack {
                 Circle().fill(Theme.primary).frame(width: 9, height: 9)
@@ -45,7 +45,7 @@ private struct CookingDotGrid: View {
     let history: CookingHistory
     @Binding var selectedDate: Date?
     @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
-    private let calendar = Calendar.current
+    private let calendar = Calendar.autoupdatingCurrent
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 7), count: 7)
     private var weekdays: [String] {
         let symbols = calendar.veryShortStandaloneWeekdaySymbols
@@ -124,7 +124,7 @@ private struct CookingDotGrid: View {
                                 .frame(width: 32, height: 32)
                                 .overlay {
                                     Text(calendar.component(.day, from: date).description)
-                                        .font(.system(size: 11, weight: isToday ? .bold : .medium))
+                                        .font(.system(.caption2, design: .rounded, weight: isToday ? .bold : .medium)).lineLimit(1).minimumScaleFactor(0.7)
                                         .foregroundStyle(cooked ? .white : Theme.mutedForeground)
                                 }
                                 .overlay {
@@ -152,6 +152,16 @@ private struct CookingDotGrid: View {
             if let selectedDate, !calendar.isDate(selectedDate, equalTo: month, toGranularity: .month) {
                 self.selectedDate = nil
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
+            // Keep the visible month aligned with the device's new local calendar without
+            // rewriting previously stored YYYY-MM-DD event keys.
+            displayedMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+            selectedDate = nil
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
+            displayedMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+            selectedDate = nil
         }
     }
 }

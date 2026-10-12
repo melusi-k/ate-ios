@@ -104,7 +104,13 @@ struct RootView: View {
         }
         .fullScreenCover(isPresented: $store.showOnboarding) { OnboardingView().environment(store) }
         .sheet(item: $store.authSheet) { m in AuthSheet(mode: m).environment(store) }
-        .onReceive(tick) { store.timers.tick($0) }
+        .onReceive(tick) { date in
+            // Avoid publishing a new TimerCenter.now value every 500 ms when no timer is
+            // running. Besides needless view work, the constant observation churn makes
+            // UI automation wait for the app to become idle for tens of seconds per action.
+            guard store.timers.timers.contains(where: \.isRunning) else { return }
+            store.timers.tick(date)
+        }
         .onChange(of: phase) { _, p in
             if p == .active {
                 store.timers.tick(); store.timers.ensureLiveActivities(); store.scheduleSync(delay: 0.2); store.checkInbox()

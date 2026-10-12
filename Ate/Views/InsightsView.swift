@@ -70,8 +70,8 @@ struct InsightsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     Text(screenTitle).font(AteFont.display(30)).accessibilityAddTraits(.isHeader)
-                    bodyToday
                     CookingTrackerView()
+                    bodyToday
                     if let c = model.context {
                         card("Suggested meals") {
                             Text(c.insight.state.mealFocus).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)

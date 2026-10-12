@@ -75,7 +75,7 @@ final class CookingHistoryTests: XCTestCase {
             cal.date(from: DateComponents(year: 2025, month: 1, day: 1))!
         ]
         for (index, date) in dates.enumerated() {
-            if index < 3 { history.record(recipeID: "leap-\\(index)", date: date) }
+            if index < 3 { history.record(recipeID: "leap-\(index)", date: date) }
         }
         XCTAssertEqual(history.streak(asOf: dates[2].addingTimeInterval(12 * 3600)), 3)
 

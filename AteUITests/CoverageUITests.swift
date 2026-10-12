@@ -524,7 +524,7 @@ extension CoverageUITests {
         let day = any("tracker.day.1")
         scrollTo(day); wait(day); day.tap()
         wait(app.navigationBars["Cooked that day"])
-        XCTAssertTrue(app.otherElements.firstMatch.exists || app.tables.firstMatch.exists || app.collectionViews.firstMatch.exists,
-                      "The selected-day sheet should render its content")
+        XCTAssertTrue(text("Nothing recorded for this day.").exists,
+                      "An unrecorded day should show the explicit empty state")
     }
 }

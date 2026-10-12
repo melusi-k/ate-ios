@@ -176,6 +176,7 @@ jobs:
             -only-testing:AteUITests/CookingTrackerEntryUITests \
             -only-testing:AteUITests/AteUITests/test06_CookMode \
             -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay \
+            -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay \
             -resultBundlePath build/TrackerReleaseGate.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 \

@@ -19,7 +19,7 @@ ate is a recipe app made by **Melusi Khumalo**, an individual developer based in
 **If you create an account:**
 - **Account data:** your email address, a securely hashed password (if you use one) and basic sign-in records (when the account was created and last signed in).
 - **Synced content:** your recipes and shopping-list items, so they stay in sync across your devices.
-- **Beta test results (optional):** if you tap upload on **More › Beta testing**, ate stores your check results and notes for that build, linked to your account, so I can fix bugs. They're deleted with your account.
+- **Beta test results (optional):** if you tap upload on **Settings › Beta testing**, ate stores your check results and notes for that build, linked to your account, so I can fix bugs. They're deleted with your account.
 
 **If you share a recipe:** you must be signed in to create a share. ate publishes a read-only copy of that recipe (title, description, ingredients, steps and any image link) at a share link and records that it belongs to your account. **Anyone who has the link can view it.** Deleting your account removes the shares belonging to that account; older anonymous shares may remain available until you email me the link for removal (see [Delete your account](delete-account/)).
 

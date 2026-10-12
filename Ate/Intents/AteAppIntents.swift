@@ -330,7 +330,7 @@ extension Array where Element: Hashable {
     func removingDuplicates() -> [Element] { var seen = Set<Element>(); return filter { seen.insert($0).inserted } }
 }
 
-/// Shortcuts: "Open journal entry" opens one entry's detail view in More › Journal.
+/// Shortcuts: "Open journal entry" opens one entry's detail view from the journal navigation flow.
 @available(iOS 18.0, *)
 struct OpenJournalEntryIntent: OpenIntent {
     static let title: LocalizedStringResource = "Open journal entry"

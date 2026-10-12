@@ -31,6 +31,8 @@ final class KeyFlowsQATests: XCTestCase {
         while !(e.exists && e.isHittable) && n < max { app.swipeUp(velocity: .slow); n += 1 }
     }
     /// Recipe detail hides the tab bar (b36), so pop back until it shows, then tap the tab.
+    /// SwiftUI's iOS 26 tab API doesn't always expose a tab title as its accessibility identifier;
+    /// match the visible label as well, rather than relying on XCUIElement subscript identifier lookup.
     func tab(_ name: String) {
         var n = 0
         while !app.tabBars.firstMatch.exists && n < 4 {
@@ -40,8 +42,17 @@ final class KeyFlowsQATests: XCTestCase {
             else { app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5)).press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))) }
             sleep(1); n += 1
         }
-        let b = app.tabBars.buttons[name]
-        if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
+        let tabBar = app.tabBars.firstMatch
+        let byLabel = tabBar.buttons.matching(NSPredicate(format: "label == %@ OR label BEGINSWITH %@ OR identifier == %@ OR identifier BEGINSWITH %@", name, name, name, name)).firstMatch
+        if byLabel.waitForExistence(timeout: 5) && byLabel.isHittable {
+            byLabel.tap()
+            return
+        }
+
+        let visibleButton = app.buttons.matching(NSPredicate(format: "label == %@ OR label BEGINSWITH %@", name, name)).firstMatch
+        XCTAssertTrue(visibleButton.waitForExistence(timeout: 5) && visibleButton.isHittable,
+                      "Couldn't find a visible \(name) tab/button. Tab bar: \(tabBar.debugDescription)")
+        visibleButton.tap()
     }
     func waitHittable(_ e: XCUIElement, _ t: TimeInterval = 8) {
         let end = Date().addingTimeInterval(t)
@@ -73,6 +84,13 @@ final class KeyFlowsQATests: XCTestCase {
     }
     func signIn() {
         tab("Settings")
+        wait(text("Account & sync"))
+        let betaEntry = app.buttons["settings.betaTesting"]
+        XCTAssertTrue(betaEntry.waitForExistence(timeout: 5) && betaEntry.isHittable,
+                      "Beta testing should be reachable from Settings")
+        betaEntry.tap()
+        wait(text("Beta testing"), 5)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
         wait(text("Account & sync"))
         app.buttons["openSignIn"].tap()
         replace(app.textFields["authEmail"], "qa@example.com")

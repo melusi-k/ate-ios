@@ -670,7 +670,7 @@ final class AteUITests: XCTestCase {
         app.buttons["saveRecipe"].tap()
         wait(app.buttons["Cook mode"], 5)
         XCTAssertTrue(app.descendants(matching: .any)["sourceBadge"].firstMatch.exists)
-        tab("More")
+        tab("Settings")
         let diag = app.descendants(matching: .any)["aiDiagnostics"].firstMatch
         var n = 0
         while !diag.exists && n < 8 { app.swipeUp(); n += 1 }

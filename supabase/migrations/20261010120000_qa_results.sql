@@ -1,4 +1,4 @@
--- ate beta: on-device Tier A results uploaded from More › Beta testing.
+-- ate beta: on-device Tier A results uploaded from Settings › Beta testing.
 create table if not exists public.qa_results (
   user_id  uuid not null references auth.users (id) on delete cascade,
   build    text not null,

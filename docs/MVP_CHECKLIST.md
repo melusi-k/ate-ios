@@ -305,7 +305,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 
 - **A-NAV-01 · Navigation and layout in portrait and landscape** — 🟡
   - *Journey:* As a cook, I can use Ate held either way.
-  - *Acceptance:* Given b36+, When I rotate in the Library, Then landscape shows the sidebar + 2-column grid, portrait shows the list, 4 tabs only, nothing hidden under the tab bar.
+  - *Acceptance:* Given b36+, When I rotate in the Library, Then landscape shows the sidebar + 2-column grid, portrait shows the list, the main bar has Library, Shopping, Tracker and Settings (with the iOS 26 Search-role tab where available), and no dedicated Beta/More tab is shown.
   - *Verified by:* `test22_TabBar, test26, test27_LandscapeSidebarGridAndCollections` · QA.md (new step)
   - *Status evidence:* Rotation only just enabled in b36 and unverified; test27 was failing/flaky
   - *Owner:* _TBD_
@@ -452,8 +452,8 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 
 - **A-WIDGET-05 · Widgets read ate's data on a sideloaded build** — 🔴
   - *Journey:* As a tester, widgets show my data, not a placeholder.
-  - *Acceptance:* Given a Sideloadly free-ID install, When I open Beta testing → Widgets, Then it says App Group OK and at least one widget kind loaded; otherwise widgets show “Open ate” and the limitation is noted in BETA.md.
-  - *Verified by:* Beta testing → Widgets diagnostics · device
+  - *Acceptance:* Given a Sideloadly free-ID install, When I open Settings › Beta testing › Widgets, Then it says App Group OK and at least one widget kind loaded; otherwise widgets show “Open ate” and the limitation is noted in BETA.md.
+  - *Verified by:* Settings › Beta testing › Widgets diagnostics · device
   - *Status evidence:* new in the Widgets & Intents build
   - *Owner:* _TBD_
 
@@ -960,12 +960,12 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 ### Journal — 0 / 8
 
 - **C-JRN-01 · Journal entry opens on its own** — ❌
-  - *Acceptance:* Tapping an entry in Insights › Your Ate journal or More › Journal opens a detail view with the full text, date, state, and any linked recipe, location or media.
+  - *Acceptance:* Tapping an entry in Insights › Your Ate journal or Insights › Your Ate journal opens a detail view with the full text, date, state, and any linked recipe, location or media.
   - *Verified by:* auto: detected when an entry detail opens
   - *Owner:* _TBD_
 
 - **C-JRN-02 · Journal list with search** — ❌
-  - *Acceptance:* More › Journal lists every entry newest first; searching by words, place or state filters it, and an empty search says so.
+  - *Acceptance:* Insights › Your Ate journal lists every entry newest first; searching by words, place or state filters it, and an empty search says so.
   - *Verified by:* manual
   - *Owner:* _TBD_
 
@@ -1004,56 +1004,56 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 - **C-FIX-01 · Believable step times** — ❌
   - *Journey:* As a cook, believable step times.
   - *Acceptance:* On Nyama yenkomo (and any saved recipe) 'brown beef (2 min)', 'simmer (4 min)', 'pap (3 min)' are gone: implausible AI times show no '(N min)' and no timer, a time written in the step wins, and the card notes that times were corrected.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-FIX-02 · No empty steps** — ❌
   - *Journey:* As a cook, no empty steps.
   - *Acceptance:* At 1x, 2x and 3x servings, in detail and cook mode, there are no empty numbered step bubbles.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-FIX-03 · Offline strip below the nav bar** — ❌
   - *Journey:* As a cook, offline strip below the nav bar.
   - *Acceptance:* With Wi-Fi and data off, the offline strip sits under the nav bar on Library and recipe detail and never covers the title or back button.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-FIX-04 · Real covers in Siri cards** — ❌
   - *Journey:* As a cook, real covers in Siri cards.
   - *Acceptance:* Tonight's pick and Quick recipes from Shortcuts show the recipe photo, or the designed plate tile, never a bare fork-and-knife.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-FIX-05 · Tidy Spotlight** — ❌
   - *Journey:* As a cook, tidy Spotlight.
   - *Acceptance:* Searching 'Ate' in Spotlight shows at most 3 'Cook …' suggestions (favourites first) with cover thumbnails, not every recipe.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-FIX-06 · Siri voice diagnostics** — ❌
   - *Journey:* As a cook, siri voice diagnostics.
   - *Acceptance:* Beta › Siri explains whether phrases are registered; after opening Ate once, 'What's tonight's pick in Ate' is tried by voice and the result noted (sideloaded installs may need SideStore/Xcode).
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-FIX-07 · Shopping list as Shortcut output** — ❌
   - *Journey:* As a cook, shopping list as Shortcut output.
   - *Acceptance:* A Shortcut 'What's on my shopping list' with Show When Run off passes the items as text to the next action (e.g. Show Result), not an empty card.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-FIX-08 · One save, one recipe** — ❌
   - *Journey:* As a cook, one save, one recipe.
   - *Acceptance:* Saving a card, restoring an unsaved card or tapping Save twice never creates copies; the earlier duplicate 'Ribs and lemon pepper wings' copies are merged into one.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
@@ -1062,21 +1062,21 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 - **C-AI-01 · 80% confidence threshold** — ❌
   - *Journey:* As a cook, 80% confidence threshold.
   - *Acceptance:* A generated card under 80% confidence isn't shown as a recipe: Ate asks 'What dish is this?' pre-filled with its guesses; after you confirm, it regenerates; if still under 80% it shows 'Draft, needs your input' with Save disabled until you edit or confirm. 80%+ skips the question.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-AI-02 · Main dishes meet the bar** — ❌
   - *Journey:* As a cook, main dishes meet the bar.
   - *Acceptance:* A generated main dish has at least 4 ingredients with quantities, oven steps give °C, and no vague steps like 'cook ribs'; otherwise it's a draft listing what's missing.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-AI-03 · Tile icons fit the dish** — ❌
   - *Journey:* As a cook, tile icons fit the dish.
   - *Acceptance:* Ribs show a flame (not a teacup), a chicken sandwich shows a takeaway icon (not a bird), drinks show a cup.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
@@ -1085,7 +1085,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 - **C-LIB-01 · Library header** — ❌
   - *Journey:* As a cook, library header.
   - *Acceptance:* Library shows the logo in the toolbar, the native large title 'Your Kitchen', 'Search N recipes' in the search bar, a quiet count, and one icon-only Group & sort menu that never truncates.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
@@ -1094,42 +1094,42 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 - **C-TAB-01 · Add recipe in the tab bar accessory** — ❌
   - *Journey:* As a cook, add recipe in the tab bar accessory.
   - *Acceptance:* On iOS 26 a persistent 'Add recipe' control sits above the tab bar on every tab and opens the Add sheet; no floating Add button.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-TAB-02 · Timer in the accessory** — ❌
   - *Journey:* As a cook, timer in the accessory.
   - *Acceptance:* With a timer running, the accessory shows the timer summary plus a + (Add recipe), the old in-app timer bar doesn't also show on tab roots, and recipe detail's Cook mode button never clashes with it.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-TAB-03 · Compact when minimised** — ❌
   - *Journey:* As a cook, compact when minimised.
   - *Acceptance:* Scrolling down minimises the tab bar and the accessory switches to its compact layout; scrolling up restores both.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-TAB-04 · Search tab** — ❌
   - *Journey:* As a cook, search tab.
   - *Acceptance:* Library search sits in the tab bar (search tab) next to the 4 main tabs, and 'Your Kitchen' stays visible while searching.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-TAB-05 · Soft scroll edges** — ❌
   - *Journey:* As a cook, soft scroll edges.
   - *Acceptance:* Library, Shopping, More and Settings fade softly under the nav bar when scrolled.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 
 - **C-TAB-06 · Concentric sheet cards** — ❌
   - *Journey:* As a cook, concentric sheet cards.
   - *Acceptance:* Cards inside the Add/Review sheet follow the sheet's corner curve.
-  - *Verified by:* `—` · Manual (Beta testing screen)
+  - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 

@@ -127,7 +127,7 @@ struct RootView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             // One top area: beta banner (tab roots only) and the slim offline strip. Nothing at the bottom competes with actions.
             VStack(spacing: 0) {
-                if !store.showOnboarding && store.isAtTabRoot { BetaBanner { store.tab = .more; BetaQA.shared.openRequested = true }.padding(.vertical, 4) }
+                if !store.showOnboarding && store.isAtTabRoot { BetaBanner { store.select(.settings); BetaQA.shared.openRequested = true }.padding(.vertical, 4) }
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -216,7 +216,7 @@ struct AteBottomAccessory: View {
 }
 
 extension RootView {
-    /// iOS 26: four main tabs + the search tab, bottom accessory, minimise on scroll.
+    /// iOS 26: core tabs + Search, bottom accessory, minimise on scroll. Beta tools live in Settings.
     @available(iOS 26, *)
     @ViewBuilder var tabs26: some View {
         @Bindable var store = store
@@ -235,11 +235,6 @@ extension RootView {
             Tab("Tracker", systemImage: "calendar", value: AppTab.tracker) {
                 NavigationStack(path: $store.trackerPath) {
                     CookingTrackerScreen().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                }.withTimerBar()
-            }
-            Tab("More", systemImage: "square.grid.2x2", value: AppTab.more) {
-                NavigationStack(path: $store.morePath) {
-                    MoreView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
             }
             Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
@@ -262,7 +257,7 @@ extension RootView {
         }
     }
 
-    /// Compact tab bar: exactly four tabs. Collections live in More (portrait) and the landscape sidebar only.
+    /// Compact tab bar: core destinations only. Beta tools live in Settings; collections remain in the landscape sidebar.
     @ViewBuilder var tabs: some View {
         @Bindable var store = store
         TabView(selection: tabSelection) {
@@ -280,11 +275,6 @@ extension RootView {
             Tab("Tracker", systemImage: "calendar", value: AppTab.tracker) {
                 NavigationStack(path: $store.trackerPath) {
                     CookingTrackerScreen().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
-                }.withTimerBar()
-            }
-            Tab("More", systemImage: "square.grid.2x2", value: AppTab.more) {
-                NavigationStack(path: $store.morePath) {
-                    MoreView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
             }
             Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
@@ -359,7 +349,6 @@ struct LandscapeSplitView: View {
                         row(.library, "Library", "books.vertical")
                         row(.shopping, "Shopping list", "basket", badge: store.pendingShoppingCount)
                         row(.tracker, "Cooking Tracker", "calendar")
-                        row(.more, "More", "square.grid.2x2")
                         row(.settings, "Settings", "gearshape")
                     }
                     Section("Collections") {

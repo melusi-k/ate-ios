@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// More › Beta testing: every item for this build's tier (Tier A, or Tier C on TierC builds) with live ✅/❌ status, manual verdicts, export, upload and reset.
+/// Settings › Beta testing: every item for this build's tier (Tier A, or Tier C on TierC builds) with live ✅/❌ status, manual verdicts, export, upload and reset.
 struct BetaTestingView: View {
     @Environment(AppStore.self) private var store
     @State private var qa = BetaQA.shared

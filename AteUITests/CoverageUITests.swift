@@ -207,8 +207,8 @@ final class CoverageUITests: XCTestCase {
 
     func test35_BetaScreenManualExportReset() {
         launch(["-qaCIResults"])
-        tab("More")
-        app.buttons["more.betaTesting"].tap()
+        tab("Settings")
+        app.buttons["settings.betaTesting"].tap()
         wait(app.staticTexts["betaProgress"])
         wait(app.staticTexts["betaCISummary"], 3)
         XCTAssertTrue(app.staticTexts["betaCISummary"].label.contains("1/2"))
@@ -245,7 +245,7 @@ final class CoverageUITests: XCTestCase {
     }
 
     /// Regression for the reported crash: destructive data clearing must not leave navigation
-    /// state that crashes when More › Beta testing is opened afterward.
+    /// state that crashes when Settings › Beta testing is opened afterward.
     func test35b_BetaOpensAfterLibraryClear() {
         launch()
         tab("Settings")
@@ -254,8 +254,8 @@ final class CoverageUITests: XCTestCase {
         let confirm = app.buttons["Clear all"].firstMatch
         wait(confirm, 3); confirm.tap()
         wait(text("Library cleared"), 5)
-        tab("More")
-        let beta = app.buttons["more.betaTesting"]
+        tab("Settings")
+        let beta = app.buttons["settings.betaTesting"]
         wait(beta, 5); beta.tap()
         wait(app.staticTexts["betaProgress"], 8)
         XCTAssertTrue(app.navigationBars.staticTexts["Beta testing"].exists)
@@ -465,12 +465,12 @@ extension CoverageUITests {
         wait(back); back.tap()
         wait(app.buttons["Add recipe"])
         XCTAssertFalse(app.buttons["Cook mode"].exists)
-        tab("More")
-        wait(app.buttons["more.betaTesting"])
-        app.buttons["more.betaTesting"].tap()
+        tab("Settings")
+        wait(app.buttons["settings.betaTesting"])
+        app.buttons["settings.betaTesting"].tap()
         let back2 = app.navigationBars.buttons.element(boundBy: 0)
         wait(back2); back2.tap()
-        wait(app.buttons["more.betaTesting"])
+        wait(app.buttons["settings.betaTesting"])
     }
     /// Regression guard (StepTrackerTCA lesson): Connect must still ask for Health when access is undecided.
     func testHealthPermissionPromptAppearsWhenUndecided() {

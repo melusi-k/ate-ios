@@ -4,8 +4,6 @@ struct CookingTrackerView: View {
     @Environment(AppStore.self) private var store
     @State private var history = CookingHistory.shared
     @State private var selectedDate: Date?
-    private let calendar = Calendar.current
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
@@ -45,7 +43,7 @@ private struct CookingDotGrid: View {
     let history: CookingHistory
     @Binding var selectedDate: Date?
     @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
-    private let calendar = Calendar.current
+    private let calendar = Calendar.autoupdatingCurrent
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 7), count: 7)
     private var weekdays: [String] {
         let symbols = calendar.veryShortStandaloneWeekdaySymbols
@@ -152,6 +150,16 @@ private struct CookingDotGrid: View {
             if let selectedDate, !calendar.isDate(selectedDate, equalTo: month, toGranularity: .month) {
                 self.selectedDate = nil
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
+            // Keep the visible month aligned with the device's new local calendar without
+            // rewriting previously stored YYYY-MM-DD event keys.
+            displayedMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+            selectedDate = nil
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
+            displayedMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+            selectedDate = nil
         }
     }
 }

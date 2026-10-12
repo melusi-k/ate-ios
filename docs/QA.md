@@ -28,3 +28,20 @@ Device: ______ iOS: ______ Build: ______ Apple Intelligence on? ☐
 7. **Sync** ☐ sign up → confirmation email → link opens ate signed in ☐ magic link ☐ password reset ☐ edit on phone A, pull on phone B ☐ edit the same recipe on both offline, then sync: newest wins ☐ delete on A disappears on B ☐ sign out (keep) / sign in as a *different* account: the first account's recipes don't appear ☐ delete account
 8. **Timers** ☐ start a step timer, lock the phone: Dynamic Island + Lock Screen count down ☐ pause/resume ☐ leave cook mode: timer bar shows above the tab bar ☐ finish: chime + haptic, notification if backgrounded
 9. **Other device classes** ☐ an iPhone without Apple Intelligence (badges say Demo / page data) ☐ iOS 18 device if available ☐ VoiceOver pass on Library, Add, Cook ☐ largest Dynamic Type
+
+## Cooking Tracker — required real-device acceptance (issue #31)
+
+Record one row for each tested device/build. Simulator results do not replace these checks.
+
+Device: ______ iOS version: ______ build number/channel: ______ date/time: ______
+
+1. **Explicit completion:** start a saved recipe in Cook Mode and exit before the final step. Open Tracker and confirm no cooking event was added. Re-enter Cook Mode, advance to the final step, tap **Finish cooking**, and confirm today's date is marked and the recipe appears in that day's details.
+2. **No duplicate event:** finish the same recipe twice on the same local day. Confirm the day contains one entry for that recipe and the streak counts the day once.
+3. **Relaunch persistence:** force-quit Ate after completion, relaunch it, and confirm the same date remains marked with the same recipe in day details.
+4. **Time-zone change:** note the recorded local date, change the device time zone in Settings, reopen Tracker, and confirm the stored day key has not silently moved or been rewritten. Record both time zones and the date shown before/after; report any ambiguity rather than marking pass.
+5. **VoiceOver:** enable VoiceOver. Verify previous/next month controls are announced by name; each date exposes its number and relevant today/cooked/selected state; weekday headings are not redundantly spoken; opening a date moves focus sensibly into the selected-day sheet and the recipe title/fallback is announced.
+6. **Largest Dynamic Type:** set the largest accessibility text size and inspect the streak label, month title/navigation, weekday row, all date buttons, and selected-day sheet. Confirm there is no clipping, overlap, or unreachable control; all days remain tappable.
+7. **Layout:** check portrait and landscape on iPhone; on iPad, check the supported sidebar layout if available. Confirm the Tracker remains reachable and the calendar/day details fit without controls being obscured.
+
+Evidence to attach to issue #31: device model, iOS version, app build/channel, test date, pass/fail for each numbered step, and screenshots for the calendar, selected-day sheet, largest Dynamic Type, and any failure. Do not mark a device-only criterion complete from simulator output alone.
+

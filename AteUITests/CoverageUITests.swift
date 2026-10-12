@@ -602,11 +602,9 @@ extension CoverageUITests {
         wait(row); row.tap()
         wait(app.navigationBars["Journal entry"])
         let share = app.buttons["journal.detail.share"]; wait(share); share.tap()
-        let sheet = app.otherElements["ActivityListView"].firstMatch
-        if !sheet.waitForExistence(timeout: 5) {
-            XCTAssertTrue(app.buttons["Copy"].waitForExistence(timeout: 5) || app.buttons["Close"].exists,
-                          "Share must present the system share UI")
-        }
+        XCTAssertTrue(app.otherElements["ActivityListView"].firstMatch.waitForExistence(timeout: 8)
+                      || app.navigationBars["UIActivityContentView"].waitForExistence(timeout: 2),
+                      "Share must present the system share UI")
     }
 
     /// C-JRN-07: a Shortcuts-style entry with location and media renders those details.

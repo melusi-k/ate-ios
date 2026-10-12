@@ -10,6 +10,6 @@ enum Transparency {
         String(localized: "Instagram/TikTok often hide captions — paste the caption into Prompt if a link doesn't import."),
         String(localized: "Without Apple Intelligence, links with recipe page data still import; other inputs use a simple demo draft."),
         String(localized: "Export your data from Settings › Tools now and then. Report bugs to melusi.l.k@gmail.com."),
-        String(localized: "Use Settings › Beta testing in beta-channel builds to see what to try; most items tick themselves as you use the app."),
+        String(localized: "In beta-channel builds, use Settings › Beta testing to see what to try; most items tick themselves as you use the app."),
     ]
 }

@@ -15,6 +15,8 @@ struct CookingTrackerView: View {
             Text("Finish cooking in Cook Mode to record a day. Tap a date to see what you cooked.")
                 .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
             CookingDotGrid(history: history, selectedDate: $selectedDate)
+                // Preserve child accessibility so month navigation and day buttons remain individually testable.
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("insights.cookingCalendar")
             HStack {
                 Circle().fill(Theme.primary).frame(width: 9, height: 9)

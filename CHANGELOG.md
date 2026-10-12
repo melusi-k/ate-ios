@@ -95,14 +95,14 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 - **Channel**: `ATE_CHANNEL=TierA` is shown in About, the Settings footer and Beta testing; the ipa is `Ate-0.1.N-buildN-TierA.ipa` and the release tag `build-N-TierA`. CFBundleShortVersionString stays numeric.
 
 #### 🐛 Live Activity
-- Every request attempt, skip, update and error is now logged (persisted, last 20) and shown live in More › About › Live Activity — the panel used to show a value captured when the More tab was first built, so it read "no request yet" even while a timer ran.
+- Every request attempt, skip, update and error is now logged (persisted, last 20) and shown live in Settings › About › Live Activity — the panel used to show a value captured when the More tab was first built, so it read "no request yet" even while a timer ran.
 - Running timers restored after relaunch, or still running when the app returns to the foreground, now re-request their Live Activity.
 
 #### ⌚ Apple Watch app (new, independent)
 - watchOS 11+ app that works without the iPhone: recipes synced from your ate account (email-code sign-in on the wrist, or automatic hand-off from the paired iPhone), offline cache, ingredients, wrist Cook mode (big step text, Next/Back + Digital Crown, step timers that keep running with haptics), Smart Stack timer widget, and shopping list tick-off. Mirrors the phone's active cook timers. Embedded in the `.ipa`; see README for free-Apple-ID install limits.
 
 #### 🔎 Live Activity diagnostics
-- More › About › Live Activity shows `areActivitiesEnabled`, the last request result or error, active count, bundle IDs and the PlugIns actually installed. Request errors are no longer swallowed (`try?`) and are logged; requests are skipped (and reported) when the app is in the background. README/SUPPORT document Sideloadly's *Remove extensions* option.
+- Settings › About › Live Activity shows `areActivitiesEnabled`, the last request result or error, active count, bundle IDs and the PlugIns actually installed. Request errors are no longer swallowed (`try?`) and are logged; requests are skipped (and reported) when the app is in the background. README/SUPPORT document Sideloadly's *Remove extensions* option.
 
 #### 🐛 Fixed
 - **The app now rotates.** `Info.plist` only allowed portrait, so the landscape sidebar and two-column grid never appeared on a real iPhone. Portrait, landscape left and landscape right are now supported, and the grid fits two columns beside the sidebar on iPhone 17.

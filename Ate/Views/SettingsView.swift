@@ -62,6 +62,8 @@ struct SettingsView: View {
                     }
                     if AppConfig.isBetaBuild {
                         Section("Beta & diagnostics") {
+                            // Use the shared route destination so this link follows the same
+                            // navigation path as other diagnostics links in Settings.
                             NavigationLink(value: Route.beta) {
                                 Label("Beta testing", systemImage: "checklist")
                             }

@@ -34,7 +34,7 @@ concurrency:
 
 jobs:
   readiness:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # Update status for successful, failed, or cancelled builds so the readiness report cannot go stale.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

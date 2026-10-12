@@ -3,7 +3,8 @@ import XCTest
 final class ProductionChannelUITests: XCTestCase {
     func testBetaChannelShowsBetaDiagnosticsEntry() {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITesting"]
+        // Make the intended channel explicit; this test must not inherit the production-channel setup.
+        app.launchArguments = ["-UITesting", "-qaBetaChannel"]
         app.launch()
 
         let settingsTab = app.tabBars.buttons.matching(

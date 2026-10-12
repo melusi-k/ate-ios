@@ -92,7 +92,11 @@ final class KeyFlowsQATests: XCTestCase {
         XCTAssertTrue(betaEntry.waitForExistence(timeout: 5) && betaEntry.isHittable,
                       "Beta testing should be reachable from Settings in UI-test builds. Settings hierarchy: \(app.debugDescription)")
         betaEntry.tap()
-        wait(text("Beta testing"), 5)
+        // Beta testing is a navigation destination: on iOS 26 the title is exposed
+        // as a navigation-bar element, not consistently as StaticText.
+        let betaNavigationTitle = app.navigationBars["Beta testing"]
+        XCTAssertTrue(betaNavigationTitle.waitForExistence(timeout: 8),
+                      "Settings › Beta testing did not open. Hierarchy: \(app.debugDescription)")
         app.navigationBars.buttons.element(boundBy: 0).tap()
         wait(text("Account & sync"))
         app.buttons["openSignIn"].tap()

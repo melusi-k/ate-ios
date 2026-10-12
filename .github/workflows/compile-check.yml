@@ -134,28 +134,40 @@ jobs:
 
           grep -E "Executed|Test Suite .* (passed|failed)" test.log > test-summary.log || true
           tail -n 30 test-summary.log
-      # testBetaChannelShowsBetaDiagnosticsEntry is temporarily quarantined: its -qaBetaChannel launch override is not reliably reflected in CI. The production-channel exclusion and account-sync regressions remain required.
       - name: Settings-tab key-flow regression test
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
           STEP_START=$(date +%s)
-          set +e
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/settings-tab-qa.xcresult" -only-testing:AteUITests/KeyFlowsQATests/testQA7_SyncAccount -only-testing:AteUITests/ProductionChannelUITests/testProductionChannelHidesBetaDiagnostics -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 CODE_SIGNING_ALLOWED=NO > settings-tab-qa.log 2>&1
-          status=$?
           set -e
+          run_focused_test() {
+            test_id="$1"
+            log_file="$2"
+            result_name="$3"
+            # XCUITest can leave the app process alive after a prior suite. Force a
+            # clean process before each channel case so its launch arguments are real.
+            xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+            set +e
+            xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+              -resultBundlePath "$RUNNER_TEMP/ate-test-results/$result_name.xcresult" \
+              "-only-testing:$test_id" -parallel-testing-enabled NO -test-timeouts-enabled YES \
+              -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+              CODE_SIGNING_ALLOWED=NO > "$log_file" 2>&1
+            status=$?
+            set -e
+            if [ "$status" -ne 0 ]; then
+              echo "::error::$test_id failed (xcodebuild exit $status). Full log and xcresult are uploaded."
+              grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" "$log_file" || true
+              tail -n 100 "$log_file" || true
+              return "$status"
+            fi
+            grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" "$log_file" | tail -n 30
+          }
+          run_focused_test "AteUITests/KeyFlowsQATests/testQA7_SyncAccount" "settings-sync.log" "settings-sync" || exit $?
+          # Quarantined: testBetaChannelShowsBetaDiagnosticsEntry currently fails because the beta launch channel is not reliably applied in CI. Keep the test source for follow-up; production-channel hiding remains gated.
+          echo "Skipping known-failing beta-channel UI test pending launch-channel test harness fix."
+          run_focused_test "AteUITests/ProductionChannelUITests/testProductionChannelHidesBetaDiagnostics" "production-channel-production.log" "production-channel-production" || exit $?
           STEP_END=$(date +%s)
-          echo "::notice::CI_TIMING step=settings-tab-key-flow duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
-
-          if [ "$status" -ne 0 ]; then
-            echo "::error::Settings-tab key-flow regression test failed (xcodebuild exit $status). Exact test diagnostics follow; the full log and xcresult are uploaded as artifacts."
-            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" settings-tab-qa.log || true
-            echo "::group::Last 100 Settings-tab QA log lines"
-            tail -n 100 settings-tab-qa.log
-            echo "::endgroup::"
-            exit "$status"
-          fi
-
-          grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" settings-tab-qa.log | tail -n 30
+          echo "::notice::CI_TIMING step=settings-tab-key-flow duration_seconds=$((STEP_END-STEP_START)) exit_code=0"
       - name: Cooking Tracker focused UI tests
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
@@ -233,7 +245,8 @@ jobs:
             test-summary.log
             ui.log
             ui-summary.log
-            settings-tab-qa.log
+            settings-sync.log
+            production-channel-production.log
             tracker-ui.log
             cook-mode-history.log
             ${{ runner.temp }}/ate-test-results/*.xcresult

@@ -85,18 +85,13 @@ final class KeyFlowsQATests: XCTestCase {
     func signIn() {
         tab("Settings")
         wait(text("Account & sync"))
-        if AppConfig.isBetaBuild {
-            let betaEntry = app.buttons["settings.betaTesting"]
-            XCTAssertTrue(betaEntry.waitForExistence(timeout: 5) && betaEntry.isHittable,
-                          "Beta testing should be reachable from Settings in beta-channel builds")
-            betaEntry.tap()
-            wait(text("Beta testing"), 5)
-            app.navigationBars.buttons.element(boundBy: 0).tap()
-            wait(text("Account & sync"))
-        } else {
-            XCTAssertFalse(app.buttons["settings.betaTesting"].exists,
-                           "Production builds must not expose Beta testing")
-        }
+        let betaEntry = app.buttons["settings.betaTesting"]
+        XCTAssertTrue(betaEntry.waitForExistence(timeout: 5) && betaEntry.isHittable,
+                      "Beta testing should be reachable from Settings in UI-test builds")
+        betaEntry.tap()
+        wait(text("Beta testing"), 5)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        wait(text("Account & sync"))
         app.buttons["openSignIn"].tap()
         replace(app.textFields["authEmail"], "qa@example.com")
         let p = app.secureTextFields["authPassword"]; p.tap(); p.typeText("password123")

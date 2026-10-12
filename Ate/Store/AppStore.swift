@@ -209,6 +209,11 @@ final class AppStore {
     init(context: ModelContext?, backend: BackendService = AppConfig.makeBackend()) {
         self.context = context
         self.backend = backend
+        // UI tests opt into a clean local cooking timeline per test launch so one test's
+        // completed recipe cannot make another test's empty-history assertions flaky.
+        if ProcessInfo.processInfo.arguments.contains("-qaResetCookingHistory") {
+            CookingHistory.shared.clear()
+        }
         if AppConfig.isUITesting {
             auth = MockAuth(); sync = MockSync()
         } else if let url = AppConfig.supabaseURL, !AppConfig.supabasePublishableKey.isEmpty {

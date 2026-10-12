@@ -157,17 +157,24 @@ def find_run(run_id):
 
 def run_data(run):
     d = {"url": run["html_url"], "id": run["id"], "sha": run["head_sha"][:7], "ci": {}, "counts": {}, "artifacts": []}
-    d["ci"]["build"] = "pass" if run.get("conclusion") == "success" else ("fail" if run.get("conclusion") == "failure" else None)
+    d["ci"]["build"] = "pass" if run.get("conclusion") == "success" else ("fail" if run.get("conclusion") in ("failure", "cancelled", "timed_out", "action_required") else None)
     jobs = gh_api(f"repos/{REPO}/actions/runs/{run['id']}/jobs?per_page=50")["jobs"]
     unit = [0, 0]; ui = [0, 0]; qa = {}
     unit_skipped = qa_skipped = ui_skipped = e2e_skipped = False
+    unit_failed = qa_failed = e2e_failed = False
     for j in jobs:
         # Steps skipped inside the successful release job must be distinguished from test passes.
         if j["name"] == "release":
             for step in j.get("steps", []):
-                if step["name"] == "Run unit tests" and step.get("conclusion") == "skipped": unit_skipped = True
-                if step["name"].startswith("QA gate — key flows") and step.get("conclusion") == "skipped": qa_skipped = True
-        if j["name"] == "backend-e2e" and j.get("conclusion") == "skipped": e2e_skipped = True
+                if step["name"] == "Run unit tests":
+                    unit_skipped = step.get("conclusion") == "skipped"
+                    unit_failed = step.get("conclusion") == "failure"
+                if step["name"].startswith("QA gate — key flows"):
+                    qa_skipped = step.get("conclusion") == "skipped"
+                    qa_failed = step.get("conclusion") == "failure"
+        if j["name"] == "backend-e2e":
+            e2e_skipped = j.get("conclusion") == "skipped"
+            e2e_failed = j.get("conclusion") == "failure"
         if "ui-suite" in j["name"] and j.get("conclusion") == "skipped": ui_skipped = True
         if j["conclusion"] in ("skipped", None): continue
         log = job_log(j["id"], j["name"])
@@ -183,6 +190,7 @@ def run_data(run):
         if "Ate alive 10 s after launch" in log: d["ci"]["smoke"] = "pass"
         elif "exited within 10 s of launch" in log: d["ci"]["smoke"] = "fail"
     if unit[0]: d["ci"]["unit"] = "pass" if unit[1] == 0 else "fail"; d["counts"]["unit"] = f"{unit[0]-unit[1]}/{unit[0]}"
+    elif unit_failed: d["ci"]["unit"] = "fail"; d["counts"]["unit"] = "failed"
     elif unit_skipped: d["ci"]["unit"] = "skipped"; d["counts"]["unit"] = "skipped"
     if ui[0]: d["ci"]["ui"] = "pass" if ui[1] == 0 else "fail"; d["counts"]["ui"] = f"{ui[0]-ui[1]}/{ui[0]}"
     elif ui_skipped: d["ci"]["ui"] = "skipped"; d["counts"]["ui"] = "skipped"
@@ -190,8 +198,10 @@ def run_data(run):
         for n, s in qa.items(): d["ci"][f"qa{n}"] = "pass" if s == "passed" else "fail"
         d["ci"]["qa"] = "pass" if all(s == "passed" for s in qa.values()) and len(qa) == 8 else "fail"
         d["counts"]["qa"] = f"{sum(s == 'passed' for s in qa.values())}/8"
+    elif qa_failed: d["ci"]["qa"] = "fail"; d["counts"]["qa"] = "failed"
     elif qa_skipped: d["ci"]["qa"] = "skipped"; d["counts"]["qa"] = "skipped"
-    if e2e_skipped: d["ci"]["e2e"] = "skipped"; d["counts"]["e2e"] = "skipped"
+    if e2e_failed and "e2e" not in d["ci"]: d["ci"]["e2e"] = "fail"; d["counts"]["e2e"] = "failed"
+    elif e2e_skipped: d["ci"]["e2e"] = "skipped"; d["counts"]["e2e"] = "skipped"
     arts = gh_api(f"repos/{REPO}/actions/runs/{run['id']}/artifacts?per_page=50")["artifacts"]
     for a in arts:
         d["artifacts"].append((a["name"], f"{SERVER}/{REPO}/actions/runs/{run['id']}/artifacts/{a['id']}"))
@@ -212,7 +222,7 @@ def release_for(sha):
     tier = [r for r in rels if r["tag_name"].startswith("build-")]
     for r in tier:
         if sha and sha in (r["name"] or ""): return r
-    return tier[0] if tier else None
+    return (tier[0] if tier else None) if not sha else None
 
 
 def verdict(ids, mx, qr, rd):
@@ -334,7 +344,7 @@ def main():
     mx = matrix(); qr, qnote = qa_results()
     body, sug, risk = build_body(key, title, a.release_type, f"{ver} (build {build})", mx, qr, qnote, rd, rel)
     c = (rd or {}).get("counts", {})
-    run_label = f"Build {build}" if build != "?" else "Latest build attempt"
+    run_label = f"Build IPA run #{run['run_number']}" if run else "Latest build attempt"
     comment = (f"<!-- readiness-latest -->**Latest readiness check — {run_label}**: unit {c.get('unit','not reported')}, QA 8-flow {c.get('qa','not reported')}, "
                f"UI {c.get('ui','not reported')}, e2e {c.get('e2e','not reported')} · suggested: {sug} (risk {risk}) · "
                f"{'[run](' + rd['url'] + ')' if rd else ''} {'· [release](' + rel['html_url'] + ')' if rel else ''}")

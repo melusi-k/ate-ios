@@ -6,8 +6,9 @@ final class BetaChannelTests: XCTestCase {
         for channel in ["TierA", "TierB", "TierC", "Beta", "QA", "Internal", "Development"] {
             XCTAssertTrue(AppConfig.isBetaChannel(channel), "\(channel) should enable beta diagnostics")
         }
-        for channel in ["", "Production", "production", "AppStore", "Unknown", " TierA "] {
+        for channel in ["", "Production", "production", "AppStore", "Unknown"] {
             XCTAssertFalse(AppConfig.isBetaChannel(channel), "\(channel) must not enable beta diagnostics")
         }
+        XCTAssertTrue(AppConfig.isBetaChannel(" TierA "), "surrounding whitespace should be normalized")
     }
 }

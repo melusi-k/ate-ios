@@ -43,7 +43,7 @@ final class KeyFlowsQATests: XCTestCase {
             sleep(1); n += 1
         }
         let tabBar = app.tabBars.firstMatch
-        let byLabel = tabBar.buttons.matching(NSPredicate(format: "label == %@ OR label BEGINSWITH %@", name, name)).firstMatch
+        let byLabel = tabBar.buttons.matching(NSPredicate(format: "label == %@ OR label BEGINSWITH %@ OR identifier == %@ OR identifier BEGINSWITH %@", name, name, name, name)).firstMatch
         if byLabel.waitForExistence(timeout: 5) && byLabel.isHittable {
             byLabel.tap()
             return

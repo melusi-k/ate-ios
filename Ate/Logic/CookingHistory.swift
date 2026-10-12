@@ -12,7 +12,7 @@ final class CookingHistory {
     private let defaults: UserDefaults
 
     /// Inject storage so tests can verify persistence without mutating the user's standard defaults.
-    init(calendar: Calendar = .current, defaults: UserDefaults = .standard) {
+    init(calendar: Calendar = .autoupdatingCurrent, defaults: UserDefaults = .standard) {
         self.calendar = calendar
         self.defaults = defaults
         if let data = defaults.data(forKey: Self.key),

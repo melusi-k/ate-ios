@@ -35,6 +35,12 @@ struct CookingTrackerView: View {
 
 private struct TrackerDate: Identifiable { let date: Date; var id: Date { date } }
 
+enum CookingTrackerPresentation {
+    static func recipeTitle(for id: String, recipes: [RecipeCard]) -> String {
+        recipes.first(where: { $0.id == id })?.title ?? "Recipe no longer in your library"
+    }
+}
+
 private struct CookingDotGrid: View {
     let history: CookingHistory
     @Binding var selectedDate: Date?
@@ -160,7 +166,7 @@ private struct CookingDaySheet: View {
                 Section(date.formatted(date: .complete, time: .omitted)) {
                     if recipeIDs.isEmpty { Text("Nothing recorded for this day.").foregroundStyle(.secondary) }
                     ForEach(Array(recipeIDs).sorted(), id: \.self) { id in
-                        Label(recipes.first(where: { $0.id == id })?.title ?? "Recipe no longer in your library", systemImage: "fork.knife")
+                        Label(CookingTrackerPresentation.recipeTitle(for: id, recipes: recipes), systemImage: "fork.knife")
                     }
                 }
             }.navigationTitle("Cooked that day").navigationBarTitleDisplayMode(.inline)

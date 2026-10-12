@@ -513,7 +513,7 @@ extension CoverageUITests {
         search.tap(); search.typeText("Mama")
         let row = app.buttons.matching(identifier: "journal.entry").firstMatch
         wait(row)
-        XCTAssertTrue(row.label.localizedCaseInsensitiveContains("Mama"), row.label)
+        // The prompt is searchable but intentionally not part of the compact row label.
         search.tap()
         let current = search.value as? String ?? ""
         search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count + 2))

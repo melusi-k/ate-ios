@@ -210,6 +210,42 @@ jobs:
           fi
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" cook-mode-history.log | tail -n 30
+      - name: Apple Health and journal acceptance UI tests
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          STEP_START=$(date +%s)
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/health-journal-acceptance.xcresult" \
+            -only-testing:AteUITests/CoverageUITests/testHealthScenarioRecovery \
+            -only-testing:AteUITests/CoverageUITests/testHealthScenarioLowEnergy \
+            -only-testing:AteUITests/CoverageUITests/testHealthScenarioPerformance \
+            -only-testing:AteUITests/CoverageUITests/testHealthScenarioUnderactive \
+            -only-testing:AteUITests/CoverageUITests/testHealthSuggestionsDifferByState \
+            -only-testing:AteUITests/CoverageUITests/testHealthScenarioEmpty \
+            -only-testing:AteUITests/CoverageUITests/testHealthInsightsDeniedAndUnavailable \
+            -only-testing:AteUITests/CoverageUITests/testHealthOpenRecipeSheetAndClose \
+            -only-testing:AteUITests/CoverageUITests/testHealthPermissionPromptAppearsWhenUndecided \
+            -only-testing:AteUITests/CoverageUITests/testHealthEmptyStateSampleDataAction \
+            -only-testing:AteUITests/CoverageUITests/testJournalMomentContextRow \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > health-journal-ui.log 2>&1
+          status=$?
+          set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=health-journal-acceptance-ui-tests duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
+
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Health/journal acceptance UI tests failed (xcodebuild exit $status). Exact diagnostics follow; health-journal-ui.log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" health-journal-ui.log || true
+            echo "::group::Last 120 Health/journal UI-test log lines"
+            tail -n 120 health-journal-ui.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
+
+          grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" health-journal-ui.log | tail -n 40
       - name: Widget/intents UI tests
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |

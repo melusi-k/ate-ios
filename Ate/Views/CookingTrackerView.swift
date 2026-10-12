@@ -122,7 +122,7 @@ private struct CookingDotGrid: View {
                                 .frame(width: 32, height: 32)
                                 .overlay {
                                     Text(calendar.component(.day, from: date).description)
-                                        .font(.system(size: 11, weight: isToday ? .bold : .medium))
+                                        .font(.system(.caption2, design: .rounded, weight: isToday ? .bold : .medium)).lineLimit(1).minimumScaleFactor(0.7)
                                         .foregroundStyle(cooked ? .white : Theme.mutedForeground)
                                 }
                                 .overlay {

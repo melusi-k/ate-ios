@@ -228,6 +228,10 @@ jobs:
             -only-testing:AteUITests/CoverageUITests/testHealthPermissionPromptAppearsWhenUndecided \
             -only-testing:AteUITests/CoverageUITests/testHealthEmptyStateSampleDataAction \
             -only-testing:AteUITests/CoverageUITests/testJournalMomentContextRow \
+            -only-testing:AteUITests/CoverageUITests/testJournalListSearchAndOpenDetail \
+            -only-testing:AteUITests/CoverageUITests/testJournalEditCancelAndSave \
+            -only-testing:AteUITests/CoverageUITests/testJournalDeleteRequiresConfirmation \
+            -only-testing:AteUITests/CoverageUITests/testJournalShareOpensSystemSheet \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 \
             CODE_SIGNING_ALLOWED=NO > health-journal-ui.log 2>&1

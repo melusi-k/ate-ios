@@ -61,7 +61,9 @@ struct SettingsView: View {
                              : "Recipes and your shopping list sync to your ate account (Supabase, EU). Shared recipes are public to anyone with the link.")
                     }
                     Section("Beta & diagnostics") {
-                        NavigationLink(value: Route.beta) {
+                        NavigationLink {
+                            BetaTestingView()
+                        } label: {
                             Label("Beta testing", systemImage: "checklist")
                         }
                         .accessibilityIdentifier("settings.betaTesting")

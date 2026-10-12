@@ -225,6 +225,7 @@ jobs:
             -only-testing:AteUITests/CoverageUITests/testHealthScenarioEmpty \
             -only-testing:AteUITests/CoverageUITests/testHealthInsightsDeniedAndUnavailable \
             -only-testing:AteUITests/CoverageUITests/testHealthOpenRecipeSheetAndClose \
+            -only-testing:AteUITests/CoverageUITests/testTrackerOpeningDoesNotPromptForHealthPermission \
             -only-testing:AteUITests/CoverageUITests/testHealthPermissionPromptAppearsWhenUndecided \
             -only-testing:AteUITests/CoverageUITests/testHealthEmptyStateSampleDataAction \
             -only-testing:AteUITests/CoverageUITests/testJournalMomentContextRow \

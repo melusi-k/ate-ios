@@ -216,6 +216,72 @@ final class AppIntentsTests: XCTestCase {
         XCTAssertTrue(s.timers.timers.isEmpty)
     }
 
+    func testOpenJournalEntryIntentUsesTrackerRoute() async throws {
+        let journal = JournalStore.shared
+        XCTAssertTrue(journal.save(prompt: "Shortcut test", text: "Open this journal entry", state: .balanced, recipeIDs: []))
+        guard let entry = journal.entries().first(where: { $0.text == "Open this journal entry" }) else {
+            XCTFail("Journal fixture should save"); return
+        }
+        defer { journal.delete(entry) }
+        let s = store()
+        var intent = OpenJournalEntryIntent()
+        intent.target = AteJournalEntryEntity(entry)
+        _ = try await intent.perform()
+        XCTAssertEqual(s.tab, .tracker)
+        XCTAssertEqual(s.trackerPath, [.journal, .journalEntry(entry.id)])
+        XCTAssertEqual(QAProbe.shared.lastIntent, "openJournal")
+    }
+
+    func testCreateJournalIntentRejectsImagePromptWithoutSaving() async throws {
+        let journal = JournalStore.shared
+        let before = Set(journal.entries().map(\.id))
+        let intent = CreateAteJournalEntryIntent(
+            message: AttributedString("A top-down, highly detailed photograph of a bowl of mogodu on a wooden table"),
+            title: "Image prompt", entryDate: nil, location: nil, mediaItems: [])
+        do {
+            _ = try await intent.perform()
+            XCTFail("Image-generation prompts must not be saved as journal entries")
+        } catch {
+            XCTAssertTrue(error is JournalIntentError, "Expected a user-facing journal intent validation error")
+            if case JournalIntentError.imagePrompt = error {} else { XCTFail("Expected imagePrompt refusal, got: \(error)") }
+        }
+        XCTAssertEqual(Set(journal.entries().map(\.id)), before, "Rejected prompts must not create entries")
+    }
+
+    func testJournalIntentPayloadKeepsLocationAndMedia() throws {
+        let journal = JournalStore.shared
+        let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZV0AAAAASUVORK5CYII=") ?? Data()
+        guard let entry = journal.saveFromIntent(title: "Shortcut meal", text: "Ate with friends", date: Date(timeIntervalSince1970: 1_791_000_000),
+                                                  state: .balanced, locationName: "Cape Town", latitude: -33.9249, longitude: 18.4241,
+                                                  media: [(data: png, ext: "png")]) else {
+            XCTFail("Journal intent payload should save"); return
+        }
+        defer { journal.delete(entry) }
+        XCTAssertEqual(entry.locationName, "Cape Town")
+        XCTAssertEqual(entry.latitude, -33.9249, accuracy: 0.0001)
+        XCTAssertEqual(entry.longitude, 18.4241, accuracy: 0.0001)
+        XCTAssertEqual(entry.mediaFileNames.count, 1)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: JournalStore.mediaURL(entry.mediaFileNames[0]).path))
+    }
+
+    func testHistoricalImagePromptCleanupRemovesOldEntry() throws {
+        let journal = JournalStore.shared
+        let cleanupKey = "ate.journal.imagePromptCleanup.v1"
+        let previous = UserDefaults.standard.object(forKey: cleanupKey)
+        defer {
+            if let previous { UserDefaults.standard.set(previous, forKey: cleanupKey) }
+            else { UserDefaults.standard.removeObject(forKey: cleanupKey) }
+        }
+        UserDefaults.standard.set(false, forKey: cleanupKey)
+        XCTAssertTrue(journal.save(prompt: "old prompt", text: "A top-down, highly detailed photograph of plated food with shallow depth of field",
+                                   state: .balanced, recipeIDs: []))
+        guard let oldEntry = journal.entries().first(where: { $0.text.hasPrefix("A top-down, highly detailed photograph") }) else {
+            XCTFail("Historical image prompt fixture should save"); return
+        }
+        journal.removeImagePromptEntriesOnce()
+        XCTAssertNil(journal.entry(oldEntry.id), "Historical image prompts should be removed from the local journal")
+    }
+
     func testDeepLinksFromWidgets() {
         let s = store([mogodu])
         s.handle(url: WidgetLinks.recipe("mog"))

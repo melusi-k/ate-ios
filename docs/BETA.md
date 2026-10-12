@@ -1,6 +1,6 @@
 # What to expect in the ate beta
 
-Thanks for testing ate. This is a controlled beta: the core works, some edges are rough.
+Thanks for testing ate. This is a controlled beta: the core works, some edges are rough. Beta diagnostics are available only in explicitly named beta-channel builds: open **Settings › Beta testing**. The Beta banner and entry are hidden in production builds; if you cannot see them, confirm that the installed build was produced with a recognized beta channel (normally `TierA`).
 
 - **Install (build 99):** ate is sideloaded with a free Apple ID. Use **SideStore** first (keeps widgets working and refreshes on the phone), then AltStore or Sideloadly. You'll need Developer Mode, and the app has to be re-signed **every 7 days**. Your recipes survive re-signing. Check the IPA against the `.sha256` file on the release page.
 - **What to test:** the in-app list under Settings › Beta testing is the same list as docs/MVP_CHECKLIST.md (Tier A and Tier C IDs).
@@ -8,7 +8,7 @@ Thanks for testing ate. This is a controlled beta: the core works, some edges ar
 - **Social links:** Instagram and TikTok often hide captions. If a link doesn't import, paste the caption into Prompt.
 - **Sharing:** sign in before creating a web share link. A shared recipe is read-only and anyone with the link can view it. You get a web link plus an `ate://recipe/…` link. Links don't open the app automatically for other people yet (universal links need a paid developer account); send the `ate://` link to friends who have ate. If you are not signed in, use Share as text instead.
 - **Accounts:** optional for local use, required for cloud sync and creating share links. Confirmation and reset emails are limited to a few per hour.
-- **Widgets, Control Center and Siri:** add the ate widgets from the Home Screen (long-press → Edit → Add Widget → ate) and the Kitchen timer from Control Center. On a free Apple ID the widgets may only say "Open ate" if Sideloadly didn't keep the App Group; check Settings › Beta testing › Widgets. Siri ("Start cook mode in ate", "Add milk to my ate list") works regardless.
+- **Widgets, Control Center and Siri:** add the ate widgets from the Home Screen (long-press → Edit → Add Widget → ate) and the Kitchen timer from Control Center. On a free Apple ID the widgets may only say "Open ate" if Sideloadly didn't keep the App Group; check Settings › Settings › Beta testing › Widgets. Siri ("Start cook mode in ate", "Add milk to my ate list") works regardless.
 - **Your data:** export it from Settings › Your data now and then.
 - **Feedback:** melusi.l.k@gmail.com — say what you tapped, what you expected, and include a screenshot plus the version line from Settings › About.
 

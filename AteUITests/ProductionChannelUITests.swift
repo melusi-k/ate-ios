@@ -18,6 +18,9 @@ final class ProductionChannelUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(betaEntry.waitForExistence(timeout: 5) && betaEntry.isHittable,
                       "Beta-channel builds should expose Beta testing in Settings")
+        betaEntry.tap()
+        XCTAssertTrue(app.staticTexts["betaBuildLabel"].waitForExistence(timeout: 10),
+                      "The Settings entry should open the Beta testing dashboard")
     }
 
     func testProductionChannelHidesBetaDiagnostics() {

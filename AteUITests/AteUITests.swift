@@ -244,6 +244,10 @@ final class AteUITests: XCTestCase {
         wait(app.navigationBars["Cooked that day"], 5)
         XCTAssertFalse(app.staticTexts["Nothing recorded for this day."].exists,
                        "The completed recipe should appear in the selected day's history")
+        let recordedRecipe = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "tracker.recipe.")
+        ).firstMatch
+        wait(recordedRecipe, 5)
     }
 
     func test07_ShoppingList() {

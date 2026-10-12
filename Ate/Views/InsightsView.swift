@@ -254,7 +254,7 @@ struct TodayHealthCard: View {
     var body: some View {
         Group {
             if let c = model.context {
-                Button { store.tab = .more; store.morePath = [] ; InsightsNavState.shared.open = true } label: {
+                Button { store.select(.library); InsightsNavState.shared.open = true } label: {
                     HStack(spacing: 12) {
                         Image(systemName: c.insight.state.symbol).font(.title3).foregroundStyle(Theme.primary)
                         VStack(alignment: .leading, spacing: 2) {

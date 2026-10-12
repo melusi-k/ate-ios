@@ -35,6 +35,12 @@ struct CookingTrackerView: View {
 
 private struct TrackerDate: Identifiable { let date: Date; var id: Date { date } }
 
+enum CookingTrackerPresentation {
+    static func recipeTitle(for id: String, recipes: [RecipeCard]) -> String {
+        recipes.first(where: { $0.id == id })?.title ?? "Recipe no longer in your library"
+    }
+}
+
 private struct CookingDotGrid: View {
     let history: CookingHistory
     @Binding var selectedDate: Date?
@@ -73,7 +79,7 @@ private struct CookingDotGrid: View {
                         withAnimation(Motion.anim(.snappy)) { displayedMonth = previous }
                     }
                 } label: {
-                    Image(systemName: "chevron.left").frame(width: 36, height: 36)
+                    Image(systemName: "chevron.left").frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Previous month")
@@ -91,7 +97,7 @@ private struct CookingDotGrid: View {
                         withAnimation(Motion.anim(.snappy)) { displayedMonth = next }
                     }
                 } label: {
-                    Image(systemName: "chevron.right").frame(width: 36, height: 36)
+                    Image(systemName: "chevron.right").frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .disabled(isCurrentMonth)
@@ -129,7 +135,7 @@ private struct CookingDotGrid: View {
                                         Circle().strokeBorder(Theme.primary, lineWidth: 1)
                                     }
                                 }
-                                .frame(maxWidth: .infinity)
+                                .frame(maxWidth: .infinity, minHeight: 40)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -160,7 +166,7 @@ private struct CookingDaySheet: View {
                 Section(date.formatted(date: .complete, time: .omitted)) {
                     if recipeIDs.isEmpty { Text("Nothing recorded for this day.").foregroundStyle(.secondary) }
                     ForEach(Array(recipeIDs).sorted(), id: \.self) { id in
-                        Label(recipes.first(where: { $0.id == id })?.title ?? "Recipe no longer in your library", systemImage: "fork.knife")
+                        Label(CookingTrackerPresentation.recipeTitle(for: id, recipes: recipes), systemImage: "fork.knife")
                     }
                 }
             }.navigationTitle("Cooked that day").navigationBarTitleDisplayMode(.inline)

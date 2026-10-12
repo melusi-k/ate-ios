@@ -167,3 +167,25 @@ private struct CookingDaySheet: View {
         }
     }
 }
+
+
+/// Full-screen destination for the dedicated Tracker tab; the compact card remains reusable in Insights.
+struct CookingTrackerScreen: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Cooking Tracker")
+                    .font(AteFont.display(30))
+                    .accessibilityAddTraits(.isHeader)
+                CookingTrackerView()
+            }
+            .foregroundStyle(Theme.foreground)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 40)
+            .pageWidth()
+        }
+        .background(Theme.background)
+        .accessibilityIdentifier("cookingTracker.screen")
+    }
+}

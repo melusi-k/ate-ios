@@ -17,6 +17,17 @@ final class CookingTrackerEntryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Today & Journal"].waitForExistence(timeout: 5))
     }
 
+    func testLibraryShortcutOpensTrackerHubRoot() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
+        app.launch()
+        let shortcut = app.buttons["library.todayJournalHub"]
+        XCTAssertTrue(shortcut.waitForExistence(timeout: 10), "Library should expose the Today & Journal shortcut")
+        shortcut.tap()
+        XCTAssertTrue(app.staticTexts["Today & Journal"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["tracker.previousMonth"].exists)
+    }
+
     func testTrackerHubIncludesHealthAndJournalWithoutPromptingOnOpen() {
         let app = launchTracker()
         XCTAssertTrue(app.staticTexts["Your body today"].waitForExistence(timeout: 5))

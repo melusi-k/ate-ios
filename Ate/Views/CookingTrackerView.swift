@@ -73,7 +73,7 @@ private struct CookingDotGrid: View {
                         withAnimation(Motion.anim(.snappy)) { displayedMonth = previous }
                     }
                 } label: {
-                    Image(systemName: "chevron.left").frame(width: 36, height: 36)
+                    Image(systemName: "chevron.left").frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Previous month")
@@ -91,7 +91,7 @@ private struct CookingDotGrid: View {
                         withAnimation(Motion.anim(.snappy)) { displayedMonth = next }
                     }
                 } label: {
-                    Image(systemName: "chevron.right").frame(width: 36, height: 36)
+                    Image(systemName: "chevron.right").frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .disabled(isCurrentMonth)
@@ -129,7 +129,7 @@ private struct CookingDotGrid: View {
                                         Circle().strokeBorder(Theme.primary, lineWidth: 1)
                                     }
                                 }
-                                .frame(maxWidth: .infinity)
+                                .frame(maxWidth: .infinity, minHeight: 40)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)

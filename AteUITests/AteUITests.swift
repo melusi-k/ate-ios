@@ -198,6 +198,23 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 5)
     }
 
+    func testCookModeExitDoesNotRecordCookingDay() {
+        launch()
+        addPromptRecipe()
+        app.buttons["Cook mode"].tap()
+        wait(text("Step 1 of 4"))
+        app.buttons["Exit"].tap()
+        wait(app.buttons["Cook mode"], 5)
+
+        // Leaving Cook Mode is not completion. Inspect the calendar's accessible day label.
+        tab("Tracker")
+        let todayWithoutCooking = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@", "no cooking recorded", "today")
+        ).firstMatch
+        wait(todayWithoutCooking, 5)
+        XCTAssertTrue(todayWithoutCooking.label.contains("no cooking recorded"))
+    }
+
     func test07_ShoppingList() {
         launch()
         wait(text("Your Kitchen"))

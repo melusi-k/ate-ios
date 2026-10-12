@@ -23,7 +23,7 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 - **Bottom accessory:** "Add recipe" now sits above the tab bar on every tab and replaces the floating button. When a timer is running, it shows the timer summary plus a + button, and the in-app timer bar no longer repeats on tab roots. It switches to a compact layout when the tab bar is minimised.
 - **Tab bar** minimises when you scroll down.
 - **Search tab:** Library search lives in the tab bar (Tab(role: .search)) next to the 4 main tabs, and "Your Kitchen" stays visible while searching.
-- **Soft scroll edges** under the nav bar on Library, Shopping, More and Settings.
+- **Soft scroll edges** under the nav bar on Library, Shopping and Settings.
 - **Sheet cards** in Add and Review follow the sheet's corner curve (ConcentricRectangle).
 - **Recipe detail** hides the tab bar, so Cook mode and its bottom area never clash with the accessory.
 - **Checks and tests:** new Beta checks C-TAB-01…06, QA matrix rows, a new UI test, and updated search and key-flow tests.

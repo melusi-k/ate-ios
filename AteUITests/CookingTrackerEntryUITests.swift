@@ -1,9 +1,10 @@
 import XCTest
 
 final class CookingTrackerEntryUITests: XCTestCase {
-    private func launchTracker() -> XCUIApplication {
+    private func launchTracker(mockHealth: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
+        if mockHealth { app.launchArguments += ["-qaMockHealth", "recovery", "-qaHealthRecipes", "-qaHealthPrompt"] }
         app.launch()
         let trackerTab = app.tabBars.buttons["Tracker"]
         XCTAssertTrue(trackerTab.waitForExistence(timeout: 10), "Cooking Tracker should be a first-class tab")
@@ -29,7 +30,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
     }
 
     func testTrackerHubIncludesHealthAndJournalWithoutPromptingOnOpen() {
-        let app = launchTracker()
+        let app = launchTracker(mockHealth: true)
         XCTAssertTrue(app.staticTexts["Your body today"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Your Ate journal"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["insights.cookingCalendar"].exists)

@@ -177,6 +177,7 @@ private struct CookingDaySheet: View {
                     if recipeIDs.isEmpty { Text("Nothing recorded for this day.").foregroundStyle(.secondary) }
                     ForEach(Array(recipeIDs).sorted(), id: \.self) { id in
                         Label(CookingTrackerPresentation.recipeTitle(for: id, recipes: recipes), systemImage: "fork.knife")
+                            .accessibilityIdentifier("tracker.recipe.\\(id)")
                     }
                 }
             }.navigationTitle("Cooked that day").navigationBarTitleDisplayMode(.inline)

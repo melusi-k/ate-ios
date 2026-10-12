@@ -5,7 +5,8 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 ## Unreleased
 
 ### 🧭 Navigation
-- Removed the dedicated More/Beta hub from the main tab bar. Beta testing and expectations are now reached from Settings › Beta testing; the primary navigation is Library, Shopping, Tracker, Settings, plus the iOS 26 Search-role tab.
+- Removed the dedicated More/Beta hub from the main tab bar. Beta testing and expectations are now reached from Settings › Beta testing in beta-channel builds only; the primary navigation is Library, Shopping, Tracker, Settings, plus the iOS 26 Search-role tab.
+- **Production channel gate:** the Beta banner and Settings entry are visible only for allow-listed channels (TierA/TierB/TierC/Beta/QA/Internal/Development). Empty, unknown, and Production channels hide them; project.yml defaults to an empty channel and CI beta builds explicitly set TierA.
 
 ### 🛟 Data safety (A-DATA-01/02)
 - **Corrupt library recovery:** if the on-device store can't be opened, Ate moves it to `Backups/ate-<timestamp>.store`, opens a fresh store (in-memory as a last resort, never a crash), restores from sync when you're signed in, writes a JSON export of the recovered recipes, and shows a "Library repaired" screen with Export.
@@ -89,7 +90,7 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 - New links: `https://melusi-k.github.io/ate-legal/r/?s=<slug>` (configurable via `ATE_SHARE_URL_TEMPLATE`). Old `lovable.app/r/<slug>`, `/r/<slug>`, `/r/?s=` and `ate://recipe/<slug>` links all still open in the app.
 
 #### 🧪 Tier A beta build
-- **More › Beta testing**: all 44 Tier A items (A-CREATE … A-LAUNCH) with IDs, acceptance criteria and live status. Journeys auto-tick ✅ when they really complete on device (imports with their real source, edit/save, delete + Undo, share, opening ate:// links, sign up/in/out, magic link, reset, delete account, sync with rows, timer finish/background/restore, Live Activity start, relaunch with data intact, offline errors, retry after network loss) and ❌ with the captured error when they fail. Manual Pass/Fail/Skip + note for the rest, per-category progress, Export (JSON + Markdown), Reset, and optional upload to Supabase `qa_results` (RLS own rows). First-launch banner on channel builds.
+- **Settings › Beta testing**: all 44 Tier A items (A-CREATE … A-LAUNCH) with IDs, acceptance criteria and live status. Journeys auto-tick ✅ when they really complete on device (imports with their real source, edit/save, delete + Undo, share, opening ate:// links, sign up/in/out, magic link, reset, delete account, sync with rows, timer finish/background/restore, Live Activity start, relaunch with data intact, offline errors, retry after network loss) and ❌ with the captured error when they fail. Manual Pass/Fail/Skip + note for the rest, per-category progress, Export (JSON + Markdown), Reset, and optional upload to Supabase `qa_results` (RLS own rows). First-launch banner on channel builds.
 - **"What to expect in this beta"** is now its own page (it was a collapsed, unlocalized disclosure at the bottom of About) and its strings are in the String Catalog.
 - **Channel**: `ATE_CHANNEL=TierA` is shown in About, the Settings footer and Beta testing; the ipa is `Ate-0.1.N-buildN-TierA.ipa` and the release tag `build-N-TierA`. CFBundleShortVersionString stays numeric.
 

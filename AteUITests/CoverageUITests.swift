@@ -472,6 +472,15 @@ extension CoverageUITests {
         wait(back2); back2.tap()
         wait(app.buttons["settings.betaTesting"])
     }
+    /// A-HEALTH-01: opening Tracker alone must never prompt for Health access.
+    func testTrackerOpeningDoesNotPromptForHealthPermission() {
+        launch(["-qaMockHealth", "recovery", "-qaHealthPrompt"])
+        tab("Tracker")
+        wait(text("Today & Journal"))
+        XCTAssertFalse(app.alerts.firstMatch.waitForExistence(timeout: 3),
+                       "Health authorization must wait for the explicit Connect Apple Health action")
+    }
+
     /// Regression guard (StepTrackerTCA lesson): Connect must still ask for Health when access is undecided.
     func testHealthPermissionPromptAppearsWhenUndecided() {
         launch(["-qaMockHealth", "recovery", "-qaHealthRecipes", "-qaHealthPrompt"])

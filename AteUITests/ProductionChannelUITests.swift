@@ -12,7 +12,7 @@ final class ProductionChannelUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(settingsTab.waitForExistence(timeout: 10), "Settings tab should remain available")
         settingsTab.tap()
-        XCTAssertTrue(app.staticTexts["Account & sync"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["accountSyncTitle"].waitForExistence(timeout: 10))
 
         let betaEntry = app.descendants(matching: .any).matching(
             NSPredicate(format: "identifier == %@ OR label == %@", "settings.betaTesting", "Beta testing")
@@ -35,7 +35,7 @@ final class ProductionChannelUITests: XCTestCase {
         XCTAssertTrue(settingsTab.waitForExistence(timeout: 10), "Settings tab should remain available")
         settingsTab.tap()
 
-        XCTAssertTrue(app.staticTexts["Account & sync"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["accountSyncTitle"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["settings.betaTesting"].exists,
                        "Production-channel builds must not expose Beta testing in Settings")
         XCTAssertFalse(app.staticTexts["Beta testing"].exists,

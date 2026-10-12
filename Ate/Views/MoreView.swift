@@ -6,28 +6,34 @@ struct MoreView: View {
     @State private var qa = BetaQA.shared
 
     var body: some View {
-        List {
-            Section {
-                // More's path is also changed by the beta banner/deep-link handler. A direct
-                // destination avoids iOS resolving a typed path destination while that path changes.
-                NavigationLink {
-                    BetaTestingView()
-                } label: {
-                    LabeledContent { Text("\(qa.progress().passed)/\(qa.progress().total)").monospacedDigit() } label: {
-                        Label("Beta testing", systemImage: "checklist")
+        Group {
+            if AppConfig.isBetaBuild {
+            List {
+                Section {
+                    // More's path is also changed by the beta banner/deep-link handler. A direct
+                    // destination avoids iOS resolving a typed path destination while that path changes.
+                    NavigationLink {
+                        BetaTestingView()
+                    } label: {
+                        LabeledContent { Text("\(qa.progress().passed)/\(qa.progress().total)").monospacedDigit() } label: {
+                            Label("Beta testing", systemImage: "checklist")
+                        }
                     }
+                    .accessibilityIdentifier("more.betaTesting")
+                    NavigationLink {
+                        BetaExpectationsView()
+                    } label: {
+                        Label(Transparency.betaTitle, systemImage: "info.circle")
+                    }
+                    .accessibilityIdentifier("betaNote")
+                } header: {
+                    Text("Beta testing")
+                } footer: {
+                    Text("Run the pilot checks, record results, and see what to expect from this build.")
                 }
-                .accessibilityIdentifier("more.betaTesting")
-                NavigationLink {
-                    BetaExpectationsView()
-                } label: {
-                    Label(Transparency.betaTitle, systemImage: "info.circle")
-                }
-                .accessibilityIdentifier("betaNote")
-            } header: {
-                Text("Beta testing")
-            } footer: {
-                Text("Run the pilot checks, record results, and see what to expect from this build.")
+            }
+            } else {
+                SettingsView()
             }
         }
         .listStyle(.insetGrouped)
@@ -38,7 +44,11 @@ struct MoreView: View {
         .softTopEdge()
         // Deep requests from the beta banner still land on the Beta screen.
         .onChange(of: qa.openRequested, initial: true) { _, v in
-            if v { qa.openRequested = false; store.morePath = [.beta] }
+            if v {
+                qa.openRequested = false
+                guard AppConfig.isBetaBuild else { return }
+                store.morePath = [.beta]
+            }
         }
     }
 }

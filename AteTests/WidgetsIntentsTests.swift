@@ -243,7 +243,7 @@ final class AppIntentsTests: XCTestCase {
             XCTFail("Image-generation prompts must not be saved as journal entries")
         } catch {
             XCTAssertTrue(error is JournalIntentError, "Expected a user-facing journal intent validation error")
-            if case JournalIntentError.imagePrompt = error {} else { XCTFail("Expected imagePrompt refusal, got: \(error)") }
+            if let journalError = error as? JournalIntentError, case .imagePrompt = journalError {} else { XCTFail("Expected imagePrompt refusal, got: \(error)") }
         }
         XCTAssertEqual(Set(journal.entries().map(\.id)), before, "Rejected prompts must not create entries")
     }
@@ -258,8 +258,8 @@ final class AppIntentsTests: XCTestCase {
         }
         defer { journal.delete(entry) }
         XCTAssertEqual(entry.locationName, "Cape Town")
-        XCTAssertEqual(entry.latitude, -33.9249, accuracy: 0.0001)
-        XCTAssertEqual(entry.longitude, 18.4241, accuracy: 0.0001)
+        XCTAssertEqual(entry.latitude ?? 0, -33.9249, accuracy: 0.0001)
+        XCTAssertEqual(entry.longitude ?? 0, 18.4241, accuracy: 0.0001)
         XCTAssertEqual(entry.mediaFileNames.count, 1)
         XCTAssertTrue(FileManager.default.fileExists(atPath: JournalStore.mediaURL(entry.mediaFileNames[0]).path))
     }

@@ -84,7 +84,7 @@ final class KeyFlowsQATests: XCTestCase {
     }
     func signIn() {
         tab("Settings")
-        wait(text("Account & sync"))
+        wait(app.staticTexts["accountSyncTitle"])
         // Beta-channel visibility has its own focused test. Keep the sync key flow
         // independent of the diagnostics dashboard's long checklist rendering.
         app.buttons["openSignIn"].tap()

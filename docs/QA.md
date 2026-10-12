@@ -29,9 +29,13 @@ Device: ______ iOS: ______ Build: ______ Apple Intelligence on? ☐
 8. **Timers** ☐ start a step timer, lock the phone: Dynamic Island + Lock Screen count down ☐ pause/resume ☐ leave cook mode: timer bar shows above the tab bar ☐ finish: chime + haptic, notification if backgrounded
 9. **Other device classes** ☐ an iPhone without Apple Intelligence (badges say Demo / page data) ☐ iOS 18 device if available ☐ VoiceOver pass on Library, Add, Cook ☐ largest Dynamic Type
 
-## Cooking Tracker — required real-device acceptance (issue #31)
+## Cooking Tracker — automated release gate and device follow-up (issue #31)
 
-Record one row for each tested device/build. Simulator results do not replace these checks.
+**Automated closure gate:** unit tests for day-key persistence/streak boundaries, Tracker focused UI tests, and Cook Mode completion/early-exit UI regressions must pass on the exact merged-main commit. The main Build IPA workflow runs these focused UI regressions on every push alongside the unit and key-flow QA gates; the full UI shard suite and backend E2E remain opt-in.
+
+**Device-only follow-up (not a blocker for closing issue #31 under the 2026-10-12 scope decision):** tracked in [issue #60](https://github.com/melusi-k/ate-ios/issues/60). Simulator tests cannot certify relaunch behavior on physical hardware, real system time-zone changes, VoiceOver focus order, or largest Dynamic Type. Record these when a test device is available; do not claim them complete based on simulator output.
+
+Record one row for each tested device/build when this follow-up is performed.
 
 Device: ______ iOS version: ______ build number/channel: ______ date/time: ______
 
@@ -43,17 +47,5 @@ Device: ______ iOS version: ______ build number/channel: ______ date/time: _____
 6. **Largest Dynamic Type:** set the largest accessibility text size and inspect the streak label, month title/navigation, weekday row, all date buttons, and selected-day sheet. Confirm there is no clipping, overlap, or unreachable control; all days remain tappable.
 7. **Layout:** check portrait and landscape on iPhone; on iPad, check the supported sidebar layout if available. Confirm the Tracker remains reachable and the calendar/day details fit without controls being obscured.
 
-Evidence to attach to issue #31: device model, iOS version, app build/channel, test date, pass/fail for each numbered step, and screenshots for the calendar, selected-day sheet, largest Dynamic Type, and any failure. Do not mark a device-only criterion complete from simulator output alone.
+Device follow-up evidence: device model, iOS version, app build/channel, test date, pass/fail for each numbered step, and screenshots for the calendar, selected-day sheet, largest Dynamic Type, and any failure. Do not mark a device-only criterion complete from simulator output alone.
 
-
-## Today & Journal Tracker hub — issue #38
-
-The Tracker tab is the combined daily/monthly hub; its tab label remains **Tracker** and its screen heading is **Today & Journal**. Automated acceptance is required before merge; physical-device and entitlement-matrix checks are deferred to the final pass of issue #38 and do not block this UI implementation. The same `CookingTrackerEntryUITests` target retains the calendar/month-navigation/empty-day cases owned by [issue #31](https://github.com/melusi-k/ate-ios/issues/31), while PR #59's main-push gate also runs Cook Mode completion-to-history and early-exit-negative tests. Keep these shared regressions green as one suite.
-
-1. Open Tracker from its tab and from the Library/Home shortcut. Confirm the shortcut opens the Tracker root.
-2. Confirm the screen includes the cooking streak/calendar, the Health insight card, meal/reflection content when Health data is available, and the local Ate journal preview. Confirm the calendar and journal are hosted in one scroll view.
-3. Launch with no Health authorization and open Tracker without tapping **Connect Apple Health**. Confirm no system/mock permission prompt appears. Tap Connect only when ready to test the explicit authorization flow.
-4. Run the focused `CookingTrackerEntryUITests` plus the normal compile, unit, and UI-test CI gates. Preserve any failing assertion and source line rather than masking test failures.
-5. Confirm the full searchable journal list and entry detail routes still work; Ate journal entries remain local-only and Ate does not write to Apple's Journal.
-
-**Deferred final device pass:** on supported/unsupported devices, record Health permissions (including denial), entitlement/sideload and picker behavior, sample-data/no-data fallback, journal persistence, location/media, VoiceOver, and largest Dynamic Type. Include device model, OS, build/channel, exact result and evidence. Simulator CI does not close these device-only checks.

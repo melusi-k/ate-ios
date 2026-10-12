@@ -36,7 +36,7 @@ open Ate.xcodeproj   # Xcode 26 (iOS 26 SDK) required for the Foundation Models 
 ```
 
 ## CI → .ipa
-`.github/workflows/build-ipa.yml` runs on pushes to `main`, and you can also start it manually. Ordinary pushes generate and archive the app, run release smoke checks, and replace the **`latest-build`** prerelease. Unit tests, `KeyFlowsQATests`, all UI-test shards, and backend E2E run only when a manual run sets `run_tests=true` or the pushed commit message contains `[run tests]`; a successful full validation promotes that exact build to **`latest-beta`**:
+`.github/workflows/build-ipa.yml` runs on pushes to `main`, and you can also start it manually. Every main push generates and archives the app, runs unit tests, the 8-flow `KeyFlowsQATests` gate, focused Cooking Tracker calendar/history UI tests, Cook Mode completion/early-exit UI regressions, and release smoke checks, then replaces the **`latest-build`** prerelease. The full UI-test shards and backend E2E run only when a manual run sets `run_tests=true` or the pushed commit message contains `[run tests]`; a successful full validation promotes that exact build to **`latest-beta`**:
 
 **Download on your phone:** https://github.com/melusi-k/ate-ios/releases/tag/latest-build
 

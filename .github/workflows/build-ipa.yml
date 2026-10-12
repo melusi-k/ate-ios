@@ -11,7 +11,7 @@ on:
         type: boolean
         default: false
       channel:
-        description: "Release channel suffix (display + ipa/tag name). Production hides all beta-only UI; choose TierA/TierB/TierC for tester builds."
+        description: "Release channel: Production (default) or TierA/TierB/TierC for tester builds."
         type: string
         default: "Production"
 
@@ -155,6 +155,50 @@ jobs:
           PY
           if [ $STATUS -ne 0 ]; then grep -vi coredata qa.log | grep -E "error:|failed" | head -40; fi
           exit $STATUS
+
+      # Tracker is part of release confidence, not just the opt-in full UI suite.
+      # Every main push runs the focused calendar/history and explicit cooking-completion regressions.
+      - name: Release gate — Cooking Tracker and Cook Mode history
+        if: env.RUN_TESTS == 'true'
+        timeout-minutes: 25
+        run: |
+          set +e
+          SIM_ID=$(xcrun simctl list devices available -j | python3 -c '
+          import json,sys
+          d=json.load(sys.stdin)["devices"]
+          c=[(k,x) for k,v in d.items() if "iOS-26" in k for x in v if x["name"]=="iPhone 17"]
+          c=c or [(k,x) for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")]
+          c.sort(key=lambda t:t[0]); print(c[-1][1]["udid"])')
+          echo "Tracker release gate simulator: $SIM_ID"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CookingTrackerEntryUITests \
+            -only-testing:AteUITests/AteUITests/test06_CookMode \
+            -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay \
+            -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay \
+            -resultBundlePath build/TrackerReleaseGate.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > tracker-release-gate.log 2>&1
+          STATUS=$?
+          set -e
+          grep -E "Test Case|Test Suite|error:|XCTAssert|failed|TEST SUCCEEDED|TEST FAILED" tracker-release-gate.log | tail -100 || true
+          if [ "$STATUS" -ne 0 ]; then
+            echo "::error::Cooking Tracker/Cook Mode release gate failed (xcodebuild exit $STATUS); complete log and xcresult are uploaded."
+            tail -120 tracker-release-gate.log || true
+          fi
+          exit "$STATUS"
+
+      - name: Upload Tracker release-gate diagnostics
+        if: always() && env.RUN_TESTS == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracker-release-gate-diagnostics
+          path: |
+            tracker-release-gate.log
+            build/TrackerReleaseGate.xcresult
+          if-no-files-found: warn
 
       - name: Upload QA screenshots
         if: always() && env.RUN_TESTS == 'true'

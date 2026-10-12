@@ -215,6 +215,41 @@ final class AteUITests: XCTestCase {
         XCTAssertTrue(todayWithoutCooking.label.contains("no cooking recorded"))
     }
 
+    func testCookModeCompletionRecordsCookingDay() {
+        launch()
+        addPromptRecipe()
+        app.buttons["Cook mode"].tap()
+        wait(text("Step 1 of 4"))
+
+        let finish = app.buttons["cookFinish"]
+        var steps = 0
+        while !finish.exists && steps < 6 {
+            let next = app.buttons["Next step"]
+            wait(next, 5)
+            next.tap()
+            steps += 1
+        }
+        wait(finish, 5)
+        finish.tap()
+        wait(app.buttons["Cook mode"], 5)
+
+        // Completion must update the persistent Tracker, not merely dismiss Cook Mode.
+        tab("Tracker")
+        let day = Calendar.current.component(.day, from: Date())
+        let today = app.buttons["tracker.day.\(day)"]
+        wait(today, 5)
+        XCTAssertTrue(today.label.contains("cooked") && today.label.contains("today"),
+                      "Finish cooking should mark today's Tracker date as cooked: \(today.label)")
+        today.tap()
+        wait(app.navigationBars["Cooked that day"], 5)
+        XCTAssertFalse(app.staticTexts["Nothing recorded for this day."].exists,
+                       "The completed recipe should appear in the selected day's history")
+        let recordedRecipe = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "tracker.recipe.")
+        ).firstMatch
+        wait(recordedRecipe, 5)
+    }
+
     func test07_ShoppingList() {
         launch()
         wait(text("Your Kitchen"))

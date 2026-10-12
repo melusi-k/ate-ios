@@ -85,20 +85,8 @@ final class KeyFlowsQATests: XCTestCase {
     func signIn() {
         tab("Settings")
         wait(text("Account & sync"))
-        let betaEntry = app.descendants(matching: .any).matching(
-            NSPredicate(format: "identifier == %@ OR label == %@", "settings.betaTesting", "Beta testing")
-        ).firstMatch
-        scrollTo(betaEntry)
-        XCTAssertTrue(betaEntry.waitForExistence(timeout: 5) && betaEntry.isHittable,
-                      "Beta testing should be reachable from Settings in UI-test builds. Settings hierarchy: \(app.debugDescription)")
-        betaEntry.tap()
-        // Beta testing is a navigation destination: on iOS 26 the title is exposed
-        // as a navigation-bar element, not consistently as StaticText.
-        let betaNavigationTitle = app.navigationBars["Beta testing"]
-        XCTAssertTrue(betaNavigationTitle.waitForExistence(timeout: 8),
-                      "Settings › Beta testing did not open. Hierarchy: \(app.debugDescription)")
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-        wait(text("Account & sync"))
+        // Beta-channel visibility has its own focused test. Keep the sync key flow
+        // independent of the diagnostics dashboard's long checklist rendering.
         app.buttons["openSignIn"].tap()
         replace(app.textFields["authEmail"], "qa@example.com")
         let p = app.secureTextFields["authPassword"]; p.tap(); p.typeText("password123")

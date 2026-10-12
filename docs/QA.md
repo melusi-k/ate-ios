@@ -33,7 +33,7 @@ Device: ______ iOS: ______ Build: ______ Apple Intelligence on? ☐
 
 **Automated closure gate:** unit tests for day-key persistence/streak boundaries, Tracker focused UI tests, and Cook Mode completion/early-exit UI regressions must pass on the exact merged-main commit. The main Build IPA workflow runs these focused UI regressions on every push alongside the unit and key-flow QA gates; the full UI shard suite and backend E2E remain opt-in.
 
-**Device-only follow-up (not a blocker for closing issue #31 under the 2026-10-12 scope decision):** simulator tests cannot certify relaunch behavior on physical hardware, real system time-zone changes, VoiceOver focus order, or largest Dynamic Type. Record these when a test device is available; do not claim them complete based on simulator output.
+**Device-only follow-up (not a blocker for closing issue #31 under the 2026-10-12 scope decision):** tracked in [issue #60](https://github.com/melusi-k/ate-ios/issues/60). Simulator tests cannot certify relaunch behavior on physical hardware, real system time-zone changes, VoiceOver focus order, or largest Dynamic Type. Record these when a test device is available; do not claim them complete based on simulator output.
 
 Record one row for each tested device/build when this follow-up is performed.
 

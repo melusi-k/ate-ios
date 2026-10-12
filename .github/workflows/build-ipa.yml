@@ -11,9 +11,9 @@ on:
         type: boolean
         default: false
       channel:
-        description: "Release channel suffix (display + ipa/tag name). Empty for none."
+        description: "Release channel suffix (display + ipa/tag name). Production hides all beta-only UI; choose TierA/TierB/TierC for tester builds."
         type: string
-        default: "TierA"
+        default: "Production"
 
 permissions:
   contents: write

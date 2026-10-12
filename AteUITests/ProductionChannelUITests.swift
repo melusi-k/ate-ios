@@ -14,8 +14,10 @@ final class ProductionChannelUITests: XCTestCase {
         settingsTab.tap()
         XCTAssertTrue(app.staticTexts["accountSyncTitle"].waitForExistence(timeout: 10))
 
+        // Match the NavigationLink itself by identifier; a label-only match can tap
+        // its child text without activating the row's navigation action.
         let betaEntry = app.descendants(matching: .any).matching(
-            NSPredicate(format: "identifier == %@ OR label == %@", "settings.betaTesting", "Beta testing")
+            NSPredicate(format: "identifier == %@", "settings.betaTesting")
         ).firstMatch
         XCTAssertTrue(betaEntry.waitForExistence(timeout: 5) && betaEntry.isHittable,
                       "Beta-channel builds should expose Beta testing in Settings")

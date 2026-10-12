@@ -29,6 +29,14 @@ struct MoreView: View {
             } footer: {
                 Text("Run the pilot checks, record results, and see what to expect from this build.")
             }
+            Section("App") {
+                NavigationLink {
+                    SettingsView().offlineStrip()
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .accessibilityIdentifier("more.settings")
+            }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)

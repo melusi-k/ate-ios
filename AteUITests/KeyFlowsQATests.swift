@@ -49,19 +49,6 @@ final class KeyFlowsQATests: XCTestCase {
             return
         }
 
-        // iOS 26 can move Settings into a system-owned tab overflow that XCTest
-        // exposes only as a second "More" button. Use the app-owned More hub's explicit
-        // Settings destination instead of depending on that system UI.
-        if name == "Settings" {
-            let moreTab = tabBar.buttons["square.grid.2x2"].firstMatch
-            if moreTab.exists && moreTab.isHittable { moreTab.tap() }
-            let settingsLink = app.buttons["more.settings"]
-            if settingsLink.waitForExistence(timeout: 5) && settingsLink.isHittable {
-                settingsLink.tap()
-                return
-            }
-        }
-
         let visibleButton = app.buttons.matching(NSPredicate(format: "label == %@ OR label BEGINSWITH %@", name, name)).firstMatch
         XCTAssertTrue(visibleButton.waitForExistence(timeout: 5) && visibleButton.isHittable,
                       "Couldn't find a visible \(name) tab/button. Tab bar: \(tabBar.debugDescription)")
@@ -97,6 +84,13 @@ final class KeyFlowsQATests: XCTestCase {
     }
     func signIn() {
         tab("Settings")
+        wait(text("Account & sync"))
+        let betaEntry = app.buttons["settings.betaTesting"]
+        XCTAssertTrue(betaEntry.waitForExistence(timeout: 5) && betaEntry.isHittable,
+                      "Beta testing should be reachable from Settings")
+        betaEntry.tap()
+        wait(text("Beta testing"), 5)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
         wait(text("Account & sync"))
         app.buttons["openSignIn"].tap()
         replace(app.textFields["authEmail"], "qa@example.com")

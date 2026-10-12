@@ -501,6 +501,105 @@ extension CoverageUITests {
 
 
 extension CoverageUITests {
+    /// C-JRN-01/02: list rows are searchable by prompt/location and open a standalone entry detail.
+    func testJournalListSearchAndOpenDetail() {
+        launch(["-qaJournalMomentEntry"])
+        tab("Tracker")
+        wait(text("Today & Journal"))
+        let seeAll = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "See all")).firstMatch
+        scrollTo(seeAll); wait(seeAll); seeAll.tap()
+        let search = app.searchFields["Search journal"]
+        wait(search)
+        search.tap(); search.typeText("Mama")
+        let row = app.buttons.matching(identifier: "journal.entry").firstMatch
+        wait(row)
+        XCTAssertTrue(row.label.localizedCaseInsensitiveContains("Mama"), row.label)
+        search.tap()
+        let current = search.value as? String ?? ""
+        search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count + 2))
+        search.typeText("no-match-38")
+        wait(text("No Results"))
+        XCTAssertFalse(row.exists, "A non-matching query must filter all journal entries")
+        search.tap()
+        let q = search.value as? String ?? ""
+        search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: q.count + 2))
+        search.typeText("Seeded")
+        wait(row); row.tap()
+        wait(app.navigationBars["Journal entry"])
+        wait(app.staticTexts["journal.detail.text"])
+        XCTAssertTrue(app.staticTexts["journal.detail.text"].label.contains("Seeded from a Journal moment"))
+        wait(app.staticTexts["journal.detail.date"])
+    }
+
+    /// C-JRN-03: cancelling an edit preserves the original, while saving updates the entry.
+    func testJournalEditCancelAndSave() {
+        launch(["-qaJournalMomentEntry"])
+        tab("Tracker")
+        wait(text("Today & Journal"))
+        let seeAll = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "See all")).firstMatch
+        scrollTo(seeAll); wait(seeAll); seeAll.tap()
+        let row = app.buttons.matching(identifier: "journal.entry").firstMatch
+        wait(row); row.tap()
+        wait(app.navigationBars["Journal entry"])
+        let original = app.staticTexts["journal.detail.text"]
+        wait(original)
+        XCTAssertTrue(original.label.contains("Seeded from a Journal moment"))
+        let menu = app.buttons["journal.detail.menu"]; wait(menu); menu.tap()
+        app.buttons["Edit"].tap()
+        let editor = app.textViews["journal.edit.text"]; wait(editor)
+        app.buttons["Cancel"].tap()
+        wait(original)
+        XCTAssertTrue(original.label.contains("Seeded from a Journal moment"), "Cancel must retain the original text")
+        menu.tap(); app.buttons["Edit"].tap(); wait(editor)
+        editor.tap()
+        let value = editor.value as? String ?? ""
+        editor.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count + 2))
+        editor.typeText("Issue 38 edited journal entry")
+        app.buttons["Save"].tap()
+        wait(text("Edited"))
+        XCTAssertTrue(original.label.contains("Issue 38 edited journal entry"))
+    }
+
+    /// C-JRN-04: deletion has a safe Cancel path and only removes the entry after confirmation.
+    func testJournalDeleteRequiresConfirmation() {
+        launch(["-qaJournalMomentEntry"])
+        tab("Tracker")
+        wait(text("Today & Journal"))
+        let seeAll = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "See all")).firstMatch
+        scrollTo(seeAll); wait(seeAll); seeAll.tap()
+        let row = app.buttons.matching(identifier: "journal.entry").firstMatch
+        wait(row); row.tap()
+        wait(app.navigationBars["Journal entry"])
+        let menu = app.buttons["journal.detail.menu"]; wait(menu); menu.tap()
+        app.buttons["Delete"].tap()
+        wait(text("Delete this journal entry?"))
+        app.buttons["Cancel"].tap()
+        wait(app.staticTexts["journal.detail.text"])
+        XCTAssertTrue(app.staticTexts["journal.detail.text"].label.contains("Seeded from a Journal moment"))
+        menu.tap(); app.buttons["Delete"].tap()
+        wait(text("Delete this journal entry?"))
+        app.buttons["Delete"].tap()
+        wait(text("No journal entries yet"))
+    }
+
+    /// C-JRN-05: the standalone entry exposes the system share sheet.
+    func testJournalShareOpensSystemSheet() {
+        launch(["-qaJournalMomentEntry"])
+        tab("Tracker")
+        wait(text("Today & Journal"))
+        let seeAll = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "See all")).firstMatch
+        scrollTo(seeAll); wait(seeAll); seeAll.tap()
+        let row = app.buttons.matching(identifier: "journal.entry").firstMatch
+        wait(row); row.tap()
+        wait(app.navigationBars["Journal entry"])
+        let share = app.buttons["journal.detail.share"]; wait(share); share.tap()
+        let sheet = app.otherElements["ActivityListView"].firstMatch
+        if !sheet.waitForExistence(timeout: 5) {
+            XCTAssertTrue(app.buttons["Copy"].waitForExistence(timeout: 5) || app.buttons["Close"].exists,
+                          "Share must present the system share UI")
+        }
+    }
+
     func testCookingTrackerMonthNavigationAndSelectedDay() {
         launch(["-qaMockHealth", "empty", "-qaHealthRecipes"])
         tab("Library")

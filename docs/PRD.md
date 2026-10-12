@@ -79,7 +79,7 @@
 - Note: there is no account for melusi.l.k@gmail.com on either backend yet (both `auth.users` tables were empty), so the first step is **Create account**.
 
 ### F1b. Tab bar navigation (v1.3)
-- Native `TabView` with three tabs: **Library** (`books.vertical`), **Shopping list** (`basket`, badge = unticked items) and **Settings** (`gearshape`). These replace the push navigation and the header icons that used to lead to Shopping and Settings.
+- Native `TabView` with core destinations: **Library** (`books.vertical`), **Shopping list** (`basket`, badge = unticked items), **Tracker**, **Settings** (`gearshape`) and the iOS 26 **Search** tab. Beta/QA tools live inside Settings, not in the main tab bar. These replace the push navigation and the header icons that used to lead to Shopping and Settings.
 - Each tab has its own `NavigationStack` (`path`, `shoppingPath`, `settingsPath` in `AppStore`), so its state is kept when you switch. Re-tapping the current tab pops it to the root.
 - The sticky timer bar is a bottom safe-area inset inside each tab, so it sits above the tab bar. Cook mode and onboarding are full-screen covers that hide the tab bar.
 - Deep links select a tab: `ate://recipe/…`, `ate://r/…`, `ate://cook/…` and `ate://import` go to Library, and `ate://auth-callback` goes to Settings.

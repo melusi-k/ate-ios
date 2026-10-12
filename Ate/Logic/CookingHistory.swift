@@ -1,7 +1,9 @@
 import Foundation
+import Observation
 
 /// Local cooking events. A recipe keeps only its last-cooked timestamp, so this service preserves the
 /// day-level history needed for streaks and the Insights calendar without changing sync payloads.
+@Observable
 final class CookingHistory {
     static let shared = CookingHistory()
     private static let key = "ate.cooking.history.v1"

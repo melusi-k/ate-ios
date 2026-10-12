@@ -51,7 +51,7 @@ enum AppConfig {
     static func isBetaChannel(_ value: String) -> Bool {
         betaChannels.contains(value.trimmingCharacters(in: .whitespacesAndNewlines))
     }
-    static var isBetaBuild: Bool { isBetaChannel(channel) }
+    static var isBetaBuild: Bool { isUITesting || isBetaChannel(channel) }
     /// "0.1.40 (40) TierA" — CFBundleShortVersionString stays numeric; the channel is display-only.
     static var buildLabel: String { "\(appVersion) (\(buildNumber))" + (channel.isEmpty ? "" : " \(channel)") }
     static var versionLine: String { "ate \(appVersion) (build \(buildNumber))\(channel.isEmpty ? "" : " · " + channel) · \(gitSHA) · backend \(backendRef)" }

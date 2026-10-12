@@ -16,7 +16,7 @@ Can't find an answer? Email **melusi.l.k@gmail.com** with your build number (Set
 **Widgets don't show up, or show "Open ate".** Widgets need the widget extension and a shared App Group, and Sideloadly may drop or rename them. Open **Settings › Beta testing › Widgets** to see what's missing. If it says "missing", reinstall with SideStore, AltStore or Xcode. Siri and the Control Center controls work either way.
 
 ## Apple Health
-**Connect Apple Health does nothing.** Update to the latest build, tap again, and check **iOS Settings › Health › Data Access & Devices › ate**. The Health line on the Beta page shows the status. Health data never leaves your phone: [Health data](health.html).
+**Connect Apple Health does nothing.** Update to the latest build, tap again, and check **iOS Settings › Health › Data Access & Devices › ate**. The Health line under Settings › Beta testing shows the status. Health data never leaves your phone: [Health data](health.html).
 
 ## Sync and account
 **Do I need an account?** No. An account only adds sync between devices.

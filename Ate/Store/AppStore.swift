@@ -87,6 +87,8 @@ final class AppStore {
     /// Library tab's navigation stack (recipes, shared links, not-found).
     var path: [Route] = []
     var shoppingPath: [Route] = []
+    /// Dedicated Cooking Tracker tab's navigation stack.
+    var trackerPath: [Route] = []
     var settingsPath: [Route] = []
     var morePath: [Route] = []
     /// Set when the local store had to be repaired at launch (shows the recovery screen).
@@ -98,6 +100,7 @@ final class AppStore {
         switch tab {
         case .library, .collection: return path.isEmpty
         case .shopping: return shoppingPath.isEmpty
+        case .tracker: return trackerPath.isEmpty
         case .settings: return settingsPath.isEmpty
         case .more: return morePath.isEmpty
         case .search: return searchPath.isEmpty

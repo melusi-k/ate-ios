@@ -234,6 +234,22 @@ final class AppIntentsTests: XCTestCase {
         XCTAssertEqual(QAProbe.shared.lastIntent, "openJournal")
     }
 
+    func testOpenJournalEntryIntentRejectsDeletedEntry() async throws {
+        _ = store()
+        var intent = OpenJournalEntryIntent()
+        intent.target = AteJournalEntryEntity(id: "deleted-journal-entry-38", title: "Deleted entry",
+                                               message: AttributedString("Gone"), entryDate: nil)
+        do {
+            _ = try await intent.perform()
+            XCTFail("Opening a deleted journal entry should return a clear not-found error")
+        } catch {
+            XCTAssertTrue(error is JournalIntentError)
+            if let journalError = error as? JournalIntentError, case .notFound = journalError {} else {
+                XCTFail("Expected notFound, got: \(error)")
+            }
+        }
+    }
+
     func testCreateJournalIntentRejectsImagePromptWithoutSaving() async throws {
         let journal = JournalStore.shared
         let before = Set(journal.entries().map(\.id))

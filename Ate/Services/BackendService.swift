@@ -53,7 +53,11 @@ enum AppConfig {
     }
     static var isBetaBuild: Bool {
         let args = ProcessInfo.processInfo.arguments
-        if isUITesting { return !args.contains("-qaProductionChannel") }
+        // Explicit QA channel overrides make UI coverage deterministic without changing
+        // the actual channel embedded in a production or beta archive.
+        if args.contains("-qaProductionChannel") { return false }
+        if args.contains("-qaBetaChannel") { return true }
+        if isUITesting { return true }
         return isBetaChannel(channel)
     }
     /// "0.1.40 (40) TierA" — CFBundleShortVersionString stays numeric; the channel is display-only.

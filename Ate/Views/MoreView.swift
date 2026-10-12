@@ -8,30 +8,30 @@ struct MoreView: View {
     var body: some View {
         Group {
             if AppConfig.isBetaBuild {
-            List {
-                Section {
-                    // More's path is also changed by the beta banner/deep-link handler. A direct
-                    // destination avoids iOS resolving a typed path destination while that path changes.
-                    NavigationLink {
-                        BetaTestingView()
-                    } label: {
-                        LabeledContent { Text("\(qa.progress().passed)/\(qa.progress().total)").monospacedDigit() } label: {
-                            Label("Beta testing", systemImage: "checklist")
+                List {
+                    Section {
+                        // More's path is also changed by the beta banner/deep-link handler. A direct
+                        // destination avoids iOS resolving a typed path destination while that path changes.
+                        NavigationLink {
+                            BetaTestingView()
+                        } label: {
+                            LabeledContent { Text("\(qa.progress().passed)/\(qa.progress().total)").monospacedDigit() } label: {
+                                Label("Beta testing", systemImage: "checklist")
+                            }
                         }
+                        .accessibilityIdentifier("more.betaTesting")
+                        NavigationLink {
+                            BetaExpectationsView()
+                        } label: {
+                            Label(Transparency.betaTitle, systemImage: "info.circle")
+                        }
+                        .accessibilityIdentifier("betaNote")
+                    } header: {
+                        Text("Beta testing")
+                    } footer: {
+                        Text("Run the pilot checks, record results, and see what to expect from this build.")
                     }
-                    .accessibilityIdentifier("more.betaTesting")
-                    NavigationLink {
-                        BetaExpectationsView()
-                    } label: {
-                        Label(Transparency.betaTitle, systemImage: "info.circle")
-                    }
-                    .accessibilityIdentifier("betaNote")
-                } header: {
-                    Text("Beta testing")
-                } footer: {
-                    Text("Run the pilot checks, record results, and see what to expect from this build.")
                 }
-            }
             } else {
                 SettingsView()
             }
@@ -39,7 +39,7 @@ struct MoreView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(Theme.background)
-        .navigationTitle("Beta")
+        .navigationTitle(AppConfig.isBetaBuild ? "Beta" : "Settings")
         .navigationBarTitleDisplayMode(.large)
         .softTopEdge()
         // Deep requests from the beta banner still land on the Beta screen.

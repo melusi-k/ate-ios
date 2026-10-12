@@ -305,7 +305,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 
 - **A-NAV-01 · Navigation and layout in portrait and landscape** — 🟡
   - *Journey:* As a cook, I can use Ate held either way.
-  - *Acceptance:* Given b36+, When I rotate in the Library, Then landscape shows the sidebar + 2-column grid, portrait shows the list, the main bar has Library, Shopping, Tracker and Settings (with the iOS 26 Search-role tab where available), and no dedicated Beta/More tab is shown.
+  - *Acceptance:* Given b36+, When I rotate in the Library, Then landscape shows the sidebar + 2-column grid, portrait shows the list, the main bar has Library, Shopping, Tracker and Settings (with the iOS 26 Search-role tab where available), and no dedicated Beta/More tab is shown; Beta testing is reachable only in explicitly named beta build channels and is absent from production builds.
   - *Verified by:* `test22_TabBar, test26, test27_LandscapeSidebarGridAndCollections` · QA.md (new step)
   - *Status evidence:* Rotation only just enabled in b36 and unverified; test27 was failing/flaky
   - *Owner:* _TBD_
@@ -380,7 +380,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 
 - **A-HEALTH-03 · Body state + 3 meal ideas** — 🔴
   - *Journey:* As a cook, I get meal ideas that fit how my body is doing today.
-  - *Acceptance:* Given Health has recent data, Then Insights shows a state title (e.g. Recovery day) with reasons and up to 3 saved recipes that fit it; Beta testing → Health insights mock scenarios each show a different state.
+  - *Acceptance:* Given Health has recent data, Then Insights shows a state title (e.g. Recovery day) with reasons and up to 3 saved recipes that fit it; Settings › Beta testing → Health insights mock scenarios each show a different state.
   - *Verified by:* `CoverageUITests` (mock Health) · device
   - *Status evidence:* new in build 59+
   - *Owner:* _TBD_
@@ -768,7 +768,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 ### Design review polish — 0 / 7
 
 - **C-DES-01 · Native nav bars** — ❌
-  - *Acceptance:* Library, Shopping, More and Settings show system large serif titles that collapse on scroll; pushed screens use the system chevron Back and swipe-back; no custom bar chrome.
+  - *Acceptance:* Library, Shopping, Tracker and Settings show system large serif titles that collapse on scroll; pushed screens use the system chevron Back and swipe-back; no custom bar chrome.
   - *Verified by:* auto: UI test testSystemBackFromRecipeNeverDead
   - *Owner:* _TBD_
 
@@ -834,7 +834,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Owner:* _TBD_
 
 - **C-NAT-02 · N-02 Large titles + system Back** — ❌
-  - *Acceptance:* Large serif titles collapse on scroll; pushed screens have chevron Back and swipe-back; Back is never dead from Library, More, Settings or the Insights sheet.
+  - *Acceptance:* Large serif titles collapse on scroll; pushed screens have chevron Back and swipe-back; Back is never dead from Library, Settings or the Insights sheet.
   - *Verified by:* auto: UI test
   - *Owner:* _TBD_
 
@@ -1004,7 +1004,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 - **C-FIX-01 · Believable step times** — ❌
   - *Journey:* As a cook, believable step times.
   - *Acceptance:* On Nyama yenkomo (and any saved recipe) 'brown beef (2 min)', 'simmer (4 min)', 'pap (3 min)' are gone: implausible AI times show no '(N min)' and no timer, a time written in the step wins, and the card notes that times were corrected.
-  - *Verified by:* `—` · Manual (Settings › Beta testing)
+  - *Verified by:* `—` · Manual (beta-channel build: Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_
 

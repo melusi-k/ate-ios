@@ -18,7 +18,7 @@ Resolved for new links (Tier A builds): shares now look like `https://melusi-k.g
 Check Spam/Promotions. The beta uses Supabase's built-in mailer, which sends only a few emails per hour, so wait 10 minutes before trying again. Open the link **on the iPhone that has ate installed**. If it says the link expired, request a new one. You can keep using ate without an account in the meantime.
 
 **6. "Timers run but nothing shows in the Dynamic Island / Lock Screen."**
-Open More › About › Live Activity. If it says *Widget extension: MISSING*, re-install with Sideloadly's **Remove extensions** option unticked (keep extensions). If *areActivitiesEnabled: NO*, turn on Settings › ate › Live Activities. If the last request shows an error, send us a screenshot of that panel.
+Open Settings › About › Live Activity. If it says *Widget extension: MISSING*, re-install with Sideloadly's **Remove extensions** option unticked (keep extensions). If *areActivitiesEnabled: NO*, turn on Settings › ate › Live Activities. If the last request shows an error, send us a screenshot of that panel.
 
 **7. "The Apple Watch app didn't install."**
 Sideloadly/AltStore with a free Apple ID usually install only the iPhone app. The watch app needs Xcode (free ID, 7-day expiry) or a paid developer account / TestFlight.

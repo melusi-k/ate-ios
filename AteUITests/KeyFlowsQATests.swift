@@ -49,19 +49,15 @@ final class KeyFlowsQATests: XCTestCase {
             return
         }
 
-        // On iOS 26 the tab bar may put Settings in the system-generated More overflow.
-        // The overflow button has no identifier and shares the "More" label with the app's own tab.
+        // iOS 26 can move Settings into a system-owned tab overflow that XCTest
+        // exposes only as a second "More" button. Use the app-owned More hub's explicit
+        // Settings destination instead of depending on that system UI.
         if name == "Settings" {
-            let settings = app.buttons.matching(NSPredicate(format: "label == %@ OR identifier == %@", name, name)).firstMatch
-            if !(settings.exists && settings.isHittable) {
-                let moreButtons = tabBar.buttons.matching(NSPredicate(format: "label == %@", "More"))
-                if moreButtons.count > 1 {
-                    moreButtons.element(boundBy: moreButtons.count - 1).tap()
-                }
-            }
-            let settingsAfterOverflow = app.buttons.matching(NSPredicate(format: "label == %@ OR identifier == %@", name, name)).firstMatch
-            if settingsAfterOverflow.waitForExistence(timeout: 5) && settingsAfterOverflow.isHittable {
-                settingsAfterOverflow.tap()
+            let moreTab = tabBar.buttons["square.grid.2x2"].firstMatch
+            if moreTab.exists && moreTab.isHittable { moreTab.tap() }
+            let settingsLink = app.buttons["more.settings"]
+            if settingsLink.waitForExistence(timeout: 5) && settingsLink.isHittable {
+                settingsLink.tap()
                 return
             }
         }

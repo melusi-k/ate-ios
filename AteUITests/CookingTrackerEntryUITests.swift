@@ -26,12 +26,20 @@ final class CookingTrackerEntryUITests: XCTestCase {
         let previous = app.buttons["tracker.previousMonth"]
         XCTAssertTrue(previous.isHittable)
         previous.tap()
-        XCTAssertNotEqual(month.label, currentMonth)
+        let movedToPreviousMonth = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label != %@", currentMonth),
+            object: month
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [movedToPreviousMonth], timeout: 3), .completed)
 
         let next = app.buttons["tracker.nextMonth"]
         XCTAssertTrue(next.isHittable)
         next.tap()
-        XCTAssertEqual(month.label, currentMonth)
+        let returnedToCurrentMonth = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", currentMonth),
+            object: month
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [returnedToCurrentMonth], timeout: 3), .completed)
         XCTAssertFalse(next.isEnabled, "The calendar must not navigate beyond the current month")
     }
 

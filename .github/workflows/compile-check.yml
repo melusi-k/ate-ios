@@ -245,9 +245,7 @@ jobs:
             test-summary.log
             ui.log
             ui-summary.log
-            settings-tab-qa.log
             production-channel-production.log
-            production-channel-beta.log
             settings-sync.log
             tracker-ui.log
             cook-mode-history.log

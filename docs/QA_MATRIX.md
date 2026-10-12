@@ -175,7 +175,7 @@ The production tab bar is Library, Shopping, Tracker, Settings plus Search-role 
 | C-TAB-02 | Timer in accessory | Running timer → timer summary + "+" in the accessory; no duplicate timer bar at tab roots; detail Cook mode clear | testDetailTimerBarLayout (detail), Manual |
 | C-TAB-03 | Minimise on scroll | `.tabBarMinimizeBehavior(.onScrollDown)`; accessory compact via `tabViewBottomAccessoryPlacement == .inline` | Manual |
 | C-TAB-04 | Search tab | `Tab(role: .search)` + `.searchable`; `.searchPresentationToolbarBehavior(.avoidHidingContent)` keeps "Your Kitchen" | testTab_AccessoryAndSearchTab, test04 |
-| C-TAB-05 | Soft scroll edge | `.scrollEdgeEffectStyle(.soft, for: .top)` on Library, Shopping, More, Settings | Manual |
+| C-TAB-05 | Soft scroll edge | `.scrollEdgeEffectStyle(.soft, for: .top)` on Library, Shopping, Tracker, Settings | Manual |
 | C-TAB-06 | Concentric cards | `ConcentricRectangle` for cards in the Add/Review sheet | Manual |
 
 ## Added from MVP_CHECKLIST (check-ids --fix)
@@ -231,7 +231,7 @@ The production tab bar is Library, Shopping, Tracker, Settings plus Search-role 
 | C-JRN-08 | Image prompts are never journal entries | — | Sending an image-generation prompt (e.g. 'A top-down, highly detailed photograph…') to New journal entry is refused with a clear message, and old ones are cleaned up. | auto: JournalTextGuardTests | Not run | Not run | Not run | ❌ | — |
 | C-LIB-01 | As a cook, library header. | — | Library shows the logo in the toolbar, the native large title 'Your Kitchen', 'Search N recipes' in the search bar, a quiet count, and one icon-only Group & sort menu that never truncates. | `—` | Not run | Not run | Not run | ❌ | Build 97; awaiting device run |
 | C-NAT-01 | N-01 System chrome only | — | Tab bar, nav bars, Back, menus, search and sheet chrome are system; no custom glassEffect without an opaque iOS 18 fallback; cards, buttons, chips and fields stay opaque. | manual | Not run | Not run | Not run | ❌ | — |
-| C-NAT-02 | N-02 Large titles + system Back | — | Large serif titles collapse on scroll; pushed screens have chevron Back and swipe-back; Back is never dead from Library, More, Settings or the Insights sheet. | auto: UI test | Not run | Not run | Not run | ❌ | — |
+| C-NAT-02 | N-02 Large titles + system Back | — | Large serif titles collapse on scroll; pushed screens have chevron Back and swipe-back; Back is never dead from Library, Settings or the Insights sheet. | auto: UI test | Not run | Not run | Not run | ❌ | — |
 | C-NAT-03 | N-03 One bottom area | — | Recipe detail: Cook mode above a single timer bar; Ask Ate scrolls clear; offline strip at the top. | auto: UI test | Not run | Not run | Not run | ❌ | — |
 | C-NAT-04 | N-04 Search | — | Library uses system search; the query survives tab switches and cancel-and-return; scroll position is kept per tab. | auto: UI test test04 | Not run | Not run | Not run | ❌ | — |
 | C-NAT-05 | N-05 Destructive actions | — | Delete recipe, clear list and sign out use a confirmation dialog anchored to the control; delete account is an alert with a safe Cancel. | manual | Not run | Not run | Not run | ❌ | — |
@@ -247,7 +247,7 @@ The production tab bar is Library, Shopping, Tracker, Settings plus Search-role 
 | C-SIRI-02 | Clean Siri dialog | — | Every Siri reply starts with a capital, has no stray spaces before punctuation, and is never blank. | auto: SiriPolishTests | Not run | Not run | Not run | ❌ | — |
 | C-SIRI-03 | Snippet cards show covers | — | Tonight's pick, Quick recipes and timer cards show the recipe cover, not a generic icon, with working buttons. | manual | Not run | Not run | Not run | ❌ | — |
 | C-SIRI-04 | Fuzzy recipe names | — | 'Cook Mugod' finds Mogodu, ambiguous names ask which one, unknown names say so, and the wrong recipe is never started. | auto: SiriRoutingTests | Not run | Not run | Not run | ❌ | — |
-| C-WID-01 | Widgets read live data | — | Beta testing › Widgets says App Group OK and at least one widget kind has loaded; no widget is stuck on 'Open ate'. | auto: App Group + widget heartbeat detected | Not run | Not run | Not run | ❌ | — |
+| C-WID-01 | Widgets read live data | — | Settings › Beta testing › Widgets says App Group OK and at least one widget kind has loaded; no widget is stuck on 'Open ate'. | auto: App Group + widget heartbeat detected | Not run | Not run | Not run | ❌ | — |
 | C-WID-02 | Widget gallery polish | — | All five Ate widgets appear in the gallery with names, descriptions and correct previews in light, dark and tinted modes. | manual | Not run | Not run | Not run | ❌ | — |
 | C-WID-03 | Lock Screen accessories | — | Circular ring, rectangular step timer and inline shopping item render legibly in every Lock Screen font/colour and update within a few seconds. | manual | Not run | Not run | Not run | ❌ | — |
 | C-WID-04 | Control Center controls | — | Kitchen timer and Quick add appear in the Controls gallery with icons and labels, and work from the Lock Screen and Action button. | manual | Not run | Not run | Not run | ❌ | — |

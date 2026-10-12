@@ -54,6 +54,55 @@ final class CookingHistoryTests: XCTestCase {
         XCTAssertEqual(history.streak(asOf: today.addingTimeInterval(12 * 3600)), 1)
     }
 
+    func testEmptyHistoryHasNoStreakAndTodayStartsOneDayStreak() {
+        let (history, cal) = makeHistory()
+        let today = cal.date(from: DateComponents(year: 2026, month: 10, day: 12))!
+        XCTAssertEqual(history.streak(asOf: today.addingTimeInterval(12 * 3600)), 0)
+
+        history.record(recipeID: "today-r1", date: today.addingTimeInterval(3600))
+        history.record(recipeID: "today-r2", date: today.addingTimeInterval(7200))
+        XCTAssertEqual(history.streak(asOf: today.addingTimeInterval(12 * 3600)), 1)
+        XCTAssertEqual(history.recipeIDs(on: today), ["today-r1", "today-r2"])
+    }
+
+    func testStreakCrossesMonthYearAndLeapDayBoundaries() {
+        let (history, cal) = makeHistory()
+        let dates = [
+            cal.date(from: DateComponents(year: 2024, month: 2, day: 28))!,
+            cal.date(from: DateComponents(year: 2024, month: 2, day: 29))!,
+            cal.date(from: DateComponents(year: 2024, month: 3, day: 1))!,
+            cal.date(from: DateComponents(year: 2024, month: 12, day: 31))!,
+            cal.date(from: DateComponents(year: 2025, month: 1, day: 1))!
+        ]
+        for (index, date) in dates.enumerated() {
+            if index < 3 { history.record(recipeID: "leap-\\(index)", date: date) }
+        }
+        XCTAssertEqual(history.streak(asOf: dates[2].addingTimeInterval(12 * 3600)), 3)
+
+        history.clear()
+        history.record(recipeID: "year-end", date: dates[3])
+        history.record(recipeID: "new-year", date: dates[4])
+        XCTAssertEqual(history.streak(asOf: dates[4].addingTimeInterval(12 * 3600)), 2)
+    }
+
+    func testLocalDayKeysRemainStableAcrossTimezoneChange() {
+        var newYork = Calendar(identifier: .gregorian)
+        newYork.timeZone = TimeZone(identifier: "America/New_York")!
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let history = CookingHistory(calendar: newYork, defaults: defaults)
+        // 2026-10-12 03:30 UTC is still the previous local day in New York.
+        let instant = ISO8601DateFormatter().date(from: "2026-10-12T03:30:00Z")!
+        let recordedDay = newYork.date(from: DateComponents(year: 2026, month: 10, day: 11))!
+        history.record(recipeID: "timezone-recipe", date: instant)
+        XCTAssertEqual(history.recipeIDs(on: recordedDay), ["timezone-recipe"])
+
+        var losAngeles = Calendar(identifier: .gregorian)
+        losAngeles.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        let reopened = CookingHistory(calendar: losAngeles, defaults: defaults)
+        let sameStoredDay = losAngeles.date(from: DateComponents(year: 2026, month: 10, day: 11))!
+        XCTAssertEqual(reopened.recipeIDs(on: sameStoredDay), ["timezone-recipe"])
+    }
+
     func testKeyRoundTrips() {
         let (history, cal) = makeHistory()
         let d = cal.date(from: DateComponents(year: 2026, month: 1, day: 9))!

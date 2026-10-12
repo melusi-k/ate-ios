@@ -157,7 +157,7 @@ jobs:
         run: |
           STEP_START=$(date +%s)
           set +e
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cooking-tracker-ui-tests.xcresult" -only-testing:AteUITests/CookingTrackerEntryUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-allowance 120 -maximum-test-execution-allowance 240 CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cooking-tracker-ui-tests.xcresult" -only-testing:AteUITests/CookingTrackerEntryUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1
           status=$?
           set -e
           STEP_END=$(date +%s)
@@ -173,6 +173,27 @@ jobs:
           fi
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" tracker-ui.log | tail -n 30
+      - name: Cook Mode completion/history UI tests
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          STEP_START=$(date +%s)
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-mode-history-ui-tests.xcresult" -only-testing:AteUITests/AteUITests/test06_CookMode -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > cook-mode-history.log 2>&1
+          status=$?
+          set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=cook-mode-history-ui-tests duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
+
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Cook Mode completion/history UI tests failed (xcodebuild exit $status). Exact diagnostics follow; cook-mode-history.log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" cook-mode-history.log || true
+            echo "::group::Last 100 Cook Mode history-test log lines"
+            tail -n 100 cook-mode-history.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
+
+          grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" cook-mode-history.log | tail -n 30
       - name: Widget/intents UI tests
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
@@ -209,4 +230,6 @@ jobs:
             ui.log
             ui-summary.log
             settings-tab-qa.log
+            tracker-ui.log
+            cook-mode-history.log
             ${{ runner.temp }}/ate-test-results/*.xcresult

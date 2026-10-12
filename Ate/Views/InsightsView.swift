@@ -54,6 +54,7 @@ final class InsightsModel {
 
 /// More → Insights: "Your body today", "Suggested meals", "Reflect on your day", "Save to journal".
 struct InsightsView: View {
+    var screenTitle: String = "Insights"
     @Environment(AppStore.self) private var store
     @State private var model = InsightsModel.shared
     @State private var draft = ""
@@ -68,9 +69,9 @@ struct InsightsView: View {
             Theme.background.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Insights").font(AteFont.display(30)).accessibilityAddTraits(.isHeader)
-                    bodyToday
+                    Text(screenTitle).font(AteFont.display(30)).accessibilityAddTraits(.isHeader)
                     CookingTrackerView()
+                    bodyToday
                     if let c = model.context {
                         card("Suggested meals") {
                             Text(c.insight.state.mealFocus).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)

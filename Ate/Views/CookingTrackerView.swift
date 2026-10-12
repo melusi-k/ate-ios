@@ -177,7 +177,6 @@ private struct CookingDaySheet: View {
                     if recipeIDs.isEmpty { Text("Nothing recorded for this day.").foregroundStyle(.secondary) }
                     ForEach(Array(recipeIDs).sorted(), id: \.self) { id in
                         Label(CookingTrackerPresentation.recipeTitle(for: id, recipes: recipes), systemImage: "fork.knife")
-                            .accessibilityIdentifier("tracker.recipe.\(id)")
                     }
                 }
             }.navigationTitle("Cooked that day").navigationBarTitleDisplayMode(.inline)
@@ -186,23 +185,10 @@ private struct CookingDaySheet: View {
 }
 
 
-/// Full-screen destination for the dedicated Tracker tab; the compact card remains reusable in Insights.
+/// Tracker tab hub: one scroll view containing cooking history, Health insights, and the local Ate journal.
 struct CookingTrackerScreen: View {
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Cooking Tracker")
-                    .font(AteFont.display(30))
-                    .accessibilityAddTraits(.isHeader)
-                CookingTrackerView()
-            }
-            .foregroundStyle(Theme.foreground)
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 40)
-            .pageWidth()
-        }
-        .background(Theme.background)
-        .accessibilityIdentifier("cookingTracker.screen")
+        InsightsView(screenTitle: "Today & Journal")
+            .accessibilityIdentifier("cookingTracker.screen")
     }
 }

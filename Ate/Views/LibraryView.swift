@@ -76,6 +76,7 @@ struct LibraryView: View {
         return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header
+                TodayJournalHubCard()
                 TodayHealthCard()
                 FilterChips(resultCount: filtered.count)
                 emptyState(filtered)
@@ -124,6 +125,7 @@ struct LibraryView: View {
         return List {
             Group {
                 header
+                TodayJournalHubCard()
                 FilterChips(resultCount: filtered.count)
                 emptyState(filtered)
                 ForEach(sections) { sec in
@@ -347,5 +349,36 @@ struct LibrarySearch: ViewModifier {
             v.searchPresentationToolbarBehavior(.avoidHidingContent)   // "Your Kitchen" stays visible while searching
              .scrollEdgeEffectStyle(.soft, for: .top)
         } else { v }
+    }
+}
+
+
+/// Always-visible Library shortcut to the combined daily Tracker hub.
+struct TodayJournalHubCard: View {
+    @Environment(AppStore.self) private var store
+
+    var body: some View {
+        Button {
+            store.trackerPath = []
+            store.select(.tracker)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.title2)
+                    .foregroundStyle(Theme.primary)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Today & Journal").font(AteFont.body(15, .semibold))
+                    Text("Cooking history, Health insights, and your entries")
+                        .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right").foregroundStyle(Theme.mutedForeground)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("library.todayJournalHub")
     }
 }

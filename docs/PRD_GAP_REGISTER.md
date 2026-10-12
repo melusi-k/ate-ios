@@ -68,6 +68,10 @@ IDs below are generated from the current checklist's actual item labels. The che
 - **Library header:** C-LIB-01
 - **iOS 26 tab bar:** C-TAB-01, C-TAB-02, C-TAB-03, C-TAB-04, C-TAB-05, C-TAB-06
 
+## Issue #38 — combined Tracker hub
+
+The implementation decision and acceptance sequence are recorded in [HEALTH_JOURNAL_TRACKER_HUB.md](HEALTH_JOURNAL_TRACKER_HUB.md). The existing Tracker tab becomes **Today & Journal** while retaining the **Tracker** tab label; Health stays read-only and opt-in, and the Ate journal remains local-only. This is coupled to [issue #31](https://github.com/melusi-k/ate-ios/issues/31): retain the cooking-history and Cook Mode completion/early-exit tests, and run the extended `CookingTrackerEntryUITests` target through PR #63's main-push release gate. Simulator/CI tests gate implementation and merge. Physical-device and entitlement evidence is intentionally deferred until the final pass of issue #38; keep those checks open until recorded. Issue #31's cooking-specific device checks remain separately tracked in [issue #60](https://github.com/melusi-k/ate-ios/issues/60).
+
 ## PRD requirements needing explicit decisions / evidence beyond the ID list
 
 - **Cooking Tracker semantics:** The PRD describes Recently cooked via `lastCookedAt`, but a full tracker needs an explicit product decision on whether entering Cook Mode counts as cooking, plus local history, date/time-zone behavior, streak rules and deleted-recipe behavior. Tracked in #31.

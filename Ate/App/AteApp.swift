@@ -232,6 +232,11 @@ extension RootView {
                 }.withTimerBar()
             }
             .badge(store.pendingShoppingCount)
+            Tab("Tracker", systemImage: "calendar", value: AppTab.tracker) {
+                NavigationStack(path: $store.trackerPath) {
+                    CookingTrackerScreen().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }.withTimerBar()
+            }
             Tab("More", systemImage: "square.grid.2x2", value: AppTab.more) {
                 NavigationStack(path: $store.morePath) {
                     MoreView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
@@ -272,6 +277,11 @@ extension RootView {
                 }.withTimerBar()
             }
             .badge(store.pendingShoppingCount)
+            Tab("Tracker", systemImage: "calendar", value: AppTab.tracker) {
+                NavigationStack(path: $store.trackerPath) {
+                    CookingTrackerScreen().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                }.withTimerBar()
+            }
             Tab("More", systemImage: "square.grid.2x2", value: AppTab.more) {
                 NavigationStack(path: $store.morePath) {
                     MoreView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
@@ -293,6 +303,7 @@ extension RootView {
                 switch new {
                 case .library, .collection: store.path = []
                 case .shopping: store.shoppingPath = []
+                case .tracker: store.trackerPath = []
                 case .settings: store.settingsPath = []
                 case .more: store.morePath = []
                 case .search: store.searchPath = []
@@ -347,6 +358,7 @@ struct LandscapeSplitView: View {
                     Section {
                         row(.library, "Library", "books.vertical")
                         row(.shopping, "Shopping list", "basket", badge: store.pendingShoppingCount)
+                        row(.tracker, "Cooking Tracker", "calendar")
                         row(.more, "More", "square.grid.2x2")
                         row(.settings, "Settings", "gearshape")
                     }
@@ -371,6 +383,10 @@ struct LandscapeSplitView: View {
                 case .shopping:
                     NavigationStack(path: $store.shoppingPath) {
                         ShoppingListView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    }.withTimerBar()
+                case .tracker:
+                    NavigationStack(path: $store.trackerPath) {
+                        CookingTrackerScreen().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                     }.withTimerBar()
                 case .more:
                     NavigationStack(path: $store.morePath) {

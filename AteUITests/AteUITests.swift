@@ -189,10 +189,13 @@ final class AteUITests: XCTestCase {
         wait(text("10:00"))
         app.buttons["Next step"].tap()
         wait(text("Step 4 of 4"))
-        XCTAssertFalse(app.buttons["Next step"].isEnabled)
+        XCTAssertFalse(app.buttons["Next step"].exists, "The final step should offer explicit completion, not a disabled Next step.")
+        let finish = app.buttons["cookFinish"]
+        wait(finish)
+        XCTAssertEqual(finish.label, "Finish cooking")
         shot("cook-last-step")
-        app.buttons["Exit"].tap()
-        wait(app.buttons["Cook mode"])
+        finish.tap()
+        wait(app.buttons["Cook mode"], 5)
     }
 
     func test07_ShoppingList() {

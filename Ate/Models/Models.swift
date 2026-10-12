@@ -183,7 +183,7 @@ enum RecipeCollection: Hashable, Codable {
     }
 }
 
-enum AppTab: Hashable { case library, shopping, more, settings, search, collection(RecipeCollection) }
+enum AppTab: Hashable { case library, tracker, shopping, more, settings, search, collection(RecipeCollection) }
 
 enum Route: Hashable {
     case recipe(String)

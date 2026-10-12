@@ -1,5 +1,7 @@
 import XCTest
 import AppIntents
+import CoreLocation
+import UniformTypeIdentifiers
 @testable import Ate
 
 final class WidgetLogicTests: XCTestCase {
@@ -251,14 +253,18 @@ final class AppIntentsTests: XCTestCase {
         XCTAssertEqual(Set(journal.entries().map(\.id)), before, "Rejected prompts must not create entries")
     }
 
-    func testJournalIntentPayloadKeepsLocationAndMedia() throws {
+    func testJournalIntentPayloadKeepsLocationAndMedia() async throws {
         let journal = JournalStore.shared
         let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZV0AAAAASUVORK5CYII=") ?? Data()
-        guard let entry = journal.saveFromIntent(title: "Shortcut meal", text: "Ate with friends", date: Date(timeIntervalSince1970: 1_791_000_000),
-                                                  state: .balanced, locationName: "Cape Town", latitude: -33.9249, longitude: 18.4241,
-                                                  media: [(data: png, ext: "png")]) else {
-            XCTFail("Journal intent payload should save"); return
-        }
+        var intent = CreateAteJournalEntryIntent()
+        intent.message = AttributedString("Ate with friends")
+        intent.title = "Shortcut meal"
+        intent.entryDate = Date(timeIntervalSince1970: 1_791_000_000)
+        intent.location = CLPlacemark(location: CLLocation(latitude: -33.9249, longitude: 18.4241),
+                                      name: "Cape Town", postalAddress: nil)
+        intent.mediaItems = [IntentFile(data: png, filename: "meal.png", type: .png)]
+        let result = try await intent.perform()
+        let entry = try XCTUnwrap(journal.entry(result.value.id))
         defer { journal.delete(entry) }
         XCTAssertEqual(entry.locationName, "Cape Town")
         XCTAssertEqual(entry.latitude ?? 0, -33.9249, accuracy: 0.0001)

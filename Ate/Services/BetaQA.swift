@@ -20,7 +20,7 @@ final class BetaQA {
     }
 
     private static let key = "ate.betaqa.v1"
-    /// Set by the first-launch banner to push More › Beta testing.
+    /// Set by the first-launch banner to open Settings › Beta testing.
     var openRequested = false
     var magicLinkSent: Bool {
         get { UserDefaults.standard.bool(forKey: "ate.betaqa.magic") }

@@ -70,7 +70,7 @@ IDs below are generated from the current checklist's actual item labels. The che
 
 ## Issue #38 — combined Tracker hub
 
-The implementation decision and acceptance sequence are recorded in [HEALTH_JOURNAL_TRACKER_HUB.md](HEALTH_JOURNAL_TRACKER_HUB.md). The existing Tracker tab becomes **Today & Journal** while retaining the **Tracker** tab label; Health stays read-only and opt-in, and the Ate journal remains local-only. Simulator/CI tests gate implementation and merge. Physical-device and entitlement evidence is intentionally deferred until the final pass of issue #38; keep those checks open until recorded.
+The implementation decision and acceptance sequence are recorded in [HEALTH_JOURNAL_TRACKER_HUB.md](HEALTH_JOURNAL_TRACKER_HUB.md). The existing Tracker tab becomes **Today & Journal** while retaining the **Tracker** tab label; Health stays read-only and opt-in, and the Ate journal remains local-only. This is coupled to [issue #31](https://github.com/melusi-k/ate-ios/issues/31): retain the cooking-history and Cook Mode completion/early-exit tests, and run the extended `CookingTrackerEntryUITests` target through PR #59's main-push release gate. Simulator/CI tests gate implementation and merge. Physical-device and entitlement evidence is intentionally deferred until the final pass of issue #38; keep those checks open until recorded. Issue #31's cooking-specific device checks remain separately tracked in [issue #60](https://github.com/melusi-k/ate-ios/issues/60).
 
 ## PRD requirements needing explicit decisions / evidence beyond the ID list
 

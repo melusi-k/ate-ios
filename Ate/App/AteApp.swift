@@ -127,7 +127,7 @@ struct RootView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             // One top area: beta banner (tab roots only) and the slim offline strip. Nothing at the bottom competes with actions.
             VStack(spacing: 0) {
-                if !store.showOnboarding && store.isAtTabRoot { BetaBanner { store.tab = .more; BetaQA.shared.openRequested = true }.padding(.vertical, 4) }
+                if !store.showOnboarding && store.isAtTabRoot { BetaBanner { store.select(.settings); BetaQA.shared.openRequested = true }.padding(.vertical, 4) }
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -349,7 +349,6 @@ struct LandscapeSplitView: View {
                         row(.library, "Library", "books.vertical")
                         row(.shopping, "Shopping list", "basket", badge: store.pendingShoppingCount)
                         row(.tracker, "Cooking Tracker", "calendar")
-                        row(.more, "More", "square.grid.2x2")
                         row(.settings, "Settings", "gearshape")
                     }
                     Section("Collections") {

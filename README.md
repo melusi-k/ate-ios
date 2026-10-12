@@ -5,9 +5,11 @@ Native SwiftUI (iOS 18+, iPhone; Apple Intelligence features need iOS 26 on supp
 **Beta / launch gate:** [docs/MVP_CHECKLIST.md](docs/MVP_CHECKLIST.md) (tiered A/B/C, score in [docs/MVP_SCORE.md](docs/MVP_SCORE.md), test matrix [docs/QA_MATRIX.md](docs/QA_MATRIX.md)) · **Support FAQ:** [docs/SUPPORT.md](docs/SUPPORT.md) · **QA gate:** [docs/QA.md](docs/QA.md) — the full test matrix is required for `latest-beta` promotion; ordinary `latest-build` releases run smoke checks but not the full suite by default · Testers: [docs/BETA.md](docs/BETA.md).
 
 ## Features
+
+**Production polish:** the shipped tab bar contains Library, Shopping, Tracker, Settings, and (on iOS 26) Search. There is no More/Beta tab. The Beta testing screen and its launch banner are compiled into the app but are shown only when the embedded build channel is an allow-listed beta channel (TierA/TierB/TierC/Beta/QA/Internal/Development). Empty, unknown, and `Production` channels fail closed; `project.yml` defaults to an empty channel. CI beta builds explicitly set `TierA` by default.
 Library + search · Add recipe sheet (Link / Image / Prompt → review/edit/regenerate/save) · Recipe detail (x1/x2/x3 scaling, inline edit, Ask ate rewrite, share, add to shopping list, delete) · Cook mode (big text, progress, step timers with background notifications, screen stays awake) · Shopping list (merge, manual add, tick, share/copy/.txt/.csv, clear) · Settings (private mode, units, timer prefs + quiet hours, export/import/clear) · Shared recipe deep links (`ate://recipe/<slug>`, legacy `ate://r/<slug>`) · 404 / error states.
 
-Also: Journal, widgets / Lock Screen / Control Center, Siri & Shortcuts, Apple Watch timers, iOS 26 tab bar (Library, Shopping, Tracker, Settings, Search, Add recipe accessory); beta diagnostics live under Settings, 80% confidence gate for AI cards.
+Also: Journal, widgets / Lock Screen / Control Center, Siri & Shortcuts, Apple Watch timers, iOS 26 tab bar (Library, Shopping, Tracker, Settings, Search, Add recipe accessory). Beta diagnostics are available only in explicitly named beta build channels; production builds hide both the Beta testing entry and beta banner.
 
 Data is stored on-device with SwiftData. A corrupt store is moved to `Backups/` and rebuilt from sync with a JSON export (A-DATA-01); failed saves retry and show a banner (A-DATA-02). Settings live in UserDefaults.
 

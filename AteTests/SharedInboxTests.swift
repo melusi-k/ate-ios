@@ -28,9 +28,9 @@ final class SharedInboxTests: XCTestCase {
     func testDeepLinksSelectTabs() {
         let store = AppStore(context: nil, backend: MockBackend())
         store.tab = .shopping
-        store.handle(url: URL(string: "ate://recipe/abc")!)
+        store.handle(url: URL(string: "ate://recipe/abc12345")!)
         XCTAssertEqual(store.tab, .library)
-        XCTAssertEqual(store.path, [.shared("abc")])
+        XCTAssertEqual(store.path, [.shared("abc12345")])
     }
 }
 

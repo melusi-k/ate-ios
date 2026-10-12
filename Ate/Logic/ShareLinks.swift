@@ -14,17 +14,26 @@ enum ShareLinks {
         return t.replacingOccurrences(of: "{slug}", with: s)
     }
 
+    /// Matches the server-side get-shared-recipe slug contract.
+    private static func validSlug(_ value: String?) -> String? {
+        guard let value, value.range(of: "^[a-zA-Z0-9]{4,40}$", options: .regularExpression) != nil else { return nil }
+        return value
+    }
+
     static func slug(from url: URL) -> String? {
         if url.scheme == "ate" {
             let parts = ([url.host ?? ""] + url.pathComponents).filter { $0 != "/" && !$0.isEmpty }
-            if let f = parts.first, f == "recipe" || f == "r", parts.count > 1 { return parts[1] }
+            if let f = parts.first, f == "recipe" || f == "r", parts.count > 1 { return validSlug(parts[1]) }
             return nil
         }
+        guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return nil }
         let comps = url.pathComponents.filter { $0 != "/" }
         if let q = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
-           let s = q.first(where: { $0.name == "s" || $0.name == "slug" })?.value, !s.isEmpty,
-           comps.contains("r") || comps.contains("recipe") { return s }
-        if let i = comps.firstIndex(where: { $0 == "r" || $0 == "recipe" }), i + 1 < comps.count, !comps[i + 1].isEmpty { return comps[i + 1] }
+           let s = q.first(where: { $0.name == "s" || $0.name == "slug" })?.value,
+           comps.contains("r") || comps.contains("recipe") { return validSlug(s) }
+        if let i = comps.firstIndex(where: { $0 == "r" || $0 == "recipe" }), i + 1 < comps.count {
+            return validSlug(comps[i + 1])
+        }
         return nil
     }
 }

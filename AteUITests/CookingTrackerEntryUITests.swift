@@ -37,6 +37,9 @@ final class CookingTrackerEntryUITests: XCTestCase {
         XCTAssertTrue(app.buttons["insights.connect"].exists, "Health access should be an explicit user action")
         XCTAssertFalse(app.alerts["“ate” would like to access your Health data"].exists,
                        "Opening Tracker must not request Health permission")
+        app.buttons["insights.connect"].tap()
+        XCTAssertTrue(app.alerts["“ate” would like to access your Health data"].waitForExistence(timeout: 5),
+                      "The mock Health prompt should appear only after explicit user intent")
     }
 
     func testMonthNavigationAndFutureMonthRestriction() {

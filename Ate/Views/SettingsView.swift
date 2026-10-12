@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var importing = false
     @State private var confirmClear = false
     @State private var share: ShareItems?
+    @State private var qa = BetaQA.shared
 
     var body: some View {
         @Bindable var store = store
@@ -58,6 +59,12 @@ struct SettingsView: View {
                         Text(store.session == nil
                              ? "Recipes are stored on this iPhone only. Sign in to sync them to your account."
                              : "Recipes and your shopping list sync to your ate account (Supabase, EU). Shared recipes are public to anyone with the link.")
+                    }
+                    Section("Beta & diagnostics") {
+                        NavigationLink(value: Route.beta) {
+                            Label("Beta testing", systemImage: "checklist")
+                        }
+                        .accessibilityIdentifier("settings.betaTesting")
                     }
                     Section("Tools") {
                         Button { if let u = writeTemp("ate-recipes.json", store.exportJSON()) { share = ShareItems(items: [u]) } } label: {
@@ -120,6 +127,12 @@ struct SettingsView: View {
             Button("Clear all", role: .destructive) { store.clearLibrary(); store.show("Library cleared") }
         }
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
+        .onChange(of: qa.openRequested, initial: true) { _, requested in
+            guard requested else { return }
+            qa.openRequested = false
+            store.select(.settings)
+            store.settingsPath = [.beta]
+        }
     }
 
     private func card<C: View>(@ViewBuilder _ c: () -> C) -> some View { Section { c() } }

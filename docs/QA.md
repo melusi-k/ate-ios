@@ -29,9 +29,13 @@ Device: ______ iOS: ______ Build: ______ Apple Intelligence on? ☐
 8. **Timers** ☐ start a step timer, lock the phone: Dynamic Island + Lock Screen count down ☐ pause/resume ☐ leave cook mode: timer bar shows above the tab bar ☐ finish: chime + haptic, notification if backgrounded
 9. **Other device classes** ☐ an iPhone without Apple Intelligence (badges say Demo / page data) ☐ iOS 18 device if available ☐ VoiceOver pass on Library, Add, Cook ☐ largest Dynamic Type
 
-## Cooking Tracker — required real-device acceptance (issue #31)
+## Cooking Tracker — automated release gate and device follow-up (issue #31)
 
-Record one row for each tested device/build. Simulator results do not replace these checks.
+**Automated closure gate:** unit tests for day-key persistence/streak boundaries, Tracker focused UI tests, and Cook Mode completion/early-exit UI regressions must pass on the exact merged-main commit. The main Build IPA workflow runs these focused UI regressions on every push alongside the unit and key-flow QA gates; the full UI shard suite and backend E2E remain opt-in.
+
+**Device-only follow-up (not a blocker for closing issue #31 under the 2026-10-12 scope decision):** simulator tests cannot certify relaunch behavior on physical hardware, real system time-zone changes, VoiceOver focus order, or largest Dynamic Type. Record these when a test device is available; do not claim them complete based on simulator output.
+
+Record one row for each tested device/build when this follow-up is performed.
 
 Device: ______ iOS version: ______ build number/channel: ______ date/time: ______
 
@@ -43,5 +47,5 @@ Device: ______ iOS version: ______ build number/channel: ______ date/time: _____
 6. **Largest Dynamic Type:** set the largest accessibility text size and inspect the streak label, month title/navigation, weekday row, all date buttons, and selected-day sheet. Confirm there is no clipping, overlap, or unreachable control; all days remain tappable.
 7. **Layout:** check portrait and landscape on iPhone; on iPad, check the supported sidebar layout if available. Confirm the Tracker remains reachable and the calendar/day details fit without controls being obscured.
 
-Evidence to attach to issue #31: device model, iOS version, app build/channel, test date, pass/fail for each numbered step, and screenshots for the calendar, selected-day sheet, largest Dynamic Type, and any failure. Do not mark a device-only criterion complete from simulator output alone.
+Device follow-up evidence: device model, iOS version, app build/channel, test date, pass/fail for each numbered step, and screenshots for the calendar, selected-day sheet, largest Dynamic Type, and any failure. Do not mark a device-only criterion complete from simulator output alone.
 

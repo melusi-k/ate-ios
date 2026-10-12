@@ -27,7 +27,8 @@ struct CookModeView: View {
         .toolbar(.visible, for: .bottomBar)
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
-            store.markCooked(recipeID)
+            // Opening Cook Mode is intent, not evidence that a meal was cooked.
+            // Record history only when the user explicitly finishes the final step.
             // Resume at the step whose timer is running, if any.
             if let t = store.timers.timers.first(where: { $0.recipeID == recipeID && $0.isRunning }) { index = t.stepIndex }
         }
@@ -145,7 +146,18 @@ struct CookModeView: View {
             ToolbarItemGroup(placement: .bottomBar) {
                 Button("Back") { index -= 1 }.disabled(index == 0).frame(minHeight: 44)
                 Spacer()
-                Button("Next step") { index += 1 }.buttonStyle(.borderedProminent).controlSize(.large).disabled(index >= n - 1)
+                if index < n - 1 {
+                    Button("Next step") { index += 1 }
+                        .buttonStyle(.borderedProminent).controlSize(.large)
+                        .accessibilityIdentifier("cookNextStep")
+                } else {
+                    Button("Finish cooking") {
+                        store.markCooked(recipeID)
+                        exit()
+                    }
+                    .buttonStyle(.borderedProminent).controlSize(.large)
+                    .accessibilityIdentifier("cookFinish")
+                }
             }
         }
     }

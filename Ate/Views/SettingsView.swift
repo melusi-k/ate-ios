@@ -62,7 +62,11 @@ struct SettingsView: View {
                     }
                     if AppConfig.isBetaBuild {
                         Section("Beta & diagnostics") {
-                            NavigationLink(value: Route.beta) {
+                            // Use an explicit destination for this channel-gated diagnostics
+                            // screen instead of relying on the shared Route resolver.
+                            NavigationLink {
+                                BetaTestingView()
+                            } label: {
                                 Label("Beta testing", systemImage: "checklist")
                             }
                             .accessibilityIdentifier("settings.betaTesting")

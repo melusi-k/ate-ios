@@ -245,7 +245,7 @@ final class CoverageUITests: XCTestCase {
     }
 
     /// Regression for the reported crash: destructive data clearing must not leave navigation
-    /// state that crashes when More › Beta testing is opened afterward.
+    /// state that crashes when Settings › Beta testing is opened afterward.
     func test35b_BetaOpensAfterLibraryClear() {
         launch()
         tab("Settings")

@@ -16,8 +16,10 @@ final class ProductionChannelUITests: XCTestCase {
 
         // Settings is a scrolling Form; SwiftUI may not materialize this row until
         // its section is brought onscreen. Scroll to the destination before asserting.
+        // Match the NavigationLink itself by identifier; a label-only match can tap
+        // its child text without activating the row's navigation action.
         let betaEntry = app.descendants(matching: .any).matching(
-            NSPredicate(format: "identifier == %@ OR label == %@", "settings.betaTesting", "Beta testing")
+            NSPredicate(format: "identifier == %@", "settings.betaTesting")
         ).firstMatch
         var scrolls = 0
         while !(betaEntry.exists && betaEntry.isHittable) && scrolls < 12 {

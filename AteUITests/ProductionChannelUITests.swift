@@ -14,13 +14,20 @@ final class ProductionChannelUITests: XCTestCase {
         settingsTab.tap()
         XCTAssertTrue(app.staticTexts["accountSyncTitle"].waitForExistence(timeout: 10))
 
+        // Settings is a scrolling Form; SwiftUI may not materialize this row until
+        // its section is brought onscreen. Scroll to the destination before asserting.
         // Match the NavigationLink itself by identifier; a label-only match can tap
         // its child text without activating the row's navigation action.
         let betaEntry = app.descendants(matching: .any).matching(
             NSPredicate(format: "identifier == %@", "settings.betaTesting")
         ).firstMatch
+        var scrolls = 0
+        while !(betaEntry.exists && betaEntry.isHittable) && scrolls < 12 {
+            app.swipeUp(velocity: .slow)
+            scrolls += 1
+        }
         XCTAssertTrue(betaEntry.waitForExistence(timeout: 5) && betaEntry.isHittable,
-                      "Beta-channel builds should expose Beta testing in Settings")
+                      "Beta-channel builds should expose a hittable Beta testing entry in Settings after scrolling. Settings hierarchy: \(app.debugDescription)")
         betaEntry.tap()
         XCTAssertTrue(app.staticTexts["betaBuildLabel"].waitForExistence(timeout: 10),
                       "The Settings entry should open the Beta testing dashboard")
@@ -38,7 +45,10 @@ final class ProductionChannelUITests: XCTestCase {
         settingsTab.tap()
 
         XCTAssertTrue(app.staticTexts["accountSyncTitle"].waitForExistence(timeout: 10))
-        XCTAssertFalse(app.buttons["settings.betaTesting"].exists,
+        // Scroll through Settings before checking absence: a lazy Form may not
+        // create lower rows until they enter the viewport.
+        for _ in 0..<12 { app.swipeUp(velocity: .slow) }
+        XCTAssertFalse(app.descendants(matching: .any)["settings.betaTesting"].exists,
                        "Production-channel builds must not expose Beta testing in Settings")
         XCTAssertFalse(app.staticTexts["Beta testing"].exists,
                        "Production-channel builds must not expose the Beta testing screen")

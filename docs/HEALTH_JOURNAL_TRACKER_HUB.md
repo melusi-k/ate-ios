@@ -2,7 +2,7 @@
 
 ## Product decision
 
-The existing **Tracker** tab is the combined daily/monthly hub. Keep the tab label **Tracker** and use **Today & Journal** as the screen heading. Do not add another tab or imply that Ate writes to Apple's Journal.
+The existing **Tracker** tab is the combined daily/monthly hub. Keep the tab label **Tracker** and use **Today & Journal** as the screen heading. Do not add another tab or imply that Ate writes to Apple's Journal. This is a cross-issue UI change: cooking completion, persistence, streak/calendar semantics, and early-exit behavior remain owned by [issue #31](https://github.com/melusi-k/ate-ios/issues/31); Health and journal acceptance remains owned by [issue #38](https://github.com/melusi-k/ate-ios/issues/38).
 
 ## Screen composition
 
@@ -24,7 +24,7 @@ The Tracker screen should reuse the existing Insights content in a single scroll
 
 ## Automated acceptance before device QA
 
-Run focused Tracker UI tests, Health/Journal unit tests, the compile workflow, and the normal CI test targets. At minimum verify:
+Run the full `CookingTrackerEntryUITests` target, the Cook Mode completion/early-exit integration tests, Health/Journal unit tests, the compile workflow, and normal CI test targets. PR #59 wires the Tracker target and Cook Mode integration tests into the main-push release gate; new #38 hub tests must remain in that same target. At minimum verify:
 
 - Tracker tab opens with heading `Today & Journal`.
 - Calendar month navigation, current-month future restriction, and selected-day empty state still work.

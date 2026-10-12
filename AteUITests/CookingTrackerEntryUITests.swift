@@ -14,7 +14,17 @@ final class CookingTrackerEntryUITests: XCTestCase {
 
     func testTrackerHasDedicatedTabEntryPoint() {
         let app = launchTracker()
-        XCTAssertTrue(app.staticTexts["Cooking Tracker"].firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["Today & Journal"].waitForExistence(timeout: 5))
+    }
+
+    func testTrackerHubIncludesHealthAndJournalWithoutPromptingOnOpen() {
+        let app = launchTracker()
+        XCTAssertTrue(app.staticTexts["Your body today"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Your Ate journal"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["insights.cookingCalendar"].exists)
+        XCTAssertTrue(app.buttons["insights.connect"].exists, "Health access should be an explicit user action")
+        XCTAssertFalse(app.alerts["“ate” would like to access your Health data"].exists,
+                       "Opening Tracker must not request Health permission")
     }
 
     func testMonthNavigationAndFutureMonthRestriction() {

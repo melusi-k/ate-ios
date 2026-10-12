@@ -897,7 +897,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 ### Widgets, Lock Screen & Control Center — 0 / 4
 
 - **C-WID-01 · Widgets read live data** — ❌
-  - *Acceptance:* Beta testing › Widgets says App Group OK and at least one widget kind has loaded; no widget is stuck on 'Open ate'.
+  - *Acceptance:* Settings › Beta testing › Widgets says App Group OK and at least one widget kind has loaded; no widget is stuck on 'Open ate'.
   - *Verified by:* auto: App Group + widget heartbeat detected
   - *Owner:* _TBD_
 
@@ -1121,7 +1121,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 
 - **C-TAB-05 · Soft scroll edges** — ❌
   - *Journey:* As a cook, soft scroll edges.
-  - *Acceptance:* Library, Shopping, More and Settings fade softly under the nav bar when scrolled.
+  - *Acceptance:* Library, Shopping, Tracker and Settings fade softly under the nav bar when scrolled.
   - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* _TBD_

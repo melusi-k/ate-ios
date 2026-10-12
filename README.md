@@ -7,7 +7,7 @@ Native SwiftUI (iOS 18+, iPhone; Apple Intelligence features need iOS 26 on supp
 ## Features
 Library + search · Add recipe sheet (Link / Image / Prompt → review/edit/regenerate/save) · Recipe detail (x1/x2/x3 scaling, inline edit, Ask ate rewrite, share, add to shopping list, delete) · Cook mode (big text, progress, step timers with background notifications, screen stays awake) · Shopping list (merge, manual add, tick, share/copy/.txt/.csv, clear) · Settings (private mode, units, timer prefs + quiet hours, export/import/clear) · Shared recipe deep links (`ate://recipe/<slug>`, legacy `ate://r/<slug>`) · 404 / error states.
 
-Also: Journal, widgets / Lock Screen / Control Center, Siri & Shortcuts, Apple Watch timers, iOS 26 tab bar (Add recipe accessory, Search tab), 80% confidence gate for AI cards.
+Also: Journal, widgets / Lock Screen / Control Center, Siri & Shortcuts, Apple Watch timers, iOS 26 tab bar (Library, Shopping, Tracker, Settings, Search, Add recipe accessory); beta diagnostics live under Settings, 80% confidence gate for AI cards.
 
 Data is stored on-device with SwiftData. A corrupt store is moved to `Backups/` and rebuilt from sync with a JSON export (A-DATA-01); failed saves retry and show a banner (A-DATA-02). Settings live in UserDefaults.
 
@@ -96,7 +96,7 @@ The Live Activity is drawn by the **AteWidgets** extension (`PlugIns/AteWidgets.
 - In Sideloadly › **Advanced options**, leave **"Remove extensions"** (a.k.a. *Remove app extensions / PlugIns*) **unticked** — i.e. keep extensions. Ticking it saves App IDs but deletes the widget, the share extension and the watch app.
 - Leave **"Change bundle ID"** off unless you hit a conflict. If you change it, Sideloadly re-prefixes every extension (`<new id>.widgets`), which is fine; what breaks is an extension whose ID is no longer a child of the app's.
 - Free Apple IDs get **10 App IDs per 7 days**. ate now has 5 bundles (app, widgets, share, watch, watch widgets). If Sideloadly fails with "maximum App ID limit", wait a few days or remove extensions you don't need — but the widgets one is required for Live Activities.
-- After installing, check **More › About › Live Activity**: it shows `areActivitiesEnabled`, the last request result or error, the active count, the app/extension bundle IDs and the PlugIns present. "Widget extension: MISSING" means it was stripped; `areActivitiesEnabled: NO` means Settings › ate › **Live Activities** is off.
+- After installing, check **Settings › About › Live Activity**: it shows `areActivitiesEnabled`, the last request result or error, the active count, the app/extension bundle IDs and the PlugIns present. "Widget extension: MISSING" means it was stripped; `areActivitiesEnabled: NO` means Settings › ate › **Live Activities** is off.
 
 ### Apple Watch app (watchOS 11+, independent)
 `Ate.app/Watch/AteWatch.app` is embedded in the `.ipa` and also runs on its own (`WKRunsIndependentlyOfCompanionApp = YES`): sign in on the wrist with an email code, or open ate on a paired, signed-in iPhone and the session is handed over via WatchConnectivity.

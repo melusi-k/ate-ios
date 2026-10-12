@@ -235,9 +235,12 @@ final class AppIntentsTests: XCTestCase {
     func testCreateJournalIntentRejectsImagePromptWithoutSaving() async throws {
         let journal = JournalStore.shared
         let before = Set(journal.entries().map(\.id))
-        let intent = CreateAteJournalEntryIntent(
-            message: AttributedString("A top-down, highly detailed photograph of a bowl of mogodu on a wooden table"),
-            title: "Image prompt", entryDate: nil, location: nil, mediaItems: [])
+        var intent = CreateAteJournalEntryIntent()
+        intent.message = AttributedString("A top-down, highly detailed photograph of a bowl of mogodu on a wooden table")
+        intent.title = "Image prompt"
+        intent.entryDate = nil
+        intent.location = nil
+        intent.mediaItems = []
         do {
             _ = try await intent.perform()
             XCTFail("Image-generation prompts must not be saved as journal entries")

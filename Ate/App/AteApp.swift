@@ -127,7 +127,7 @@ struct RootView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             // One top area: beta banner (tab roots only) and the slim offline strip. Nothing at the bottom competes with actions.
             VStack(spacing: 0) {
-                if !store.showOnboarding && store.isAtTabRoot { BetaBanner { store.select(.settings); BetaQA.shared.openRequested = true }.padding(.vertical, 4) }
+                if AppConfig.isBetaBuild && !store.showOnboarding && store.isAtTabRoot { BetaBanner { store.select(.settings); BetaQA.shared.openRequested = true }.padding(.vertical, 4) }
             }
         }
         .overlay(alignment: .bottomTrailing) {

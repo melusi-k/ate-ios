@@ -157,7 +157,7 @@ jobs:
         run: |
           STEP_START=$(date +%s)
           set +e
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cooking-tracker-ui-tests.xcresult" -only-testing:AteUITests/CookingTrackerEntryUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-allowance 120 -maximum-test-execution-allowance 240 CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cooking-tracker-ui-tests.xcresult" -only-testing:AteUITests/CookingTrackerEntryUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-allowance 240 CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1
           status=$?
           set -e
           STEP_END=$(date +%s)
@@ -209,4 +209,5 @@ jobs:
             ui.log
             ui-summary.log
             settings-tab-qa.log
+            tracker-ui.log
             ${{ runner.temp }}/ate-test-results/*.xcresult

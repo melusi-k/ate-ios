@@ -43,8 +43,19 @@ enum AppConfig {
     static var gitSHA: String { string("AteGitSHA").isEmpty ? "dev" : string("AteGitSHA") }
     static var backendRef: String { supabaseURL?.host?.components(separatedBy: ".").first ?? "none" }
     /// e.g. "ate 0.1.12 (build 12) · 306e343 · backend ploncuhexmwydjxljuhe"
-    /// Release channel (build setting ATE_CHANNEL, e.g. "TierA"); empty for plain builds.
+    /// Release channel (build setting ATE_CHANNEL, e.g. "TierA"); empty/unknown channels are treated as production.
     static var channel: String { string("AteChannel") }
+    /// Fail closed: internal diagnostics are visible only in explicitly named non-production channels.
+    /// Empty, unknown, and Production channels must never expose beta UI.
+    static let betaChannels: Set<String> = ["TierA", "TierB", "TierC", "Beta", "QA", "Internal", "Development"]
+    static func isBetaChannel(_ value: String) -> Bool {
+        betaChannels.contains(value.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+    static var isBetaBuild: Bool {
+        let args = ProcessInfo.processInfo.arguments
+        if isUITesting { return !args.contains("-qaProductionChannel") }
+        return isBetaChannel(channel)
+    }
     /// "0.1.40 (40) TierA" — CFBundleShortVersionString stays numeric; the channel is display-only.
     static var buildLabel: String { "\(appVersion) (\(buildNumber))" + (channel.isEmpty ? "" : " \(channel)") }
     static var versionLine: String { "ate \(appVersion) (build \(buildNumber))\(channel.isEmpty ? "" : " · " + channel) · \(gitSHA) · backend \(backendRef)" }

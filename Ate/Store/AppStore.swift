@@ -624,7 +624,9 @@ final class AppStore {
 
     // MARK: deep links
     func openJournalEntry(_ id: String) {
-        select(.more); morePath = [.journal, .journalEntry(id)]
+        // More is not a shipped tab. Keep journal deep links inside the visible Tracker navigation stack.
+        select(.tracker)
+        trackerPath = [.journal, .journalEntry(id)]
     }
 
     func handle(url: URL) {

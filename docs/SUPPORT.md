@@ -23,4 +23,4 @@ Open Settings › About › Live Activity. If it says *Widget extension: MISSING
 **7. "The Apple Watch app didn't install."**
 Sideloadly/AltStore with a free Apple ID usually install only the iPhone app. The watch app needs Xcode (free ID, 7-day expiry) or a paid developer account / TestFlight.
 
-Other known limitations: see [BETA.md](BETA.md). AI recipes need iOS 26 and an iPhone 15 Pro or later with Apple Intelligence on. Otherwise you'll see "Demo" or "page data" badges.
+Beta diagnostics (Widgets, Health, Siri and checklist status) are available under **Settings › Beta testing** only in recognized beta-channel builds. Production builds intentionally hide this area and its banner. Other known limitations: see [BETA.md](BETA.md). AI recipes need iOS 26 and an iPhone 15 Pro or later with Apple Intelligence on. Otherwise you'll see "Demo" or "page data" badges.

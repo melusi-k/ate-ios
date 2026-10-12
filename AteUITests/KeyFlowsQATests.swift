@@ -87,7 +87,7 @@ final class KeyFlowsQATests: XCTestCase {
         wait(text("Account & sync"))
         let betaEntry = app.buttons["settings.betaTesting"]
         XCTAssertTrue(betaEntry.waitForExistence(timeout: 5) && betaEntry.isHittable,
-                      "Beta testing should be reachable from Settings")
+                      "Beta testing should be reachable from Settings in UI-test builds")
         betaEntry.tap()
         wait(text("Beta testing"), 5)
         app.navigationBars.buttons.element(boundBy: 0).tap()

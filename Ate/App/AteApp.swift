@@ -127,7 +127,7 @@ struct RootView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             // One top area: beta banner (tab roots only) and the slim offline strip. Nothing at the bottom competes with actions.
             VStack(spacing: 0) {
-                if !store.showOnboarding && store.isAtTabRoot { BetaBanner { store.select(.settings); BetaQA.shared.openRequested = true }.padding(.vertical, 4) }
+                if AppConfig.isBetaBuild && !store.showOnboarding && store.isAtTabRoot { BetaBanner { store.select(.settings); BetaQA.shared.openRequested = true }.padding(.vertical, 4) }
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -317,8 +317,8 @@ struct RouteView: View {
             case .shared(let slug): SharedRecipeView(slug: slug)
             case .notFound: NotFoundView()
             case .insights: InsightsView()
-            case .beta: BetaTestingView()
-            case .betaNote: BetaExpectationsView()
+            case .beta: AppConfig.isBetaBuild ? AnyView(BetaTestingView()) : AnyView(SettingsView())
+            case .betaNote: AppConfig.isBetaBuild ? AnyView(BetaExpectationsView()) : AnyView(SettingsView())
             case .journal: JournalListView()
             case .journalEntry(let id): JournalEntryDetailView(entryID: id)
             }

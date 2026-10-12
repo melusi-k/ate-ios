@@ -1,6 +1,6 @@
 # What to expect in the ate beta
 
-Thanks for testing ate. This is a controlled beta: the core works, some edges are rough.
+Thanks for testing ate. This is a controlled beta: the core works, some edges are rough. Beta diagnostics are available only in explicitly named beta-channel builds: open **Settings › Beta testing**. The Beta banner and entry are hidden in production builds; if you cannot see them, confirm that the installed build was produced with a recognized beta channel (normally `TierA`).
 
 - **Install (build 99):** ate is sideloaded with a free Apple ID. Use **SideStore** first (keeps widgets working and refreshes on the phone), then AltStore or Sideloadly. You'll need Developer Mode, and the app has to be re-signed **every 7 days**. Your recipes survive re-signing. Check the IPA against the `.sha256` file on the release page.
 - **What to test:** the in-app list under Settings › Beta testing is the same list as docs/MVP_CHECKLIST.md (Tier A and Tier C IDs).

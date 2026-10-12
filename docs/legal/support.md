@@ -2,7 +2,7 @@
 
 _Last updated: 11 October 2026_
 
-Can't find an answer? Email **melusi.l.k@gmail.com** with your build number (Settings › Beta testing shows it).
+Can't find an answer? Email **melusi.l.k@gmail.com** with your build number (Settings › About shows it; beta builds also show it under Settings › Beta testing).
 
 ## Installing
 **How do I install the beta?** Download the latest `.ipa` from the [releases page](https://github.com/melusi-k/ate-ios/releases) and install it with one of these:
@@ -13,10 +13,10 @@ Can't find an answer? Email **melusi.l.k@gmail.com** with your build number (Set
 **The app stopped opening after 7 days.** Free Apple IDs sign apps for 7 days. Reinstall or refresh with SideStore or AltStore.
 
 ## Widgets
-**Widgets don't show up, or show "Open ate".** Widgets need the widget extension and a shared App Group, and Sideloadly may drop or rename them. Open **Settings › Beta testing › Widgets** to see what's missing. If it says "missing", reinstall with SideStore, AltStore or Xcode. Siri and the Control Center controls work either way.
+**Widgets don't show up, or show "Open ate".** Widgets need the widget extension and a shared App Group, and Sideloadly may drop or rename them. On beta-channel builds, open **Settings › Beta testing › Widgets** to see what's missing. If it says "missing", reinstall with SideStore, AltStore or Xcode. Siri and the Control Center controls work either way.
 
 ## Apple Health
-**Connect Apple Health does nothing.** Update to the latest build, tap again, and check **iOS Settings › Health › Data Access & Devices › ate**. The Health line on the Beta page shows the status. Health data never leaves your phone: [Health data](health.html).
+**Connect Apple Health does nothing.** Update to the latest build, tap again, and check **iOS Settings › Health › Data Access & Devices › ate**. On beta-channel builds, the Health line on Settings › Beta testing shows the status. Health data never leaves your phone: [Health data](health.html).
 
 ## Sync and account
 **Do I need an account?** No. An account only adds sync between devices.

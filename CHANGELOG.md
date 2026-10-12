@@ -4,6 +4,9 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 
 ## Unreleased
 
+### 🧭 Navigation
+- Removed the dedicated More/Beta hub from the main tab bar. Beta testing and expectations are now reached from Settings › Beta testing; the primary navigation is Library, Shopping, Tracker, Settings, plus the iOS 26 Search-role tab.
+
 ### 🛟 Data safety (A-DATA-01/02)
 - **Corrupt library recovery:** if the on-device store can't be opened, Ate moves it to `Backups/ate-<timestamp>.store`, opens a fresh store (in-memory as a last resort, never a crash), restores from sync when you're signed in, writes a JSON export of the recovered recipes, and shows a "Library repaired" screen with Export.
 - **Save failures:** every SwiftData save retries twice, logs the error and shows a non-blocking banner; what's on screen is kept. Tests use a corrupt-store fixture and an injected save failure.

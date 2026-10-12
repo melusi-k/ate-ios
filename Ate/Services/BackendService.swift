@@ -43,7 +43,7 @@ enum AppConfig {
     static var gitSHA: String { string("AteGitSHA").isEmpty ? "dev" : string("AteGitSHA") }
     static var backendRef: String { supabaseURL?.host?.components(separatedBy: ".").first ?? "none" }
     /// e.g. "ate 0.1.12 (build 12) · 306e343 · backend ploncuhexmwydjxljuhe"
-    /// Release channel (build setting ATE_CHANNEL, e.g. "TierA"); empty for plain builds.
+    /// Release channel (build setting ATE_CHANNEL, e.g. "TierA"); empty/unknown channels are treated as production.
     static var channel: String { string("AteChannel") }
     /// Fail closed: internal diagnostics are visible only in explicitly named non-production channels.
     /// Empty, unknown, and Production channels must never expose beta UI.

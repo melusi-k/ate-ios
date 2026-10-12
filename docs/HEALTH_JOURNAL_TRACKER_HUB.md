@@ -33,8 +33,8 @@ Run the full `CookingTrackerEntryUITests` target, the Cook Mode completion/early
 - Journal list/search/detail/edit-cancel-save/delete-confirmation/share behavior is covered by focused UI tests; The Shortcuts open-entry route, location/media payload, image-prompt refusal, and historical cleanup have automated coverage; the deleted-entry error path and real-device Shortcuts presentation remain tracked separately.
 - Library/Home shortcut opens the Tracker root and does not disturb iOS 26 Search or the bottom accessory.
 
-Simulator/CI acceptance is required for implementation and merge. **Physical-device and entitlement-matrix testing is deliberately deferred until the end of issue #38** and is not a blocker for implementing or merging this UI. Keep those device-only criteria open until actual evidence is recorded; do not mark issue #38 fully accepted before then.
+Simulator/CI acceptance is required for implementation and merge. **Physical-device and entitlement-matrix testing is deliberately deferred until the end of issue #38** and is not a blocker for implementing or merging this UI. Track those device-only criteria in [issue #67](https://github.com/melusi-k/ate-ios/issues/67); keep them open there until actual evidence is recorded.
 
 ## Device acceptance deferred to the final pass
 
-On supported and unsupported physical devices, verify real Health authorization states, entitlement/sideload behavior, Health sample-data fallback, picker availability, local journal persistence, media/location behavior, and large-text/VoiceOver behavior. Record device model, OS, app build/channel, exact steps, result, and evidence in docs/QA_MATRIX.md and issue #38.
+On supported and unsupported physical devices, verify real Health authorization states, entitlement/sideload behavior, Health sample-data fallback, picker availability, local journal persistence, media/location behavior, and large-text/VoiceOver behavior. Record device model, OS, app build/channel, exact steps, result, and evidence in docs/QA_MATRIX.md and [issue #67](https://github.com/melusi-k/ate-ios/issues/67).

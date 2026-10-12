@@ -317,8 +317,8 @@ struct RouteView: View {
             case .shared(let slug): SharedRecipeView(slug: slug)
             case .notFound: NotFoundView()
             case .insights: InsightsView()
-            case .beta: BetaTestingView()
-            case .betaNote: BetaExpectationsView()
+            case .beta: AppConfig.isBetaBuild ? AnyView(BetaTestingView()) : AnyView(SettingsView())
+            case .betaNote: AppConfig.isBetaBuild ? AnyView(BetaExpectationsView()) : AnyView(SettingsView())
             case .journal: JournalListView()
             case .journalEntry(let id): JournalEntryDetailView(entryID: id)
             }

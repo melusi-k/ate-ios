@@ -305,7 +305,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 
 - **A-NAV-01 · Navigation and layout in portrait and landscape** — 🟡
   - *Journey:* As a cook, I can use Ate held either way.
-  - *Acceptance:* Given b36+, When I rotate in the Library, Then landscape shows the sidebar + 2-column grid, portrait shows the list, the main bar has Library, Shopping, Tracker and Settings (with the iOS 26 Search-role tab where available), and no dedicated Beta/More tab is shown.
+  - *Acceptance:* Given b36+, When I rotate in the Library, Then landscape shows the sidebar + 2-column grid, portrait shows the list, the main bar has Library, Shopping, Tracker and Settings (with the iOS 26 Search-role tab where available), no dedicated More/Beta tab is shown, and Beta testing is reachable from Settings › Beta testing.
   - *Verified by:* `test22_TabBar, test26, test27_LandscapeSidebarGridAndCollections` · QA.md (new step)
   - *Status evidence:* Rotation only just enabled in b36 and unverified; test27 was failing/flaky
   - *Owner:* _TBD_

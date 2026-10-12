@@ -48,7 +48,7 @@ Evidence to attach to issue #31: device model, iOS version, app build/channel, t
 
 ## Today & Journal Tracker hub — issue #38
 
-The Tracker tab is the combined daily/monthly hub; its tab label remains **Tracker** and its screen heading is **Today & Journal**. Automated acceptance is required before merge; physical-device and entitlement-matrix checks are deferred to the final pass of issue #38 and do not block this UI implementation.
+The Tracker tab is the combined daily/monthly hub; its tab label remains **Tracker** and its screen heading is **Today & Journal**. Automated acceptance is required before merge; physical-device and entitlement-matrix checks are deferred to the final pass of issue #38 and do not block this UI implementation. The same `CookingTrackerEntryUITests` target retains the calendar/month-navigation/empty-day cases owned by [issue #31](https://github.com/melusi-k/ate-ios/issues/31), while PR #59's main-push gate also runs Cook Mode completion-to-history and early-exit-negative tests. Keep these shared regressions green as one suite.
 
 1. Open Tracker from its tab and from the Library/Home shortcut. Confirm the shortcut opens the Tracker root.
 2. Confirm the screen includes the cooking streak/calendar, the Health insight card, meal/reflection content when Health data is available, and the local Ate journal preview. Confirm the calendar and journal are hosted in one scroll view.

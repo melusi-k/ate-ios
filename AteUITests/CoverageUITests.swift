@@ -600,6 +600,24 @@ extension CoverageUITests {
         }
     }
 
+    /// C-JRN-07: a Shortcuts-style entry with location and media renders those details.
+    func testJournalLocationAndMediaFromShortcutEntry() {
+        launch(["-qaJournalLocationMediaEntry"])
+        tab("Tracker")
+        wait(text("Today & Journal"))
+        let seeAll = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "See all")).firstMatch
+        scrollTo(seeAll); wait(seeAll); seeAll.tap()
+        let row = app.buttons.matching(identifier: "journal.entry").firstMatch
+        wait(row)
+        XCTAssertTrue(row.label.contains("Cape Town"), row.label)
+        row.tap()
+        wait(app.navigationBars["Journal entry"])
+        let location = any("journal.detail.location"); wait(location)
+        XCTAssertTrue(location.label.contains("Cape Town"), location.label)
+        let media = any("journal.detail.media"); scrollTo(media); wait(media)
+        wait(app.images["Photo 1 of 1"])
+    }
+
     func testCookingTrackerMonthNavigationAndSelectedDay() {
         launch(["-qaMockHealth", "empty", "-qaHealthRecipes"])
         tab("Library")

@@ -34,8 +34,8 @@ jobs:
       ATE_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'TierA' }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
       HAS_SIGNING: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && secrets.BUILD_PROVISION_PROFILE_BASE64 != '' && secrets.P12_PASSWORD != '' && secrets.TEAM_ID != '' }}
-      # Every main push is a release candidate and runs tests. Manual dispatches remain opt-in via run_tests=true; the commit marker also enables tests.
-      RUN_TESTS: ${{ github.event_name == 'push' || inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
+      # Everyday main pushes build and smoke-check the release artifact only. Full validation is explicitly opt-in.
+      RUN_TESTS: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v4

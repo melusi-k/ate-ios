@@ -110,6 +110,50 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Status evidence:* Export/share output and edge cases need current test evidence.
   - *Owner:* [#72](https://github.com/melusi-k/ate-ios/issues/72)
 
+### Settings and data management — feature acceptance (new audit coverage)
+
+- **A-SET-01 · Persist user preferences** — 🟡
+  - *Journey:* As a cook, I set units, private mode and timer preferences once.
+  - *Acceptance:* Preferences persist after relaunch; settings intended to be local remain local; units are reflected consistently in recipe details and Cook Mode.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Current preference persistence and cross-screen application need exact-SHA verification.
+  - *Owner:* [#74](https://github.com/melusi-k/ate-ios/issues/74)
+
+- **A-SET-02 · Export user data** — 🟡
+  - *Journey:* As a cook, I can keep a usable copy of my data outside Ate.
+  - *Acceptance:* Export completes with a clear success/failure state and contains the documented local recipes, shopping data and supported metadata without secrets or session tokens.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Export schema, completeness and failure-state evidence need review.
+  - *Owner:* [#74](https://github.com/melusi-k/ate-ios/issues/74)
+
+- **A-SET-03 · Import and validate data** — 🟡
+  - *Journey:* As a cook, I restore data from a previous export.
+  - *Acceptance:* Valid exports restore safely; malformed/unsupported input is rejected with a useful error; duplicate IDs and conflicting data follow a documented rule; import does not silently destroy valid local data.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Import validation and destructive edge cases need current evidence.
+  - *Owner:* [#74](https://github.com/melusi-k/ate-ios/issues/74)
+
+- **A-SET-04 · Clear local data safely** — 🟡
+  - *Journey:* As a cook, I can remove local data without accidentally deleting my account or cloud data.
+  - *Acceptance:* Confirmation describes exactly what is removed and retained; operation reports failure truthfully; app returns to a usable empty/onboarding state without stale data.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Current clear-data behavior and scope need verification against sign-out/delete-account flows.
+  - *Owner:* [#74](https://github.com/melusi-k/ate-ios/issues/74)
+
+- **A-SET-05 · Beta-channel diagnostics fail closed** — 🟡
+  - *Journey:* As a production user, I never see internal beta diagnostics.
+  - *Acceptance:* Recognized beta channels expose Beta testing; Production, empty and unknown channels hide the entry/banner even with QA launch arguments in an installed archive. Verify TierA and Production/empty builds.
+  - *Verified by:* — · focused unit/UI/build-configuration coverage required
+  - *Status evidence:* Build-channel rules exist in code/docs, but current exact-SHA artifact evidence needs verification.
+  - *Owner:* [#74](https://github.com/melusi-k/ate-ios/issues/74)
+
+- **A-SET-06 · Accurate build identity and legal/help destinations** — 🟡
+  - *Journey:* As a tester, I can identify exactly which build I am using and open the relevant support/legal pages.
+  - *Acceptance:* Version, build, short SHA, backend identity and release channel are accurate; copy action works; privacy, terms and support links open the intended destinations and failures are understandable.
+  - *Verified by:* — · focused unit/UI/release-artifact coverage required
+  - *Status evidence:* Current artifact metadata and destinations need exact-SHA verification.
+  - *Owner:* [#74](https://github.com/melusi-k/ate-ios/issues/74)
+
 ### Edit / save / delete — 3.5 / 5
 
 - **A-EDIT-01 · Review and edit before saving** — ✅

@@ -323,3 +323,16 @@ These new acceptance rows are unverified until tests/evidence are attached to a 
 | A-SET-04 | Clear local data safely | — | Confirmation describes scope; failure reported; app returns to usable empty/onboarding state without stale data | Focused UI tests required | Not run | Not run | Not run | 🟡 | Verify distinction from sign-out/account deletion |
 | A-SET-05 | Beta-channel diagnostics fail closed | — | TierA exposes diagnostics; Production/empty/unknown hides beta UI in installed builds | Unit/UI/build configuration tests required | Not run | Not run | Not run | 🟡 | Current exact-SHA artifact evidence needed |
 | A-SET-06 | Build identity and legal/help links | — | Version/build/SHA/backend/channel accurate; copy and legal/help destinations work | Focused UI/release artifact tests required | Not run | Not run | Not run | 🟡 | Verify current artifact metadata and destinations |
+
+## Library discovery and organization acceptance — issue #73
+
+These rows are unverified until the focused tests and evidence are attached to a named candidate build.
+
+| ID | Journey | Steps | Expected | Automated test | Sim result | iPhone 17 result | Older/non-AI device result | Status | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| A-LIB-01 | Search saved recipes | — | Results/count/empty state correct; clearing restores collection; query retention follows tab rules | Focused UI/unit tests required | Not run | Not run | Not run | 🟡 | Search behavior/state restoration need exact-SHA verification |
+| A-LIB-02 | Compose filters correctly | — | OR within groups, AND across groups; Clear resets all; persisted filters restore without stale results | Focused unit/UI tests required | Not run | Not run | Not run | 🟡 | Filter truth table/persistence need explicit evidence |
+| A-LIB-03 | Collections membership | — | Quick/Favourites/Recently added/Recently cooked/ingredient collections match rules; edits/deletes update membership | Focused unit/UI tests required | Not run | Not run | Not run | 🟡 | Recently cooked depends on #31 event semantics |
+| A-LIB-04 | Deterministic sorting | — | All sort modes have stable tie/unranked rules; My order persists without duplicate/lost cards | Focused unit/UI tests required | Not run | Not run | Not run | 🟡 | Tie-breaks and reorder persistence need verification |
+| A-LIB-05 | Consistent grouping | — | Section order/fallback groups stable; missing values visible; sort/group combinations defined | Focused unit/UI tests required | Not run | Not run | Not run | 🟡 | In-memory grouping edge cases need tests |
+| A-LIB-06 | List/grid reorder | — | Drag/drop persists in supported layouts and does not lose/duplicate cards; unsupported swipe actions not claimed | Focused unit/UI tests required | Not run | Not run | Not run | 🟡 | List/grid parity and persistence need evidence |

@@ -99,3 +99,21 @@ A simulator cannot satisfy the real-device checklist. If no physical device is a
 ## Temporary everyday-CI quarantine — Settings/account sync (issue #76)
 
 `AteUITests/KeyFlowsQATests/testQA7_SyncAccount` is retained and executed in everyday CI for diagnostics, but a failure is reported as **QUARANTINED / NOT PASSED** and does not block the everyday build while the recipe editor `Done` button selector is repaired. The failure is not classified as a product defect or test-only defect without evidence. The full log and xcresult remain artifacts. Pre-production must continue to execute the test and expose its real result; quarantine is not coverage or release approval. Track account/sync behavior under [#34](https://github.com/melusi-k/ate-ios/issues/34), Settings interaction under [#74](https://github.com/melusi-k/ate-ios/issues/74), and repair/repeated-run evidence under [#76](https://github.com/melusi-k/ate-ios/issues/76).
+
+
+## Test coverage layers and work tracking
+
+Use [issue #79 — Feature verification campaign](https://github.com/melusi-k/ate-ios/issues/79) to coordinate feature-by-feature execution. Keep these test layers distinct; passing one does not imply another passed:
+
+- **Unit/model:** pure logic, parsing, validation, transformations, persistence rules and state transitions.
+- **Integration/contract:** SwiftData, backend protocols, Supabase/auth/sync/sharing, deep links and extension boundaries.
+- **Focused UI/regression:** a single critical journey or bug regression with deterministic setup and stable accessibility identifiers.
+- **Full UI/accessibility:** broad UI shards, accessibility audits, VoiceOver, Dynamic Type and responsive layouts.
+- **Backend/end-to-end:** staging backend journeys, auth/share/sync and multi-step integration.
+- **Platform/extension:** widgets, intents, Siri/Shortcuts, Live Activities, notifications, Watch and share extension.
+- **Physical-device/manual:** email round trips, real two-device sync, Health permissions/data, background timers, entitlement/sideload behavior and accessibility on device.
+- **Release/reliability:** cold launch, upgrade/persistence, offline recovery, crash evidence, channel/version metadata and artifact integrity.
+
+For day-to-day feature work, run the smallest relevant layer first. Run broad suites at planned checkpoints or pre-production candidates; do not rerun every UI shard for an isolated code change unless its impact warrants it. Every matrix row should name the test, acceptance ID, layer, last run/commit, evidence and status (**PASS / FAIL / QUARANTINED / NOT RUN**). Old historical passes are not current passes. Quarantined is never pass.
+
+Use [issue #78 — CI/workflow operations](https://github.com/melusi-k/ate-ios/issues/78) for workflow triggers, runtimes, quarantines, diagnostics and documentation alignment. Use [issue #70 — coverage reconciliation](https://github.com/melusi-k/ate-ios/issues/70) for PRD/checklist/matrix mapping; create or update feature-owned issues for product defects rather than placing every defect in the campaign issue.

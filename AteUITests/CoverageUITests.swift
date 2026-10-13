@@ -410,9 +410,12 @@ extension CoverageUITests {
         let done = app.buttons["recipeSheet.done"]; wait(done)
         shot("insights-recipe-sheet")
         // (1) A sheet has only Done: no custom or system "Recipes" back.
-        XCTAssertFalse(app.buttons["backBar"].exists, "custom back bar inside the sheet")
-        XCTAssertFalse(app.navigationBars.buttons["Recipes"].exists, "back to Recipes inside the sheet")
-        XCTAssertFalse(app.buttons["Recipes"].exists, "back to Recipes inside the sheet")
+        XCTAssertTrue(done.isHittable, "Done action must be available on the sheet")
+        // XCTest can still report controls from the covered navigation stack in the accessibility tree.
+        // They must not be actionable through the presented recipe sheet.
+        XCTAssertFalse(app.navigationBars.buttons["Recipes"].isHittable, "underlying navigation must not be actionable above the sheet")
+        XCTAssertFalse(app.buttons["Recipes"].isHittable, "underlying Recipes control must not be actionable above the sheet")
+        XCTAssertFalse(app.buttons["backBar"].isHittable, "no custom Back action should intercept sheet navigation")
         // (2) Content scrolls clear of Cook mode: the last card ends above the button.
         let cook = app.buttons["Cook mode"]; wait(cook)
         let ask = app.textFields["askField"]
@@ -495,8 +498,10 @@ extension CoverageUITests {
         openInsights("empty")
         let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
         wait(any("insights.noData"))
-        let sample = app.buttons["insights.sampleData"]; wait(sample, 5); sample.tap()
-        wait(text("Recovery day"))
+        let sample = app.buttons["insights.sampleData"]; wait(sample, 5); XCTAssertTrue(sample.isHittable); sample.tap()
+        let sampleBadge = any("insights.sampleBadge"); wait(sampleBadge, 5)
+        let state = any("insights.state"); wait(state, 5)
+        XCTAssertEqual(state.label, "Recovery day", "Sample data must replace the no-data state with deterministic recovery insights")
     }
     /// Journaling Suggestions picker is never presented under UI tests; check the context row instead.
     func testJournalMomentContextRow() {

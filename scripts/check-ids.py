@@ -24,11 +24,45 @@ def matrix_row(i):
     return f"| {i} | {j} | — | {acc} | {ver.split(' · ')[0]} | Not run | Not run | Not run | {mark} | {ev} |"
 
 mx = open('docs/QA_MATRIX.md').read()
-missing = sorted(set(defined) - ids('docs/QA_MATRIX.md'))
+# Only a real first-column matrix row counts as coverage; a mention in prose/notes is not a test case.
+matrix_ids = set(re.findall(r'^\\|\\s*([ABC]-[A-Z0-9]+-\\d{2})\\s*\\|', mx, re.M))
+missing = sorted(set(defined) - matrix_ids)
 if missing and fix:
     mx = mx.rstrip() + "\n\n## Added from MVP_CHECKLIST (check-ids --fix)\n\n| ID | Journey | Steps | Expected | Automated test | Sim result | iPhone 17 result | Older/non-AI device result | Status | Notes |\n|---|---|---|---|---|---|---|---|---|---|\n" + "\n".join(matrix_row(i) for i in missing) + "\n"
     open('docs/QA_MATRIX.md', 'w').write(mx); missing = []
-for i in missing: errors.append(f"{i}: in MVP_CHECKLIST but not in QA_MATRIX")
+for i in missing: errors.append(f"{i}: in MVP_CHECKLIST but has no actual QA_MATRIX row")
+# Every acceptance block must have a concrete issue owner, not just a status and test name.
+for blk in re.split(r'\\n(?=- \\*\\*[ABC]-)', ck):
+    m = re.match(r'- \\*\\*([ABC]-[A-Z0-9]+-\\d{2}) · ', blk)
+    if not m: continue
+    owner = re.search(r'^\\s*- \\*Owner:\\* (.+)
+
+if fix: subprocess.run([sys.executable, 'scripts/gen-beta-checklist.py'], check=True)
+beta = ids('Ate/Logic/BetaChecklist.swift')
+want = {i for i in defined if i[0] in 'AC'}
+for i in sorted(want - beta): errors.append(f"{i}: in MVP_CHECKLIST (Tier A/C) but not in the in-app Beta checks; run scripts/gen-beta-checklist.py")
+for p in ['Ate/Logic/BetaChecklist.swift', 'docs/QA_MATRIX.md', 'docs/BETA.md', 'README.md', 'docs/SECURITY_REVIEW.md']:
+    if os.path.exists(p):
+        for i in sorted(ids(p) - set(defined)): errors.append(f"{i}: cited in {p} but not defined in MVP_CHECKLIST")
+before = open('Ate/Logic/BetaChecklist.swift').read()
+subprocess.run([sys.executable, 'scripts/gen-beta-checklist.py'], capture_output=True, check=True)
+if open('Ate/Logic/BetaChecklist.swift').read() != before:
+    errors.append("Ate/Logic/BetaChecklist.swift was stale (hand-edited or not regenerated); regenerated, commit it")
+
+for root in ['Ate', 'AteWidgets', 'AteWatch', 'Shared', 'AteShare']:
+    for d, _, fs in os.walk(root):
+        for f in fs:
+            if f.endswith(('.swift', '.plist', '.xcconfig', '.json')):
+                t = open(os.path.join(d, f), errors='ignore').read()
+                if re.search(r'service_role|SERVICE_ROLE|sb_secret_', t): errors.append(f"{d}/{f}: service-role/secret key reference in client code")
+
+print(f"{len(defined)} IDs defined; matrix {len(ids('docs/QA_MATRIX.md'))}, beta {len(beta)}")
+if errors:
+    print("\n".join("::error::" + e for e in errors)); sys.exit(1)
+print("IDs consistent ✓")
+, blk, re.M)
+    if not owner or 'TBD' in owner.group(1) or not re.search(r'\\[#\\d+\\]\\(https://github\\.com/melusi-k/ate-ios/issues/\\d+\\)', owner.group(1)):
+        errors.append(f\"{m.group(1)}: missing valid owning GitHub issue link in MVP_CHECKLIST\")
 
 if fix: subprocess.run([sys.executable, 'scripts/gen-beta-checklist.py'], check=True)
 beta = ids('Ate/Logic/BetaChecklist.swift')

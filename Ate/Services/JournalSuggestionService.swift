@@ -52,10 +52,11 @@ final class JournalStore {
         container = try? ModelContainer(for: JournalEntry.self,
                                         configurations: ModelConfiguration("AteJournal", isStoredInMemoryOnly: inMemory))
         seedMomentEntryForUITests()
+        seedLocationMediaEntryForUITests()
         removeImagePromptEntriesOnce()
     }
     /// One-time cleanup (b81): earlier builds saved image-generation prompts routed through the journal schema as entries.
-    private func removeImagePromptEntriesOnce() {
+    func removeImagePromptEntriesOnce() {
         let k = "ate.journal.imagePromptCleanup.v1"
         guard !UserDefaults.standard.bool(forKey: k), let ctx = container?.mainContext else { return }
         for e in entries() where e.source != .journalMoment && JournalTextGuard.looksLikeImagePrompt(e.text) { ctx.delete(e) }
@@ -77,6 +78,14 @@ final class JournalStore {
         if case let .journalEntry(p, title, date, state) = JournalingMomentMapper.map(title: "Dinner at Mama's", date: DateInterval(start: Date(timeIntervalSince1970: 1_791_000_000), duration: 3600), hasPhotos: false, isWorkout: false) {
             save(prompt: p, text: "Seeded from a Journal moment", state: state, recipeIDs: [], momentTitle: title, momentDate: date)
         }
+    }
+    /// UI tests (`-qaJournalLocationMediaEntry`): deterministic Siri/Shortcuts-style entry with location and one photo.
+    func seedLocationMediaEntryForUITests() {
+        guard AppConfig.isUITesting, ProcessInfo.processInfo.arguments.contains("-qaJournalLocationMediaEntry"), entries().isEmpty else { return }
+        let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZV0AAAAASUVORK5CYII=") ?? Data()
+        _ = saveFromIntent(title: "Shortcut meal", text: "Journal entry with place and photo", date: Date(timeIntervalSince1970: 1_791_000_000),
+                           state: .balanced, locationName: "Cape Town", latitude: -33.9249, longitude: 18.4241,
+                           media: [(data: png, ext: "png")])
     }
     func delete(_ e: JournalEntry) {
         for f in e.mediaFileNames { try? FileManager.default.removeItem(at: Self.mediaURL(f)) }

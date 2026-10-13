@@ -410,9 +410,12 @@ extension CoverageUITests {
         let done = app.buttons["recipeSheet.done"]; wait(done)
         shot("insights-recipe-sheet")
         // (1) A sheet has only Done: no custom or system "Recipes" back.
-        XCTAssertFalse(app.buttons["backBar"].exists, "custom back bar inside the sheet")
-        XCTAssertFalse(app.navigationBars.buttons["Recipes"].exists, "back to Recipes inside the sheet")
-        XCTAssertFalse(app.buttons["Recipes"].exists, "back to Recipes inside the sheet")
+        XCTAssertTrue(done.isHittable, "Done action must be available on the sheet")
+        // XCTest can still report controls from the covered navigation stack in the accessibility tree.
+        // They must not be actionable through the presented recipe sheet.
+        XCTAssertFalse(app.navigationBars.buttons["Recipes"].isHittable, "underlying navigation must not be actionable above the sheet")
+        XCTAssertFalse(app.buttons["Recipes"].isHittable, "underlying Recipes control must not be actionable above the sheet")
+        XCTAssertFalse(app.buttons["backBar"].isHittable, "no custom Back action should intercept sheet navigation")
         // (2) Content scrolls clear of Cook mode: the last card ends above the button.
         let cook = app.buttons["Cook mode"]; wait(cook)
         let ask = app.textFields["askField"]
@@ -472,6 +475,15 @@ extension CoverageUITests {
         wait(back2); back2.tap()
         wait(app.buttons["settings.betaTesting"])
     }
+    /// A-HEALTH-01: opening Tracker alone must never prompt for Health access.
+    func testTrackerOpeningDoesNotPromptForHealthPermission() {
+        launch(["-qaMockHealth", "recovery", "-qaHealthPrompt"])
+        tab("Tracker")
+        wait(text("Today & Journal"))
+        XCTAssertFalse(app.alerts.firstMatch.waitForExistence(timeout: 3),
+                       "Health authorization must wait for the explicit Connect Apple Health action")
+    }
+
     /// Regression guard (StepTrackerTCA lesson): Connect must still ask for Health when access is undecided.
     func testHealthPermissionPromptAppearsWhenUndecided() {
         launch(["-qaMockHealth", "recovery", "-qaHealthRecipes", "-qaHealthPrompt"])
@@ -486,8 +498,10 @@ extension CoverageUITests {
         openInsights("empty")
         let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
         wait(any("insights.noData"))
-        let sample = app.buttons["insights.sampleData"]; wait(sample, 5); sample.tap()
-        wait(text("Recovery day"))
+        let sample = app.buttons["insights.sampleData"]; wait(sample, 5); XCTAssertTrue(sample.isHittable); sample.tap()
+        let sampleBadge = any("insights.sampleBadge"); wait(sampleBadge, 5)
+        let state = any("insights.state"); wait(state, 5)
+        XCTAssertEqual(state.label, "Recovery day", "Sample data must replace the no-data state with deterministic recovery insights")
     }
     /// Journaling Suggestions picker is never presented under UI tests; check the context row instead.
     func testJournalMomentContextRow() {
@@ -501,6 +515,121 @@ extension CoverageUITests {
 
 
 extension CoverageUITests {
+    /// C-JRN-01/02: list rows are searchable by prompt/location and open a standalone entry detail.
+    func testJournalListSearchAndOpenDetail() {
+        launch(["-qaJournalMomentEntry"])
+        tab("Tracker")
+        wait(text("Today & Journal"))
+        let seeAll = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "See all")).firstMatch
+        scrollTo(seeAll); wait(seeAll); seeAll.tap()
+        let search = app.searchFields["Search journal"]
+        wait(search)
+        search.tap(); search.typeText("Mama")
+        let row = app.buttons.matching(identifier: "journal.entry").firstMatch
+        wait(row)
+        // The prompt is searchable but intentionally not part of the compact row label.
+        search.tap()
+        let current = search.value as? String ?? ""
+        search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count + 2))
+        search.typeText("no-match-38")
+        wait(text("No Results"))
+        XCTAssertFalse(row.exists, "A non-matching query must filter all journal entries")
+        search.tap()
+        let q = search.value as? String ?? ""
+        search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: q.count + 2))
+        search.typeText("Seeded")
+        wait(row); row.tap()
+        wait(app.navigationBars["Journal entry"])
+        wait(app.staticTexts["journal.detail.text"])
+        XCTAssertTrue(app.staticTexts["journal.detail.text"].label.contains("Seeded from a Journal moment"))
+        wait(app.staticTexts["journal.detail.date"])
+    }
+
+    /// C-JRN-03: cancelling an edit preserves the original, while saving updates the entry.
+    func testJournalEditCancelAndSave() {
+        launch(["-qaJournalMomentEntry"])
+        tab("Tracker")
+        wait(text("Today & Journal"))
+        let seeAll = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "See all")).firstMatch
+        scrollTo(seeAll); wait(seeAll); seeAll.tap()
+        let row = app.buttons.matching(identifier: "journal.entry").firstMatch
+        wait(row); row.tap()
+        wait(app.navigationBars["Journal entry"])
+        let original = app.staticTexts["journal.detail.text"]
+        wait(original)
+        XCTAssertTrue(original.label.contains("Seeded from a Journal moment"))
+        let menu = app.buttons["journal.detail.menu"]; wait(menu); menu.tap()
+        app.buttons["Edit"].tap()
+        let editor = app.textViews["journal.edit.text"]; wait(editor)
+        app.buttons["Cancel"].tap()
+        wait(original)
+        XCTAssertTrue(original.label.contains("Seeded from a Journal moment"), "Cancel must retain the original text")
+        menu.tap(); app.buttons["Edit"].tap(); wait(editor)
+        editor.tap()
+        let value = editor.value as? String ?? ""
+        editor.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count + 2))
+        editor.typeText("Issue 38 edited journal entry")
+        app.buttons["Save"].tap()
+        wait(text("Edited"))
+        XCTAssertTrue(original.label.contains("Issue 38 edited journal entry"))
+    }
+
+    /// C-JRN-04: deletion has a safe Cancel path and only removes the entry after confirmation.
+    func testJournalDeleteRequiresConfirmation() {
+        launch(["-qaJournalMomentEntry"])
+        tab("Tracker")
+        wait(text("Today & Journal"))
+        let seeAll = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "See all")).firstMatch
+        scrollTo(seeAll); wait(seeAll); seeAll.tap()
+        let row = app.buttons.matching(identifier: "journal.entry").firstMatch
+        wait(row); row.tap()
+        wait(app.navigationBars["Journal entry"])
+        let menu = app.buttons["journal.detail.menu"]; wait(menu); menu.tap()
+        app.buttons["Delete"].tap()
+        wait(text("Delete this journal entry?"))
+        app.buttons["Cancel"].tap()
+        wait(app.staticTexts["journal.detail.text"])
+        XCTAssertTrue(app.staticTexts["journal.detail.text"].label.contains("Seeded from a Journal moment"))
+        menu.tap(); app.buttons["Delete"].tap()
+        wait(text("Delete this journal entry?"))
+        app.buttons["Delete"].tap()
+        wait(text("No journal entries yet"))
+    }
+
+    /// C-JRN-05: the standalone entry exposes the system share sheet.
+    func testJournalShareOpensSystemSheet() {
+        launch(["-qaJournalMomentEntry"])
+        tab("Tracker")
+        wait(text("Today & Journal"))
+        let seeAll = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "See all")).firstMatch
+        scrollTo(seeAll); wait(seeAll); seeAll.tap()
+        let row = app.buttons.matching(identifier: "journal.entry").firstMatch
+        wait(row); row.tap()
+        wait(app.navigationBars["Journal entry"])
+        let share = app.buttons["journal.detail.share"]; wait(share); share.tap()
+        XCTAssertTrue(app.otherElements["ActivityListView"].firstMatch.waitForExistence(timeout: 8)
+                      || app.navigationBars["UIActivityContentView"].waitForExistence(timeout: 2),
+                      "Share must present the system share UI")
+    }
+
+    /// C-JRN-07: a Shortcuts-style entry with location and media renders those details.
+    func testJournalLocationAndMediaFromShortcutEntry() {
+        launch(["-qaJournalLocationMediaEntry"])
+        tab("Tracker")
+        wait(text("Today & Journal"))
+        let seeAll = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "See all")).firstMatch
+        scrollTo(seeAll); wait(seeAll); seeAll.tap()
+        let row = app.buttons.matching(identifier: "journal.entry").firstMatch
+        wait(row)
+        XCTAssertTrue(row.label.contains("Cape Town"), row.label)
+        row.tap()
+        wait(app.navigationBars["Journal entry"])
+        let location = any("journal.detail.location"); wait(location)
+        XCTAssertTrue(location.label.contains("Cape Town"), location.label)
+        let media = any("journal.detail.media"); scrollTo(media); wait(media)
+        wait(app.images["Photo 1 of 1"])
+    }
+
     func testCookingTrackerMonthNavigationAndSelectedDay() {
         launch(["-qaMockHealth", "empty", "-qaHealthRecipes"])
         tab("Library")

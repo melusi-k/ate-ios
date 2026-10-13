@@ -9,7 +9,7 @@ final class InsightsModel {
     /// Beta debug picker: swap to a mock scenario ("" = live Apple Health).
     func useScenario(_ s: String, recipes: [RecipeCard]) async {
         UserDefaults.standard.set(s, forKey: HealthServiceFactory.debugKey)
-        health = HealthServiceFactory.make(arguments: [])
+        health = HealthServiceFactory.make(arguments: AppConfig.isUITesting ? ["-qaMockHealth", s] : [])
         if health is MockHealthKitService { _ = await health.requestAccess() }
         await refresh(recipes: recipes)
     }
@@ -118,7 +118,11 @@ struct InsightsView: View {
                 .pageWidth()
             }
         }
-        .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id).environment(store) }
+        .sheet(item: $openRecipe) {
+            t in RecipeSheet(recipeID: t.id).environment(store)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
         .onChange(of: model.context?.insight.state) { _, st in
             if st != nil { BetaQA.shared.pass("A-HEALTH-03", note: "Insights showed \(st!.title) with \(model.context?.suggestions.count ?? 0) meal ideas") }
         }
@@ -189,6 +193,7 @@ struct InsightsView: View {
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                     if let line = JournalingMomentMapper.contextLine(title: e.journalingSuggestionTitle, date: e.momentDate) {
                         Label(line, systemImage: "book.pages").font(AteFont.body(12)).foregroundStyle(Theme.primary)
+                            .accessibilityElement(children: .combine)
                             .accessibilityIdentifier("insights.entryMomentContext")
                     }
                     Text(e.text).font(AteFont.body(14)).lineLimit(3).multilineTextAlignment(.leading)
@@ -198,8 +203,8 @@ struct InsightsView: View {
                 .accessibilityIdentifier("insights.entry")
                 .contextMenu { Button("Delete", role: .destructive) { JournalStore.shared.delete(e); entries = JournalStore.shared.entries() } }
             }
-            if entries.count > 5 {
-                NavigationLink { JournalListView() } label: { Text("See all \(entries.count) entries").font(AteFont.body(14, .semibold)) }
+            if !entries.isEmpty {
+                NavigationLink(value: Route.journal) { Text("See all \(entries.count) entries").font(AteFont.body(14, .semibold)) }
                     .accessibilityIdentifier("insights.allEntries")
             }
         }

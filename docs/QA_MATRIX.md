@@ -297,3 +297,16 @@ These acceptance items were mentioned elsewhere in the matrix but lacked their o
 | A-INTENT-04 | As a cook, I find recipes from Spotlight. | — | Given saved recipes, When I search Spotlight for one, Then it appears and opens in ate; 'Search ate for tripe' opens Library filtered by 'tripe'. | `AppIntentsTests.testSearchIntent`, `testRecipeEntityAndQuery` | Not run | Not run | Not run | 🔴 | new in the Widgets & Intents build |
 | A-INTENT-05 | As a cook, I add a note to ate's journal by voice. | — | When I ask Siri to save a journal entry in ate, Then it appears in Insights → Journal (ate's journal, not Apple's Journal app). | `AppIntentsTests.testJournalEntry` | Not run | Not run | Not run | 🔴 | new in the Widgets & Intents build |
 | A-COVER-01 | As a cook, recipes without a photo get a nice cover. | — | Given a recipe with no photo or web image on an Apple Intelligence iPhone, Then a Playground cover is generated automatically; 'Generate cover' in the … menu makes a new one; elsewhere the designed tile shows. | `CoverTests` | Not run | Not run | Not run | 🔴 | new in the Widgets & Intents build |
+
+## Shopping List acceptance — issue #72
+
+These are new explicit acceptance rows added by the requirements audit. Result/device columns are intentionally `Not run` until tested against a named candidate build.
+
+| ID | Journey | Steps | Expected | Automated test | Sim result | iPhone 17 result | Older/non-AI device result | Status | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| A-SHOP-01 | Add manually / from recipe | — | Manual item and recipe handoff preserve intended items, quantities and units; blank input rejected | Focused UI/unit tests required | Not run | Not run | Not run | 🟡 | Shopping List feature audit; current exact-SHA evidence not reconciled |
+| A-SHOP-02 | Merge duplicates | — | Equivalent items follow documented merge rules; differing units/quantities preserved safely | Focused unit tests required | Not run | Not run | Not run | 🟡 | Current merge semantics and edge cases need verification |
+| A-SHOP-03 | Tick / untick / persistence | — | Checked state survives tab switches, relaunch and offline use; badge/count updates | Focused UI/unit tests required | Not run | Not run | Not run | 🟡 | Persistence and badge behavior need exact-SHA verification |
+| A-SHOP-04 | Remove / clear safely | — | Individual remove works; clear-all confirmation/undo and empty state are correct | Focused UI tests required | Not run | Not run | Not run | 🟡 | Destructive-action and empty-state evidence not reconciled |
+| A-SHOP-05 | Group by aisle | — | Stable aisle order; unknown items remain visible; toggle preserves all state | Focused unit/UI tests required | Not run | Not run | Not run | 🟡 | Visible UI; behavior/regression coverage needs verification |
+| A-SHOP-06 | Share / copy / TXT / CSV | — | All items and quantities included; CSV delimiters/newlines escaped; empty list handled | Focused unit/UI tests required | Not run | Not run | Not run | 🟡 | Output and edge cases need current evidence |

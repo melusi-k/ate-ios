@@ -1,4 +1,6 @@
-### 📋 MVP score (tiered — [MVP_CHECKLIST.md](https://github.com/melusi-k/ate-ios/blob/main/docs/MVP_CHECKLIST.md) · [QA_MATRIX.md](https://github.com/melusi-k/ate-ios/blob/main/docs/QA_MATRIX.md))
+### 📋 MVP score — historical snapshot (tiered — [MVP_CHECKLIST.md](https://github.com/melusi-k/ate-ios/blob/main/docs/MVP_CHECKLIST.md) · [QA_MATRIX.md](https://github.com/melusi-k/ate-ios/blob/main/docs/QA_MATRIX.md))
+
+> Snapshot inherited from 2026-10-10/build 36. This is not a current release score. Recalculate only after updating statuses from evidence tied to the exact candidate SHA; current CI status is tracked in [issue #30](https://github.com/melusi-k/ate-ios/issues/30), and release acceptance in [issue #45](https://github.com/melusi-k/ate-ios/issues/45).
 
 | Tier | Score | % | ✅ | 🟡 | ❌ | ⛔ |
 |---|---|---|---|---|---|---|

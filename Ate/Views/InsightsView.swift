@@ -9,7 +9,7 @@ final class InsightsModel {
     /// Beta debug picker: swap to a mock scenario ("" = live Apple Health).
     func useScenario(_ s: String, recipes: [RecipeCard]) async {
         UserDefaults.standard.set(s, forKey: HealthServiceFactory.debugKey)
-        health = HealthServiceFactory.make(arguments: [])
+        health = HealthServiceFactory.make(arguments: AppConfig.isUITesting ? ["-qaMockHealth", s] : [])
         if health is MockHealthKitService { _ = await health.requestAccess() }
         await refresh(recipes: recipes)
     }
@@ -199,7 +199,7 @@ struct InsightsView: View {
                 .contextMenu { Button("Delete", role: .destructive) { JournalStore.shared.delete(e); entries = JournalStore.shared.entries() } }
             }
             if entries.count > 5 {
-                NavigationLink { JournalListView() } label: { Text("See all \(entries.count) entries").font(AteFont.body(14, .semibold)) }
+                NavigationLink(value: Route.journal) { Text("See all \(entries.count) entries").font(AteFont.body(14, .semibold)) }
                     .accessibilityIdentifier("insights.allEntries")
             }
         }

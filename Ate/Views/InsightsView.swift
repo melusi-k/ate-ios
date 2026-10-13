@@ -203,7 +203,7 @@ struct InsightsView: View {
                 .accessibilityIdentifier("insights.entry")
                 .contextMenu { Button("Delete", role: .destructive) { JournalStore.shared.delete(e); entries = JournalStore.shared.entries() } }
             }
-            if entries.count > 5 {
+            if !entries.isEmpty {
                 NavigationLink { JournalListView() } label: { Text("See all \(entries.count) entries").font(AteFont.body(14, .semibold)) }
                     .accessibilityIdentifier("insights.allEntries")
             }

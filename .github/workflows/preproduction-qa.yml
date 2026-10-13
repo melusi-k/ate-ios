@@ -239,7 +239,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: compile-check-diagnostics-${{ github.run_id }}}-${{ github.run_attempt }}}
+          name: compile-check-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
             build.log
@@ -331,7 +331,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: ubuntu-playwright-chromium-${{ hashFiles('scripts/e2e/*.py') }
+          key: ubuntu-playwright-chromium-${{ hashFiles('scripts/e2e/*.py') }}
           restore-keys: |
             ubuntu-playwright-chromium-
       - name: Install Playwright

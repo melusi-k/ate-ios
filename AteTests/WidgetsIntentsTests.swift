@@ -1,6 +1,7 @@
 import XCTest
 import AppIntents
 import CoreLocation
+import MapKit
 import UniformTypeIdentifiers
 @testable import Ate
 
@@ -276,11 +277,14 @@ final class AppIntentsTests: XCTestCase {
         intent.message = AttributedString("Ate with friends")
         intent.title = "Shortcut meal"
         intent.entryDate = Date(timeIntervalSince1970: 1_791_000_000)
-        intent.location = CLPlacemark(location: CLLocation(latitude: -33.9249, longitude: 18.4241),
-                                      name: "Cape Town", postalAddress: nil)
+        intent.location = CLPlacemark(placemark: MKPlacemark(
+            coordinate: CLLocationCoordinate2D(latitude: -33.9249, longitude: 18.4241),
+            addressDictionary: ["City": "Cape Town"]
+        ))
         intent.mediaItems = [IntentFile(data: png, filename: "meal.png", type: .png)]
         let result = try await intent.perform()
-        let entry = try XCTUnwrap(journal.entry(result.value.id))
+        let returnedEntity = try XCTUnwrap(result.value)
+        let entry = try XCTUnwrap(journal.entry(returnedEntity.id))
         defer { journal.delete(entry) }
         XCTAssertEqual(entry.locationName, "Cape Town")
         XCTAssertEqual(entry.latitude ?? 0, -33.9249, accuracy: 0.0001)

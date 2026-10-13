@@ -1,6 +1,6 @@
 # PRD gap register
 
-**Status:** working inventory, created 2026-10-12. This is a tracking index, not a claim that every item is currently unimplemented. Each requirement must be re-verified against current code and evidence before it can be marked done.
+**Status:** working inventory, last audited 2026-10-13. This is a tracking index, not a claim that every item is currently unimplemented. Acceptance status and QA scores in the 2026-10-10 checklist/matrix are historical snapshots until re-verified against a current exact-SHA run. Systematic reconciliation is tracked in [#70](https://github.com/melusi-k/ate-ios/issues/70).
 
 **Sources of truth**
 - Product requirements: [PRD.md](PRD.md)
@@ -17,11 +17,22 @@
 | Auth + sync | [#34](https://github.com/melusi-k/ate-ios/issues/34) | Sign-up, confirmation, reset/magic links, session/account lifecycle, two-device sync and conflicts |
 | Recipe creation + quality | [#35](https://github.com/melusi-k/ate-ios/issues/35) | URL/social/photo/prompt imports, fallback behavior, draft recovery, recipe quality and duplicate prevention |
 | Timers + widgets + Siri | [#36](https://github.com/melusi-k/ate-ios/issues/36) | Timer lifecycle, Live Activities, WidgetKit, App Intents, Lock Screen, Control Center, Siri/Shortcuts |
-| Accessibility + UX | [#37](https://github.com/melusi-k/ate-ios/issues/37) | VoiceOver, Dynamic Type, contrast, Reduce Motion, responsive layouts, native navigation and interaction gaps |
+| Accessibility + UX | [#37](https://github.com/melusi-k/ate-ios/issues/37) | Cross-cutting VoiceOver, Dynamic Type, contrast, Reduce Motion, responsive layouts and native interaction acceptance |
+| Top navigation + headers | [#68](https://github.com/melusi-k/ate-ios/issues/68) | Navigation-bar/title/toolbar consistency, large-title collapse, safe areas and Back behavior |
+| Bottom tab bar + tab state | [#69](https://github.com/melusi-k/ate-ios/issues/69) | Tab item/selection consistency, safe areas, tab stack and Library search/scroll state |
+| Requirements / QA coverage audit | [#70](https://github.com/melusi-k/ate-ios/issues/70) | Reconcile PRD, checklist, matrix, workflows, current code, evidence and single-owner mapping |
 | Health + journal | [#38](https://github.com/melusi-k/ate-ios/issues/38) | HealthKit MVP, permission states, insight rules, local journal and journal interaction acceptance |
 | Share + security + release gates | [#39](https://github.com/melusi-k/ate-ios/issues/39) | Hosted share browser verification, deep links, Supabase security review, artifact integrity and privacy/legal gates |
 | Device QA + support + monitoring | [#40](https://github.com/melusi-k/ate-ios/issues/40) | Physical-device evidence, pilot readiness, support/known issues, monitoring and operational readiness |
 | Deferred / future platform work | [#41](https://github.com/melusi-k/ate-ios/issues/41) | StoreKit/Ate Plus, paid-team dependencies, modularization, Watch and other explicitly deferred features |
+
+## Status freshness and verification boundaries
+
+- The checklist was originally rewritten against build 36 and the QA matrix snapshot refers to build 36/build 53; those numbers are historical, not current status.
+- `latest-build` and `latest-beta` are distinct: an ordinary build is not a full validated beta. Check current workflow run IDs and exact SHAs before quoting a green result.
+- App-level sharing tests, hosted browser rendering, production Supabase security review and Universal Links are distinct gates.
+- Simulator tests do not close physical-device acceptance. Device evidence must include build/version, device/iOS, steps, result and date.
+- The checklist now links each formerly TBD acceptance owner to its domain issue. Cross-cutting shell issues (#37/#68/#69) should be linked only where the same regression/test genuinely spans those concerns.
 
 ## Complete acceptance-ID inventory
 

@@ -280,3 +280,12 @@ This section supplements the canonical IDs in `MVP_CHECKLIST.md`; do not mark th
 - `AteUITests/KeyFlowsQATests/testQA7_SyncAccount` — the recipe editor `Done` control lookup/tap is unstable before the Settings/account-sync flow. Tracked in [issue #76](https://github.com/melusi-k/ate-ios/issues/76). Everyday CI records the real result as **QUARANTINED / NOT PASSED** and continues; pre-production still executes the test and preserves the true result. This is not a pass and does not close A-SYNC-01 / A-AUTH acceptance. Feature ownership: [#34 auth/sync](https://github.com/melusi-k/ate-ios/issues/34); Settings interaction: [#74](https://github.com/melusi-k/ate-ios/issues/74); coverage reconciliation: [#70](https://github.com/melusi-k/ate-ios/issues/70).
 
 - `AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay` — earlier `Missing Any` assertion failure at `AteUITests.swift:250`; tracked separately in [issue #77](https://github.com/melusi-k/ate-ios/issues/77), owned by [#31 Cooking Tracker](https://github.com/melusi-k/ate-ios/issues/31). This failure is not covered by the Settings quarantine and must be investigated against completion-to-Tracker behavior before changing its gate or classifying the failure.
+
+
+## Test-layer taxonomy and execution campaign
+
+Coordinating issue: [#79 Feature verification campaign](https://github.com/melusi-k/ate-ios/issues/79). Workflow/reliability owner: [#78 CI/workflow operations](https://github.com/melusi-k/ate-ios/issues/78). Canonical requirement/ID reconciliation: [#70](https://github.com/melusi-k/ate-ios/issues/70).
+
+Classify coverage under one or more explicit layers: **UNIT/MODEL**, **INTEGRATION/CONTRACT**, **FOCUSED-UI/REGRESSION**, **FULL-UI**, **ACCESSIBILITY/RESPONSIVE**, **BACKEND/E2E**, **PLATFORM/EXTENSION**, **PHYSICAL-DEVICE/MANUAL**, and **RELEASE/RELIABILITY**. A test can cover more than one layer, but the result must be reported per executed gate. Use only these result states: **PASS** (current evidence attached), **FAIL** (failure evidence attached), **QUARANTINED / NOT PASSED** (reason, owner, issue and exit condition), or **NOT RUN**. Do not carry historical results forward as current passes.
+
+Execution principle: test the changed boundary first; batch the broad retained suite at deliberate checkpoints/pre-production. Physical-device and backend staging results remain distinct from simulator/unit results.

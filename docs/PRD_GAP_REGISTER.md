@@ -21,6 +21,9 @@
 | Top navigation + headers | [#68](https://github.com/melusi-k/ate-ios/issues/68) | Navigation-bar/title/toolbar consistency, large-title collapse, safe areas and Back behavior |
 | Bottom tab bar + tab state | [#69](https://github.com/melusi-k/ate-ios/issues/69) | Tab item/selection consistency, safe areas, tab stack and Library search/scroll state |
 | Requirements / QA coverage audit | [#70](https://github.com/melusi-k/ate-ios/issues/70) | Reconcile PRD, checklist, matrix, workflows, current code, evidence and single-owner mapping |
+| Shopping List | [#72](https://github.com/melusi-k/ate-ios/issues/72) | Manual/recipe add, merge, tick/clear, aisle grouping, offline persistence, export/share and stale recipe references |
+| Library discovery + organization | [#73](https://github.com/melusi-k/ate-ios/issues/73) | Search, filter composition, collections, sort/group/reorder and Library-specific regression coverage |
+| Settings + data management | [#74](https://github.com/melusi-k/ate-ios/issues/74) | Preferences, export/import/clear, corrupt-store recovery, channel gating and diagnostics |
 | Health + journal | [#38](https://github.com/melusi-k/ate-ios/issues/38) | HealthKit MVP, permission states, insight rules, local journal and journal interaction acceptance |
 | Share + security + release gates | [#39](https://github.com/melusi-k/ate-ios/issues/39) | Hosted share browser verification, deep links, Supabase security review, artifact integrity and privacy/legal gates |
 | Device QA + support + monitoring | [#40](https://github.com/melusi-k/ate-ios/issues/40) | Physical-device evidence, pilot readiness, support/known issues, monitoring and operational readiness |
@@ -82,6 +85,11 @@ IDs below are generated from the current checklist's actual item labels. The che
 ## Issue #70 — requirements, QA and ownership reconciliation
 
 The coverage register itself is under review in [issue #70](https://github.com/melusi-k/ate-ios/issues/70). This issue audits requirements against implementation, automated tests, workflows, QA matrix, manual device evidence, and user-facing docs. Do not treat the presence of an ID in this index as evidence that its behavior passes.
+
+Additional feature ownership gaps found in the audit:
+- [#72 — Shopping List workflows, persistence, aisle grouping and sharing](https://github.com/melusi-k/ate-ios/issues/72) owns Shopping List domain behavior; recipe-originating ingredient handoff stays with #35 and widget/Siri/Shortcut integration stays with #36.
+- [#73 — Library browsing, search, filters, collections, sorting and reorder](https://github.com/melusi-k/ate-ios/issues/73) owns Library discovery and organization, while #68 owns top header chrome and #69 owns bottom tab/search-role behavior.
+- [#74 — Settings, preferences, data tools and beta-channel safety](https://github.com/melusi-k/ate-ios/issues/74) owns settings/data-management UX, while auth stays with #34 and production security/privacy review with #39.
 
 Shared shell issues added after the initial register:
 - [#68 — Standardise the top navigation bar and screen headers](https://github.com/melusi-k/ate-ios/issues/68)

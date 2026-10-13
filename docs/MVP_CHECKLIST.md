@@ -1136,7 +1136,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Acceptance:* A Shortcut 'What's on my shopping list' with Show When Run off passes the items as text to the next action (e.g. Show Result), not an empty card.
   - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
-  - *Owner:* [#72](https://github.com/melusi-k/ate-ios/issues/72)
+  - *Owner:* [#36](https://github.com/melusi-k/ate-ios/issues/36)
 
 - **C-FIX-08 · One save, one recipe** — ❌
   - *Journey:* As a cook, one save, one recipe.

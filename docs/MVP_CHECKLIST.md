@@ -154,6 +154,50 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Status evidence:* Current artifact metadata and destinations need exact-SHA verification.
   - *Owner:* [#74](https://github.com/melusi-k/ate-ios/issues/74)
 
+### Library discovery and organization — feature acceptance (new audit coverage)
+
+- **A-LIB-01 · Search saved recipes** — 🟡
+  - *Journey:* As a cook, I can find a saved recipe by its title or searchable content.
+  - *Acceptance:* Search results update predictably, result counts and empty states are accurate, clearing search restores the full collection, and query state follows the tab-retention rules.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Current search behavior and state restoration need exact-SHA verification.
+  - *Owner:* [#73](https://github.com/melusi-k/ate-ios/issues/73)
+
+- **A-LIB-02 · Compose filters correctly** — 🟡
+  - *Journey:* As a cook, I combine time, origin, servings, favourites and ingredient filters.
+  - *Acceptance:* Values OR within one filter group and groups AND together; result counts update correctly; Clear resets every filter; persisted filters restore without stale results.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Filter-composition truth table and persistence need explicit tests/evidence.
+  - *Owner:* [#73](https://github.com/melusi-k/ate-ios/issues/73)
+
+- **A-LIB-03 · Collections contain correct recipes** — 🟡
+  - *Journey:* As a cook, I browse Quick, Favourites, Recently added, Recently cooked and main-ingredient collections.
+  - *Acceptance:* Collection membership and ordering match the defined rules; edits/deletes update membership; Recently cooked follows Tracker's cooking-event semantics in [#31](https://github.com/melusi-k/ate-ios/issues/31).
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Collection membership and Tracker integration need exact-SHA verification.
+  - *Owner:* [#73](https://github.com/melusi-k/ate-ios/issues/73)
+
+- **A-LIB-04 · Sort deterministically** — 🟡
+  - *Journey:* As a cook, I sort recipes by newest, A–Z, quickest, recently cooked, favourites first or My order.
+  - *Acceptance:* Each sort is deterministic with documented tie and unranked-item behavior; switching sort does not lose or duplicate recipes; My order is persisted.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Sorting tie-breaks and reorder persistence need verification.
+  - *Owner:* [#73](https://github.com/melusi-k/ate-ios/issues/73)
+
+- **A-LIB-05 · Group recipes consistently** — 🟡
+  - *Journey:* As a cook, I group the Library by recently added, cuisine, main ingredient or cook time.
+  - *Acceptance:* Section order and fallback groups are stable; unknown/missing values remain visible; group and sort combinations are defined and do not hide recipes.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Current in-memory grouping behavior and edge cases need tests.
+  - *Owner:* [#73](https://github.com/melusi-k/ate-ios/issues/73)
+
+- **A-LIB-06 · Reorder recipes without loss or duplication** — 🟡
+  - *Journey:* As a cook, I organize recipes in My order in list and grid layouts.
+  - *Acceptance:* Drag/drop changes persist, works only where grouping/sort rules permit it, and never duplicates or loses cards; unsupported grid swipe actions are not represented as supported.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* List/grid reorder parity and persistence need current evidence.
+  - *Owner:* [#73](https://github.com/melusi-k/ate-ios/issues/73)
+
 ### Edit / save / delete — 3.5 / 5
 
 - **A-EDIT-01 · Review and edit before saving** — ✅

@@ -728,42 +728,42 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Acceptance:* Grid cards support the same swipe actions as list rows.
   - *Verified by:* `—` · Manual
   - *Status evidence:* iOS 26 API unconfirmed; long-press menus instead
-  - *Owner:* [#37](https://github.com/melusi-k/ate-ios/issues/37)
+  - *Owner:* [#73](https://github.com/melusi-k/ate-ios/issues/73)
 
 - **C-POL-02 · SwiftData sectionBy grouping** — ❌
   - *Journey:* As a cook, grouped lists scroll smoothly at scale.
   - *Acceptance:* Grouping uses sectionBy where available with identical results.
   - *Verified by:* `LibraryLayoutTests` · Unit
   - *Status evidence:* Grouping works without it
-  - *Owner:* [#37](https://github.com/melusi-k/ate-ios/issues/37)
+  - *Owner:* [#73](https://github.com/melusi-k/ate-ios/issues/73)
 
 - **C-POL-03 · Watch app** — ❌
   - *Journey:* As a cook, I see timers on my wrist.
   - *Acceptance:* Running timers mirror to Apple Watch.
   - *Verified by:* `—` · —
   - *Status evidence:* Not started
-  - *Owner:* [#37](https://github.com/melusi-k/ate-ios/issues/37)
+  - *Owner:* [#41](https://github.com/melusi-k/ate-ios/issues/41)
 
 - **C-POL-04 · iPad and foldable layouts** — ❌
   - *Journey:* As a cook on iPad, I get the sidebar + grid.
   - *Acceptance:* Sidebar/grid used on iPad with no layout breaks.
   - *Verified by:* `—` · —
   - *Status evidence:* Planned phase
-  - *Owner:* [#37](https://github.com/melusi-k/ate-ios/issues/37)
+  - *Owner:* [#41](https://github.com/melusi-k/ate-ios/issues/41)
 
 - **C-POL-05 · Modularise auth/sync/AI/share/timers/deep links** — ❌
   - *Journey:* As the developer, a change in one area can't silently break another.
   - *Acceptance:* Each area is its own module with its own tests.
   - *Verified by:* `—` · —
   - *Status evidence:* PRD v1.3 action 8
-  - *Owner:* [#37](https://github.com/melusi-k/ate-ios/issues/37)
+  - *Owner:* [#41](https://github.com/melusi-k/ate-ios/issues/41)
 
 - **C-POL-06 · Staging Supabase project for end-to-end tests** — ❌
   - *Journey:* As the developer, E2E tests hit a real but separate backend.
   - *Acceptance:* CI runs auth/share/sync E2E against staging when secrets exist.
   - *Verified by:* `—` · CI
   - *Status evidence:* Staging secrets not configured
-  - *Owner:* [#37](https://github.com/melusi-k/ate-ios/issues/37)
+  - *Owner:* [#39](https://github.com/melusi-k/ate-ios/issues/39)
 
 ### Design review polish — 0 / 7
 
@@ -780,7 +780,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 - **C-DES-03 · Timer summary bar** — ❌
   - *Acceptance:* With 2+ timers running, one compact summary bar shows the soonest timer and '+N more'; tapping it lists all timers with pause/stop.
   - *Verified by:* manual
-  - *Owner:* [#37](https://github.com/melusi-k/ate-ios/issues/37)
+  - *Owner:* [#36](https://github.com/melusi-k/ate-ios/issues/36)
 
 - **C-DES-04 · 44 pt tap targets** — ❌
   - *Acceptance:* Every button, chip, stepper and icon in Library, recipe detail, cook mode and Settings is at least 44×44 pt.
@@ -790,17 +790,17 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 - **C-DES-05 · Segmented servings control** — ❌
   - *Acceptance:* Servings uses a system segmented/stepper control; changing it rescales every ingredient instantly and VoiceOver reads the value.
   - *Verified by:* manual
-  - *Owner:* [#37](https://github.com/melusi-k/ate-ios/issues/37)
+  - *Owner:* [#35](https://github.com/melusi-k/ate-ios/issues/35)
 
 - **C-DES-06 · The … menu** — ❌
   - *Acceptance:* The recipe … menu is a system menu with Edit, Share, Generate cover, Add to list and a red Delete last; nothing is clipped or duplicated.
   - *Verified by:* manual
-  - *Owner:* [#37](https://github.com/melusi-k/ate-ios/issues/37)
+  - *Owner:* [#73](https://github.com/melusi-k/ate-ios/issues/73)
 
 - **C-DES-07 · Cook mode ✕** — ❌
   - *Acceptance:* Cook mode closes with a top-leading ✕ (labelled 'Close cook mode'); closing with running timers keeps them running and shows them on the timer bar.
   - *Verified by:* manual
-  - *Owner:* [#37](https://github.com/melusi-k/ate-ios/issues/37)
+  - *Owner:* [#36](https://github.com/melusi-k/ate-ios/issues/36)
 
 
 ### Accessibility — 0 / 4
@@ -1048,7 +1048,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Acceptance:* A Shortcut 'What's on my shopping list' with Show When Run off passes the items as text to the next action (e.g. Show Result), not an empty card.
   - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
-  - *Owner:* [#37](https://github.com/melusi-k/ate-ios/issues/37)
+  - *Owner:* [#72](https://github.com/melusi-k/ate-ios/issues/72)
 
 - **C-FIX-08 · One save, one recipe** — ❌
   - *Journey:* As a cook, one save, one recipe.

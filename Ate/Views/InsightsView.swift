@@ -118,7 +118,11 @@ struct InsightsView: View {
                 .pageWidth()
             }
         }
-        .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id).environment(store) }
+        .sheet(item: $openRecipe) {
+            t in RecipeSheet(recipeID: t.id).environment(store)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
         .onChange(of: model.context?.insight.state) { _, st in
             if st != nil { BetaQA.shared.pass("A-HEALTH-03", note: "Insights showed \(st!.title) with \(model.context?.suggestions.count ?? 0) meal ideas") }
         }

@@ -40,7 +40,9 @@ open Ate.xcodeproj   # Xcode 26 (iOS 26 SDK) required for the Foundation Models 
 
 **Download on your phone:** https://github.com/melusi-k/ate-ios/releases/tag/latest-build
 
-### Installing the .ipa (current: 0.1.0 build 99)
+### Installing the .ipa (rolling `latest-build`)
+
+Build numbers change on every main push. Use the version/build in the selected GitHub release notes and Settings › About; do not rely on a hard-coded build number in this guide.
 1. **SideStore (recommended):** in SideStore tap **+**, pick the downloaded `Ate-<version>-build<N>.ipa`, choose **Keep** app extensions. SideStore registers the App Group for free Apple IDs (widgets work) and refreshes on-device every 7 days.
 2. **AltStore / Sideloadly:** same IPA; re-sign every 7 days. In Sideloadly leave *Remove app extensions* off.
 3. **Xcode (Mac):** build with your Personal Team (see *Build locally*).

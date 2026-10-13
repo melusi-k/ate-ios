@@ -60,3 +60,42 @@ The Tracker tab is the combined daily/monthly hub; its tab label remains **Track
 5. Confirm the full searchable journal list and entry detail routes still work; Ate journal entries remain local-only and Ate does not write to Apple's Journal.
 
 **Deferred final device pass:** on supported/unsupported devices, record Health permissions (including denial), entitlement/sideload and picker behavior, sample-data/no-data fallback, journal persistence, location/media, VoiceOver, and largest Dynamic Type. Include device model, OS, build/channel, exact result and evidence. Simulator CI does not close these device-only checks.
+
+## Testing stages and release checklist
+
+### Everyday pull-request gate
+
+The everyday PR gate is intentionally short: validate documentation/acceptance-ID consistency, build the iOS app for a simulator, and run only the high-value smoke checks for account sync, Cooking Tracker, and Cook Mode completion/history. The main-branch IPA workflow builds and verifies the release artifact on every push, but unit/UI/backend test suites are opt-in. A green everyday gate is evidence for those checks only; it is not a claim that the exhaustive test suite has passed.
+
+### Deliberate pre-production gate
+
+Run **Actions → Pre-production QA → Run workflow** when preparing a pre-production build, or push a release-candidate tag named `preproduction-*`. This gate retains and runs the full `AteTests` unit suite, focused settings/Tracker/Cook Mode/Health-journal/widget-intents acceptance checks, all four existing UI shards (`AteUITests`, `CoverageUITests`, `AccessibilityAuditUITests`, `WidgetsIntentsUITests`), and backend E2E against the configured QA backend. Each UI shard and backend E2E has its own diagnostics artifact. Review all job results and artifacts before distributing the build. Do not delete a failing test merely to obtain a green run.
+
+### Failure classification and quarantine register
+
+Classify each failure before changing product code:
+
+- **Product defect:** reproducible incorrect app behavior, supported by a failing journey/assertion that accurately represents the requirement. Fix the app and add/update coverage only when needed; do not expand UI coverage by default.
+- **Test-quality issue:** an assertion that is ambiguous, targets a covered/non-interactive element, relies on nondeterministic setup, or otherwise does not correctly represent the intended behavior. Record the test name, failure evidence, reason, owner, and follow-up condition. Do not report it as an app defect or as a pass.
+- **Environment/infrastructure issue:** simulator, signing, dependency, runner, or tool failure that prevents a trustworthy result. Record the evidence and rerun only after identifying a plausible transient cause.
+
+Quarantined tests remain in source and are explicitly named in CI/docs with a reason and an accountable owner. A quarantine is **not a pass**: report it as skipped/quarantined and track the removal condition. Current known quarantine: `testBetaChannelShowsBetaDiagnosticsEntry` — launch-channel argument is not reliably applied in CI; owner: iOS QA/automation maintainer; exit condition: deterministic launch-channel fixture is available and the test passes repeatedly. Any new quarantine must include an explicit owner before it is accepted.
+
+### Pre-production release checklist
+
+Record build number, commit SHA, device model, OS version, date, tester, and evidence. Check every item before distribution:
+
+- [ ] Exact release-candidate commit passed the Pre-production QA workflow, or every failure is classified and explicitly accepted by the release owner; quarantined tests are not represented as passing.
+- [ ] On simulator: cold launch, create/open/save a recipe, edit it, open Library, enter Cook Mode, complete a recipe, and verify the Tracker cooking-day/history entry.
+- [ ] On simulator: verify account sign-in/sync journey using the configured QA fixture; verify Health unavailable/denied and sample-data fallback; open journal list and entry detail.
+- [ ] On a real supported iPhone: launch and relaunch, save/open a recipe, complete Cook Mode and verify Tracker persistence, check sign-in/sync if staging credentials are available, and confirm no crash or blocked navigation on critical journeys.
+- [ ] On a real device: inspect VoiceOver focus and largest Dynamic Type for Library, Cook Mode, Tracker, Health insight, and journal entry; record unavailable device/entitlement cases as not tested, never as passed.
+- [ ] Review crash logs, known issues, and test artifacts; document remaining product defects and test-quality issues separately.
+- [ ] Release owner signs off the checklist before distributing the pre-production build.
+
+A simulator cannot satisfy the real-device checklist. If no physical device is available, mark that portion **Not run** and do not claim the pre-production device gate is complete.
+
+
+## Temporary everyday-CI quarantine — Settings/account sync (issue #76)
+
+`AteUITests/KeyFlowsQATests/testQA7_SyncAccount` is retained and executed in everyday CI for diagnostics, but a failure is reported as **QUARANTINED / NOT PASSED** and does not block the everyday build while the recipe editor `Done` button selector is repaired. The failure is not classified as a product defect or test-only defect without evidence. The full log and xcresult remain artifacts. Pre-production must continue to execute the test and expose its real result; quarantine is not coverage or release approval. Track account/sync behavior under [#34](https://github.com/melusi-k/ate-ios/issues/34), Settings interaction under [#74](https://github.com/melusi-k/ate-ios/issues/74), and repair/repeated-run evidence under [#76](https://github.com/melusi-k/ate-ios/issues/76).

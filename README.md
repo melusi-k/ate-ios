@@ -36,7 +36,7 @@ open Ate.xcodeproj   # Xcode 26 (iOS 26 SDK) required for the Foundation Models 
 ```
 
 ## CI → .ipa
-`.github/workflows/build-ipa.yml` runs on pushes to `main`, and you can also start it manually. Every main push generates and archives the app, runs unit tests, the 8-flow `KeyFlowsQATests` gate, focused Cooking Tracker calendar/history UI tests, Cook Mode completion/early-exit UI regressions, and release smoke checks, then replaces the **`latest-build`** prerelease. The full UI-test shards and backend E2E run only when a manual run sets `run_tests=true` or the pushed commit message contains `[run tests]`; a successful full validation promotes that exact build to **`latest-beta`**:
+`.github/workflows/build-ipa.yml` runs on pushes to `main`, and can also be started manually. Every main push builds and archives the app, performs release-artifact and simulator launch smoke checks, and updates **`latest-build`**; this is an internal build, not a validated beta. Unit tests, the 8-flow `KeyFlowsQATests` gate, focused Cooking Tracker/Cook Mode regressions, the full UI-test shards and backend E2E run only when a manual run sets `run_tests=true` or the pushed commit message contains `[run tests]`. A successful full validation promotes that exact build to **`latest-beta`**. The shorter PR gate is defined in [`.github/workflows/compile-check.yml`](.github/workflows/compile-check.yml); deliberate release-candidate verification is [Pre-production QA](.github/workflows/preproduction-qa.yml) and its policy is in [docs/QA.md](docs/QA.md):
 
 **Download on your phone:** https://github.com/melusi-k/ate-ios/releases/tag/latest-build
 

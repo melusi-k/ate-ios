@@ -45,6 +45,7 @@ IDs below are generated from the current checklist's actual item labels. The che
 
 - **Recipe creation:** A-CREATE-01, A-CREATE-02, A-CREATE-03, A-CREATE-04, A-CREATE-05, A-CREATE-06
 - **Edit / save / delete:** A-EDIT-01, A-EDIT-02, A-EDIT-03, A-EDIT-04, A-EDIT-05
+- **Library discovery/organization (issue #73):** A-LIB-01, A-LIB-02, A-LIB-03, A-LIB-04, A-LIB-05, A-LIB-06
 - **Shopping List (issue #72):** A-SHOP-01, A-SHOP-02, A-SHOP-03, A-SHOP-04, A-SHOP-05, A-SHOP-06
 - **Settings/data management (issue #74):** A-SET-01, A-SET-02, A-SET-03, A-SET-04, A-SET-05, A-SET-06
 - **Auth (launch gate):** A-AUTH-01, A-AUTH-02, A-AUTH-03, A-AUTH-04, A-AUTH-05, A-AUTH-06, A-AUTH-07, A-AUTH-08, A-AUTH-09

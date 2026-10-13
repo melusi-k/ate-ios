@@ -29,9 +29,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/Library/Developer/Xcode/DerivedData
-          key: macos-26-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          key: macos-26-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}}-${{ github.sha }}}
           restore-keys: |
-            macos-26-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            macos-26-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}}-
             macos-26-xcode-deriveddata-
       - name: Validate docs IDs and generated checklist consistency
         run: python3 scripts/check-ids.py
@@ -239,7 +239,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: compile-check-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          name: compile-check-diagnostics-${{ github.run_id }}}-${{ github.run_attempt }}}
           if-no-files-found: warn
           path: |
             build.log
@@ -256,7 +256,7 @@ jobs:
             ${{ runner.temp }}/ate-test-results/*.xcresult
 
   full-ui-suite:
-    name: Full UI suite (${ matrix.shard })
+    name: Full UI suite (${{ matrix.shard }})
     runs-on: macos-26
     timeout-minutes: 60
     strategy:
@@ -271,9 +271,9 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/Library/Developer/Xcode/DerivedData
-          key: macos-26-xcode-deriveddata-${ hashFiles('project.yml', '**/Package.resolved') }-${ github.sha }
+          key: macos-26-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
           restore-keys: |
-            macos-26-xcode-deriveddata-${ hashFiles('project.yml', '**/Package.resolved') }-
+            macos-26-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
             macos-26-xcode-deriveddata-
       - uses: actions/cache@v4
         with:
@@ -297,7 +297,7 @@ jobs:
           mkdir -p build
           set +e
           xcodebuild test -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteUITests/${ matrix.shard } -resultBundlePath build/UITests.xcresult \
+            -only-testing:AteUITests/${{ matrix.shard }} -resultBundlePath build/UITests.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > uitest.log 2>&1
@@ -313,7 +313,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: preproduction-ui-${ matrix.shard }-${ github.run_id }-${ github.run_attempt }
+          name: preproduction-ui-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
             uitest.log
@@ -331,19 +331,19 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: ubuntu-playwright-chromium-${ hashFiles('scripts/e2e/*.py') }
+          key: ubuntu-playwright-chromium-${{ hashFiles('scripts/e2e/*.py') }
           restore-keys: |
             ubuntu-playwright-chromium-
       - name: Install Playwright
         run: pip install -q playwright && python -m playwright install --with-deps chromium
       - name: Run backend E2E against configured QA backend
         env:
-          SUPABASE_ACCESS_TOKEN: ${ secrets.SUPABASE_ACCESS_TOKEN }
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -o pipefail
           BASE=$(grep -E '^\\s*MARKETING_VERSION' project.yml | head -1 | sed -E 's/.*"(.*)".*/\\1/' | cut -d. -f1-2)
           set +e
-          python scripts/e2e/backend_e2e.py --upload --build "$BASE preproduction-${ github.sha }" 2>&1 | tee backend-e2e.log
+          python scripts/e2e/backend_e2e.py --upload --build "$BASE preproduction-$GITHUB_SHA" 2>&1 | tee backend-e2e.log
           status=$?
           set -e
           if [ -f build/e2e/summary.md ]; then cat build/e2e/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
@@ -352,7 +352,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: preproduction-backend-e2e-${ github.run_id }-${ github.run_attempt }
+          name: preproduction-backend-e2e-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
             backend-e2e.log

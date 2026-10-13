@@ -9,7 +9,7 @@ final class InsightsModel {
     /// Beta debug picker: swap to a mock scenario ("" = live Apple Health).
     func useScenario(_ s: String, recipes: [RecipeCard]) async {
         UserDefaults.standard.set(s, forKey: HealthServiceFactory.debugKey)
-        health = HealthServiceFactory.make(arguments: [])
+        health = HealthServiceFactory.make(arguments: AppConfig.isUITesting ? ["-qaMockHealth", s] : [])
         if health is MockHealthKitService { _ = await health.requestAccess() }
         await refresh(recipes: recipes)
     }

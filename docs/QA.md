@@ -65,11 +65,11 @@ The Tracker tab is the combined daily/monthly hub; its tab label remains **Track
 
 ### Everyday pull-request gate
 
-The everyday CI gate is intentionally short: validate documentation/acceptance-ID consistency, build the iOS app for a simulator, and run only the high-value smoke checks for account sync, Cooking Tracker, and Cook Mode completion/history. A green everyday gate is evidence for those checks only; it is not a claim that the exhaustive test suite has passed.
+The everyday PR gate is intentionally short: validate documentation/acceptance-ID consistency, build the iOS app for a simulator, and run only the high-value smoke checks for account sync, Cooking Tracker, and Cook Mode completion/history. The main-branch IPA workflow builds and verifies the release artifact on every push, but unit/UI/backend test suites are opt-in. A green everyday gate is evidence for those checks only; it is not a claim that the exhaustive test suite has passed.
 
 ### Deliberate pre-production gate
 
-Run **Actions → Pre-production QA → Run workflow** when preparing a pre-production build, or push a release-candidate tag named `preproduction-*`. This gate retains and runs the full `AteTests` unit suite plus settings, Cooking Tracker, Cook Mode, Health/journal acceptance, and widget/intents UI suites. Review test results and artifacts before distributing the build. Do not delete a failing test merely to obtain a green run.
+Run **Actions → Pre-production QA → Run workflow** when preparing a pre-production build, or push a release-candidate tag named `preproduction-*`. This gate retains and runs the full `AteTests` unit suite, focused settings/Tracker/Cook Mode/Health-journal/widget-intents acceptance checks, all four existing UI shards (`AteUITests`, `CoverageUITests`, `AccessibilityAuditUITests`, `WidgetsIntentsUITests`), and backend E2E against the configured QA backend. Each UI shard and backend E2E has its own diagnostics artifact. Review all job results and artifacts before distributing the build. Do not delete a failing test merely to obtain a green run.
 
 ### Failure classification and quarantine register
 

@@ -94,3 +94,8 @@ Record build number, commit SHA, device model, OS version, date, tester, and evi
 - [ ] Release owner signs off the checklist before distributing the pre-production build.
 
 A simulator cannot satisfy the real-device checklist. If no physical device is available, mark that portion **Not run** and do not claim the pre-production device gate is complete.
+
+
+## Temporary everyday-CI quarantine — Settings/account sync (issue #76)
+
+`AteUITests/KeyFlowsQATests/testQA7_SyncAccount` is retained and executed in everyday CI for diagnostics, but a failure is reported as **QUARANTINED / NOT PASSED** and does not block the everyday build while the recipe editor `Done` button selector is repaired. The failure is not classified as a product defect or test-only defect without evidence. The full log and xcresult remain artifacts. Pre-production must continue to execute the test and expose its real result; quarantine is not coverage or release approval. Track account/sync behavior under [#34](https://github.com/melusi-k/ate-ios/issues/34), Settings interaction under [#74](https://github.com/melusi-k/ate-ios/issues/74), and repair/repeated-run evidence under [#76](https://github.com/melusi-k/ate-ios/issues/76).

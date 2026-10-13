@@ -1,6 +1,6 @@
 # ate — QA test matrix (scored)
 
-_Source of truth for IDs and acceptance: [MVP_CHECKLIST.md](MVP_CHECKLIST.md); this matrix and the in-app Beta checks follow it (CI `scripts/check-ids.py`). Current build: 0.1.0 (99). Generated 2026-10-10 against build 36; automated items updated from CI run 38063435067 (build 53, backend-e2e + simulator)._ Items, journeys and acceptance criteria are defined in [MVP_CHECKLIST.md](MVP_CHECKLIST.md); manual steps are in [QA.md](QA.md). Score: ✅ = 1, 🟡 = ½, ❌/⛔ = 0. "Sim result" = last full CI run **before** build 35 (tests have not run since). Fill in the device columns as you test, then update Status._
+_Historical scored snapshot: generated 2026-10-10 against build 36; automated rows were last annotated from CI run 38063435067 (build 53). The score and per-row statuses below are NOT current release evidence until re-run against the exact candidate SHA. Do not infer a current build number from the old `0.1.0 (99)` label. Acceptance definitions live in [MVP_CHECKLIST.md](MVP_CHECKLIST.md); manual/device procedures live in [QA.md](QA.md). `scripts/check-ids.py` checks the checklist-to-matrix ID mapping. Supplemental H-UI/H-DEV/EXT-JOURNAL rows are focused Health/journal test cases supporting the A-HEALTH and C-JRN requirements, not substitutes for their acceptance criteria. Score: ✅ = 1, 🟡 = ½, ❌/⛔ = 0. "Sim result" and device columns must be refreshed only from evidence tied to a named commit/build; stale statuses must remain labelled historical._
 
 ## Summary
 

@@ -310,3 +310,16 @@ These are new explicit acceptance rows added by the requirements audit. Result/d
 | A-SHOP-04 | Remove / clear safely | — | Individual remove works; clear-all confirmation/undo and empty state are correct | Focused UI tests required | Not run | Not run | Not run | 🟡 | Destructive-action and empty-state evidence not reconciled |
 | A-SHOP-05 | Group by aisle | — | Stable aisle order; unknown items remain visible; toggle preserves all state | Focused unit/UI tests required | Not run | Not run | Not run | 🟡 | Visible UI; behavior/regression coverage needs verification |
 | A-SHOP-06 | Share / copy / TXT / CSV | — | All items and quantities included; CSV delimiters/newlines escaped; empty list handled | Focused unit/UI tests required | Not run | Not run | Not run | 🟡 | Output and edge cases need current evidence |
+
+## Settings and data management acceptance — issue #74
+
+These new acceptance rows are unverified until tests/evidence are attached to a named candidate build.
+
+| ID | Journey | Steps | Expected | Automated test | Sim result | iPhone 17 result | Older/non-AI device result | Status | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| A-SET-01 | Preferences persist | — | Units/private mode/timer preferences persist and apply consistently; local-only values stay local | Focused unit/UI tests required | Not run | Not run | Not run | 🟡 | Current preference persistence needs exact-SHA verification |
+| A-SET-02 | Export user data | — | Export contains documented user data and metadata without secrets/session tokens; truthful success/failure state | Focused unit/UI tests required | Not run | Not run | Not run | 🟡 | Export schema/completeness/failure evidence needs review |
+| A-SET-03 | Import and validate data | — | Valid export restores safely; malformed input rejected; duplicate/conflicting data handled without silent data loss | Focused unit/UI tests required | Not run | Not run | Not run | 🟡 | Import validation and destructive edge cases need evidence |
+| A-SET-04 | Clear local data safely | — | Confirmation describes scope; failure reported; app returns to usable empty/onboarding state without stale data | Focused UI tests required | Not run | Not run | Not run | 🟡 | Verify distinction from sign-out/account deletion |
+| A-SET-05 | Beta-channel diagnostics fail closed | — | TierA exposes diagnostics; Production/empty/unknown hides beta UI in installed builds | Unit/UI/build configuration tests required | Not run | Not run | Not run | 🟡 | Current exact-SHA artifact evidence needed |
+| A-SET-06 | Build identity and legal/help links | — | Version/build/SHA/backend/channel accurate; copy and legal/help destinations work | Focused UI/release artifact tests required | Not run | Not run | Not run | 🟡 | Verify current artifact metadata and destinations |

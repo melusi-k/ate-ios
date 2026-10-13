@@ -2,9 +2,9 @@
 
 _Acceptance inventory snapshot originally written 2026-10-10 against build 36; statuses and scores are historical until re-verified against a current exact-SHA run. Current release evidence is tracked in [#30](https://github.com/melusi-k/ate-ios/issues/30) and the release gate in [#45](https://github.com/melusi-k/ate-ios/issues/45). Scored test matrix: [QA_MATRIX.md](QA_MATRIX.md) · scores: [MVP_SCORE.md](MVP_SCORE.md) · manual steps: [QA.md](QA.md) · tester help: [SUPPORT.md](SUPPORT.md) · [BETA.md](BETA.md)._
 
-**Verdict:** a good candidate for a small **pilot**, but **Tier A is not yet all green**, mainly because nothing has been checked on a real device and builds 35–36 shipped without tests. Not public-launch ready.
+**Historical verdict (build 36, 2026-10-10):** Tier A was not all green, mainly because required real-device checks were missing and builds 35–36 shipped without tests. This is not a current release verdict. Use [#30](https://github.com/melusi-k/ate-ios/issues/30) for current CI/evidence and [#45](https://github.com/melusi-k/ate-ios/issues/45) for the authoritative release gate.
 
-**Honesty notes (build 36):** UI tests are optional (`run_tests` workflow input) and have **not** run on the build 35/36 changes. "Pass" in the simulator means the last full run before build 35. Landscape rotation was only enabled in build 36 and is **unverified**. The web share page still reads the **old Lovable backend**.
+**Historical evidence note (build 36):** these observations describe the 2026-10-10 snapshot, not current main. At that time, the last full simulator run preceded build 35 and landscape rotation was unverified. The hosted share page/backend must be rechecked against the current implementation; do not infer its current state from this old note. Main-push unit/key-flow tests and opt-in full UI/backend-E2E conditions are documented in [QA.md](QA.md) and defined in `.github/workflows/build-ipa.yml`.
 
 Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done · ⛔ blocked. Score ✅ = 1, 🟡 = ½, ❌/⛔ = 0. **Launch gates:** Auth (with a real-device gate, A-AUTH-09) and Backend/Share (A-SHARE-*, B-SHARE-01) must be fully ✅ for their tier, whatever the total score.
 

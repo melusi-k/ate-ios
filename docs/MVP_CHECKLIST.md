@@ -629,14 +629,14 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Acceptance:* A broken on-device store is moved to Backups/ate-<timestamp>.store, a fresh store opens, recipes come back from sync when signed in, a 'Library repaired' screen offers a JSON export, and the app never crashes.
   - *Verified by:* auto `StoreRecoveryTests` (corrupt store fixture) · Unit + `-qaCorruptStore` launch
   - *Status evidence:* Added build 97; first CI run pending
-  - *Owner:* [#39](https://github.com/melusi-k/ate-ios/issues/39)
+  - *Owner:* [#74](https://github.com/melusi-k/ate-ios/issues/74)
 
 - **A-DATA-02 · Save failures are visible** — ❌
   - *Journey:* As a cook, save failures are visible.
   - *Acceptance:* Every SwiftData save goes through StoreSaver: 2 retries, an os_log error, and a non-blocking error banner; on-screen state is kept.
   - *Verified by:* auto `StoreRecoveryTests.testInjectedSaveFailure*` · Unit
   - *Status evidence:* Added build 97; first CI run pending
-  - *Owner:* [#39](https://github.com/melusi-k/ate-ios/issues/39)
+  - *Owner:* [#74](https://github.com/melusi-k/ate-ios/issues/74)
 
 - **A-CI-06 · Published IPA verified** — ❌
   - *Journey:* As a cook, published IPA verified.

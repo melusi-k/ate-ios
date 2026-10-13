@@ -68,6 +68,18 @@ IDs below are generated from the current checklist's actual item labels. The che
 - **Library header:** C-LIB-01
 - **iOS 26 tab bar:** C-TAB-01, C-TAB-02, C-TAB-03, C-TAB-04, C-TAB-05, C-TAB-06
 
+## Issue #70 — requirements, QA and ownership reconciliation
+
+The coverage register itself is under review in [issue #70](https://github.com/melusi-k/ate-ios/issues/70). This issue audits requirements against implementation, automated tests, workflows, QA matrix, manual device evidence, and user-facing docs. Do not treat the presence of an ID in this index as evidence that its behavior passes.
+
+Shared shell issues added after the initial register:
+- [#68 — Standardise the top navigation bar and screen headers](https://github.com/melusi-k/ate-ios/issues/68)
+- [#69 — Standardise the bottom tab bar and tab-state behaviour](https://github.com/melusi-k/ate-ios/issues/69)
+- [#37 — Accessibility, responsive layout and native UX](https://github.com/melusi-k/ate-ios/issues/37) remains the cross-cutting acceptance tracker.
+
+Known documentation risks to reconcile in #70: CI default-vs-opt-in test descriptions; share page/browser status vs production Supabase security vs Universal Links; actual build runtime modes vs README/PRD statements; stale build/run/score snapshots; checklist rows whose owner is still TBD; and any acceptance IDs lacking one authoritative owner.
+
+
 ## Issue #38 — combined Tracker hub
 
 The implementation decision and acceptance sequence are recorded in [HEALTH_JOURNAL_TRACKER_HUB.md](HEALTH_JOURNAL_TRACKER_HUB.md). The existing Tracker tab becomes **Today & Journal** while retaining the **Tracker** tab label; Health stays read-only and opt-in, and the Ate journal remains local-only. This is coupled to [issue #31](https://github.com/melusi-k/ate-ios/issues/31): retain the cooking-history and Cook Mode completion/early-exit tests, and run the extended `CookingTrackerEntryUITests` target through PR #63's main-push release gate. Simulator/CI tests gate implementation and merge. Physical-device and entitlement evidence is intentionally deferred until the final pass of issue #38; keep those checks open until recorded. Issue #31's cooking-specific device checks remain separately tracked in [issue #60](https://github.com/melusi-k/ate-ios/issues/60).

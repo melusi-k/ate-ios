@@ -273,3 +273,8 @@ The production tab bar is Library, Shopping, Tracker, Settings plus Search-role 
 | Accessibility | Month controls have 44pt hit areas; date buttons have a larger hit area and descriptive labels; selected state is exposed; weekday decoration is hidden from VoiceOver. Dynamic Type still needs device verification. | UI tests + VoiceOver/Dynamic Type device QA | Hit-area polish and labels implemented; device evidence pending |
 
 This section supplements the canonical IDs in `MVP_CHECKLIST.md`; do not mark the tracker complete until automated and device evidence is attached to [issue #31](https://github.com/melusi-k/ate-ios/issues/31).
+
+
+## Test quarantine cross-reference (13 October 2026)
+
+- `AteUITests/KeyFlowsQATests/testQA7_SyncAccount` — the recipe editor `Done` control lookup/tap is unstable before the Settings/account-sync flow. Tracked in [issue #76](https://github.com/melusi-k/ate-ios/issues/76). Everyday CI records the real result as **QUARANTINED / NOT PASSED** and continues; pre-production still executes the test and preserves the true result. This is not a pass and does not close A-SYNC-01 / A-AUTH acceptance. Feature ownership: [#34 auth/sync](https://github.com/melusi-k/ate-ios/issues/34); Settings interaction: [#74](https://github.com/melusi-k/ate-ios/issues/74); coverage reconciliation: [#70](https://github.com/melusi-k/ate-ios/issues/70).

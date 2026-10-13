@@ -157,7 +157,7 @@ jobs:
           exit $STATUS
 
       # Tracker is part of release confidence, not just the opt-in full UI suite.
-      # Every main push runs the focused calendar/history and explicit cooking-completion regressions.
+      # Focused Tracker/Cook Mode regressions run only when full validation is explicitly requested.
       - name: Release gate — Cooking Tracker and Cook Mode history
         if: env.RUN_TESTS == 'true'
         timeout-minutes: 25

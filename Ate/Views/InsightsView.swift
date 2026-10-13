@@ -189,6 +189,7 @@ struct InsightsView: View {
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                     if let line = JournalingMomentMapper.contextLine(title: e.journalingSuggestionTitle, date: e.momentDate) {
                         Label(line, systemImage: "book.pages").font(AteFont.body(12)).foregroundStyle(Theme.primary)
+                            .accessibilityElement(children: .combine)
                             .accessibilityIdentifier("insights.entryMomentContext")
                     }
                     Text(e.text).font(AteFont.body(14)).lineLimit(3).multilineTextAlignment(.leading)

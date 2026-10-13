@@ -341,7 +341,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -o pipefail
-          BASE=$(grep -E '^\\s*MARKETING_VERSION' project.yml | head -1 | sed -E 's/.*"(.*)".*/\\1/' | cut -d. -f1-2)
+          BASE=$(grep -E '^\s*MARKETING_VERSION' project.yml | head -1 | sed -E 's/.*"(.*)".*/\\1/' | cut -d. -f1-2)
           set +e
           python scripts/e2e/backend_e2e.py --upload --build "$BASE preproduction-$GITHUB_SHA" 2>&1 | tee backend-e2e.log
           status=$?

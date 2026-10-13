@@ -66,6 +66,50 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Owner:* [#35](https://github.com/melusi-k/ate-ios/issues/35)
 
 
+### Shopping List — feature acceptance (new audit coverage)
+
+- **A-SHOP-01 · Add items manually and from a recipe** — 🟡
+  - *Journey:* As a cook, I add a one-off item or add ingredients from a saved recipe.
+  - *Acceptance:* Manual entry and recipe ingredient handoff both add the intended items; quantities and units are retained; invalid/blank input is handled without adding empty rows.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Existing product behavior is documented, but current exact-SHA coverage/evidence has not been reconciled.
+  - *Owner:* [#72](https://github.com/melusi-k/ate-ios/issues/72)
+
+- **A-SHOP-02 · Merge duplicates without losing quantity or unit** — 🟡
+  - *Journey:* As a cook, repeated recipe ingredients do not create confusing duplicate entries.
+  - *Acceptance:* Equivalent items merge according to a documented rule; differing units/quantities are preserved or converted safely; non-equivalent items remain separate.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Current merge semantics and edge cases need verification.
+  - *Owner:* [#72](https://github.com/melusi-k/ate-ios/issues/72)
+
+- **A-SHOP-03 · Tick, untick and persist shopping items** — 🟡
+  - *Journey:* As a cook, I can check off items and return later without losing my list.
+  - *Acceptance:* Tick/untick state survives tab switches, app relaunch and offline use; list updates are reflected in the visible count/badge.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Current persistence and badge behavior need exact-SHA verification.
+  - *Owner:* [#72](https://github.com/melusi-k/ate-ios/issues/72)
+
+- **A-SHOP-04 · Clear and remove items safely** — 🟡
+  - *Journey:* As a cook, I remove one item or clear the list without accidentally losing everything.
+  - *Acceptance:* Individual removal is reliable; clear-all is explicit and offers the agreed undo/confirmation behavior; an empty list has a clear state.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Destructive-action and empty-state evidence not yet reconciled.
+  - *Owner:* [#72](https://github.com/melusi-k/ate-ios/issues/72)
+
+- **A-SHOP-05 · Group by aisle consistently** — 🟡
+  - *Journey:* As a cook, I shop aisle-by-aisle and can switch grouping off.
+  - *Acceptance:* Known aisles have stable order; unknown items remain visible in a fallback group; toggling grouping never loses checked state, quantities or items.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Aisle grouping is visible in current UI, but behavior and regression coverage need verification.
+  - *Owner:* [#72](https://github.com/melusi-k/ate-ios/issues/72)
+
+- **A-SHOP-06 · Share, copy and export a complete list** — 🟡
+  - *Journey:* As a cook, I share or export the list for use outside Ate.
+  - *Acceptance:* Copy/share, TXT and CSV include all intended items and quantities, correctly escape CSV delimiters/newlines, and handle an empty list without malformed output.
+  - *Verified by:* — · focused unit/UI coverage required
+  - *Status evidence:* Export/share output and edge cases need current test evidence.
+  - *Owner:* [#72](https://github.com/melusi-k/ate-ios/issues/72)
+
 ### Edit / save / delete — 3.5 / 5
 
 - **A-EDIT-01 · Review and edit before saving** — ✅

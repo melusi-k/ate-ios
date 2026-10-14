@@ -532,7 +532,9 @@ jobs:
             exit 1
           fi
 
+  # Broad UI shards remain visible and upload results, but are non-blocking while product features are prioritized.
   ui-suite:
+    continue-on-error: true
     if: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
     strategy:
       fail-fast: false

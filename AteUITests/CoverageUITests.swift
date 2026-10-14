@@ -261,6 +261,19 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars.staticTexts["Beta testing"].exists)
     }
 
+    /// Regression for the direct user journey: tapping Settings › Beta testing from a
+    /// fresh launch must push the Beta page without terminating the app.
+    func test35c_BetaOpensFromFreshSettingsScreen() {
+        launch()
+        tab("Settings")
+        let beta = app.buttons["settings.betaTesting"]
+        wait(beta, 5)
+        beta.tap()
+        wait(app.staticTexts["betaProgress"], 8)
+        XCTAssertTrue(app.navigationBars.staticTexts["Beta testing"].exists)
+        XCTAssertTrue(app.staticTexts["betaCISummary"].exists)
+    }
+
     func passed() -> Int {
         let l = app.staticTexts["betaProgress"].label   // "Tier A: 3/44 passed"
         return Int(l.components(separatedBy: ": ").last?.components(separatedBy: "/").first ?? "") ?? -1

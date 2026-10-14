@@ -356,13 +356,31 @@ struct AddRecipeSheet: View {
             BetaQA.shared.pass("A-CREATE-05", note: "Restored unsaved draft “\(c.title)” after relaunch")
         } else if let p = DraftStore.shared.pending {
             if let m = Mode(rawValue: p.mode) { mode = m }
-            switch mode { case .link: link = p.text; case .prompt: prompt = p.text; case .image: break }
-            error = Self.interruptedMessage
+            switch mode {
+            case .link: link = p.text
+            case .prompt: prompt = p.text
+            case .image:
+                if let data = p.imageData { imageData = data }
+                else { error = "Your previous photo could not be restored. Select the photo again, then generate your recipe." }
+            }
+            if error == nil { error = Self.interruptedMessage }
             DraftStore.shared.end()
             BetaQA.shared.pass("A-CREATE-05", note: "Interrupted \(p.mode) generation offered a retry after relaunch")
         }
     }
     static let interruptedMessage = "Your last recipe was interrupted when ate closed. Tap Try again to retry."
+
+    /// Keep recoverable image input small enough for DraftStore/UserDefaults while retaining useful visual detail.
+    private static func recoverableJPEG(from data: Data) -> Data? {
+        guard let image = UIImage(data: data) else { return nil }
+        let longest = max(image.size.width, image.size.height)
+        let scale = min(1, 1280 / max(longest, 1))
+        let size = CGSize(width: max(1, image.size.width * scale), height: max(1, image.size.height * scale))
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.jpegData(withCompressionQuality: 0.72) { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+    }
 
     private func generate() async {
         if store.settings.onDeviceOnly {
@@ -384,7 +402,8 @@ struct AddRecipeSheet: View {
             req = ParseRequest(mode: .prompt, text: prompt)
         case .image:
             guard let d = imageData else { store.show("Upload a screenshot first.", error: true); return }
-            let jpeg = UIImage(data: d)?.jpegData(compressionQuality: 0.8) ?? d
+            let jpeg = Self.recoverableJPEG(from: d) ?? d
+            imageData = jpeg
             var dishes = spreadPicks.sorted()
             for d in dishAnswer.split(separator: ",").map({ $0.trimmingCharacters(in: .whitespaces) }) where !d.isEmpty && !dishes.contains(d) { dishes.append(d) }
             if dishQuestion != nil, let f = dishes.first { confirmedDish = f }
@@ -405,7 +424,8 @@ struct AddRecipeSheet: View {
         error = nil; socialError = nil; socialReason = nil
         live = nil
         OnDeviceBackend.partialSink = { p in live = p }
-        DraftStore.shared.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""))
+        DraftStore.shared.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""),
+                                imageData: mode == .image ? imageData : nil)
         defer { loading = false; DraftStore.shared.end(); OnDeviceBackend.partialSink = nil; live = nil }
         do {
             let started = Date()

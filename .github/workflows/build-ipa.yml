@@ -117,6 +117,22 @@ jobs:
             -only-testing:AteTests CODE_SIGNING_ALLOWED=NO > test.log 2>&1 || (grep -v -i coredata test.log | grep -E "\.swift:[0-9]+: error|Test Case .* failed|XCTAssert|Fatal error|crashed" | head -100 || true; grep -v -i coredata test.log | tail -80 || true; exit 1)
           grep -E "Executed|TEST SUCCEEDED" test.log | tail -3
 
+      - name: Focused recipe-generation regressions (#89)
+        if: env.RUN_TESTS == 'true'
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          SIM_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=json.load(sys.stdin)["devices"];print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -only-testing:AteTests/SyncFixtureTests/testInterruptedPhotoGenerationRestoresImageInput \
+            -only-testing:AteTests/SyncFixtureTests/testLegacyPendingDraftWithoutPhotoStillDecodes \
+            -only-testing:AteTests/PhotoRegressionTests/testAmbiguousPhotoPromptSupportsDrinksWithoutInventingSpirits \
+            -resultBundlePath build/RecipeGenerationRegressions.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES CODE_SIGNING_ALLOWED=NO > recipe-generation-regressions.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" recipe-generation-regressions.log || true; tail -100 recipe-generation-regressions.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" recipe-generation-regressions.log | tail -40
+
       - name: QA gate — key flows (KeyFlowsQATests)
         id: qa
         if: env.RUN_TESTS == 'true'
@@ -190,6 +206,21 @@ jobs:
           fi
           exit "$STATUS"
 
+      - name: Focused shared-navigation header regressions (#68)
+        if: env.RUN_TESTS == 'true'
+        timeout-minutes: 20
+        run: |
+          set -o pipefail
+          SIM_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=json.load(sys.stdin)["devices"];print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/testNavigationHeadersRemainStableOnShoppingAndSettings \
+            -only-testing:AteUITests/CoverageUITests/testCookingTrackerMonthNavigationAndSelectedDay \
+            -resultBundlePath build/NavigationHeaderRegressions.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES CODE_SIGNING_ALLOWED=NO > navigation-header-regressions.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" navigation-header-regressions.log || true; tail -100 navigation-header-regressions.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" navigation-header-regressions.log | tail -40
+
       - name: Upload Tracker release-gate diagnostics
         if: always() && env.RUN_TESTS == 'true'
         uses: actions/upload-artifact@v4
@@ -197,6 +228,10 @@ jobs:
           name: tracker-release-gate-diagnostics
           path: |
             tracker-release-gate.log
+            recipe-generation-regressions.log
+            build/RecipeGenerationRegressions.xcresult
+            navigation-header-regressions.log
+            build/NavigationHeaderRegressions.xcresult
             build/TrackerReleaseGate.xcresult
           if-no-files-found: warn
 

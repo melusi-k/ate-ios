@@ -126,8 +126,18 @@ struct RecipeFilter: Codable, Equatable {
     func apply(_ recipes: [RecipeCard], query: String = "") -> [RecipeCard] {
         let base = recipes.filter { matches($0) && RecipeLogic.matches($0, query: query) }
         switch collection {
-        case .recentlyAdded?: return Array(base.sorted { $0.createdAt > $1.createdAt }.prefix(20))
-        case .recentlyCooked?: return base.sorted { ($0.lastCookedAt ?? 0) > ($1.lastCookedAt ?? 0) }
+        case .recentlyAdded?:
+            return Array(base.sorted {
+                if $0.createdAt != $1.createdAt { return $0.createdAt > $1.createdAt }
+                return $0.id < $1.id
+            }.prefix(20))
+        case .recentlyCooked?:
+            return base.sorted {
+                let a = $0.lastCookedAt ?? 0, b = $1.lastCookedAt ?? 0
+                if a != b { return a > b }
+                if $0.createdAt != $1.createdAt { return $0.createdAt > $1.createdAt }
+                return $0.id < $1.id
+            }
         default: return base
         }
     }

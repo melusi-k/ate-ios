@@ -508,7 +508,7 @@ extension CoverageUITests {
         let insights = app.buttons["library.insights"]
         wait(insights); insights.tap()
 
-        let insightsTitle = app.navigationBars["Insights"]
+        let insightsTitle = app.navigationBars["Today & Journal"]
         wait(insightsTitle)
         wait(app.images["insights.logo"])
         let month = any("tracker.displayedMonth")

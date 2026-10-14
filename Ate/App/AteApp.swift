@@ -238,7 +238,7 @@ extension RootView {
                 }.withTimerBar()
             }
             .badge(store.pendingShoppingCount)
-            Tab("Tracker", systemImage: "calendar", value: AppTab.tracker) {
+            Tab("Insights", systemImage: "heart.text.square", value: AppTab.tracker) {
                 NavigationStack(path: $store.trackerPath) {
                     CookingTrackerScreen().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
@@ -278,7 +278,7 @@ extension RootView {
                 }.withTimerBar()
             }
             .badge(store.pendingShoppingCount)
-            Tab("Tracker", systemImage: "calendar", value: AppTab.tracker) {
+            Tab("Insights", systemImage: "heart.text.square", value: AppTab.tracker) {
                 NavigationStack(path: $store.trackerPath) {
                     CookingTrackerScreen().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
@@ -354,7 +354,7 @@ struct LandscapeSplitView: View {
                     Section {
                         row(.library, "Library", "books.vertical")
                         row(.shopping, "Shopping list", "basket", badge: store.pendingShoppingCount)
-                        row(.tracker, "Cooking Tracker", "calendar")
+                        row(.tracker, "Insights", "heart.text.square")
                         row(.settings, "Settings", "gearshape")
                     }
                     Section("Collections") {

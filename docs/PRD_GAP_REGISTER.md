@@ -80,9 +80,9 @@ Shared shell issues added after the initial register:
 Known documentation risks to reconcile in #70: CI default-vs-opt-in test descriptions; share page/browser status vs production Supabase security vs Universal Links; actual build runtime modes vs README/PRD statements; stale build/run/score snapshots; checklist rows whose owner is still TBD; and any acceptance IDs lacking one authoritative owner.
 
 
-## Issue #38 — combined Tracker hub
+## Issue #38 — combined Insights hub
 
-The implementation decision and acceptance sequence are recorded in [HEALTH_JOURNAL_TRACKER_HUB.md](HEALTH_JOURNAL_TRACKER_HUB.md). The existing Tracker tab becomes **Today & Journal** while retaining the **Tracker** tab label; Health stays read-only and opt-in, and the Ate journal remains local-only. This is coupled to [issue #31](https://github.com/melusi-k/ate-ios/issues/31): retain the cooking-history and Cook Mode completion/early-exit tests, and run the extended `CookingTrackerEntryUITests` target through PR #63's main-push release gate. Simulator/CI tests gate implementation and merge. Physical-device and entitlement evidence is intentionally deferred until the final pass of issue #38; keep those checks open until recorded. Issue #31's cooking-specific device checks remain separately tracked in [issue #60](https://github.com/melusi-k/ate-ios/issues/60).
+The implementation decision and acceptance sequence are recorded in [HEALTH_JOURNAL_TRACKER_HUB.md](HEALTH_JOURNAL_TRACKER_HUB.md). The combined cooking-history, Health and journal hub uses **Insights** as both its tab label and screen heading; Health stays read-only and opt-in, and the Ate journal remains local-only. This is coupled to [issue #31](https://github.com/melusi-k/ate-ios/issues/31): retain the cooking-history and Cook Mode completion/early-exit tests, and run the extended `CookingTrackerEntryUITests` target through PR #63's main-push release gate. Simulator/CI tests gate implementation and merge. Physical-device and entitlement evidence is intentionally deferred until the final pass of issue #38; keep those checks open until recorded. Issue #31's cooking-specific device checks remain separately tracked in [issue #60](https://github.com/melusi-k/ate-ios/issues/60).
 
 ## PRD requirements needing explicit decisions / evidence beyond the ID list
 

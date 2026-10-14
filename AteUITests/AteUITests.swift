@@ -207,7 +207,7 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 5)
 
         // Leaving Cook Mode is not completion. Inspect the calendar's accessible day label.
-        tab("Tracker")
+        tab("Insights")
         let todayWithoutCooking = app.buttons.matching(
             NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@", "no cooking recorded", "today")
         ).firstMatch
@@ -234,7 +234,7 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 5)
 
         // Completion must update the persistent Tracker, not merely dismiss Cook Mode.
-        tab("Tracker")
+        tab("Insights")
         let day = Calendar.current.component(.day, from: Date())
         let today = app.buttons["tracker.day.\(day)"]
         wait(today, 5)

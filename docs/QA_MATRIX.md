@@ -153,7 +153,7 @@ Run on **iOS 18** (opaque bars) and **iOS 26** (Liquid Glass), in **light** and 
 | ID | Check | How | Auto |
 |---|---|---|---|
 | N-01 | System chrome only | Tab bar, nav bars, Back, menus, search and sheet chrome are system; no custom `glassEffect` (any future use is `#available(iOS 26)` with an opaque iOS 18 fallback). Cards, primary buttons, chips and fields stay opaque. | Review |
-| N-02 | Large titles + system Back | Library, Shopping, Tracker and Settings show large serif titles that collapse on scroll; iOS 26 Search uses the system Search tab. Pushed screens have chevron Back and swipe-back; Back never dead from Library, Settings or the Insights sheet. | testSystemBackFromRecipeNeverDead |
+| N-02 | Large titles + system Back | Library, Shopping, Insights and Settings show large serif titles that collapse on scroll; iOS 26 Search uses the system Search tab. Pushed screens have chevron Back and swipe-back; Back never dead from Library, Settings or the Insights sheet. | testSystemBackFromRecipeNeverDead |
 | N-03 | One bottom area | Recipe detail: Cook mode sits above a single timer bar; Ask Ate scrolls clear; offline strip is at the top. | testBottomBarsDoNotOverlapRecipeDetail |
 | N-04 | Search | Library uses system search; query survives tab switches/cancel-and-return; scroll position kept per tab. | test04 |
 | N-05 | Destructive actions | Delete recipe, clear list, sign out use a confirmation dialog anchored to the triggering control; delete account is an alert with a safe Cancel. | Manual |
@@ -168,7 +168,7 @@ Run on **iOS 18** (opaque bars) and **iOS 26** (Liquid Glass), in **light** and 
 
 ### iOS 26 tab bar (build 97+)
 
-The production tab bar is Library, Shopping, Tracker, Settings plus Search-role on iOS 26. Beta diagnostics and the Beta banner must be absent for empty/unknown/Production channels and visible only for an allow-listed beta channel. Verify both a TierA beta build and a production-channel build.
+The production tab bar is Library, Shopping, Insights, Settings plus Search-role on iOS 26. Beta diagnostics and the Beta banner must be absent for empty/unknown/Production channels and visible only for an allow-listed beta channel. Verify both a TierA beta build and a production-channel build.
 | ID | Check | How | Coverage |
 |---|---|---|---|
 | C-TAB-01 | Add recipe accessory | `.tabViewBottomAccessory` "Add recipe" on every tab opens the Add sheet; no floating button | testTab_AccessoryAndSearchTab, key flows (Add recipe) |
@@ -206,7 +206,7 @@ The production tab bar is Library, Shopping, Tracker, Settings plus Search-role 
 | C-COV-01 | Fallback cover tile | — | A recipe with no image shows the designed plate-and-name tile (never a letter or bird), legible in light and dark mode. | manual | Not run | Not run | Not run | ❌ | — |
 | C-COV-02 | Generate cover | — | On an Apple Intelligence iPhone, … › Generate cover makes a new Playground cover in ≤30 s and keeps it after relaunch; elsewhere the option explains why it's unavailable. | auto: mirrors A-COVER-01 | Not run | Not run | Not run | ❌ | — |
 | C-COV-03 | Covers everywhere | — | The same cover appears in Library, recipe detail, widgets, Spotlight and Siri cards. | manual | Not run | Not run | Not run | ❌ | — |
-| C-DES-01 | Native nav bars | — | Library, Shopping, Tracker and Settings show system large serif titles that collapse on scroll; pushed screens use the system chevron Back and swipe-back; no custom bar chrome. | auto: UI test testSystemBackFromRecipeNeverDead | Not run | Not run | Not run | ❌ | — |
+| C-DES-01 | Native nav bars | — | Library, Shopping, Insights and Settings show system large serif titles that collapse on scroll; pushed screens use the system chevron Back and swipe-back; no custom bar chrome. | auto: UI test testSystemBackFromRecipeNeverDead | Not run | Not run | Not run | ❌ | — |
 | C-DES-02 | One bottom area on recipe detail | — | Cook mode sits directly above a single timer bar; nothing overlaps the tab bar; Ask Ate scrolls clear; the offline strip is at the top. | auto: UI test testBottomBarsDoNotOverlapRecipeDetail | Not run | Not run | Not run | ❌ | — |
 | C-DES-03 | Timer summary bar | — | With 2+ timers running, one compact summary bar shows the soonest timer and '+N more'; tapping it lists all timers with pause/stop. | manual | Not run | Not run | Not run | ❌ | — |
 | C-DES-04 | 44 pt tap targets | — | Every button, chip, stepper and icon in Library, recipe detail, cook mode and Settings is at least 44×44 pt. | auto: accessibility audit (hit region) | Not run | Not run | Not run | ❌ | — |

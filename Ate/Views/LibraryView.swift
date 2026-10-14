@@ -353,7 +353,7 @@ struct LibrarySearch: ViewModifier {
 }
 
 
-/// Always-visible Library shortcut to the combined daily Tracker hub.
+/// Always-visible Library shortcut to the combined Insights hub.
 struct TodayJournalHubCard: View {
     @Environment(AppStore.self) private var store
 
@@ -367,7 +367,7 @@ struct TodayJournalHubCard: View {
                     .font(.title2)
                     .foregroundStyle(Theme.primary)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Today & Journal").font(AteFont.body(15, .semibold))
+                    Text("Insights").font(AteFont.body(15, .semibold))
                     Text("Cooking history, Health insights, and your entries")
                         .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
                 }

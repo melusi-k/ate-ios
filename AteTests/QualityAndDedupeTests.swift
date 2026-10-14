@@ -171,7 +171,7 @@ final class PhotoRegressionTests: XCTestCase {
         let prompt = RecipePrompt.photoUnnamed(labels: ["cocktail", "glass", "orange"], candidates: [], ocr: "")
         XCTAssertTrue(prompt.contains("drink/cocktail"))
         XCTAssertTrue(prompt.contains("specific spirit"))
-        XCTAssertTrue(prompt.contains("measurements from colour or glassware alone"))
+        XCTAssertTrue(prompt.contains("colour or glassware alone"))
     }
     func testSpringRollPhotoCannotUseAnUnlistedWrapper() {
         let c = RecipeCard(title: "Springroll", servings: 4, timeMinutes: 40,

@@ -127,6 +127,17 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > recipe-generation-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" recipe-generation-tests.log || true; tail -100 recipe-generation-tests.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" recipe-generation-tests.log | tail -40
 
+      - name: Library layout and reorder guard regressions (#73)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/LibraryLayoutTests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/library-layout-regressions.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            CODE_SIGNING_ALLOWED=NO > library-layout-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" library-layout-tests.log || true; tail -100 library-layout-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" library-layout-tests.log | tail -40
+
       - name: Settings-tab key-flow regression test
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |

@@ -116,7 +116,8 @@ struct SettingsView: View {
         .background(Theme.background)
         .foregroundStyle(Theme.foreground)
         .navigationTitle("Settings")
-        .navigationBarTitleDisplayMode(.large).softTopEdge()
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar { ToolbarItem(placement: .topBarLeading) { Image("AteLogo").resizable().scaledToFit().frame(width: 28, height: 28).accessibilityLabel("ate").accessibilityIdentifier("settings.logo") } }
         .onChange(of: store.timerPrefs.stepAlerts) { _, on in if on { Task { _ = await TimerAlerts.requestPermission() } } }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
             guard case .success(let url) = result else { return }

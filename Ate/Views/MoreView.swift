@@ -41,7 +41,6 @@ struct MoreView: View {
         .background(Theme.background)
         .navigationTitle(AppConfig.isBetaBuild ? "Beta" : "Settings")
         .navigationBarTitleDisplayMode(.large)
-        .softTopEdge()
         // Deep requests from the beta banner still land on the Beta screen.
         .onChange(of: qa.openRequested, initial: true) { _, v in
             if v {

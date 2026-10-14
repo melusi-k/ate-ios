@@ -528,3 +528,27 @@ extension CoverageUITests {
                       "An unrecorded day should show the explicit empty state")
     }
 }
+
+extension CoverageUITests {
+    /// Issue #68: root navigation chrome remains visible and large titles do not cover first content.
+    func testNavigationHeadersRemainStableOnShoppingAndSettings() {
+        launch()
+        tab("Shopping")
+        let shoppingTitle = app.navigationBars["Shopping list"]
+        wait(shoppingTitle)
+        wait(app.images["shopping.logo"])
+        let count = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "to buy")).firstMatch
+        wait(count)
+        XCTAssertGreaterThanOrEqual(count.frame.minY, shoppingTitle.frame.minY,
+                                    "Shopping content must begin below the navigation title")
+        app.swipeUp()
+        XCTAssertTrue(shoppingTitle.exists, "The navigation bar must remain present while Shopping scrolls")
+
+        tab("Settings")
+        let settingsTitle = app.navigationBars["Settings"]
+        wait(settingsTitle)
+        wait(app.images["settings.logo"])
+        app.swipeUp()
+        XCTAssertTrue(settingsTitle.exists, "The navigation bar must remain present while Settings scrolls")
+    }
+}

@@ -153,7 +153,7 @@ Run on **iOS 18** (opaque bars) and **iOS 26** (Liquid Glass), in **light** and 
 | ID | Check | How | Auto |
 |---|---|---|---|
 | N-01 | System chrome only | Tab bar, nav bars, Back, menus, search and sheet chrome are system; no custom `glassEffect` (any future use is `#available(iOS 26)` with an opaque iOS 18 fallback). Cards, primary buttons, chips and fields stay opaque. | Review |
-| N-02 | Large titles + system Back | Library, Shopping, Tracker and Settings show large serif titles that collapse on scroll; iOS 26 Search uses the system Search tab. Pushed screens have chevron Back and swipe-back; Back never dead from Library, Settings or the Insights sheet. | testSystemBackFromRecipeNeverDead |
+| N-02 | Large titles + system Back | Library, Shopping, Insights and Settings show large serif titles that collapse on scroll; iOS 26 Search uses the system Search tab. Pushed screens have chevron Back and swipe-back; Back never dead from Library, Settings or the Insights sheet. | testSystemBackFromRecipeNeverDead |
 | N-03 | One bottom area | Recipe detail: Cook mode sits above a single timer bar; Ask Ate scrolls clear; offline strip is at the top. | testBottomBarsDoNotOverlapRecipeDetail |
 | N-04 | Search | Library uses system search; query survives tab switches/cancel-and-return; scroll position kept per tab. | test04 |
 | N-05 | Destructive actions | Delete recipe, clear list, sign out use a confirmation dialog anchored to the triggering control; delete account is an alert with a safe Cancel. | Manual |

@@ -69,7 +69,6 @@ struct InsightsView: View {
             Theme.background.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text(screenTitle).font(AteFont.display(30)).accessibilityAddTraits(.isHeader)
                     CookingTrackerView()
                     bodyToday
                     if let c = model.context {
@@ -116,6 +115,18 @@ struct InsightsView: View {
                 .foregroundStyle(Theme.foreground)
                 .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
                 .pageWidth()
+            }
+        }
+        .navigationTitle(screenTitle)
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Image("AteLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 28, height: 28)
+                    .accessibilityLabel("ate")
+                    .accessibilityIdentifier("insights.logo")
             }
         }
         .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id).environment(store) }

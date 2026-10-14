@@ -1,8 +1,8 @@
-# Issue #38 — Today & Journal tracker hub
+# Issue #38 — Insights hub
 
 ## Product decision
 
-The existing **Tracker** tab is the combined daily/monthly hub. Keep the tab label **Tracker** and use **Today & Journal** as the screen heading. Do not add another tab or imply that Ate writes to Apple's Journal. This is a cross-issue UI change: cooking completion, persistence, streak/calendar semantics, and early-exit behavior remain owned by [issue #31](https://github.com/melusi-k/ate-ios/issues/31); Health and journal acceptance remains owned by [issue #38](https://github.com/melusi-k/ate-ios/issues/38).
+The existing combined daily/monthly hub is labelled **Insights** in both the tab bar and the screen heading. The screen continues to contain cooking history, read-only Health insights, and the local Ate journal. Do not add another tab or imply that Ate writes to Apple's Journal. This is a cross-issue UI change: cooking completion, persistence, streak/calendar semantics, and early-exit behavior remain owned by [issue #31](https://github.com/melusi-k/ate-ios/issues/31); Health and journal acceptance remains owned by [issue #38](https://github.com/melusi-k/ate-ios/issues/38).
 
 ## Screen composition
 
@@ -10,7 +10,7 @@ The existing **Tracker** tab is the combined daily/monthly hub. Keep the tab lab
 2. Apple Health insight card, including explicit Connect action and honest unavailable, entitlement-missing, denied, error, sample-data, and no-data states.
 3. Health-aware meal suggestions and reflection prompts when an insight is available.
 4. Local Ate journal preview, with detail navigation and the existing full searchable journal list.
-5. Library/Home shortcut that switches to the Tracker tab's root.
+5. Library/Home shortcut that switches to the Insights tab's root.
 
 The Tracker screen should reuse the existing Insights content in a single scroll view. Do not wrap one scroll view inside another or create a second calendar, Health model, or journal store. Keep existing routes, Shortcuts, CookingHistory, InsightsModel, and JournalStore as the sources of truth.
 
@@ -26,7 +26,7 @@ The Tracker screen should reuse the existing Insights content in a single scroll
 
 Run the full `CookingTrackerEntryUITests` target, the Cook Mode completion/early-exit integration tests, Health/Journal unit tests, the compile workflow, and normal CI test targets. PR #59 wires the Tracker target and Cook Mode integration tests into the main-push release gate; new #38 hub tests must remain in that same target. At minimum verify:
 
-- Tracker tab opens with heading `Today & Journal`.
+- Insights tab opens with the native navigation heading `Insights`.
 - Calendar month navigation, current-month future restriction, and selected-day empty state still work.
 - The combined hub exposes the Health card, cooking calendar, and journal card without nested scrolling.
 - Opening Tracker alone does not display a Health permission prompt; only the explicit Connect action can initiate access.

@@ -55,7 +55,7 @@ The Insights tab is the combined daily/monthly hub; both its tab label and nativ
 
 1. Open Insights from its tab and from the Library/Home shortcut. Confirm the shortcut opens the Insights root.
 2. Confirm the screen includes the cooking streak/calendar, the Health insight card, meal/reflection content when Health data is available, and the local Ate journal preview. Confirm the calendar and journal are hosted in one scroll view.
-3. Launch with no Health authorization and open Tracker without tapping **Connect Apple Health**. Confirm no system/mock permission prompt appears. Tap Connect only when ready to test the explicit authorization flow.
+3. Launch with no Health authorization and open Insights without tapping **Connect Apple Health**. Confirm no system/mock permission prompt appears. Tap Connect only when ready to test the explicit authorization flow.
 4. Run the focused `CookingTrackerEntryUITests` plus the normal compile, unit, and UI-test CI gates. Preserve any failing assertion and source line rather than masking test failures.
 5. Confirm the full searchable journal list and entry detail routes still work; Ate journal entries remain local-only and Ate does not write to Apple's Journal.
 

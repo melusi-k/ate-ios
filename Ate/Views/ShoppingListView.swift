@@ -57,7 +57,8 @@ struct ShoppingListView: View {
                 .pageWidth()
             }
         }
-        .navigationTitle("Shopping list").navigationBarTitleDisplayMode(.large).softTopEdge()
+        .navigationTitle("Shopping list").navigationBarTitleDisplayMode(.large)
+        .toolbar { ToolbarItem(placement: .topBarLeading) { Image("AteLogo").resizable().scaledToFit().frame(width: 28, height: 28).accessibilityLabel("ate").accessibilityIdentifier("shopping.logo") } }
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
     }
 

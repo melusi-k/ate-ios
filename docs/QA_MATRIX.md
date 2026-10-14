@@ -168,7 +168,7 @@ Run on **iOS 18** (opaque bars) and **iOS 26** (Liquid Glass), in **light** and 
 
 ### iOS 26 tab bar (build 97+)
 
-The production tab bar is Library, Shopping, Tracker, Settings plus Search-role on iOS 26. Beta diagnostics and the Beta banner must be absent for empty/unknown/Production channels and visible only for an allow-listed beta channel. Verify both a TierA beta build and a production-channel build.
+The production tab bar is Library, Shopping, Insights, Settings plus Search-role on iOS 26. Beta diagnostics and the Beta banner must be absent for empty/unknown/Production channels and visible only for an allow-listed beta channel. Verify both a TierA beta build and a production-channel build.
 | ID | Check | How | Coverage |
 |---|---|---|---|
 | C-TAB-01 | Add recipe accessory | `.tabViewBottomAccessory` "Add recipe" on every tab opens the Add sheet; no floating button | testTab_AccessoryAndSearchTab, key flows (Add recipe) |

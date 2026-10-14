@@ -61,6 +61,11 @@ final class LibraryLayoutTests: XCTestCase {
         var l = LibraryLayout(); l.sort = .myOrder
         XCTAssertTrue(l.canReorder)
         l.group = .cuisine; XCTAssertFalse(l.canReorder)
+        l.group = .none
+        XCTAssertTrue(l.canReorder(showingCount: 4, recipeCount: 4, hasSearch: false, hasFilter: false))
+        XCTAssertFalse(l.canReorder(showingCount: 2, recipeCount: 4, hasSearch: false, hasFilter: false), "subset reorder must be disabled")
+        XCTAssertFalse(l.canReorder(showingCount: 4, recipeCount: 4, hasSearch: true, hasFilter: false), "search reorder must be disabled")
+        XCTAssertFalse(l.canReorder(showingCount: 4, recipeCount: 4, hasSearch: false, hasFilter: true), "filter reorder must be disabled")
     }
 
     @MainActor func testStoreMoveAssignsSortIndexAndUndoDelete() {

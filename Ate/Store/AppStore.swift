@@ -388,8 +388,8 @@ final class AppStore {
     func removeItem(_ id: String) { shopping.removeAll { $0.id == id }; persistShopping() }
     func clearTicked() { shopping.removeAll { $0.done }; persistShopping() }
     func clearShopping() {
+        // Clearing shopping data must not reset navigation in unrelated tabs.
         shopping = []
-        path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
         persistShopping()
     }
 

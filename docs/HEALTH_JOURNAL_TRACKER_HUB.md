@@ -12,11 +12,11 @@ The existing combined daily/monthly hub is labelled **Insights** in both the tab
 4. Local Ate journal preview, with detail navigation and the existing full searchable journal list.
 5. Library/Home shortcut that switches to the Insights tab's root.
 
-The Tracker screen should reuse the existing Insights content in a single scroll view. Do not wrap one scroll view inside another or create a second calendar, Health model, or journal store. Keep existing routes, Shortcuts, CookingHistory, InsightsModel, and JournalStore as the sources of truth.
+The Insights screen should reuse its existing content in a single scroll view. Do not wrap one scroll view inside another or create a second calendar, Health model, or journal store. Keep existing routes, Shortcuts, CookingHistory, InsightsModel, and JournalStore as the sources of truth.
 
 ## Privacy and permission invariants
 
-- Opening the app, Library, or Tracker must not request Health access.
+- Opening the app, Library, or Insights must not request Health access.
 - Health access is read-only and requested only after the user taps **Connect Apple Health**.
 - Journal entries stay in Ate's local store; no claim that Ate can write directly into Apple's Journal.
 - Sample data must be labelled. Missing Health entitlement, unsupported devices, denied access, and no-data states must remain distinct and explainable.
@@ -29,7 +29,7 @@ Run the full `CookingTrackerEntryUITests` target, the Cook Mode completion/early
 - Insights tab opens with the native navigation heading `Insights`.
 - Calendar month navigation, current-month future restriction, and selected-day empty state still work.
 - The combined hub exposes the Health card, cooking calendar, and journal card without nested scrolling.
-- Opening Tracker alone does not display a Health permission prompt; only the explicit Connect action can initiate access.
+- Opening Insights alone does not display a Health permission prompt; only the explicit Connect action can initiate access.
 - Existing journal list/search/detail/edit/cancel/delete/share/Shortcuts/location/media coverage remains intact.
 - Library/Home shortcut opens the Insights root and does not disturb iOS 26 Search or the bottom accessory.
 

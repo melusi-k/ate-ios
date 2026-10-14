@@ -374,12 +374,19 @@ struct AddRecipeSheet: View {
     private static func recoverableJPEG(from data: Data) -> Data? {
         guard let image = UIImage(data: data) else { return nil }
         let longest = max(image.size.width, image.size.height)
-        let scale = min(1, 1280 / max(longest, 1))
-        let size = CGSize(width: max(1, image.size.width * scale), height: max(1, image.size.height * scale))
-        let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.jpegData(withCompressionQuality: 0.72) { _ in
-            image.draw(in: CGRect(origin: .zero, size: size))
+        // Try progressively smaller, lower-quality encodings to stay below DraftStore's 1.5 MB safety limit.
+        for maxDimension in [1280.0, 1024.0, 768.0, 640.0] {
+            let scale = min(1, maxDimension / max(longest, 1))
+            let size = CGSize(width: max(1, image.size.width * scale), height: max(1, image.size.height * scale))
+            let renderer = UIGraphicsImageRenderer(size: size)
+            for quality in [0.72, 0.55, 0.4] {
+                let encoded = renderer.jpegData(withCompressionQuality: quality) { _ in
+                    image.draw(in: CGRect(origin: .zero, size: size))
+                }
+                if encoded.count <= 1_500_000 { return encoded }
+            }
         }
+        return nil
     }
 
     private func generate() async {

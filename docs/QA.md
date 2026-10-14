@@ -49,11 +49,11 @@ Device: ______ iOS version: ______ build number/channel: ______ date/time: _____
 
 Device follow-up evidence: device model, iOS version, app build/channel, test date, pass/fail for each numbered step, and screenshots for the calendar, selected-day sheet, largest Dynamic Type, and any failure. Do not mark a device-only criterion complete from simulator output alone.
 
-## Today & Journal Tracker hub — issue #38
+## Insights hub — issue #38
 
-The Tracker tab is the combined daily/monthly hub; its tab label remains **Tracker** and its screen heading is **Today & Journal**. Automated acceptance is required before merge; physical-device and entitlement-matrix checks are deferred to the final pass of issue #38 and do not block this UI implementation. The same `CookingTrackerEntryUITests` target retains the calendar/month-navigation/empty-day cases owned by [issue #31](https://github.com/melusi-k/ate-ios/issues/31), while PR #63's main-push gate also runs Cook Mode completion-to-history and early-exit-negative tests. Keep these shared regressions green as one suite.
+The Insights tab is the combined daily/monthly hub; both its tab label and native screen heading are **Insights**. Automated acceptance is required before merge; physical-device and entitlement-matrix checks are deferred to the final pass of issue #38 and do not block this UI implementation. The same `CookingTrackerEntryUITests` target retains the calendar/month-navigation/empty-day cases owned by [issue #31](https://github.com/melusi-k/ate-ios/issues/31), while PR #63's main-push gate also runs Cook Mode completion-to-history and early-exit-negative tests. Keep these shared regressions green as one suite.
 
-1. Open Tracker from its tab and from the Library/Home shortcut. Confirm the shortcut opens the Tracker root.
+1. Open Insights from its tab and from the Library/Home shortcut. Confirm the shortcut opens the Insights root.
 2. Confirm the screen includes the cooking streak/calendar, the Health insight card, meal/reflection content when Health data is available, and the local Ate journal preview. Confirm the calendar and journal are hosted in one scroll view.
 3. Launch with no Health authorization and open Tracker without tapping **Connect Apple Health**. Confirm no system/mock permission prompt appears. Tap Connect only when ready to test the explicit authorization flow.
 4. Run the focused `CookingTrackerEntryUITests` plus the normal compile, unit, and UI-test CI gates. Preserve any failing assertion and source line rather than masking test failures.

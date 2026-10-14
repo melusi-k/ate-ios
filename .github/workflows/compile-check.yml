@@ -113,6 +113,19 @@ jobs:
 
           grep -E "warning: .*(Widgets|Intents|Snapshot)" build.log > build-warnings.log || true
           tail -n 30 build-warnings.log || true
+      - name: Recipe generation focused unit regressions (#89)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/SyncFixtureTests/testInterruptedPhotoGenerationRestoresImageInput \
+            -only-testing:AteTests/SyncFixtureTests/testLegacyPendingDraftWithoutPhotoStillDecodes \
+            -only-testing:AteTests/PhotoRegressionTests/testAmbiguousPhotoPromptSupportsDrinksWithoutInventingSpirits \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/recipe-generation-regressions.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            CODE_SIGNING_ALLOWED=NO > recipe-generation-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" recipe-generation-tests.log || true; tail -100 recipe-generation-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" recipe-generation-tests.log | tail -40
+
       - name: Settings-tab key-flow regression test
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
@@ -188,6 +201,18 @@ jobs:
           fi
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" tracker-ui.log | tail -n 30
+      - name: Shared navigation header regressions (#68)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/testNavigationHeadersRemainStableOnShoppingAndSettings \
+            -only-testing:AteUITests/CoverageUITests/testCookingTrackerMonthNavigationAndSelectedDay \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/navigation-header-regressions.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            CODE_SIGNING_ALLOWED=NO > navigation-header-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" navigation-header-tests.log || true; tail -100 navigation-header-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" navigation-header-tests.log | tail -40
+
       - name: Cook Mode completion/history UI tests
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
@@ -226,4 +251,6 @@ jobs:
             settings-sync.log
             tracker-ui.log
             cook-mode-history.log
+            recipe-generation-tests.log
+            navigation-header-tests.log
             ${{ runner.temp }}/ate-test-results/*.xcresult

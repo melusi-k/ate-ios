@@ -13,6 +13,15 @@ struct LibraryView: View {
     /// Landscape iPhone / iPad: card grid instead of the single-column list.
     private var useGrid: Bool { vSize == .compact || hSize == .regular }
 
+    private func canReorder(_ filtered: [RecipeCard]) -> Bool {
+        store.layout.canReorder(
+            showingCount: filtered.count,
+            recipeCount: store.recipes.count,
+            hasSearch: searchPlacement != .none && !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            hasFilter: store.filter.isActive
+        )
+    }
+
     var body: some View {
         let filtered = store.filter.apply(store.recipes, query: searchPlacement == .none ? "" : query)
         ZStack {
@@ -84,7 +93,7 @@ struct LibraryView: View {
                     if !sec.title.isEmpty { sectionHeader(sec.title, count: sec.recipes.count) }
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: vSize == .compact ? 220 : 250, maximum: 420), spacing: 14)], spacing: 14) {
                         ForEach(sec.recipes) { r in
-                            gridCell(r, ordered: ordered)
+                            gridCell(r, ordered: ordered, canReorder: canReorder(filtered))
                         }
                     }
                 }
@@ -97,14 +106,14 @@ struct LibraryView: View {
         .accessibilityIdentifier("libraryGrid")
     }
 
-    @ViewBuilder private func gridCell(_ r: RecipeCard, ordered: [RecipeCard]) -> some View {
+    @ViewBuilder private func gridCell(_ r: RecipeCard, ordered: [RecipeCard], canReorder: Bool) -> some View {
         let cell = Button { store.path.append(.recipe(r.id)) } label: { RecipeGridCard(recipe: r) }
             .buttonStyle(PressScale())
             .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
             .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
             .contextMenu { menu(r) } preview: { RecipeGridCard(recipe: r).frame(width: 300) }
             .accessibilityIdentifier("gridCard")
-        if store.layout.canReorder {
+        if canReorder {
             cell
                 .draggable(r.id) { RecipeGridCard(recipe: r).frame(width: 260).opacity(0.9) }
                 .dropDestination(for: String.self) { ids, _ in
@@ -120,7 +129,7 @@ struct LibraryView: View {
     private func list(_ filtered: [RecipeCard]) -> some View {
         let sections = store.layout.sections(filtered)
         let ordered = sections.flatMap(\.recipes)
-        let mover: ((IndexSet, Int) -> Void)? = store.layout.canReorder
+        let mover: ((IndexSet, Int) -> Void)? = canReorder(filtered)
             ? { from, to in withAnimation(Motion.anim()) { store.move(fromOffsets: from, toOffset: to, in: ordered) } } : nil
         return List {
             Group {
@@ -253,8 +262,9 @@ struct LibraryView: View {
         Button { store.addToShopping(r, factor: 1); store.show("Added to your shopping list") } label: {
             Label("Add to shopping list", systemImage: "basket")
         }
-        if store.layout.canReorder {
-            let ordered = store.layout.sorted(store.filter.apply(store.recipes, query: query))
+        let visible = store.filter.apply(store.recipes, query: searchPlacement == .none ? "" : query)
+        if canReorder(visible) {
+            let ordered = store.layout.sorted(visible)
             if let i = ordered.firstIndex(where: { $0.id == r.id }) {
                 if i > 0 { Button { store.move(r.id, before: ordered[i - 1].id, in: ordered) } label: { Label("Move up", systemImage: "arrow.up") } }
                 if i < ordered.count - 1 {

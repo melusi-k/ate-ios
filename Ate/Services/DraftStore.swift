@@ -3,7 +3,7 @@ import Foundation
 /// A-CREATE-05: survives the app being killed mid-generation. `pending` is written when a generation starts and
 /// cleared when it ends; `draft` holds a generated-but-unsaved card until it's saved or the sheet is dismissed.
 final class DraftStore {
-    struct Pending: Codable, Equatable { var mode: String; var text: String; var startedAt: Double }
+    struct Pending: Codable, Equatable { var mode: String; var text: String; var startedAt: Double; var imageData: Data? = nil }
     static let shared = DraftStore(defaults: .standard,
                                    enabled: !AppConfig.isUITesting || ProcessInfo.processInfo.arguments.contains("-qaPersistDraft"))
     private let d: UserDefaults
@@ -15,9 +15,11 @@ final class DraftStore {
     }
     var pending: Pending? { enabled ? d.data(forKey: pKey).flatMap { try? JSONDecoder().decode(Pending.self, from: $0) } : nil }
     var draft: RecipeCard? { enabled ? d.data(forKey: dKey).flatMap { try? JSONDecoder().decode(RecipeCard.self, from: $0) } : nil }
-    func begin(mode: String, text: String) {
+    func begin(mode: String, text: String, imageData: Data? = nil) {
         guard enabled else { return }
-        d.set(try? JSONEncoder().encode(Pending(mode: mode, text: String(text.prefix(4000)), startedAt: Date().timeIntervalSince1970)), forKey: pKey)
+        // Persist a bounded, downsampled photo with the pending request so Retry can reconstruct image input after relaunch.
+        let recoverableImage = imageData.flatMap { $0.count <= 1_500_000 ? $0 : nil }
+        d.set(try? JSONEncoder().encode(Pending(mode: mode, text: String(text.prefix(4000)), startedAt: Date().timeIntervalSince1970, imageData: recoverableImage)), forKey: pKey)
     }
     func end() { d.removeObject(forKey: pKey) }
     func saveDraft(_ c: RecipeCard) { guard enabled else { return }; end(); d.set(try? JSONEncoder().encode(c), forKey: dKey) }

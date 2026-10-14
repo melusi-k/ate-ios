@@ -72,6 +72,26 @@ final class SyncFixtureTests: XCTestCase {
         XCTAssertTrue(res.push.isEmpty, "\(res.push)"); XCTAssertTrue(res.pushDeletes.isEmpty)
     }
 
+    func testInterruptedPhotoGenerationRestoresImageInput() {
+        let defaults = UserDefaults(suiteName: "ate.tests.draft.photo")!
+        let store = DraftStore(defaults: defaults, enabled: true)
+        store.clear()
+        let photo = Data([0xFF, 0xD8, 0xFF, 0x00, 0x01])
+        store.begin(mode: "Image", text: "", imageData: photo)
+        XCTAssertEqual(store.pending?.mode, "Image")
+        XCTAssertEqual(store.pending?.imageData, photo, "retry after relaunch must retain the selected photo")
+        store.end()
+        XCTAssertNil(store.pending)
+        store.clear()
+    }
+
+    func testLegacyPendingDraftWithoutPhotoStillDecodes() throws {
+        let json = Data(#"{"mode":"Image","text":"","startedAt":1700000000}"#.utf8)
+        let pending = try JSONDecoder().decode(DraftStore.Pending.self, from: json)
+        XCTAssertEqual(pending.mode, "Image")
+        XCTAssertNil(pending.imageData, "legacy drafts require a friendly reselect-photo recovery path")
+    }
+
     func testInterruptedGenerationDraftRoundTrip() {
         let store = DraftStore(defaults: UserDefaults(suiteName: "ate.tests.draft")!, enabled: true)
         store.clear()

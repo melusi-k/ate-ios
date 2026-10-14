@@ -167,6 +167,12 @@ final class PhotoRegressionTests: XCTestCase {
         let d = PhotoGuess.sceneDescription(labels: Self.omeletteToast, salientObjects: 2, colours: ["yellow", "brown"])
         XCTAssertTrue(d.contains("omelette 71%")); XCTAssertTrue(d.contains("About 2 separate items")); XCTAssertTrue(d.contains("yellow"))
     }
+    func testAmbiguousPhotoPromptSupportsDrinksWithoutInventingSpirits() {
+        let prompt = RecipePrompt.photoUnnamed(labels: ["cocktail", "glass", "orange"], candidates: [], ocr: "")
+        XCTAssertTrue(prompt.contains("drink/cocktail"))
+        XCTAssertTrue(prompt.contains("specific spirit"))
+        XCTAssertTrue(prompt.contains("measurements from colour or glassware alone"))
+    }
     func testSpringRollPhotoCannotUseAnUnlistedWrapper() {
         let c = RecipeCard(title: "Springroll", servings: 4, timeMinutes: 40,
                            ingredients: [.init(name: "vegetables mix", quantity: 100, unit: "g"),

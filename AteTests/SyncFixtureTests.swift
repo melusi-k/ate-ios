@@ -85,6 +85,13 @@ final class SyncFixtureTests: XCTestCase {
         store.clear()
     }
 
+    func testLegacyPendingDraftWithoutPhotoStillDecodes() throws {
+        let json = Data(#"{"mode":"Image","text":"","startedAt":1700000000}"#.utf8)
+        let pending = try JSONDecoder().decode(DraftStore.Pending.self, from: json)
+        XCTAssertEqual(pending.mode, "Image")
+        XCTAssertNil(pending.imageData, "legacy drafts require a friendly reselect-photo recovery path")
+    }
+
     func testInterruptedGenerationDraftRoundTrip() {
         let store = DraftStore(defaults: UserDefaults(suiteName: "ate.tests.draft")!, enabled: true)
         store.clear()

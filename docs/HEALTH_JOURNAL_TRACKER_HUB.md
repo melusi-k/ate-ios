@@ -31,7 +31,7 @@ Run the full `CookingTrackerEntryUITests` target, the Cook Mode completion/early
 - The combined hub exposes the Health card, cooking calendar, and journal card without nested scrolling.
 - Opening Tracker alone does not display a Health permission prompt; only the explicit Connect action can initiate access.
 - Existing journal list/search/detail/edit/cancel/delete/share/Shortcuts/location/media coverage remains intact.
-- Library/Home shortcut opens the Tracker root and does not disturb iOS 26 Search or the bottom accessory.
+- Library/Home shortcut opens the Insights root and does not disturb iOS 26 Search or the bottom accessory.
 
 Simulator/CI acceptance is required for implementation and merge. **Physical-device and entitlement-matrix testing is deliberately deferred until the end of issue #38** and is not a blocker for implementing or merging this UI. Keep those device-only criteria open until actual evidence is recorded; do not mark issue #38 fully accepted before then.
 

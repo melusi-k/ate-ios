@@ -83,6 +83,19 @@ final class RecipeFilterTests: XCTestCase {
         f.collection = .ingredient("beef"); XCTAssertEqual(f.apply(all).map(\.title), ["Beef stew"])
         var old = stew; old.createdAt = 1; var new = quick; new.createdAt = 99
         f.collection = .recentlyAdded; XCTAssertEqual(f.apply([old, new]).map(\.title), ["Quick eggs", "Beef stew"])
+
+        var sameDateA = quick; sameDateA.id = "a"; sameDateA.createdAt = 50
+        var sameDateB = quick; sameDateB.id = "b"; sameDateB.createdAt = 50
+        f.collection = .recentlyAdded
+        XCTAssertEqual(f.apply([sameDateB, sameDateA]).map(\.id), ["a", "b"], "same timestamp uses stable id order")
+        XCTAssertEqual(f.apply([sameDateA, sameDateB]).map(\.id), ["a", "b"], "input order must not affect collection results")
+
+        var cookedA = quick; cookedA.id = "a"; cookedA.createdAt = 20; cookedA.lastCookedAt = 100
+        var cookedB = quick; cookedB.id = "b"; cookedB.createdAt = 30; cookedB.lastCookedAt = 100
+        var cookedC = quick; cookedC.id = "c"; cookedC.createdAt = 30; cookedC.lastCookedAt = 100
+        f.collection = .recentlyCooked
+        XCTAssertEqual(f.apply([cookedA, cookedC, cookedB]).map(\.id), ["b", "c", "a"], "cook-time ties use newest, then stable id")
+        XCTAssertEqual(f.apply([cookedB, cookedA, cookedC]).map(\.id), ["b", "c", "a"], "input order must not affect recently cooked results")
     }
     func testQueryCombinesWithFilter() {
         var f = RecipeFilter(); f.maxMinutes = 30

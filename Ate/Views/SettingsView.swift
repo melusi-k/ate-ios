@@ -62,9 +62,11 @@ struct SettingsView: View {
                     }
                     if AppConfig.isBetaBuild {
                         Section("Beta & diagnostics") {
-                            // Use the shared route destination so this link follows the same
-                            // navigation path as other diagnostics links in Settings.
-                            NavigationLink(value: Route.beta) {
+                            // This is the primary Beta entry on current builds. A direct
+                            // destination avoids typed-path resolution after data resets.
+                            NavigationLink {
+                                BetaTestingView()
+                            } label: {
                                 Label("Beta testing", systemImage: "checklist")
                             }
                             .accessibilityIdentifier("settings.betaTesting")
@@ -137,7 +139,11 @@ struct SettingsView: View {
             qa.openRequested = false
             guard AppConfig.isBetaBuild else { return }
             store.select(.settings)
-            store.settingsPath = [.beta]
+            Task { @MainActor in
+                await Task.yield()
+                guard store.tab == .settings else { return }
+                store.settingsPath = [.beta]
+            }
         }
     }
 

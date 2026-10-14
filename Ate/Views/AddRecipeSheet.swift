@@ -375,11 +375,11 @@ struct AddRecipeSheet: View {
         guard let image = UIImage(data: data) else { return nil }
         let longest = max(image.size.width, image.size.height)
         // Try progressively smaller, lower-quality encodings to stay below DraftStore's 1.5 MB safety limit.
-        for maxDimension in [1280.0, 1024.0, 768.0, 640.0] {
+        for maxDimension in [CGFloat(1280), CGFloat(1024), CGFloat(768), CGFloat(640)] {
             let scale = min(1, maxDimension / max(longest, 1))
             let size = CGSize(width: max(1, image.size.width * scale), height: max(1, image.size.height * scale))
             let renderer = UIGraphicsImageRenderer(size: size)
-            for quality in [0.72, 0.55, 0.4] {
+            for quality in [CGFloat(0.72), CGFloat(0.55), CGFloat(0.4)] {
                 let encoded = renderer.jpegData(withCompressionQuality: quality) { _ in
                     image.draw(in: CGRect(origin: .zero, size: size))
                 }

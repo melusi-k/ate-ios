@@ -186,10 +186,10 @@ private struct CookingDaySheet: View {
 }
 
 
-/// Tracker tab hub: one scroll view containing cooking history, Health insights, and the local Ate journal.
+/// Insights tab hub: cooking history, Health insights, and the local Ate journal in one scroll view.
 struct CookingTrackerScreen: View {
     var body: some View {
-        InsightsView(screenTitle: "Today & Journal")
+        InsightsView(screenTitle: "Insights")
             .accessibilityIdentifier("cookingTracker.screen")
     }
 }

@@ -96,6 +96,12 @@ struct LibraryLayout: Codable, Equatable {
     /// Drag-to-reorder only makes sense on one flat list in "My order".
     var canReorder: Bool { sort == .myOrder && group == .none }
 
+    /// Reordering a subset would assign colliding positions to hidden recipes. Keep it disabled
+    /// until the user returns to the complete, unfiltered library.
+    func canReorder(showingCount: Int, recipeCount: Int, hasSearch: Bool, hasFilter: Bool) -> Bool {
+        canReorder && !hasSearch && !hasFilter && showingCount == recipeCount
+    }
+
     static let key = "ate.libraryLayout.v1"
     static func load(_ d: UserDefaults = .standard) -> LibraryLayout {
         d.data(forKey: key).flatMap { try? JSONDecoder().decode(LibraryLayout.self, from: $0) } ?? LibraryLayout()

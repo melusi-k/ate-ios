@@ -69,7 +69,7 @@ enum RecipePrompt {
         switch input {
         case .link: brief = "Input: text scraped from a recipe web page. Ignore navigation, ads and comments."
         case .social: brief = "Input: a social media caption. It may be an advert or menu; follow rule 3 and 4 strictly."
-        case .photo: brief = "Input: a food photo the user named. If you need any text printed in the photo (menu boards, labels), call the readPhotoText tool. Never invent a different dish than the one named. A plate, utensil, wooden object, cookware or tableware is not a dish; if the image does not establish an edible dish, return Unknown dish with confidence below 0.2 instead of inventing a recipe."
+        case .photo: brief = "Input: a photo of food or a beverage, optionally named by the user. If you need printed text in the photo (menu boards, labels), call readPhotoText. Never invent a different dish or drink than the user named. Distinguish plated food from a drink/cocktail only when image labels and scene clues support it. A glass, plate, utensil, wooden object, cookware or tableware alone is not enough to identify a recipe. If the edible item cannot be established, return Unknown dish with confidence below 0.2 instead of inventing a recipe."
         case .screenshot: brief = "Input: OCR text of a recipe screenshot. Keep the original quantities and order."
         case .prompt: brief = "Input: the user's own description. A sensible traditional recipe is fine; still follow the units and timing rules."
         case .rewrite: brief = "Input: an existing recipe card as JSON plus the user's change request. Change only what is asked."
@@ -111,7 +111,7 @@ enum RecipePrompt {
 
     /// Food photo with no confident name: the model identifies the dish in the same pass (dishName first).
     static func photoUnnamed(labels: [String], candidates: [String], ocr: String, ocrViaTool: Bool = false) -> String {
-        var p = "A food photo. Identify the edible dish first, then write a traditional home-cook recipe for it. Object labels such as utensil, wooden utensil, plate, bowl, tableware, cookware, or serving dish are not dishes. If no edible dish is established, return title Unknown dish, confidence below 0.2, empty or minimal recipe fields, and explain that the user must name the dish; never invent a recipe around an object."
+        var p = "A photo of food or a beverage. First identify whether the image evidence supports a prepared food dish or a drink/cocktail, then create an editable recipe only when there is a reasonable basis. Use supplied image labels, visible text and scene clues as evidence, not certainty. Do not guess a specific spirit, brand, ingredient or measurement from colour or glassware alone; mark uncertain ingredients and quantities as estimates in the note. If the edible item or beverage cannot be established, return title Unknown dish, confidence below 0.2, empty or minimal recipe fields, and explain that the user must identify it; never invent a recipe around an object."
         if !labels.isEmpty { p += " Image labels: \(labels.prefix(6).joined(separator: ", "))." }
         if !candidates.isEmpty { p += " Likely regional candidates: \(candidates.prefix(8).joined(separator: ", "))." }
         let o = ocr.trimmingCharacters(in: .whitespacesAndNewlines)

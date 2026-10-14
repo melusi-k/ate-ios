@@ -18,7 +18,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Insights"].waitForExistence(timeout: 5))
     }
 
-    func testLibraryShortcutOpensTrackerHubRoot() {
+    func testLibraryShortcutOpensInsightsHubRoot() {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
         app.launch()

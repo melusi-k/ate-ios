@@ -520,6 +520,7 @@ extension CoverageUITests {
         app.swipeUp()
         XCTAssertTrue(insightsTitle.exists, "Tracker navigation header must remain present while scrolling")
         let previous = any("tracker.previousMonth")
+        scrollTo(previous)
         wait(previous); previous.tap()
         XCTAssertNotEqual(month.label, currentMonth, "Previous month should update the calendar title")
 

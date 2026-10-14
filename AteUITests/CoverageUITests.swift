@@ -508,10 +508,17 @@ extension CoverageUITests {
         let insights = app.buttons["library.insights"]
         wait(insights); insights.tap()
 
+        let insightsTitle = app.navigationBars["Insights"]
+        wait(insightsTitle)
+        wait(app.images["insights.logo"])
         let month = any("tracker.displayedMonth")
         scrollTo(month)
         wait(month)
         let currentMonth = month.label
+        XCTAssertGreaterThanOrEqual(month.frame.minY, insightsTitle.frame.minY,
+                                    "Tracker content must begin below the shared navigation header")
+        app.swipeUp()
+        XCTAssertTrue(insightsTitle.exists, "Tracker navigation header must remain present while scrolling")
         let previous = any("tracker.previousMonth")
         wait(previous); previous.tap()
         XCTAssertNotEqual(month.label, currentMonth, "Previous month should update the calendar title")

@@ -6,16 +6,16 @@ final class CookingTrackerEntryUITests: XCTestCase {
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
         if mockHealth { app.launchArguments += ["-qaMockHealth", "recovery", "-qaHealthRecipes", "-qaHealthPrompt"] }
         app.launch()
-        let trackerTab = app.tabBars.buttons["Tracker"]
-        XCTAssertTrue(trackerTab.waitForExistence(timeout: 10), "Cooking Tracker should be a first-class tab")
-        trackerTab.tap()
+        let insightsTab = app.tabBars.buttons["Insights"]
+        XCTAssertTrue(insightsTab.waitForExistence(timeout: 10), "Insights should be a first-class tab")
+        insightsTab.tap()
         XCTAssertTrue(app.descendants(matching: .any)["cookingTracker.screen"].waitForExistence(timeout: 10))
         return app
     }
 
-    func testTrackerHasDedicatedTabEntryPoint() {
+    func testInsightsHasDedicatedTabEntryPoint() {
         let app = launchTracker()
-        XCTAssertTrue(app.staticTexts["Today & Journal"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Insights"].waitForExistence(timeout: 5))
     }
 
     func testLibraryShortcutOpensTrackerHubRoot() {
@@ -23,9 +23,9 @@ final class CookingTrackerEntryUITests: XCTestCase {
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
         app.launch()
         let shortcut = app.buttons["library.todayJournalHub"]
-        XCTAssertTrue(shortcut.waitForExistence(timeout: 10), "Library should expose the Today & Journal shortcut")
+        XCTAssertTrue(shortcut.waitForExistence(timeout: 10), "Library should expose the Insights shortcut")
         shortcut.tap()
-        XCTAssertTrue(app.staticTexts["Today & Journal"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Insights"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["tracker.previousMonth"].exists)
     }
 
@@ -36,7 +36,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["insights.cookingCalendar"].exists)
         XCTAssertTrue(app.buttons["insights.connect"].exists, "Health access should be an explicit user action")
         XCTAssertFalse(app.alerts["“ate” would like to access your Health data"].exists,
-                       "Opening Tracker must not request Health permission")
+                       "Opening Insights must not request Health permission")
         app.buttons["insights.connect"].tap()
         XCTAssertTrue(app.alerts["“ate” would like to access your Health data"].waitForExistence(timeout: 5),
                       "The mock Health prompt should appear only after explicit user intent")

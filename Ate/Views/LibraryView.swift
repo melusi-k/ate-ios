@@ -107,12 +107,28 @@ struct LibraryView: View {
     }
 
     @ViewBuilder private func gridCell(_ r: RecipeCard, ordered: [RecipeCard], canReorder: Bool) -> some View {
-        let cell = Button { store.path.append(.recipe(r.id)) } label: { RecipeGridCard(recipe: r) }
-            .buttonStyle(PressScale())
-            .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-            .contextMenu { menu(r) } preview: { RecipeGridCard(recipe: r).frame(width: 300) }
-            .accessibilityIdentifier("gridCard")
+        let cell = ZStack(alignment: .topTrailing) {
+            Button { store.path.append(.recipe(r.id)) } label: { RecipeGridCard(recipe: r) }
+                .buttonStyle(PressScale())
+                .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                .contextMenu { menu(r) } preview: { RecipeGridCard(recipe: r).frame(width: 300) }
+                .accessibilityIdentifier("gridCard")
+            // Keep the favourite action directly reachable in grid layout, matching list swipe and context-menu actions.
+            Button { store.toggleFavourite(r.id) } label: {
+                Image(systemName: r.favorite ? "star.fill" : "star")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(r.favorite ? Theme.primaryForeground : Theme.foreground)
+                    .frame(width: 40, height: 40)
+                    .background(r.favorite ? Theme.primary : Theme.card.opacity(0.96), in: Circle())
+                    .overlay(Circle().stroke(Theme.input, lineWidth: r.favorite ? 0 : 1))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .padding(8)
+            .accessibilityLabel(r.favorite ? "Remove \(r.title) from Favourites" : "Add \(r.title) to Favourites")
+            .accessibilityIdentifier("gridFavourite.\(r.id)")
+        }
         if canReorder {
             cell
                 .draggable(r.id) { RecipeGridCard(recipe: r).frame(width: 260).opacity(0.9) }

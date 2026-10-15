@@ -390,6 +390,8 @@ struct AddRecipeSheet: View {
     }
 
     private func generate() async {
+        // Retry and regenerate can be invoked from separate controls; only one request may own this sheet at a time.
+        guard !loading else { return }
         if store.settings.onDeviceOnly {
             store.show("Private mode is on — turn it off in Settings to use AI.", error: true); return
         }

@@ -297,6 +297,20 @@ final class CoverageUITests: XCTestCase {
         shot("backend-down-library-intact")
     }
 
+    /// Issue #89: the first request fails transiently; Retry must submit a fresh request and recover.
+    func test36b_RecipeGenerationRetryRecoversAfterTransientFailure() {
+        launch(["-qaBackendFailOnce"])
+        startPrompt("Retryable stew")
+        wait(app.buttons["generateRetry"], 10)
+        wait(text("isn't responding"), 3)
+        shot("recipe-generation-retry-before")
+        app.buttons["generateRetry"].tap()
+        wait(text("Review your card"), 15)
+        wait(text("Retryable stew"), 5)
+        XCTAssertFalse(app.buttons["generateRetry"].exists, "successful retry must leave the error state")
+        shot("recipe-generation-retry-recovered")
+    }
+
     /// A-CREATE-05: kill the app mid-generation, relaunch → clear "interrupted, retry"; and an unsaved card is restored.
     func test37_KilledMidGenerationRecovers() {
         launch(["-qaPersistDraft", "-qaResetDraft", "-qaSlowGenerate"])

@@ -180,6 +180,18 @@ jobs:
           run_focused_test "AteUITests/ProductionChannelUITests/testProductionChannelHidesBetaDiagnostics" "production-channel-production.log" "production-channel-production"
           STEP_END=$(date +%s)
           echo "::notice::CI_TIMING step=settings-tab-key-flow duration_seconds=$((STEP_END-STEP_START)) exit_code=0"
+      - name: Recipe generation retry recovery (#89)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/test36b_RecipeGenerationRetryRecoversAfterTransientFailure \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/recipe-generation-retry.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 \
+            CODE_SIGNING_ALLOWED=NO > recipe-retry-ui.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" recipe-retry-ui.log || true; tail -100 recipe-retry-ui.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" recipe-retry-ui.log | tail -30
+
       - name: Cooking Tracker focused UI tests
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
@@ -252,5 +264,6 @@ jobs:
             tracker-ui.log
             cook-mode-history.log
             recipe-generation-tests.log
+            recipe-retry-ui.log
             navigation-header-tests.log
             ${{ runner.temp }}/ate-test-results/*.xcresult

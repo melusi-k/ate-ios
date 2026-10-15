@@ -323,6 +323,14 @@ final class CoverageUITests: XCTestCase {
         wait(text("interrupted"), 8)
         wait(app.buttons["generateRetry"], 3)
         shot("generation-interrupted-retry")
+        // Relaunch without -qaSlowGenerate: Retry must start a new attempt, reach review,
+        // and clear both the interrupted error and the in-progress loading state.
+        app.buttons["generateRetry"].tap()
+        wait(text("Review your card"), 15)
+        wait(text("Umngqusho"), 5)
+        XCTAssertFalse(app.buttons["generateRetry"].exists, "successful interrupted-generation retry must clear the error state")
+        XCTAssertFalse(text("Cooking up your card").exists, "loading state must terminate after retry succeeds")
+        shot("generation-interrupted-retry-recovered")
         app.terminate()
         // Unsaved review card survives a kill.
         launch(["-qaPersistDraft", "-qaResetDraft"])

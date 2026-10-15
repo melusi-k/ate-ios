@@ -96,6 +96,23 @@ final class CoverageUITests: XCTestCase {
         shot("cover-detail-branded-tile")
     }
 
+    func test32b_GridFavouriteCanBeToggledDirectly() {
+        launch()
+        addPrompt("Miso salmon for two")
+        tab("Library")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+
+        let favourite = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "gridFavourite.")).firstMatch
+        wait(favourite, 10)
+        XCTAssertTrue(favourite.label.hasPrefix("Add "), "Unfavourited grid card should expose an Add to Favourites action")
+        shot("library-grid-favourite-before")
+        favourite.tap()
+        XCTAssertTrue(favourite.waitForExistence(timeout: 3))
+        XCTAssertTrue(favourite.label.hasPrefix("Remove "), "Favourite action label should update after toggling")
+        shot("library-grid-favourite-after")
+    }
+
     // MARK: Library discovery + Settings tools/About
 
     func test32_MoreCollectionsToolsAbout() {

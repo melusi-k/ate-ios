@@ -4,6 +4,7 @@ name: Pre-production QA
 permissions:
   contents: read
   pull-requests: read
+  issues: write
 
 on:
   workflow_dispatch:
@@ -264,6 +265,45 @@ jobs:
           if [ "$failed" -eq 0 ]; then
             echo "No regression failure markers were found in available logs. A skipped/quarantined test is not counted as a pass." >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Link regression failures to owning issues
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          report_failure() {
+            log_file="$1"; suite="$2"; issue="$3"
+            [ -f "$log_file" ] || return 0
+            if ! grep -Eq 'Testing failed|TEST FAILED|Test Case .* failed|XCTAssert|Assertion Failure|Fatal error|Assertion failed' "$log_file"; then return 0; fi
+            marker="<!-- ate-ci-regression:${GITHUB_RUN_ID}:${log_file} -->"
+            details=$(grep -n -E 'Test Case .* failed|XCTAssert|Assertion Failure|Fatal error|Assertion failed|Testing failed|TEST FAILED' "$log_file" | tail -n 12 | cut -c1-500 || true)
+            [ -n "$details" ] || details="Failure markers found; inspect the full retained log and xcresult."
+            run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            if [ "$issue" = "auto" ]; then
+              existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "CI regression: $suite in:title" --json number,title --jq '.[0].number // empty')
+              if [ -n "$existing" ]; then issue="$existing"; else
+                created=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "CI regression: $suite" --body "Automated regression report for candidate ${GITHUB_SHA}.\n\nWorkflow run/artifacts: $run_url\nLog: $log_file\n\nFailure evidence:\n\n$details\n\nTriage: reproduce on the exact SHA, add reproduction steps, and verify a fix. This issue is generated from CI evidence and still needs owner/classification.") || { echo "::warning::Could not create backlog issue for $suite"; return 0; }
+                issue="${created##*/}"
+              fi
+            fi
+            if [ -z "$issue" ]; then echo "::warning::No issue target resolved for $suite ($log_file)."; return 0; fi
+            if gh api "repos/${GITHUB_REPOSITORY}/issues/$issue/comments?per_page=100" --paginate --jq '.[].body' 2>/dev/null | grep -Fq "$marker"; then echo "Issue #$issue already has this run's regression report."; return 0; fi
+            body=$(printf '%s\n' "$marker" "## CI regression detected — NOT PASSED" "- **Suite:** $suite" "- **Candidate SHA:** ${GITHUB_SHA}" "- **Workflow run and retained artifacts:** $run_url" "- **Log:** $log_file" "" "### Failure evidence (tail)" '```text' "$details" '```' "" "### Triage" "Reproduce from the exact candidate SHA, record reproduction steps, and keep this open until a fix is verified. continue-on-error allowed later suites to proceed; it does not mean this test passed.")
+            if gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$body"; then
+              echo "::warning::Regression in $suite recorded on issue #$issue (NOT PASSED)."
+              echo "- **Issue:** #$issue — $suite" >> "$GITHUB_STEP_SUMMARY"
+              echo "- **Evidence:** $run_url" >> "$GITHUB_STEP_SUMMARY"
+            else echo "::warning::Could not comment regression evidence for $suite on issue #$issue; run: $run_url"; fi
+          }
+          report_failure test.log "Unit test suite" auto
+          report_failure settings-sync.log "Settings/account sync (#76)" 76
+          report_failure production-channel-production.log "Production channel UI" auto
+          report_failure tracker-ui.log "Cooking Tracker UI (#31)" 31
+          report_failure cook-mode-history.log "Cook Mode completion/history (#31)" 31
+          report_failure health-journal-ui.log "Health/journal UI acceptance (#67)" 67
+          report_failure ui.log "Widget/intents UI" auto
+          report_failure uitest.log "Full UI shard ${{ matrix.shard }}" auto
       - name: Upload test diagnostics
         if: always()
         uses: actions/upload-artifact@v4

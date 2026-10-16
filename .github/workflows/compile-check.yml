@@ -35,6 +35,7 @@ jobs:
           filters: |
             app:
               - 'Ate/**'
+              - 'AteClip/**'
               - 'AteTests/**'
               - 'AteUITests/**'
               - 'AteWidgets/**'
@@ -87,6 +88,11 @@ jobs:
           restore-keys: |
             macos-26-homebrew-
       - run: brew install xcodegen && xcodegen generate
+      - name: Build isolated App Clip target
+        run: |
+          set -o pipefail
+          xcodebuild build -project Ate.xcodeproj -scheme AteClip -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO > app-clip-build.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|Testing failed" app-clip-build.log || true; tail -100 app-clip-build.log; exit 1; }
+          grep -E "BUILD SUCCEEDED|warning:" app-clip-build.log | tail -30
       - name: Prepare diagnostics directory
         run: mkdir -p "$RUNNER_TEMP/ate-test-results"
       - name: Build for testing (iOS simulator)

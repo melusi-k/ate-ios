@@ -225,6 +225,18 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         AteSupabaseURL: $(ATE_SUPABASE_URL)
         AteSupabasePublishableKey: $(ATE_SUPABASE_PUBLISHABLE_KEY)
+  AteClipTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [AteClipTests]
+    dependencies:
+      - target: AteClip
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.clip.tests
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/AteClip.app/AteClip
+        BUNDLE_LOADER: $(TEST_HOST)
   AteTests:
     type: bundle.unit-test
     platform: iOS
@@ -261,6 +273,9 @@ schemes:
     build:
       targets:
         AteClip: all
+        AteClipTests: [test]
+    test:
+      targets: [AteClipTests]
   AteWatch:
     build:
       targets:

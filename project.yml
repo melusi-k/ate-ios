@@ -207,6 +207,24 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+  AteClip:
+    type: app-clip
+    platform: iOS
+    sources:
+      - path: AteClip
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.Clip
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+    info:
+      properties:
+        CFBundleDisplayName: ate recipe
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        AteSupabaseURL: $(ATE_SUPABASE_URL)
+        AteSupabasePublishableKey: $(ATE_SUPABASE_PUBLISHABLE_KEY)
   AteTests:
     type: bundle.unit-test
     platform: iOS
@@ -239,6 +257,10 @@ schemes:
         AteUITests: [test]
     test:
       targets: [AteTests, AteUITests]
+  AteClip:
+    build:
+      targets:
+        AteClip: all
   AteWatch:
     build:
       targets:

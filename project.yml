@@ -208,18 +208,14 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
   AteClip:
-    type: application.on-demand-install-capable
+    type: application
     platform: iOS
     sources:
       - path: AteClip
-    entitlements:
-      path: AteClip/AteClip.entitlements
-      properties:
-        com.apple.developer.on-demand-install-capable: true
-        com.apple.developer.parent-application-identifiers:
-          - $(AppIdentifierPrefix)com.melusik.ate
     settings:
       base:
+        PRODUCT_TYPE: com.apple.product-type.application.on-demand-install-capable
+        CODE_SIGN_ENTITLEMENTS: AteClip/AteClip.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.Clip
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: YES

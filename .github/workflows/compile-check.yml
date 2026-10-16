@@ -334,6 +334,9 @@ jobs:
           if-no-files-found: warn
           path: |
             build.log
+            app-clip-build.log
+            app-clip-tests.log
+            ${{ runner.temp }}/app-clip-tests.xcresult
             build-warnings.log
             test.log
             test-summary.log

@@ -339,6 +339,22 @@ jobs:
             tail -n 100 uitest.log || true
           fi
           exit "$status"
+      - name: Summarize UI shard outcome
+        if: always()
+        shell: bash
+        run: |
+          if grep -Eq 'Testing failed|TEST FAILED|Test Case .* failed|error:|XCTAssert|Assertion Failure|Fatal error' uitest.log; then
+            echo "::warning::UI shard ${{ matrix.shard }} failed — NOT PASSED. See uploaded uitest.log and UITests.xcresult; candidate SHA: $GITHUB_SHA."
+            {
+              echo "### UI regression failure — NOT PASSED"
+              echo "- Shard: ${{ matrix.shard }}"
+              echo "- Candidate SHA: $GITHUB_SHA"
+              echo "- Artifact: preproduction-ui-${{ matrix.shard }}-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+              echo "- Record the failing test and reproduction steps on the owning issue."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No failure markers found in this shard log. Review test totals and quarantines before treating the shard as acceptance evidence." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload full UI diagnostics
         if: always()
         uses: actions/upload-artifact@v4

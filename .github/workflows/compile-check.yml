@@ -93,6 +93,12 @@ jobs:
           set -o pipefail
           xcodebuild build -project Ate.xcodeproj -scheme AteClip -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO > app-clip-build.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|Testing failed" app-clip-build.log || true; tail -100 app-clip-build.log; exit 1; }
           grep -E "BUILD SUCCEEDED|warning:" app-clip-build.log | tail -30
+      - name: Run App Clip URL contract tests
+        run: |
+          set -o pipefail
+          SIM_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=json.load(sys.stdin)["devices"];print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
+          xcodebuild test -project Ate.xcodeproj -scheme AteClip -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/app-clip-tests.xcresult" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO > app-clip-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" app-clip-tests.log || true; tail -100 app-clip-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" app-clip-tests.log | tail -40
       - name: Prepare diagnostics directory
         run: mkdir -p "$RUNNER_TEMP/ate-test-results"
       - name: Build for testing (iOS simulator)

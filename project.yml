@@ -208,13 +208,12 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
   AteClip:
-    type: application
+    type: application.on-demand-install-capable
     platform: iOS
     sources:
       - path: AteClip
     settings:
       base:
-        PRODUCT_TYPE: com.apple.product-type.application.on-demand-install-capable
         CODE_SIGN_ENTITLEMENTS: AteClip/AteClip.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.Clip
         TARGETED_DEVICE_FAMILY: "1"

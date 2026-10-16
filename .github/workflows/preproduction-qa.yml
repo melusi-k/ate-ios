@@ -395,6 +395,28 @@ jobs:
           else
             echo "No failure markers found in this shard log. Review test totals and quarantines before treating the shard as acceptance evidence." >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Link UI shard failure to backlog issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if ! grep -Eq 'Testing failed|TEST FAILED|Test Case .* failed|XCTAssert|Assertion Failure|Fatal error|Assertion failed' uitest.log; then exit 0; fi
+          suite="Full UI shard ${{ matrix.shard }}"
+          marker="<!-- ate-ci-regression:${GITHUB_RUN_ID}:uitest.log:${{ matrix.shard }} -->"
+          run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          details=$(grep -n -E 'Test Case .* failed|XCTAssert|Assertion Failure|Fatal error|Assertion failed|Testing failed|TEST FAILED' uitest.log | tail -n 12 | cut -c1-500 || true)
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "CI regression: $suite in:title" --json number,title --jq '.[0].number // empty')
+          if [ -z "$existing" ]; then
+            created=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "CI regression: $suite" --body "Automated UI regression report for candidate ${GITHUB_SHA}.\n\nWorkflow run/artifacts: $run_url\nShard log: uitest.log\n\nFailure evidence:\n$details\n\nTriage: reproduce on the exact SHA and record concrete reproduction steps.") || { echo "::warning::Could not create backlog issue for $suite"; exit 0; }
+            existing="${created##*/}"
+          fi
+          if gh api "repos/${GITHUB_REPOSITORY}/issues/$existing/comments?per_page=100" --paginate --jq '.[].body' 2>/dev/null | grep -Fq "$marker"; then exit 0; fi
+          body=$(printf '%s\n' "$marker" "## CI regression detected — NOT PASSED" "- **Suite/shard:** $suite" "- **Candidate SHA:** ${GITHUB_SHA}" "- **Workflow run and retained artifacts:** $run_url" "- **Artifact:** preproduction-ui-${{ matrix.shard }}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" "" "### Failure evidence" '```text' "$details" '```' "" "Re-run this shard against the exact SHA, record the reproduction steps, and keep this issue open until the failure is fixed and verified. continue-on-error is not a pass.")
+          gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body" || echo "::warning::Could not comment shard failure on issue #$existing"
+          echo "::warning::UI shard failure recorded on issue #$existing — NOT PASSED."
+          echo "- **Issue:** #$existing — $suite (NOT PASSED)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Evidence:** $run_url" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload full UI diagnostics
         if: always()
         uses: actions/upload-artifact@v4

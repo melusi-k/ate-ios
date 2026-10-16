@@ -220,6 +220,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         SKIP_INSTALL: YES
     info:
+      path: AteClip/Info.plist
       properties:
         CFBundleDisplayName: ate recipe
         CFBundleShortVersionString: $(MARKETING_VERSION)

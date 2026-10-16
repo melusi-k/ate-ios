@@ -9,8 +9,9 @@ permissions:
 on:
   push:
     branches: ["wip/**"]
+  # Run on every PR target, including stacked feature/test branches, so a
+  # dependent PR cannot silently bypass the compile gate while based on another PR.
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:

@@ -354,7 +354,7 @@ extension CoverageUITests {
         let row = app.buttons["library.insights"]
         wait(row); row.tap()
     }
-    func any(_ id: String) -> XCUIElement { app.descendants(matching: .any)[id] }
+    func any(_ id: String) -> XCUIElement { app.descendants(matching: .any).matching(identifier: id).firstMatch }
     /// Connects, checks title + prompts, returns suggestion titles, saves a journal entry.
     @discardableResult
     func runHealthScenario(_ scenario: String, title: String, save: Bool = false) -> [String] {
@@ -428,7 +428,7 @@ extension CoverageUITests {
         scrollTo(sug); sug.tap(); wait(done)
         app.navigationBars.firstMatch.swipeDown(velocity: .fast)   // swipe-to-dismiss also returns to Insights
         wait(text("Recovery day"))
-        XCTAssertFalse(done.exists)
+        XCTAssertTrue(done.waitForNonExistence(timeout: 5), "Recipe sheet must be dismissed before the test continues")
     }
 
     /// Bottom area is one system: Cook mode sits above the (single) timer bar, the Ask Ate field scrolls clear of both,
@@ -500,6 +500,7 @@ extension CoverageUITests {
         wait(any("insights.noData"))
         let sample = app.buttons["insights.sampleData"]; wait(sample, 5); XCTAssertTrue(sample.isHittable); sample.tap()
         let sampleBadge = any("insights.sampleBadge"); wait(sampleBadge, 5)
+        wait(text("Recovery day"), 8)
         let state = any("insights.state"); wait(state, 5)
         XCTAssertEqual(state.label, "Recovery day", "Sample data must replace the no-data state with deterministic recovery insights")
     }

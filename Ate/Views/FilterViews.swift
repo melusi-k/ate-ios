@@ -31,6 +31,7 @@ struct RecipeGridCard: View {
 struct FilterChips: View {
     @Environment(AppStore.self) private var store
     let resultCount: Int
+    var queryIsActive: Bool = false
 
     var body: some View {
         let f = store.filter
@@ -77,7 +78,7 @@ struct FilterChips: View {
             }
             }
             .accessibilityIdentifier("filterChips")
-            if f.isActive {
+            if f.isActive || queryIsActive {
                 Text("\(resultCount) of \(store.recipes.count) recipe\(store.recipes.count == 1 ? "" : "s")")
                     .font(AteFont.body(12, .medium)).foregroundStyle(Theme.mutedForeground)
                     .accessibilityIdentifier("filterResultCount")

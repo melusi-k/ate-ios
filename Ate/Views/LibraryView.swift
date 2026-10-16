@@ -59,8 +59,16 @@ struct LibraryView: View {
             EmptyStateCard(symbol: "fork.knife", title: "Nothing saved yet",
                            message: "Paste a link or a screenshot and get a clean recipe card in seconds.")
         } else if filtered.isEmpty {
-            EmptyStateCard(symbol: "fork.knife", title: "No matches",
-                           message: store.filter.isActive ? "No recipes match these filters." : "Try another ingredient or tag.")
+            let hasQuery = searchPlacement != .none && !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let message: String
+            if store.filter.isActive && hasQuery {
+                message = "No recipes match this search and these filters."
+            } else if store.filter.isActive {
+                message = "No recipes match these filters."
+            } else {
+                message = "Try another ingredient, title or tag."
+            }
+            EmptyStateCard(symbol: "fork.knife", title: "No matches", message: message)
         }
     }
 
@@ -87,7 +95,7 @@ struct LibraryView: View {
                 header
                 TodayJournalHubCard()
                 TodayHealthCard()
-                FilterChips(resultCount: filtered.count)
+                FilterChips(resultCount: filtered.count, queryIsActive: searchPlacement != .none && !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 emptyState(filtered)
                 ForEach(sections) { sec in
                     if !sec.title.isEmpty { sectionHeader(sec.title, count: sec.recipes.count) }
@@ -151,7 +159,7 @@ struct LibraryView: View {
             Group {
                 header
                 TodayJournalHubCard()
-                FilterChips(resultCount: filtered.count)
+                FilterChips(resultCount: filtered.count, queryIsActive: searchPlacement != .none && !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 emptyState(filtered)
                 ForEach(sections) { sec in
                     if !sec.title.isEmpty { sectionHeader(sec.title, count: sec.recipes.count) }

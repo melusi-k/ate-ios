@@ -257,7 +257,7 @@ jobs:
         shell: bash
         run: |
           failed=0
-          for log in recipe-generation-tests.log settings-sync.log tracker-ui.log navigation-header-tests.log cook-mode-history.log; do
+          for log in recipe-generation-tests.log library-layout-tests.log settings-sync.log production-channel-production.log tracker-ui.log navigation-header-tests.log cook-mode-history.log; do
             [ -f "$log" ] || continue
             if grep -Eq 'Testing failed|TEST FAILED|Test Case .* failed|error:|XCTAssert|Assertion Failure|Fatal error' "$log"; then
               echo "::warning::Regression diagnostics indicate a failure in $log; see retained log and xcresult artifact. This is NOT a pass."

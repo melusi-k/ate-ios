@@ -73,7 +73,7 @@ final class CoverStore {
     // MARK: lazy backfill
 
     /// Sentinel `coverImage` value: the user removed the cover; show the tile and don't backfill.
-    static let removed = "none"
+    nonisolated static let removed = "none"
 
     /// Called when a cover appears: downloads a remote image or finds the page image once per launch.
     func ensure(_ r: RecipeCard, store: AppStore) {

@@ -1,6 +1,6 @@
 import SwiftUI
-
-import Combineimport SwiftData
+import Combine
+import SwiftData
 
 @main
 struct AteApp: App {

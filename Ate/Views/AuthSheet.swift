@@ -1,7 +1,7 @@
 import SwiftUI
+import Combine
 
-
-import Combine/// Sign in / create account / set new password. Presented as a sheet from Settings and onboarding.
+/// Sign in / create account / set new password. Presented as a sheet from Settings and onboarding.
 struct AuthSheet: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss

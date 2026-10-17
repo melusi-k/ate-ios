@@ -207,6 +207,38 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+  AteClip:
+    type: application.on-demand-install-capable
+    platform: iOS
+    sources:
+      - path: AteClip
+    settings:
+      base:
+        CODE_SIGN_ENTITLEMENTS: AteClip/AteClip.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.Clip
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+    info:
+      path: AteClip/Info.plist
+      properties:
+        CFBundleDisplayName: ate recipe
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        AteSupabaseURL: $(ATE_SUPABASE_URL)
+        AteSupabasePublishableKey: $(ATE_SUPABASE_PUBLISHABLE_KEY)
+  AteClipTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [AteClipTests]
+    dependencies:
+      - target: AteClip
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.clip.tests
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/AteClip.app/AteClip
+        BUNDLE_LOADER: $(TEST_HOST)
   AteTests:
     type: bundle.unit-test
     platform: iOS
@@ -239,6 +271,13 @@ schemes:
         AteUITests: [test]
     test:
       targets: [AteTests, AteUITests]
+  AteClip:
+    build:
+      targets:
+        AteClip: all
+        AteClipTests: [test]
+    test:
+      targets: [AteClipTests]
   AteWatch:
     build:
       targets:

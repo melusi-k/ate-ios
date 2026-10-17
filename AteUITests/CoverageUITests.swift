@@ -327,6 +327,20 @@ final class CoverageUITests: XCTestCase {
         shot("backend-down-library-intact")
     }
 
+    /// Issue #89: the first request fails transiently; Retry must submit a fresh request and recover.
+    func test36b_RecipeGenerationRetryRecoversAfterTransientFailure() {
+        launch(["-qaBackendFailOnce"])
+        startPrompt("Retryable stew")
+        wait(app.buttons["generateRetry"], 10)
+        wait(text("isn't responding"), 3)
+        shot("recipe-generation-retry-before")
+        app.buttons["generateRetry"].tap()
+        wait(text("Review your card"), 15)
+        wait(text("Retryable stew"), 5)
+        XCTAssertFalse(app.buttons["generateRetry"].exists, "successful retry must leave the error state")
+        shot("recipe-generation-retry-recovered")
+    }
+
     /// A-CREATE-05: kill the app mid-generation, relaunch → clear "interrupted, retry"; and an unsaved card is restored.
     func test37_KilledMidGenerationRecovers() {
         launch(["-qaPersistDraft", "-qaResetDraft", "-qaSlowGenerate"])
@@ -339,6 +353,14 @@ final class CoverageUITests: XCTestCase {
         wait(text("interrupted"), 8)
         wait(app.buttons["generateRetry"], 3)
         shot("generation-interrupted-retry")
+        // Relaunch without -qaSlowGenerate: Retry must start a new attempt, reach review,
+        // and clear both the interrupted error and the in-progress loading state.
+        app.buttons["generateRetry"].tap()
+        wait(text("Review your card"), 15)
+        wait(text("Umngqusho"), 5)
+        XCTAssertFalse(app.buttons["generateRetry"].exists, "successful interrupted-generation retry must clear the error state")
+        XCTAssertFalse(text("Cooking up your card").exists, "loading state must terminate after retry succeeds")
+        shot("generation-interrupted-retry-recovered")
         app.terminate()
         // Unsaved review card survives a kill.
         launch(["-qaPersistDraft", "-qaResetDraft"])

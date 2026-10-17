@@ -272,7 +272,10 @@ jobs:
           failed=0
           for log in recipe-generation-tests.log library-layout-tests.log settings-sync.log production-channel-production.log tracker-ui.log navigation-header-tests.log cook-mode-history.log; do
             [ -f "$log" ] || continue
-            if grep -Eq 'Testing failed|TEST FAILED|Test Case .* failed|error:|XCTAssert|Assertion Failure|Fatal error' "$log"; then
+            # CoreData/platform diagnostics can contain "error:" even when xcodebuild
+            # exits 0 and XCTest reports zero failures. Use explicit test-failure markers;
+            # the individual xcodebuild step exit status remains authoritative.
+            if grep -Eq 'Testing failed|TEST FAILED|Test Case .* failed|Executed [0-9]+ tests?, with [1-9][0-9]* failures?|XCTAssert|Assertion Failure|Fatal error|Assertion failed' "$log"; then
               echo "::warning::Regression diagnostics indicate a failure in $log; see retained log and xcresult artifact. This is NOT a pass."
               {
                 echo "### Regression failure detected — NOT PASSED"

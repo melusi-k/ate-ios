@@ -220,7 +220,7 @@ struct ImportRecipeFromURLIntent: AppIntent {
 
 /// System search schema: "Search ate for tripe" from Siri / Spotlight opens Library results.
 @available(iOS 18.0, *)
-@AssistantIntent(schema: .system.search)
+@AppIntent(schema: .system.search)
 struct SearchRecipesIntent: ShowInAppSearchResultsIntent {
     static let searchScopes: [StringSearchScope] = [.general]
     var criteria: StringSearchCriteria
@@ -247,7 +247,7 @@ struct SearchRecipesIntent: ShowInAppSearchResultsIntent {
 // MARK: Journal schema (ate's own journal in Insights)
 
 @available(iOS 18.0, *)
-@AssistantEntity(schema: .journal.entry)
+@AppEntity(schema: .journal.entry)
 struct AteJournalEntryEntity {
     struct Query: EntityStringQuery {
         func entities(for identifiers: [AteJournalEntryEntity.ID]) async throws -> [AteJournalEntryEntity] {
@@ -287,7 +287,7 @@ struct AteJournalEntryEntity {
 
 /// "Save a journal entry in ate": writes to ate's Insights journal (never Apple's Journal app).
 @available(iOS 18.0, *)
-@AssistantIntent(schema: .journal.createEntry)
+@AppIntent(schema: .journal.createEntry)
 struct CreateAteJournalEntryIntent {
     static let title: LocalizedStringResource = "New journal entry"
     var message: AttributedString

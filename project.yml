@@ -216,6 +216,8 @@ targets:
       - path: AteClip
     settings:
       base:
+        CODE_SIGN_STYLE: "${ATE_SIGN_STYLE}"
+        PROVISIONING_PROFILE_SPECIFIER: "${ATE_PROFILE_CLIP}"
         CODE_SIGN_ENTITLEMENTS: AteClip/AteClip.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.Clip
         TARGETED_DEVICE_FAMILY: "1"

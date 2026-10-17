@@ -230,7 +230,7 @@ struct AddRecipeSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Label("Draft, needs your input", systemImage: "exclamationmark.bubble").font(AteFont.body(14, .semibold))
                 if (d.aiConfidence ?? 1) < RecipeQuality.threshold {
-                    Text("Ate is only \(Int(((d.aiConfidence ?? 0) * 100).rounded()))% sure this is \(d.title).").font(AteFont.body(13))
+                    Text("Ate is only \(d.aiConfidence ?? 0, format: .percent.precision(.fractionLength(0))) sure this is \(d.title).").font(AteFont.body(13))
                 }
                 ForEach(RecipeQuality.issues(d), id: \.self) { Text("• " + $0).font(AteFont.body(13)) }
                 Text("Edit the card, or confirm it's right, before saving.").font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)

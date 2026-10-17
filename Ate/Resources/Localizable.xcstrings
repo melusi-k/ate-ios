@@ -1,138 +1,1530 @@
 {
-  "sourceLanguage": "en",
-  "version": "1.0",
-  "strings": {
-    "library.title": {
-      "comment": "",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your Kitchen"
+  "sourceLanguage" : "en",
+  "strings" : {
+    "" : {
+
+    },
+    " — %@" : {
+
+    },
+    " (%lld min)" : {
+
+    },
+    ".csv" : {
+
+    },
+    ".txt" : {
+
+    },
+    "“%@”" : {
+
+    },
+    "“ate” would like to access your Health data" : {
+
+    },
+    "%@" : {
+
+    },
+    "%@ — %lld/%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ — %2$lld/%3$lld"
           }
         }
       }
     },
-    "library.empty.title": {
-      "comment": "",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nothing saved yet"
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
           }
         }
       }
     },
-    "library.empty.message": {
-      "comment": "",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Paste a link or a screenshot and get a clean recipe card in seconds."
+    "%@ · timer set to the longer time" : {
+
+    },
+    "%@ beta build" : {
+
+    },
+    "%@: %lld/%lld passed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$lld/%3$lld passed"
           }
         }
       }
     },
-    "library.add": {
-      "comment": "",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add recipe"
+    "%lld" : {
+
+    },
+    "%lld attachment(s) can't be previewed" : {
+
+    },
+    "%lld day streak" : {
+
+    },
+    "%lld min" : {
+
+    },
+    "%lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld"
           }
         }
       }
     },
-    "shopping.title": {
-      "comment": "",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Shopping list"
+    "%lld of %lld recipe%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld recipe%3$@"
           }
         }
       }
     },
-    "settings.title": {
-      "comment": "",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Settings"
+    "%lld recipe%@ saved on this device." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld recipe%2$@ saved on this device."
           }
         }
       }
     },
-    "offline.banner": {
-      "comment": "",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You're offline — recipes, cook mode and your list still work."
+    "%lld recipes" : {
+
+    },
+    "%lld servings" : {
+
+    },
+    "%lld timers" : {
+
+    },
+    "%lld/%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld/%2$lld"
           }
         }
       }
     },
-    "common.retry": {
-      "comment": "",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Try again"
+    "%lld×" : {
+
+    },
+    "%lldk" : {
+
+    },
+    "• Check Spam, Junk or Promotions.\n• It can take a few minutes.\n• During the beta ate can send only a few emails per hour, so a resend may have to wait.\n• If you already have an account, sign in or reset your password instead." : {
+
+    },
+    "📱" : {
+
+    },
+    "0" : {
+
+    },
+    "2" : {
+
+    },
+    "30" : {
+
+    },
+    "A quick weeknight miso salmon for two" : {
+
+    },
+    "About" : {
+
+    },
+    "Account & sync" : {
+
+    },
+    "Active activities: %lld" : {
+
+    },
+    "Add" : {
+
+    },
+    "Add %@ to Favourites" : {
+
+    },
+    "Add a recipe" : {
+
+    },
+    "Add from" : {
+
+    },
+    "Add from link" : {
+
+    },
+    "Add item" : {
+
+    },
+    "Add recipe" : {
+
+    },
+    "Add recipe from link" : {
+
+    },
+    "Add something else…" : {
+
+    },
+    "Add to Favourites" : {
+
+    },
+    "Add to list" : {
+
+    },
+    "Add to shopping list" : {
+
+    },
+    "Added %@ to your ate list." : {
+
+    },
+    "Adding that link to ate." : {
+
+    },
+    "Adds an item to your ate shopping list." : {
+
+    },
+    "AI diagnostics" : {
+
+    },
+    "Allow" : {
+
+    },
+    "An account is optional. Everything works offline on this iPhone." : {
+
+    },
+    "An account syncs your library across devices. ate works fully without one." : {
+
+    },
+    "App bundle ID: %@" : {
+
+    },
+    "Apple Health request failed: %@" : {
+
+    },
+    "areActivitiesEnabled: %@" : {
+
+    },
+    "Arrange" : {
+
+    },
+    "Ask ate" : {
+
+    },
+    "ate" : {
+
+    },
+    "Ate is only %lld%% sure this is %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Ate is only %1$lld%% sure this is %2$@."
           }
         }
       }
     },
-    "voice.listening": {
-      "comment": "",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Listening for “next”, “back”, “start timer” or “repeat”"
+    "Ate repaired its library on this iPhone" : {
+
+    },
+    "ate turns a link, a screenshot or an idea into a clean recipe card." : {
+
+    },
+    "Back" : {
+
+    },
+    "Back to sign in" : {
+
+    },
+    "Backup" : {
+
+    },
+    "Beta" : {
+
+    },
+    "Beta & diagnostics" : {
+
+    },
+    "Beta build — see Settings › About for what to expect." : {
+
+    },
+    "Beta testing" : {
+
+    },
+    "Browse and arrange" : {
+
+    },
+    "Build %@" : {
+
+    },
+    "By ingredient" : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Change photo" : {
+
+    },
+    "Checks A-WIDGET, A-LOCK, A-CONTROL and A-INTENT. If the App Group shows missing, widgets can only show “Open ate”; Siri phrases and Control Center still work." : {
+
+    },
+    "Checks H-01…H-08: connect, state title, 3 meal ideas, prompts, save to journal, denied/unavailable/no-entitlement copy. Mock data never touches Apple Health." : {
+
+    },
+    "Choose a new password" : {
+
+    },
+    "Choose how ate lets you know a cook-mode step timer has finished." : {
+
+    },
+    "Choose photo" : {
+
+    },
+    "CI" : {
+
+    },
+    "CI %@" : {
+
+    },
+    "Clear all" : {
+
+    },
+    "Clear all items" : {
+
+    },
+    "Clear the whole shopping list?" : {
+
+    },
+    "Clear ticked" : {
+
+    },
+    "Clear your whole library?" : {
+
+    },
+    "Close" : {
+
+    },
+    "Cloud sync isn't configured in this build." : {
+
+    },
+    "Collections" : {
+
+    },
+    "comma separated" : {
+
+    },
+    "common.retry" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again"
           }
         }
       }
     },
-    "cook.next": {
-      "comment": "",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Next"
+    "Confirm your email" : {
+
+    },
+    "Connect Apple Health" : {
+
+    },
+    "Connect Apple Health (read-only) to get meal ideas that fit your sleep, steps and workouts. Your health data stays on this iPhone." : {
+
+    },
+    "Continue" : {
+
+    },
+    "Continue without account" : {
+
+    },
+    "Cook" : {
+
+    },
+    "Cook mode" : {
+
+    },
+    "Cook now" : {
+
+    },
+    "cook.back" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
           }
         }
       }
     },
-    "cook.back": {
-      "comment": "",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Back"
+    "cook.next" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next"
           }
         }
       }
+    },
+    "Cooked" : {
+
+    },
+    "Cooked that day" : {
+
+    },
+    "Cooking history, Health insights, and your entries" : {
+
+    },
+    "Cooking tracker" : {
+
+    },
+    "Cooking up your card…" : {
+
+    },
+    "Copies version info" : {
+
+    },
+    "Copy" : {
+
+    },
+    "Copy text" : {
+
+    },
+    "Couldn't load this recipe" : {
+
+    },
+    "Create account" : {
+
+    },
+    "Create your account" : {
+
+    },
+    "Cuisine" : {
+
+    },
+    "Danger zone" : {
+
+    },
+    "Day" : {
+
+    },
+    "Delete" : {
+
+    },
+    "DELETE" : {
+
+    },
+    "Delete “%@”?" : {
+
+    },
+    "Delete account" : {
+
+    },
+    "Delete recipe" : {
+
+    },
+    "Delete this journal entry?" : {
+
+    },
+    "Delete this recipe?" : {
+
+    },
+    "Delete your account?" : {
+
+    },
+    "Deleting your account permanently removes it, your synced recipes, and shares created by this account from ate's server and this iPhone." : {
+
+    },
+    "Description" : {
+
+    },
+    "Didn't get it?" : {
+
+    },
+    "Didn't get it? Check Spam/Promotions. During the beta ate can only send a few emails per hour." : {
+
+    },
+    "Discard" : {
+
+    },
+    "Discard this recipe?" : {
+
+    },
+    "Dismiss beta banner" : {
+
+    },
+    "Don't Allow" : {
+
+    },
+    "Done" : {
+
+    },
+    "Done editing" : {
+
+    },
+    "Draft, needs your input" : {
+
+    },
+    "e.g. Italian" : {
+
+    },
+    "e.g. mogodu" : {
+
+    },
+    "e.g. mogodu, ujeqe, morogo" : {
+
+    },
+    "Edit" : {
+
+    },
+    "Edit entry" : {
+
+    },
+    "Edit the card, or confirm it's right, before saving." : {
+
+    },
+    "Email" : {
+
+    },
+    "Email me a link" : {
+
+    },
+    "Entry" : {
+
+    },
+    "Entry not found" : {
+
+    },
+    "Exit" : {
+
+    },
+    "Explore" : {
+
+    },
+    "Export" : {
+
+    },
+    "Export data" : {
+
+    },
+    "Export recovered recipes (JSON)" : {
+      "comment" : "A button that exports the recovered library as a JSON file.",
+      "isCommentAutoGenerated" : true
+    },
+    "Export results (JSON + Markdown)" : {
+
+    },
+    "Export your data from Settings › Tools now and then. Report bugs to melusi.l.k@gmail.com." : {
+
+    },
+    "Fail" : {
+
+    },
+    "Favourite" : {
+
+    },
+    "Filters your library" : {
+
+    },
+    "Finish cooking" : {
+
+    },
+    "Finish cooking in Cook Mode to record a day. Tap a date to see what you cooked." : {
+
+    },
+    "Fix anything the AI got wrong, then save it to your library." : {
+
+    },
+    "Forgot password?" : {
+
+    },
+    "Found %lld ate recipe%@ for %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Found %1$lld ate recipe%2$@ for %3$@."
+          }
+        }
+      }
+    },
+    "From" : {
+
+    },
+    "Generate cover" : {
+
+    },
+    "Generate recipe card" : {
+
+    },
+    "Go to step %lld, %@ left" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Go to step %1$lld, %2$@ left"
+          }
+        }
+      }
+    },
+    "Group & sort" : {
+
+    },
+    "Group by" : {
+
+    },
+    "Group by aisle" : {
+
+    },
+    "Health data" : {
+
+    },
+    "Health insights" : {
+
+    },
+    "Here's your ate library." : {
+
+    },
+    "Hide password" : {
+
+    },
+    "Hide sidebar" : {
+
+    },
+    "How long left on my timer" : {
+
+    },
+    "https://tiktok.com/..." : {
+
+    },
+    "I couldn't find a recipe called %@ in ate." : {
+
+    },
+    "I couldn't find that recipe." : {
+
+    },
+    "I've confirmed, sign in" : {
+
+    },
+    "Image ready — tap to replace" : {
+
+    },
+    "Imperial" : {
+
+    },
+    "Import recipes" : {
+
+    },
+    "Improve with AI" : {
+
+    },
+    "In %@, tap ⋯ › Copy caption (or select the description), then paste it here." : {
+
+    },
+    "In beta-channel builds, use Settings › Beta testing to see what to try; most items tick themselves as you use the app." : {
+
+    },
+    "In the basket" : {
+
+    },
+    "ingredient" : {
+
+    },
+    "Ingredients" : {
+
+    },
+    "Insights" : {
+
+    },
+    "Insights & journal" : {
+
+    },
+    "Instagram/TikTok often hide captions — paste the caption into Prompt if a link doesn't import." : {
+
+    },
+    "Installed by sideloading with a free Apple ID: the app must be re-signed every 7 days." : {
+
+    },
+    "Instruction" : {
+
+    },
+    "It may have been deleted." : {
+
+    },
+    "It's right, let me save" : {
+
+    },
+    "Item" : {
+
+    },
+    "Items marked ‘auto’ tick themselves when the journey really completes on this iPhone, and turn ❌ with the error if it fails. Others need your verdict." : {
+
+    },
+    "Journal" : {
+
+    },
+    "Journal entry" : {
+
+    },
+    "Journaling Suggestions" : {
+
+    },
+    "Keep editing" : {
+
+    },
+    "Kitchen timer" : {
+
+    },
+    "Library" : {
+
+    },
+    "Library repaired" : {
+
+    },
+    "library.add" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add recipe"
+          }
+        }
+      }
+    },
+    "library.empty.message" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste a link or a screenshot and get a clean recipe card in seconds."
+          }
+        }
+      }
+    },
+    "library.empty.title" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing saved yet"
+          }
+        }
+      }
+    },
+    "library.title" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Kitchen"
+          }
+        }
+      }
+    },
+    "Link" : {
+
+    },
+    "Linked recipes" : {
+
+    },
+    "List is empty" : {
+
+    },
+    "Live Activity" : {
+
+    },
+    "Location" : {
+
+    },
+    "Make this vegan" : {
+
+    },
+    "Mark %@ as bought" : {
+
+    },
+    "Mark %@ as not bought" : {
+
+    },
+    "Mark as bought" : {
+
+    },
+    "Mark as not bought" : {
+
+    },
+    "Media" : {
+
+    },
+    "Metric" : {
+
+    },
+    "min" : {
+
+    },
+    "Minutes" : {
+
+    },
+    "Mode" : {
+
+    },
+    "Moment" : {
+
+    },
+    "More" : {
+
+    },
+    "More actions" : {
+
+    },
+    "Move down" : {
+
+    },
+    "Move up" : {
+
+    },
+    "Needs a paid Apple Developer build with Apple's Journaling Suggestions entitlement. Not available in this build." : {
+
+    },
+    "New journal entry" : {
+
+    },
+    "Next" : {
+
+    },
+    "Next month" : {
+
+    },
+    "Next step" : {
+
+    },
+    "No ate recipes match %@." : {
+
+    },
+    "No ate timers are running." : {
+
+    },
+    "No cooking recorded" : {
+
+    },
+    "No entries yet." : {
+
+    },
+    "No journal entries yet" : {
+
+    },
+    "No recipes under 30 minutes" : {
+
+    },
+    "No timer is paused." : {
+
+    },
+    "No timer is running." : {
+
+    },
+    "No timers to stop." : {
+
+    },
+    "Note (what happened)" : {
+
+    },
+    "notes (e.g. finely chopped)" : {
+
+    },
+    "Nothing recorded for this day." : {
+
+    },
+    "Nothing to add." : {
+
+    },
+    "offline.banner" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You're offline — recipes, cook mode and your list still work."
+          }
+        }
+      }
+    },
+    "Open" : {
+
+    },
+    "Open ate first." : {
+
+    },
+    "Open cook mode for %@" : {
+
+    },
+    "Open Insights & journal" : {
+
+    },
+    "Open journal entry" : {
+
+    },
+    "Open recipe" : {
+
+    },
+    "Open Settings" : {
+
+    },
+    "Opening %@." : {
+
+    },
+    "Opens a recipe in ate's hands-free cook mode. Without a recipe, uses tonight's pick." : {
+
+    },
+    "Opens an entry from your Ate journal." : {
+
+    },
+    "Opens ate on Add recipe, ready for a link, a photo or a prompt." : {
+
+    },
+    "Opens cook mode at this step" : {
+
+    },
+    "Page" : {
+
+    },
+    "Pass" : {
+
+    },
+    "Passed (%lld)" : {
+
+    },
+    "Paste" : {
+
+    },
+    "Paste caption in Prompt" : {
+
+    },
+    "Pause" : {
+
+    },
+    "Pause cook timer" : {
+
+    },
+    "Pause or resume timer" : {
+
+    },
+    "Pause timer" : {
+
+    },
+    "Paused %@." : {
+
+    },
+    "Pauses the ate timer that ends next." : {
+
+    },
+    "Photo" : {
+
+    },
+    "Photo %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Photo %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Pick a moment (photo, workout, place) in Insights and turn it into an Ate entry or recipe draft." : {
+
+    },
+    "Pick a moment from Journaling Suggestions" : {
+
+    },
+    "Pick one dish, or several to make a card for each (the first opens for review, the rest are saved)." : {
+
+    },
+    "Preview" : {
+
+    },
+    "Previous month" : {
+
+    },
+    "Privacy Policy" : {
+
+    },
+    "Progress" : {
+
+    },
+    "Prompt" : {
+
+    },
+    "qty" : {
+
+    },
+    "Quick recipes" : {
+
+    },
+    "Read: Sleep, Steps, Active Energy, Workouts" : {
+
+    },
+    "Ready to cook?" : {
+
+    },
+    "Real Apple Health" : {
+
+    },
+    "Recipe" : {
+
+    },
+    "Recipe cover" : {
+
+    },
+    "Recipes and your shopping list sync to your ate account (Supabase, EU). Shared recipes are public to anyone with the link." : {
+
+    },
+    "Recipes are stored on this iPhone only. Sign in to sync them to your account." : {
+
+    },
+    "Refresh" : {
+
+    },
+    "Refresh widgets now" : {
+
+    },
+    "Regenerate" : {
+
+    },
+    "Remove" : {
+
+    },
+    "Remove %@ from Favourites" : {
+
+    },
+    "Remove from Favourites" : {
+
+    },
+    "Removes this filter" : {
+
+    },
+    "Replay intro" : {
+
+    },
+    "Resend %@" : {
+
+    },
+    "Resend email" : {
+
+    },
+    "Reset" : {
+
+    },
+    "Reset all results" : {
+
+    },
+    "Reset every beta result on this iPhone?" : {
+
+    },
+    "Reset password" : {
+
+    },
+    "Reset timer" : {
+
+    },
+    "Reset your password" : {
+
+    },
+    "Restored from sync" : {
+
+    },
+    "Results" : {
+
+    },
+    "Resume" : {
+
+    },
+    "Resume cook timer" : {
+
+    },
+    "Resumed %@." : {
+
+    },
+    "Resumes the paused ate timer." : {
+
+    },
+    "Review your card" : {
+
+    },
+    "Run the pilot checks, record results, and see what to expect from this build." : {
+
+    },
+    "Running without on-device storage this session; changes sync if you're signed in." : {
+
+    },
+    "Sample cover" : {
+
+    },
+    "Sample data" : {
+
+    },
+    "Save" : {
+
+    },
+    "Save a few recipes and Ate will pick the ones that fit your day." : {
+
+    },
+    "Save a recipe to ate first, then I can pick one for tonight." : {
+
+    },
+    "Save one from Insights, or ask Siri to save a journal entry in Ate." : {
+
+    },
+    "Save password" : {
+
+    },
+    "Save recipe" : {
+
+    },
+    "Save to journal" : {
+
+    },
+    "Save to my library" : {
+
+    },
+    "Saved only on this iPhone. Ate can't write to Apple's Journal app." : {
+
+    },
+    "Saving…" : {
+
+    },
+    "say…" : {
+
+    },
+    "Says how long is left on the next ate timer, with Pause and Stop." : {
+
+    },
+    "Scales ingredient amounts. Cooking times stay the same." : {
+
+    },
+    "Screenshots of a recipe are read word for word. A photo of a dish gets a guessed recipe you can edit." : {
+
+    },
+    "Search journal" : {
+
+    },
+    "See all %lld entries" : {
+
+    },
+    "See what to test — %lld/%lld done" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "See what to test — %1$lld/%2$lld done"
+          }
+        }
+      }
+    },
+    "Send again %@" : {
+
+    },
+    "Send reset link" : {
+
+    },
+    "Servings" : {
+
+    },
+    "Settings" : {
+
+    },
+    "settings.title" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        }
+      }
+    },
+    "Share" : {
+
+    },
+    "Share / copy" : {
+
+    },
+    "Share as text" : {
+
+    },
+    "Share link" : {
+
+    },
+    "Share recipe" : {
+
+    },
+    "Shared links open the web page; tapping \"Open in ate\" works where ate is installed. Universal links come later." : {
+
+    },
+    "Shopping" : {
+
+    },
+    "Shopping item" : {
+
+    },
+    "Shopping list" : {
+
+    },
+    "shopping.title" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shopping list"
+          }
+        }
+      }
+    },
+    "Show password" : {
+
+    },
+    "Show sidebar" : {
+
+    },
+    "Shows all timers" : {
+
+    },
+    "Shows the next items on your ate shopping list, with tick buttons." : {
+
+    },
+    "Sign in" : {
+
+    },
+    "Sign in from Settings to restore your recipes from sync." : {
+
+    },
+    "Sign in to sync your recipes and shopping list across devices. Everything keeps working offline without an account." : {
+
+    },
+    "Sign in to sync your recipes and shopping list." : {
+
+    },
+    "Sign out" : {
+
+    },
+    "Sign out and remove local data" : {
+
+    },
+    "Sign out of ate?" : {
+
+    },
+    "Sign out, keep recipes on this iPhone" : {
+
+    },
+    "Skip" : {
+
+    },
+    "Sort" : {
+
+    },
+    "Source" : {
+
+    },
+    "Start cook mode" : {
+
+    },
+    "Start timer" : {
+
+    },
+    "Start voice control" : {
+
+    },
+    "Starting cook mode for %@." : {
+
+    },
+    "Starts a 5-minute kitchen timer, or pauses / resumes the running one." : {
+
+    },
+    "Status" : {
+
+    },
+    "Step %lld · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Step %1$lld · %2$@"
+          }
+        }
+      }
+    },
+    "Step %lld minutes" : {
+
+    },
+    "Step %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Step %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Steps" : {
+
+    },
+    "Steps trend over %lld days, today %@ steps" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Steps trend over %1$lld days, today %2$@ steps"
+          }
+        }
+      }
+    },
+    "Steps, last %lld days" : {
+
+    },
+    "Stop" : {
+
+    },
+    "Stop cook timer" : {
+
+    },
+    "Stop timer" : {
+
+    },
+    "Stop voice control" : {
+
+    },
+    "Stopped %@." : {
+
+    },
+    "Stops the ate timer that ends next." : {
+
+    },
+    "Suggests one recipe from your library that fits your day." : {
+
+    },
+    "Suggests three recipes you can cook in 30 minutes or less." : {
+
+    },
+    "Sync now" : {
+
+    },
+    "Take a photo" : {
+
+    },
+    "Take photo" : {
+
+    },
+    "Terms of Use" : {
+
+    },
+    "That journal entry isn't in Ate any more." : {
+
+    },
+    "That looks like an image prompt, not a journal entry, so Ate didn't save it." : {
+
+    },
+    "The saved data couldn't be opened, so Ate moved it aside and started a fresh library. Nothing was deleted." : {
+
+    },
+    "There's nothing to save. Say or type what you'd like in your Ate journal." : {
+
+    },
+    "This can't be undone. It's only stored on this iPhone." : {
+
+    },
+    "This permanently deletes your account, synced recipes, and shares created by this account. It can't be undone. Older anonymous shares may remain viewable until removed by request." : {
+
+    },
+    "This recipe looks thin" : {
+
+    },
+    "Tick %@" : {
+
+    },
+    "Tick shopping item" : {
+
+    },
+    "Tier A results (%lld/%lld passed)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Tier A results (%1$lld/%2$lld passed)"
+          }
+        }
+      }
+    },
+    "Time left" : {
+
+    },
+    "Timer" : {
+
+    },
+    "Timer %@." : {
+
+    },
+    "Timer notifications" : {
+
+    },
+    "Timers" : {
+
+    },
+    "Title" : {
+
+    },
+    "Today %@" : {
+
+    },
+    "Tonight's pick" : {
+
+    },
+    "Tools" : {
+
+    },
+    "Try again" : {
+
+    },
+    "Turns a recipe page, reel or video link into an ate recipe card." : {
+
+    },
+    "Type DELETE to confirm" : {
+
+    },
+    "Unfavourite" : {
+
+    },
+    "unit" : {
+
+    },
+    "Units" : {
+
+    },
+    "Upload a screenshot or a food photo" : {
+
+    },
+    "Upload results to ate cloud" : {
+
+    },
+    "Use sample data" : {
+
+    },
+    "Use sample food photo" : {
+
+    },
+    "Use sample screenshot" : {
+
+    },
+    "Version %@ (build %@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Version %1$@ (build %2$@)"
+          }
+        }
+      }
+    },
+    "voice.listening" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listening for “next”, “back”, “start timer” or “repeat”"
+          }
+        }
+      }
+    },
+    "Waiting for you to confirm %@." : {
+
+    },
+    "We sent a link to %@. Open it on this iPhone to finish signing in." : {
+
+    },
+    "We'll email you a link. Open it on this iPhone to choose a new password." : {
+
+    },
+    "Welcome back" : {
+
+    },
+    "What dish is this?" : {
+
+    },
+    "What happened" : {
+
+    },
+    "What should I add to your ate list?" : {
+
+    },
+    "What to expect in this beta" : {
+
+    },
+    "What's on my shopping list" : {
+
+    },
+    "Which recipe did you mean?" : {
+
+    },
+    "Widgets, controls & Siri" : {
+
+    },
+    "Without Apple Intelligence, links with recipe page data still import; other inputs use a simple demo draft." : {
+
+    },
+    "Write a few lines…" : {
+
+    },
+    "Your ate library is empty. Add a recipe first." : {
+
+    },
+    "Your data" : {
+
+    },
+    "Your recipes on this iPhone will be removed too." : {
+
+    },
+    "Your synced recipes stay in your account either way." : {
+
+    },
+    "Your verdict" : {
+
     }
-  }
+  },
+  "version" : "1.1"
 }

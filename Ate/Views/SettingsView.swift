@@ -41,7 +41,6 @@ struct SettingsView: View {
                         toggle("Sound", "Play a chime when a timer ends.", $store.timerPrefs.sound)
                         toggle("Vibration", "Buzz your device (where supported).", $store.timerPrefs.vibration)
                         toggle("Step-by-step alerts", "Show a system notification for each step.", $store.timerPrefs.stepAlerts)
-                        Divider()
                         toggle("Quiet hours", "Mute the chime during this window — vibration and alerts still work.",
                                $store.timerPrefs.quietHours)
                         if store.timerPrefs.quietHours {

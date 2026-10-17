@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AteBackendMode</key>
+	<string>$(ATE_BACKEND_MODE)</string>
+	<key>AteChannel</key>
+	<string>$(ATE_CHANNEL)</string>
+	<key>AteGitSHA</key>
+	<string>$(ATE_GIT_SHA)</string>
+	<key>AtePrivacyURL</key>
+	<string>$(ATE_PRIVACY_URL)</string>
+	<key>AteShareHost</key>
+	<string>$(ATE_SHARE_HOST)</string>
+	<key>AteShareURLTemplate</key>
+	<string>$(ATE_SHARE_URL_TEMPLATE)</string>
+	<key>AteSupabasePublishableKey</key>
+	<string>$(ATE_SUPABASE_PUBLISHABLE_KEY)</string>
+	<key>AteSupabaseURL</key>
+	<string>$(ATE_SUPABASE_URL)</string>
+	<key>AteTermsURL</key>
+	<string>$(ATE_TERMS_URL)</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>ate</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.melusik.ate</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ate</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>INAlternativeAppNames</key>
+	<array>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Ate</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Ate app</string>
+		</dict>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>ate uses the camera to snap a recipe.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>ate reads your sleep, steps, active energy and workouts (read-only, on this iPhone) to suggest meals that fit your day. Health data never leaves your device.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ate uses the microphone for hands-free cook mode commands.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ate reads the recipe screenshot you pick to turn it into a recipe card.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>ate listens on your iPhone for “next”, “back”, “start timer” and “repeat” while you cook. Audio never leaves your device.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Fraunces.ttf</string>
+		<string>DMSans.ttf</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+		<key>UIImageName</key>
+		<string>AteLogo</string>
+		<key>UIImageRespectsSafeAreaInsets</key>
+		<true/>
+	</dict>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>

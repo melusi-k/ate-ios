@@ -350,5 +350,6 @@ jobs:
             tracker-ui.log
             cook-mode-history.log
             recipe-generation-tests.log
+            library-layout-tests.log
             navigation-header-tests.log
             ${{ runner.temp }}/ate-test-results/*.xcresult

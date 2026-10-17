@@ -422,7 +422,9 @@ extension AteShortcuts {
             .compactMap { $0["INAlternativeAppName"] as? String } ?? []
         let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "?"
         let bundle = Bundle.main.bundleIdentifier ?? "?"
-        let siriLang = INPreferences.siriLanguageCode()
+        // INPreferences.siriLanguageCode() requires the Siri entitlement and can terminate
+        // unsigned/sideloaded builds. Keep diagnostics safe when that capability is absent.
+        let siriLang = "Not queried (requires Siri entitlement)"
         var lines = ["Siri: \(phraseCatalog.count)/10 shortcuts · \(phraseCatalog.map(\.phrases.count).reduce(0, +)) phrases",
                      "App Intents metadata: \(meta ? "OK" : "MISSING (re-sign dropped Metadata.appintents)")",
                      "App name: \(name) · alternatives: \(alt.isEmpty ? "none" : alt.joined(separator: ", "))",

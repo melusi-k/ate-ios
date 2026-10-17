@@ -390,6 +390,20 @@ jobs:
           [ "$WBV" = "$BUILD_NUMBER" ] || { echo "::error::Widget CFBundleVersion $WBV != run number $BUILD_NUMBER"; exit 1; }
           [ "$SV" = "$APP_VERSION" ] || { echo "::error::CFBundleShortVersionString $SV != $APP_VERSION"; exit 1; }
           [ "$SHA" = "$GIT_SHORT_SHA" ] || { echo "::error::AteGitSHA $SHA != $GIT_SHORT_SHA"; exit 1; }
+          CLIP_APP=build/verify/Payload/Ate.app/AppClips/AteClip.app
+          if [ -d "$CLIP_APP" ]; then
+            CLIP_ID=$(plutil -extract CFBundleIdentifier raw -o - "$CLIP_APP/Info.plist")
+            CLIP_BUILD=$(plutil -extract CFBundleVersion raw -o - "$CLIP_APP/Info.plist")
+            [ "$CLIP_ID" = "com.melusik.ate.Clip" ] || { echo "::error::Unexpected embedded App Clip bundle ID: $CLIP_ID"; exit 1; }
+            [ "$CLIP_BUILD" = "$BUILD_NUMBER" ] || { echo "::error::App Clip build $CLIP_BUILD != $BUILD_NUMBER"; exit 1; }
+            plutil -lint "$CLIP_APP/Info.plist"
+            echo "App Clip embedded: $CLIP_ID build $CLIP_BUILD" | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$HAS_SIGNING" = "true" ] && [ "$HAS_CLIP_PROFILE" != "true" ]; then
+            echo "::warning::App Clip is not embedded in this signed IPA; the Clip-specific provisioning profile is not configured."
+          else
+            echo "::error::Expected App Clip at $CLIP_APP but it is missing from the distribution IPA."
+            exit 1
+          fi
 
       - name: Release smoke test (A-CI-03) — plist + codesign checks on the .ipa
         id: ipacheck

@@ -228,7 +228,7 @@ final class OnDeviceBackend: BackendService {
                 }
                 let stream = session.streamResponse(to: fullPrompt, generating: GenRecipe.self,
                                                     includeSchemaInPrompt: RecipePrompt.includeSchemaInPrompt || isRevision,
-                                                    options: GenerationOptions(samplingMode: .greedy))
+                                                    options: GenerationOptions(sampling: .greedy))
                 for try await snap in stream {
                     partialSink?(RecipeStreamPreview(snap.content))
                 }

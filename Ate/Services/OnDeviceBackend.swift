@@ -301,9 +301,9 @@ final class OnDeviceBackend: BackendService {
         let bot = "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
         let desktop = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
         let oURL = SocialLinks.oEmbedURL(for: url)
-        async let page: Data? = get(url, ua: bot)
+        async let page: Data? = get(url, bot)
         var oeData: Data?
-        if let oURL { oeData = await get(oURL, ua: desktop) }
+        if let oURL { oeData = await get(oURL, desktop) }
         let oEmbed = oeData.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         let html = (await page).map { String(decoding: $0.prefix(1_500_000), as: UTF8.self) } ?? ""
         var caption = SocialLinks.caption(platform: platform, oEmbed: oEmbed, meta: SocialLinks.meta(html))

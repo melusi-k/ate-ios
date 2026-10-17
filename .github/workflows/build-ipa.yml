@@ -260,6 +260,7 @@ jobs:
           PROFILE_SHARE: ${{ secrets.SHARE_PROVISION_PROFILE_BASE64 }}
           PROFILE_WATCH: ${{ secrets.WATCH_PROVISION_PROFILE_BASE64 }}
           PROFILE_WATCHWIDGETS: ${{ secrets.WATCH_WIDGET_PROVISION_PROFILE_BASE64 }}
+          PROFILE_CLIP: ${{ secrets.CLIP_PROVISION_PROFILE_BASE64 }}
         run: |
           KEYCHAIN=$RUNNER_TEMP/build.keychain-db
           KC_PASS=$(uuidgen)
@@ -272,7 +273,7 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN"
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           MAP=""
-          for KIND in APP WIDGETS SHARE WATCH WATCHWIDGETS; do
+          for KIND in APP WIDGETS SHARE WATCH WATCHWIDGETS CLIP; do
             VAR=PROFILE_$KIND; DATA=${!VAR}
             [ -z "$DATA" ] && { echo "No $KIND profile secret"; continue; }
             F=$RUNNER_TEMP/$KIND.mobileprovision; echo -n "$DATA" | base64 --decode > $F
@@ -292,6 +293,26 @@ jobs:
           done
           echo "PROFILE_MAP=$MAP" >> $GITHUB_ENV
           [ -n "$ATE_PROFILE_APP" ] || grep -q ATE_PROFILE_APP $GITHUB_ENV || { echo "::error::BUILD_PROVISION_PROFILE_BASE64 is required"; exit 1; }
+          if [ -n "$ATE_PROFILE_CLIP" ]; then
+            echo "HAS_CLIP_PROFILE=true" >> $GITHUB_ENV
+          else
+            echo "HAS_CLIP_PROFILE=false" >> $GITHUB_ENV
+            echo "::warning::CLIP_PROVISION_PROFILE_BASE64 is not configured; signed release will preserve the current app without embedding the App Clip. Configure the Clip-specific provisioning profile to enable distribution embedding."
+            python3 - <<'PY'
+          from pathlib import Path
+          p = Path('project.yml')
+          s = p.read_text()
+          dependency = '      # Embed the isolated shared-recipe App Clip at Ate.app/AppClips when the distribution build has its Clip profile.\n      - target: AteClip\n'
+          if dependency not in s:
+              raise SystemExit('Expected optional App Clip dependency was not found; refusing to alter the release project spec')
+          p.write_text(s.replace(dependency, '', 1))
+          PY
+            {
+              echo '### App Clip distribution status'
+              echo
+              echo 'The Clip target passed its independent CI build, but this signed IPA does **not** embed it because `CLIP_PROVISION_PROFILE_BASE64` is not configured. Existing release packaging continues without changing the main app distribution.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Build signed IPA
         if: env.HAS_SIGNING == 'true'
@@ -369,6 +390,20 @@ jobs:
           [ "$WBV" = "$BUILD_NUMBER" ] || { echo "::error::Widget CFBundleVersion $WBV != run number $BUILD_NUMBER"; exit 1; }
           [ "$SV" = "$APP_VERSION" ] || { echo "::error::CFBundleShortVersionString $SV != $APP_VERSION"; exit 1; }
           [ "$SHA" = "$GIT_SHORT_SHA" ] || { echo "::error::AteGitSHA $SHA != $GIT_SHORT_SHA"; exit 1; }
+          CLIP_APP=build/verify/Payload/Ate.app/AppClips/AteClip.app
+          if [ -d "$CLIP_APP" ]; then
+            CLIP_ID=$(plutil -extract CFBundleIdentifier raw -o - "$CLIP_APP/Info.plist")
+            CLIP_BUILD=$(plutil -extract CFBundleVersion raw -o - "$CLIP_APP/Info.plist")
+            [ "$CLIP_ID" = "com.melusik.ate.Clip" ] || { echo "::error::Unexpected embedded App Clip bundle ID: $CLIP_ID"; exit 1; }
+            [ "$CLIP_BUILD" = "$BUILD_NUMBER" ] || { echo "::error::App Clip build $CLIP_BUILD != $BUILD_NUMBER"; exit 1; }
+            plutil -lint "$CLIP_APP/Info.plist"
+            echo "App Clip embedded: $CLIP_ID build $CLIP_BUILD" | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$HAS_SIGNING" = "true" ] && [ "$HAS_CLIP_PROFILE" != "true" ]; then
+            echo "::warning::App Clip is not embedded in this signed IPA; the Clip-specific provisioning profile is not configured."
+          else
+            echo "::error::Expected App Clip at $CLIP_APP but it is missing from the distribution IPA."
+            exit 1
+          fi
 
       - name: Release smoke test (A-CI-03) — plist + codesign checks on the .ipa
         id: ipacheck

@@ -47,6 +47,8 @@ targets:
     dependencies:
       - target: AteWidgets
       - target: AteShare
+      # Embed the isolated shared-recipe App Clip at Ate.app/AppClips when the distribution build has its Clip profile.
+      - target: AteClip
       # Independent watch app, embedded at Ate.app/Watch/AteWatch.app so it can be installed alongside the phone app.
       - target: AteWatch
     settings:
@@ -214,6 +216,8 @@ targets:
       - path: AteClip
     settings:
       base:
+        CODE_SIGN_STYLE: "${ATE_SIGN_STYLE}"
+        PROVISIONING_PROFILE_SPECIFIER: "${ATE_PROFILE_CLIP}"
         CODE_SIGN_ENTITLEMENTS: AteClip/AteClip.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.Clip
         TARGETED_DEVICE_FAMILY: "1"

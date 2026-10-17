@@ -47,6 +47,8 @@ targets:
     dependencies:
       - target: AteWidgets
       - target: AteShare
+      # Embed the isolated shared-recipe App Clip at Ate.app/AppClips when the distribution build has its Clip profile.
+      - target: AteClip
       # Independent watch app, embedded at Ate.app/Watch/AteWatch.app so it can be installed alongside the phone app.
       - target: AteWatch
     settings:

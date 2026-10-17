@@ -290,7 +290,7 @@ final class OnDeviceBackend: BackendService {
 
     /// oEmbed (TikTok/YouTube) + OG tags fetched with a link-preview bot UA, ~8 s budget. Never throws: empty = nothing found.
     static func fetchSocialCaption(_ url: URL, platform: SocialLinks.Platform) async -> String {
-        func get(_ u: URL, ua: String) async -> Data? {
+        let get: @Sendable (URL, String) async -> Data? = { u, ua in
             var r = URLRequest(url: u); r.timeoutInterval = 8
             r.setValue(ua, forHTTPHeaderField: "User-Agent")
             r.setValue("text/html,application/json;q=0.9,*/*;q=0.8", forHTTPHeaderField: "Accept")
@@ -317,8 +317,10 @@ final class OnDeviceBackend: BackendService {
         let b64 = dataURL.components(separatedBy: ",").last ?? ""
         guard let data = Data(base64Encoded: b64), let cg = UIImage(data: data)?.cgImage else { return [] }
         return try await withCheckedThrowingContinuation { cont in
-            let req = VNClassifyImageRequest()
             DispatchQueue.global(qos: .userInitiated).async {
+                // Create and consume the Vision request on the same worker; do not transfer
+                // a non-Sendable VNClassifyImageRequest across concurrency domains.
+                let req = VNClassifyImageRequest()
                 do {
                     try VNImageRequestHandler(cgImage: cg).perform([req])
                     // Full VNClassifyImageRequest taxonomy, top 10 with confidences.
@@ -393,14 +395,15 @@ final class OnDeviceBackend: BackendService {
         let b64 = dataURL.components(separatedBy: ",").last ?? ""
         guard let data = Data(base64Encoded: b64), let cg = UIImage(data: data)?.cgImage else { return "" }
         return try await withCheckedThrowingContinuation { cont in
-            let req = VNRecognizeTextRequest { req, err in
-                if let err { cont.resume(throwing: err); return }
-                let lines = (req.results as? [VNRecognizedTextObservation] ?? []).compactMap { $0.topCandidates(1).first?.string }
-                cont.resume(returning: lines.joined(separator: "\n"))
-            }
-            req.recognitionLevel = .accurate
-            req.usesLanguageCorrection = true
             DispatchQueue.global(qos: .userInitiated).async {
+                // Keep the request confined to the worker that performs it.
+                let req = VNRecognizeTextRequest { req, err in
+                    if let err { cont.resume(throwing: err); return }
+                    let lines = (req.results as? [VNRecognizedTextObservation] ?? []).compactMap { $0.topCandidates(1).first?.string }
+                    cont.resume(returning: lines.joined(separator: "\n"))
+                }
+                req.recognitionLevel = .accurate
+                req.usesLanguageCorrection = true
                 do { try VNImageRequestHandler(cgImage: cg).perform([req]) } catch { cont.resume(throwing: error) }
             }
         }

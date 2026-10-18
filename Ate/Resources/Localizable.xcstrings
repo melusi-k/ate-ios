@@ -230,16 +230,6 @@
     "ate" : {
 
     },
-    "Ate is only %lld%% sure this is %@." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Ate is only %1$lld%% sure this is %2$@."
-          }
-        }
-      }
-    },
     "Ate repaired its library on this iPhone" : {
 
     },

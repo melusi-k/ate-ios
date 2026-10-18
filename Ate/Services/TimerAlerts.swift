@@ -6,7 +6,7 @@ import AudioToolbox
 enum TimerAlerts {
     static func requestPermission() async -> Bool {
         if AppConfig.isUITesting { return false }
-        return (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .timeSensitive])) ?? false
+        return (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false
     }
 
     static func minutes(_ hhmm: String) -> Int {

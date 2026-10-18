@@ -71,7 +71,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
     func testSelectingTodayShowsDayDetailsAndExplicitEmptyState() {
         let app = launchTracker()
         let day = Calendar.current.component(.day, from: Date())
-        let today = app.buttons["tracker.day.\\(day)"]
+        let today = app.buttons["tracker.day.\(day)"]
         XCTAssertTrue(today.waitForExistence(timeout: 5), "Today should be an accessible calendar button")
         XCTAssertTrue(today.label.contains("today"))
         // XCTest can report a 44pt SwiftUI frame a few floating-point ulps below 44.

@@ -79,10 +79,22 @@ jobs:
           echo "Xcode: $(xcodebuild -version | tr '\\n' ' ')"
           echo "iOS Simulator SDK: $(xcrun --sdk iphonesimulator --show-sdk-version)"
           SDKROOT="$(xcrun --sdk iphonesimulator --show-sdk-path)"
-          find "$SDKROOT/../../Platforms/iPhoneOS.platform/Developer/SDKs" -path '*FoundationModels.swiftmodule*' -name '*.swiftinterface' -print 2>/dev/null | while read -r interface; do
+          MODULE_DIR="$SDKROOT/System/Library/Frameworks/FoundationModels.framework/Modules/FoundationModels.swiftmodule"
+          if [ ! -d "$MODULE_DIR" ]; then
+            echo "FoundationModels module directory not found at expected SDK path: $MODULE_DIR"
+            find "$SDKROOT/System/Library/Frameworks" -maxdepth 4 -iname '*FoundationModels*' -print 2>/dev/null || true
+            exit 0
+          fi
+          found=0
+          while IFS= read -r interface; do
+            found=1
             echo "FoundationModels interface: $interface"
             grep -nE 'GenerationOptions|samplingMode|sampling:' "$interface" | head -80 || true
-          done
+          done < <(find "$MODULE_DIR" -name '*.swiftinterface' -print 2>/dev/null || true)
+          if [ "$found" -eq 0 ]; then
+            echo "No textual Swift interface found; listing module files:"
+            find "$MODULE_DIR" -maxdepth 2 -type f -print || true
+          fi
       - name: Cache Xcode DerivedData
         uses: actions/cache@v4
         with:

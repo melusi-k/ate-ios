@@ -73,6 +73,16 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
+      - name: Report Foundation Models SDK API surface
+        run: |
+          set -euo pipefail
+          echo "Xcode: $(xcodebuild -version | tr '\\n' ' ')"
+          echo "iOS Simulator SDK: $(xcrun --sdk iphonesimulator --show-sdk-version)"
+          SDKROOT="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          find "$SDKROOT/../../Platforms/iPhoneOS.platform/Developer/SDKs" -path '*FoundationModels.swiftmodule*' -name '*.swiftinterface' -print 2>/dev/null | while read -r interface; do
+            echo "FoundationModels interface: $interface"
+            grep -nE 'GenerationOptions|samplingMode|sampling:' "$interface" | head -80 || true
+          done
       - name: Cache Xcode DerivedData
         uses: actions/cache@v4
         with:

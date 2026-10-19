@@ -260,5 +260,21 @@ final class KeyFlowsQATests: XCTestCase {
         XCTAssertTrue(probe.label.contains("chime=1"), probe.label)
         XCTAssertTrue(probe.label.contains("haptic=1"), probe.label)
         shot("8-timer-finished")
+
+        // Early exit preserves the untimed cooking session after its timer has completed.
+        let miniPlayer = app.buttons["cookSessionMiniPlayer"]
+        wait(miniPlayer, 5)
+        XCTAssertTrue(miniPlayer.label.contains("Timer test salmon"), miniPlayer.label)
+        miniPlayer.tap()
+        wait(text("Step 3 of 4"), 5)
+        app.buttons["Next step"].tap()
+        wait(text("Step 4 of 4"), 5)
+        app.buttons["Exit"].tap() // no timer on this step: progress must still survive
+        wait(miniPlayer, 5)
+        XCTAssertTrue((miniPlayer.value as? String ?? "").contains("Step 4 of 4"), miniPlayer.value as? String ?? "")
+        miniPlayer.tap()
+        wait(text("Step 4 of 4"), 5)
+        app.buttons["Finish cooking"].tap()
+        XCTAssertTrue(miniPlayer.waitForNonExistence(timeout: 5), "explicit completion clears the cooking session")
     }
 }

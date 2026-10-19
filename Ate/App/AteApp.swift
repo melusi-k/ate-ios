@@ -10,7 +10,7 @@ struct AteApp: App {
     init() {
         TabBarStyle.apply()
         if AppConfig.isUITesting {
-            for k in ["ate.settings.v1", "ate.timerprefs.v1"] { UserDefaults.standard.removeObject(forKey: k) }
+            for k in ["ate.settings.v1", "ate.timerprefs.v1", "ate.cookSession.v1"] { UserDefaults.standard.removeObject(forKey: k) }
         }
         // Corruption-safe open: a broken store is moved aside and a fresh one opened; never crashes (R-DATA-01).
         let corruptQA = AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaCorruptStore")
@@ -62,7 +62,10 @@ struct TimerBarInset: ViewModifier {
         // actions (Cook mode, Add recipe) use their own inner safeAreaInset and therefore sit directly above it.
         content.safeAreaInset(edge: .bottom, spacing: 0) {
             // iOS 26: at tab roots the timer lives in the tab bar's bottom accessory, so the inset only shows on pushed screens.
-            if !store.timers.timers.isEmpty && store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot) { TimerBar() }
+            if store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot) {
+                if let session = store.cookSession { CookSessionMiniPlayer(session: session) }
+                if !store.timers.timers.isEmpty { TimerBar() }
+            }
         }
     }
 }
@@ -201,7 +204,11 @@ struct AteBottomAccessory: View {
     var body: some View {
         let compact = placement == .inline
         HStack(spacing: 8) {
-            if !store.timers.timers.isEmpty {
+            if let session = store.cookSession {
+                CookSessionMiniPlayer(session: session)
+                Button { add() } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
+                    .accessibilityLabel("Add recipe").accessibilityIdentifier("accessoryAdd")
+            } else if !store.timers.timers.isEmpty {
                 TimerBar().padding(.bottom, -4).padding(.horizontal, -12)
                 Button { add() } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
                     .accessibilityLabel("Add recipe").accessibilityIdentifier("accessoryAdd")

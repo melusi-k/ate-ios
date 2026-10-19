@@ -30,10 +30,17 @@ struct CookModeView: View {
             // Opening Cook Mode is intent, not evidence that a meal was cooked.
             // Record history only when the user explicitly finishes the final step.
             // Resume at the step whose timer is running, if any.
+            if let session = store.cookSession, session.recipeID == recipeID {
+                index = session.stepIndex
+            }
             if let t = store.timers.timers.first(where: { $0.recipeID == recipeID && $0.isRunning }) { index = t.stepIndex }
+            store.updateCookSession(recipeID: recipeID, stepIndex: index)
         }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false; voice.stop() }
-        .onChange(of: index) { Haptics.step() }
+        .onChange(of: index) {
+            store.updateCookSession(recipeID: recipeID, stepIndex: index)
+            Haptics.step()
+        }
     }
 
     private func exit() {
@@ -153,6 +160,7 @@ struct CookModeView: View {
                 } else {
                     Button("Finish cooking") {
                         store.markCooked(recipeID)
+                        store.clearCookSession(recipeID: recipeID)
                         exit()
                     }
                     .buttonStyle(.borderedProminent).controlSize(.large)
@@ -183,6 +191,46 @@ struct CookModeView: View {
 
     private func stepSpeech(_ r: RecipeCard) -> String {
         "Step \(index + 1). " + Units.convertTemperatures(in: step(r).instruction, to: store.settings.units)
+    }
+}
+
+
+/// Compact session entry point shown after leaving Cook Mode. It is intentionally independent of timer existence.
+struct CookSessionMiniPlayer: View {
+    @Environment(AppStore.self) private var store
+    let session: CookSession
+
+    var body: some View {
+        if let recipe = store.recipe(session.recipeID), !recipe.steps.isEmpty {
+            Button {
+                store.updateCookSession(recipeID: session.recipeID, stepIndex: session.stepIndex)
+                store.cookTarget = CookTarget(id: session.recipeID)
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "frying.pan").foregroundStyle(Theme.primary)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(recipe.title).font(AteFont.body(13, .semibold)).lineLimit(1)
+                        Text("Resume · Step \(min(session.stepIndex, recipe.steps.count - 1) + 1) of \(recipe.steps.count)")
+                            .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground).lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                    Image(systemName: "play.fill").font(.system(size: 12, weight: .semibold))
+                }
+                .frame(maxWidth: .infinity, minHeight: 44).padding(.horizontal, 14)
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.plain).foregroundStyle(Theme.foreground)
+            .background(Theme.card, in: Capsule()).overlay(Capsule().stroke(Theme.border))
+            .accessibilityIdentifier("cookSessionMiniPlayer")
+            .accessibilityLabel("Resume cooking \(recipe.title)")
+            .accessibilityValue("Step \(min(session.stepIndex, recipe.steps.count - 1) + 1) of \(recipe.steps.count)")
+            .accessibilityHint("Returns to your saved cooking step")
+            .contextMenu {
+                Button("End cooking session", role: .destructive) {
+                    store.clearCookSession(recipeID: session.recipeID)
+                }
+            }
+        }
     }
 }
 

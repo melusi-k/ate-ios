@@ -24,6 +24,12 @@ final class ShoppingEntity {
 
 struct CookTarget: Identifiable, Equatable { let id: String }
 
+/// The last in-progress cooking session. Deliberately independent of timers: many recipe steps have no timer.
+struct CookSession: Codable, Equatable {
+    var recipeID: String
+    var stepIndex: Int
+}
+
 enum AuthMode: String, Identifiable { case signIn, signUp, newPassword; var id: String { rawValue } }
 
 enum SignUpOutcome: Equatable { case signedIn, confirmationSent, failed(AuthError) }
@@ -82,6 +88,29 @@ final class AppStore {
         select(.library); path = []
         pendingSearch = term.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+    /// Persisted independently from timers so exiting Cook Mode never loses an untimed step.
+    var cookSession: CookSession? = AppConfig.isUITesting ? nil : AppStore.loadCookSession() {
+        didSet { Self.saveCookSession(cookSession) }
+    }
+    private static let cookSessionDefaultsKey = "ate.cookSession.v1"
+    private static func loadCookSession() -> CookSession? {
+        guard let data = UserDefaults.standard.data(forKey: cookSessionDefaultsKey) else { return nil }
+        return try? JSONDecoder().decode(CookSession.self, from: data)
+    }
+    private static func saveCookSession(_ session: CookSession?) {
+        guard let session, let data = try? JSONEncoder().encode(session) else {
+            UserDefaults.standard.removeObject(forKey: cookSessionDefaultsKey); return
+        }
+        UserDefaults.standard.set(data, forKey: cookSessionDefaultsKey)
+    }
+    func updateCookSession(recipeID: String, stepIndex: Int) {
+        cookSession = CookSession(recipeID: recipeID, stepIndex: max(0, stepIndex))
+    }
+    func clearCookSession(recipeID: String? = nil) {
+        guard recipeID == nil || cookSession?.recipeID == recipeID else { return }
+        cookSession = nil
+    }
+
     var recipes: [RecipeCard] = []
     var shopping: [ShoppingItem] = []
     /// Library tab's navigation stack (recipes, shared links, not-found).

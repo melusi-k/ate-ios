@@ -391,6 +391,8 @@ struct AddRecipeSheet: View {
     }
 
     private func generate() async {
+        // The UI disables generation while loading, but keep the lifecycle safe against rapid or programmatic duplicate taps.
+        guard !loading else { return }
         if store.settings.onDeviceOnly {
             store.show("Private mode is on — turn it off in Settings to use AI.", error: true); return
         }

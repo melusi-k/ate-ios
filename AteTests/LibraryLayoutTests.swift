@@ -89,8 +89,9 @@ final class LibraryLayoutTests: XCTestCase {
         store.move("D", before: "B", in: store.recipes)
         XCTAssertEqual(store.layout.sorted(store.recipes).map(\.title), ["A", "D", "B", "C"])
 
-        let indices = try XCTUnwrap(store.recipes.map(\.sortIndex).sorted())
-        XCTAssertEqual(indices, [0, 1, 2, 3], "every recipe must have one unique, contiguous order index")
+        let indices = store.recipes.compactMap(\.sortIndex).sorted()
+        XCTAssertEqual(indices.count, store.recipes.count, "every recipe must have an order index")
+        XCTAssertEqual(indices, [0.0, 1.0, 2.0, 3.0], "every recipe must have one unique, contiguous order index")
 
         let data = try JSONEncoder().encode(store.recipes)
         let restored = try JSONDecoder().decode([RecipeCard].self, from: data)

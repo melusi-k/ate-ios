@@ -268,7 +268,11 @@ final class KeyFlowsQATests: XCTestCase {
         miniPlayer.tap()
         wait(text("Step 3 of 4"), 5)
         app.buttons["Next step"].tap()
-        app.buttons["Next step"].tap()
+        wait(text("Step 4 of 4"), 5)
+        app.buttons["Exit"].tap() // no timer on this step: progress must still survive
+        wait(miniPlayer, 5)
+        XCTAssertTrue(miniPlayer.value.contains("Step 4 of 4"), miniPlayer.value)
+        miniPlayer.tap()
         wait(text("Step 4 of 4"), 5)
         app.buttons["Finish cooking"].tap()
         XCTAssertTrue(miniPlayer.waitForNonExistence(timeout: 5), "explicit completion clears the cooking session")

@@ -31,9 +31,11 @@ Data is stored on-device with SwiftData. A corrupt store is moved to `Backups/` 
 ## Build locally (macOS)
 ```sh
 brew install xcodegen
-xcodegen generate
+bash scripts/prepare-local-build.sh
 open Ate.xcodeproj   # Xcode 26 (iOS 26 SDK) required for the Foundation Models code path
 ```
+
+Before opening Xcode, run `bash scripts/prepare-local-build.sh` after checking out or switching branches. It generates the Xcode project with a local version based on the Git commit count (`0.1.<commit-count>`), the same value as the build number, and the current short Git SHA embedded for diagnostics. The script temporarily overrides `project.yml` and restores it afterwards, so CI's source-of-truth defaults remain unchanged. CI release IPAs continue to use the GitHub Actions run number and their existing artifact validation. If you run plain `xcodegen generate`, rerun the helper to restore the local version in Xcode. Do not commit local-only version changes in the generated `Ate.xcodeproj/project.pbxproj`.
 
 ## CI → .ipa
 `.github/workflows/build-ipa.yml` runs on pushes to `main`, and can also be started manually. Every main push builds and archives the app, performs release-artifact and simulator launch smoke checks, and updates **`latest-build`**; this is an internal build, not a validated beta. Unit tests, the 8-flow `KeyFlowsQATests` gate, focused Cooking Tracker/Cook Mode regressions, the full UI-test shards and backend E2E run only when a manual run sets `run_tests=true` or the pushed commit message contains `[run tests]`. A successful full validation promotes that exact build to **`latest-beta`**. The shorter PR gate is defined in [`.github/workflows/compile-check.yml`](.github/workflows/compile-check.yml); deliberate release-candidate verification is [Pre-production QA](.github/workflows/preproduction-qa.yml) and its policy is in [docs/QA.md](docs/QA.md):

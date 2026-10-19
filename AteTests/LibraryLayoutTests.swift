@@ -80,6 +80,26 @@ final class LibraryLayoutTests: XCTestCase {
         XCTAssertNotNil(store.recipe("A"))
     }
 
+    @MainActor func testReorderAssignsUniqueIndicesAndSurvivesRecipeRoundTrip() throws {
+        let store = AppStore(context: nil, backend: MockBackend())
+        store.recipes = [card("A"), card("B"), card("C"), card("D")]
+
+        // Move the last recipe before B, then verify the actual persisted model fields,
+        // not only the transient display order.
+        store.move("D", before: "B", in: store.recipes)
+        XCTAssertEqual(store.layout.sorted(store.recipes).map(\\.title), ["A", "D", "B", "C"])
+
+        let indices = try XCTUnwrap(store.recipes.map(\\.sortIndex).sorted())
+        XCTAssertEqual(indices, [0, 1, 2, 3], "every recipe must have one unique, contiguous order index")
+
+        let data = try JSONEncoder().encode(store.recipes)
+        let restored = try JSONDecoder().decode([RecipeCard].self, from: data)
+        XCTAssertEqual(store.layout.sorted(restored).map(\\.title), ["A", "D", "B", "C"],
+                       "custom order must survive recipe serialization and reload")
+        XCTAssertEqual(Set(restored.compactMap(\\.sortIndex)).count, restored.count,
+                       "round-tripped recipes must not contain colliding order indices")
+    }
+
     func testPersistenceAndCuisineDecoding() throws {
         let d = UserDefaults(suiteName: "layout-\(UUID())")!
         var l = LibraryLayout(); l.group = .cookTime; l.sort = .az; l.save(d)

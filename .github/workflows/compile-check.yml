@@ -169,6 +169,19 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > library-layout-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" library-layout-tests.log || true; tail -100 library-layout-tests.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" library-layout-tests.log | tail -40
 
+      - name: Expandable recipe-detail sheet regression (#101)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/expandable-recipe-sheet.xcresult" \
+            -only-testing:AteUITests/CoverageUITests/test32c_ExpandableRecipeSheetOpensExpandsAndDismisses \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > expandable-recipe-sheet-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" expandable-recipe-sheet-tests.log || true; tail -100 expandable-recipe-sheet-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" expandable-recipe-sheet-tests.log | tail -40
+
       - name: Settings-tab key-flow regression test
         continue-on-error: true
         if: ${{ always() && steps.build.outcome == 'success' }}

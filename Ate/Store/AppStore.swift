@@ -89,7 +89,7 @@ final class AppStore {
         pendingSearch = term.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     /// Persisted independently from timers so exiting Cook Mode never loses an untimed step.
-    var cookSession: CookSession? = AppConfig.isUITesting ? nil : Self.loadCookSession() {
+    var cookSession: CookSession? = AppConfig.isUITesting ? nil : AppStore.loadCookSession() {
         didSet { Self.saveCookSession(cookSession) }
     }
     private static let cookSessionDefaultsKey = "ate.cookSession.v1"

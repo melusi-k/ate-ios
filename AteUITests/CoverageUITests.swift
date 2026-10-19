@@ -396,6 +396,14 @@ final class CoverageUITests: XCTestCase {
         wait(text("interrupted"), 8)
         wait(app.buttons["generateRetry"], 3)
         shot("generation-interrupted-retry")
+        // Opening the retry UI must not consume the only persisted request. If the user
+        // closes Ate before tapping Retry, the next launch must still recover the input.
+        app.terminate()
+        launch(["-qaPersistDraft"])
+        app.buttons["Add recipe"].tap()
+        wait(text("interrupted"), 8)
+        wait(app.buttons["generateRetry"], 3)
+        shot("generation-interrupted-retry-survives-second-relaunch")
         app.terminate()
         // Unsaved review card survives a kill.
         launch(["-qaPersistDraft", "-qaResetDraft"])

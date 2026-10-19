@@ -8,7 +8,7 @@ struct ExpandableRecipeDetailSheet: View {
 
     var body: some View {
         Group {
-            if detent == .height(220) {
+            if detent == .height(260) {
                 compactPreview
             } else {
                 NavigationStack {
@@ -16,20 +16,20 @@ struct ExpandableRecipeDetailSheet: View {
                 }
             }
         }
-        .presentationDetents([.height(220), .medium, .large], selection: $detent)
+        .presentationDetents([.height(260), .medium, .large], selection: $detent)
         .presentationDragIndicator(.visible)
         .presentationContentInteraction(.resizes)
     }
 
     private var compactPreview: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 14) {
-                RecipeThumb(recipe: recipe, width: 84, height: 84, emojiSize: 28)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                RecipeThumb(recipe: recipe, width: 68, height: 68, emojiSize: 24)
                     .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 5) {
                     Text(recipe.title)
-                        .font(AteFont.body(18, .semibold))
+                        .font(AteFont.body(17, .semibold))
                         .lineLimit(2)
                         .accessibilityIdentifier("recipeQuickLookTitle")
 
@@ -55,12 +55,12 @@ struct ExpandableRecipeDetailSheet: View {
                 Label("Expand recipe details", systemImage: "arrow.up.left.and.arrow.down.right")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.ate(.primary, height: 44))
+            .buttonStyle(.ate(.primary, height: 42))
             .accessibilityIdentifier("expandRecipeDetails")
         }
         .padding(.horizontal, 20)
-        .padding(.top, 22)
-        .padding(.bottom, 12)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.background.ignoresSafeArea())
         .foregroundStyle(Theme.foreground)

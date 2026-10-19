@@ -124,6 +124,8 @@ final class CoverageUITests: XCTestCase {
 
         let card = app.buttons["gridCard"].firstMatch
         wait(card, 10)
+        scrollTo(card)
+        XCTAssertTrue(card.isHittable, "A Library grid card must be visible before it is tapped")
         card.tap()
 
         let expand = app.buttons["expandRecipeDetails"]
@@ -148,7 +150,8 @@ final class CoverageUITests: XCTestCase {
         if app.buttons["expandRecipeDetails"].waitForExistence(timeout: 3) {
             app.swipeDown()
         }
-        wait(app.buttons["gridCard"].firstMatch, 8)
+        wait(card, 8)
+        XCTAssertTrue(card.isHittable, "The Library grid must be interactive again after dismissing the sheet")
         XCTAssertFalse(app.buttons["expandRecipeDetails"].exists, "Dismissing the sheet should return to the Library grid")
         shot("recipe-sheet-dismissed")
     }

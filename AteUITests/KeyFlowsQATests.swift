@@ -271,7 +271,7 @@ final class KeyFlowsQATests: XCTestCase {
         wait(text("Step 4 of 4"), 5)
         app.buttons["Exit"].tap() // no timer on this step: progress must still survive
         wait(miniPlayer, 5)
-        XCTAssertTrue(miniPlayer.value.contains("Step 4 of 4"), miniPlayer.value)
+        XCTAssertTrue((miniPlayer.value as? String ?? "").contains("Step 4 of 4"), miniPlayer.value as? String ?? "")
         miniPlayer.tap()
         wait(text("Step 4 of 4"), 5)
         app.buttons["Finish cooking"].tap()

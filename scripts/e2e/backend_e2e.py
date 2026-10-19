@@ -258,8 +258,7 @@ def t_share(ctx, shots):
         not_found = b.new_page(user_agent=IPHONE_UA, viewport={"width": 390, "height": 844})
         not_found.goto(SHARE_PAGE + unknown, wait_until="networkidle")
         not_found_body = not_found.locator("body").inner_text(timeout=20000).lower()
-        assert any(s in not_found_body for s in ("not found", "could not find", "couldn't find", "doesn't exist")), \\
-            f"hosted unknown-slug page lacks explicit not-found state: {not_found_body[:500]!r}"
+        assert any(s in not_found_body for s in ("not found", "could not find", "couldn't find", "doesn't exist")), f"hosted unknown-slug page lacks explicit not-found state: {not_found_body[:500]!r}"
         not_found.close()
 
         # Fault-inject only the public lookup function. The browser must show a retryable
@@ -281,8 +280,7 @@ def t_share(ctx, shots):
         outage_body = outage.locator("body").inner_text(timeout=20000).lower()
         assert intercepted["lookup"] > 0, "hosted page did not call get-shared-recipe during outage test"
         assert intercepted["postgrest"] == 0, "hosted page fell back to direct shared_recipes PostgREST access"
-        assert any(s in outage_body for s in ("retry", "try again", "temporarily unavailable", "could not load", "couldn't load")), \\
-            f"hosted outage page lacks retryable error state: {outage_body[:500]!r}"
+        assert any(s in outage_body for s in ("retry", "try again", "temporarily unavailable", "could not load", "couldn't load")), f"hosted outage page lacks retryable error state: {outage_body[:500]!r}"
         outage.close()
         b.close()
     return (f"published {slug}; valid recipe and Open in Ate link; hosted unknown slug has explicit not-found state; "

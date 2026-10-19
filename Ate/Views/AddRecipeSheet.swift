@@ -364,7 +364,8 @@ struct AddRecipeSheet: View {
                 else { error = "Your previous photo could not be restored. Select the photo again, then generate your recipe." }
             }
             if error == nil { error = Self.interruptedMessage }
-            DraftStore.shared.end()
+            // Keep the pending request until retry succeeds or the user discards it.
+            // Clearing it here loses the only recoverable input if the app closes before Retry.
             BetaQA.shared.pass("A-CREATE-05", note: "Interrupted \(p.mode) generation offered a retry after relaunch")
         }
     }
@@ -433,7 +434,9 @@ struct AddRecipeSheet: View {
         OnDeviceBackend.partialSink = { p in live = p }
         DraftStore.shared.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""),
                                 imageData: mode == .image ? imageData : nil)
-        defer { loading = false; DraftStore.shared.end(); OnDeviceBackend.partialSink = nil; live = nil }
+        // Keep pending input on failure or while asking the user to identify an uncertain dish.
+        // DraftStore.saveDraft clears it on success; Cancel/Discard clears it explicitly.
+        defer { loading = false; OnDeviceBackend.partialSink = nil; live = nil }
         do {
             let started = Date()
             var card = try await store.backend.parseRecipe(req)

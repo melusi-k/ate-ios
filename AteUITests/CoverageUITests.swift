@@ -115,6 +115,47 @@ final class CoverageUITests: XCTestCase {
 
     // MARK: Library discovery + Settings tools/About
 
+    func test32c_ExpandableRecipeSheetOpensExpandsAndDismisses() {
+        launch()
+        addPrompt("Miso salmon for two")
+        tab("Library")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+
+        let card = app.buttons["gridCard"].firstMatch
+        wait(card, 10)
+        scrollTo(card)
+        XCTAssertTrue(card.isHittable, "A Library grid card must be visible before it is tapped")
+        card.tap()
+
+        let expand = app.buttons["expandRecipeDetails"]
+        wait(expand, 5)
+        wait(app.staticTexts["recipeQuickLookTitle"], 5)
+        shot("recipe-sheet-compact")
+
+        expand.tap()
+        let servings = app.descendants(matching: .any)["servingsPicker"].firstMatch
+        wait(servings, 8)
+        wait(app.buttons["Cook mode"], 5)
+        shot("recipe-sheet-expanded")
+
+        // The sheet's own ScrollView must accept a gesture without losing its detail controls.
+        app.swipeUp()
+        XCTAssertTrue(servings.exists, "Expanded recipe detail should remain mounted while scrolling")
+
+        // Native detents collapse before the sheet dismisses; repeat the gesture if needed.
+        for _ in 0..<3 where !app.buttons["expandRecipeDetails"].exists {
+            app.swipeDown()
+        }
+        if app.buttons["expandRecipeDetails"].waitForExistence(timeout: 3) {
+            app.swipeDown()
+        }
+        wait(card, 8)
+        XCTAssertTrue(card.isHittable, "The Library grid must be interactive again after dismissing the sheet")
+        XCTAssertFalse(app.buttons["expandRecipeDetails"].exists, "Dismissing the sheet should return to the Library grid")
+        shot("recipe-sheet-dismissed")
+    }
+
     func test32_MoreCollectionsToolsAbout() {
         launch()
         addPrompt("Miso salmon for two")

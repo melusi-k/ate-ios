@@ -8,6 +8,8 @@ struct LibraryView: View {
     var searchPlacement: SearchPlacement = .drawer
     @State private var showAdd = false
     @State private var confirmDelete: RecipeCard?
+    @State private var quickLookRecipe: RecipeCard?
+    @State private var recipeSheetDetent: PresentationDetent = .height(260)
     @Environment(\.verticalSizeClass) private var vSize
     @Environment(\.horizontalSizeClass) private var hSize
     /// Landscape iPhone / iPad: card grid instead of the single-column list.
@@ -52,6 +54,10 @@ struct LibraryView: View {
         .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd, global: searchPlacement != .tabBar))
         .onChange(of: store.pendingSearch) { _, q in if let q { query = q; store.pendingSearch = nil } }
         .onAppear { if let q = store.pendingSearch { query = q; store.pendingSearch = nil } }
+        .sheet(item: $quickLookRecipe, onDismiss: { recipeSheetDetent = .height(260) }) { recipe in
+            ExpandableRecipeDetailSheet(recipe: recipe, detent: $recipeSheetDetent)
+                .environment(store)
+        }
     }
 
     @ViewBuilder private func emptyState(_ filtered: [RecipeCard]) -> some View {
@@ -108,7 +114,7 @@ struct LibraryView: View {
 
     @ViewBuilder private func gridCell(_ r: RecipeCard, ordered: [RecipeCard], canReorder: Bool) -> some View {
         let cell = ZStack(alignment: .topTrailing) {
-            Button { store.path.append(.recipe(r.id)) } label: { RecipeGridCard(recipe: r) }
+            Button { quickLookRecipe = r } label: { RecipeGridCard(recipe: r) }
                 .buttonStyle(PressScale())
                 .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
                 .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))

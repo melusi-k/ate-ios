@@ -20,7 +20,7 @@ final class DraftStoreTests: XCTestCase {
         super.tearDown()
     }
 
-    func testPendingGenerationSurvivesStoreRecreationAndCanBeRetried() throws {
+    func testPendingGenerationSurvivesRelaunchAndRetryUntilSuccess() throws {
         let input = String(repeating: "recipe ", count: 700)
         store.begin(mode: "Prompt", text: input)
 
@@ -31,8 +31,18 @@ final class DraftStoreTests: XCTestCase {
         XCTAssertEqual(pending.text.count, 4000)
         XCTAssertGreaterThan(pending.startedAt, 0)
 
-        relaunched.end()
-        XCTAssertNil(DraftStore(defaults: defaults, enabled: true).pending)
+        // A retry starts a new attempt using the same recoverable input. Merely relaunching
+        // or starting the retry must not erase that input before a successful result exists.
+        relaunched.begin(mode: pending.mode, text: pending.text, imageData: pending.imageData)
+        let retryAttempt = try XCTUnwrap(DraftStore(defaults: defaults, enabled: true).pending)
+        XCTAssertEqual(retryAttempt.mode, pending.mode)
+        XCTAssertEqual(retryAttempt.text, pending.text)
+
+        // Only a completed, persisted draft ends the pending request.
+        relaunched.saveDraft(RecipeCard(title: "Recovered recipe"))
+        let completed = DraftStore(defaults: defaults, enabled: true)
+        XCTAssertNil(completed.pending)
+        XCTAssertEqual(try XCTUnwrap(completed.draft).title, "Recovered recipe")
     }
 
     func testSavingDraftEndsPendingGenerationAndPersistsCard() throws {

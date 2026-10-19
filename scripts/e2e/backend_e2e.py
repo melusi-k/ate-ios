@@ -252,8 +252,41 @@ def t_share(ctx, shots):
         opener = [h for t, h in hrefs if "open in ate" in t.lower()]
         assert opener and opener[0] == f"ate://recipe/{slug}", f"Open in ate href {opener} (all: {hrefs[:8]})"
         os.makedirs(shots, exist_ok=True); pg.screenshot(path=os.path.join(shots, "share-page-iphone.png"), full_page=True)
+
+        # Hosted unknown-slug contract: the browser must show a not-found state, not a blank page.
+        unknown = "missing" + uuid.uuid4().hex[:12]
+        not_found = b.new_page(user_agent=IPHONE_UA, viewport={"width": 390, "height": 844})
+        not_found.goto(SHARE_PAGE + unknown, wait_until="networkidle")
+        not_found_body = not_found.locator("body").inner_text(timeout=20000).lower()
+        assert any(s in not_found_body for s in ("not found", "could not find", "couldn't find", "doesn't exist")), \\
+            f"hosted unknown-slug page lacks explicit not-found state: {not_found_body[:500]!r}"
+        not_found.close()
+
+        # Fault-inject only the public lookup function. The browser must show a retryable
+        # failure and must not fall back to directly enumerating/reading shared_recipes.
+        outage = b.new_page(user_agent=IPHONE_UA, viewport={"width": 390, "height": 844})
+        intercepted = {"lookup": 0, "postgrest": 0}
+        def route_share_api(route):
+            url = route.request.url
+            if "/rest/v1/shared_recipes" in url:
+                intercepted["postgrest"] += 1
+            if "/functions/v1/get-shared-recipe" in url:
+                intercepted["lookup"] += 1
+                route.fulfill(status=503, content_type="application/json",
+                              body=json.dumps({"error": "temporarily unavailable", "retryable": True}))
+            else:
+                route.continue_()
+        outage.route("**/*", route_share_api)
+        outage.goto(SHARE_PAGE + slug, wait_until="networkidle")
+        outage_body = outage.locator("body").inner_text(timeout=20000).lower()
+        assert intercepted["lookup"] > 0, "hosted page did not call get-shared-recipe during outage test"
+        assert intercepted["postgrest"] == 0, "hosted page fell back to direct shared_recipes PostgREST access"
+        assert any(s in outage_body for s in ("retry", "try again", "temporarily unavailable", "could not load", "couldn't load")), \\
+            f"hosted outage page lacks retryable error state: {outage_body[:500]!r}"
+        outage.close()
         b.close()
-    return f"published {slug} (http cover dropped); page renders title/ingredients/steps; Open in ate → ate://recipe/{slug}"
+    return (f"published {slug}; valid recipe and Open in Ate link; hosted unknown slug has explicit not-found state; "
+            "503 lookup outage shows retryable error without PostgREST fallback")
 
 
 def owner_id(ctx):

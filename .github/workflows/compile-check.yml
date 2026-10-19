@@ -130,6 +130,19 @@ jobs:
 
           grep -E "warning: .*(Widgets|Intents|Snapshot)" build.log > build-warnings.log || true
           tail -n 30 build-warnings.log || true
+      - name: Share publish outage fallback UI regression (PR #122)
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/share-publish-outage-fallback.xcresult" \
+            -only-testing:AteUITests/CoverageUITests/test39_SharePublishOutageFallsBackToTextAndKeepsLibrary \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > share-publish-outage-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" share-publish-outage-tests.log || true; tail -100 share-publish-outage-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" share-publish-outage-tests.log | tail -40
+
       - name: Recipe generation focused unit regressions (#89) — quarantined, not a pass
         if: ${{ always() && steps.build.outcome == 'success' }}
         continue-on-error: true
@@ -273,7 +286,7 @@ jobs:
         shell: bash
         run: |
           failed=0
-          for log in recipe-generation-tests.log library-layout-tests.log settings-sync.log production-channel-production.log tracker-ui.log navigation-header-tests.log cook-mode-history.log; do
+          for log in recipe-generation-tests.log library-layout-tests.log settings-sync.log production-channel-production.log tracker-ui.log navigation-header-tests.log cook-mode-history.log share-publish-outage-tests.log; do
             [ -f "$log" ] || continue
             # CoreData/platform diagnostics can contain "error:" even when xcodebuild
             # exits 0 and XCTest reports zero failures. Use explicit test-failure markers;
@@ -355,4 +368,5 @@ jobs:
             recipe-generation-tests.log
             library-layout-tests.log
             navigation-header-tests.log
+            share-publish-outage-tests.log
             ${{ runner.temp }}/ate-test-results/*.xcresult

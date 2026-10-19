@@ -204,6 +204,9 @@ final class MockBackend: BackendService {
     }
 
     func publish(_ card: RecipeCard) async throws -> String {
+        if Self.args.contains("-qaSharePublishDown") {
+            throw BackendError(message: MockBackend.downMessage)
+        }
         try await Task.sleep(nanoseconds: 300_000_000)
         let chars = Array("0123456789abcdefghijklmnopqrstuvwxyz")
         let slug = String((0..<8).map { _ in chars.randomElement()! })

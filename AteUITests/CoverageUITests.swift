@@ -327,6 +327,22 @@ final class CoverageUITests: XCTestCase {
         shot("backend-down-library-intact")
     }
 
+    /// A-SHARE-05: publish outage falls back to text sharing and preserves the local recipe.
+    func test39_SharePublishOutageFallsBackToTextAndKeepsLibrary() {
+        launch(["-qaSharePublishDown"])
+        addPrompt("Keep this stew")
+        app.buttons["Share recipe"].tap()
+        wait(app.buttons["Share link"], 5)
+        app.buttons["Share link"].tap()
+        wait(text("Could not create a share link"), 5)
+        shot("share-publish-outage-text-fallback")
+        // The activity sheet is presenting the text fallback; dismiss it and verify the local record remains.
+        app.swipeDown(velocity: .fast)
+        tab("Library")
+        wait(text("Keep this stew"), 5)
+        shot("share-publish-outage-library-intact")
+    }
+
     /// A-CREATE-05: kill the app mid-generation, relaunch → clear "interrupted, retry"; and an unsaved card is restored.
     func test37_KilledMidGenerationRecovers() {
         launch(["-qaPersistDraft", "-qaResetDraft", "-qaSlowGenerate"])

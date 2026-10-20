@@ -26,13 +26,13 @@ struct DiagnosticEvent: Codable, Identifiable, Equatable {
 
     var title: String {
         switch kind {
-        case .appLaunched: "App launched"
-        case .appForegrounded: "App became active"
-        case .appBackgrounded: "App entered background"
-        case .storeOpenFailed: "Local data store failed to open"
-        case .storeRecovered: "Local data store recovered"
-        case .storeInMemoryFallback: "Temporary in-memory storage used"
-        case .saveFailed: "Data save failed after retries"
+        case .appLaunched: return "App launched"
+        case .appForegrounded: return "App became active"
+        case .appBackgrounded: return "App entered background"
+        case .storeOpenFailed: return "Local data store failed to open"
+        case .storeRecovered: return "Local data store recovered"
+        case .storeInMemoryFallback: return "Temporary in-memory storage used"
+        case .saveFailed: return "Data save failed after retries"
         }
     }
 }

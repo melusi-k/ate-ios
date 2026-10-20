@@ -680,9 +680,10 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 ### Monitoring — 0 / 1
 
 - **B-MON-01 · Crash and retention monitoring** — ❌
-  - *Journey:* As the developer, I know when Ate crashes.
-  - *Acceptance:* Crash-free sessions measured (TestFlight/Xcode Organizer or Sentry), weekly active testers tracked, privacy policy updated if an SDK is added.
-  - *Verified by:* `—` · Dashboard
+  - *Journey:* As the developer, I can investigate recorded app failures and understand crash-free usage.
+  - *Acceptance:* Local diagnostic history is available in Settings, persists across relaunch, is capped at 200 typed events, and can be exported/cleared without recording recipe content or sending events off-device. Separately, crash-free sessions and weekly active testers are measured through an approved distribution/monitoring path; privacy disclosures are updated before any external SDK is added.
+  - *Verified by:* `DiagnosticHistoryTests` for local history; TestFlight/Xcode Organizer or approved dashboard for crash-free sessions and retention
+  - *Status evidence:* Local-only history implemented on branch; external crash-free/retention measurement remains incomplete.
   - *Status evidence:* No crash reporting; privacy policy currently says no analytics SDKs
   - *Owner:* _TBD_
 

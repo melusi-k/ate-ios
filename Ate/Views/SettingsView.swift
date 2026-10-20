@@ -79,6 +79,14 @@ struct SettingsView: View {
                             .accessibilityIdentifier("settings.betaTesting")
                         }
                     }
+                    Section("Diagnostics") {
+                        NavigationLink {
+                            DiagnosticHistoryView()
+                        } label: {
+                            Label("Diagnostic history", systemImage: "waveform.path")
+                        }
+                        .accessibilityIdentifier("settings.diagnosticHistory")
+                    }
                     Section("Tools") {
                         Button { if let u = writeTemp("ate-recipes.json", store.exportJSON()) { share = ShareItems(items: [u]) } } label: {
                             Label("Export data", systemImage: "arrow.down.doc")

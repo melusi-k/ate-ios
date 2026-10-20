@@ -118,17 +118,7 @@ struct InsightsView: View {
             }
         }
         .navigationTitle(screenTitle)
-        .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Image("AteLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 28, height: 28)
-                    .accessibilityLabel("ate")
-                    .accessibilityIdentifier("insights.logo")
-            }
-        }
+        .ateRootNavigationChrome(logoID: "insights.logo")
         .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id).environment(store) }
         .onChange(of: model.context?.insight.state) { _, st in
             if st != nil { BetaQA.shared.pass("A-HEALTH-03", note: "Insights showed \(st!.title) with \(model.context?.suggestions.count ?? 0) meal ideas") }

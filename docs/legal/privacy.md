@@ -1,6 +1,6 @@
 # ate Privacy Policy
 
-_Last updated: 11 October 2026 · [Earlier versions](policy-history.html)_
+_Last updated: 20 October 2026 · [Earlier versions](policy-history.html)_
 
 ate is a recipe app made by **Melusi Khumalo**, an individual developer based in South Africa ("I", "me"). I'm the responsible party (POPIA) and controller (GDPR) for the personal information described here. This policy explains what ate stores, where it's stored, and the choices you have. Questions: **melusi.l.k@gmail.com**.
 
@@ -14,7 +14,7 @@ ate is a recipe app made by **Melusi Khumalo**, an individual developer based in
 
 ## What ate stores
 
-**On your device:** your recipe library, shopping list, timers, Insights journal entries and app settings. This stays on the device unless you sign in to sync recipes and your list.
+**On your device:** your recipe library, shopping list, timers, Insights journal entries, app settings and a small diagnostic event history. The diagnostic history records limited event categories (such as app launch, backgrounding, storage recovery and save failures) with timestamps. It does not record recipe content, prompts, account identifiers or raw error messages. It is capped at 200 events, stays on your iPhone, and can be exported or cleared in Settings › Diagnostic history. It is removed when you delete the app. Your other local data stays on the device unless you sign in to sync recipes and your list.
 
 **If you create an account:**
 - **Account data:** your email address, a securely hashed password (if you use one) and basic sign-in records (when the account was created and last signed in).
@@ -49,7 +49,7 @@ ate uses **Apple Intelligence (Foundation Models) on your device** to turn links
 - The site uses no cookies, analytics or trackers, and its fonts are served from the site itself.
 
 ## What ate doesn't do
-- No advertising, and no ad or analytics SDKs.
+- No advertising, and no ad or analytics SDKs. Diagnostic history is local-only; ate does not send it to a crash-reporting or analytics provider.
 - No tracking across apps or websites, and no selling or renting of your data.
 - No access to your contacts or location, and no photos beyond the single image you choose to import.
 
@@ -64,7 +64,7 @@ ate uses **Apple Intelligence (Foundation Models) on your device** to turn links
 ## How long data is kept
 - **Account and synced data:** kept while your account exists. When you delete your account, your account, synced recipes, shopping list and beta results are deleted from the database straight away. Backups held by the hosting provider roll off within their normal backup cycle (typically up to 7 days).
 - **Shared recipes:** stay available at their link while your account exists. Deleting your account removes owned shares; older anonymous shares stay available until you ask me to remove one. I'll remove requested links within 30 days, usually much sooner.
-- **Data on your device**, including Health-derived Insights and journal entries: stays until you delete it, sign out and remove local data, or delete the app.
+- **Data on your device**, including Health-derived Insights and journal entries: stays until you delete it, sign out and remove local data, or delete the app. Diagnostic history is limited to the most recent 200 events and can be cleared at any time in Settings.
 
 ## Your rights (POPIA and GDPR)
 You can access, correct, delete and export your data, object to or restrict processing, withdraw consent, and complain to a regulator. How to do each of these: [Your data rights](rights.html). Email **melusi.l.k@gmail.com**; I'll reply within 30 days.

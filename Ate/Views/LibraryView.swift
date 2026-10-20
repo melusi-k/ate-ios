@@ -30,6 +30,13 @@ struct LibraryView: View {
             Theme.background.ignoresSafeArea()
             if useGrid { grid(filtered) } else { list(filtered) }
         }
+        // Attach the recipe quick-look sheet to the layout container itself, separate from
+        // LibrarySheets' add/import presentations. This keeps the row/grid selection sheet
+        // independently presented rather than competing with the add-flow sheet modifiers.
+        .sheet(item: $quickLookRecipe, onDismiss: { recipeSheetDetent = .height(260) }) { recipe in
+            ExpandableRecipeDetailSheet(recipe: recipe, detent: $recipeSheetDetent)
+                .environment(store)
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Same bottom system as recipe detail: sits directly above the stack's timer bar.
             // iOS 26: the tab bar's bottom accessory carries "Add recipe" instead (C-TAB-01).
@@ -48,10 +55,6 @@ struct LibraryView: View {
         .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd, global: searchPlacement != .tabBar))
         .onChange(of: store.pendingSearch) { _, q in if let q { query = q; store.pendingSearch = nil } }
         .onAppear { if let q = store.pendingSearch { query = q; store.pendingSearch = nil } }
-        .sheet(item: $quickLookRecipe, onDismiss: { recipeSheetDetent = .height(260) }) { recipe in
-            ExpandableRecipeDetailSheet(recipe: recipe, detent: $recipeSheetDetent)
-                .environment(store)
-        }
     }
 
     @ViewBuilder private func emptyState(_ filtered: [RecipeCard]) -> some View {
@@ -172,8 +175,10 @@ struct LibraryView: View {
     }
 
     private func row(_ r: RecipeCard) -> some View {
-        Button { store.path.append(.recipe(r.id)) } label: { RecipeRowView(recipe: r) }
+        // Keep list and grid selection consistent: both open the expandable recipe sheet.
+        Button { quickLookRecipe = r } label: { RecipeRowView(recipe: r) }
             .buttonStyle(PressScale())
+            .accessibilityIdentifier("listCard")
             .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
             .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {

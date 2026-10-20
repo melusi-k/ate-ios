@@ -128,7 +128,12 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(listCard.isHittable, "A Library list row must be visible before it is tapped")
         listCard.tap()
         wait(app.buttons["expandRecipeDetails"], 5)
-        wait(app.staticTexts["recipeQuickLookTitle"], 5)
+        let listQuickLookTitle = app.staticTexts["recipeQuickLookTitle"]
+        wait(listQuickLookTitle, 5)
+        XCTAssertTrue(
+            listQuickLookTitle.label.localizedCaseInsensitiveContains("Miso salmon"),
+            "Tapping the Library list row must present the selected recipe, not a stale or unrelated detail"
+        )
         shot("recipe-sheet-compact-from-list")
         app.buttons["expandRecipeDetails"].tap()
         let listServings = app.descendants(matching: .any)["servingsPicker"].firstMatch
@@ -155,7 +160,12 @@ final class CoverageUITests: XCTestCase {
 
         let expand = app.buttons["expandRecipeDetails"]
         wait(expand, 5)
-        wait(app.staticTexts["recipeQuickLookTitle"], 5)
+        let gridQuickLookTitle = app.staticTexts["recipeQuickLookTitle"]
+        wait(gridQuickLookTitle, 5)
+        XCTAssertTrue(
+            gridQuickLookTitle.label.localizedCaseInsensitiveContains("Miso salmon"),
+            "Reopening from the landscape grid must present the selected recipe"
+        )
         shot("recipe-sheet-compact")
 
         expand.tap()

@@ -71,6 +71,33 @@ struct TimerBarInset: ViewModifier {
 }
 extension View { func withTimerBar() -> some View { modifier(TimerBarInset()) } }
 
+/// One consistent navigation treatment for every primary tab root.
+/// Pushed destinations intentionally keep their native inline title and Back button.
+private struct AteRootNavigationChrome: ViewModifier {
+    let logoID: String
+
+    func body(content: Content) -> some View {
+        content
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Image("AteLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 28, height: 28)
+                        .accessibilityLabel("ate")
+                        .accessibilityIdentifier(logoID)
+                }
+            }
+    }
+}
+
+extension View {
+    func ateRootNavigationChrome(logoID: String) -> some View {
+        modifier(AteRootNavigationChrome(logoID: logoID))
+    }
+}
+
 /// Offline strip applied to each screen INSIDE its NavigationStack, so it takes real layout space below the
 /// nav bar (C-FIX-03). It used to sit in a root-level safeAreaInset above the stacks and overlapped the
 /// nav bar/large title on pushed screens.

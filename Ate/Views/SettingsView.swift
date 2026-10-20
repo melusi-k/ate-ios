@@ -13,6 +13,14 @@ struct SettingsView: View {
         @Bindable var store = store
         Form {
                     Section { AccountCard().listRowInsets(EdgeInsets()).listRowBackground(Color.clear) }
+                    Section("Ate Plus") {
+                        NavigationLink {
+                            AtePlusPaywallView()
+                        } label: {
+                            Label("Ate Plus", systemImage: "sparkles")
+                        }
+                        .accessibilityIdentifier("settings.atePlus")
+                    }
                     card {
                         toggle("Private mode", "Keep everything local — no new AI generations, only your saved cards.",
                                $store.settings.onDeviceOnly)

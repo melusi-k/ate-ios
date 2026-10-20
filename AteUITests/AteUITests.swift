@@ -855,6 +855,9 @@ final class AteUITests: XCTestCase {
         wait(add, 8)
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label == 'Add recipe' AND identifier != 'accessoryAdd'")).firstMatch.exists,
                        "floating Add button replaced by the accessory")
+        let accessory = app.otherElements["bottomAccessory"].firstMatch
+        wait(accessory, 5)
+        XCTAssertTrue(accessory.frame.intersects(app.frame), "bottom accessory must remain on-screen")
         shot("tab-accessory")
         add.tap()
         wait(app.buttons["addCancel"], 5); app.buttons["addCancel"].tap()
@@ -862,7 +865,18 @@ final class AteUITests: XCTestCase {
         let field = app.searchFields.firstMatch
         wait(field, 5); field.tap(); field.typeText("soup")
         XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 3), "title stays visible while searching")
+        XCTAssertTrue(field.value as? String == "soup", "search query is entered")
         shot("tab-search")
+
+        // The Search tab and Library tab use separate NavigationStacks. Confirm SceneStorage
+        // keeps the query when crossing between them, and that the accessory remains available.
+        app.tabBars.buttons["Library"].tap()
+        wait(text("Your Kitchen"), 5)
+        app.tabBars.buttons["Search"].tap()
+        wait(field, 5)
+        XCTAssertEqual(field.value as? String, "soup", "search query should survive Library/Search tab switches")
+        wait(add, 5)
+        XCTAssertTrue(add.isHittable, "Add recipe accessory should remain usable after switching tabs")
     }
 
     func test28_GroupSortAndMenus() {

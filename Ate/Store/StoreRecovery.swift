@@ -28,6 +28,7 @@ enum StoreRecovery {
         let storeURL = url ?? defaultStoreURL
         let config = ModelConfiguration(url: storeURL)
         do { return Outcome(container: try make(config)) } catch {
+            DiagnosticHistory.shared.record(.storeOpenFailed)
             log.error("Store open failed: \(error.localizedDescription, privacy: .public)")
             var out = Outcome(error: error.localizedDescription)
             out.backupURL = moveAside(storeURL, now: now)

@@ -5,6 +5,19 @@ import SwiftUI
 struct ExpandableRecipeDetailSheet: View {
     let recipe: RecipeCard
     @Binding var detent: PresentationDetent
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    /// The system medium detent is inactive in compact-height environments (for example,
+    /// landscape iPhone). Use large as the expanded state there so the explicit expand action works.
+    private var expandedDetent: PresentationDetent {
+        verticalSizeClass == .compact ? .large : .medium
+    }
+
+    private var availableDetents: Set<PresentationDetent> {
+        verticalSizeClass == .compact
+            ? [.height(260), .large]
+            : [.height(260), .medium, .large]
+    }
 
     var body: some View {
         Group {
@@ -16,9 +29,15 @@ struct ExpandableRecipeDetailSheet: View {
                 }
             }
         }
-        .presentationDetents([.height(260), .medium, .large], selection: $detent)
+        .presentationDetents(availableDetents, selection: $detent)
         .presentationDragIndicator(.visible)
         .presentationContentInteraction(.resizes)
+        .onChange(of: verticalSizeClass) { _, newSizeClass in
+            // Keep the selected detent valid if the device rotates while this sheet is open.
+            if newSizeClass == .compact && detent == .medium {
+                detent = .large
+            }
+        }
     }
 
     private var compactPreview: some View {
@@ -50,7 +69,7 @@ struct ExpandableRecipeDetailSheet: View {
             }
 
             Button {
-                withAnimation(Motion.anim(.snappy)) { detent = .medium }
+                withAnimation(Motion.anim(.snappy)) { detent = expandedDetent }
             } label: {
                 Label("Expand recipe details", systemImage: "arrow.up.left.and.arrow.down.right")
                     .frame(maxWidth: .infinity)

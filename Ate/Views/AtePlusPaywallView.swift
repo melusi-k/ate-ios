@@ -23,7 +23,7 @@ struct AtePlusPaywallView: View {
                 .padding(.vertical, 6)
             }
 
-            Section("Choose your plan") {
+            Section {
                 if purchases.isLoading && purchases.products.isEmpty {
                     HStack { ProgressView(); Text("Loading plans…").foregroundStyle(.secondary) }
                 } else if purchases.products.isEmpty {
@@ -54,6 +54,8 @@ struct AtePlusPaywallView: View {
                 if purchases.isPurchasing {
                     HStack { ProgressView(); Text("Processing purchase…").foregroundStyle(.secondary) }
                 }
+            } header: {
+                Text("Choose your plan")
             } footer: {
                 Text("Prices and currency are provided by the App Store for your storefront. Subscriptions renew automatically until cancelled in your Apple Account settings.")
             }
@@ -71,9 +73,12 @@ struct AtePlusPaywallView: View {
                 }
             }
 
-            Section("Legal") {
+            Section {
+
                 Link("Terms of Use", destination: URL(string: "https://melusi-k.github.io/ate-legal/terms.html")!)
                 Link("Privacy Policy", destination: URL(string: "https://melusi-k.github.io/ate-legal/privacy.html")!)
+            } header: {
+                Text("Legal")
             }
         }
         .navigationTitle("Ate Plus")

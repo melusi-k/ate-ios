@@ -879,6 +879,39 @@ final class AteUITests: XCTestCase {
         XCTAssertTrue(add.isHittable, "Add recipe accessory should remain usable after switching tabs")
     }
 
+    func testTab_TimerAccessoryKeepsAddControlClear() {
+        launch()
+        guard #available(iOS 26, *) else { return }
+        addPromptRecipe()
+        app.buttons["Cook mode"].tap()
+        app.buttons["Next step"].tap()
+        app.buttons["Next step"].tap()
+        wait(text("Step 3 of 4"))
+        app.buttons["Start timer"].tap()
+        wait(app.buttons["Pause timer"], 5)
+        app.buttons["Exit"].tap()
+
+        let add = app.buttons["accessoryAdd"].firstMatch
+        let accessory = app.otherElements["bottomAccessory"].firstMatch
+        wait(add, 8)
+        wait(accessory, 5)
+        XCTAssertTrue(add.isHittable, "Add recipe remains tappable while a timer/cooking session is active")
+        XCTAssertTrue(accessory.frame.intersects(app.frame), "timer accessory remains within the visible screen")
+        if app.buttons["Pause bar timer"].exists {
+            XCTAssertFalse(app.buttons["Pause bar timer"].frame.intersects(add.frame),
+                            "timer control and Add recipe must not overlap")
+        }
+        shot("tab-timer-accessory-layout")
+
+        tab("Shopping")
+        wait(add, 5)
+        XCTAssertTrue(add.isHittable, "Add recipe stays usable after changing tabs with a timer active")
+        if app.buttons["Pause bar timer"].exists {
+            XCTAssertFalse(app.buttons["Pause bar timer"].frame.intersects(add.frame),
+                            "timer control and Add recipe must not overlap after tab switch")
+        }
+    }
+
     func test28_GroupSortAndMenus() {
         launch()
         addNamed("Zesty tacos")

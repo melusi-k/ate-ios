@@ -172,8 +172,10 @@ struct LibraryView: View {
     }
 
     private func row(_ r: RecipeCard) -> some View {
-        Button { store.path.append(.recipe(r.id)) } label: { RecipeRowView(recipe: r) }
+        // Keep list and grid selection consistent: both open the expandable recipe sheet.
+        Button { quickLookRecipe = r } label: { RecipeRowView(recipe: r) }
             .buttonStyle(PressScale())
+            .accessibilityIdentifier("listCard")
             .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
             .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {

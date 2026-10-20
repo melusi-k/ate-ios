@@ -143,6 +143,10 @@ struct RootView: View {
             store.timers.tick(date)
         }
         .onChange(of: phase) { _, p in
+            if !AppConfig.isUITesting {
+                if p == .active { DiagnosticHistory.shared.record(.appForegrounded) }
+                else if p == .background { DiagnosticHistory.shared.record(.appBackgrounded) }
+            }
             if p == .active {
                 store.timers.tick(); store.timers.ensureLiveActivities(); store.scheduleSync(delay: 0.2); store.checkInbox()
                 WidgetBridge.drainInbox(store)
@@ -154,6 +158,7 @@ struct RootView: View {
             }
         }
         .task {
+            if !AppConfig.isUITesting { DiagnosticHistory.shared.record(.appLaunched) }
             WidgetBridge.drainInbox(store)
             store.timers.ensureLiveActivities()
             BetaQA.shared.launched(recipeCount: store.recipes.count, restoredTimers: store.timers.timers.count)

@@ -43,14 +43,8 @@ struct LibraryView: View {
         .modifier(LibrarySearch(query: $query, placement: searchPlacement, prompt: "Search \(store.recipes.count) recipe\(store.recipes.count == 1 ? "" : "s")"))
         .textInputAutocapitalization(.never)
         .navigationTitle(store.filter.collection?.title ?? L10n.libraryTitle)
-        .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Image("AteLogo").resizable().scaledToFit().frame(width: 28, height: 28)
-                    .accessibilityLabel("ate").accessibilityIdentifier("libraryLogo")
-            }
-            ToolbarItem(placement: .topBarTrailing) { libraryMenu }
-        }
+        .ateRootNavigationChrome(logoID: "libraryLogo")
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { libraryMenu } }
         .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd, global: searchPlacement != .tabBar))
         .onChange(of: store.pendingSearch) { _, q in if let q { query = q; store.pendingSearch = nil } }
         .onAppear { if let q = store.pendingSearch { query = q; store.pendingSearch = nil } }

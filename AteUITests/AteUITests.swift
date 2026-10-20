@@ -855,6 +855,9 @@ final class AteUITests: XCTestCase {
         wait(add, 8)
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label == 'Add recipe' AND identifier != 'accessoryAdd'")).firstMatch.exists,
                        "floating Add button replaced by the accessory")
+        let accessory = app.otherElements["bottomAccessory"].firstMatch
+        wait(accessory, 5)
+        XCTAssertTrue(accessory.frame.intersects(app.frame), "bottom accessory must remain on-screen")
         shot("tab-accessory")
         add.tap()
         wait(app.buttons["addCancel"], 5); app.buttons["addCancel"].tap()
@@ -862,7 +865,51 @@ final class AteUITests: XCTestCase {
         let field = app.searchFields.firstMatch
         wait(field, 5); field.tap(); field.typeText("soup")
         XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 3), "title stays visible while searching")
+        XCTAssertTrue(field.value as? String == "soup", "search query is entered")
         shot("tab-search")
+
+        // The Search tab and Library tab use separate NavigationStacks. Confirm SceneStorage
+        // keeps the query when crossing between them, and that the accessory remains available.
+        app.tabBars.buttons["Library"].tap()
+        wait(text("Your Kitchen"), 5)
+        app.tabBars.buttons["Search"].tap()
+        wait(field, 5)
+        XCTAssertEqual(field.value as? String, "soup", "search query should survive Library/Search tab switches")
+        wait(add, 5)
+        XCTAssertTrue(add.isHittable, "Add recipe accessory should remain usable after switching tabs")
+    }
+
+    func testTab_TimerAccessoryKeepsAddControlClear() {
+        launch()
+        guard #available(iOS 26, *) else { return }
+        addPromptRecipe()
+        app.buttons["Cook mode"].tap()
+        app.buttons["Next step"].tap()
+        app.buttons["Next step"].tap()
+        wait(text("Step 3 of 4"))
+        app.buttons["Start timer"].tap()
+        wait(app.buttons["Pause timer"], 5)
+        app.buttons["Exit"].tap()
+
+        let add = app.buttons["accessoryAdd"].firstMatch
+        let accessory = app.otherElements["bottomAccessory"].firstMatch
+        wait(add, 8)
+        wait(accessory, 5)
+        XCTAssertTrue(add.isHittable, "Add recipe remains tappable while a timer/cooking session is active")
+        XCTAssertTrue(accessory.frame.intersects(app.frame), "timer accessory remains within the visible screen")
+        if app.buttons["Pause bar timer"].exists {
+            XCTAssertFalse(app.buttons["Pause bar timer"].frame.intersects(add.frame),
+                            "timer control and Add recipe must not overlap")
+        }
+        shot("tab-timer-accessory-layout")
+
+        tab("Shopping")
+        wait(add, 5)
+        XCTAssertTrue(add.isHittable, "Add recipe stays usable after changing tabs with a timer active")
+        if app.buttons["Pause bar timer"].exists {
+            XCTAssertFalse(app.buttons["Pause bar timer"].frame.intersects(add.frame),
+                            "timer control and Add recipe must not overlap after tab switch")
+        }
     }
 
     func test28_GroupSortAndMenus() {

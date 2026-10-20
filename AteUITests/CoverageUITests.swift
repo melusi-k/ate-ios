@@ -119,9 +119,34 @@ final class CoverageUITests: XCTestCase {
         launch()
         addPrompt("Miso salmon for two")
         tab("Library")
-        XCUIDevice.shared.orientation = .landscapeLeft
         defer { XCUIDevice.shared.orientation = .portrait }
 
+        // Portrait uses the single-column list. Its row tap must open the same compact sheet as the grid.
+        let listCard = app.buttons["listCard"].firstMatch
+        wait(listCard, 10)
+        scrollTo(listCard)
+        XCTAssertTrue(listCard.isHittable, "A Library list row must be visible before it is tapped")
+        listCard.tap()
+        wait(app.buttons["expandRecipeDetails"], 5)
+        wait(app.staticTexts["recipeQuickLookTitle"], 5)
+        shot("recipe-sheet-compact-from-list")
+        app.buttons["expandRecipeDetails"].tap()
+        let listServings = app.descendants(matching: .any)["servingsPicker"].firstMatch
+        wait(listServings, 8)
+        wait(app.buttons["Cook mode"], 5)
+        shot("recipe-sheet-expanded-from-list")
+        // Collapse the expanded sheet, then dismiss it back to the same list.
+        for _ in 0..<3 where !app.buttons["expandRecipeDetails"].exists {
+            app.swipeDown()
+        }
+        if app.buttons["expandRecipeDetails"].waitForExistence(timeout: 3) {
+            app.swipeDown()
+        }
+        wait(listCard, 8)
+        XCTAssertTrue(listCard.isHittable, "The Library list must be interactive again after dismissing the sheet")
+
+        // Landscape switches to the grid; verify that its tap path still uses the same sheet.
+        XCUIDevice.shared.orientation = .landscapeLeft
         let card = app.buttons["gridCard"].firstMatch
         wait(card, 10)
         scrollTo(card)

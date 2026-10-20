@@ -32,9 +32,14 @@ enum StoreRecovery {
             var out = Outcome(error: error.localizedDescription)
             out.backupURL = moveAside(storeURL, now: now)
             out.recovered = out.backupURL != nil
-            if let c = try? make(ModelConfiguration(url: storeURL)) { out.container = c; return out }
+            if let c = try? make(ModelConfiguration(url: storeURL)) {
+                out.container = c
+                if out.recovered { DiagnosticHistory.shared.record(.storeRecovered) }
+                return out
+            }
             out.container = try? make(ModelConfiguration(isStoredInMemoryOnly: true))
             out.inMemoryFallback = out.container != nil
+            if out.inMemoryFallback { DiagnosticHistory.shared.record(.storeInMemoryFallback) }
             return out
         }
     }
@@ -92,6 +97,7 @@ enum StoreSaver {
             }
         }
         failures += 1
+        DiagnosticHistory.shared.record(.saveFailed)
         onFailure?("Couldn't save your \(what) on this iPhone. Ate will keep trying; your changes are still on screen\(last == nil ? "" : ".")")
         return false
     }

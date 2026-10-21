@@ -217,7 +217,12 @@ final class KeyFlowsQATests: XCTestCase {
         addPrompt("Synced stew")
         app.buttons["recipeMenu"].tap(); app.buttons["editButton"].tap()
         replace(app.textFields["editorTitle"], "Synced stew v2")
-        app.buttons["Done"].firstMatch.tap()
+        let editorDone = app.buttons["recipeEditor.done"]
+        XCTAssertTrue(editorDone.waitForExistence(timeout: 5), "Recipe editor Done action should exist")
+        let editorDoneDeadline = Date().addingTimeInterval(5)
+        while !editorDone.isHittable && Date() < editorDoneDeadline { usleep(200_000) }
+        XCTAssertTrue(editorDone.isHittable, "Recipe editor Done action should be hittable before sync navigation")
+        editorDone.tap()
         signIn()
         wait(text("Synced"), 10)
         shot("7-sync-device-a")

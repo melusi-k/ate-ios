@@ -82,6 +82,72 @@ final class QualityAndDedupeTests: XCTestCase {
     }
 }
 
+/// Issue #144: deterministic checks for malformed generated recipe output.
+final class PhotoRecipeOutputValidationTests: XCTestCase {
+    private func generatedCard() -> RecipeCard {
+        var card = RecipeCard(
+            title: "Tomato and egg stew",
+            servings: 2,
+            ingredients: [
+                .init(name: "tomatoes", quantity: 4, unit: "pcs"),
+                .init(name: "eggs", quantity: 2, unit: "pcs"),
+                .init(name: "oil", quantity: 1, unit: "tbsp")
+            ],
+            steps: [
+                .init(order: 1, instruction: "Heat the oil in a pan over medium heat.", timeSeconds: 120),
+                .init(order: 2, instruction: "Add tomatoes and simmer until softened.", timeSeconds: 600),
+                .init(order: 3, instruction: "Stir in the eggs and cook until set.", timeSeconds: 300)
+            ],
+            source: .photoGuess
+        )
+        card.aiConfidence = 0.85
+        return card
+    }
+
+    func testGeneratedCardWithValidStructureHasNoStructuralIssues() {
+        let issues = RecipeQuality.issues(generatedCard())
+        XCTAssertFalse(issues.contains { $0.contains("positive, finite quantity") })
+        XCTAssertFalse(issues.contains { $0.contains("unique order") })
+        XCTAssertFalse(issues.contains { $0.contains("non-empty title") })
+    }
+
+    func testGeneratedOutputRejectsMissingTitleInvalidQuantityAndInvalidConfidence() {
+        var card = generatedCard()
+        card.title = "  "
+        card.ingredients[0].quantity = .nan
+        card.aiConfidence = 1.5
+
+        let issues = RecipeQuality.issues(card)
+        XCTAssertTrue(issues.contains { $0.contains("non-empty title") })
+        XCTAssertTrue(issues.contains { $0.contains("positive, finite quantity") })
+        XCTAssertTrue(issues.contains { $0.contains("between 0 and 1") })
+        XCTAssertTrue(RecipeQuality.needsInput(card))
+    }
+
+    func testGeneratedOutputRejectsBlankIngredientAndDuplicateStepOrder() {
+        var card = generatedCard()
+        card.ingredients[0].name = "  "
+        card.steps[1].order = card.steps[0].order
+
+        let issues = RecipeQuality.issues(card)
+        XCTAssertTrue(issues.contains { $0.contains("needs a name") })
+        XCTAssertTrue(issues.contains { $0.contains("unique order") })
+    }
+
+    func testOutputStructureChecksDoNotChangeImportedRecipeValidation() {
+        var card = generatedCard()
+        card.source = .jsonLD
+        card.title = "  "
+        card.ingredients[0].quantity = 0
+        card.aiConfidence = 1.5
+
+        let issues = RecipeQuality.issues(card)
+        XCTAssertFalse(issues.contains { $0.contains("non-empty title") })
+        XCTAssertFalse(issues.contains { $0.contains("positive, finite quantity") })
+        XCTAssertFalse(issues.contains { $0.contains("between 0 and 1") })
+    }
+}
+
 /// Foundation Models round: errors, examples, streamed preview, rendering from structured data.
 final class FoundationModelsPatternTests: XCTestCase {
     func testEveryGenerationFailureHasADistinctClearMessage() {

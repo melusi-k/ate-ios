@@ -301,7 +301,7 @@ final class KeyFlowsQATests: XCTestCase {
         wait(privacy, 10)
         privacy.tap()
         wait(app.navigationBars["Privacy Policy"], 10)
-        wait(app.otherElements["legalDocumentWebView"], 10)
+        wait(app.webViews.firstMatch, 10)
         app.buttons["legalDocumentClose"].tap()
 
         let terms = app.buttons["termsLink"]

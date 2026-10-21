@@ -288,4 +288,27 @@ final class KeyFlowsQATests: XCTestCase {
         app.buttons["Finish cooking"].tap()
         XCTAssertTrue(miniPlayer.waitForNonExistence(timeout: 5), "explicit completion clears the cooking session")
     }
+
+    // MARK: Legal documents
+
+    func testLegalDocumentsOpenInNativeSheets() {
+        launch()
+        tab("Settings")
+        wait(app.buttons["openSignIn"], 10)
+        app.buttons["openSignIn"].tap()
+
+        let privacy = app.buttons["privacyLink"]
+        wait(privacy, 10)
+        privacy.tap()
+        wait(app.navigationBars["Privacy Policy"], 10)
+        wait(app.otherElements["legalDocumentWebView"], 10)
+        app.buttons["legalDocumentClose"].tap()
+
+        let terms = app.buttons["termsLink"]
+        wait(terms, 10)
+        terms.tap()
+        wait(app.navigationBars["Terms of Use"], 10)
+        wait(app.otherElements["legalDocumentWebView"], 10)
+        app.buttons["legalDocumentClose"].tap()
+    }
 }

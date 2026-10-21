@@ -219,9 +219,15 @@ final class KeyFlowsQATests: XCTestCase {
         replace(app.textFields["editorTitle"], "Synced stew v2")
         let editorDone = app.buttons["recipeEditor.done"]
         XCTAssertTrue(editorDone.waitForExistence(timeout: 5), "Recipe editor Done action should exist")
-        let editorDoneDeadline = Date().addingTimeInterval(5)
-        while !editorDone.isHittable && Date() < editorDoneDeadline { usleep(200_000) }
-        XCTAssertTrue(editorDone.isHittable, "Recipe editor Done action should be hittable before sync navigation")
+        // Replacing the title leaves the software keyboard open; the editor's
+        // bottom action can remain underneath it. Scroll the actual target into
+        // view before deciding the control is genuinely not hittable.
+        scrollTo(editorDone)
+        waitHittable(editorDone, 5)
+        if !editorDone.isHittable {
+            shot("7-editor-done-not-hittable")
+            XCTFail("Recipe editor Done action remained non-hittable after scrolling. UI hierarchy: \(app.debugDescription)")
+        }
         editorDone.tap()
         signIn()
         wait(text("Synced"), 10)

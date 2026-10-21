@@ -3,6 +3,7 @@ import StoreKit
 
 struct AtePlusPaywallView: View {
     @StateObject private var purchases = AtePlusStore()
+    @State private var selectedLegalDocument: LegalDocument?
 
     var body: some View {
         Form {
@@ -74,15 +75,21 @@ struct AtePlusPaywallView: View {
             }
 
             Section {
-
-                Link("Terms of Use", destination: URL(string: "https://melusi-k.github.io/ate-legal/terms.html")!)
-                Link("Privacy Policy", destination: URL(string: "https://melusi-k.github.io/ate-legal/privacy.html")!)
+                Button("Terms of Use") { selectedLegalDocument = .terms }
+                    .accessibilityIdentifier("atePlus.termsLink")
+                Button("Privacy Policy") { selectedLegalDocument = .privacy }
+                    .accessibilityIdentifier("atePlus.privacyLink")
             } header: {
                 Text("Legal")
             }
         }
         .navigationTitle("Ate Plus")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $selectedLegalDocument) { document in
+            if let url = document.url {
+                LegalDocumentSheet(title: document.title, url: url)
+            }
+        }
         .task { await purchases.refreshEntitlements() }
     }
 

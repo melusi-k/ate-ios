@@ -387,12 +387,16 @@ final class CoverageUITests: XCTestCase {
         wait(text("interrupted"), 8)
         wait(app.buttons["generateRetry"], 3)
         shot("generation-interrupted-retry-survives-second-relaunch")
-        app.terminate()
-        // Unsaved review card survives a kill.
-        launch(["-qaPersistDraft", "-qaResetDraft"])
-        startPrompt("Chotlo")
+
+        // Retry must launch a fresh attempt using the recovered input, finish into review,
+        // and clear the pending request without creating a library card before Save.
+        app.buttons["generateRetry"].tap()
         wait(text("Review your card"), 15)
+        XCTAssertTrue(app.buttons["saveRecipe"].exists, "successful retry must leave the interrupted state")
+        XCTAssertEqual(app.buttons.matching(identifier: "saveRecipe").count, 1,
+                       "one retry must produce one review/save action")
         app.terminate()
+        // The successfully generated but unsaved card survives a kill.
         launch(["-qaPersistDraft"])
         app.buttons["Add recipe"].tap()
         wait(text("Review your card"), 8)

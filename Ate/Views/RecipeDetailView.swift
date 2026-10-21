@@ -26,6 +26,7 @@ struct RecipeDetailView: View {
                                 RecipeEditor(recipe: Binding(get: { store.recipe(recipeID) ?? recipe },
                                                              set: { store.update($0) }))
                                 Button("Done") { editing = false }.buttonStyle(.ate(.primary, full: true))
+                                    .accessibilityIdentifier("recipeEditor.done")
                             }.cardSurface(padding: 20)
                         } else {
                             Picker("Servings", selection: $factor) {

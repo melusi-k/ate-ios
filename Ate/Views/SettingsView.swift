@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var importing = false
     @State private var confirmClear = false
     @State private var share: ShareItems?
+    @State private var selectedLegalDocument: LegalDocument?
     @State private var qa = BetaQA.shared
 
     var body: some View {
@@ -111,18 +112,23 @@ struct SettingsView: View {
                         .textSelection(.enabled)
                         .accessibilityElement(children: .combine).accessibilityIdentifier("aiDiagnostics")
                         LiveActivityDiagnosticsView()
-                        if let u = AppConfig.privacyURL {
-                            Button { share = ShareItems(items: [u]) } label: {
+                        if AppConfig.privacyURL != nil {
+                            Button { selectedLegalDocument = .privacy } label: {
                                 Label("Privacy Policy", systemImage: "hand.raised")
                             }.accessibilityIdentifier("settingsPrivacy")
                         }
-                        if let u = AppConfig.termsURL {
-                            Button { share = ShareItems(items: [u]) } label: {
+                        if AppConfig.termsURL != nil {
+                            Button { selectedLegalDocument = .terms } label: {
                                 Label("Terms of Use", systemImage: "doc.text")
                             }.accessibilityIdentifier("settingsTerms")
                         }
                     } header: { Text("About") } footer: {
                         Text(Transparency.ai).accessibilityIdentifier("aiTransparency")
+                    }
+                    .sheet(item: $selectedLegalDocument) { document in
+                        if let url = document.url {
+                            LegalDocumentSheet(title: document.title, url: url)
+                        }
                     }
                     Section { Button {
                         UIPasteboard.general.string = AppConfig.versionLine

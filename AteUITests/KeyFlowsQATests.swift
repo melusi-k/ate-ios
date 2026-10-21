@@ -308,7 +308,7 @@ final class KeyFlowsQATests: XCTestCase {
         wait(terms, 10)
         terms.tap()
         wait(app.navigationBars["Terms of Use"], 10)
-        wait(app.otherElements["legalDocumentWebView"], 10)
+        wait(app.webViews.firstMatch, 10)
         app.buttons["legalDocumentClose"].tap()
     }
 }

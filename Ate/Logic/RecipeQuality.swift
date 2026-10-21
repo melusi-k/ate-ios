@@ -81,10 +81,10 @@ enum RecipeQuality {
             }
             for (index, ingredient) in c.ingredients.enumerated() {
                 if ingredient.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    out.append("Ingredient \\(index + 1) needs a name.")
+                    out.append("Ingredient \(index + 1) needs a name.")
                 }
                 if !ingredient.quantity.isFinite || ingredient.quantity <= 0 {
-                    out.append("Ingredient \\(index + 1) needs a positive, finite quantity.")
+                    out.append("Ingredient \(index + 1) needs a positive, finite quantity.")
                 }
             }
             let nonBlankSteps = RecipeLogic.nonBlank(c.steps)

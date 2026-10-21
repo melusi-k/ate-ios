@@ -1,11 +1,13 @@
-### 📋 MVP score (tiered — [MVP_CHECKLIST.md](https://github.com/melusi-k/ate-ios/blob/main/docs/MVP_CHECKLIST.md) · [QA_MATRIX.md](https://github.com/melusi-k/ate-ios/blob/main/docs/QA_MATRIX.md))
+### 📋 MVP score — historical snapshot, not current acceptance status
+
+> This file retains the last recorded Tier A/B score snapshot from build 36 for historical context. Tier C was previously undercounted as 6 items; the current checklist contains 67 Tier C IDs. Do not use the historical aggregate as a current release-readiness verdict. Recompute Tier A/B scores only from current evidence and a consistent denominator.
 
 | Tier | Score | % | ✅ | 🟡 | ❌ | ⛔ |
 |---|---|---|---|---|---|---|
 | Tier A — Must-pass before beta (pilot) | 27 / 44 | 61% | 18 | 18 | 8 | 0 |
 | Tier B — Before wider/public launch | 4.5 / 13 | 35% | 2 | 5 | 3 | 3 |
-| Tier C — Later polish | 0 / 6 | 0% | 0 | 0 | 6 | 0 |
-| **Total** | **31.5 / 63** | **50%** | | | | |
+| Tier C — Later polish | 0 / 67 | 0% | 0 | 0 | 67 | 0 |
+| **Historical total (build 36 denominator)** | **31.5 / 63** | **50%** | | | | |
 
 | Tier | Category | Score |
 |---|---|---|
@@ -26,7 +28,7 @@
 | B | Support | 1.5 / 2 |
 | B | Monitoring | 0 / 1 |
 | B | Privacy/compliance (launch requirement) | 2 / 4 |
-| C | Polish | 0 / 6 |
+| C | Tier C acceptance inventory | 0 / 67 |
 
 Verdict (build 36): pilot candidate, but Tier A isn't green yet. Biggest gaps: real-device validation (auth gate, smoke test, timers in the background), tests not re-run since build 35, web share page on the old backend, and corrupted-store and interrupted-AI recovery. Not public-launch ready.
 

@@ -1,0 +1,35 @@
+name: Testing or regression coverage
+description: Track a test gap, regression, or verification task
+title: "[Testing]: "
+labels: ["testing"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for missing coverage, flaky assertions, regression tests, and QA verification.
+  - type: textarea
+    id: gap
+    attributes:
+      label: What needs to be tested?
+      description: Describe the user flow, behavior, or regression risk.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior and acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Existing evidence or reproduction steps
+    validations:
+      required: false
+  - type: textarea
+    id: scope
+    attributes:
+      label: Proposed test coverage
+      description: Unit, integration, UI, device, or CI-level coverage.
+    validations:
+      required: true

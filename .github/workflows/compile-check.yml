@@ -143,6 +143,19 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > share-publish-outage-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" share-publish-outage-tests.log || true; tail -100 share-publish-outage-tests.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" share-publish-outage-tests.log | tail -40
 
+      - name: Interrupted generation Retry lifecycle acceptance (#143)
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/test37_KilledMidGenerationRecovers \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/interrupted-generation-retry-lifecycle.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > interrupted-generation-retry-lifecycle.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" interrupted-generation-retry-lifecycle.log || true; tail -120 interrupted-generation-retry-lifecycle.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" interrupted-generation-retry-lifecycle.log | tail -40
+
       - name: Recipe generation focused unit regressions (#89) — quarantined, not a pass
         if: ${{ always() && steps.build.outcome == 'success' }}
         continue-on-error: true

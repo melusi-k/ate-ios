@@ -164,11 +164,34 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteTests/SyncFixtureTests/testInterruptedPhotoGenerationRestoresImageInput \
             -only-testing:AteTests/SyncFixtureTests/testLegacyPendingDraftWithoutPhotoStillDecodes \
-            -only-testing:AteTests/PhotoRegressionTests/testAmbiguousPhotoPromptSupportsDrinksWithoutInventingSpirits \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/recipe-generation-regressions.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             CODE_SIGNING_ALLOWED=NO > recipe-generation-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" recipe-generation-tests.log || true; tail -100 recipe-generation-tests.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" recipe-generation-tests.log | tail -40
+
+      - name: Drink-photo prompt guardrails (#89) — blocking
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/PhotoRegressionTests/testAmbiguousPhotoPromptSupportsDrinksWithoutInventingSpirits \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/drink-photo-prompt-guardrails.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            CODE_SIGNING_ALLOWED=NO > drink-photo-prompt-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" drink-photo-prompt-tests.log || true; tail -100 drink-photo-prompt-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" drink-photo-prompt-tests.log | tail -40
+
+      - name: Transient generation Retry recovery (#89)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/test36b_RecipeGenerationRetryRecoversAfterTransientFailure \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/transient-generation-retry.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > transient-generation-retry.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" transient-generation-retry.log || true; tail -120 transient-generation-retry.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" transient-generation-retry.log | tail -40
 
       - name: Photo recipe output validation (#144)
         if: ${{ always() && steps.build.outcome == 'success' }}

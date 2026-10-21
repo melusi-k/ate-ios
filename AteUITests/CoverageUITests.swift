@@ -127,15 +127,21 @@ final class CoverageUITests: XCTestCase {
         scrollTo(listCard)
         XCTAssertTrue(listCard.isHittable, "A Library list row must be visible before it is tapped")
         listCard.tap()
-        wait(app.buttons["expandRecipeDetails"], 5)
+        // Verify the selected recipe first so a missing expand control reports whether the
+        // sheet failed to present at all or only its compact actions failed to render.
         let listQuickLookTitle = app.staticTexts["recipeQuickLookTitle"]
-        wait(listQuickLookTitle, 5)
+        wait(listQuickLookTitle, 10)
         XCTAssertTrue(
             listQuickLookTitle.label.localizedCaseInsensitiveContains("Miso salmon"),
             "Tapping the Library list row must present the selected recipe, not a stale or unrelated detail"
         )
+        let listExpand = app.buttons["expandRecipeDetails"]
+        wait(listExpand, 10)
+        XCTAssertTrue(listExpand.isHittable, "The compact Miso salmon sheet must expose its expand action")
+        wait(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "ingredients")).firstMatch, 5)
+        wait(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "steps")).firstMatch, 5)
         shot("recipe-sheet-compact-from-list")
-        app.buttons["expandRecipeDetails"].tap()
+        listExpand.tap()
         let listServings = app.descendants(matching: .any)["servingsPicker"].firstMatch
         wait(listServings, 8)
         wait(app.buttons["Cook mode"], 5)
@@ -158,14 +164,17 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(card.isHittable, "A Library grid card must be visible before it is tapped")
         card.tap()
 
-        let expand = app.buttons["expandRecipeDetails"]
-        wait(expand, 5)
         let gridQuickLookTitle = app.staticTexts["recipeQuickLookTitle"]
-        wait(gridQuickLookTitle, 5)
+        wait(gridQuickLookTitle, 10)
         XCTAssertTrue(
             gridQuickLookTitle.label.localizedCaseInsensitiveContains("Miso salmon"),
             "Reopening from the landscape grid must present the selected recipe"
         )
+        let expand = app.buttons["expandRecipeDetails"]
+        wait(expand, 10)
+        XCTAssertTrue(expand.isHittable, "The compact Miso salmon sheet must expose its expand action in landscape")
+        wait(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "ingredients")).firstMatch, 5)
+        wait(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "steps")).firstMatch, 5)
         shot("recipe-sheet-compact")
 
         expand.tap()

@@ -478,6 +478,10 @@ struct AddRecipeSheet: View {
         } catch let e as PhotoNeedsDishError {
             dishQuestion = e
             Haptics.warning()
+        } catch is CancellationError {
+            // Cancellation is a terminal attempt outcome, not a model failure. Keep the
+            // persisted request so the user can retry without re-entering their input.
+            self.error = Self.interruptedMessage
         } catch let e {
             let msg = (e is URLError) ? Net.friendly(e) : e.localizedDescription
             self.error = msg

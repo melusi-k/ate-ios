@@ -111,8 +111,16 @@ struct SettingsView: View {
                         .textSelection(.enabled)
                         .accessibilityElement(children: .combine).accessibilityIdentifier("aiDiagnostics")
                         LiveActivityDiagnosticsView()
-                        if let u = AppConfig.privacyURL { Link(destination: u) { Label("Privacy Policy", systemImage: "hand.raised") }.accessibilityIdentifier("settingsPrivacy") }
-                        if let u = AppConfig.termsURL { Link(destination: u) { Label("Terms of Use", systemImage: "doc.text") }.accessibilityIdentifier("settingsTerms") }
+                        if let u = AppConfig.privacyURL {
+                            Button { share = ShareItems(items: [u]) } label: {
+                                Label("Privacy Policy", systemImage: "hand.raised")
+                            }.accessibilityIdentifier("settingsPrivacy")
+                        }
+                        if let u = AppConfig.termsURL {
+                            Button { share = ShareItems(items: [u]) } label: {
+                                Label("Terms of Use", systemImage: "doc.text")
+                            }.accessibilityIdentifier("settingsTerms")
+                        }
                     } header: { Text("About") } footer: {
                         Text(Transparency.ai).accessibilityIdentifier("aiTransparency")
                     }

@@ -294,6 +294,25 @@ final class KeyFlowsQATests: XCTestCase {
     func testLegalDocumentsOpenInNativeSheets() {
         launch()
         tab("Settings")
+
+        // Settings previously routed these actions through the share sheet.
+        // They must now open the same in-app legal reader as onboarding and Ate Plus.
+        let settingsPrivacy = app.buttons["settingsPrivacy"]
+        scrollTo(settingsPrivacy)
+        wait(settingsPrivacy, 10)
+        settingsPrivacy.tap()
+        wait(app.navigationBars["Privacy Policy"], 10)
+        wait(app.webViews.firstMatch, 10)
+        app.buttons["legalDocumentClose"].tap()
+
+        let settingsTerms = app.buttons["settingsTerms"]
+        scrollTo(settingsTerms)
+        wait(settingsTerms, 10)
+        settingsTerms.tap()
+        wait(app.navigationBars["Terms of Use"], 10)
+        wait(app.webViews.firstMatch, 10)
+        app.buttons["legalDocumentClose"].tap()
+
         wait(app.buttons["openSignIn"], 10)
         app.buttons["openSignIn"].tap()
 

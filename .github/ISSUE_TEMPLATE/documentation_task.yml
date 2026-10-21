@@ -1,0 +1,23 @@
+name: Documentation
+description: Track missing, inaccurate, or outdated project documentation
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: textarea
+    id: gap
+    attributes:
+      label: What needs documenting or correcting?
+    validations:
+      required: true
+  - type: textarea
+    id: audience
+    attributes:
+      label: Intended audience and use
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Definition of done
+    validations:
+      required: true

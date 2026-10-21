@@ -1,0 +1,30 @@
+name: CI or build pipeline
+description: Track a CI workflow, build, signing, or automation task
+title: "[CI]: "
+labels: ["ci"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is failing or missing?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected pipeline behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Run links, logs, and reproduction details
+      description: Redact secrets, tokens, and private data.
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Definition of done
+    validations:
+      required: true

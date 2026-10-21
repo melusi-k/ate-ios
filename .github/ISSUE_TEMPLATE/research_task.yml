@@ -1,0 +1,24 @@
+name: Research or investigation
+description: Track a technical investigation, audit, or proof of concept
+title: "[Research]: "
+labels: ["research"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question or uncertainty to resolve
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and evidence so far
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Decision or deliverable expected
+      description: For example, a recommendation, audit findings, or a small prototype.
+    validations:
+      required: true

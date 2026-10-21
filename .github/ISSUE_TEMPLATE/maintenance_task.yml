@@ -1,0 +1,29 @@
+name: Maintenance or refactor
+description: Track technical debt, dependency updates, cleanup, or refactoring
+title: "[Maintenance]: "
+labels: ["maintenance"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What needs maintenance?
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Risk or current impact
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed approach
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification and acceptance criteria
+    validations:
+      required: true

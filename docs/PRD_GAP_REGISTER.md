@@ -15,6 +15,9 @@
 |---|---|---|
 | Cooking Tracker | [#31](https://github.com/melusi-k/ate-ios/issues/31) | Complete tracker UX, event semantics, history persistence, streak/calendar correctness, tests and accessibility |
 | Auth + sync | [#34](https://github.com/melusi-k/ate-ios/issues/34) | Sign-up, confirmation, reset/magic links, session/account lifecycle, two-device sync and conflicts |
+| Shopping List | [#72](https://github.com/melusi-k/ate-ios/issues/72) | Manual/recipe add, merge, tick/clear, aisle grouping, offline persistence, export/share and stale recipe references |
+| Library discovery + organization | [#73](https://github.com/melusi-k/ate-ios/issues/73) | Search, filter composition, collections, sort/group/reorder and Library-specific regression coverage |
+| Settings + data management | [#74](https://github.com/melusi-k/ate-ios/issues/74) | Preferences, export/import/clear, corrupt-store recovery, channel gating and diagnostics |
 | Recipe creation + quality | [#35](https://github.com/melusi-k/ate-ios/issues/35) | URL/social/photo/prompt imports, fallback behavior, draft recovery, recipe quality and duplicate prevention |
 | Timers + widgets + Siri | [#36](https://github.com/melusi-k/ate-ios/issues/36) | Timer lifecycle, Live Activities, WidgetKit, App Intents, Lock Screen, Control Center, Siri/Shortcuts |
 | Accessibility + UX | [#37](https://github.com/melusi-k/ate-ios/issues/37) | VoiceOver, Dynamic Type, contrast, Reduce Motion, responsive layouts, native navigation and interaction gaps |
@@ -43,6 +46,9 @@ IDs below are generated from the current checklist's actual item labels. The che
 - **Apple Health insights:** A-HEALTH-01, A-HEALTH-02, A-HEALTH-03, A-HEALTH-04, A-HEALTH-05, A-HEALTH-06, A-HEALTH-07, A-HEALTH-08
 - **Widgets & Intents:** A-WIDGET-01, A-WIDGET-02, A-WIDGET-03, A-WIDGET-04, A-WIDGET-05, A-LOCK-01, A-LOCK-02, A-LOCK-03, A-CONTROL-01, A-CONTROL-02, A-INTENT-01, A-INTENT-02, A-INTENT-03, A-INTENT-04, A-INTENT-05, A-COVER-01
 - **Data safety & security:** A-DATA-01, A-DATA-02, A-CI-06, A-CI-05, A-SEC-01, A-SEC-02, A-SEC-03, A-SEC-04, A-SEC-05, A-SEC-06
+- **Shopping List:** A-SHOP-01, A-SHOP-02, A-SHOP-03, A-SHOP-04, A-SHOP-05, A-SHOP-06
+- **Library discovery and organization:** A-LIB-01, A-LIB-02, A-LIB-03, A-LIB-04, A-LIB-05, A-LIB-06
+- **Settings and data management:** A-SET-01, A-SET-02, A-SET-03, A-SET-04, A-SET-05, A-SET-06
 
 ### Tier B — before wider / public launch
 
@@ -77,7 +83,7 @@ Shared shell issues added after the initial register:
 - [#69 — Standardise the bottom tab bar and tab-state behaviour](https://github.com/melusi-k/ate-ios/issues/69)
 - [#37 — Accessibility, responsive layout and native UX](https://github.com/melusi-k/ate-ios/issues/37) remains the cross-cutting acceptance tracker.
 
-Known documentation risks to reconcile in #70: CI default-vs-opt-in test descriptions; share page/browser status vs production Supabase security vs Universal Links; actual build runtime modes vs README/PRD statements; stale build/run/score snapshots; checklist rows whose owner is still TBD; and any acceptance IDs lacking one authoritative owner.
+Known documentation risks to reconcile in #70: CI default-vs-opt-in test descriptions; share page/browser status vs production Supabase security vs Universal Links; actual build runtime modes vs README/PRD statements; stale build/run/score snapshots; correctness of the new owner-to-issue mapping; and acceptance IDs lacking one authoritative owner.
 
 
 ## Issue #38 — combined Insights hub
@@ -103,3 +109,7 @@ The implementation decision and acceptance sequence are recorded in [HEALTH_JOUR
 3. Update the relevant issue and this register when scope/status changes.
 4. Do not close release blockers or approve a release while required checks are running, inconclusive, or failing.
 5. Avoid duplicate issues: add evidence and subtasks to the matching area issue unless a distinct ownerable unit of work is needed.
+
+## Fresh structural audit — 21 October 2026
+
+A clean reconciliation branch from current `main` restores explicit issue ownership for all 158 existing checklist IDs and adds 18 uncovered Library, Shopping List and Settings acceptance IDs. The branch's intended structural totals are 176 unique checklist IDs, 176 explicit QA-matrix rows, 176 owner links, and 163 Tier A/Tier C in-app Beta entries. The 18 new matrix rows are deliberately marked `Not run`; these counts are structural checks, not behavior acceptance. The stronger checker and exact-head CI still need to pass before this audit is complete.

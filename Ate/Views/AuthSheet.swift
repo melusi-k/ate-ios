@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import WebKit
 
 /// Sign in / create account / set new password. Presented as a sheet from Settings and onboarding.
 struct AuthSheet: View {
@@ -274,14 +275,76 @@ struct AuthSheet: View {
     }
 }
 
-/// Privacy policy and terms links (URLs from Info.plist `AtePrivacyURL` / `AteTermsURL`).
+/// The legal documents are presented in-app so readers can return to their flow.
+enum LegalDocument: String, Identifiable {
+    case privacy
+    case terms
+
+    var id: String { rawValue }
+    var title: String { self == .privacy ? "Privacy Policy" : "Terms of Use" }
+    var url: URL? { self == .privacy ? AppConfig.privacyURL : AppConfig.termsURL }
+}
+
 struct LegalLinks: View {
+    @State private var selectedDocument: LegalDocument?
+
     var body: some View {
         HStack(spacing: 16) {
-            if let u = AppConfig.privacyURL { Link("Privacy Policy", destination: u).accessibilityIdentifier("privacyLink") }
-            if let u = AppConfig.termsURL { Link("Terms of Use", destination: u).accessibilityIdentifier("termsLink") }
+            if AppConfig.privacyURL != nil {
+                Button("Privacy Policy") { selectedDocument = .privacy }
+                    .accessibilityIdentifier("privacyLink")
+            }
+            if AppConfig.termsURL != nil {
+                Button("Terms of Use") { selectedDocument = .terms }
+                    .accessibilityIdentifier("termsLink")
+            }
         }
         .font(AteFont.body(13, .medium)).tint(Theme.mutedForeground)
         .frame(maxWidth: .infinity)
+        .sheet(item: $selectedDocument) { document in
+            if let url = document.url {
+                LegalDocumentSheet(title: document.title, url: url)
+            }
+        }
+    }
+}
+
+/// Native sheet containing the canonical hosted legal document.
+struct LegalDocumentSheet: View {
+    let title: String
+    let url: URL
+    @Environment(\\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            LegalWebView(url: url)
+                .accessibilityIdentifier("legalDocumentWebView")
+                .navigationTitle(title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close") { dismiss() }
+                            .accessibilityIdentifier("legalDocumentClose")
+                    }
+                }
+        }
+        .accessibilityIdentifier("legalDocumentSheet")
+    }
+}
+
+private struct LegalWebView: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        webView.backgroundColor = UIColor.systemBackground
+        webView.isOpaque = false
+        webView.load(URLRequest(url: url))
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        guard webView.url != url else { return }
+        webView.load(URLRequest(url: url))
     }
 }

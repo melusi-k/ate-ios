@@ -313,7 +313,7 @@ struct LegalLinks: View {
 struct LegalDocumentSheet: View {
     let title: String
     let url: URL
-    @Environment(\\.dismiss) private var dismiss
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {

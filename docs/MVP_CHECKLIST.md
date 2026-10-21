@@ -1,6 +1,6 @@
 # ate — MVP-ready checklist (tiered beta / launch gate)
 
-_Rewritten 2026-10-10 against build 36. Scored test matrix: [QA_MATRIX.md](QA_MATRIX.md) · scores: [MVP_SCORE.md](MVP_SCORE.md) · manual steps: [QA.md](QA.md) · tester help: [SUPPORT.md](SUPPORT.md) · [BETA.md](BETA.md)._
+_Tier C inventory reconciled 2026-10-21 against current repository source; Tier A/B evidence and historical notes still require a separate exact-head refresh. Scored test matrix: [QA_MATRIX.md](QA_MATRIX.md) · scores: [MVP_SCORE.md](MVP_SCORE.md) · manual steps: [QA.md](QA.md) · tester help: [SUPPORT.md](SUPPORT.md) · [BETA.md](BETA.md)._
 
 **Verdict:** a good candidate for a small **pilot**, but **Tier A is not yet all green**, mainly because nothing has been checked on a real device and builds 35–36 shipped without tests. Not public-launch ready.
 

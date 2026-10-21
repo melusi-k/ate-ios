@@ -1,0 +1,54 @@
+name: Label pull requests
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  apply-type-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply labels from PR type checklist
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const body = (context.payload.pull_request.body || "");
+            const typeLabels = ["bug", "enhancement", "testing", "ci", "maintenance", "research", "documentation", "release"];
+            const sectionMatch = body.match(/## Type of change([\s\S]*?)(?=\n## |$)/i);
+            const section = sectionMatch ? sectionMatch[1] : "";
+            const options = [
+              ["Bug fix", "bug"],
+              ["User-facing feature or improvement", "enhancement"],
+              ["Tests or regression coverage", "testing"],
+              ["CI or build pipeline", "ci"],
+              ["Refactor, dependency, or codebase maintenance", "maintenance"],
+              ["Investigation or technical research", "research"],
+              ["Documentation", "documentation"],
+              ["Release or release-readiness work", "release"],
+            ];
+            const selected = new Set();
+            for (const [label, type] of options) {
+              const checked = section.split(/\r?\n/).some(line => /^\s*-\s*\[x\]\s*/i.test(line) && line.toLowerCase().includes(label.toLowerCase()));
+              if (checked) selected.add(type);
+            }
+            const current = await github.rest.issues.listLabelsOnIssue({ owner, repo, issue_number });
+            const names = new Set(current.data.map(label => label.name));
+            if (selected.size === 0) {
+              if (!names.has("triage")) await github.rest.issues.addLabels({ owner, repo, issue_number, labels: ["triage"] });
+              core.warning("No PR type selected; added triage label.");
+              return;
+            }
+            for (const name of typeLabels) {
+              if (names.has(name) && !selected.has(name)) await github.rest.issues.removeLabel({ owner, repo, issue_number, name });
+            }
+            const missing = [...selected].filter(name => !names.has(name));
+            if (missing.length) await github.rest.issues.addLabels({ owner, repo, issue_number, labels: missing });
+            if (names.has("triage")) await github.rest.issues.removeLabel({ owner, repo, issue_number, name: "triage" });
+            core.info("Applied PR type labels: " + [...selected].join(", "));

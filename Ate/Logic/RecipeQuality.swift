@@ -65,6 +65,36 @@ enum RecipeQuality {
     /// Human-readable gaps; empty means the card meets the bar.
     static func issues(_ c: RecipeCard) -> [String] {
         var out: [String] = []
+
+        // Structural output checks apply only to generated cards. Imported JSON-LD and
+        // user-authored recipes retain their existing, deliberately lenient semantics.
+        if isGenerated(c) {
+            let title = c.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if title.isEmpty || title == "Untitled recipe" {
+                out.append("The generated recipe needs a specific, non-empty title.")
+            }
+            if c.servings < 1 {
+                out.append("Servings must be at least 1.")
+            }
+            if let confidence = c.aiConfidence, !confidence.isFinite || !(0...1).contains(confidence) {
+                out.append("Dish confidence must be between 0 and 1.")
+            }
+            for (index, ingredient) in c.ingredients.enumerated() {
+                if ingredient.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    out.append("Ingredient \(index + 1) needs a name.")
+                }
+                if !ingredient.quantity.isFinite || ingredient.quantity <= 0 {
+                    out.append("Ingredient \(index + 1) needs a positive, finite quantity.")
+                }
+            }
+            let nonBlankSteps = RecipeLogic.nonBlank(c.steps)
+            if nonBlankSteps.isEmpty {
+                out.append("The generated recipe needs actionable steps.")
+            }
+            if Set(nonBlankSteps.map(\.order)).count != nonBlankSteps.count {
+                out.append("Each recipe step must have a unique order.")
+            }
+        }
         if c.source == .photoGuess && isNonFoodTitle(c) {
             out.append("The photo did not establish an edible dish; name the dish before generating a recipe.")
         }

@@ -157,6 +157,17 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > recipe-generation-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" recipe-generation-tests.log || true; tail -100 recipe-generation-tests.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" recipe-generation-tests.log | tail -40
 
+      - name: Photo recipe output validation (#144)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/PhotoRecipeOutputValidationTests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/photo-recipe-output-validation.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            CODE_SIGNING_ALLOWED=NO > photo-recipe-output-validation.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" photo-recipe-output-validation.log || true; tail -100 photo-recipe-output-validation.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" photo-recipe-output-validation.log | tail -40
+
       - name: Library layout and reorder guard regressions (#73)
         continue-on-error: true
         if: ${{ always() && steps.build.outcome == 'success' }}

@@ -3,6 +3,8 @@ name: Label pull requests
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize, ready_for_review]
+  issues:
+    types: [opened, edited, reopened]
 
 permissions:
   contents: read
@@ -11,6 +13,7 @@ permissions:
 
 jobs:
   apply-type-labels:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Apply labels from PR type checklist
@@ -52,3 +55,83 @@ jobs:
             if (missing.length) await github.rest.issues.addLabels({ owner, repo, issue_number, labels: missing });
             if (names.has("triage")) await github.rest.issues.removeLabel({ owner, repo, issue_number, name: "triage" });
             core.info("Applied PR type labels: " + [...selected].join(", "));
+
+  apply-classification-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply feature area, release gate, and priority labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const body = context.payload.pull_request?.body || context.payload.issue?.body || "";
+            const isPR = context.eventName === "pull_request";
+            const areas = {
+              "Recipe creation and quality": "area:recipes",
+              "Library and discovery": "area:library-discovery",
+              "Cooking, timers and widgets": "area:cooking-timers-widgets",
+              "Accessibility and navigation": "area:accessibility-navigation",
+              "Health and journal": "area:health-journal",
+              "Shopping List and Settings": "area:shopping-settings",
+              "Sharing, security and reliability": "area:sharing-security-reliability",
+              "Future platform work": "area:future-platforms",
+              "Product infrastructure and delivery": "area:product-infrastructure"
+            };
+            const gates = {
+              "Pilot": "gate:pilot",
+              "Public launch": "gate:public-launch",
+              "No committed release gate": "gate:uncommitted"
+            };
+            const priorities = { "P0": "priority:p0", "P1": "priority:p1", "P2": "priority:p2", "P3": "priority:p3" };
+            const fieldValue = (heading) => {
+              const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const match = body.match(new RegExp("^(?:#{1,4}\\s*)?" + escaped + "\\s*\\n([\\s\\S]*?)(?=\\n#{1,4}\\s|$)", "im"));
+              if (!match) return "";
+              const section = match[1];
+              if (isPR) {
+                const checked = section.match(/^\\s*-\\s*\\[x\\]\\s*(.+)$/im);
+                return checked ? checked[1].trim() : "";
+              }
+              return section.split(/\\r?\\n/).map(s => s.trim()).find(s => s && !s.startsWith("<!--") && !s.startsWith("- [ ]")) || "";
+            };
+            const selectedArea = fieldValue("Feature area");
+            const selectedGate = fieldValue("Release gate");
+            const selectedPriority = fieldValue("Priority").toUpperCase();
+            const desired = [areas[selectedArea], gates[selectedGate], priorities[selectedPriority]].filter(Boolean);
+            const managedPrefixes = ["area:", "gate:", "priority:"];
+            const colors = { area: "1D76DB", gate: "0E8A16", priority: "D93F0B" };
+            const descriptions = {
+              "area:": "Product feature area",
+              "gate:": "Release commitment gate; not a status or acceptance claim",
+              "priority:": "Delivery priority, independent of release gate"
+            };
+            const current = await github.rest.issues.listLabelsOnIssue({ owner, repo, issue_number });
+            const currentNames = new Set(current.data.map(x => x.name));
+            for (const name of desired) {
+              if (!currentNames.has(name)) {
+                const prefix = managedPrefixes.find(p => name.startsWith(p));
+                try {
+                  await github.rest.issues.createLabel({
+                    owner, repo, name, color: colors[prefix.slice(0, -1)],
+                    description: descriptions[prefix]
+                  });
+                } catch (error) {
+                  if (error.status !== 422) throw error;
+                }
+              }
+            }
+            const refreshed = await github.rest.issues.listLabelsOnIssue({ owner, repo, issue_number });
+            const existing = new Set(refreshed.data.map(x => x.name));
+            for (const label of refreshed.data) {
+              if (managedPrefixes.some(p => label.name.startsWith(p)) && !desired.includes(label.name)) {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number, name: label.name });
+              }
+            }
+            const missing = desired.filter(name => !existing.has(name));
+            if (missing.length) await github.rest.issues.addLabels({ owner, repo, issue_number, labels: missing });
+            if (desired.length !== 3) {
+              core.warning("Classification incomplete. Choose one Feature area, Release gate, and Priority; expected exactly 3 labels, found " + desired.length + ".");
+            } else {
+              core.info("Applied classification labels: " + desired.join(", "));
+            }

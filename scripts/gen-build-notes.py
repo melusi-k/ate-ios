@@ -17,7 +17,8 @@ def git(*args):
 
 sha = git("rev-parse", "HEAD")
 previous = git("tag", "--list", "build-*", "--sort=-v:refname")
-previous_tag = next((tag for tag in previous.splitlines() if tag != f"build-{git('rev-parse', '--short', 'HEAD')}"), "")
+current_tag = git("describe", "--tags", "--exact-match", "HEAD")
+previous_tag = next((tag for tag in previous.splitlines() if tag != current_tag), "")
 if previous_tag and sha:
     subjects = git("log", "--no-merges", "--format=%s", f"{previous_tag}..{sha}")
 else:

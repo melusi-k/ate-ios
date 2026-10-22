@@ -102,6 +102,17 @@ struct SettingsView: View {
                     Section {
                         Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))" + (AppConfig.channel.isEmpty ? "" : " · \(AppConfig.channel)"))
                             .accessibilityIdentifier("aboutVersion")
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Changes in this build").font(AteFont.body(12, .semibold))
+                            Text(BuildNotes.current)
+                                .font(AteFont.body(12))
+                                .foregroundStyle(Theme.mutedForeground)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("aboutBuildNotes")
+                        }
+                        .textSelection(.enabled)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("aboutBuildNotesSection")
                         VStack(alignment: .leading, spacing: 2) {
                             Text("AI diagnostics").font(AteFont.body(12, .semibold))
                             Text("Model: " + OnDeviceBackend.availabilityDescription)

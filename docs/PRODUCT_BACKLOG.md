@@ -126,6 +126,6 @@ Journal implementation/automated acceptance and Health entitlement/device eviden
 - [x] Retrospective classification applied to currently open feature, delivery and release-readiness issues.
 - [x] Open PRs classified using the same label families.
 - [ ] Reconcile every acceptance ID against its area, original commitment, owning issue, current test and current evidence.
-- [ ] Update checklist and QA matrix presentation to group acceptance IDs by feature area rather than by Tier A/B/C.
+- [x] Reorganise checklist and QA matrix by feature area, with separate release-gate and priority fields.
 - [ ] Replace tier-based aggregate score presentation only after current evidence has been reconciled and the scoring denominator is validated.
 - [ ] Validate that the generated in-app Beta checklist and ID consistency checks remain in sync after the documentation migration.

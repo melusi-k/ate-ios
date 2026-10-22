@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 import Observation
 
-/// On-device Tier A beta checklist: journeys auto-tick ✅ / ❌ when they really complete or fail; others are manual.
+/// On-device Pilot-gate checklist: journeys auto-tick ✅ / ❌ when they really complete or fail; others are manual.
 @MainActor
 @Observable
 final class BetaQA {

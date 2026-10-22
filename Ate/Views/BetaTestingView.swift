@@ -91,7 +91,7 @@ struct BetaTestingView: View {
                         }
                     } label: {
                         let done = BetaChecklist.tierA.filter { qa.result($0.id).status == .pass }.count
-                        Text("Tier A results (\(done)/\(BetaChecklist.tierA.count) passed)").font(AteFont.body(15, .semibold))
+                        Text("Pilot gate results (\(done)/\(BetaChecklist.tierA.count) passed)").font(AteFont.body(15, .semibold))
                     }
                     .accessibilityIdentifier("beta.tierAGroup")
                 }

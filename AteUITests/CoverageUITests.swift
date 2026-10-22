@@ -316,7 +316,7 @@ final class CoverageUITests: XCTestCase {
     }
 
     func passed() -> Int {
-        let l = app.staticTexts["betaProgress"].label   // "Pilot gate: 3/44 passed"
+        let l = app.staticTexts["betaProgress"].label   // "Pilot gate: 3/96 passed"
         return Int(l.components(separatedBy: ": ").last?.components(separatedBy: "/").first ?? "") ?? -1
     }
 

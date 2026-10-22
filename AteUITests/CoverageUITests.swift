@@ -159,8 +159,17 @@ final class CoverageUITests: XCTestCase {
         shot("settings-tools")
         export.tap(); sleep(2); shot("more-export-sheet")
         if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
+        let settingsStepAlerts = app.descendants(matching: .any)["toggle.Step-by-step alerts"].firstMatch
+        let settingsQuietHours = app.descendants(matching: .any)["toggle.Quiet hours"].firstMatch
+        scrollTo(settingsStepAlerts); wait(settingsStepAlerts, 3)
+        XCTAssertTrue(settingsQuietHours.exists, "Quiet hours and step-by-step alerts should both be present in Timer notifications")
         let about = app.staticTexts["aboutVersion"]; scrollTo(about); wait(about, 3)
         XCTAssertTrue(about.label.contains("(build "))
+        let buildNotes = app.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
+        scrollTo(buildNotes); wait(buildNotes, 3)
+        XCTAssertTrue(buildNotes.label.contains("Changes in this build"))
+        XCTAssertFalse(buildNotes.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                       "About should show generated build notes or an explicit fallback")
         XCTAssertTrue(app.staticTexts["aiTransparency"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["aiDiagnostics"].firstMatch.exists)
         shot("settings-about")

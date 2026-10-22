@@ -114,6 +114,15 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Owner:* [#35](https://github.com/melusi-k/ate-ios/issues/35)
   - *Feature area:* Recipe creation and quality · *Release gate:* Pilot · *Initial priority:* P1
 
+
+- **A-NAV-02 · Explore destinations present as independent native sheets** — 🟡
+  - *Journey:* As a cook, I can open Insights & journal or Journal from Library Explore without changing the Library navigation stack.
+  - *Acceptance:* Given I select either Explore destination, Then it opens in a large native sheet with its own navigation stack; Done dismisses the sheet and returns to Library with its route and state preserved.
+  - *Verified by:* `CoverageUITests.testExploreInsightsPresentsAsSheetAndDismissesToLibrary, CoverageUITests.testExploreJournalPresentsAsSheetAndDismissesToLibrary`
+  - *Status evidence:* Focused exact-head CI pending; physical-device and responsive-layout checks remain outstanding.
+  - *Owner:* [#83](https://github.com/melusi-k/ate-ios/issues/83)
+  - *Feature area:* Accessibility and navigation · *Release gate:* Pilot · *Initial priority:* P1
+
 #### Design review polish
 
 - **C-DES-05 · Segmented servings control** — ❌

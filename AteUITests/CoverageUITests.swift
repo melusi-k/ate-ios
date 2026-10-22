@@ -166,6 +166,44 @@ final class CoverageUITests: XCTestCase {
         shot("settings-about")
     }
 
+    // MARK: Library Explore sheets (#83)
+
+    func testExploreInsightsPresentsAsSheetAndDismissesToLibrary() {
+        launch()
+        tab("Library")
+        app.buttons["libraryBrowseMenu"].tap()
+        let insights = app.buttons["library.insights"]
+        wait(insights)
+        insights.tap()
+
+        let dismiss = app.buttons["library.explore.dismiss"]
+        wait(dismiss)
+        XCTAssertTrue(app.navigationBars["Insights"].waitForExistence(timeout: 5),
+                      "Insights should open in its own sheet navigation stack")
+        dismiss.tap()
+        wait(app.buttons["libraryBrowseMenu"])
+        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected,
+                      "Dismissing Explore should return to the same Library tab")
+    }
+
+    func testExploreJournalPresentsAsSheetAndDismissesToLibrary() {
+        launch()
+        tab("Library")
+        app.buttons["libraryBrowseMenu"].tap()
+        let journal = app.buttons["library.journal"]
+        wait(journal)
+        journal.tap()
+
+        let dismiss = app.buttons["library.explore.dismiss"]
+        wait(dismiss)
+        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 5),
+                      "Journal should open in its own sheet navigation stack")
+        dismiss.tap()
+        wait(app.buttons["libraryBrowseMenu"])
+        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected,
+                      "Dismissing Explore should return to the same Library tab")
+    }
+
     // MARK: photo dish step
 
     func test33_WhatDishIsThisSpread() {

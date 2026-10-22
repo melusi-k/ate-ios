@@ -1,8 +1,8 @@
 # Ate MVP acceptance checklist — unified product backlog
 
-_Tier C inventory reconciled 2026-10-21 against current repository source; Tier A/B evidence and historical notes still require a separate exact-head refresh. Scored test matrix: [QA_MATRIX.md](QA_MATRIX.md) · scores: [MVP_SCORE.md](MVP_SCORE.md) · manual steps: [QA.md](QA.md) · tester help: [SUPPORT.md](SUPPORT.md) · [BETA.md](BETA.md)._
+_Acceptance inventory reorganised by feature area on 2026-10-22; existing evidence remains historical until revalidated on an exact current commit._ Scored test matrix: [QA_MATRIX.md](QA_MATRIX.md) · scores: [MVP_SCORE.md](MVP_SCORE.md) · manual steps: [QA.md](QA.md) · tester help: [SUPPORT.md](SUPPORT.md) · [BETA.md](BETA.md)._
 
-**Verdict:** a good candidate for a small **pilot**, but **Tier A is not yet all green**, mainly because nothing has been checked on a real device and builds 35–36 shipped without tests. Not public-launch ready.
+**Historical release-readiness note (build 36):** pilot readiness was incomplete, with real-device validation and fresh test runs outstanding. This is not a current verdict; assess readiness from the explicit Pilot/Public launch gates and current exact-SHA evidence.
 
 **Honesty notes (build 36):** UI tests are optional (`run_tests` workflow input) and have **not** run on the build 35/36 changes. "Pass" in the simulator means the last full run before build 35. Landscape rotation was only enabled in build 36 and is **unverified**. The web share page still reads the **old Lovable backend**.
 
@@ -1122,7 +1122,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Journey:* As a friend without Ate, I open the link in Safari and see the recipe.
   - *Acceptance:* Given a new share, When opened in any browser, Then the page shows title, ingredients and steps within 3 s.
   - *Verified by:* `none` · Manual
-  - *Status evidence:* Resolved for new links (build 4x Tier A): links are now `https://melusi-k.github.io/ate-legal/r/?s=<slug>` (GitHub Pages page reading the new Supabase; returns 200, verified in a browser). Needs a real-device round trip to go ✅. Old lovable.app links still open in the app but not on the web
+  - *Status evidence:* Resolved for new links (pilot build): links are now `https://melusi-k.github.io/ate-legal/r/?s=<slug>` (GitHub Pages page reading the new Supabase; returns 200, verified in a browser). Needs a real-device round trip to go ✅. Old lovable.app links still open in the app but not on the web
   - *Owner:* [#39](https://github.com/melusi-k/ate-ios/issues/39)
   - *Feature area:* Sharing, security and reliability · *Release gate:* Pilot · *Initial priority:* P0
 
@@ -1130,7 +1130,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Journey:* As a cook, I share, my friend views it on the web and then opens it in Ate.
   - *Acceptance:* Given a share from phone A, Then the web page renders it AND its "Open in Ate" button opens the recipe on phone B.
   - *Verified by:* `none` · QA.md (new step)
-  - *Status evidence:* Web leg unblocked (A-SHARE-03); "Open in ate" uses ate://recipe/<slug>. Universal links still need the paid account (Tier B)
+  - *Status evidence:* Web leg unblocked (A-SHARE-03); "Open in ate" uses ate://recipe/<slug>. Universal links still need the paid account (public-launch gate)
   - *Owner:* [#39](https://github.com/melusi-k/ate-ios/issues/39)
   - *Feature area:* Sharing, security and reliability · *Release gate:* Pilot · *Initial priority:* P0
 
@@ -1466,13 +1466,13 @@ No mismatches were found on Supabase EU region, on-device AI (no server `parse-r
 ## Rollout criteria
 
 **Pilot (5–10 trusted testers, sideloaded):**
-- every Tier A item ✅, including A-AUTH-09 (real-device auth gate) and A-DEV-01;
+- every Pilot-gate item ✅, including A-AUTH-09 (real-device auth gate) and A-DEV-01;
 - known issues listed in BETA.md with severities and accepted (B-SUP-02);
 - SUPPORT.md shared with testers, and each tester has acknowledged it's a beta;
 - the A-SHARE-03/04 blocker is either fixed (e.g. a GitHub Pages share page on the new backend) or explicitly accepted as a known issue for the pilot.
 
 **Public launch:**
-- every Tier B item ✅ (ate.app domain + public share page, paid account → signed builds, TestFlight, universal links);
+- every Public-launch item ✅ (ate.app domain + public share page, paid account → signed builds, TestFlight, universal links);
 - crash-free sessions **≥ 99.5 %** over **2 weeks** of pilot;
 - **no P0/P1** issues open;
 - legal review done (B-PRIV-04), with the privacy audit mismatches above fixed;

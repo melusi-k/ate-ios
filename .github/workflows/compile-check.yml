@@ -298,6 +298,19 @@ jobs:
           run_focused_test "AteUITests/ProductionChannelUITests/testProductionChannelHidesBetaDiagnostics" "production-channel-production.log" "production-channel-production"
           STEP_END=$(date +%s)
           echo "::notice::CI_TIMING step=settings-tab-key-flow duration_seconds=$((STEP_END-STEP_START)) exit_code=0"
+      - name: Settings About build notes and timer rows (#145)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/test32_MoreCollectionsToolsAbout \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/settings-about-145.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > settings-about-145.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" settings-about-145.log || true; tail -120 settings-about-145.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" settings-about-145.log | tail -40
+
       - name: Cooking Tracker focused UI tests
         continue-on-error: true
         if: ${{ always() && steps.build.outcome == 'success' }}

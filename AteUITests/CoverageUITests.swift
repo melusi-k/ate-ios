@@ -167,7 +167,13 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(about.label.contains("(build "))
         let buildNotes = app.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
         scrollTo(buildNotes); wait(buildNotes, 3)
-        XCTAssertTrue(buildNotes.label.contains("Changes in this build"))
+        // SwiftUI may expose the combined container differently across iOS simulator versions.
+        // Assert the visible heading and populated notes container independently instead of
+        // depending on the parent's synthesized accessibility label.
+        let buildNotesHeading = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Changes in this build")
+        ).firstMatch
+        wait(buildNotesHeading, 3)
         XCTAssertFalse(buildNotes.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                        "About should show generated build notes or an explicit fallback")
         XCTAssertTrue(app.staticTexts["aiTransparency"].exists)

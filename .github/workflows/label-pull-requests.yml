@@ -85,19 +85,22 @@ jobs:
             };
             const priorities = { "P0": "priority:p0", "P1": "priority:p1", "P2": "priority:p2", "P3": "priority:p3" };
             const fieldValue = (heading) => {
-              const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-              const match = body.match(new RegExp("^(?:#{1,4}\\s*)?" + escaped + "\\s*\\n([\\s\\S]*?)(?=\\n#{1,4}\\s|$)", "im"));
-              if (!match) return "";
-              const section = match[1];
-              if (isPR) {
-                const checked = section.match(/^\\s*-\\s*\\[x\\]\\s*(.+)$/im);
-                return checked ? checked[1].trim() : "";
+              const lines = body.split(/\r?\n/);
+              const start = lines.findIndex(line => line.trim().replace(/^#{1,4}\s*/, "").toLowerCase() === heading.toLowerCase());
+              if (start < 0) return "";
+              const section = [];
+              for (let i = start + 1; i < lines.length; i++) {
+                if (/^#{1,4}\s/.test(lines[i].trim())) break;
+                section.push(lines[i]);
               }
-              return section.split(/\\r?\\n/).map(s => s.trim()).find(s => s && !s.startsWith("<!--") && !s.startsWith("- [ ]")) || "";
+              const checked = section.map(line => line.match(/^\s*-\s*\[x\]\s*(.+)$/i)).find(Boolean);
+              if (checked) return checked[1].trim();
+              if (isPR) return "";
+              return section.map(s => s.trim()).find(s => s && !s.startsWith("<!--") && !s.startsWith("- [ ]")) || "";
             };
             const selectedArea = fieldValue("Feature area");
             const selectedGate = fieldValue("Release gate");
-            const selectedPriority = fieldValue("Priority").toUpperCase();
+            const selectedPriority = fieldValue("Priority").toUpperCase().slice(0, 2);
             const desired = [areas[selectedArea], gates[selectedGate], priorities[selectedPriority]].filter(Boolean);
             const managedPrefixes = ["area:", "gate:", "priority:"];
             const colors = { area: "1D76DB", gate: "0E8A16", priority: "D93F0B" };

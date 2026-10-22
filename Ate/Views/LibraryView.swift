@@ -49,9 +49,9 @@ struct LibraryView: View {
                         InsightsView()
                     case .journal:
                         JournalListView()
-                            .navigationDestination(for: Route.self) { RouteView(route: $0) }
                     }
                 }
+                .navigationDestination(for: Route.self) { RouteView(route: $0) }
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { exploreDestination = nil }

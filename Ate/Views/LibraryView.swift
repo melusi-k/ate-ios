@@ -10,6 +10,7 @@ struct LibraryView: View {
     @State private var confirmDelete: RecipeCard?
     @State private var quickLookRecipe: RecipeCard?
     @State private var recipeSheetDetent: PresentationDetent = .height(260)
+    @State private var exploreDestination: ExploreDestination?
     @Environment(\.verticalSizeClass) private var vSize
     @Environment(\.horizontalSizeClass) private var hSize
     /// Landscape iPhone / iPad: card grid instead of the single-column list.
@@ -36,6 +37,31 @@ struct LibraryView: View {
         .sheet(item: $quickLookRecipe, onDismiss: { recipeSheetDetent = .height(260) }) { recipe in
             ExpandableRecipeDetailSheet(recipe: recipe, detent: $recipeSheetDetent)
                 .environment(store)
+        }
+        // Explore destinations are independent tasks, not deeper Library routes. Present them in
+        // their own native stack so Journal entries can still push detail screens without altering
+        // the Library tab's path or losing its scroll/search state.
+        .sheet(item: $exploreDestination) { destination in
+            NavigationStack {
+                Group {
+                    switch destination {
+                    case .insights:
+                        InsightsView()
+                    case .journal:
+                        JournalListView()
+                            .navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    }
+                }
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { exploreDestination = nil }
+                            .accessibilityIdentifier("library.explore.dismiss")
+                    }
+                }
+            }
+            .environment(store)
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Same bottom system as recipe detail: sits directly above the stack's timer bar.
@@ -236,11 +262,11 @@ struct LibraryView: View {
                 }
             }
             Section("Explore") {
-                Button { store.path.append(.insights) } label: {
+                Button { exploreDestination = .insights } label: {
                     Label("Insights & journal", systemImage: "heart.text.square")
                 }
                 .accessibilityIdentifier("library.insights")
-                Button { store.path.append(.journal) } label: {
+                Button { exploreDestination = .journal } label: {
                     Label("Journal", systemImage: "book.closed")
                 }
                 .accessibilityIdentifier("library.journal")
@@ -412,4 +438,10 @@ struct TodayJournalHubCard: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("library.todayJournalHub")
     }
+}
+
+/// The two Library Explore shortcuts open focused tasks in sheets; their internal navigation stays local.
+private enum ExploreDestination: String, Identifiable {
+    case insights, journal
+    var id: String { rawValue }
 }

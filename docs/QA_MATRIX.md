@@ -1,6 +1,6 @@
 # ate — QA test matrix (scored)
 
-_Source of truth for IDs and acceptance: [MVP_CHECKLIST.md](MVP_CHECKLIST.md); this matrix and the in-app Beta checks follow it (CI `scripts/check-ids.py`). Current build: 0.1.0 (99). Generated 2026-10-10 against build 36; automated items updated from CI run 38063435067 (build 53, backend-e2e + simulator)._ Items, journeys and acceptance criteria are defined in [MVP_CHECKLIST.md](MVP_CHECKLIST.md); manual steps are in [QA.md](QA.md). Score: ✅ = 1, 🟡 = ½, ❌/⛔ = 0. "Sim result" = last full CI run **before** build 35 (tests have not run since). Fill in the device columns as you test, then update Status._
+_Source of truth for IDs and acceptance: [MVP_CHECKLIST.md](MVP_CHECKLIST.md); this matrix and the in-app Beta checks follow it (CI `scripts/check-ids.py`). Current build: 0.1.0 (99). Historical baseline generated 2026-10-10 against build 36; automated items referenced CI run 38063435067 (build 53, backend-e2e + simulator). This is not current exact-head validation._ Items, journeys and acceptance criteria are defined in [MVP_CHECKLIST.md](MVP_CHECKLIST.md); manual steps are in [QA.md](QA.md). Score: ✅ = 1, 🟡 = ½, ❌/⛔ = 0. "Sim result" = last full CI run **before** build 35 (tests have not run since). Fill in the device columns as you test, then update Status._
 
 ## Summary
 
@@ -8,8 +8,8 @@ _Source of truth for IDs and acceptance: [MVP_CHECKLIST.md](MVP_CHECKLIST.md); t
 |---|---|---|---|---|---|---|
 | Tier A — Must-pass before beta (pilot) | 27 / 44 | 61% | 18 | 18 | 8 | 0 |
 | Tier B — Before wider/public launch | 4.5 / 13 | 35% | 2 | 5 | 3 | 3 |
-| Tier C — Later polish | 0 / 6 | 0% | 0 | 0 | 6 | 0 |
-| **Total** | **31.5 / 63** | **50%** | | | | |
+| Tier C — Later polish | 0 / 67 | 0% | 0 | 0 | 67 | 0 |
+| **Historical total (build 36 denominator)** | **31.5 / 63** | **50%** | | | | |
 
 | Tier | Category | Score |
 |---|---|---|
@@ -30,7 +30,7 @@ _Source of truth for IDs and acceptance: [MVP_CHECKLIST.md](MVP_CHECKLIST.md); t
 | B | Support | 1.5 / 2 |
 | B | Monitoring | 0 / 1 |
 | B | Privacy/compliance (launch requirement) | 2 / 4 |
-| C | Polish | 0 / 6 |
+| C | Tier C acceptance inventory | 0 / 67 |
 
 ## Test cases
 

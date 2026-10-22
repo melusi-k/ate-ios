@@ -1,6 +1,6 @@
 # ate — MVP-ready checklist (tiered beta / launch gate)
 
-_Rewritten 2026-10-10 against build 36. Scored test matrix: [QA_MATRIX.md](QA_MATRIX.md) · scores: [MVP_SCORE.md](MVP_SCORE.md) · manual steps: [QA.md](QA.md) · tester help: [SUPPORT.md](SUPPORT.md) · [BETA.md](BETA.md)._
+_Tier C inventory reconciled 2026-10-21 against current repository source; Tier A/B evidence and historical notes still require a separate exact-head refresh. Scored test matrix: [QA_MATRIX.md](QA_MATRIX.md) · scores: [MVP_SCORE.md](MVP_SCORE.md) · manual steps: [QA.md](QA.md) · tester help: [SUPPORT.md](SUPPORT.md) · [BETA.md](BETA.md)._
 
 **Verdict:** a good candidate for a small **pilot**, but **Tier A is not yet all green**, mainly because nothing has been checked on a real device and builds 35–36 shipped without tests. Not public-launch ready.
 
@@ -851,8 +851,9 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Owner:* [#39](https://github.com/melusi-k/ate-ios/issues/39)
 
 
-## Tier C — Later polish
+## Tier C — Later polish (67 acceptance IDs)
 
+_All 67 Tier C IDs are currently unaccepted in this checklist. Source presence and runtime detection are not acceptance evidence; retain ❌/Not run until the linked behavior and verification criteria are met._
 
 ### Polish — 0 / 6
 
@@ -1093,7 +1094,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 ### Journal — 0 / 8
 
 - **C-JRN-01 · Journal entry opens on its own** — ❌
-  - *Acceptance:* Tapping an entry in Insights › Your Ate journal or Insights › Your Ate journal opens a detail view with the full text, date, state, and any linked recipe, location or media.
+  - *Acceptance:* Tapping an entry in Insights › Your Ate journal opens a detail view with the full text, date, state, and any linked recipe, location or media.
   - *Verified by:* auto: detected when an entry detail opens
   - *Owner:* [#38](https://github.com/melusi-k/ate-ios/issues/38)
 

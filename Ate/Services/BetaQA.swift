@@ -209,16 +209,9 @@ extension BetaQA {
     /// widgets actually reading the App Group, and Tier A passes that cover the same behaviour. Never overrides a manual verdict.
     func detectTierC() {
         guard BetaChecklist.isTierC else { return }
-        let size = UIApplication.shared.preferredContentSizeCategory
-        if size.isAccessibilityCategory {
-            for id in ["C-AX-01", "C-NAT-08"] { pass(id, note: "Ran at accessibility text size \(size.rawValue); confirm nothing is clipped") }
-        }
-        if UIAccessibility.isVoiceOverRunning { for id in ["C-AX-02", "C-NAT-09"] { pass(id, note: "Beta page opened with VoiceOver running") } }
-        if UIAccessibility.isReduceMotionEnabled { for id in ["C-AX-03", "C-NAT-10"] { pass(id, note: "Reduce Motion on; animations gated on accessibilityReduceMotion") } }
-        if UIAccessibility.isDarkerSystemColorsEnabled || UIAccessibility.isBoldTextEnabled {
-            for id in ["C-AX-04", "C-NAT-12"] { pass(id, note: "Increase Contrast/Bold Text on while running") }
-        }
-        if UIAccessibility.isReduceTransparencyEnabled { pass("C-NAT-11", note: "Reduce Transparency on while running") }
+        // Accessibility settings are setup conditions, not proof that acceptance criteria pass.
+        // AX/NAT accessibility items remain untested until an audit/test or explicit manual review
+        // verifies the required screens and behaviors; do not auto-pass them from environment flags.
         if AppGroupResolver.current.available && !WidgetBridge.heartbeats.isEmpty {
             pass("C-WID-01", note: "App Group OK, \(WidgetBridge.heartbeats.count) widget kind(s) loaded")
         }

@@ -1,6 +1,6 @@
 import XCTest
 
-/// Features without UI coverage until build 49, plus simulator-side Tier A automation
+/// Features without UI coverage until build 49, plus simulator-side Pilot-gate automation
 /// (A-SHARE-05 backend down, A-CREATE-05 killed mid-generation, A-AUTH-06 expired-session refresh).
 /// Runs as its own ui-suite shard so the whole suite fits the job timeout.
 final class CoverageUITests: XCTestCase {
@@ -266,7 +266,7 @@ final class CoverageUITests: XCTestCase {
         shot("beta-item-pass")
         app.navigationBars.buttons.element(boundBy: 0).tap()
         for _ in 0..<6 { app.swipeDown() }
-        wait(text("Tier A: \(before + 1)/"), 5)
+        wait(text("Pilot gate: \(before + 1)/"), 5)
         let item2 = app.descendants(matching: .any)["beta.A-AUTH-04"].firstMatch
         scrollTo(item2); item2.tap()
         wait(app.buttons["Fail"], 5); app.buttons["Fail"].tap()
@@ -281,7 +281,7 @@ final class CoverageUITests: XCTestCase {
         let confirm = app.buttons["Reset"].firstMatch
         wait(confirm, 5); confirm.tap()
         app.swipeDown(); app.swipeDown(); app.swipeDown()
-        wait(text("Tier A: 0/"), 5)
+        wait(text("Pilot gate: 0/"), 5)
         shot("beta-reset")
     }
 
@@ -316,11 +316,11 @@ final class CoverageUITests: XCTestCase {
     }
 
     func passed() -> Int {
-        let l = app.staticTexts["betaProgress"].label   // "Tier A: 3/44 passed"
+        let l = app.staticTexts["betaProgress"].label   // "Pilot gate: 3/44 passed"
         return Int(l.components(separatedBy: ": ").last?.components(separatedBy: "/").first ?? "") ?? -1
     }
 
-    // MARK: Tier A simulator automation
+    // MARK: Pilot-gate simulator automation
 
     /// A-SHARE-05: backend errors show the ErrorRetryCard and leave the local library intact.
     func test36_BackendDownRetryCardLibraryIntact() {

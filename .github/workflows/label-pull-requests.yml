@@ -126,6 +126,10 @@ jobs:
             }
             const refreshed = await github.rest.issues.listLabelsOnIssue({ owner, repo, issue_number });
             const existing = new Set(refreshed.data.map(x => x.name));
+            if (desired.length !== 3) {
+              core.warning("Classification incomplete. Choose one Feature area, Release gate, and Priority; existing classification labels were left unchanged.");
+              return;
+            }
             for (const label of refreshed.data) {
               if (managedPrefixes.some(p => label.name.startsWith(p)) && !desired.includes(label.name)) {
                 await github.rest.issues.removeLabel({ owner, repo, issue_number, name: label.name });
@@ -133,8 +137,4 @@ jobs:
             }
             const missing = desired.filter(name => !existing.has(name));
             if (missing.length) await github.rest.issues.addLabels({ owner, repo, issue_number, labels: missing });
-            if (desired.length !== 3) {
-              core.warning("Classification incomplete. Choose one Feature area, Release gate, and Priority; expected exactly 3 labels, found " + desired.length + ".");
-            } else {
-              core.info("Applied classification labels: " + desired.join(", "));
-            }
+            core.info("Applied classification labels: " + desired.join(", "));

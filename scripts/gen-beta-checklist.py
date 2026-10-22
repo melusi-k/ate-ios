@@ -11,19 +11,19 @@ auto = {"A-CREATE-01","A-CREATE-02","A-CREATE-03","A-CREATE-04","A-CREATE-06","A
 def parse(gate):
     cat = None
     out = []
-    for blk in re.split(r'\\n(?=#### |- \\*\\*[ABC]-)', unified):
+    for blk in re.split(r'\n(?=#### |- \*\*[ABC]-)', unified):
         m = re.match(r'#### (.+)', blk)
         if m:
-            cat = re.sub(r'\\s*\\(.*?\\)', '', m.group(1)).strip()
+            cat = re.sub(r'\s*\(.*?\)', '', m.group(1)).strip()
             continue
-        m = re.match(r'- \\*\\*([ABC]-[A-Z0-9]+-\\d{2}) · (.+?)\\*\\*', blk)
+        m = re.match(r'- \*\*([ABC]-[A-Z0-9]+-\d{2}) · (.+?)\*\*', blk)
         if not m:
             continue
-        gm = re.search(r'\\*Release gate:\\* (.*?) ·', blk)
+        gm = re.search(r'\*Release gate:\* (.*?) ·', blk)
         if not gm or gm.group(1).strip() != gate:
             continue
-        acc = re.search(r'\\*Acceptance:\\* (.+)', blk)
-        ver = re.search(r'\\*Verified by:\\* (.+)', blk)
+        acc = re.search(r'\*Acceptance:\* (.+)', blk)
+        ver = re.search(r'\*Verified by:\* (.+)', blk)
         isauto = m.group(1) in auto or bool(ver and ver.group(1).strip().startswith('auto'))
         out.append((m.group(1), m.group(2), cat or 'General', acc.group(1).strip() if acc else '', isauto))
     return out
@@ -45,5 +45,5 @@ lines += ["    /// The checklist for this build channel: pilot builds show Pilot
           "    static var items: [BetaItem] { isTierC ? tierC : tierA }",
           "    static var all: [BetaItem] { tierA + tierC }",
           "    static var categories: [String] { var seen: [String] = []; for i in items where !seen.contains(i.category) { seen.append(i.category) }; return seen }", "}"]
-open('Ate/Logic/BetaChecklist.swift', 'w').write("\\n".join(lines) + "\\n")
+open('Ate/Logic/BetaChecklist.swift', 'w').write("\n".join(lines) + "\n")
 print(len(outA), "Pilot-gate items,", len(outC), "uncommitted-gate items")

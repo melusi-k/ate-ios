@@ -56,3 +56,45 @@ body:
       options:
         - label: I checked for an existing issue or planned item covering this idea.
           required: true
+
+# Product classification used by automatic GitHub labels.
+  - type: dropdown
+    id: feature_area
+    attributes:
+      label: Feature area
+      description: Select the best current classification; do not infer acceptance or completion from the labels.
+      options:
+        - Recipe creation and quality
+        - Library and discovery
+        - Cooking, timers and widgets
+        - Accessibility and navigation
+        - Health and journal
+        - Shopping List and Settings
+        - Sharing, security and reliability
+        - Future platform work
+        - Product infrastructure and delivery
+    validations:
+      required: true
+  - type: dropdown
+    id: release_gate
+    attributes:
+      label: Release gate
+      description: Select the best current classification; do not infer acceptance or completion from the labels.
+      options:
+        - Pilot
+        - Public launch
+        - No committed release gate
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Select the best current classification; do not infer acceptance or completion from the labels.
+      options:
+        - P0
+        - P1
+        - P2
+        - P3
+    validations:
+      required: true

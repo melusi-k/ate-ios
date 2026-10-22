@@ -165,3 +165,31 @@ Reason:
 - Engineering signoff:
 - QA signoff:
 - Date:
+
+## Feature area
+Select exactly one by checking one box.
+
+- [ ] Recipe creation and quality
+- [ ] Library and discovery
+- [ ] Cooking, timers and widgets
+- [ ] Accessibility and navigation
+- [ ] Health and journal
+- [ ] Shopping List and Settings
+- [ ] Sharing, security and reliability
+- [ ] Future platform work
+- [ ] Product infrastructure and delivery
+
+## Release gate
+Select exactly one.
+
+- [ ] Pilot
+- [ ] Public launch
+- [ ] No committed release gate
+
+## Priority
+Select exactly one, independent of release gate.
+
+- [ ] P0
+- [ ] P1
+- [ ] P2
+- [ ] P3

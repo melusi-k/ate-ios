@@ -458,7 +458,7 @@ struct InsightsView: View {
                     } label: {
                         insightActionLabel("Browse recipes to try", symbol: "fork.knife")
                     }
-                    .accessibilityIdentifier("insights.progress.action.cookedMeals")
+                    .accessibilityIdentifier("insights.progress.action.recipes")
                 }
                 .padding(.top, 4)
             } else {

@@ -219,7 +219,7 @@ struct InsightsView: View {
                         Text("Drag a tile to move it, or use the arrows to change its position.")
                             .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                     }
-                    ForEach(orderedInsightTileIDs, id: \.self) { tileID in
+                    ForEach(visibleInsightTileIDs, id: \.self) { tileID in
                         VStack(spacing: 8) {
                             if isEditingInsightOrder {
                                 HStack(spacing: 12) {
@@ -227,15 +227,15 @@ struct InsightsView: View {
                                         .font(AteFont.body(12, .semibold))
                                         .foregroundStyle(Theme.mutedForeground)
                                     Spacer()
-                                    Button { moveInsightTile(tileID, offset: -1) } label: {
+                                    Button { moveVisibleInsightTile(tileID, offset: -1) } label: {
                                         Image(systemName: "arrow.up").frame(width: 36, height: 36)
                                     }
-                                    .disabled(orderedInsightTileIDs.first == tileID)
+                                    .disabled(visibleInsightTileIDs.first == tileID)
                                     .accessibilityLabel("Move \(insightTileTitle(tileID)) up")
-                                    Button { moveInsightTile(tileID, offset: 1) } label: {
+                                    Button { moveVisibleInsightTile(tileID, offset: 1) } label: {
                                         Image(systemName: "arrow.down").frame(width: 36, height: 36)
                                     }
-                                    .disabled(orderedInsightTileIDs.last == tileID)
+                                    .disabled(visibleInsightTileIDs.last == tileID)
                                     .accessibilityLabel("Move \(insightTileTitle(tileID)) down")
                                 }
                             }
@@ -275,6 +275,9 @@ struct InsightsView: View {
 
 
     private var orderedInsightTileIDs: [String] { InsightsTileOrder.resolve(savedInsightTileOrder) }
+    private var visibleInsightTileIDs: [String] {
+        orderedInsightTileIDs.filter { !["suggestedMeals", "dailyReflection"].contains($0) || model.context != nil }
+    }
 
     private func insightTileTitle(_ id: String) -> String {
         switch id {
@@ -288,11 +291,26 @@ struct InsightsView: View {
     }
 
     private func moveInsightTile(_ id: String, before target: String) {
-        savedInsightTileOrder = InsightsTileOrder.encode(InsightsTileOrder.moving(orderedInsightTileIDs, id: id, before: target))
+        var visible = visibleInsightTileIDs
+        guard id != target, let source = visible.firstIndex(of: id), visible.contains(target) else { return }
+        visible.remove(at: source)
+        guard let destination = visible.firstIndex(of: target) else { return }
+        visible.insert(id, at: destination)
+        persistVisibleOrder(visible)
     }
 
-    private func moveInsightTile(_ id: String, offset: Int) {
-        savedInsightTileOrder = InsightsTileOrder.encode(InsightsTileOrder.moving(orderedInsightTileIDs, id: id, offset: offset))
+    private func moveVisibleInsightTile(_ id: String, offset: Int) {
+        var visible = visibleInsightTileIDs
+        guard let source = visible.firstIndex(of: id), visible.indices.contains(source + offset) else { return }
+        visible.swapAt(source, source + offset)
+        persistVisibleOrder(visible)
+    }
+
+    private func persistVisibleOrder(_ visible: [String]) {
+        var full = orderedInsightTileIDs
+        let slots = full.indices.filter { visible.contains(full[$0]) }
+        for (slot, id) in zip(slots, visible) { full[slot] = id }
+        savedInsightTileOrder = InsightsTileOrder.encode(full)
     }
 
     @ViewBuilder private func insightTile(_ id: String) -> some View {

@@ -34,8 +34,9 @@ jobs:
       ATE_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'TierA' }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
       HAS_SIGNING: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && secrets.BUILD_PROVISION_PROFILE_BASE64 != '' && secrets.P12_PASSWORD != '' && secrets.TEAM_ID != '' }}
-      # Everyday main pushes build and smoke-check the release artifact only. Full validation is explicitly opt-in.
+      # Broad UI/backend validation remains opt-in. Dogfood qualification is mandatory on every main push.
       RUN_TESTS: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
+      RUN_DOGFOOD_QUALIFICATION: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.run_tests == true }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
@@ -106,8 +107,8 @@ jobs:
           xcodebuild build -project Ate.xcodeproj -scheme AteWatch -destination 'generic/platform=watchOS Simulator' \
             CODE_SIGNING_ALLOWED=NO -quiet 2>&1 | tail -40
 
-      - name: Run unit tests
-        if: env.RUN_TESTS == 'true'
+      - name: Run unit tests (required dogfood qualification)
+        if: env.RUN_DOGFOOD_QUALIFICATION == 'true'
         timeout-minutes: 20
         run: |
           set -o pipefail
@@ -116,6 +117,62 @@ jobs:
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
             -only-testing:AteTests CODE_SIGNING_ALLOWED=NO > test.log 2>&1 || (grep -v -i coredata test.log | grep -E "\.swift:[0-9]+: error|Test Case .* failed|XCTAssert|Fatal error|crashed" | head -100 || true; grep -v -i coredata test.log | tail -80 || true; exit 1)
           grep -E "Executed|TEST SUCCEEDED" test.log | tail -3
+
+      - name: Required dogfood critical flows (7 of 8; Settings/sync quarantined)
+        if: env.RUN_DOGFOOD_QUALIFICATION == 'true'
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          SIM_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=json.load(sys.stdin)["devices"];print(next(x["udid"] for k,v in d.items() if "iOS-26" in k for x in v if x["name"]=="iPhone 17"))')
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \\
+            -only-testing:AteUITests/KeyFlowsQATests/testQA1_AddFromURL \\
+            -only-testing:AteUITests/KeyFlowsQATests/testQA2_AddFromPhoto \\
+            -only-testing:AteUITests/KeyFlowsQATests/testQA3_GenerateAndEdit \\
+            -only-testing:AteUITests/KeyFlowsQATests/testQA4_Save \\
+            -only-testing:AteUITests/KeyFlowsQATests/testQA5_Share \\
+            -only-testing:AteUITests/KeyFlowsQATests/testQA6_OpenShared \\
+            -only-testing:AteUITests/KeyFlowsQATests/testQA8_Timers \\
+            -resultBundlePath build/DogfoodCriticalFlows.xcresult \\
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \\
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \\
+            CODE_SIGNING_ALLOWED=NO > dogfood-critical-flows.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" dogfood-critical-flows.log || true; tail -100 dogfood-critical-flows.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" dogfood-critical-flows.log | tail -50
+
+      - name: Diagnose quarantined Settings/account-sync flow (#76; never qualifies as passed)
+        id: sync_quarantine
+        if: env.RUN_DOGFOOD_QUALIFICATION == 'true'
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          SIM_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=json.load(sys.stdin)["devices"];print(next(x["udid"] for k,v in json.load(sys.stdin)["devices"].items() for x in v if x["name"].startswith("iPhone")))' 2>/dev/null || true)
+          if [ -z "$SIM_ID" ]; then
+            SIM_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=json.load(sys.stdin)["devices"];print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
+          fi
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \\
+            -only-testing:AteUITests/KeyFlowsQATests/testQA7_SyncAccount \\
+            -resultBundlePath build/DogfoodSyncQuarantine.xcresult \\
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \\
+            CODE_SIGNING_ALLOWED=NO > dogfood-sync-quarantine.log 2>&1 || { grep -n -B 6 -A 10 -E "error:|failed|XCTAssert|Testing failed" dogfood-sync-quarantine.log || true; tail -80 dogfood-sync-quarantine.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" dogfood-sync-quarantine.log | tail -20
+
+      - name: Report qualification and quarantine status
+        if: always() && env.RUN_DOGFOOD_QUALIFICATION == 'true'
+        env:
+          SYNC_QUARANTINE_OUTCOME: ${{ steps.sync_quarantine.outcome }}
+        run: |
+          {
+            echo '### Dogfood qualification status'
+            echo
+            echo '- Required: `AteTests` unit suite and seven non-quarantined critical flows.'
+            echo '- Settings/account-sync (`testQA7_SyncAccount`, issue #76): **QUARANTINED / NOT A QUALIFICATION PASS**.'
+            echo "- Diagnostic execution outcome: `${SYNC_QUARANTINE_OUTCOME:-not run}`. This outcome does not change the quarantine status."
+            echo '- The broad UI shards and backend E2E remain part of deliberate full validation, not this everyday gate.'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Focused recipe-generation regressions (#89)
         if: env.RUN_TESTS == 'true'
@@ -228,12 +285,16 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" navigation-header-regressions.log | tail -40
 
       - name: Upload Tracker release-gate diagnostics
-        if: always() && env.RUN_TESTS == 'true'
+        if: always() && env.RUN_DOGFOOD_QUALIFICATION == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: tracker-release-gate-diagnostics
           path: |
             tracker-release-gate.log
+            dogfood-critical-flows.log
+            dogfood-sync-quarantine.log
+            build/DogfoodCriticalFlows.xcresult
+            build/DogfoodSyncQuarantine.xcresult
             recipe-generation-regressions.log
             build/RecipeGenerationRegressions.xcresult
             navigation-header-regressions.log

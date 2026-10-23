@@ -6,8 +6,19 @@ struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @State private var importing = false
     @State private var confirmClear = false
-    @State private var share: ShareItems?
-    @State private var selectedLegalDocument: LegalDocument?
+    @State private var activeSheet: SettingsSheet?
+
+    private enum SettingsSheet: Identifiable {
+        case share(ShareItems)
+        case legal(LegalDocument)
+
+        var id: String {
+            switch self {
+            case .share(let items): "share-\(items.id.uuidString)"
+            case .legal(let document): "legal-\(document.id)"
+            }
+        }
+    }
     @State private var qa = BetaQA.shared
 
     var body: some View {
@@ -89,7 +100,7 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settings.diagnosticHistory")
                     }
                     Section("Tools") {
-                        Button { if let u = writeTemp("ate-recipes.json", store.exportJSON()) { share = ShareItems(items: [u]) } } label: {
+                        Button { if let u = writeTemp("ate-recipes.json", store.exportJSON()) { activeSheet = .share(ShareItems(items: [u])) } } label: {
                             Label("Export data", systemImage: "arrow.down.doc")
                         }.accessibilityIdentifier("settings.export")
                         Button { importing = true } label: {
@@ -124,22 +135,17 @@ struct SettingsView: View {
                         .accessibilityElement(children: .combine).accessibilityIdentifier("aiDiagnostics")
                         LiveActivityDiagnosticsView()
                         if AppConfig.privacyURL != nil {
-                            Button { selectedLegalDocument = .privacy } label: {
+                            Button { activeSheet = .legal(.privacy) } label: {
                                 Label("Privacy Policy", systemImage: "hand.raised")
                             }.accessibilityIdentifier("settingsPrivacy")
                         }
                         if AppConfig.termsURL != nil {
-                            Button { selectedLegalDocument = .terms } label: {
+                            Button { activeSheet = .legal(.terms) } label: {
                                 Label("Terms of Use", systemImage: "doc.text")
                             }.accessibilityIdentifier("settingsTerms")
                         }
                     } header: { Text("About") } footer: {
                         Text(Transparency.ai).accessibilityIdentifier("aiTransparency")
-                    }
-                    .sheet(item: $selectedLegalDocument) { document in
-                        if let url = document.url {
-                            LegalDocumentSheet(title: document.title, url: url)
-                        }
                     }
                     Section { Button {
                         UIPasteboard.general.string = AppConfig.versionLine
@@ -172,7 +178,16 @@ struct SettingsView: View {
         .confirmationDialog("Clear your whole library?", isPresented: $confirmClear, titleVisibility: .visible) {
             Button("Clear all", role: .destructive) { store.clearLibrary(); store.show("Library cleared") }
         }
-        .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .share(let items):
+                ActivityView(items: items.items).presentationDetents([.medium, .large])
+            case .legal(let document):
+                if let url = document.url {
+                    LegalDocumentSheet(title: document.title, url: url)
+                }
+            }
+        }
         .onChange(of: qa.openRequested, initial: true) { _, requested in
             guard requested else { return }
             qa.openRequested = false

@@ -63,7 +63,7 @@ final class DiagnosticHistoryTests: XCTestCase {
         ]
         for kind in kinds {
             let event = DiagnosticEvent(kind: kind)
-            XCTAssertFalse(event.title.isEmpty, "Missing title for \\(kind)")
+            XCTAssertFalse(event.title.isEmpty, "Missing title for \(kind)")
             let data = try! JSONEncoder().encode(event)
             let restored = try! JSONDecoder().decode(DiagnosticEvent.self, from: data)
             XCTAssertEqual(restored.kind, kind)
@@ -75,7 +75,7 @@ final class DiagnosticHistoryTests: XCTestCase {
         history.record(.recipeSaved)
         history.record(.cookingSessionCompleted)
 
-        XCTAssertEqual(history.entries.map(\\.kind), [.recipeSaved, .cookingSessionCompleted])
+        XCTAssertEqual(history.entries.map(\.kind), [.recipeSaved, .cookingSessionCompleted])
         let exported = history.exportReport(appVersion: "1", buildNumber: "1", osVersion: "Test")
         XCTAssertTrue(exported.contains("recipeSaved"))
         XCTAssertTrue(exported.contains("cookingSessionCompleted"))

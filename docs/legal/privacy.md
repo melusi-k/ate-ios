@@ -1,6 +1,6 @@
 # ate Privacy Policy
 
-_Last updated: 20 October 2026 · [Earlier versions](policy-history.html)_
+_Last updated: 23 October 2026 · [Earlier versions](policy-history.html)_
 
 ate is a recipe app made by **Melusi Khumalo**, an individual developer based in South Africa ("I", "me"). I'm the responsible party (POPIA) and controller (GDPR) for the personal information described here. This policy explains what ate stores, where it's stored, and the choices you have. Questions: **melusi.l.k@gmail.com**.
 

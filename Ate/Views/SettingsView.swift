@@ -49,7 +49,6 @@ struct SettingsView: View {
                     Section {
                         toggle("Sound", "Play a chime when a timer ends.", $store.timerPrefs.sound)
                         toggle("Vibration", "Buzz your device (where supported).", $store.timerPrefs.vibration)
-                        toggle("Step-by-step alerts", "Show a system notification for each step.", $store.timerPrefs.stepAlerts)
                         toggle("Quiet hours", "Mute the chime during this window — vibration and alerts still work.",
                                $store.timerPrefs.quietHours)
                         if store.timerPrefs.quietHours {
@@ -58,6 +57,7 @@ struct SettingsView: View {
                                 timePicker("Until", $store.timerPrefs.quietEnd)
                             }
                         }
+                        toggle("Step-by-step alerts", "Show a system notification for each step.", $store.timerPrefs.stepAlerts)
                     } header: { Text("Timer notifications") } footer: {
                         Text("Choose how ate lets you know a cook-mode step timer has finished.")
                     }
@@ -102,6 +102,17 @@ struct SettingsView: View {
                     Section {
                         Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))" + (AppConfig.channel.isEmpty ? "" : " · \(AppConfig.channel)"))
                             .accessibilityIdentifier("aboutVersion")
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Changes in this build").font(AteFont.body(12, .semibold))
+                            Text(BuildNotes.current)
+                                .font(AteFont.body(12))
+                                .foregroundStyle(Theme.mutedForeground)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("aboutBuildNotes")
+                        }
+                        .textSelection(.enabled)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("aboutBuildNotesSection")
                         VStack(alignment: .leading, spacing: 2) {
                             Text("AI diagnostics").font(AteFont.body(12, .semibold))
                             Text("Model: " + OnDeviceBackend.availabilityDescription)

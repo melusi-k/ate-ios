@@ -2,7 +2,7 @@ name: Ate
 options:
   bundleIdPrefix: com.melusik
   # Beta testing checklist is generated from docs/MVP_CHECKLIST.md on every `xcodegen generate` (CI included).
-  preGenCommand: python3 scripts/gen-beta-checklist.py
+  preGenCommand: python3 scripts/gen-beta-checklist.py && python3 scripts/gen-build-notes.py
   deploymentTarget:
     iOS: "18.0"
     watchOS: "11.0"
@@ -44,6 +44,8 @@ targets:
       - path: Ate
       - path: Shared
       - path: SharedWidgets
+    resources:
+      - path: Ate/Resources/BuildNotes.md
     dependencies:
       - target: AteWidgets
       - target: AteShare

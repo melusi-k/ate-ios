@@ -52,6 +52,90 @@ final class InsightsModel {
     }
 }
 
+
+/// Minimal, privacy-conscious snapshot used for recipe/progress insights. It contains no Health data.
+struct RecipeProgressInsightInput: Equatable {
+    var savedRecipeCount: Int
+    var cookedRecipeCount: Int
+    var cookingDayCount: Int
+    var mostCookedRecipe: String?
+    var recipeTitles: [String]
+
+    var hasEnoughData: Bool { savedRecipeCount >= 3 || cookedRecipeCount >= 2 || cookingDayCount >= 2 }
+
+    static func make(recipes: [RecipeCard], historyEvents: [String: Set<String>]) -> RecipeProgressInsightInput {
+        let ids = Set(recipes.map(\.id))
+        let events = historyEvents.filter { !$0.value.isEmpty }
+        var counts: [String: Int] = [:]
+        for recipeIDs in events.values {
+            for id in recipeIDs where ids.contains(id) { counts[id, default: 0] += 1 }
+        }
+        let titleByID = Dictionary(uniqueKeysWithValues: recipes.map { ($0.id, $0.title) })
+        let mostCookedID = counts.sorted { lhs, rhs in
+            lhs.value == rhs.value ? (titleByID[lhs.key] ?? "") < (titleByID[rhs.key] ?? "") : lhs.value > rhs.value
+        }.first?.key
+        return RecipeProgressInsightInput(
+            savedRecipeCount: recipes.count,
+            cookedRecipeCount: counts.keys.count,
+            cookingDayCount: events.filter { !$0.value.intersection(ids).isEmpty }.count,
+            mostCookedRecipe: mostCookedID.flatMap { titleByID[$0] },
+            recipeTitles: Array(recipes.map(\.title).filter { !$0.isEmpty }.prefix(5))
+        )
+    }
+}
+
+struct RecipeProgressInsight: Equatable {
+    var title: String
+    var detail: String
+    var evidence: String
+    var generated: Bool
+}
+
+enum RecipeProgressInsightService {
+    static func fallback(for input: RecipeProgressInsightInput) -> RecipeProgressInsight? {
+        guard input.hasEnoughData else { return nil }
+        if input.cookedRecipeCount > 0 {
+            let focus = input.mostCookedRecipe.map { " You could revisit \"\($0)\" or try another recipe from your collection." } ?? " Try another recipe from your collection."
+            return RecipeProgressInsight(
+                title: "Your cooking rhythm",
+                detail: "You've cooked \(input.cookedRecipeCount) saved recipe\(input.cookedRecipeCount == 1 ? "" : "s") across \(input.cookingDayCount) day\(input.cookingDayCount == 1 ? "" : "s").\(focus)",
+                evidence: "Based on your saved recipes and cooking history.",
+                generated: false
+            )
+        }
+        return RecipeProgressInsight(
+            title: "Your recipe collection is taking shape",
+            detail: "You have \(input.savedRecipeCount) saved recipes. As you cook and record a few, Ate can surface patterns and ideas to revisit.",
+            evidence: "Based on your saved recipe collection.",
+            generated: false
+        )
+    }
+
+    static func insight(for input: RecipeProgressInsightInput, useModel: Bool = OnDeviceBackend.isModelAvailable && !AppConfig.isUITesting) async -> RecipeProgressInsight? {
+        guard let fallback = fallback(for: input) else { return nil }
+        guard useModel else { return fallback }
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            let session = LanguageModelSession(instructions: """
+            You write one brief, warm, non-judgmental cooking-app reflection.
+            Use only facts explicitly supplied in the user's compact recipe summary.
+            Do not infer health, nutrition, skill, motivation, or emotions. No medical advice.
+            One or two short sentences, advisory only, no invented numbers or claims.
+            """)
+            let titles = input.recipeTitles.joined(separator: ", ")
+            let prompt = "Saved recipes: \(input.savedRecipeCount). Distinct saved recipes cooked: \(input.cookedRecipeCount). Cooking days: \(input.cookingDayCount). Most cooked saved recipe: \(input.mostCookedRecipe ?? "not recorded"). Recipe titles (up to five): \(titles). Write a reflection."
+            if let response = try? await session.respond(to: prompt) {
+                let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                if (12...360).contains(text.count) {
+                    return RecipeProgressInsight(title: fallback.title, detail: text, evidence: fallback.evidence, generated: true)
+                }
+            }
+        }
+        #endif
+        return fallback
+    }
+}
+
 /// More → Insights: "Your body today", "Suggested meals", "Reflect on your day", "Save to journal".
 struct InsightsView: View {
     var screenTitle: String = "Insights"
@@ -60,6 +144,8 @@ struct InsightsView: View {
     @State private var draft = ""
     @State private var prompt: JournalPrompt?
     @State private var entries: [JournalEntry] = []
+    @State private var recipeProgressInsight: RecipeProgressInsight?
+    @State private var recipeProgressLoading = false
     @State private var openRecipe: RecipeSheetTarget?
     @State private var pendingMoment: (title: String, date: Date?)?
     @AppStorage(JournalingSuggestionsGate.settingKey) private var journalingEnabled = false
@@ -70,6 +156,7 @@ struct InsightsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     CookingTrackerView()
+                    recipeProgressCard
                     bodyToday
                     if let c = model.context {
                         card("Suggested meals") {
@@ -127,12 +214,55 @@ struct InsightsView: View {
             if a == .denied || a == .unavailable || a == .entitlementMissing { BetaQA.shared.pass("A-HEALTH-05", note: "Graceful \(a) state shown") }
         }
         .refreshable { await model.refresh(recipes: store.recipes); prompt = model.context?.prompts.first }
-        .task { await model.loadIfNeeded(recipes: store.recipes); prompt = prompt ?? model.context?.prompts.first; entries = JournalStore.shared.entries() }
+        .task { await model.loadIfNeeded(recipes: store.recipes); prompt = prompt ?? model.context?.prompts.first; entries = JournalStore.shared.entries(); await refreshRecipeProgressInsight() }
         .onAppear { entries = JournalStore.shared.entries() }
         .alert("“ate” would like to access your Health data", isPresented: $model.mockPromptShown) {
             Button("Don't Allow", role: .cancel) {}
             Button("Allow") { Task { await model.connect(recipes: store.recipes); prompt = model.context?.prompts.first } }
         } message: { Text("Read: Sleep, Steps, Active Energy, Workouts") }
+    }
+
+
+    @ViewBuilder private var recipeProgressCard: some View {
+        card("Recipe & cooking insights") {
+            if recipeProgressLoading {
+                ProgressView("Looking at your recipe collection…")
+                    .accessibilityIdentifier("insights.progress.loading")
+            } else if let insight = recipeProgressInsight {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "sparkles").foregroundStyle(Theme.primary)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(insight.title).font(AteFont.body(15, .semibold))
+                        Text(insight.detail).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
+                        Text(insight.evidence + (insight.generated ? " · On-device suggestion" : " · Guided by your saved data"))
+                            .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("insights.progress.result")
+            } else {
+                ContentUnavailableView {
+                    Label("Your insights are taking shape", systemImage: "sparkles")
+                } description: {
+                    Text("Save at least three recipes, or cook and record a couple of recipes. Ate will use your collection and cooking history to suggest patterns and ideas to revisit.")
+                } actions: {
+                    Button("Explore recipes") { store.select(.library) }
+                        .buttonStyle(.ate(.secondary, full: true))
+                        .accessibilityIdentifier("insights.progress.exploreRecipes")
+                }
+                .accessibilityIdentifier("insights.progress.empty")
+            }
+            Button("Refresh insights") { Task { await refreshRecipeProgressInsight() } }
+                .font(AteFont.body(13, .semibold))
+                .accessibilityIdentifier("insights.progress.refresh")
+        }
+    }
+
+    @MainActor private func refreshRecipeProgressInsight() async {
+        recipeProgressLoading = true
+        defer { recipeProgressLoading = false }
+        let input = RecipeProgressInsightInput.make(recipes: store.recipes, historyEvents: CookingHistory.shared.events)
+        recipeProgressInsight = await RecipeProgressInsightService.insight(for: input)
     }
 
     @ViewBuilder private var bodyToday: some View {

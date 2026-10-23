@@ -108,8 +108,23 @@ final class HealthInsightTests: XCTestCase {
         let result = RecipeProgressInsightService.fallback(for: input)
         XCTAssertEqual(result?.title, "Your cooking rhythm")
         XCTAssertEqual(result?.generated, false)
-        XCTAssertTrue(result?.detail.contains("2 saved recipes") == true)
+        XCTAssertTrue(result?.detail.contains("2 distinct saved recipes") == true)
         XCTAssertTrue(result?.detail.contains("Lentil soup") == true)
+    }
+
+    func testRecipeProgressInputUsesProvidedHistoryForStreak() {
+        var soup = r("Lentil soup", ["lentils"])
+        soup.id = "soup"
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: Date())
+        let yesterday = try! XCTUnwrap(calendar.date(byAdding: .day, value: -1, to: today))
+        let historyEvents = [
+            CookingHistory.shared.key(for: yesterday): Set(["soup"]),
+            CookingHistory.shared.key(for: today): Set(["soup"])
+        ]
+
+        let input = RecipeProgressInsightInput.make(recipes: [soup], historyEvents: historyEvents)
+        XCTAssertEqual(input.currentStreak, 2)
     }
 
     func testRecipeProgressInputIgnoresHistoryForRecipesOutsideLibrary() {

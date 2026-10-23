@@ -400,24 +400,25 @@ struct InsightsView: View {
                 }
                 .accessibilityIdentifier("insights.progress.result")
                 VStack(alignment: .leading, spacing: 8) {
-                    Button { store.select(.tracker) } label: {
+                    Button {
+                        store.trackerPath = []
+                        store.select(.tracker)
+                    } label: {
                         insightActionLabel("Review your tracker", symbol: "calendar.badge.check")
                     }
                     .accessibilityIdentifier("insights.progress.action.tracker")
                     Button {
-                        prompt = model.context?.prompts.first
-                        draft = ""
+                        store.trackerPath = [.journal]
                         store.select(.tracker)
                     } label: {
-                        insightActionLabel("Reflect on your week", symbol: "book.closed")
+                        insightActionLabel("Reflect in your journal", symbol: "book.closed")
                     }
                     .accessibilityIdentifier("insights.progress.action.journal")
                     Button {
                         store.filter.clear()
-                        store.filter.collection = .cookedMeals
                         store.select(.library)
                     } label: {
-                        insightActionLabel("Find your next meal", symbol: "fork.knife")
+                        insightActionLabel("Browse recipes to try", symbol: "fork.knife")
                     }
                     .accessibilityIdentifier("insights.progress.action.cookedMeals")
                 }

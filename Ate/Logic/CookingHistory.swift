@@ -36,11 +36,19 @@ final class CookingHistory {
     }
 
     func streak(asOf date: Date = Date()) -> Int {
+        streak(from: events, asOf: date)
+    }
+
+    /// Computes a streak from an explicit history snapshot without reading or mutating stored user history.
+    func streak(from historyEvents: [String: Set<String>], asOf date: Date = Date()) -> Int {
         var cursor = calendar.startOfDay(for: date)
         // A streak may still be alive if today has not happened yet.
-        if !cooked(on: cursor), let previous = calendar.date(byAdding: .day, value: -1, to: cursor) { cursor = previous }
+        if historyEvents[key(for: cursor)]?.isEmpty != false,
+           let previous = calendar.date(byAdding: .day, value: -1, to: cursor) {
+            cursor = previous
+        }
         var count = 0
-        while cooked(on: cursor) {
+        while historyEvents[key(for: cursor)]?.isEmpty == false {
             count += 1
             guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
             cursor = previous

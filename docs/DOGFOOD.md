@@ -2,10 +2,10 @@
 
 ## Automatic flow
 
-Every push to `main` starts two independent workflows/jobs:
+Pull requests targeting `main` run qualification before merge. Every push to `main` starts two independent workflows:
 
 1. **Fast engineering IPA** — the existing Build IPA workflow builds, verifies, checksums and publishes an immutable `build-N` artifact plus the rolling `latest-build` release. This remains available even if qualification fails; it is not, by itself, a dogfood approval.
-2. **Dogfood qualification** — runs against the exact same Git commit SHA and requires:
+2. **Dogfood qualification** — `.github/workflows/dogfood-qualification.yml` runs against the exact PR or main commit SHA and requires:
    - the complete `AteTests` unit-test suite;
    - seven stable critical flows: add from URL, add from photo, generate/edit, save, share, open shared recipe, and timers.
    - a retained diagnostics run of `testQA7_SyncAccount`, tracked by [issue #76](https://github.com/melusi-k/ate-ios/issues/76). That test is explicitly **QUARANTINED / NOT A QUALIFICATION PASS** while the Done-button selector issue is unresolved. Its result is recorded but does not change qualification.

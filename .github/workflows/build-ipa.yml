@@ -608,6 +608,7 @@ jobs:
           VERSION="$(echo "$BASE" | cut -d. -f1-2).${GITHUB_RUN_NUMBER}"
           sed -i '' -E "s/^( *MARKETING_VERSION: ).*/\1\"$VERSION\"/; s/^( *CURRENT_PROJECT_VERSION: ).*/\1\"${GITHUB_RUN_NUMBER}\"/" project.yml
           xcodegen generate
+          mkdir -p build
           xcodebuild -version
           echo "Qualification commit: $GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
 

@@ -213,7 +213,7 @@ struct InsightsView: View {
         .onChange(of: model.access) { _, a in
             if a == .denied || a == .unavailable || a == .entitlementMissing { BetaQA.shared.pass("A-HEALTH-05", note: "Graceful \(a) state shown") }
         }
-        .refreshable { await model.refresh(recipes: store.recipes); prompt = model.context?.prompts.first }
+        .refreshable { await model.refresh(recipes: store.recipes); prompt = model.context?.prompts.first; await refreshRecipeProgressInsight() }
         .task { await model.loadIfNeeded(recipes: store.recipes); prompt = prompt ?? model.context?.prompts.first; entries = JournalStore.shared.entries(); await refreshRecipeProgressInsight() }
         .onAppear { entries = JournalStore.shared.entries() }
         .alert("“ate” would like to access your Health data", isPresented: $model.mockPromptShown) {

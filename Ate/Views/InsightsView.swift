@@ -94,6 +94,7 @@ struct RecipeProgressInsightInput: Equatable {
     var cookingDayCount: Int
     var mostCookedRecipe: String?
     var recipeTitles: [String]
+    var duplicateTitleGroups: [[String]] = []
 
     var hasEnoughData: Bool { savedRecipeCount >= 3 || cookedRecipeCount >= 2 || cookingDayCount >= 2 }
 
@@ -113,7 +114,10 @@ struct RecipeProgressInsightInput: Equatable {
             cookedRecipeCount: counts.keys.count,
             cookingDayCount: events.filter { !$0.value.intersection(ids).isEmpty }.count,
             mostCookedRecipe: mostCookedID.flatMap { titleByID[$0] },
-            recipeTitles: Array(recipes.map(\.title).filter { !$0.isEmpty }.prefix(5))
+            recipeTitles: Array(recipes.map(\.title).filter { !$0.isEmpty }.prefix(5)),
+            duplicateTitleGroups: Dictionary(grouping: recipes.filter { !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
+                $0.title.trimmingCharacters(in: .whitespacesAndNewlines).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil).lowercased()
+            }.values.filter { $0.count > 1 }.map { $0.map(\.title) }.sorted { ($0.first ?? "") < ($1.first ?? "") }
         )
     }
 }
@@ -132,7 +136,7 @@ enum RecipeProgressInsightService {
             let titles = duplicateGroup.joined(separator: "” and “")
             return RecipeProgressInsight(
                 title: "Possible overlapping recipe entries",
-                detail: "You have saved recipes with the same title: “\\(titles)”. They may be separate versions, so review them before making changes.",
+                detail: "You have saved recipes with the same title: “\(titles)”. They may be separate versions, so review them before making changes.",
                 evidence: "Based on titles in your saved recipe collection.",
                 generated: false
             )
@@ -215,7 +219,7 @@ struct InsightsView: View {
                         Text("Drag a tile to move it, or use the arrows to change its position.")
                             .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                     }
-                    ForEach(orderedInsightTileIDs, id: \\.self) { tileID in
+                    ForEach(orderedInsightTileIDs, id: \.self) { tileID in
                         VStack(spacing: 8) {
                             if isEditingInsightOrder {
                                 HStack(spacing: 12) {
@@ -227,12 +231,12 @@ struct InsightsView: View {
                                         Image(systemName: "arrow.up").frame(width: 36, height: 36)
                                     }
                                     .disabled(orderedInsightTileIDs.first == tileID)
-                                    .accessibilityLabel("Move \\(insightTileTitle(tileID)) up")
+                                    .accessibilityLabel("Move \(insightTileTitle(tileID)) up")
                                     Button { moveInsightTile(tileID, offset: 1) } label: {
                                         Image(systemName: "arrow.down").frame(width: 36, height: 36)
                                     }
                                     .disabled(orderedInsightTileIDs.last == tileID)
-                                    .accessibilityLabel("Move \\(insightTileTitle(tileID)) down")
+                                    .accessibilityLabel("Move \(insightTileTitle(tileID)) down")
                                 }
                             }
                             insightTile(tileID)
@@ -243,7 +247,7 @@ struct InsightsView: View {
                             moveInsightTile(source, before: tileID)
                             return true
                         }
-                        .accessibilityIdentifier("insights.tile.\\(tileID)")
+                        .accessibilityIdentifier("insights.tile.\(tileID)")
                     }
                 }
                 .foregroundStyle(Theme.foreground)

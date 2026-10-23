@@ -128,6 +128,30 @@ final class HealthInsightTests: XCTestCase {
         XCTAssertEqual(result?.title, "Your recipe collection is taking shape")
     }
 
+    func testInsightsTileOrderPreservesKnownOrderAndAddsNewTiles() {
+        XCTAssertEqual(InsightsTileOrder.resolve("journal,bodyToday,journal,unknown"),
+                       ["journal", "bodyToday", "tracker", "recipeProgress", "suggestedMeals", "dailyReflection"])
+    }
+
+    func testInsightsTileOrderMovesTilesAndKeepsAllTiles() {
+        let initial = InsightsTileOrder.defaults
+        let moved = InsightsTileOrder.moving(initial, id: "journal", before: "tracker")
+        XCTAssertEqual(moved.first, "journal")
+        XCTAssertEqual(Set(moved), Set(initial))
+        XCTAssertEqual(InsightsTileOrder.moving(initial, id: "tracker", offset: -1), initial)
+    }
+
+    func testRecipeProgressInputFindsDuplicateTitlesConservatively() {
+        var first = r("Lentil Soup", ["lentils"]); first.id = "one"
+        var second = r(" lentil soup ", ["lentils", "tomato"]); second.id = "two"
+        var third = r("Soup with lentils", ["lentils"]); third.id = "three"
+        let input = RecipeProgressInsightInput.make(recipes: [first, second, third], historyEvents: [:])
+        XCTAssertEqual(input.duplicateTitleGroups.count, 1)
+        XCTAssertEqual(input.duplicateTitleGroups.first?.count, 2)
+        XCTAssertEqual(RecipeProgressInsightService.fallback(for: input)?.title, "Possible overlapping recipe entries")
+        XCTAssertTrue(RecipeProgressInsightService.fallback(for: input)?.detail.contains("review them") == true)
+    }
+
     // MARK: JournalingMomentMapper (pure)
     func testMapperWorkoutBecomesRecoveryEntry() {
         let d = DateInterval(start: Date(timeIntervalSince1970: 1_791_000_000), duration: 1800)

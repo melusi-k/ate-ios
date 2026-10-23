@@ -57,12 +57,44 @@ final class InsightsModel {
 
 
 /// Minimal, privacy-conscious snapshot used for recipe/progress insights. It contains no Health data.
+enum InsightsTileOrder {
+    static let defaults = ["tracker", "recipeProgress", "bodyToday", "suggestedMeals", "dailyReflection", "journal"]
+
+    static func resolve(_ stored: String) -> [String] {
+        let known = Set(defaults)
+        var seen = Set<String>()
+        let saved = stored.split(separator: ",").map(String.init).filter { known.contains($0) && seen.insert($0).inserted }
+        return saved + defaults.filter { seen.insert($0).inserted }
+    }
+
+    static func encode(_ ids: [String]) -> String { ids.joined(separator: ",") }
+
+    static func moving(_ ids: [String], id: String, before target: String) -> [String] {
+        guard id != target, let sourceIndex = ids.firstIndex(of: id), ids.contains(target) else { return ids }
+        var result = ids
+        result.remove(at: sourceIndex)
+        guard let newTargetIndex = result.firstIndex(of: target) else { return ids }
+        result.insert(id, at: newTargetIndex)
+        return result
+    }
+
+    static func moving(_ ids: [String], id: String, offset: Int) -> [String] {
+        guard let sourceIndex = ids.firstIndex(of: id) else { return ids }
+        let targetIndex = sourceIndex + offset
+        guard ids.indices.contains(targetIndex) else { return ids }
+        var result = ids
+        result.swapAt(sourceIndex, targetIndex)
+        return result
+    }
+}
+
 struct RecipeProgressInsightInput: Equatable {
     var savedRecipeCount: Int
     var cookedRecipeCount: Int
     var cookingDayCount: Int
     var mostCookedRecipe: String?
     var recipeTitles: [String]
+    var duplicateTitleGroups: [[String]] = []
 
     var hasEnoughData: Bool { savedRecipeCount >= 3 || cookedRecipeCount >= 2 || cookingDayCount >= 2 }
 
@@ -82,7 +114,10 @@ struct RecipeProgressInsightInput: Equatable {
             cookedRecipeCount: counts.keys.count,
             cookingDayCount: events.filter { !$0.value.intersection(ids).isEmpty }.count,
             mostCookedRecipe: mostCookedID.flatMap { titleByID[$0] },
-            recipeTitles: Array(recipes.map(\.title).filter { !$0.isEmpty }.prefix(5))
+            recipeTitles: Array(recipes.map(\.title).filter { !$0.isEmpty }.prefix(5)),
+            duplicateTitleGroups: Dictionary(grouping: recipes.filter { !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
+                $0.title.trimmingCharacters(in: .whitespacesAndNewlines).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil).lowercased()
+            }.values.filter { $0.count > 1 }.map { $0.map(\.title) }.sorted { ($0.first ?? "") < ($1.first ?? "") }
         )
     }
 }
@@ -96,6 +131,15 @@ struct RecipeProgressInsight: Equatable {
 
 enum RecipeProgressInsightService {
     static func fallback(for input: RecipeProgressInsightInput) -> RecipeProgressInsight? {
+        if let duplicateGroup = input.duplicateTitleGroups.first {
+            let titles = duplicateGroup.joined(separator: "” and “")
+            return RecipeProgressInsight(
+                title: "Possible overlapping recipe entries",
+                detail: "You have saved recipes with the same title: “\(titles)”. They may be separate versions, so review them before making changes.",
+                evidence: "Based on titles in your saved recipe collection.",
+                generated: false
+            )
+        }
         guard input.hasEnoughData else { return nil }
         if input.cookedRecipeCount > 0 {
             let focus = input.mostCookedRecipe.map { " You could revisit \"\($0)\" or try another recipe from your collection." } ?? " Try another recipe from your collection."
@@ -116,6 +160,8 @@ enum RecipeProgressInsightService {
 
     static func insight(for input: RecipeProgressInsightInput, useModel: Bool = OnDeviceBackend.isModelAvailable && !AppConfig.isUITesting) async -> RecipeProgressInsight? {
         guard let fallback = fallback(for: input) else { return nil }
+        // Duplicate candidates are deterministic and need a precise review action; do not paraphrase them with a model.
+        if !input.duplicateTitleGroups.isEmpty { return fallback }
         guard useModel else { return fallback }
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
@@ -149,6 +195,8 @@ struct InsightsView: View {
     @State private var entries: [JournalEntry] = []
     @State private var recipeProgressInsight: RecipeProgressInsight?
     @State private var recipeProgressLoading = false
+    @State private var isEditingInsightOrder = false
+    @AppStorage("insights.tileOrder") private var savedInsightTileOrder = ""
     @State private var openRecipe: RecipeSheetTarget?
     @State private var pendingMoment: (title: String, date: Date?)?
     @AppStorage(JournalingSuggestionsGate.settingKey) private var journalingEnabled = false
@@ -158,49 +206,49 @@ struct InsightsView: View {
             Theme.background.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    CookingTrackerView()
-                    recipeProgressCard
-                    bodyToday
-                    if let c = model.context {
-                        card("Suggested meals") {
-                            Text(c.insight.state.mealFocus).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
-                            if c.suggestions.isEmpty {
-                                Text("Save a few recipes and Ate will pick the ones that fit your day.").font(AteFont.body(14))
-                                    .accessibilityIdentifier("insights.noSuggestions")
-                            }
-                            ForEach(c.suggestions) { s in
-                                Button { openRecipe = RecipeSheetTarget(id: s.recipeID) } label: {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(s.title).font(AteFont.body(15, .semibold))
-                                            Text(s.why).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-                                        }
-                                        Spacer(); Image(systemName: "chevron.right").foregroundStyle(Theme.mutedForeground)
-                                    }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
-                                }.buttonStyle(.plain).accessibilityIdentifier("insights.suggestion")
-                            }
+                    HStack {
+                        Text("Your insights").font(AteFont.display(18))
+                        Spacer()
+                        Button(isEditingInsightOrder ? "Done" : "Edit") {
+                            withAnimation(.snappy) { isEditingInsightOrder.toggle() }
                         }
-                        card("Reflect on your day") {
-                            ForEach(c.prompts) { p in
-                                Button { prompt = p } label: {
-                                    HStack(alignment: .top) {
-                                        Image(systemName: prompt == p ? "largecircle.fill.circle" : "circle").foregroundStyle(Theme.primary)
-                                        Text(p.text).font(AteFont.body(15)).multilineTextAlignment(.leading)
-                                    }
-                                }.buttonStyle(.plain).accessibilityIdentifier("insights.prompt")
-                            }
-                            TextField("Write a few lines…", text: $draft, axis: .vertical).lineLimit(3...8)
-                                .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
-                                .accessibilityIdentifier("insights.journalText")
-                            Button("Save to journal") { save(c) }
-                                .buttonStyle(.ate(.primary, full: true))
-                                .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                                .accessibilityIdentifier("insights.save")
-                            Text("Saved only on this iPhone. Ate can't write to Apple's Journal app.")
-                                .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                        }
+                        .font(AteFont.body(14, .semibold))
+                        .accessibilityIdentifier("insights.order.edit")
                     }
-                    journalCard
+                    if isEditingInsightOrder {
+                        Text("Drag a tile to move it, or use the arrows to change its position.")
+                            .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                    }
+                    ForEach(visibleInsightTileIDs, id: \.self) { tileID in
+                        VStack(spacing: 8) {
+                            if isEditingInsightOrder {
+                                HStack(spacing: 12) {
+                                    Label("Reorder tile", systemImage: "line.3.horizontal")
+                                        .font(AteFont.body(12, .semibold))
+                                        .foregroundStyle(Theme.mutedForeground)
+                                    Spacer()
+                                    Button { moveVisibleInsightTile(tileID, offset: -1) } label: {
+                                        Image(systemName: "arrow.up").frame(width: 36, height: 36)
+                                    }
+                                    .disabled(visibleInsightTileIDs.first == tileID)
+                                    .accessibilityLabel("Move \(insightTileTitle(tileID)) up")
+                                    Button { moveVisibleInsightTile(tileID, offset: 1) } label: {
+                                        Image(systemName: "arrow.down").frame(width: 36, height: 36)
+                                    }
+                                    .disabled(visibleInsightTileIDs.last == tileID)
+                                    .accessibilityLabel("Move \(insightTileTitle(tileID)) down")
+                                }
+                            }
+                            insightTile(tileID)
+                        }
+                        .draggable(isEditingInsightOrder ? tileID : "")
+                        .dropDestination(for: String.self) { items, _ in
+                            guard isEditingInsightOrder, let source = items.first, source != tileID, !source.isEmpty else { return false }
+                            moveInsightTile(source, before: tileID)
+                            return true
+                        }
+                        .accessibilityIdentifier("insights.tile.\(tileID)")
+                    }
                 }
                 .foregroundStyle(Theme.foreground)
                 .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
@@ -225,6 +273,115 @@ struct InsightsView: View {
         } message: { Text("Read: Sleep, Steps, Active Energy, Workouts") }
     }
 
+
+    private var orderedInsightTileIDs: [String] { InsightsTileOrder.resolve(savedInsightTileOrder) }
+    private var visibleInsightTileIDs: [String] {
+        orderedInsightTileIDs.filter { !["suggestedMeals", "dailyReflection"].contains($0) || model.context != nil }
+    }
+
+    private func insightTileTitle(_ id: String) -> String {
+        switch id {
+        case "tracker": return "Cooking tracker"
+        case "recipeProgress": return "Recipe & cooking insights"
+        case "bodyToday": return "Your body today"
+        case "suggestedMeals": return "Suggested meals"
+        case "dailyReflection": return "Reflect on your day"
+        default: return "Your Ate journal"
+        }
+    }
+
+    private func moveInsightTile(_ id: String, before target: String) {
+        var visible = visibleInsightTileIDs
+        guard id != target, let source = visible.firstIndex(of: id), visible.contains(target) else { return }
+        visible.remove(at: source)
+        guard let destination = visible.firstIndex(of: target) else { return }
+        visible.insert(id, at: destination)
+        persistVisibleOrder(visible)
+    }
+
+    private func moveVisibleInsightTile(_ id: String, offset: Int) {
+        var visible = visibleInsightTileIDs
+        guard let source = visible.firstIndex(of: id), visible.indices.contains(source + offset) else { return }
+        visible.swapAt(source, source + offset)
+        persistVisibleOrder(visible)
+    }
+
+    private func persistVisibleOrder(_ visible: [String]) {
+        var full = orderedInsightTileIDs
+        let slots = full.indices.filter { visible.contains(full[$0]) }
+        for (slot, id) in zip(slots, visible) { full[slot] = id }
+        savedInsightTileOrder = InsightsTileOrder.encode(full)
+    }
+
+    @ViewBuilder private func insightTile(_ id: String) -> some View {
+        switch id {
+        case "tracker":
+            CookingTrackerView()
+        case "recipeProgress":
+            recipeProgressCard
+        case "bodyToday":
+            bodyToday
+        case "suggestedMeals":
+            suggestedMealsCard
+        case "dailyReflection":
+            dailyReflectionCard
+        case "journal":
+            journalCard
+        default:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder private var suggestedMealsCard: some View {
+        if let c = model.context {
+            card("Suggested meals") {
+                Text(c.insight.state.mealFocus).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
+                if c.suggestions.isEmpty {
+                    Text("Save a few recipes and Ate will pick the ones that fit your day.")
+                        .font(AteFont.body(14)).accessibilityIdentifier("insights.noSuggestions")
+                }
+                ForEach(c.suggestions) { s in
+                    Button { openRecipe = RecipeSheetTarget(id: s.recipeID) } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(s.title).font(AteFont.body(15, .semibold))
+                                Text(s.why).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                            }
+                            Spacer(); Image(systemName: "chevron.right").foregroundStyle(Theme.mutedForeground)
+                        }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+                    }.buttonStyle(.plain).accessibilityIdentifier("insights.suggestion")
+                }
+            }
+        } else {
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder private var dailyReflectionCard: some View {
+        if let c = model.context {
+            card("Reflect on your day") {
+                ForEach(c.prompts) { p in
+                    Button { prompt = p } label: {
+                        HStack(alignment: .top) {
+                            Image(systemName: prompt == p ? "largecircle.fill.circle" : "circle").foregroundStyle(Theme.primary)
+                            Text(p.text).font(AteFont.body(15)).multilineTextAlignment(.leading)
+                        }
+                    }.buttonStyle(.plain).accessibilityIdentifier("insights.prompt")
+                }
+                TextField("Write a few lines…", text: $draft, axis: .vertical).lineLimit(3...8)
+                    .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
+                    .accessibilityIdentifier("insights.journalText")
+                Button("Save to journal") { save(c) }
+                    .buttonStyle(.ate(.primary, full: true))
+                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityIdentifier("insights.save")
+                Text("Saved only on this iPhone. Ate can't write to Apple's Journal app.")
+                    .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+            }
+        } else {
+            EmptyView()
+        }
+    }
 
     @ViewBuilder private var recipeProgressCard: some View {
         card("Recipe & cooking insights") {
@@ -254,6 +411,11 @@ struct InsightsView: View {
                         .accessibilityIdentifier("insights.progress.exploreRecipes")
                 }
                 .accessibilityIdentifier("insights.progress.empty")
+            }
+            if recipeProgressInsight?.title == "Possible overlapping recipe entries" {
+                Button("Review recipes") { store.select(.library) }
+                    .font(AteFont.body(13, .semibold))
+                    .accessibilityIdentifier("insights.progress.reviewRecipes")
             }
             Button("Refresh insights") { Task { await refreshRecipeProgressInsight() } }
                 .font(AteFont.body(13, .semibold))

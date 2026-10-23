@@ -137,7 +137,7 @@ struct RecipeProgressInsightInput: Equatable {
             duplicateTitleGroups: duplicateGroups,
             recordedMealsThisWeek: weekMeals,
             firstTimeRecipesThisWeek: firstTimeIDs.count,
-            currentStreak: CookingHistory.shared.streak()
+            currentStreak: CookingHistory.shared.streak(from: events)
         )
     }
 }

@@ -1,5 +1,8 @@
 import SwiftUI
 import Charts
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
 
 @MainActor @Observable
 final class InsightsModel {

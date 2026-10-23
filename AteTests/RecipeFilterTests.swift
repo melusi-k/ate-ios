@@ -98,8 +98,8 @@ final class RecipeFilterTests: XCTestCase {
         XCTAssertEqual(f.apply([cookedB, cookedA, cookedC]).map(\.id), ["b", "c", "a"], "input order must not affect recently cooked results")
     }
     func testCookedMealsUsesRecordedHistoryRatherThanCookModeTimestamp() {
-        let cookedID = "qa-cooked-\\(UUID().uuidString)"
-        let merelyOpenedID = "qa-opened-\\(UUID().uuidString)"
+        let cookedID = "qa-cooked-\(UUID().uuidString)"
+        let merelyOpenedID = "qa-opened-\(UUID().uuidString)"
         var cooked = RecipeCard(id: cookedID, title: "Recorded meal")
         cooked.lastCookedAt = nil
         var merelyOpened = RecipeCard(id: merelyOpenedID, title: "Opened only")
@@ -107,7 +107,7 @@ final class RecipeFilterTests: XCTestCase {
         CookingHistory.shared.record(recipeID: cookedID, date: Date())
         var filter = RecipeFilter()
         filter.collection = .cookedMeals
-        XCTAssertEqual(filter.apply([merelyOpened, cooked]).map(\\.id), [cookedID])
+        XCTAssertEqual(filter.apply([merelyOpened, cooked]).map(\.id), [cookedID])
     }
 
     func testQueryCombinesWithFilter() {

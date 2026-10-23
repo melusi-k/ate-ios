@@ -84,6 +84,50 @@ final class HealthInsightTests: XCTestCase {
         XCTAssertTrue(Set(ids).isDisjoint(with: BetaChecklist.tierA.map(\.id)))
         XCTAssertTrue(BetaChecklist.tierC.allSatisfy { !$0.how.isEmpty }, "Every Tier C check needs an acceptance criterion")
     }
+
+    // MARK: Recipe/progress insights (pure and deterministic; generated wording is never asserted)
+    func testRecipeProgressInsightRequiresEnoughSavedOrCookingData() {
+        let empty = RecipeProgressInsightInput(savedRecipeCount: 0, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: [])
+        let oneRecipe = RecipeProgressInsightInput(savedRecipeCount: 1, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: ["Soup"])
+        XCTAssertFalse(empty.hasEnoughData)
+        XCTAssertFalse(oneRecipe.hasEnoughData)
+        XCTAssertNil(RecipeProgressInsightService.fallback(for: empty))
+        XCTAssertNil(RecipeProgressInsightService.fallback(for: oneRecipe))
+    }
+
+    func testRecipeProgressInsightCollectionFallback() {
+        let input = RecipeProgressInsightInput(savedRecipeCount: 3, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: ["Soup", "Salad", "Oats"])
+        let result = RecipeProgressInsightService.fallback(for: input)
+        XCTAssertEqual(result?.title, "Your recipe collection is taking shape")
+        XCTAssertEqual(result?.generated, false)
+        XCTAssertTrue(result?.evidence.contains("saved recipe collection") == true)
+    }
+
+    func testRecipeProgressInsightUsesRecordedCookingHistory() {
+        let input = RecipeProgressInsightInput(savedRecipeCount: 4, cookedRecipeCount: 2, cookingDayCount: 3, mostCookedRecipe: "Lentil soup", recipeTitles: ["Soup", "Salad"])
+        let result = RecipeProgressInsightService.fallback(for: input)
+        XCTAssertEqual(result?.title, "Your cooking rhythm")
+        XCTAssertEqual(result?.generated, false)
+        XCTAssertTrue(result?.detail.contains("2 saved recipes") == true)
+        XCTAssertTrue(result?.detail.contains("Lentil soup") == true)
+    }
+
+    func testRecipeProgressInputIgnoresHistoryForRecipesOutsideLibrary() {
+        var soup = r("Lentil soup", ["lentils"])
+        soup.id = "soup"
+        let input = RecipeProgressInsightInput.make(recipes: [soup], historyEvents: ["2026-10-20": ["unknown"]])
+        XCTAssertEqual(input.cookedRecipeCount, 0)
+        XCTAssertEqual(input.cookingDayCount, 0)
+        XCTAssertNil(RecipeProgressInsightService.fallback(for: input))
+    }
+
+    func testRecipeProgressServiceFallsBackWhenModelIsDisabled() async {
+        let input = RecipeProgressInsightInput(savedRecipeCount: 3, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: ["Soup", "Salad", "Oats"])
+        let result = await RecipeProgressInsightService.insight(for: input, useModel: false)
+        XCTAssertEqual(result?.generated, false)
+        XCTAssertEqual(result?.title, "Your recipe collection is taking shape")
+    }
+
     // MARK: JournalingMomentMapper (pure)
     func testMapperWorkoutBecomesRecoveryEntry() {
         let d = DateInterval(start: Date(timeIntervalSince1970: 1_791_000_000), duration: 1800)

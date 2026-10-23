@@ -70,12 +70,11 @@ enum InsightsTileOrder {
     static func encode(_ ids: [String]) -> String { ids.joined(separator: ",") }
 
     static func moving(_ ids: [String], id: String, before target: String) -> [String] {
-        guard id != target, let sourceIndex = ids.firstIndex(of: id), let targetIndex = ids.firstIndex(of: target) else { return ids }
+        guard id != target, let sourceIndex = ids.firstIndex(of: id), ids.contains(target) else { return ids }
         var result = ids
         result.remove(at: sourceIndex)
         guard let newTargetIndex = result.firstIndex(of: target) else { return ids }
         result.insert(id, at: newTargetIndex)
-        _ = targetIndex
         return result
     }
 
@@ -157,6 +156,8 @@ enum RecipeProgressInsightService {
 
     static func insight(for input: RecipeProgressInsightInput, useModel: Bool = OnDeviceBackend.isModelAvailable && !AppConfig.isUITesting) async -> RecipeProgressInsight? {
         guard let fallback = fallback(for: input) else { return nil }
+        // Duplicate candidates are deterministic and need a precise review action; do not paraphrase them with a model.
+        if !input.duplicateTitleGroups.isEmpty { return fallback }
         guard useModel else { return fallback }
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
@@ -389,12 +390,11 @@ struct InsightsView: View {
                 }
                 .accessibilityIdentifier("insights.progress.empty")
             }
-            if !recipeProgressInsight?.title.contains("overlapping") == true {
-                EmptyView()
+            if recipeProgressInsight?.title == "Possible overlapping recipe entries" {
+                Button("Review recipes") { store.select(.library) }
+                    .font(AteFont.body(13, .semibold))
+                    .accessibilityIdentifier("insights.progress.reviewRecipes")
             }
-            Button("Review recipes") { store.select(.library) }
-                .font(AteFont.body(13, .semibold))
-                .accessibilityIdentifier("insights.progress.reviewRecipes")
             Button("Refresh insights") { Task { await refreshRecipeProgressInsight() } }
                 .font(AteFont.body(13, .semibold))
                 .accessibilityIdentifier("insights.progress.refresh")

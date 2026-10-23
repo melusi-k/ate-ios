@@ -1,6 +1,8 @@
-# QA pass on key flows (beta-promotion gate)
+# QA pass on key flows (dogfood qualification and beta-promotion gate)
 
-The `KeyFlowsQATests` suite runs when a `Build IPA` workflow is manually dispatched with `run_tests=true`, or when the pushed commit message contains `[run tests]`. It is **not run on every ordinary `main` push**: those builds still run the IPA smoke checks and publish `latest-build`. For a validated beta promotion, the unit tests, all eight key flows, every UI-test shard, and backend E2E must pass; only then does CI publish `latest-beta`. The flow → pass/fail table goes into the job summary and release notes (`scripts/qa-summary.py`). The UI-test launch flag enables beta diagnostics for automation; a production build must not show the Beta banner or Settings › Beta testing entry. Validate channel gating separately with `TierA` and `Production`/empty channel builds.
+Every push to `main` runs the independent `dogfood-qualification` job alongside the fast IPA build. Qualification requires the complete `AteTests` unit suite and seven stable critical flows (`testQA1`–`testQA6` and `testQA8`). The Settings/account-sync flow (`testQA7_SyncAccount`, issue #76) is still executed diagnostically, but is explicitly **QUARANTINED / NOT A QUALIFICATION PASS** until its Done-button selector is repaired; its failure cannot be counted as passing coverage. Qualification failures do not cancel or withdraw the separate fast `latest-build` IPA, which remains an engineering artifact and is never by itself a validated dogfood candidate.
+
+The broader `KeyFlowsQATests` suite, all UI-test shards, focused extended regressions and backend E2E remain available through `run_tests=true` / `[run tests]` and the deliberate pre-production workflow. A validated beta/TestFlight candidate must pass its required qualification and the separately defined full release gates before promotion. The flow → pass/fail table goes into the job summary and release notes (`scripts/qa-summary.py`) where that suite is run. The UI-test launch flag enables beta diagnostics for automation; a production build must not show the Beta banner or Settings › Beta testing entry. Validate channel gating separately with `TierA` and `Production`/empty channel builds.
 
 | # | Flow | Automated test | What it checks |
 |---|---|---|---|
@@ -65,7 +67,7 @@ The Insights tab is the combined daily/monthly hub; both its tab label and nativ
 
 ### Everyday pull-request gate
 
-The everyday PR gate is intentionally short: validate documentation/acceptance-ID consistency, build the iOS app for a simulator, and run only the high-value smoke checks for account sync, Cooking Tracker, and Cook Mode completion/history. The main-branch IPA workflow builds and verifies the release artifact on every push, but unit/UI/backend test suites are opt-in. A green everyday gate is evidence for those checks only; it is not a claim that the exhaustive test suite has passed.
+The everyday PR gate is intentionally short: validate documentation/acceptance-ID consistency, build the iOS app for a simulator, and run only the high-value smoke checks for account sync, Cooking Tracker, and Cook Mode completion/history. The main-branch IPA workflow builds and verifies the release artifact on every push. A separate `dogfood-qualification` job runs the required unit suite and seven stable critical flows on every main push; the known Settings/account-sync quarantine is diagnostic only and is never called passed. Broad UI shards and backend E2E remain opt-in. A green everyday gate is evidence for the named required checks only; it is not a claim that the exhaustive test suite has passed.
 
 ### Deliberate pre-production gate
 

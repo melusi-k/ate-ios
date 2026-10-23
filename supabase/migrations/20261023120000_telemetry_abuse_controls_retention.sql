@@ -22,7 +22,7 @@ set search_path = public, pg_temp
 as $$
 declare
   allowed boolean := false;
-  current_time timestamptz := clock_timestamp();
+  v_now timestamptz := clock_timestamp();
 begin
   if p_key_hash is null or p_key_hash !~ '^[0-9a-f]{64}$' then
     return false;
@@ -31,37 +31,37 @@ begin
   insert into public.app_telemetry_rate_limits (
     key_hash, hour_started_at, hourly_count, day_started_at, daily_count, last_seen_at
   ) values (
-    p_key_hash, date_trunc('hour', current_time), 1,
-    date_trunc('day', current_time), 1, current_time
+    p_key_hash, date_trunc('hour', v_now), 1,
+    date_trunc('day', v_now), 1, v_now
   )
   on conflict (key_hash) do update set
     hour_started_at = case
-      when public.app_telemetry_rate_limits.hour_started_at <= current_time - interval '1 hour'
-      then date_trunc('hour', current_time)
+      when public.app_telemetry_rate_limits.hour_started_at <= v_now - interval '1 hour'
+      then date_trunc('hour', v_now)
       else public.app_telemetry_rate_limits.hour_started_at
     end,
     hourly_count = case
-      when public.app_telemetry_rate_limits.hour_started_at <= current_time - interval '1 hour'
+      when public.app_telemetry_rate_limits.hour_started_at <= v_now - interval '1 hour'
       then 1 else public.app_telemetry_rate_limits.hourly_count + 1
     end,
     day_started_at = case
-      when public.app_telemetry_rate_limits.day_started_at::date < current_time::date
-      then date_trunc('day', current_time)
+      when public.app_telemetry_rate_limits.day_started_at::date < v_now::date
+      then date_trunc('day', v_now)
       else public.app_telemetry_rate_limits.day_started_at
     end,
     daily_count = case
-      when public.app_telemetry_rate_limits.day_started_at::date < current_time::date
+      when public.app_telemetry_rate_limits.day_started_at::date < v_now::date
       then 1 else public.app_telemetry_rate_limits.daily_count + 1
     end,
-    last_seen_at = current_time
+    last_seen_at = v_now
   where
     (case
-      when public.app_telemetry_rate_limits.hour_started_at <= current_time - interval '1 hour'
+      when public.app_telemetry_rate_limits.hour_started_at <= v_now - interval '1 hour'
       then 0 else public.app_telemetry_rate_limits.hourly_count
     end) < 300
     and
     (case
-      when public.app_telemetry_rate_limits.day_started_at::date < current_time::date
+      when public.app_telemetry_rate_limits.day_started_at::date < v_now::date
       then 0 else public.app_telemetry_rate_limits.daily_count
     end) < 2000
   returning true into allowed;

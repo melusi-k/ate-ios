@@ -85,6 +85,17 @@ Deno.serve(async (req) => {
   const key = req.headers.get("apikey") ?? "";
   if (!key || !publicKeys.includes(key)) return json({ error: "Unauthorized" }, 401);
 
+  const hashedAddress = await rateLimitKey(req);
+  if (!hashedAddress) return json({ error: "Rate limit identity unavailable" }, 503);
+  const { data: allowed, error: rateError } = await admin.rpc("consume_telemetry_rate_limit", {
+    p_key_hash: hashedAddress,
+  });
+  if (rateError) {
+    console.error("telemetry rate limit unavailable");
+    return json({ error: "Telemetry unavailable" }, 503);
+  }
+  if (allowed !== true) return json({ error: "Rate limit exceeded" }, 429);
+
   let rawBody: string | null;
   try {
     rawBody = await readBoundedBody(req);
@@ -122,17 +133,6 @@ Deno.serve(async (req) => {
       occurred_at: new Date(event.timestamp).toISOString(),
     });
   }
-
-  const hashedAddress = await rateLimitKey(req);
-  if (!hashedAddress) return json({ error: "Rate limit identity unavailable" }, 503);
-  const { data: allowed, error: rateError } = await admin.rpc("consume_telemetry_rate_limit", {
-    p_key_hash: hashedAddress,
-  });
-  if (rateError) {
-    console.error("telemetry rate limit unavailable");
-    return json({ error: "Telemetry unavailable" }, 503);
-  }
-  if (allowed !== true) return json({ error: "Rate limit exceeded" }, 429);
 
   const { error } = await admin.from("app_telemetry_events").insert(rows);
   if (error) {

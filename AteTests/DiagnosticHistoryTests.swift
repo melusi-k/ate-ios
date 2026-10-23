@@ -55,4 +55,33 @@ final class DiagnosticHistoryTests: XCTestCase {
         XCTAssertTrue(history.entries.isEmpty)
         XCTAssertNil(defaults.data(forKey: "events"))
     }
+    func testProductEventCategoriesHaveStableLabelsAndCodableNames() {
+        let kinds: [DiagnosticEvent.Kind] = [
+            .recipeImportSucceeded, .recipeImportFailed, .recipeSaved,
+            .cookingSessionCompleted, .insightViewed, .insightActionSelected,
+            .syncSucceeded, .syncFailed
+        ]
+        for kind in kinds {
+            let event = DiagnosticEvent(kind: kind)
+            XCTAssertFalse(event.title.isEmpty, "Missing title for \\(kind)")
+            let data = try! JSONEncoder().encode(event)
+            let restored = try! JSONDecoder().decode(DiagnosticEvent.self, from: data)
+            XCTAssertEqual(restored.kind, kind)
+        }
+    }
+
+    func testProductEventsRemainCategoryOnlyAndClearable() {
+        let history = DiagnosticHistory(defaults: defaults, key: "events")
+        history.record(.recipeSaved)
+        history.record(.cookingSessionCompleted)
+
+        XCTAssertEqual(history.entries.map(\\.kind), [.recipeSaved, .cookingSessionCompleted])
+        let exported = history.exportReport(appVersion: "1", buildNumber: "1", osVersion: "Test")
+        XCTAssertTrue(exported.contains("recipeSaved"))
+        XCTAssertTrue(exported.contains("cookingSessionCompleted"))
+        XCTAssertFalse(exported.contains("recipe title"))
+        history.clear()
+        XCTAssertTrue(history.entries.isEmpty)
+    }
+
 }

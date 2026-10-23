@@ -53,6 +53,9 @@ jobs:
           xcodebuild -version
           echo "Qualification commit: $GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
 
+      - name: CI telemetry unit tests
+        run: python3 -m unittest discover -s scripts/tests -v
+
       - name: Required unit tests
         id: unit_tests
         timeout-minutes: 20

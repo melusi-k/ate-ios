@@ -131,7 +131,6 @@ struct RecipeProgressInsight: Equatable {
 
 enum RecipeProgressInsightService {
     static func fallback(for input: RecipeProgressInsightInput) -> RecipeProgressInsight? {
-        guard input.hasEnoughData else { return nil }
         if let duplicateGroup = input.duplicateTitleGroups.first {
             let titles = duplicateGroup.joined(separator: "” and “")
             return RecipeProgressInsight(
@@ -141,6 +140,7 @@ enum RecipeProgressInsightService {
                 generated: false
             )
         }
+        guard input.hasEnoughData else { return nil }
         if input.cookedRecipeCount > 0 {
             let focus = input.mostCookedRecipe.map { " You could revisit \"\($0)\" or try another recipe from your collection." } ?? " Try another recipe from your collection."
             return RecipeProgressInsight(
@@ -241,9 +241,9 @@ struct InsightsView: View {
                             }
                             insightTile(tileID)
                         }
-                        .draggable(tileID)
+                        .draggable(isEditingInsightOrder ? tileID : "")
                         .dropDestination(for: String.self) { items, _ in
-                            guard let source = items.first, source != tileID else { return false }
+                            guard isEditingInsightOrder, let source = items.first, source != tileID, !source.isEmpty else { return false }
                             moveInsightTile(source, before: tileID)
                             return true
                         }

@@ -398,8 +398,30 @@ struct InsightsView: View {
                             .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
                     }
                 }
-                .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("insights.progress.result")
+                VStack(alignment: .leading, spacing: 8) {
+                    Button { store.select(.tracker) } label: {
+                        insightActionLabel("Review your tracker", symbol: "calendar.badge.check")
+                    }
+                    .accessibilityIdentifier("insights.progress.action.tracker")
+                    Button {
+                        prompt = model.context?.prompts.first
+                        draft = ""
+                        store.select(.tracker)
+                    } label: {
+                        insightActionLabel("Reflect on your week", symbol: "book.closed")
+                    }
+                    .accessibilityIdentifier("insights.progress.action.journal")
+                    Button {
+                        store.filter.clear()
+                        store.filter.collection = .cookedMeals
+                        store.select(.library)
+                    } label: {
+                        insightActionLabel("Find your next meal", symbol: "fork.knife")
+                    }
+                    .accessibilityIdentifier("insights.progress.action.cookedMeals")
+                }
+                .padding(.top, 4)
             } else {
                 ContentUnavailableView {
                     Label("Your insights are taking shape", systemImage: "sparkles")
@@ -421,6 +443,27 @@ struct InsightsView: View {
                 .font(AteFont.body(13, .semibold))
                 .accessibilityIdentifier("insights.progress.refresh")
         }
+    }
+
+    private func insightActionLabel(_ title: String, symbol: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .font(AteFont.body(15, .semibold))
+                .foregroundStyle(Theme.primary)
+                .frame(width: 24)
+            Text(title)
+                .font(AteFont.body(14, .semibold))
+                .foregroundStyle(Theme.foreground)
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(AteFont.body(11, .semibold))
+                .foregroundStyle(Theme.mutedForeground)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
+        .contentShape(Rectangle())
     }
 
     @MainActor private func refreshRecipeProgressInsight() async {

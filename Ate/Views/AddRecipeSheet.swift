@@ -255,6 +255,7 @@ struct AddRecipeSheet: View {
                 guard !saving, let d = draft else { return }
                 saving = true                       // P0: one save per draft; double taps are ignored
                 DraftStore.shared.clear()           // the stored draft must not be restored (and saved again) later
+                DiagnosticHistory.shared.record(.recipeSaved)
                 BetaQA.shared.pass("A-EDIT-01", note: (didEdit ? "Edited and saved" : "Reviewed and saved") + " “\(d.title)”")
                 onSave(RecipeLogic.normalize(d))
             }

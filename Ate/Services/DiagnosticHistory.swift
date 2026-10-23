@@ -90,6 +90,7 @@ final class DiagnosticHistory {
             cachedEntries.removeFirst(cachedEntries.count - Self.maximumEntries)
         }
         persistLocked()
+        TelemetryClient.shared.record(kind, at: date)
     }
 
     func clear() {

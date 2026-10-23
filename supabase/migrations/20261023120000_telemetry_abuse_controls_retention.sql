@@ -78,12 +78,12 @@ create extension if not exists pg_cron with schema pg_catalog;
 select cron.schedule(
   'ate-telemetry-retention-daily',
   '17 3 * * *',
-  $$delete from public.app_telemetry_events where received_at < now() - interval '30 days';$$
+  $$delete from public.app_telemetry_events where received_at < now() - interval '29 days';$$
 );
 
 -- Discard stale hashed rate-limit keys; this table contains no raw client addresses.
 select cron.schedule(
   'ate-telemetry-rate-limit-cleanup-daily',
   '27 3 * * *',
-  $$delete from public.app_telemetry_rate_limits where last_seen_at < now() - interval '2 days';$$
+  $$delete from public.app_telemetry_rate_limits where last_seen_at < now() - interval '1 day';$$
 );

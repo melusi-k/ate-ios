@@ -2,7 +2,7 @@
 
 Native SwiftUI (iOS 18+, iPhone; Apple Intelligence features need iOS 26 on supported hardware) rebuild of the **ate** AI recipe library. Full spec: [docs/PRD.md](docs/PRD.md).
 
-**Beta / launch gate:** [docs/MVP_CHECKLIST.md](docs/MVP_CHECKLIST.md) (tiered A/B/C, score in [docs/MVP_SCORE.md](docs/MVP_SCORE.md), test matrix [docs/QA_MATRIX.md](docs/QA_MATRIX.md)) · **Support FAQ:** [docs/SUPPORT.md](docs/SUPPORT.md) · **QA gate:** [docs/QA.md](docs/QA.md) — every main push runs required unit tests and seven stable critical flows in a separate dogfood-qualification job; the known Settings/account-sync quarantine is explicitly not passed. The fast `latest-build` IPA remains available independently of qualification, while broader UI shards/backend E2E stay opt-in and are required for deliberate full validation. · Testers: [docs/BETA.md](docs/BETA.md).
+**Beta / launch gate:** [docs/MVP_CHECKLIST.md](docs/MVP_CHECKLIST.md) (tiered A/B/C, score in [docs/MVP_SCORE.md](docs/MVP_SCORE.md), test matrix [docs/QA_MATRIX.md](docs/QA_MATRIX.md)) · **Support FAQ:** [docs/SUPPORT.md](docs/SUPPORT.md) · **Dogfood distribution:** [docs/DOGFOOD.md](docs/DOGFOOD.md) · **QA gate:** [docs/QA.md](docs/QA.md) — every main push runs required unit tests and seven stable critical flows in a separate dogfood-qualification job; the known Settings/account-sync quarantine is explicitly not passed. The fast `latest-build` IPA remains available independently of qualification, while broader UI shards/backend E2E stay opt-in and are required for deliberate full validation. · Testers: [docs/BETA.md](docs/BETA.md).
 
 ## Features
 

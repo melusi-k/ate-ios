@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: build-ipa-${{ github.ref }}
@@ -795,3 +796,28 @@ jobs:
             --verify-tag --title "Validated beta — build ${BUILD_NUMBER} @ ${GITHUB_SHA::7}" \
             --notes-file beta-notes.md
           echo "Published validated beta candidate from build $BUILD_NUMBER."
+
+  ci-telemetry:
+    name: Export CI timing telemetry
+    if: always()
+    needs: [release, ui-suite, backend-e2e, publish-beta]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Collect workflow and step timings
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci-telemetry.py
+      - name: Upload CI telemetry report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-telemetry-${{ github.run_number }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ate-ci-telemetry.json
+          if-no-files-found: warn
+          retention-days: 30

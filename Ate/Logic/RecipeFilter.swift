@@ -116,6 +116,7 @@ struct RecipeFilter: Codable, Equatable {
         case .quick?: guard let t = r.timeMinutes, t > 0, t < 30 else { return false }
         case .favourites?: if !r.favorite { return false }
         case .recentlyCooked?: if r.lastCookedAt == nil { return false }
+        case .cookedMeals?: if !CookingHistory.shared.events.values.contains(where: { $0.contains(r.id) }) { return false }
         case .ingredient(let t)?: if IngredientTags.main(for: r) != t && !IngredientTags.tags(for: r).contains(t) { return false }
         case .recentlyAdded?, nil: break
         }
@@ -131,6 +132,13 @@ struct RecipeFilter: Codable, Equatable {
                 if $0.createdAt != $1.createdAt { return $0.createdAt > $1.createdAt }
                 return $0.id < $1.id
             }.prefix(20))
+        case .cookedMeals?:
+            return base.sorted { lhs, rhs in
+                let a = CookingHistory.shared.events.filter { $0.value.contains(lhs.id) }.keys.compactMap { CookingHistory.shared.date(for: $0) }.max() ?? .distantPast
+                let b = CookingHistory.shared.events.filter { $0.value.contains(rhs.id) }.keys.compactMap { CookingHistory.shared.date(for: $0) }.max() ?? .distantPast
+                if a != b { return a > b }
+                return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+            }
         case .recentlyCooked?:
             return base.sorted {
                 let a = $0.lastCookedAt ?? 0, b = $1.lastCookedAt ?? 0

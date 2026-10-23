@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: dogfood-qualification-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   dogfood-qualification:
@@ -52,12 +52,52 @@ jobs:
           xcodebuild -version
           echo "Qualification commit: $GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
 
+      - name: Select simulator present in Xcode destinations
+        id: select_simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > /tmp/available-simulators.json
+          xcodebuild -project Ate.xcodeproj -scheme "$SCHEME" -showdestinations > /tmp/xcode-destinations.txt 2>&1 || {
+            cat /tmp/xcode-destinations.txt
+            exit 1
+          }
+          SIM_ID=$(python3 - <<'PY'
+          import json, re, sys
+          with open('/tmp/available-simulators.json') as f:
+              devices = json.load(f)['devices']
+          with open('/tmp/xcode-destinations.txt') as f:
+              destinations = f.read()
+          xcode_ids = set(re.findall(r'id:([A-Fa-f0-9-]{36})', destinations))
+          candidates = []
+          for runtime, entries in devices.items():
+              if 'iOS' not in runtime:
+                  continue
+              for device in entries:
+                  if device.get('isAvailable') and device.get('udid') in xcode_ids:
+                      score = (runtime.startswith('iOS-26'), device.get('name') == 'iPhone 17', device.get('name', '').startswith('iPhone'))
+                      candidates.append((score, device['udid'], runtime, device.get('name', 'unknown')))
+          if not candidates:
+              print('ERROR: no available iOS simulator is shared by simctl and xcodebuild destinations.', file=sys.stderr)
+              print('Available runtimes/devices:', devices, file=sys.stderr)
+              print('Xcode destinations:', destinations, file=sys.stderr)
+              raise SystemExit(1)
+          candidates.sort(reverse=True)
+          _, udid, runtime, name = candidates[0]
+          print(f'Selected {name} ({udid}) on {runtime}', file=sys.stderr)
+          print(udid)
+          PY
+          )
+          echo "id=$SIM_ID" >> "$GITHUB_OUTPUT"
+          echo "Selected simulator: $SIM_ID"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+
       - name: Required unit tests
         id: unit_tests
         timeout-minutes: 20
         run: |
           set -o pipefail
-          SIM_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=json.load(sys.stdin)["devices"];print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
           xcrun simctl boot "$SIM_ID" || true
           xcrun simctl bootstatus "$SIM_ID" -b
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
@@ -70,12 +110,7 @@ jobs:
         timeout-minutes: 30
         run: |
           set -o pipefail
-          SIM_ID=$(xcrun simctl list devices available -j | python3 -c '
-          import json,sys
-          d=json.load(sys.stdin)["devices"]
-          c=[(k,x) for k,v in d.items() if "iOS-26" in k for x in v if x["name"]=="iPhone 17"]
-          c=c or [(k,x) for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")]
-          c.sort(key=lambda t:t[0]); print(c[-1][1]["udid"])')
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
           xcrun simctl boot "$SIM_ID" || true
           xcrun simctl bootstatus "$SIM_ID" -b
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
@@ -98,7 +133,7 @@ jobs:
         timeout-minutes: 15
         run: |
           set -o pipefail
-          SIM_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=json.load(sys.stdin)["devices"];print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
           xcrun simctl boot "$SIM_ID" || true
           xcrun simctl bootstatus "$SIM_ID" -b
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
@@ -119,11 +154,11 @@ jobs:
             echo '### Dogfood qualification status'
             echo
             echo "- Commit: \`$GITHUB_SHA\`."
-            echo "- Unit tests: `${UNIT_OUTCOME:-unknown}`."
-            echo "- Seven critical flows: `${CRITICAL_FLOWS_OUTCOME:-unknown}`."
+            printf '%s\n' "- Unit tests: ${UNIT_OUTCOME:-unknown}."
+            printf '%s\n' "- Seven critical flows: ${CRITICAL_FLOWS_OUTCOME:-unknown}."
             echo '- Required: `AteTests` unit suite and seven non-quarantined critical flows.'
             echo '- Settings/account-sync (`testQA7_SyncAccount`, issue #76): **QUARANTINED / NOT A QUALIFICATION PASS**.'
-            echo "- Diagnostic execution outcome: `${SYNC_QUARANTINE_OUTCOME:-not run}`; this never changes the quarantine status."
+            printf '%s\n' "- Diagnostic execution outcome: ${SYNC_QUARANTINE_OUTCOME:-not run}; this never changes the quarantine status."
             echo '- Full UI shards and backend E2E remain part of deliberate pre-production validation.'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 

@@ -14,8 +14,10 @@ struct SettingsView: View {
 
         var id: String {
             switch self {
-            case .share(let items): "share-\(items.id.uuidString)"
-            case .legal(let document): "legal-\(document.id)"
+            case .share(let items):
+                return "share-\(items.id.uuidString)"
+            case .legal(let document):
+                return "legal-\(document.id)"
             }
         }
     }

@@ -125,3 +125,41 @@ final class RecipeFilterTests: XCTestCase {
         XCTAssertFalse(r.favorite); XCTAssertNil(r.lastCookedAt); XCTAssertNil(r.origin)
     }
 }
+
+
+final class RecipeProgressInsightServiceTests: XCTestCase {
+    func testHumanCentredInsightUsesOnlyRecordedSignals() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 5,
+            cookedRecipeCount: 3,
+            cookingDayCount: 4,
+            mostCookedRecipe: "Vegetable curry",
+            recipeTitles: ["Vegetable curry"],
+            recordedMealsThisWeek: 4,
+            firstTimeRecipesThisWeek: 2,
+            currentStreak: 6
+        )
+        let insight = RecipeProgressInsightService.fallback(for: input)
+        XCTAssertEqual(insight?.title, "You're building a steady rhythm")
+        XCTAssertTrue(insight?.detail.contains("4 cooked meals") == true)
+        XCTAssertTrue(insight?.detail.contains("2 saved recipes") == true)
+        XCTAssertTrue(insight?.detail.contains("6 days") == true)
+        XCTAssertFalse(insight?.detail.localizedCaseInsensitiveContains("motivated") == true)
+        XCTAssertFalse(insight?.detail.localizedCaseInsensitiveContains("healthier") == true)
+    }
+
+    func testInsightDoesNotClaimWeeklyPatternWithoutEnoughSignals() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 3,
+            cookedRecipeCount: 2,
+            cookingDayCount: 2,
+            mostCookedRecipe: nil,
+            recipeTitles: [],
+            recordedMealsThisWeek: 1,
+            firstTimeRecipesThisWeek: 0,
+            currentStreak: 0
+        )
+        let insight = RecipeProgressInsightService.fallback(for: input)
+        XCTAssertEqual(insight?.title, "Your cooking rhythm")
+    }
+}

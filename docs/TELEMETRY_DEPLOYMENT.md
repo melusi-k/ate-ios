@@ -47,3 +47,19 @@ The deployment is covered by the telemetry contract and privacy/subprocessor dis
 - [`docs/legal/privacy.md`](legal/privacy.md)
 - [`docs/legal/subprocessors.md`](legal/subprocessors.md)
 - [`docs/legal/cookies.md`](legal/cookies.md)
+
+
+## Review reconciliation — 24 October 2026
+
+The follow-up review of [issue #169's deployment evidence](https://github.com/melusi-k/ate-ios/issues/169#issuecomment-6379507669) is complete. The deployment/receiver rollout remains **completed** and this issue remains closed.
+
+The review cross-checked the recorded live acceptance results against `supabase/functions/telemetry/index.ts`, both migrations, and `docs/TELEMETRY.md`. The implementation includes public-key allowlisting, a streaming request-size cap, a 20-event batch cap, server-side allowlisted row construction, atomic per-client rate limits (300 requests/hour and 2,000/day), fail-closed handling when the platform client-address header is absent, service-role-only database access, and scheduled cleanup.
+
+The original deployment evidence explicitly records the live results listed above. To keep evidence precise, the following additional runtime cases were **not recorded in the deployment comment** and must not be inferred as having passed solely from code inspection:
+
+- A supplied but invalid API key returning `401`.
+- Exhausting the hourly/daily quota and observing `429`.
+- Missing platform client-address metadata returning `503`.
+- An end-to-end retention execution/deletion observation (the scheduled jobs are recorded as active).
+
+These are follow-up verification opportunities, not evidence of a known deployment defect. They do not block closing the deployment task because the deployment and receiver acceptance checks recorded in issue #169 passed; retain the distinction between configured safeguards and separately observed runtime outcomes. If these cases are exercised later, append their timestamped outcomes here.

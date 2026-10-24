@@ -341,11 +341,29 @@ struct AddRecipeSheet: View {
         }.jpegData(compressionQuality: 0.9)
     }
 
+    /// A high-contrast, multi-line recipe screenshot so UI automation exercises Vision OCR
+    /// with a stable fixture instead of a tiny, borderline-text image.
     static func sampleImage() -> Data? {
-        UIGraphicsImageRenderer(size: CGSize(width: 300, height: 200)).image { ctx in
-            UIColor.white.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 300, height: 200))
-            ("Pancakes\n200 g flour\n2 eggs\nCook 2 minutes" as NSString)
-                .draw(at: CGPoint(x: 16, y: 16), withAttributes: [.font: UIFont.systemFont(ofSize: 22)])
+        let size = CGSize(width: 800, height: 600)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+
+            let title: [NSAttributedString.Key: Any] = [
+                .font: UIFont.boldSystemFont(ofSize: 48),
+                .foregroundColor: UIColor.black
+            ]
+            let body: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 40, weight: .medium),
+                .foregroundColor: UIColor.black
+            ]
+            ("Pancakes" as NSString).draw(at: CGPoint(x: 56, y: 36), withAttributes: title)
+            ("Ingredients" as NSString).draw(at: CGPoint(x: 56, y: 140), withAttributes: body)
+            ("200 g flour" as NSString).draw(at: CGPoint(x: 56, y: 245), withAttributes: body)
+            ("2 eggs" as NSString).draw(at: CGPoint(x: 56, y: 350), withAttributes: body)
+            ("Cook for 2 minutes" as NSString).draw(at: CGPoint(x: 56, y: 455), withAttributes: body)
         }.pngData()
     }
 

@@ -112,18 +112,25 @@ final class HealthInsightTests: XCTestCase {
         XCTAssertTrue(result?.detail.contains("Lentil soup") == true)
     }
 
-    func testRecipeProgressInputUsesProvidedHistoryForStreak() {
+    func testRecipeProgressInputUsesProvidedHistoryForStreak() throws {
         var soup = r("Lentil soup", ["lentils"])
         soup.id = "soup"
-        let calendar = Calendar.autoupdatingCurrent
-        let today = calendar.startOfDay(for: Date())
-        let yesterday = try! XCTUnwrap(calendar.date(byAdding: .day, value: -1, to: today))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let now = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 10, day: 24, hour: 12)))
+        let yesterday = try XCTUnwrap(calendar.date(byAdding: .day, value: -1, to: now))
+        let suite = "progress-insight-tests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let history = CookingHistory(calendar: calendar, defaults: defaults)
         let historyEvents = [
-            CookingHistory.shared.key(for: yesterday): Set(["soup"]),
-            CookingHistory.shared.key(for: today): Set(["soup"])
+            history.key(for: yesterday): Set(["soup"]),
+            history.key(for: now): Set(["soup"])
         ]
 
-        let input = RecipeProgressInsightInput.make(recipes: [soup], historyEvents: historyEvents)
+        let input = RecipeProgressInsightInput.make(
+            recipes: [soup], historyEvents: historyEvents, calendar: calendar, now: now, history: history
+        )
         XCTAssertEqual(input.currentStreak, 2)
     }
 

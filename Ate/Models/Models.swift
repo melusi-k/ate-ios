@@ -162,13 +162,14 @@ enum RecipeOrigin: String, Codable, Hashable, CaseIterable { case link, photo, p
 
 /// Sidebar collections; selecting one applies the matching library filter.
 enum RecipeCollection: Hashable, Codable {
-    case quick, favourites, recentlyAdded, recentlyCooked, ingredient(String)
+    case quick, favourites, recentlyAdded, recentlyCooked, cookedMeals, ingredient(String)
     var title: String {
         switch self {
         case .quick: return "Quick (≤30 min)"
         case .favourites: return "Favourites"
         case .recentlyAdded: return "Recently added"
         case .recentlyCooked: return "Recently cooked"
+        case .cookedMeals: return "Cooked Meals"
         case .ingredient(let t): return t.prefix(1).uppercased() + t.dropFirst()
         }
     }
@@ -178,6 +179,7 @@ enum RecipeCollection: Hashable, Codable {
         case .favourites: return "star"
         case .recentlyAdded: return "clock.arrow.circlepath"
         case .recentlyCooked: return "flame"
+        case .cookedMeals: return "fork.knife"
         case .ingredient: return "leaf"
         }
     }

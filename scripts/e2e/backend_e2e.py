@@ -258,7 +258,20 @@ def t_share(ctx, shots):
         not_found = b.new_page(user_agent=IPHONE_UA, viewport={"width": 390, "height": 844})
         not_found.goto(SHARE_PAGE + unknown, wait_until="networkidle")
         not_found_body = not_found.locator("body").inner_text(timeout=20000).lower()
-        assert any(s in not_found_body for s in ("not found", "could not find", "couldn't find", "doesn't exist")), f"hosted unknown-slug page lacks explicit not-found state: {not_found_body[:500]!r}"
+        # The hosted page uses an explicit unavailable state rather than necessarily
+        # saying "not found". Require both a known not-found heading and recovery guidance
+        # so a blank page or generic shell text cannot satisfy this acceptance check.
+        has_not_found_state = any(marker in not_found_body for marker in (
+            "not found", "could not find", "couldn't find", "doesn't exist",
+            "this recipe isn't on the table anymore",
+        ))
+        has_recovery_guidance = any(marker in not_found_body for marker in (
+            "link may have expired", "been removed", "been mistyped",
+        ))
+        assert has_not_found_state and has_recovery_guidance, (
+            "hosted unknown-slug page lacks the explicit unavailable state and guidance: "
+            f"{not_found_body[:500]!r}"
+        )
         not_found.close()
 
         # Fault-inject only the public lookup function. The browser must show a retryable

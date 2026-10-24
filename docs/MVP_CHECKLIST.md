@@ -1,5 +1,37 @@
 # Ate MVP acceptance checklist — unified product backlog
 
+## Current progress snapshot — 2026-10-24
+
+This is a **status index**, not a substitute for each acceptance row's evidence. Status reflects the latest tracked evidence available in the repository; older device passes do not prove the current build passes. Use 🟢 Completed only where implementation and required acceptance evidence are recorded, 🟡 Partial where implementation exists but acceptance/device evidence remains, 🔴 Outstanding/Failing where a gate fails or has not been delivered, and ⚪ Not verified where evidence is missing.
+
+| Feature / delivery area | Current status | Completed / evidenced | Still outstanding |
+|---|---|---|---|
+| Recipe creation from URL and core recipe CRUD | 🟡 Partial | Core URL import, save/edit/delete flows have historical acceptance evidence | Revalidate on current exact SHA; social/photo/prompt paths need supported-device and fallback checks |
+| Photo-based recipe grounding and generation recovery | 🟡 Partial | Implementation delivered in #143/#144 | Fresh exact-head validation and real-device quality checks |
+| Auth and account lifecycle | 🟡 Partial | Existing device evidence recorded for sign-up, sign-in, reset, magic link, sign-out and deletion | Revalidate current build; improve built-in email delivery before public launch |
+| Local library and sync | 🟡 Partial | Basic offline/local operation and sync paths have historical evidence | Sync-failure stability is failing in the latest readiness snapshot; verify conflict and recovery behavior |
+| Shopping list | 🟡 Partial | Feature area and acceptance inventory are tracked | Reconcile all A-SHOP criteria with current code and exact-SHA evidence |
+| Library discovery and organization | 🟡 Partial | Search/organization requirements and shared-shell work are tracked | Verify filter composition, collection/sort behavior, state preservation and accessibility |
+| Cooking Tracker / Cook Mode | 🟡 Partial | Cooking insights and Cooked Meals collection delivered | Tracker semantics, history/streak/time-zone correctness and remaining device evidence in #31/#60 |
+| Timers, widgets, Live Activities and intents | 🟡 Partial | Some implementation and historical device evidence exists | Current device matrix, widget/App Group, Live Activity, shortcut and background lifecycle acceptance |
+| Apple Health and local journal | 🟡 Partial | Insights/journal implementation and related acceptance work merged; #66 remains open | Journal UI test PR review/merge, physical-device Health/entitlement and Shortcuts evidence (#67) |
+| Settings and in-app legal sheets | 🟡 Partial | Settings cleanup and native Terms/Privacy sheets delivered | Reconcile all settings/data-management acceptance rows and revalidate current build |
+| Accessibility and responsive/native UX | 🟡 Partial | Shared header/tab work has been delivered | Full UI shard issues #156–#158 and device/accessibility checks remain open |
+| Sharing, deep links and production backend | 🔴 Outstanding / failing | Recipe publishing has recorded evidence; share-stack fixes are in progress | Latest readiness snapshot flags retrieval, deep-link/URL and outage fallback failures; production host/Universal Links still need verification |
+| Privacy-safe telemetry | 🟡 Implementation present; rollout pending | Client/receiver/migration proposed in open PR #166 | Merge gates, Supabase deployment, RLS/rejection/rate-limit/retention verification in #169 |
+| CI and release readiness | 🟡 Partial | Latest Release Readiness workflow wrapper completed successfully; release automation and blocking gates improved | Latest generated readiness evidence: 44/59 verified, 6 failing, 9 open; unit, QA 8-flow, UI and E2E were skipped in that snapshot |
+| Physical-device / pilot / public-launch signoff | 🔴 Outstanding | Some historical real-device evidence exists for core flows | Fresh candidate evidence, remaining device matrix, backend/security signoff and human release decision |
+
+### Immediate outstanding release gates
+
+1. Fix and re-verify shared-recipe retrieval, deep-link/share URL behavior, and graceful backend-outage fallback.
+2. Fix and verify local-library stability when sync fails.
+3. Run required validation against the exact candidate SHA; do not count skipped unit/UI/E2E jobs as passing.
+4. Complete outstanding device/accessibility evidence and record a human beta/public-launch decision.
+5. Review and merge PR #166 only after its exact-head Compile Check and Dogfood Qualification pass; separately complete #169's backend rollout and security verification.
+6. Finish #70's reconciliation across PRD, checklist, QA matrix, issue ownership and evidence links.
+
+
 _Acceptance inventory reorganised by feature area on 2026-10-22; existing evidence remains historical until revalidated on an exact current commit._ Scored test matrix: [QA_MATRIX.md](QA_MATRIX.md) · scores: [MVP_SCORE.md](MVP_SCORE.md) · manual steps: [QA.md](QA.md) · tester help: [SUPPORT.md](SUPPORT.md) · [BETA.md](BETA.md)._
 
 **Historical release-readiness note (build 36):** pilot readiness was incomplete, with real-device validation and fresh test runs outstanding. This is not a current verdict; assess readiness from the explicit Pilot/Public launch gates and current exact-SHA evidence.

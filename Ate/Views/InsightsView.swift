@@ -95,8 +95,11 @@ struct RecipeProgressInsightInput: Equatable {
     var mostCookedRecipe: String?
     var recipeTitles: [String]
     var duplicateTitleGroups: [[String]] = []
+    var recordedMealsThisWeek: Int = 0
+    var firstTimeRecipesThisWeek: Int = 0
+    var currentStreak: Int = 0
 
-    var hasEnoughData: Bool { savedRecipeCount >= 3 || cookedRecipeCount >= 2 || cookingDayCount >= 2 }
+    var hasEnoughData: Bool { !duplicateTitleGroups.isEmpty || savedRecipeCount >= 3 || cookedRecipeCount >= 2 || cookingDayCount >= 2 }
 
     static func make(recipes: [RecipeCard], historyEvents: [String: Set<String>]) -> RecipeProgressInsightInput {
         let ids = Set(recipes.map(\.id))
@@ -109,15 +112,32 @@ struct RecipeProgressInsightInput: Equatable {
         let mostCookedID = counts.sorted { lhs, rhs in
             lhs.value == rhs.value ? (titleByID[lhs.key] ?? "") < (titleByID[rhs.key] ?? "") : lhs.value > rhs.value
         }.first?.key
+        let week = Calendar.autoupdatingCurrent.dateInterval(of: .weekOfYear, for: Date())
+        let weekKeys = Set(events.keys.filter { key in
+            guard let date = CookingHistory.shared.date(for: key), let week else { return false }
+            return week.contains(date)
+        })
+        let weekIDs = weekKeys.reduce(into: Set<String>()) { $0.formUnion(events[$1] ?? []) }.intersection(ids)
+        let firstTimeIDs = weekIDs.filter { id in
+            !events.contains { key, values in
+                guard values.contains(id), let date = CookingHistory.shared.date(for: key), let week else { return false }
+                return date < week.start
+            }
+        }
+        let weekMeals = weekKeys.reduce(0) { $0 + (events[$1]?.intersection(ids).count ?? 0) }
+        let duplicateGroups = Dictionary(grouping: recipes.filter { !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
+            $0.title.trimmingCharacters(in: .whitespacesAndNewlines).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil).lowercased()
+        }.values.filter { $0.count > 1 }.map { $0.map(\.title) }.sorted { ($0.first ?? "") < ($1.first ?? "") }
         return RecipeProgressInsightInput(
             savedRecipeCount: recipes.count,
             cookedRecipeCount: counts.keys.count,
             cookingDayCount: events.filter { !$0.value.intersection(ids).isEmpty }.count,
             mostCookedRecipe: mostCookedID.flatMap { titleByID[$0] },
             recipeTitles: Array(recipes.map(\.title).filter { !$0.isEmpty }.prefix(5)),
-            duplicateTitleGroups: Dictionary(grouping: recipes.filter { !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
-                $0.title.trimmingCharacters(in: .whitespacesAndNewlines).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil).lowercased()
-            }.values.filter { $0.count > 1 }.map { $0.map(\.title) }.sorted { ($0.first ?? "") < ($1.first ?? "") }
+            duplicateTitleGroups: duplicateGroups,
+            recordedMealsThisWeek: weekMeals,
+            firstTimeRecipesThisWeek: firstTimeIDs.count,
+            currentStreak: CookingHistory.shared.streak(from: events)
         )
     }
 }
@@ -142,11 +162,29 @@ enum RecipeProgressInsightService {
         }
         guard input.hasEnoughData else { return nil }
         if input.cookedRecipeCount > 0 {
+            var observations: [String] = []
+            if input.recordedMealsThisWeek > 0 {
+                observations.append("You've recorded \(input.recordedMealsThisWeek) cooked meal\(input.recordedMealsThisWeek == 1 ? "" : "s") this week")
+            }
+            if input.firstTimeRecipesThisWeek > 0 {
+                observations.append("\(input.firstTimeRecipesThisWeek) saved recipe\(input.firstTimeRecipesThisWeek == 1 ? "" : "s") appear in your cooking history for the first time")
+            }
+            if input.currentStreak > 1 {
+                observations.append("your recorded cooking streak is \(input.currentStreak) days")
+            }
+            if observations.count >= 2 {
+                return RecipeProgressInsight(
+                    title: "You're building a steady rhythm",
+                    detail: observations.joined(separator: ", and ") + ". You could revisit a meal, try another saved recipe, or reflect on what worked for you this week—whatever feels useful.",
+                    evidence: "Based on your saved recipes and recorded cooking history.",
+                    generated: false
+                )
+            }
             let focus = input.mostCookedRecipe.map { " You could revisit \"\($0)\" or try another recipe from your collection." } ?? " Try another recipe from your collection."
             return RecipeProgressInsight(
                 title: "Your cooking rhythm",
-                detail: "You've cooked \(input.cookedRecipeCount) saved recipe\(input.cookedRecipeCount == 1 ? "" : "s") across \(input.cookingDayCount) day\(input.cookingDayCount == 1 ? "" : "s").\(focus)",
-                evidence: "Based on your saved recipes and cooking history.",
+                detail: "You've cooked \(input.cookedRecipeCount) distinct saved recipe\(input.cookedRecipeCount == 1 ? "" : "s") across \(input.cookingDayCount) recorded day\(input.cookingDayCount == 1 ? "" : "s").\(focus)",
+                evidence: "Based on your saved recipes and recorded cooking history.",
                 generated: false
             )
         }
@@ -398,8 +436,31 @@ struct InsightsView: View {
                             .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
                     }
                 }
-                .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("insights.progress.result")
+                VStack(alignment: .leading, spacing: 8) {
+                    Button {
+                        store.trackerPath = []
+                        store.select(.tracker)
+                    } label: {
+                        insightActionLabel("Review your tracker", symbol: "calendar.badge.check")
+                    }
+                    .accessibilityIdentifier("insights.progress.action.tracker")
+                    Button {
+                        store.trackerPath = [.journal]
+                        store.select(.tracker)
+                    } label: {
+                        insightActionLabel("Reflect in your journal", symbol: "book.closed")
+                    }
+                    .accessibilityIdentifier("insights.progress.action.journal")
+                    Button {
+                        store.filter.clear()
+                        store.select(.library)
+                    } label: {
+                        insightActionLabel("Browse recipes to try", symbol: "fork.knife")
+                    }
+                    .accessibilityIdentifier("insights.progress.action.recipes")
+                }
+                .padding(.top, 4)
             } else {
                 ContentUnavailableView {
                     Label("Your insights are taking shape", systemImage: "sparkles")
@@ -421,6 +482,27 @@ struct InsightsView: View {
                 .font(AteFont.body(13, .semibold))
                 .accessibilityIdentifier("insights.progress.refresh")
         }
+    }
+
+    private func insightActionLabel(_ title: String, symbol: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .font(AteFont.body(15, .semibold))
+                .foregroundStyle(Theme.primary)
+                .frame(width: 24)
+            Text(title)
+                .font(AteFont.body(14, .semibold))
+                .foregroundStyle(Theme.foreground)
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(AteFont.body(11, .semibold))
+                .foregroundStyle(Theme.mutedForeground)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
+        .contentShape(Rectangle())
     }
 
     @MainActor private func refreshRecipeProgressInsight() async {

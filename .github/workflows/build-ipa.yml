@@ -108,6 +108,9 @@ jobs:
             CODE_SIGNING_ALLOWED=NO -quiet 2>&1 | tail -40
 
       - name: Run unit tests
+        id: unit_tests
+        # Preserve diagnostics by running the remaining focused gates; the final gate still fails validation.
+        continue-on-error: true
         if: env.RUN_TESTS == 'true'
         timeout-minutes: 20
         run: |
@@ -119,6 +122,9 @@ jobs:
           grep -E "Executed|TEST SUCCEEDED" test.log | tail -3
 
       - name: Focused recipe-generation regressions (#89)
+        id: recipe_regressions
+        # Retain later diagnostics; the final gate checks this step's outcome.
+        continue-on-error: true
         if: env.RUN_TESTS == 'true'
         timeout-minutes: 15
         run: |
@@ -178,7 +184,8 @@ jobs:
       # Tracker is part of release confidence, not just the opt-in full UI suite.
       # Focused Tracker/Cook Mode regressions run only when full validation is explicitly requested.
       - name: Release gate — Cooking Tracker and Cook Mode history
-        # Deferred UI backlog is report-only; diagnostics remain uploaded below.
+        id: tracker_gate
+        # Continue for diagnostics; required outcome is enforced at the end of full validation.
         continue-on-error: true
         if: env.RUN_TESTS == 'true'
         timeout-minutes: 25
@@ -212,7 +219,8 @@ jobs:
           exit "$STATUS"
 
       - name: Focused shared-navigation header regressions (#68)
-        # Keep the regression visible without blocking feature delivery or IPA packaging.
+        id: header_regressions
+        # Continue for diagnostics; required outcome is enforced at the end of full validation.
         continue-on-error: true
         if: env.RUN_TESTS == 'true'
         timeout-minutes: 20
@@ -574,9 +582,38 @@ jobs:
             exit 1
           fi
 
-  # Broad UI shards remain visible and upload results, but are non-blocking while product features are prioritized.
+      - name: Enforce required focused full-validation gates
+        if: always() && env.RUN_TESTS == 'true'
+        env:
+          UNIT_TESTS_OUTCOME: ${{ steps.unit_tests.outcome }}
+          RECIPE_REGRESSIONS_OUTCOME: ${{ steps.recipe_regressions.outcome }}
+          KEY_FLOWS_OUTCOME: ${{ steps.qa.outcome }}
+          TRACKER_COOK_MODE_OUTCOME: ${{ steps.tracker_gate.outcome }}
+          HEADER_OUTCOME: ${{ steps.header_regressions.outcome }}
+        run: |
+          set -euo pipefail
+          failed=0
+          check_gate() {
+            local label="$1" outcome="${2:-missing}"
+            echo "- ${label}: ${outcome}"
+            if [ "$outcome" != "success" ]; then
+              echo "::error::${label} did not succeed (outcome: ${outcome})."
+              failed=1
+            fi
+          }
+          check_gate "Unit tests" "$UNIT_TESTS_OUTCOME"
+          check_gate "Recipe-generation regressions" "$RECIPE_REGRESSIONS_OUTCOME"
+          check_gate "KeyFlows QA" "$KEY_FLOWS_OUTCOME"
+          check_gate "Tracker/Cook Mode regressions" "$TRACKER_COOK_MODE_OUTCOME"
+          check_gate "Navigation-header regressions" "$HEADER_OUTCOME"
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::Required focused full-validation gates failed or were skipped; beta promotion is blocked."
+            exit 1
+          fi
+          echo "All required focused full-validation gates passed."
+
+  # Full UI shards are required for beta promotion; each shard uploads diagnostics on failure.
   ui-suite:
-    continue-on-error: true
     if: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
     strategy:
       fail-fast: false

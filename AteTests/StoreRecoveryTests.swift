@@ -6,11 +6,17 @@ import SwiftData
 @MainActor
 final class StoreRecoveryTests: XCTestCase {
     private var dir: URL!
-    override func setUp() {
+    override func setUp() throws {
+        try super.setUp()
         dir = FileManager.default.temporaryDirectory.appendingPathComponent("ate-store-\(UUID().uuidString)", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     }
-    override func tearDown() { try? FileManager.default.removeItem(at: dir); StoreSaver.resetForTests() }
+    override func tearDown() {
+        StoreSaver.resetForTests()
+        if let dir { try? FileManager.default.removeItem(at: dir) }
+        dir = nil
+        super.tearDown()
+    }
 
     func testCorruptStoreIsMovedAsideAndAFreshStoreOpens() throws {
         let url = dir.appendingPathComponent("default.store")

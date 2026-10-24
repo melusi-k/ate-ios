@@ -1,5 +1,31 @@
 # Ate — PRD (native iOS)
 
+> **Current implementation audit — 2026-10-24**
+>
+> This status snapshot is based on the current `main` tree (`1753420743479e76ed732a85a64a9b08a45dfe18`), the tracked open/closed issue and PR inventory, the PRD gap register, and the latest Release readiness workflow run ([run #199](https://github.com/melusi-k/ate-ios/actions/runs/40051574424), workflow conclusion: success). A successful workflow conclusion means the workflow completed; it is **not** evidence that every product acceptance gate passed.
+>
+> **Overall product status: substantial feature implementation, not yet release-cleared.** The current release-readiness issue records 44/59 checks verified, 6 failing and 9 still open in its generated evidence snapshot. Treat that tally as the latest recorded readiness evidence, not as a fresh rerun of every test on this audit.
+>
+> **Recently delivered on main**
+> - Recipe-generation recovery and lifecycle handling (#143), photo-based recipe grounding/output validation (#144), Settings cleanup/build notes (#145), in-app Terms/Privacy sheets (#149/#172), Foundation Models recipe/progress insights (#84/#160/#164), and the human-centred cooking insights/Cooked Meals collection (#163/#167/#168).
+> - CI/release improvements include blocking full-validation UI gates (#170), hosted-share not-found assertion alignment (#171), and dogfood simulator selection/reporting (#173).
+> - Issue/PR classification and acceptance-backlog documentation/automation have also landed (#152–#154).
+>
+> **Open delivery work (audited inventory)**
+> - Open PRs: [#166 privacy-safe app/CI telemetry foundation](https://github.com/melusi-k/ate-ios/pull/166) and [#66 journal acceptance UI coverage](https://github.com/melusi-k/ate-ios/pull/66). PR #166 explicitly still requires exact-head Compile Check and Dogfood Qualification, plus a separate Supabase rollout.
+> - Highest-impact open product/release work includes [#33 release readiness](https://github.com/melusi-k/ate-ios/issues/33), [#30 release follow-up](https://github.com/melusi-k/ate-ios/issues/30), [#39 sharing/security/release blockers](https://github.com/melusi-k/ate-ios/issues/39), [#40 device QA/support/monitoring](https://github.com/melusi-k/ate-ios/issues/40), [#169 telemetry deployment and verification](https://github.com/melusi-k/ate-ios/issues/169), [#31 Cooking Tracker acceptance](https://github.com/melusi-k/ate-ios/issues/31), [#37 accessibility/responsive/native interaction gaps](https://github.com/melusi-k/ate-ios/issues/37), and [#70 PRD/checklist/QA ownership reconciliation](https://github.com/melusi-k/ate-ios/issues/70).
+> - CI regression follow-ups remain open for the full UI shards: [#156 AccessibilityAuditUITests](https://github.com/melusi-k/ate-ios/issues/156), [#157 CoverageUITests](https://github.com/melusi-k/ate-ios/issues/157), and [#158 AteUITests](https://github.com/melusi-k/ate-ios/issues/158). They are tracked work, not a reason to stop feature delivery, but they must not be represented as passing.
+>
+> **Release risks that remain explicit**
+> - Shared-recipe retrieval/deep-link/fallback behaviour and hosted-browser outage cases need verified end-to-end evidence; Universal Links still depend on a paid Apple Developer account, the production domain and AASA hosting.
+> - The release-readiness snapshot still reports six failing acceptance checks, including shared-recipe opening/retrieval, deep links/share URL behavior, graceful backend outage fallback, and local-library stability when sync fails.
+> - Unit/UI/full-shard evidence must be read from the exact current SHA and actual job results. A green workflow wrapper alone does not supersede failing or skipped inner gates.
+> - Physical-device, entitlement, real-account/two-device sync, accessibility and production security evidence remain separate from simulator/source-level completion.
+> - Telemetry is not live until the migration and Edge Function are deployed and verified; see #169 and [TELEMETRY.md](TELEMETRY.md).
+>
+> **Documentation reconciliation rule:** This PRD describes intended product behavior. For completion claims, use current code plus exact-SHA test/device evidence, [MVP_CHECKLIST.md](MVP_CHECKLIST.md), [QA_MATRIX.md](QA_MATRIX.md), and [PRD_GAP_REGISTER.md](PRD_GAP_REGISTER.md). Historical build numbers, old score snapshots, and old backend statements below are not current proof unless revalidated. The detailed requirement sections below are retained; this audit snapshot does not silently mark their acceptance items complete.
+>
+
 ## What's coming next — v1.3 hardening
 
 **Release blockers**

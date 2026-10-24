@@ -6,12 +6,12 @@ _Last updated: 20 October 2026_
 
 | Provider | What for | Data | Location |
 |---|---|---|---|
-| **Supabase** | Accounts, sync, shared recipes, beta results | Email, password hash, recipes, shopping list, shared recipe copies, request logs | EU, Ireland (AWS eu-west-1) |
+| **Supabase** | Accounts, sync, shared recipes, beta results, non-production telemetry | Email, password hash, recipes, shopping list, shared recipe copies, request metadata, category-only event names/timestamps and app/build/channel metadata | EU, Ireland (AWS eu-west-1) |
 | **GitHub (Pages)** | Hosting this website and the share page | Server logs (IP address, browser) | USA and global edge network |
 | **GitHub (Releases)** | Hosting beta app downloads | Download logs | USA and global |
 | **Apple** | Apple Intelligence, Image Playground, Siri, Spotlight, HealthKit, Journaling Suggestions | Processed on your device under Apple's own terms; ate sends Apple nothing | On your device |
 
-There's no analytics, ads, external crash-reporting SDK or external AI provider. Diagnostic history is stored locally on the iPhone and is not transmitted to a provider.
+There are no ads or external crash-reporting/analytics SDKs. Local diagnostic history is stored on the iPhone; recognized non-production builds also send allowlisted category-only events and coarse build metadata to Supabase. Production and unknown-channel builds do not send this telemetry; remote event rows are retained for up to 30 days.
 
 > ⚖️ **Lawyer review needed:** confirm the GitHub transfer basis (EU–US Data Privacy Framework and POPIA s72), and whether Apple counts as a processor here.
 
@@ -28,5 +28,6 @@ There's no analytics, ads, external crash-reporting SDK or external AI provider.
 | Photos, screenshots, voice | ✓ only | ✗ | ✗ |
 | AI prompts and results | ✓ only | ✗ (unless you save and sync the recipe) | ✗ |
 | Beta test results | ✓ | ✓ only if you upload | ✗ |
+| Non-production telemetry categories and build metadata | ✓ local history | ✓ by default on recognized non-production channels; up to 30 days | ✗ |
 
 Changes to this list are recorded in the [policy history](policy-history.html). Questions: **melusi.l.k@gmail.com**.

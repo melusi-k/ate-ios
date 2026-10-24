@@ -159,6 +159,7 @@ struct CookModeView: View {
                         .accessibilityIdentifier("cookNextStep")
                 } else {
                     Button("Finish cooking") {
+                        DiagnosticHistory.shared.record(.cookingSessionCompleted)
                         store.markCooked(recipeID)
                         store.clearCookSession(recipeID: recipeID)
                         exit()

@@ -12,6 +12,16 @@ struct DiagnosticEvent: Codable, Identifiable, Equatable {
         case storeRecovered
         case storeInMemoryFallback
         case saveFailed
+        // Product/reliability events are deliberately category-only. Never add payloads
+        // containing user content, account identifiers, URLs, Health data, or raw errors.
+        case recipeImportSucceeded
+        case recipeImportFailed
+        case recipeSaved
+        case cookingSessionCompleted
+        case insightViewed
+        case insightActionSelected
+        case syncSucceeded
+        case syncFailed
     }
 
     let id: UUID
@@ -33,6 +43,14 @@ struct DiagnosticEvent: Codable, Identifiable, Equatable {
         case .storeRecovered: return "Local data store recovered"
         case .storeInMemoryFallback: return "Temporary in-memory storage used"
         case .saveFailed: return "Data save failed after retries"
+        case .recipeImportSucceeded: return "Recipe import succeeded"
+        case .recipeImportFailed: return "Recipe import failed"
+        case .recipeSaved: return "Recipe saved"
+        case .cookingSessionCompleted: return "Cooking session completed"
+        case .insightViewed: return "Insight viewed"
+        case .insightActionSelected: return "Insight action selected"
+        case .syncSucceeded: return "Sync succeeded"
+        case .syncFailed: return "Sync failed"
         }
     }
 }
@@ -72,6 +90,7 @@ final class DiagnosticHistory {
             cachedEntries.removeFirst(cachedEntries.count - Self.maximumEntries)
         }
         persistLocked()
+        TelemetryClient.shared.record(kind, at: date)
     }
 
     func clear() {

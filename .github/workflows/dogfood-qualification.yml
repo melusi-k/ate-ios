@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: dogfood-qualification-${{ github.event.pull_request.number || github.ref }}
@@ -51,6 +52,9 @@ jobs:
           mkdir -p build
           xcodebuild -version
           echo "Qualification commit: $GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: CI telemetry unit tests
+        run: python3 -m unittest discover -s scripts/tests -v
 
       - name: Select simulator present in Xcode destinations
         id: select_simulator
@@ -176,3 +180,28 @@ jobs:
             build/DogfoodSyncQuarantine.xcresult
           if-no-files-found: warn
 
+
+  ci-telemetry:
+    name: Export CI timing telemetry
+    if: always()
+    needs: [dogfood-qualification]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Collect workflow and step timings
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci-telemetry.py
+      - name: Upload CI telemetry report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-telemetry-${{ github.run_number }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ate-ci-telemetry.json
+          if-no-files-found: warn
+          retention-days: 30

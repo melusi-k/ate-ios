@@ -257,6 +257,8 @@ struct AddRecipeSheet: View {
                 DraftStore.shared.clear()           // the stored draft must not be restored (and saved again) later
                 BetaQA.shared.pass("A-EDIT-01", note: (didEdit ? "Edited and saved" : "Reviewed and saved") + " “\(d.title)”")
                 onSave(RecipeLogic.normalize(d))
+                // Record only after handing the normalized recipe to the owning save flow.
+                DiagnosticHistory.shared.record(.recipeSaved)
             }
                 .buttonStyle(.ate(.primary, full: true)).accessibilityIdentifier("saveRecipe")
                 .disabled(saving || (draft.map { RecipeQuality.needsInput($0) } ?? false) && !didEdit && !confirmedDraft)

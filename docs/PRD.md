@@ -26,7 +26,7 @@
 > **Documentation reconciliation rule:** This PRD describes intended product behavior. For completion claims, use current code plus exact-SHA test/device evidence, [MVP_CHECKLIST.md](MVP_CHECKLIST.md), [QA_MATRIX.md](QA_MATRIX.md), and [PRD_GAP_REGISTER.md](PRD_GAP_REGISTER.md). Historical build numbers, old score snapshots, and old backend statements below are not current proof unless revalidated. The detailed requirement sections below are retained; this audit snapshot does not silently mark their acceptance items complete.
 >
 
-## What's coming next — v1.3 hardening
+## Historical hardening plan — originally v1.3 (reconcile with current tracking)
 
 **Release blockers**
 1. **Universal links for cross-device sharing.** Associated Domains are placeholder-only on a free Apple ID. Needs a paid account, the ate.app domain, and a hosted AASA file before shared links open the app for other people.

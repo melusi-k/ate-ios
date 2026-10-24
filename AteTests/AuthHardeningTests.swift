@@ -25,7 +25,9 @@ final class AuthHardeningTests: XCTestCase {
     }
 
     func testCooldown() {
-        let d = UserDefaults(suiteName: "cooldown-test")!; d.removePersistentDomain(forName: "cooldown-test")
+        let suite = "cooldown-test-\(UUID().uuidString)"
+        let d = try! XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { d.removePersistentDomain(forName: suite) }
         let t0 = Date(timeIntervalSince1970: 1_000_000)
         XCTAssertEqual(EmailCooldown.remaining(.reset, now: t0, defaults: d), 0)
         EmailCooldown.record(.reset, rateLimited: true, now: t0, defaults: d)

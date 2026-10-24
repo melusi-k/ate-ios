@@ -97,6 +97,19 @@ final class RecipeFilterTests: XCTestCase {
         XCTAssertEqual(f.apply([cookedA, cookedC, cookedB]).map(\.id), ["b", "c", "a"], "cook-time ties use newest, then stable id")
         XCTAssertEqual(f.apply([cookedB, cookedA, cookedC]).map(\.id), ["b", "c", "a"], "input order must not affect recently cooked results")
     }
+    func testCookedMealsUsesRecordedHistoryRatherThanCookModeTimestamp() {
+        let cookedID = "qa-cooked-\(UUID().uuidString)"
+        let merelyOpenedID = "qa-opened-\(UUID().uuidString)"
+        var cooked = RecipeCard(id: cookedID, title: "Recorded meal")
+        cooked.lastCookedAt = nil
+        var merelyOpened = RecipeCard(id: merelyOpenedID, title: "Opened only")
+        merelyOpened.lastCookedAt = Date().timeIntervalSince1970 * 1000
+        CookingHistory.shared.record(recipeID: cookedID, date: Date())
+        var filter = RecipeFilter()
+        filter.collection = .cookedMeals
+        XCTAssertEqual(filter.apply([merelyOpened, cooked]).map(\.id), [cookedID])
+    }
+
     func testQueryCombinesWithFilter() {
         var f = RecipeFilter(); f.maxMinutes = 30
         XCTAssertEqual(f.apply(all, query: "pasta").map(\.title), ["Chicken pasta"])
@@ -110,5 +123,43 @@ final class RecipeFilterTests: XCTestCase {
     func testLegacyRecipeDecodesNewFields() throws {
         let r = try JSONDecoder().decode(RecipeCard.self, from: Data(#"{"id":"a","title":"t"}"#.utf8))
         XCTAssertFalse(r.favorite); XCTAssertNil(r.lastCookedAt); XCTAssertNil(r.origin)
+    }
+}
+
+
+final class RecipeProgressInsightServiceTests: XCTestCase {
+    func testHumanCentredInsightUsesOnlyRecordedSignals() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 5,
+            cookedRecipeCount: 3,
+            cookingDayCount: 4,
+            mostCookedRecipe: "Vegetable curry",
+            recipeTitles: ["Vegetable curry"],
+            recordedMealsThisWeek: 4,
+            firstTimeRecipesThisWeek: 2,
+            currentStreak: 6
+        )
+        let insight = RecipeProgressInsightService.fallback(for: input)
+        XCTAssertEqual(insight?.title, "You're building a steady rhythm")
+        XCTAssertTrue(insight?.detail.contains("4 cooked meals") == true)
+        XCTAssertTrue(insight?.detail.contains("2 saved recipes") == true)
+        XCTAssertTrue(insight?.detail.contains("6 days") == true)
+        XCTAssertFalse(insight?.detail.localizedCaseInsensitiveContains("motivated") == true)
+        XCTAssertFalse(insight?.detail.localizedCaseInsensitiveContains("healthier") == true)
+    }
+
+    func testInsightDoesNotClaimWeeklyPatternWithoutEnoughSignals() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 3,
+            cookedRecipeCount: 2,
+            cookingDayCount: 2,
+            mostCookedRecipe: nil,
+            recipeTitles: [],
+            recordedMealsThisWeek: 1,
+            firstTimeRecipesThisWeek: 0,
+            currentStreak: 0
+        )
+        let insight = RecipeProgressInsightService.fallback(for: input)
+        XCTAssertEqual(insight?.title, "Your cooking rhythm")
     }
 }

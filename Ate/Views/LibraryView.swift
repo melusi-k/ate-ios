@@ -243,7 +243,7 @@ struct LibraryView: View {
         @Bindable var store = store
         return Menu {
             Section("Collections") {
-                ForEach([RecipeCollection.quick, .favourites, .recentlyAdded, .recentlyCooked], id: \.self) { c in
+                ForEach([RecipeCollection.quick, .favourites, .recentlyAdded, .recentlyCooked, .cookedMeals], id: \.self) { c in
                     Button { selectCollection(c) } label: {
                         Label(c.title, systemImage: c.symbol)
                     }

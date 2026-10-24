@@ -3,8 +3,10 @@ import XCTest
 
 @MainActor
 final class SharedInboxTests: XCTestCase {
-    func testQueueIsFIFOAndCapped() {
-        let d = UserDefaults(suiteName: "inbox-test-\(UUID())")!
+    func testQueueIsFIFOAndCapped() throws {
+        let suite = "inbox-test-\(UUID().uuidString)"
+        let d = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { d.removePersistentDomain(forName: suite) }
         XCTAssertNil(SharedInbox.pop(d))
         for i in 0..<25 { SharedInbox.push(.init(url: "https://x.test/\(i)"), d) }
         XCTAssertEqual(SharedInbox.load(d).count, 20)

@@ -101,7 +101,7 @@ struct RecipeProgressInsightInput: Equatable {
 
     var hasEnoughData: Bool { !duplicateTitleGroups.isEmpty || savedRecipeCount >= 3 || cookedRecipeCount >= 2 || cookingDayCount >= 2 }
 
-    static func make(recipes: [RecipeCard], historyEvents: [String: Set<String>]) -> RecipeProgressInsightInput {
+    static func make(recipes: [RecipeCard], historyEvents: [String: Set<String>], calendar: Calendar = .autoupdatingCurrent, now: Date = Date(), history: CookingHistory = .shared) -> RecipeProgressInsightInput {
         let ids = Set(recipes.map(\.id))
         let events = historyEvents.filter { !$0.value.isEmpty }
         var counts: [String: Int] = [:]
@@ -112,9 +112,9 @@ struct RecipeProgressInsightInput: Equatable {
         let mostCookedID = counts.sorted { lhs, rhs in
             lhs.value == rhs.value ? (titleByID[lhs.key] ?? "") < (titleByID[rhs.key] ?? "") : lhs.value > rhs.value
         }.first?.key
-        let week = Calendar.autoupdatingCurrent.dateInterval(of: .weekOfYear, for: Date())
+        let week = calendar.dateInterval(of: .weekOfYear, for: now)
         let weekKeys = Set(events.keys.filter { key in
-            guard let date = CookingHistory.shared.date(for: key), let week else { return false }
+            guard let date = history.date(for: key), let week else { return false }
             return week.contains(date)
         })
         let weekIDs = weekKeys.reduce(into: Set<String>()) { $0.formUnion(events[$1] ?? []) }.intersection(ids)
@@ -137,7 +137,7 @@ struct RecipeProgressInsightInput: Equatable {
             duplicateTitleGroups: duplicateGroups,
             recordedMealsThisWeek: weekMeals,
             firstTimeRecipesThisWeek: firstTimeIDs.count,
-            currentStreak: CookingHistory.shared.streak(from: events)
+            currentStreak: history.streak(from: events, asOf: now)
         )
     }
 }

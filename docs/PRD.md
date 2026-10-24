@@ -23,6 +23,8 @@
 > - Physical-device, entitlement, real-account/two-device sync, accessibility and production security evidence remain separate from simulator/source-level completion.
 > - Telemetry is not live until the migration and Edge Function are deployed and verified; see #169 and [TELEMETRY.md](TELEMETRY.md).
 >
+> **Feature-by-feature completion status:** The authoritative current progress matrix is in [MVP_CHECKLIST.md — Current progress snapshot](MVP_CHECKLIST.md), with each area marked completed, partial, outstanding/failing, or not verified and the remaining work stated explicitly. Do not infer completion from an issue being closed where its own closure note defers device/entitlement acceptance.
+>
 > **Documentation reconciliation rule:** This PRD describes intended product behavior. For completion claims, use current code plus exact-SHA test/device evidence, [MVP_CHECKLIST.md](MVP_CHECKLIST.md), [QA_MATRIX.md](QA_MATRIX.md), and [PRD_GAP_REGISTER.md](PRD_GAP_REGISTER.md). Historical build numbers, old score snapshots, and old backend statements below are not current proof unless revalidated. The detailed requirement sections below are retained; this audit snapshot does not silently mark their acceptance items complete.
 >
 

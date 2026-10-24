@@ -6,8 +6,8 @@ import SwiftData
 @MainActor
 final class StoreRecoveryTests: XCTestCase {
     private var dir: URL!
-    override func setUp() throws {
-        try super.setUp()
+    override func setUpWithError() throws {
+        try super.setUpWithError()
         dir = FileManager.default.temporaryDirectory.appendingPathComponent("ate-store-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     }

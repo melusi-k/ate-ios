@@ -134,6 +134,11 @@ jobs:
         if: ${{ steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
+          # A failed XCTest launch can leave the app process suspended on the simulator.
+          # Reboot this isolated shard's device so the two Explore tests start cleanly.
+          xcrun simctl shutdown "$SIM_ID" >/dev/null 2>&1 || true
+          xcrun simctl boot "$SIM_ID" >/dev/null 2>&1 || true
+          xcrun simctl bootstatus "$SIM_ID" -b
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/CoverageUITests/testExploreInsightsPresentsAsSheetAndDismissesToLibrary \

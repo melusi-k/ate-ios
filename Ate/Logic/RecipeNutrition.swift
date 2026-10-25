@@ -42,7 +42,8 @@ struct NutritionFoodRecord: Codable, Equatable, Identifiable {
 }
 
 struct NutritionIngredientContribution: Equatable, Identifiable {
-    var id: String { ingredientName }
+    /// Source recipe-line position keeps repeated ingredient names distinct in SwiftUI.
+    let id: Int
     var ingredientName: String
     var nutrients: NutritionProfile
     var sourceDescription: String
@@ -73,7 +74,7 @@ struct RecipeNutritionCalculator {
         var unmapped: [String] = []
         var incomplete: [String] = []
 
-        for ingredient in recipe.ingredients {
+        for (ingredientIndex, ingredient) in recipe.ingredients.enumerated() {
             guard ingredient.quantity.isFinite, ingredient.quantity > 0 else {
                 incomplete.append(ingredient.name)
                 continue
@@ -97,6 +98,7 @@ struct RecipeNutritionCalculator {
             let scaled = Self.scaled(food.nutrients, by: factor)
             totals.add(scaled)
             contributions.append(NutritionIngredientContribution(
+                id: ingredientIndex,
                 ingredientName: ingredient.name,
                 nutrients: scaled,
                 sourceDescription: "\(food.sourceName) · \(food.sourceRecordID) · \(food.preparationState)"

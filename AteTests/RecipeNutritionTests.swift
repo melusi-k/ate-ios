@@ -83,6 +83,20 @@ final class RecipeNutritionTests: XCTestCase {
         XCTAssertTrue(RecipeNutritionCalculator(foods: [food()]).calculate(recipe).isComplete)
     }
 
+    func testRepeatedIngredientNamesHaveUniqueContributionIDs() {
+        let recipe = RecipeCard(servings: 1, ingredients: [
+            Ingredient(name: "dry lentils", quantity: 100, unit: "g", notes: nil),
+            Ingredient(name: "dry lentils", quantity: 100, unit: "g", notes: nil)
+        ])
+
+        let result = RecipeNutritionCalculator(foods: [food()]).calculate(recipe)
+
+        XCTAssertTrue(result.isComplete)
+        XCTAssertEqual(result.contributions.count, 2)
+        XCTAssertEqual(Set(result.contributions.map { $0.id }).count, 2)
+        XCTAssertEqual(result.totalRecipe?.energyKcal, 704)
+    }
+
     private func food() -> NutritionFoodRecord {
         NutritionFoodRecord(
             id: "test-lentils",

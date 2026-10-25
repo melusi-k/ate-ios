@@ -28,7 +28,7 @@ final class NutritionGoalsTests: XCTestCase {
         let expected = DailyNutritionGoals(energyKcal: 2_000, proteinGrams: 100,
                                             carbohydratesGrams: nil, fatGrams: 65.5, fibreGrams: nil)
         try repository.save(expected)
-        XCTAssertEqual(repository.load(), expected)
+        XCTAssertEqual(try repository.load(), expected)
     }
 
     func testSavingEmptyConfigurationClearsPersistedGoals() throws {
@@ -37,7 +37,7 @@ final class NutritionGoalsTests: XCTestCase {
         try repository.save(DailyNutritionGoals(energyKcal: nil, proteinGrams: nil,
                                                 carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil))
         XCTAssertNil(try FileNutritionGoalsStorage(fileURL: directory.appendingPathComponent("goals.json")).read())
-        XCTAssertTrue(repository.load().isEmpty)
+        XCTAssertTrue(try repository.load().isEmpty)
     }
 
     func testFailedWriteThrowsAndPreservesPreviousConfiguration() throws {
@@ -48,7 +48,7 @@ final class NutritionGoalsTests: XCTestCase {
         XCTAssertThrowsError(try failingRepository.save(DailyNutritionGoals(
             energyKcal: 2_200, proteinGrams: 100, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil
         )))
-        XCTAssertEqual(failingRepository.load(), previous)
+        XCTAssertEqual(try failingRepository.load(), previous)
     }
 
     func testFailedClearThrowsAndPreservesPreviousConfiguration() throws {
@@ -59,7 +59,7 @@ final class NutritionGoalsTests: XCTestCase {
         XCTAssertThrowsError(try failingRepository.save(DailyNutritionGoals(
             energyKcal: nil, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil
         )))
-        XCTAssertEqual(failingRepository.load(), previous)
+        XCTAssertEqual(try failingRepository.load(), previous)
     }
 
     func testFailedLegacyMigrationWriteKeepsPreviousGoalsVisibleAndLegacyCopy() throws {
@@ -69,27 +69,34 @@ final class NutritionGoalsTests: XCTestCase {
         let failingStorage = FailingNutritionGoalsStorage(data: nil, failWrites: true)
         let failingRepository = NutritionGoalsRepository(defaults: defaults, storage: failingStorage)
 
-        // A failed migration must still show the prior value and retain its only durable copy.
-        XCTAssertEqual(failingRepository.load(), previous)
+        XCTAssertThrowsError(try failingRepository.load()) { error in
+            guard let loadError = error as? NutritionGoalsLoadError else {
+                XCTFail("Expected explicit migration failure")
+                return
+            }
+            XCTAssertEqual(loadError.fallbackGoals, previous)
+        }
         let legacy = try XCTUnwrap(defaults.data(forKey: DailyNutritionGoals.defaultsKey))
         XCTAssertEqual(try JSONDecoder().decode(DailyNutritionGoals.self, from: legacy), previous)
 
-        // A subsequent failed save must not remove the legacy value either.
         XCTAssertThrowsError(try failingRepository.save(DailyNutritionGoals(
             energyKcal: 2_200, proteinGrams: 100, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil
         )))
         let retainedLegacy = try XCTUnwrap(defaults.data(forKey: DailyNutritionGoals.defaultsKey))
         XCTAssertEqual(try JSONDecoder().decode(DailyNutritionGoals.self, from: retainedLegacy), previous)
-        XCTAssertEqual(failingRepository.load(), previous)
+
+        XCTAssertThrowsError(try failingRepository.load()) { error in
+            XCTAssertEqual((error as? NutritionGoalsLoadError)?.fallbackGoals, previous)
+        }
     }
 
     func testLegacyUserDefaultsConfigurationMigratesToFileStorage() throws {
         let expected = DailyNutritionGoals(energyKcal: 2_100, proteinGrams: 85,
                                            carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil)
         defaults.set(try JSONEncoder().encode(expected), forKey: DailyNutritionGoals.defaultsKey)
-        XCTAssertEqual(repository.load(), expected)
+        XCTAssertEqual(try repository.load(), expected)
         XCTAssertNil(defaults.data(forKey: DailyNutritionGoals.defaultsKey))
-        XCTAssertEqual(repository.load(), expected)
+        XCTAssertEqual(try repository.load(), expected)
     }
 
     func testValidationRejectsMissingZeroNegativeAndOutOfRangeValues() {
@@ -109,10 +116,47 @@ final class NutritionGoalsTests: XCTestCase {
         XCTAssertNil(NutritionGoalValidation.error(for: .fibre, text: "0.5"))
     }
 
-    func testMalformedStoredDataFallsBackToEmptyGoals() throws {
+    func testStorageReadFailureIsNotTreatedAsEmptyGoals() throws {
+        let existing = DailyNutritionGoals(energyKcal: 2_000, proteinGrams: 90,
+                                           carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil)
+        let storage = FailingNutritionGoalsStorage(data: try JSONEncoder().encode(existing), failReads: true)
+        let failingRepository = NutritionGoalsRepository(defaults: defaults, storage: storage)
+
+        XCTAssertThrowsError(try failingRepository.load()) { error in
+            guard let loadError = error as? NutritionGoalsLoadError else {
+                XCTFail("Expected explicit storage-read failure")
+                return
+            }
+            XCTAssertNil(loadError.fallbackGoals)
+        }
+    }
+
+    func testStorageReadFailureExposesLegacyFallbackButStillRequiresRetry() throws {
+        let previous = DailyNutritionGoals(energyKcal: 2_050, proteinGrams: 88,
+                                           carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil)
+        defaults.set(try JSONEncoder().encode(previous), forKey: DailyNutritionGoals.defaultsKey)
+        let storage = FailingNutritionGoalsStorage(data: nil, failReads: true)
+        let failingRepository = NutritionGoalsRepository(defaults: defaults, storage: storage)
+
+        XCTAssertThrowsError(try failingRepository.load()) { error in
+            XCTAssertEqual((error as? NutritionGoalsLoadError)?.fallbackGoals, previous)
+        }
+        XCTAssertEqual(try JSONDecoder().decode(
+            DailyNutritionGoals.self,
+            from: XCTUnwrap(defaults.data(forKey: DailyNutritionGoals.defaultsKey))
+        ), previous)
+    }
+
+    func testMalformedStoredDataIsReportedInsteadOfTreatedAsEmpty() throws {
         let storage = FailingNutritionGoalsStorage(data: Data("not-json".utf8))
         let invalidRepository = NutritionGoalsRepository(defaults: defaults, storage: storage)
-        XCTAssertTrue(invalidRepository.load().isEmpty)
+        XCTAssertThrowsError(try invalidRepository.load()) { error in
+            guard let loadError = error as? NutritionGoalsLoadError else {
+                XCTFail("Expected explicit corrupt-data error")
+                return
+            }
+            XCTAssertNil(loadError.fallbackGoals)
+        }
     }
 }
 
@@ -120,14 +164,19 @@ private final class FailingNutritionGoalsStorage: NutritionGoalsStorage {
     private(set) var data: Data?
     var failWrites: Bool
     var failRemoves: Bool
+    var failReads: Bool
 
-    init(data: Data?, failWrites: Bool = false, failRemoves: Bool = false) {
+    init(data: Data?, failWrites: Bool = false, failRemoves: Bool = false, failReads: Bool = false) {
         self.data = data
         self.failWrites = failWrites
         self.failRemoves = failRemoves
+        self.failReads = failReads
     }
 
-    func read() throws -> Data? { data }
+    func read() throws -> Data? {
+        if failReads { throw TestStorageError.readFailed }
+        return data
+    }
 
     func write(_ data: Data) throws {
         if failWrites { throw TestStorageError.writeFailed }
@@ -141,6 +190,7 @@ private final class FailingNutritionGoalsStorage: NutritionGoalsStorage {
 }
 
 private enum TestStorageError: Error {
+    case readFailed
     case writeFailed
     case removeFailed
 }

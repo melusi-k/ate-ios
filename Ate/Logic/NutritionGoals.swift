@@ -91,6 +91,38 @@ protocol NutritionGoalsStorage {
     func remove() throws
 }
 
+
+enum NutritionGoalsLoadError: LocalizedError {
+    case storageReadFailed(fallback: DailyNutritionGoals?)
+    case storedDataInvalid(fallback: DailyNutritionGoals?)
+    case legacyDataInvalid
+    case migrationWriteFailed(fallback: DailyNutritionGoals)
+
+    var fallbackGoals: DailyNutritionGoals? {
+        switch self {
+        case .storageReadFailed(let fallback), .storedDataInvalid(let fallback):
+            return fallback
+        case .legacyDataInvalid:
+            return nil
+        case .migrationWriteFailed(let fallback):
+            return fallback
+        }
+    }
+
+    var errorDescription: String? {
+        switch self {
+        case .storageReadFailed:
+            return "Saved nutrition goals couldn't be read safely. Saving is disabled to protect existing data. Retry loading or cancel."
+        case .storedDataInvalid:
+            return "The saved nutrition-goals file couldn't be decoded. Saving is disabled until the data can be recovered. Retry loading or cancel."
+        case .legacyDataInvalid:
+            return "The previous nutrition-goals data couldn't be decoded. Saving is disabled to avoid overwriting it. Cancel and retry after resolving the storage issue."
+        case .migrationWriteFailed:
+            return "Your existing goals were recovered, but couldn't be migrated to local storage. Saving is disabled until migration succeeds. Retry loading or cancel."
+        }
+    }
+}
+
 /// Atomic file storage avoids treating UserDefaults.set (which has no failure result) as durable success.
 struct FileNutritionGoalsStorage: NutritionGoalsStorage {
     let fileURL: URL
@@ -133,7 +165,7 @@ struct NutritionGoalsRepository {
         self.storage = storage ?? FileNutritionGoalsStorage()
     }
 
-    func load() -> DailyNutritionGoals {
+    func load() throws -> DailyNutritionGoals {
         let empty = DailyNutritionGoals(
             energyKcal: nil, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil
         )
@@ -142,30 +174,33 @@ struct NutritionGoalsRepository {
             try? JSONDecoder().decode(DailyNutritionGoals.self, from: $0)
         }
 
+        let storedData: Data?
         do {
-            if let data = try storage.read() {
-                do {
-                    return try JSONDecoder().decode(DailyNutritionGoals.self, from: data)
-                } catch {
-                    // Preserve the last recoverable legacy value if the new file is corrupt.
-                    // A later successful save can atomically replace the file before removing legacy data.
-                    return legacyGoals ?? empty
-                }
-            }
+            storedData = try storage.read()
         } catch {
-            // If the new file cannot be read, don't hide a recoverable legacy value or remove it.
-            return legacyGoals ?? empty
+            // Do not report a transient read failure as an empty configuration or permit an overwrite.
+            throw NutritionGoalsLoadError.storageReadFailed(fallback: legacyGoals)
         }
 
-        guard let legacyData, let legacyGoals else { return empty }
+        if let storedData {
+            do {
+                return try JSONDecoder().decode(DailyNutritionGoals.self, from: storedData)
+            } catch {
+                // Keep a recoverable legacy copy visible, but require a successful reload before saving.
+                throw NutritionGoalsLoadError.storedDataInvalid(fallback: legacyGoals)
+            }
+        }
+
+        guard let legacyData else { return empty }
+        guard let legacyGoals else { throw NutritionGoalsLoadError.legacyDataInvalid }
 
         do {
             try storage.write(legacyData)
-            defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
         } catch {
-            // Keep legacy goals visible and intact. Do not turn a failed migration into an empty form.
-            // The original value is removed only after a later successful write or an explicit successful clear.
+            // The legacy copy is the only known-good value; require a retry before allowing a save/clear.
+            throw NutritionGoalsLoadError.migrationWriteFailed(fallback: legacyGoals)
         }
+        defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
         return legacyGoals
     }
     func save(_ goals: DailyNutritionGoals) throws {

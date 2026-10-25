@@ -32,6 +32,39 @@ final class NutritionDiaryTests: XCTestCase {
         XCTAssertEqual(repository.load(), [entry])
     }
 
+    func testLoggedCalendarDaySurvivesTimeZoneChangesAndPersistence() throws {
+        var loggingCalendar = Calendar(identifier: .gregorian)
+        loggingCalendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        var viewingCalendar = Calendar(identifier: .gregorian)
+        viewingCalendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let date = loggingCalendar.date(from: DateComponents(year: 2026, month: 1, day: 15, hour: 23, minute: 30))!
+        let loggedDay = NutritionDiaryDayKey.make(date, calendar: loggingCalendar)
+
+        XCTAssertEqual(loggedDay, "2026-01-15")
+        XCTAssertEqual(NutritionDiaryDayKey.make(date, calendar: viewingCalendar), "2026-01-16")
+
+        let loggedEntry = NutritionDiaryEntry(foodName: "Late meal", date: date, meal: .dinner, quantity: 1,
+                                              quantityUnit: "serving", servings: 1, source: .userProvided,
+                                              sourceName: "You", nutrientsPerServing: NutritionSnapshot(
+                                                energyKcal: 400, proteinGrams: nil, carbohydratesGrams: nil,
+                                                fatGrams: nil, fibreGrams: nil), dayKey: loggedDay)
+        try repository.save([loggedEntry])
+
+        let restoredEntry = try XCTUnwrap(repository.load().first)
+        XCTAssertEqual(restoredEntry.dayKey, "2026-01-15")
+        XCTAssertEqual([restoredEntry].filter { $0.dayKey == "2026-01-15" }.count, 1)
+        XCTAssertEqual([restoredEntry].filter { $0.dayKey == "2026-01-16" }.count, 0)
+
+        var legacyRecord = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(loggedEntry)) as? [String: Any])
+        legacyRecord.removeValue(forKey: "dayKey")
+        defaults.set(try JSONSerialization.data(withJSONObject: [legacyRecord]), forKey: NutritionDiaryRepository.storageKey)
+        let migratedEntry = try XCTUnwrap(repository.load().first)
+        XCTAssertEqual(migratedEntry.dayKey, NutritionDiaryDayKey.make(date))
+        let migratedPayload = try XCTUnwrap(defaults.data(forKey: NutritionDiaryRepository.storageKey))
+        let persistedLegacyRecord = try XCTUnwrap(JSONSerialization.jsonObject(with: migratedPayload) as? [[String: Any]])
+        XCTAssertNotNil(persistedLegacyRecord.first?["dayKey"])
+    }
+
     func testTotalsScaleByServingsAndKeepUnknownFieldsUnavailable() {
         let entries = [
             entry(servings: 1.5, nutrients: NutritionSnapshot(energyKcal: 100, proteinGrams: 10,

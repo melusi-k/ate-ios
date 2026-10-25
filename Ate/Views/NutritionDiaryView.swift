@@ -2,7 +2,7 @@ import SwiftUI
 
 struct NutritionDiaryView: View {
     @State private var entries: [NutritionDiaryEntry] = []
-    @State private var selectedDate = Calendar.autoupdatingCurrent.startOfDay(for: .now)
+    @State private var selectedDayKey = NutritionDiaryDayKey.make(.now)
     @State private var showingAddEntry = false
     @State private var errorMessage: String?
     private let repository: NutritionDiaryRepository
@@ -14,13 +14,24 @@ struct NutritionDiaryView: View {
     }
 
     private var dayEntries: [NutritionDiaryEntry] {
-        entries.filter { Calendar.autoupdatingCurrent.isDate($0.date, inSameDayAs: selectedDate) }
+        entries.filter { $0.dayKey == selectedDayKey }
+    }
+
+    private var selectedDateBinding: Binding<Date> {
+        Binding(
+            get: { NutritionDiaryDayKey.date(for: selectedDayKey) ?? Calendar.autoupdatingCurrent.startOfDay(for: .now) },
+            set: { selectedDayKey = NutritionDiaryDayKey.make($0) }
+        )
+    }
+
+    private var selectedDate: Date {
+        selectedDateBinding.wrappedValue
     }
 
     var body: some View {
         List {
             Section {
-                DatePicker("Diary date", selection: $selectedDate, displayedComponents: .date)
+                DatePicker("Diary date", selection: selectedDateBinding, displayedComponents: .date)
                     .accessibilityIdentifier("nutritionDiary.date")
             }
             Section("Daily totals") {
@@ -102,7 +113,7 @@ struct NutritionDiaryView: View {
         }
         .sheet(isPresented: $showingAddEntry) {
             NavigationStack {
-                NutritionDiaryEntryForm(date: selectedDate) { entry in
+                NutritionDiaryEntryForm(date: selectedDate, dayKey: selectedDayKey) { entry in
                     entries.append(entry)
                     persist()
                     showingAddEntry = false
@@ -130,6 +141,7 @@ struct NutritionDiaryView: View {
 
 private struct NutritionDiaryEntryForm: View {
     let date: Date
+    let dayKey: String
     let onSave: (NutritionDiaryEntry) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var foodName = ""
@@ -232,7 +244,7 @@ private struct NutritionDiaryEntryForm: View {
         let entry = NutritionDiaryEntry(
             foodName: foodName, date: date, meal: meal, quantity: quantityValue, quantityUnit: quantityUnit,
             servings: servingCount, source: source, sourceName: sourceName, sourceIdentifier: sourceIdentifier,
-            verificationNote: verificationNote, nutrientsPerServing: snapshot
+            verificationNote: verificationNote, nutrientsPerServing: snapshot, dayKey: dayKey
         )
         guard NutritionDiaryValidation.isValid(entry) else {
             errorMessage = source.accepts(sourceName: sourceName)

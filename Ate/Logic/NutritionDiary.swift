@@ -6,6 +6,26 @@ enum NutritionMeal: String, CaseIterable, Codable, Identifiable {
     var title: String { rawValue.capitalized }
 }
 
+/// A local calendar date independent of the time zone used to view the diary later.
+enum NutritionDiaryDayKey {
+    static func make(_ date: Date, calendar: Calendar = .autoupdatingCurrent) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+
+    static func date(for key: String, calendar: Calendar = .autoupdatingCurrent) -> Date? {
+        let parts = key.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3, parts[0] > 0, (1...12).contains(parts[1]), (1...31).contains(parts[2]) else {
+            return nil
+        }
+        var components = DateComponents()
+        components.year = parts[0]
+        components.month = parts[1]
+        components.day = parts[2]
+        return calendar.date(from: components)
+    }
+}
+
 enum NutritionEntrySource: String, CaseIterable, Codable, Identifiable {
     case userProvided, recipeSnapshot, externalFoodRecord
     var id: String { rawValue }
@@ -59,6 +79,8 @@ struct NutritionDiaryEntry: Codable, Equatable, Identifiable {
     var id: UUID
     var foodName: String
     var date: Date
+    /// Calendar day selected when logged, persisted as YYYY-MM-DD local date.
+    var dayKey: String
     var meal: NutritionMeal
     var quantity: Double
     var quantityUnit: String
@@ -71,10 +93,12 @@ struct NutritionDiaryEntry: Codable, Equatable, Identifiable {
 
     init(id: UUID = UUID(), foodName: String, date: Date, meal: NutritionMeal, quantity: Double,
          quantityUnit: String, servings: Double, source: NutritionEntrySource, sourceName: String,
-         sourceIdentifier: String = "", verificationNote: String = "", nutrientsPerServing: NutritionSnapshot) {
+         sourceIdentifier: String = "", verificationNote: String = "", nutrientsPerServing: NutritionSnapshot,
+         dayKey: String? = nil) {
         self.id = id
         self.foodName = foodName
         self.date = date
+        self.dayKey = dayKey ?? NutritionDiaryDayKey.make(date)
         self.meal = meal
         self.quantity = quantity
         self.quantityUnit = quantityUnit
@@ -84,6 +108,30 @@ struct NutritionDiaryEntry: Codable, Equatable, Identifiable {
         self.sourceIdentifier = sourceIdentifier
         self.verificationNote = verificationNote
         self.nutrientsPerServing = nutrientsPerServing
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, foodName, date, dayKey, meal, quantity, quantityUnit, servings, source, sourceName
+        case sourceIdentifier, verificationNote, nutrientsPerServing
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        foodName = try values.decode(String.self, forKey: .foodName)
+        date = try values.decode(Date.self, forKey: .date)
+        // Existing v1 entries have only an instant. Capture their best available
+        // local day once when migrating; all new entries persist dayKey directly.
+        dayKey = try values.decodeIfPresent(String.self, forKey: .dayKey) ?? NutritionDiaryDayKey.make(date)
+        meal = try values.decode(NutritionMeal.self, forKey: .meal)
+        quantity = try values.decode(Double.self, forKey: .quantity)
+        quantityUnit = try values.decode(String.self, forKey: .quantityUnit)
+        servings = try values.decode(Double.self, forKey: .servings)
+        source = try values.decode(NutritionEntrySource.self, forKey: .source)
+        sourceName = try values.decode(String.self, forKey: .sourceName)
+        sourceIdentifier = try values.decode(String.self, forKey: .sourceIdentifier)
+        verificationNote = try values.decode(String.self, forKey: .verificationNote)
+        nutrientsPerServing = try values.decode(NutritionSnapshot.self, forKey: .nutrientsPerServing)
     }
 }
 
@@ -133,7 +181,15 @@ struct NutritionDiaryRepository {
     func load() -> [NutritionDiaryEntry] {
         guard let data = defaults.data(forKey: Self.storageKey),
               let entries = try? JSONDecoder().decode([NutritionDiaryEntry].self, from: data) else { return [] }
-        return entries.sorted { $0.date > $1.date }
+        let legacyRecords = ((try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]])?
+            .contains { $0["dayKey"] == nil } ?? false
+        let sorted = entries.sorted {
+            $0.dayKey == $1.dayKey ? $0.date > $1.date : $0.dayKey > $1.dayKey
+        }
+        // Persist migrated keys immediately so a later time-zone change cannot
+        // reinterpret legacy entries a second time.
+        if legacyRecords { try? save(sorted) }
+        return sorted
     }
 
     func save(_ entries: [NutritionDiaryEntry]) throws {

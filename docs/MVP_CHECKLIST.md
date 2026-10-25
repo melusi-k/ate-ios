@@ -792,7 +792,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 
 - **C-NUT-02 · Explicit local food diary and daily totals** — 🟡
   - *Journey:* As a cook, I explicitly record food I have eaten and understand which daily nutrition values are known.
-  - *Acceptance:* Given Settings › Food diary, When I log a food or recipe snapshot, Then its local date, meal, quantity, servings, source/provenance and optional per-serving nutrient snapshot are stored locally; cooking completion does not create an entry; daily values scale by servings and compare with configured goals; any nutrient missing from an entry is shown as unavailable, never estimated; I can delete an entry.
+  - *Acceptance:* Given Settings › Food diary, When I log a food or recipe snapshot, Then its selected local calendar day, meal, quantity, servings, source/provenance and optional per-serving nutrient snapshot are stored locally; the calendar day remains stable if the device time zone changes; cooking completion does not create an entry; daily values scale by servings and compare with configured goals; any nutrient missing from an entry is shown as unavailable, never estimated; I can delete an entry.
   - *Verified by:* `NutritionDiaryTests`, `NutritionDiaryUITests.testFoodDiaryOpensAndExplicitlyLogsFoodWithUnavailableValues`
   - *Status evidence:* Local add/delete and daily summary implementation added; exact-head CI and device/accessibility evidence pending. No catalogue-backed foods or recipe selection are claimed while verified source records are unavailable.
   - *Owner:* [#179](https://github.com/melusi-k/ate-ios/issues/179)

@@ -82,7 +82,7 @@ final class JournalStore {
     /// UI tests (`-qaJournalLocationMediaEntry`): deterministic Siri/Shortcuts-style entry with location and one photo.
     func seedLocationMediaEntryForUITests() {
         guard AppConfig.isUITesting, ProcessInfo.processInfo.arguments.contains("-qaJournalLocationMediaEntry"), entries().isEmpty else { return }
-        let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZV0AAAAASUVORK5CYII=") ?? Data()
+        let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=") ?? Data()
         _ = saveFromIntent(title: "Shortcut meal", text: "Journal entry with place and photo", date: Date(timeIntervalSince1970: 1_791_000_000),
                            state: .balanced, locationName: "Cape Town", latitude: -33.9249, longitude: 18.4241,
                            media: [(data: png, ext: "png")])

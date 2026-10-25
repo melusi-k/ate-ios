@@ -62,6 +62,28 @@ final class NutritionGoalsTests: XCTestCase {
         XCTAssertEqual(failingRepository.load(), previous)
     }
 
+    func testFailedLegacyMigrationWriteKeepsPreviousGoalsVisibleAndLegacyCopy() throws {
+        let previous = DailyNutritionGoals(energyKcal: 2_100, proteinGrams: 85,
+                                           carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil)
+        defaults.set(try JSONEncoder().encode(previous), forKey: DailyNutritionGoals.defaultsKey)
+        let failingStorage = FailingNutritionGoalsStorage(data: nil, failWrites: true)
+        let failingRepository = NutritionGoalsRepository(defaults: defaults, storage: failingStorage)
+
+        // A failed migration must still show the prior value and retain its only durable copy.
+        XCTAssertEqual(failingRepository.load(), previous)
+        let legacy = try XCTUnwrap(defaults.data(forKey: DailyNutritionGoals.defaultsKey))
+        XCTAssertEqual(try JSONDecoder().decode(DailyNutritionGoals.self, from: legacy), previous)
+
+        // A subsequent failed save must not remove the legacy value either.
+        XCTAssertThrowsError(try failingRepository.save(DailyNutritionGoals(
+            energyKcal: 2_200, proteinGrams: 100, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil
+        )))
+        XCTAssertEqual(try JSONDecoder().decode(
+            XCTUnwrap(defaults.data(forKey: DailyNutritionGoals.defaultsKey)), as: DailyNutritionGoals.self
+        ), previous)
+        XCTAssertEqual(failingRepository.load(), previous)
+    }
+
     func testLegacyUserDefaultsConfigurationMigratesToFileStorage() throws {
         let expected = DailyNutritionGoals(energyKcal: 2_100, proteinGrams: 85,
                                            carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil)

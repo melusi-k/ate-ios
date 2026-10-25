@@ -176,8 +176,12 @@ final class CoverageUITests: XCTestCase {
         wait(buildNotesHeading, 3)
         XCTAssertFalse(buildNotes.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                        "About should show generated build notes or an explicit fallback")
-        XCTAssertTrue(app.staticTexts["aiTransparency"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["aiDiagnostics"].firstMatch.exists)
+        let aiTransparency = app.staticTexts["aiTransparency"]
+        scrollTo(aiTransparency); wait(aiTransparency, 3)
+        XCTAssertTrue(aiTransparency.exists)
+        let aiDiagnostics = app.descendants(matching: .any)["aiDiagnostics"].firstMatch
+        scrollTo(aiDiagnostics); wait(aiDiagnostics, 3)
+        XCTAssertTrue(aiDiagnostics.exists)
         shot("settings-about")
     }
 

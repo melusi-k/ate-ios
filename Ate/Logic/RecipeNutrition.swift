@@ -12,6 +12,7 @@ struct NutritionProfile: Codable, Equatable {
         [energyKcal, proteinGrams, carbohydratesGrams, fatGrams, fibreGrams]
             .allSatisfy { value in value.map { $0.isFinite && $0 >= 0 } ?? false }
     }
+}
 
 enum NutritionReferenceBasis: String, Codable {
     case grams

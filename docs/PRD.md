@@ -77,6 +77,17 @@
 2. Paid account: add `com.apple.developer.journal.allow` to `Ate-Signed.entitlements`, enable the picker; "dinner photo → recipe" via the photo import pipeline.
 3. "Ate suggestions in Apple Journal": only if Apple opens an API. Not planned.
 
+## Nutrition tracking — Phase 1 goals foundation (2026-10-25)
+
+Issue [#179](https://github.com/melusi-k/ate-ios/issues/179) is being delivered incrementally. PR [#180](https://github.com/melusi-k/ate-ios/pull/180) implements the local configurable-goals foundation only:
+
+- Daily targets for energy (kcal), protein, carbohydrates, fat and fibre (grams) are independently optional.
+- Targets are validated, stored in canonical units, and persisted locally through an injectable `UserDefaults` repository.
+- Settings exposes an accessible native SwiftUI form with draft editing, explicit **Clear all goals**, validation errors, Save and Cancel.
+- Unit and UI regression coverage covers persistence, malformed data, validation boundaries, Settings navigation, accessibility identifiers, clearing and reopening.
+
+This phase does **not** calculate recipe nutrition, map ingredients to foods, provide a food diary, derive daily/weekly consumed totals, or write nutrition data to HealthKit. Those remain follow-up phases under #179. Goals are personal targets and are not recommendations.
+
 **MVP checklist / QA**
 | ID | Check | How |
 |---|---|---|

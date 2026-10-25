@@ -42,7 +42,10 @@ struct AteApp: App {
                 .onOpenURL { store.handle(url: $0) }
                 .task {
                     PhoneWatchBridge.shared.activate()
-                    Task { await CoverStore.checkPlayground() }
+                    // ImageCreator can hang the simulator launch handshake on CI even though
+                    // UI tests never exercise generated covers. Keep this capability probe on
+                    // the production path; cover tests use explicit QA arguments and samples.
+                    if !AppConfig.isUITesting { Task { await CoverStore.checkPlayground() } }
                     PhoneWatchBridge.shared.update(session: store.session)
                     if let u = AppConfig.launchURL { store.handle(url: u) }
                     if store.recovery != nil { await store.completeRecovery() }

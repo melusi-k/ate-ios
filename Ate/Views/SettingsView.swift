@@ -54,6 +54,14 @@ struct SettingsView: View {
                         .tint(Theme.primary).disabled(!JournalingSuggestionsGate.isAvailable)
                         .accessibilityIdentifier("toggle.journalingSuggestions")
                     }
+                    Section("Nutrition") {
+                        NavigationLink {
+                            NutritionGoalsView()
+                        } label: {
+                            Label("Nutrition goals", systemImage: "target")
+                        }
+                        .accessibilityIdentifier("settings.nutritionGoals")
+                    }
                     Section("Units") {
                         Picker("Units", selection: $store.settings.units) {
                             Text("Metric").tag(UnitSystem.metric); Text("Imperial").tag(UnitSystem.imperial)

@@ -59,6 +59,17 @@ final class NutritionDiaryTests: XCTestCase {
         XCTAssertFalse(NutritionDiaryValidation.isValid(invalid))
     }
 
+    func testSourceNameDefaultsAndValidationStayAlignedWithSelectedSource() {
+        XCTAssertEqual(NutritionEntrySource.userProvided.suggestedSourceName, "You")
+        XCTAssertEqual(NutritionEntrySource.recipeSnapshot.suggestedSourceName, "Recipe snapshot")
+        XCTAssertEqual(NutritionEntrySource.externalFoodRecord.suggestedSourceName, "")
+
+        XCTAssertFalse(NutritionEntrySource.recipeSnapshot.accepts(sourceName: "You"))
+        XCTAssertFalse(NutritionEntrySource.externalFoodRecord.accepts(sourceName: "You"))
+        XCTAssertFalse(NutritionEntrySource.externalFoodRecord.accepts(sourceName: "  "))
+        XCTAssertTrue(NutritionEntrySource.externalFoodRecord.accepts(sourceName: "Food database"))
+    }
+
     private func entry(servings: Double, nutrients: NutritionSnapshot) -> NutritionDiaryEntry {
         NutritionDiaryEntry(foodName: "Food", date: .now, meal: .lunch, quantity: servings,
                             quantityUnit: "serving", servings: servings, source: .userProvided,

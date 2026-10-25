@@ -31,8 +31,19 @@ final class NutritionDiaryUITests: XCTestCase {
         foodName.typeText("My lunch")
         app.textFields["nutritionDiary.quantityUnit"].tap()
         app.textFields["nutritionDiary.quantityUnit"].typeText("bowl")
-        app.textFields["nutritionDiary.sourceName"].tap()
-        app.textFields["nutritionDiary.sourceName"].typeText("My notes")
+        let sourceName = app.textFields["nutritionDiary.sourceName"]
+        sourceName.tap()
+        sourceName.typeText("My notes")
+        let sourcePicker = app.descendants(matching: .any)["nutritionDiary.source"].firstMatch
+        XCTAssertTrue(sourcePicker.waitForExistence(timeout: 5))
+        sourcePicker.tap()
+        let externalSource = app.buttons["External record (not verified by Ate)"]
+        XCTAssertTrue(externalSource.waitForExistence(timeout: 5))
+        externalSource.tap()
+        XCTAssertNotEqual(sourceName.value as? String, "You")
+        XCTAssertNotEqual(sourceName.value as? String, "My notes")
+        sourceName.tap()
+        sourceName.typeText("Test food database")
         app.buttons["nutritionDiary.save"].tap()
 
         XCTAssertTrue(app.staticTexts["My lunch"].waitForExistence(timeout: 5))

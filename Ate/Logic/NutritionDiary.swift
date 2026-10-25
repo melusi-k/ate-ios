@@ -16,6 +16,23 @@ enum NutritionEntrySource: String, CaseIterable, Codable, Identifiable {
         case .externalFoodRecord: "External record (not verified by Ate)"
         }
     }
+
+    /// Safe initial provenance text for a newly selected source. External sources
+    /// must be named by the person logging the food so we never invent a provider.
+    var suggestedSourceName: String {
+        switch self {
+        case .userProvided: "You"
+        case .recipeSnapshot: "Recipe snapshot"
+        case .externalFoodRecord: ""
+        }
+    }
+
+    func accepts(sourceName: String) -> Bool {
+        let name = sourceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return false }
+        if self != .userProvided && name.caseInsensitiveCompare("You") == .orderedSame { return false }
+        return true
+    }
 }
 
 /// Per-serving nutrient snapshot captured at the time the food was explicitly logged.
@@ -99,7 +116,7 @@ enum NutritionDiaryValidation {
             && !entry.quantityUnit.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && entry.quantity.isFinite && entry.quantity > 0
             && entry.servings.isFinite && entry.servings > 0
-            && entry.sourceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            && entry.source.accepts(sourceName: entry.sourceName)
             && NutritionGoalField.allCases.allSatisfy { field in
                 guard let value = entry.nutrientsPerServing[field] else { return true }
                 return value.isFinite && value >= 0

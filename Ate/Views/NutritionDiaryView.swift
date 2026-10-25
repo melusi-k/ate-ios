@@ -165,7 +165,9 @@ private struct NutritionDiaryEntryForm: View {
                 Picker("Nutrition source", selection: $source) {
                     ForEach(NutritionEntrySource.allCases) { Text($0.title).tag($0) }
                 }
+                .accessibilityIdentifier("nutritionDiary.source")
                 TextField("Source name", text: $sourceName)
+                    .textInputAutocapitalization(.words)
                     .accessibilityIdentifier("nutritionDiary.sourceName")
                 TextField("Source record ID (optional)", text: $sourceIdentifier)
                     .accessibilityIdentifier("nutritionDiary.sourceIdentifier")
@@ -190,6 +192,10 @@ private struct NutritionDiaryEntryForm: View {
         }
         .navigationTitle("Log food")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: source) { _, newSource in
+            sourceName = newSource.suggestedSourceName
+            errorMessage = nil
+        }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
@@ -229,7 +235,9 @@ private struct NutritionDiaryEntryForm: View {
             verificationNote: verificationNote, nutrientsPerServing: snapshot
         )
         guard NutritionDiaryValidation.isValid(entry) else {
-            errorMessage = "Enter a food name, quantity unit and source name."
+            errorMessage = source.accepts(sourceName: sourceName)
+                ? "Enter a food name and quantity unit."
+                : "Enter a source name that matches the selected nutrition source."
             return
         }
         onSave(entry)

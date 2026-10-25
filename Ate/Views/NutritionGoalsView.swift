@@ -31,6 +31,16 @@ struct NutritionGoalsView: View {
             }
 
             Section {
+                Button("Clear all goals", role: .destructive) { clearAll() }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .accessibilityIdentifier("nutritionGoals.clearAll")
+                    .accessibilityHint("Turns off every goal in this form. Tap Save goals to confirm the change.")
+            } footer: {
+                Text("Clearing goals changes this draft only until you tap Save goals.")
+                    .accessibilityIdentifier("nutritionGoals.clearAllHint")
+            }
+
+            Section {
                 Button("Save goals") { save() }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .disabled(!didLoad)
@@ -112,6 +122,15 @@ struct NutritionGoalsView: View {
                 saveError = nil
             }
         )
+    }
+
+    private func clearAll() {
+        for field in NutritionGoalField.allCases {
+            enabled[field] = false
+            values[field] = ""
+            errors[field] = nil
+        }
+        saveError = nil
     }
 
     private func loadDraftIfNeeded() {

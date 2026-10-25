@@ -15,6 +15,7 @@ This is a **status index**, not a substitute for each acceptance row's evidence.
 | Cooking Tracker / Cook Mode | 🟡 Partial | Cooking insights and Cooked Meals collection delivered | Tracker semantics, history/streak/time-zone correctness and remaining device evidence in #31/#60 |
 | Timers, widgets, Live Activities and intents | 🟡 Partial | Some implementation and historical device evidence exists | Current device matrix, widget/App Group, Live Activity, shortcut and background lifecycle acceptance |
 | Apple Health and local journal | 🟡 Partial | Insights/journal implementation and related acceptance work merged; #66 remains open | Journal UI test PR review/merge, physical-device Health/entitlement and Shortcuts evidence (#67) |
+| Nutrition tracking — Phase 1 goals | 🟡 Partial | Local configurable daily goals implemented in #180 with unit and UI coverage | Exact-head CI and device/accessibility evidence; recipe nutrition, food diary, aggregation and HealthKit writes remain future phases of #179 |
 | Settings and in-app legal sheets | 🟡 Partial | Settings cleanup and native Terms/Privacy sheets delivered | Reconcile all settings/data-management acceptance rows and revalidate current build |
 | Accessibility and responsive/native UX | 🟡 Partial | Shared header/tab work has been delivered | Full UI shard issues #156–#158 and device/accessibility checks remain open |
 | Sharing, deep links and production backend | 🔴 Outstanding / failing | Recipe publishing has recorded evidence; share-stack fixes are in progress | Latest readiness snapshot flags retrieval, deep-link/URL and outage fallback failures; production host/Universal Links still need verification |
@@ -779,6 +780,16 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 
 ### Health and journal
 
+#### Nutrition tracking (incremental)
+
+- **C-NUT-01 · Configure local nutrition goals** — 🟡
+  - *Journey:* As a cook, I can configure personal daily targets without making them recommendations or logging a meal.
+  - *Acceptance:* Given Settings › Nutrition goals, When I enable any target, enter a valid value, save, reopen and optionally clear all, Then each target persists independently in local storage, invalid values are explained inline, and clearing followed by Save removes every configured target.
+  - *Verified by:* `NutritionGoalsTests`, `NutritionGoalsUITests.testGoalsCanBeConfiguredAndClearedFromSettings`
+  - *Status evidence:* Phase 1 implementation is in PR #180; exact-head Compile Check and device validation remain pending. This item does not claim recipe nutrition, food diary or HealthKit write support.
+  - *Owner:* [#179](https://github.com/melusi-k/ate-ios/issues/179)
+  - *Feature area:* Health and journal · *Release gate:* No committed release gate · *Initial priority:* P1
+
 #### Apple Health insights
 
 - **A-HEALTH-01 · No Health prompt at launch** — 🔴
@@ -1518,5 +1529,3 @@ No mismatches were found on Supabase EU region, on-device AI (no server `parse-r
 - **no P0/P1** issues open;
 - legal review done (B-PRIV-04), with the privacy audit mismatches above fixed;
 - App Store / TestFlight submission path working.
-
-

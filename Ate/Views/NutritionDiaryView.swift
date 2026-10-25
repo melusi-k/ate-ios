@@ -223,7 +223,8 @@ private struct NutritionDiaryEntryForm: View {
     private func save() {
         let normalized = quantity.trimmingCharacters(in: .whitespacesAndNewlines)
         let servingValue = servings.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let quantityValue = Double(normalized), let servingCount = Double(servingValue),
+        guard let quantityValue = NutritionDiaryNumber.parse(normalized),
+              let servingCount = NutritionDiaryNumber.parse(servingValue),
               quantityValue.isFinite, quantityValue > 0, servingCount.isFinite, servingCount > 0 else {
             errorMessage = "Enter a quantity and servings greater than zero."
             return
@@ -232,7 +233,7 @@ private struct NutritionDiaryEntryForm: View {
         for field in NutritionGoalField.allCases {
             let text = (nutrientText[field] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             if text.isEmpty { continue }
-            guard let value = Double(text), value.isFinite, value >= 0 else {
+            guard let value = NutritionDiaryNumber.parse(text), value >= 0 else {
                 errorMessage = "Enter a valid non-negative value for each nutrient, or leave it blank."
                 return
             }

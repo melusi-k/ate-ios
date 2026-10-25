@@ -103,6 +103,15 @@ final class NutritionDiaryTests: XCTestCase {
         XCTAssertTrue(NutritionEntrySource.externalFoodRecord.accepts(sourceName: "Food database"))
     }
 
+    func testDiaryDecimalInputUsesTheActiveLocaleSeparator() {
+        let commaDecimal = Locale(identifier: "de_DE")
+        XCTAssertEqual(NutritionDiaryNumber.parse("1,5", locale: commaDecimal), 1.5)
+        XCTAssertEqual(NutritionDiaryNumber.parse("0,75", locale: commaDecimal), 0.75)
+        XCTAssertEqual(NutritionDiaryNumber.parse("1.5", locale: commaDecimal), 1.5)
+        XCTAssertNil(NutritionDiaryNumber.parse("1,5", locale: Locale(identifier: "en_US")))
+        XCTAssertNil(NutritionDiaryNumber.parse("nan", locale: commaDecimal))
+    }
+
     private func entry(servings: Double, nutrients: NutritionSnapshot) -> NutritionDiaryEntry {
         NutritionDiaryEntry(foodName: "Food", date: .now, meal: .lunch, quantity: servings,
                             quantityUnit: "serving", servings: servings, source: .userProvided,

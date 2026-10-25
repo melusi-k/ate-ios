@@ -26,6 +26,19 @@ enum NutritionDiaryDayKey {
     }
 }
 
+enum NutritionDiaryNumber {
+    /// Parse decimal-pad text using the active locale's decimal separator while
+    /// also accepting a period for values copied from labels or older exports.
+    static func parse(_ text: String, locale: Locale = .current) -> Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let separator = locale.decimalSeparator ?? "."
+        let normalized = separator == "." ? trimmed : trimmed.replacingOccurrences(of: separator, with: ".")
+        guard let value = Double(normalized), value.isFinite else { return nil }
+        return value
+    }
+}
+
 enum NutritionEntrySource: String, CaseIterable, Codable, Identifiable {
     case userProvided, recipeSnapshot, externalFoodRecord
     var id: String { rawValue }

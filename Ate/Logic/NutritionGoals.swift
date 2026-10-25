@@ -1,7 +1,5 @@
 import Foundation
 
-/// Daily nutrition targets are user-defined and independently optional.
-/// Values are stored in canonical units: kcal for energy and grams for nutrients.
 struct DailyNutritionGoals: Codable, Equatable {
     var energyKcal: Double?
     var proteinGrams: Double?
@@ -58,17 +56,12 @@ enum NutritionGoalField: String, CaseIterable, Identifiable {
 }
 
 enum NutritionGoalValidation {
-    /// Returns a field-specific error when an enabled goal is missing or invalid.
     static func error(for field: NutritionGoalField, text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "Enter a \(field.unit) target or turn this goal off." }
-
-        // Accept the current locale's decimal separator as well as a dot.
         let separator = Locale.current.decimalSeparator ?? "."
         let normalized = separator == "." ? trimmed : trimmed.replacingOccurrences(of: separator, with: ".")
-        guard let value = Double(normalized), value.isFinite else {
-            return "Enter a valid number."
-        }
+        guard let value = Double(normalized), value.isFinite else { return "Enter a valid number." }
         guard value > 0 else { return "Enter a value greater than zero." }
         guard value <= field.maximum else {
             return "Enter a value no greater than \(Int(field.maximum)) \(field.unit)."
@@ -91,28 +84,82 @@ enum NutritionGoalValidation {
     }
 }
 
-/// Small UserDefaults-backed local repository. The defaults instance is injectable for isolated tests.
+/// Storage operations deliberately throw so callers can preserve the previous saved configuration on failure.
+protocol NutritionGoalsStorage {
+    func read() throws -> Data?
+    func write(_ data: Data) throws
+    func remove() throws
+}
+
+/// Atomic file storage avoids treating UserDefaults.set (which has no failure result) as durable success.
+struct FileNutritionGoalsStorage: NutritionGoalsStorage {
+    let fileURL: URL
+    private let fileManager: FileManager
+
+    init(fileURL: URL? = nil, fileManager: FileManager = .default) {
+        self.fileManager = fileManager
+        if let fileURL {
+            self.fileURL = fileURL
+        } else {
+            let directory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+                .appendingPathComponent("Ate", isDirectory: true)
+            self.fileURL = directory.appendingPathComponent("nutrition-goals-v1.json")
+        }
+    }
+
+    func read() throws -> Data? {
+        guard fileManager.fileExists(atPath: fileURL.path) else { return nil }
+        return try Data(contentsOf: fileURL)
+    }
+
+    func write(_ data: Data) throws {
+        let directory = fileURL.deletingLastPathComponent()
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        try data.write(to: fileURL, options: .atomic)
+    }
+
+    func remove() throws {
+        guard fileManager.fileExists(atPath: fileURL.path) else { return }
+        try fileManager.removeItem(at: fileURL)
+    }
+}
+
 struct NutritionGoalsRepository {
     let defaults: UserDefaults
+    let storage: NutritionGoalsStorage
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, storage: NutritionGoalsStorage? = nil) {
         self.defaults = defaults
+        self.storage = storage ?? FileNutritionGoalsStorage()
     }
 
     func load() -> DailyNutritionGoals {
-        guard let data = defaults.data(forKey: DailyNutritionGoals.defaultsKey),
-              let goals = try? JSONDecoder().decode(DailyNutritionGoals.self, from: data) else {
-            return DailyNutritionGoals(energyKcal: nil, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil)
+        do {
+            if let data = try storage.read() {
+                return try JSONDecoder().decode(DailyNutritionGoals.self, from: data)
+            }
+            // One-time migration from the original UserDefaults implementation.
+            if let legacy = defaults.data(forKey: DailyNutritionGoals.defaultsKey) {
+                let goals = try JSONDecoder().decode(DailyNutritionGoals.self, from: legacy)
+                try storage.write(legacy)
+                defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
+                return goals
+            }
+        } catch {
+            // Do not crash Settings for corrupt/unavailable local storage. Save reports actionable failures.
         }
-        return goals
+        return DailyNutritionGoals(energyKcal: nil, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil)
     }
 
     func save(_ goals: DailyNutritionGoals) throws {
         if goals.isEmpty {
+            try storage.remove()
             defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
             return
         }
         let data = try JSONEncoder().encode(goals)
-        defaults.set(data, forKey: DailyNutritionGoals.defaultsKey)
+        try storage.write(data)
+        // Remove the legacy copy only after the new atomic write succeeded.
+        defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
     }
 }

@@ -64,7 +64,7 @@ ate uses **Apple Intelligence (Foundation Models) on your device** to turn links
 ## How long data is kept
 - **Account and synced data:** kept while your account exists. When you delete your account, your account, synced recipes, shopping list and beta results are deleted from the database straight away. Backups held by the hosting provider roll off within their normal backup cycle (typically up to 7 days).
 - **Shared recipes:** stay available at their link while your account exists. Deleting your account removes owned shares; older anonymous shares stay available until you ask me to remove one. I'll remove requested links within 30 days, usually much sooner.
-- **Data on your device**, including Health-derived Insights and journal entries: stays until you delete it, sign out and remove local data, or delete the app. Diagnostic history is limited to the most recent 200 events and can be cleared at any time in Settings.
+- **Data on your device**, including Health-derived Insights, journal entries, food diary entries and nutrition goals: stays until you delete it, sign out and remove local data, delete your account, or delete the app. Food diary entries and their source/nutrient snapshots are included in Settings › Export data. Diagnostic history is limited to the most recent 200 events and can be cleared at any time in Settings.
 
 ## Your rights (POPIA and GDPR)
 You can access, correct, delete and export your data, object to or restrict processing, withdraw consent, and complain to a regulator. How to do each of these: [Your data rights](rights.html). Email **melusi.l.k@gmail.com**; I'll reply within 30 days.

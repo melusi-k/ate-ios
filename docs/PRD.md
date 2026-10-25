@@ -88,6 +88,12 @@ Issue [#179](https://github.com/melusi-k/ate-ios/issues/179) is being delivered 
 
 This phase does **not** calculate recipe nutrition, map ingredients to foods, provide a food diary, derive daily/weekly consumed totals, or write nutrition data to HealthKit. Those remain follow-up phases under #179. Goals are personal targets and are not recommendations.
 
+## Nutrition data-source decision (2026-10-25)
+
+For the customer-facing starter catalogue, use a small offline bundle of exact-match USDA FoodData Central records. FDC is public domain under CC0 1.0 and requests source attribution; its live API requires a protected key, so the app will not call it at runtime. Store the source record ID, data type/release, preparation state, reference quantity, units and only the nutrients present in the source. See [Nutrition data policy](NUTRITION_DATA_POLICY.md).
+
+Do not approximate South African foods or prepared dishes with a superficially similar FDC record. Show foods without an exact match as not in the catalogue and preserve their nutrient values as unavailable unless the person adds values from a source they identify; those values remain user-provided, not independently verified by Ate. Add SAFOODS records only after commercial-use rights are confirmed in writing. The bundled catalogue itself is still empty/unverified in the current mainline; this decision resolves the source strategy, not catalogue coverage.
+
 **MVP checklist / QA**
 | ID | Check | How |
 |---|---|---|
@@ -485,7 +491,7 @@ An event is assigned to the device's local calendar day when it is recorded. Sto
   - Vibration — "Buzz your device (where supported)." (default on) → iOS haptics
   - Step-by-step alerts — "Show a system notification for each step." (default on; turning on requests notification permission)
   - Divider, **Quiet hours** — "Mute the chime during this window — vibration and alerts still work." (default off). When on: two time pickers "From" (default 22:00) and "Until" (07:00), side by side.
-- Card 3: **Your data** — "Recipes are stored on this device only. Nothing is uploaded when you browse or cook." Buttons: "Export data" (secondary → share `ate-recipes.json`, pretty JSON array), "Import recipes" (secondary → `fileImporter` for .json; toast "Imported {n} recipe(s)" / "Library up to date" / error "That file isn't a ate export."), "Clear all" (ghost destructive, toast "Library cleared"; iOS: add confirmation).
+- Card 3: **Your data** — "Recipes are stored on this device only. Nothing is uploaded when you browse or cook." Buttons: "Export data" shares a versioned `ate-data.json` archive containing recipes, shopping items, food diary entries and provenance/nutrient snapshots, nutrition goals, local app/timer preferences and export metadata; credentials/session tokens are excluded. "Import data" accepts current archives and legacy recipe-array files. After file selection, confirmation explains that new recipe/shopping/diary items are merged by ID (matching on-device items win) and imported goals/preferences replace current values. Clear local data removes the diary and nutrition goals with the other local data.
 - Settings model also has `units: metric|imperial` (default metric) — not exposed in web UI; iOS may add a "Units" segmented picker.
 
 ### 4.7 Shared recipe — `/r/:slug`

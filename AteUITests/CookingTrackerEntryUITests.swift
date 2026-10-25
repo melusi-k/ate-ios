@@ -34,7 +34,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Your body today"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Your Ate journal"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["insights.cookingCalendar"].exists)
-        XCTAssertTrue(app.buttons["insights.connect"].exists, "Health access should be an explicit user action")
+        XCTAssertTrue(app.buttons["insights.tile.bodyToday"].exists, "Health access should be an explicit user action")
         XCTAssertFalse(app.alerts["“ate” would like to access your Health data"].exists,
                        "Opening Insights must not request Health permission")
         app.buttons["insights.connect"].tap()

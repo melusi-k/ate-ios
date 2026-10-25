@@ -120,7 +120,7 @@ struct RecipeNutritionCalculator {
     private func findFood(for ingredientName: String) -> NutritionFoodRecord? {
         let query = Self.normalizedName(ingredientName)
         return foods.first { food in
-            [food.name] .concat(food.aliases).contains { Self.normalizedName($0) == query }
+            ([food.name] + food.aliases).contains { Self.normalizedName($0) == query }
         }
     }
 
@@ -128,13 +128,13 @@ struct RecipeNutritionCalculator {
         let unit = unit.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         switch food.referenceBasis {
         case .grams:
-            switch unit {
+            return switch unit {
             case "g", "gram", "grams": quantity
             case "kg", "kilogram", "kilograms": quantity * 1_000
             default: nil
             }
         case .millilitres:
-            switch unit {
+            return switch unit {
             case "ml", "millilitre", "millilitres", "milliliter", "milliliters": quantity
             case "l", "litre", "litres", "liter", "liters": quantity * 1_000
             default: nil
@@ -186,6 +186,3 @@ private struct NutrientAccumulator {
     }
 }
 
-private extension Array where Element == String {
-    func concat(_ other: [String]) -> [String] { self + other }
-}

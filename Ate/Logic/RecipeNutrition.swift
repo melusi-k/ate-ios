@@ -9,9 +9,9 @@ struct NutritionProfile: Codable, Equatable {
     var fibreGrams: Double?
     
     var isComplete: Bool {
-        [energyKcal, proteinGrams, carbohydratesGrams, fatGrams, fibreGrams].allSatisfy { $0 != nil }
+        [energyKcal, proteinGrams, carbohydratesGrams, fatGrams, fibreGrams]
+            .allSatisfy { value in value.map { $0.isFinite && $0 >= 0 } ?? false }
     }
-}
 
 enum NutritionReferenceBasis: String, Codable {
     case grams

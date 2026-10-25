@@ -134,23 +134,40 @@ struct NutritionGoalsRepository {
     }
 
     func load() -> DailyNutritionGoals {
+        let empty = DailyNutritionGoals(
+            energyKcal: nil, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil
+        )
+        let legacyData = defaults.data(forKey: DailyNutritionGoals.defaultsKey)
+        let legacyGoals = legacyData.flatMap {
+            try? JSONDecoder().decode(DailyNutritionGoals.self, from: $0)
+        }
+
         do {
             if let data = try storage.read() {
-                return try JSONDecoder().decode(DailyNutritionGoals.self, from: data)
-            }
-            // One-time migration from the original UserDefaults implementation.
-            if let legacy = defaults.data(forKey: DailyNutritionGoals.defaultsKey) {
-                let goals = try JSONDecoder().decode(DailyNutritionGoals.self, from: legacy)
-                try storage.write(legacy)
-                defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
-                return goals
+                do {
+                    return try JSONDecoder().decode(DailyNutritionGoals.self, from: data)
+                } catch {
+                    // Preserve the last recoverable legacy value if the new file is corrupt.
+                    // A later successful save can atomically replace the file before removing legacy data.
+                    return legacyGoals ?? empty
+                }
             }
         } catch {
-            // Do not crash Settings for corrupt/unavailable local storage. Save reports actionable failures.
+            // If the new file cannot be read, don't hide a recoverable legacy value or remove it.
+            return legacyGoals ?? empty
         }
-        return DailyNutritionGoals(energyKcal: nil, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil)
-    }
 
+        guard let legacyData, let legacyGoals else { return empty }
+
+        do {
+            try storage.write(legacyData)
+            defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
+        } catch {
+            // Keep legacy goals visible and intact. Do not turn a failed migration into an empty form.
+            // The original value is removed only after a later successful write or an explicit successful clear.
+        }
+        return legacyGoals
+    }
     func save(_ goals: DailyNutritionGoals) throws {
         if goals.isEmpty {
             try storage.remove()

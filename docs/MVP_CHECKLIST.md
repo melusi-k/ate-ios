@@ -15,7 +15,7 @@ This is a **status index**, not a substitute for each acceptance row's evidence.
 | Cooking Tracker / Cook Mode | 🟡 Partial | Cooking insights and Cooked Meals collection delivered | Tracker semantics, history/streak/time-zone correctness and remaining device evidence in #31/#60 |
 | Timers, widgets, Live Activities and intents | 🟡 Partial | Some implementation and historical device evidence exists | Current device matrix, widget/App Group, Live Activity, shortcut and background lifecycle acceptance |
 | Apple Health and local journal | 🟡 Partial | Insights/journal implementation and related acceptance work merged; #66 remains open | Journal UI test PR review/merge, physical-device Health/entitlement and Shortcuts evidence (#67) |
-| Nutrition tracking — Phase 1 goals | 🟡 Partial | Local configurable daily goals implemented in #180 with unit and UI coverage | Exact-head CI and device/accessibility evidence; recipe nutrition, food diary, aggregation and HealthKit writes remain future phases of #179 |
+| Nutrition tracking — goals and local diary increment | 🟡 Partial | Optional local goals in #180; explicit local diary logging and source-aware daily aggregation added in this increment | Exact-head CI and device/accessibility evidence; verified food catalogue, recipe linkage, entry editing, trends and HealthKit writes remain outstanding under #179 |
 | Settings and in-app legal sheets | 🟡 Partial | Settings cleanup and native Terms/Privacy sheets delivered | Reconcile all settings/data-management acceptance rows and revalidate current build |
 | Accessibility and responsive/native UX | 🟡 Partial | Shared header/tab work has been delivered | Full UI shard issues #156–#158 and device/accessibility checks remain open |
 | Sharing, deep links and production backend | 🔴 Outstanding / failing | Recipe publishing has recorded evidence; share-stack fixes are in progress | Latest readiness snapshot flags retrieval, deep-link/URL and outage fallback failures; production host/Universal Links still need verification |
@@ -786,7 +786,15 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Journey:* As a cook, I can configure personal daily targets without making them recommendations or logging a meal.
   - *Acceptance:* Given Settings › Nutrition goals, When I enable any target, enter a valid value, save, reopen and optionally clear all, Then each target persists independently in local storage, invalid values are explained inline, and clearing followed by Save removes every configured target.
   - *Verified by:* `NutritionGoalsTests`, `NutritionGoalsUITests.testGoalsCanBeConfiguredAndClearedFromSettings`
-  - *Status evidence:* Phase 1 implementation is in PR #180; exact-head Compile Check and device validation remain pending. This item does not claim recipe nutrition, food diary or HealthKit write support.
+  - *Status evidence:* Implemented in merged PR #180; exact-head validation and device evidence remain pending. This item does not claim recipe nutrition or HealthKit write support.
+  - *Owner:* [#179](https://github.com/melusi-k/ate-ios/issues/179)
+  - *Feature area:* Health and journal · *Release gate:* No committed release gate · *Initial priority:* P1
+
+- **C-NUT-02 · Explicit local food diary and daily totals** — 🟡
+  - *Journey:* As a cook, I explicitly record food I have eaten and understand which daily nutrition values are known.
+  - *Acceptance:* Given Settings › Food diary, When I log a food or recipe snapshot, Then its local date, meal, quantity, servings, source/provenance and optional per-serving nutrient snapshot are stored locally; cooking completion does not create an entry; daily values scale by servings and compare with configured goals; any nutrient missing from an entry is shown as unavailable, never estimated; I can delete an entry.
+  - *Verified by:* `NutritionDiaryTests`, `NutritionDiaryUITests.testFoodDiaryOpensAndExplicitlyLogsFoodWithUnavailableValues`
+  - *Status evidence:* Local add/delete and daily summary implementation added; exact-head CI and device/accessibility evidence pending. No catalogue-backed foods or recipe selection are claimed while verified source records are unavailable.
   - *Owner:* [#179](https://github.com/melusi-k/ate-ios/issues/179)
   - *Feature area:* Health and journal · *Release gate:* No committed release gate · *Initial priority:* P1
 

@@ -56,6 +56,12 @@ struct SettingsView: View {
                     }
                     Section("Nutrition") {
                         NavigationLink {
+                            NutritionDiaryView()
+                        } label: {
+                            Label("Food diary", systemImage: "fork.knife")
+                        }
+                        .accessibilityIdentifier("settings.nutritionDiary")
+                        NavigationLink {
                             NutritionGoalsView()
                         } label: {
                             Label("Nutrition goals", systemImage: "target")

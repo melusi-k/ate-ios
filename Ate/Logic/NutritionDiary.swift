@@ -7,13 +7,13 @@ enum NutritionMeal: String, CaseIterable, Codable, Identifiable {
 }
 
 enum NutritionEntrySource: String, CaseIterable, Codable, Identifiable {
-    case userProvided, recipeSnapshot, verifiedFoodRecord
+    case userProvided, recipeSnapshot, externalFoodRecord
     var id: String { rawValue }
     var title: String {
         switch self {
         case .userProvided: "Entered by you"
         case .recipeSnapshot: "Recipe snapshot"
-        case .verifiedFoodRecord: "Food database record"
+        case .externalFoodRecord: "External record (not verified by Ate)"
         }
     }
 }

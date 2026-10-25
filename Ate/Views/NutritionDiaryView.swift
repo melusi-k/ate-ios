@@ -169,10 +169,10 @@ private struct NutritionDiaryEntryForm: View {
                     .accessibilityIdentifier("nutritionDiary.sourceName")
                 TextField("Source record ID (optional)", text: $sourceIdentifier)
                     .accessibilityIdentifier("nutritionDiary.sourceIdentifier")
-                TextField("Verification or preparation note (optional)", text: $verificationNote, axis: .vertical)
+                TextField("Preparation or source-match note (optional)", text: $verificationNote, axis: .vertical)
                     .accessibilityIdentifier("nutritionDiary.verificationNote")
             } header: { Text("Source and provenance") } footer: {
-                Text("Record where these values came from. Blank nutrient values stay unavailable; Ate does not estimate them.")
+                Text("Record where these values came from. Ate does not independently verify external values. Blank nutrients stay unavailable; Ate does not estimate them.")
             }
             Section {
                 ForEach(NutritionGoalField.allCases) { field in

@@ -88,6 +88,12 @@ Issue [#179](https://github.com/melusi-k/ate-ios/issues/179) is being delivered 
 
 This phase does **not** calculate recipe nutrition, map ingredients to foods, provide a food diary, derive daily/weekly consumed totals, or write nutrition data to HealthKit. Those remain follow-up phases under #179. Goals are personal targets and are not recommendations.
 
+## Nutrition data-source decision (2026-10-25)
+
+For the customer-facing starter catalogue, use a small offline bundle of exact-match USDA FoodData Central records. FDC is public domain under CC0 1.0 and requests source attribution; its live API requires a protected key, so the app will not call it at runtime. Store the source record ID, data type/release, preparation state, reference quantity, units and only the nutrients present in the source. See [Nutrition data policy](NUTRITION_DATA_POLICY.md).
+
+Do not approximate South African foods or prepared dishes with a superficially similar FDC record. Show foods without an exact match as not in the catalogue and preserve their nutrient values as unavailable unless the person adds values from a source they identify; those values remain user-provided, not independently verified by Ate. Add SAFOODS records only after commercial-use rights are confirmed in writing. The bundled catalogue itself is still empty/unverified in the current mainline; this decision resolves the source strategy, not catalogue coverage.
+
 **MVP checklist / QA**
 | ID | Check | How |
 |---|---|---|

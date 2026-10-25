@@ -78,9 +78,8 @@ final class NutritionGoalsTests: XCTestCase {
         XCTAssertThrowsError(try failingRepository.save(DailyNutritionGoals(
             energyKcal: 2_200, proteinGrams: 100, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil
         )))
-        XCTAssertEqual(try JSONDecoder().decode(
-            XCTUnwrap(defaults.data(forKey: DailyNutritionGoals.defaultsKey)), as: DailyNutritionGoals.self
-        ), previous)
+        let retainedLegacy = try XCTUnwrap(defaults.data(forKey: DailyNutritionGoals.defaultsKey))
+        XCTAssertEqual(try JSONDecoder().decode(DailyNutritionGoals.self, from: retainedLegacy), previous)
         XCTAssertEqual(failingRepository.load(), previous)
     }
 

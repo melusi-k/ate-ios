@@ -978,23 +978,23 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 
 - **A-SET-02 · Export user data** — 🟡
   - *Journey:* As a cook, I can keep a usable copy of my data outside Ate.
-  - *Acceptance:* Export completes with a clear success/failure state and contains the documented local recipes, shopping data and supported metadata without secrets or session tokens.
-  - *Verified by:* — · focused unit/UI coverage required
-  - *Status evidence:* Export schema, completeness and failure-state evidence need review.
+  - *Acceptance:* Export completes with a clear success/failure state and creates a versioned JSON archive containing local recipes, shopping items, nutrition diary entries with source/nutrient snapshots, nutrition goals, app/timer preferences and export metadata, without credentials or session tokens. Import merges recipes, shopping items and diary entries by stable ID (existing on-device items win), while goals and preferences replace current values only after confirmation. Legacy recipe-array exports remain importable.
+  - *Verified by:* `DataArchiveTests.testExportAndImportRoundTripIncludesDiaryShoppingAndGoals`, `SettingsView` export/import flow
+  - *Status evidence:* Archive and truthful export error handling implemented; exact-head test/device evidence pending.
   - *Owner:* [#74](https://github.com/melusi-k/ate-ios/issues/74)
   - *Feature area:* Shopping List and Settings · *Release gate:* Pilot · *Initial priority:* P1
 
 - **A-SET-03 · Import and validate data** — 🟡
   - *Journey:* As a cook, I restore data from a previous export.
-  - *Acceptance:* Valid exports restore safely; malformed/unsupported input is rejected with a useful error; duplicate IDs and conflicting data follow a documented rule; import does not silently destroy valid local data.
-  - *Verified by:* — · focused unit/UI coverage required
-  - *Status evidence:* Import validation and destructive edge cases need current evidence.
+  - *Acceptance:* Valid current archives and legacy recipe arrays import safely; malformed/unsupported versions and invalid diary entries are rejected with a useful error; recipes, shopping items and diary entries with matching IDs keep the on-device copy; imported goals and preferences replace current values only after confirmation; import does not silently destroy valid local data.
+  - *Verified by:* `DataArchiveTests.testLegacyRecipeArrayImportStillWorks`, `DataArchiveTests.testExportAndImportRoundTripIncludesDiaryShoppingAndGoals`
+  - *Status evidence:* Additive ID merge, archive validation and confirmed preferences/goals replacement implemented; exact-head test/device evidence pending.
   - *Owner:* [#74](https://github.com/melusi-k/ate-ios/issues/74)
   - *Feature area:* Shopping List and Settings · *Release gate:* Pilot · *Initial priority:* P1
 
 - **A-SET-04 · Clear local data safely** — 🟡
   - *Journey:* As a cook, I can remove local data without accidentally deleting my account or cloud data.
-  - *Acceptance:* Confirmation describes exactly what is removed and retained; operation reports failure truthfully; app returns to a usable empty/onboarding state without stale data.
+  - *Acceptance:* Confirmation describes exactly what is removed and retained; operation reports failure truthfully; app returns to a usable empty/onboarding state without stale data, including food diary entries and nutrition goals.
   - *Verified by:* — · focused unit/UI coverage required
   - *Status evidence:* Current clear-data behavior and scope need verification against sign-out/delete-account flows.
   - *Owner:* [#74](https://github.com/melusi-k/ate-ios/issues/74)
@@ -1056,9 +1056,9 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 
 - **A-AUTH-03 · Sign in / sign out (keep vs remove local data)** — 🟡
   - *Journey:* As a cook, I sign out and choose whether my recipes stay on this phone.
-  - *Acceptance:* Given signed in, When I choose "keep recipes", Then the library stays; When I choose "remove local data", Then library, shopping list and settings are wiped.
-  - *Verified by:* `test15_…, AppStore.signOut(removeLocalData:)` · QA.md §7
-  - *Status evidence:* Both buttons exist; remove-data path not asserted by a test
+  - *Acceptance:* Given signed in, When I choose "keep recipes", Then local data stays; When I choose "remove local data", Then recipes, shopping list, food diary, nutrition goals and local settings are wiped.
+  - *Verified by:* `DataArchiveTests.testSignOutRemovingLocalDataClearsNutritionDiaryAndGoals`, `AppStore.signOut(removeLocalData:)` · QA.md §7
+  - *Status evidence:* Focused coverage added for diary/goals clearing; exact-head test/device evidence pending.
   - *Owner:* [#34](https://github.com/melusi-k/ate-ios/issues/34)
   - *Feature area:* Sharing, security and reliability · *Release gate:* Pilot · *Initial priority:* P0
 
@@ -1096,7 +1096,7 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 
 - **A-AUTH-08 · Delete account** — 🟡
   - *Journey:* As a cook, I delete my account and its data.
-  - *Acceptance:* Given signed in, When I delete my account and confirm, Then the auth user and synced rows are gone server-side and I'm signed out.
+  - *Acceptance:* Given signed in, When I delete my account and confirm, Then the auth user and synced rows are gone server-side, local recipes/shopping/diary/goals are cleared, and I'm signed out.
   - *Verified by:* `test16_DeleteAccount, supabase/functions/delete-account` · QA.md §7
   - *Status evidence:* Mock-tested; real server deletion not verified on device
   - *Owner:* [#34](https://github.com/melusi-k/ate-ios/issues/34)

@@ -196,4 +196,8 @@ struct NutritionDiaryRepository {
         let data = try JSONEncoder().encode(entries)
         defaults.set(data, forKey: Self.storageKey)
     }
+
+    func clear() {
+        defaults.removeObject(forKey: Self.storageKey)
+    }
 }

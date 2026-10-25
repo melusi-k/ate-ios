@@ -27,7 +27,7 @@ Device: ______ iOS: ______ Build: ______ Apple Intelligence on? ☐
 4. **Save** ☐ appears in the library ☐ survives force-quit and relaunch
 5. **Share** ☐ Share link sends exactly one link ☐ Share as text reads well in WhatsApp/iMessage
 6. **Open shared** ☐ tapping `ate://recipe/<slug>` on a second iPhone opens the recipe ☐ an old/invalid link says expired
-7. **Sync** ☐ sign up → confirmation email → link opens ate signed in ☐ magic link ☐ password reset ☐ edit on phone A, pull on phone B ☐ edit the same recipe on both offline, then sync: newest wins ☐ delete on A disappears on B ☐ sign out (keep) / sign in as a *different* account: the first account's recipes don't appear ☐ delete account
+7. **Sync and data portability** ☐ sign up → confirmation email → link opens ate signed in ☐ magic link ☐ password reset ☐ edit on phone A, pull on phone B ☐ edit the same recipe on both offline, then sync: newest wins ☐ delete on A disappears on B ☐ export data, verify recipe/shopping/diary provenance and nutrition snapshots, import on phone B ☐ import asks before replacing nutrition goals/preferences and keeps existing records with matching IDs ☐ sign out (keep) / sign in as a *different* account: the first account's recipes don't appear ☐ sign out and remove local data clears the diary/goals ☐ delete account clears local diary/goals too
 8. **Timers** ☐ start a step timer, lock the phone: Dynamic Island + Lock Screen count down ☐ pause/resume ☐ leave cook mode: timer bar shows above the tab bar ☐ finish: chime + haptic, notification if backgrounded
 9. **Other device classes** ☐ an iPhone without Apple Intelligence (badges say Demo / page data) ☐ iOS 18 device if available ☐ VoiceOver pass on Library, Add, Cook ☐ largest Dynamic Type
 

@@ -56,6 +56,70 @@ private struct SyncMeta: Codable {
     var userID: String?
 }
 
+struct AteDataArchive: Codable {
+    static let formatName = "ate-user-data"
+    static let currentVersion = 1
+
+    var format: String
+    var version: Int
+    var exportedAt: Date
+    var appVersion: String
+    var recipes: [RecipeCard]
+    var shoppingItems: [ShoppingItem]
+    var nutritionDiaryEntries: [NutritionDiaryEntry]
+    var nutritionGoals: DailyNutritionGoals
+    var appSettings: AppSettings
+    var timerPreferences: TimerPrefs
+
+    init(exportedAt: Date = .now, appVersion: String = AppConfig.appVersion, recipes: [RecipeCard],
+         shoppingItems: [ShoppingItem], nutritionDiaryEntries: [NutritionDiaryEntry],
+         nutritionGoals: DailyNutritionGoals, appSettings: AppSettings, timerPreferences: TimerPrefs) {
+        format = Self.formatName
+        version = Self.currentVersion
+        self.exportedAt = exportedAt
+        self.appVersion = appVersion
+        self.recipes = recipes
+        self.shoppingItems = shoppingItems
+        self.nutritionDiaryEntries = nutritionDiaryEntries
+        self.nutritionGoals = nutritionGoals
+        self.appSettings = appSettings
+        self.timerPreferences = timerPreferences
+    }
+}
+
+enum AteDataArchiveError: LocalizedError {
+    case unsupportedFormat
+    case unsupportedVersion(Int)
+    case invalidNutritionEntry
+
+    var errorDescription: String? {
+        switch self {
+        case .unsupportedFormat: "This file is not a supported ate data export."
+        case .unsupportedVersion(let version): "This ate data export version (\(version)) is not supported."
+        case .invalidNutritionEntry: "This export contains an invalid food diary entry. No data was imported."
+        }
+    }
+}
+
+struct DataImportSummary {
+    var recipesAdded = 0
+    var shoppingItemsAdded = 0
+    var nutritionEntriesAdded = 0
+
+    var message: String {
+        let counts = [
+            (recipesAdded, "recipe", "recipes"),
+            (nutritionEntriesAdded, "food diary entry", "food diary entries"),
+            (shoppingItemsAdded, "shopping item", "shopping items")
+        ].compactMap { item -> String? in
+            let (count, singular, plural) = item
+            guard count > 0 else { return nil }
+            return "\(count) \(count == 1 ? singular : plural)"
+        }
+        return counts.isEmpty ? "Data up to date" : "Imported " + counts.joined(separator: ", ")
+    }
+}
+
 struct Toast: Equatable, Identifiable {
     let id = UUID()
     let message: String
@@ -234,10 +298,16 @@ final class AppStore {
 
     let backend: BackendService
     private let context: ModelContext?
+    private let nutritionDiaryRepository: NutritionDiaryRepository
+    private let nutritionGoalsRepository: NutritionGoalsRepository
 
-    init(context: ModelContext?, backend: BackendService = AppConfig.makeBackend()) {
+    init(context: ModelContext?, backend: BackendService = AppConfig.makeBackend(),
+         nutritionDiaryRepository: NutritionDiaryRepository = NutritionDiaryRepository(),
+         nutritionGoalsRepository: NutritionGoalsRepository = NutritionGoalsRepository()) {
         self.context = context
         self.backend = backend
+        self.nutritionDiaryRepository = nutritionDiaryRepository
+        self.nutritionGoalsRepository = nutritionGoalsRepository
         // UI tests opt into a clean local cooking timeline per test launch so one test's
         // completed recipe cannot make another test's empty-history assertions flaky.
         if ProcessInfo.processInfo.arguments.contains("-qaResetCookingHistory") {
@@ -380,18 +450,59 @@ final class AppStore {
         persistRecipes()
     }
 
-    func importJSON(_ data: Data) throws -> Int {
-        let cards = try JSONDecoder().decode([RecipeCard].self, from: data)
-        let res = RecipeLogic.importCards(cards, into: recipes)
-        recipes = res.result.map(RecipeLogic.normalize)
+    func importJSON(_ data: Data) throws -> DataImportSummary {
+        let decoder = JSONDecoder()
+        if let legacyCards = try? decoder.decode([RecipeCard].self, from: data) {
+            let result = importRecipesPreservingExisting(legacyCards)
+            recipes = result.result.map(RecipeLogic.normalize)
+            persistRecipes()
+            return DataImportSummary(recipesAdded: result.added)
+        }
+
+        let archive = try decoder.decode(AteDataArchive.self, from: data)
+        guard archive.format == AteDataArchive.formatName else { throw AteDataArchiveError.unsupportedFormat }
+        guard archive.version == AteDataArchive.currentVersion else {
+            throw AteDataArchiveError.unsupportedVersion(archive.version)
+        }
+        guard archive.nutritionDiaryEntries.allSatisfy(NutritionDiaryValidation.isValid) else {
+            throw AteDataArchiveError.invalidNutritionEntry
+        }
+
+        let recipeResult = importRecipesPreservingExisting(archive.recipes)
+        var shoppingIDs = Set(shopping.map(\.id))
+        let newShoppingItems = archive.shoppingItems.filter { shoppingIDs.insert($0.id).inserted }
+        var diaryIDs = Set(nutritionDiaryRepository.load().map(\.id))
+        let newDiaryEntries = archive.nutritionDiaryEntries.filter { diaryIDs.insert($0.id).inserted }
+
+        // Persist the UserDefaults-backed data before mutating the in-memory store.
+        try nutritionDiaryRepository.save(nutritionDiaryRepository.load() + newDiaryEntries)
+        try nutritionGoalsRepository.save(archive.nutritionGoals)
+        recipes = recipeResult.result.map(RecipeLogic.normalize)
+        shopping.append(contentsOf: newShoppingItems)
+        settings = archive.appSettings
+        timerPrefs = archive.timerPreferences
         persistRecipes()
-        return res.added
+        persistShopping()
+        return DataImportSummary(recipesAdded: recipeResult.added, shoppingItemsAdded: newShoppingItems.count,
+                                 nutritionEntriesAdded: newDiaryEntries.count)
     }
 
-    func exportJSON() -> Data {
+    /// Imports are additive. A matching ID on this device wins so an older archive
+    /// cannot silently replace a newer local recipe.
+    private func importRecipesPreservingExisting(_ incoming: [RecipeCard]) -> (result: [RecipeCard], added: Int) {
+        var seenIDs = Set(recipes.map(\.id))
+        let newCards = incoming.filter { seenIDs.insert($0.id).inserted }
+        return RecipeLogic.importCards(newCards, into: recipes)
+    }
+
+    func exportJSON() throws -> Data {
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return (try? enc.encode(recipes)) ?? Data("[]".utf8)
+        let archive = AteDataArchive(recipes: recipes, shoppingItems: shopping,
+                                     nutritionDiaryEntries: nutritionDiaryRepository.load(),
+                                     nutritionGoals: nutritionGoalsRepository.load(),
+                                     appSettings: settings, timerPreferences: timerPrefs)
+        return try enc.encode(archive)
     }
 
     // MARK: shopping
@@ -648,6 +759,8 @@ final class AppStore {
 
     private func wipeLocalData() {
         recipes = []; shopping = []
+        nutritionDiaryRepository.clear()
+        try? nutritionGoalsRepository.save(DailyNutritionGoals())
         CookingHistory.shared.clear()
         tab = .library; path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
         persistRecipes(stamp: false); persistShopping(stamp: false)

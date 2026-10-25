@@ -5,6 +5,8 @@ struct SettingsView: View {
     @AppStorage(JournalingSuggestionsGate.settingKey) private var journalingEnabled = false
     @Environment(AppStore.self) private var store
     @State private var importing = false
+    @State private var confirmingImport = false
+    @State private var pendingImportData: Data?
     @State private var confirmClear = false
     @State private var activeSheet: SettingsSheet?
 
@@ -116,11 +118,22 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settings.diagnosticHistory")
                     }
                     Section("Tools") {
-                        Button { if let u = writeTemp("ate-recipes.json", store.exportJSON()) { activeSheet = .share(ShareItems(items: [u])) } } label: {
+                        Button {
+                            do {
+                                let data = try store.exportJSON()
+                                guard let url = writeTemp("ate-data.json", data) else {
+                                    store.show("Your data export couldn’t be created. Please try again.", error: true)
+                                    return
+                                }
+                                activeSheet = .share(ShareItems(items: [url]))
+                            } catch {
+                                store.show("Your data couldn’t be exported. Please try again.", error: true)
+                            }
+                        } label: {
                             Label("Export data", systemImage: "arrow.down.doc")
                         }.accessibilityIdentifier("settings.export")
                         Button { importing = true } label: {
-                            Label("Import recipes", systemImage: "square.and.arrow.down")
+                            Label("Import data", systemImage: "square.and.arrow.down")
                         }.accessibilityIdentifier("settings.import")
                         Button { store.replayOnboarding() } label: {
                             Label("Replay intro", systemImage: "sparkles")
@@ -187,9 +200,15 @@ struct SettingsView: View {
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             do {
-                let n = try store.importJSON(try Data(contentsOf: url))
-                store.show(n > 0 ? "Imported \(n) recipe\(n == 1 ? "" : "s")" : "Library up to date")
-            } catch { store.show("That file isn't a ate export.", error: true) }
+                pendingImportData = try Data(contentsOf: url)
+                confirmingImport = true
+            } catch { store.show("That file couldn’t be read. Please try again.", error: true) }
+        }
+        .confirmationDialog("Import this data backup?", isPresented: $confirmingImport, titleVisibility: .visible) {
+            Button("Import data") { importSelectedData() }
+            Button("Cancel", role: .cancel) { pendingImportData = nil }
+        } message: {
+            Text("New recipes, shopping items and diary entries will be added. Existing matching items stay on this iPhone. If this archive contains nutrition goals and app preferences, they replace the current ones.")
         }
         .confirmationDialog("Clear your whole library?", isPresented: $confirmClear, titleVisibility: .visible) {
             Button("Clear all", role: .destructive) { store.clearLibrary(); store.show("Library cleared") }
@@ -214,6 +233,18 @@ struct SettingsView: View {
                 guard store.tab == .settings else { return }
                 store.settingsPath = [.beta]
             }
+        }
+    }
+
+    private func importSelectedData() {
+        guard let data = pendingImportData else { return }
+        pendingImportData = nil
+        do {
+            store.show(try store.importJSON(data).message)
+        } catch let error as AteDataArchiveError {
+            store.show(error.localizedDescription, error: true)
+        } catch {
+            store.show("That file isn’t a supported ate data export.", error: true)
         }
     }
 

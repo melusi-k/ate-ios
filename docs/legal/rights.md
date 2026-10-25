@@ -8,7 +8,7 @@ Wherever you are, you get the same rights. South Africa's **POPIA** applies beca
 
 | Right | Do it yourself | Or email me |
 |---|---|---|
-| **Access:** get a copy of what I hold | Settings › Export data (recipes and list) | ✓, for account and server data |
+| **Access:** get a copy of what I hold | Settings › Export data (recipes, shopping, diary and supported local settings/goals) | ✓, for account and server data |
 | **Correct** | Edit recipes in the app | ✓ |
 | **Delete** | [Delete your account](delete-account/) | ✓, including shared links |
 | **Portability** | Settings › Export data | ✓ |

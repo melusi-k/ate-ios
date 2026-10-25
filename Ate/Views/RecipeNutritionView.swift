@@ -77,7 +77,10 @@ struct RecipeNutritionView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
             if let value, value.isFinite {
-                Text("\(value.formatted(.number.precision(.fractionLength(precision == 0 ? 0 : 0...precision)))) \(unit)")
+                let formatted = precision == 0
+                    ? value.formatted(.number.precision(.fractionLength(0)))
+                    : value.formatted(.number.precision(.fractionLength(0...precision)))
+                Text("\(formatted) \(unit)")
                     .font(AteFont.body(16, .semibold))
                     .monospacedDigit()
             } else {

@@ -790,6 +790,21 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Owner:* [#179](https://github.com/melusi-k/ate-ios/issues/179)
   - *Feature area:* Health and journal · *Release gate:* No committed release gate · *Initial priority:* P1
 
+- **C-NUT-02 · Show complete source-backed recipe nutrition estimates** — 🟡
+  - *Journey:* As a cook, I can see an honest recipe nutrition estimate when all ingredient data is supported.
+  - *Acceptance:* Given a recipe with supported ingredients and quantities, When I open Recipe detail, Then verified source-backed records with reviewed usage rights and supported quantities contribute to the estimate; incomplete recipes never show partial totals as complete; energy, protein, carbohydrate, fat and fibre use canonical units and explicit rounding.
+  - *Verified by:* `RecipeNutritionTests`
+  - *Status evidence:* Calculator and detail summary added in PR #181; catalogue intentionally empty until verified records are curated.
+  - *Owner:* [#179](https://github.com/melusi-k/ate-ios/issues/179)
+  - *Feature area:* Health and journal · *Release gate:* No committed release gate · *Initial priority:* P1
+
+- **C-NUT-03 · Preserve nutrition goals when local storage fails** — 🟡
+  - *Journey:* As a cook, my optional goals survive local storage errors safely.
+  - *Acceptance:* Given Settings › Nutrition goals, When a save or clear operation fails, Then the app reports the error and keeps the prior configuration available; successful saves use atomic file writes, and legacy UserDefaults values migrate only after a successful write.
+  - *Verified by:* `NutritionGoalsTests.testFailedWriteThrowsAndPreservesPreviousConfiguration`, `testFailedClearThrowsAndPreservesPreviousConfiguration`, `testLegacyUserDefaultsConfigurationMigratesToFileStorage`
+  - *Status evidence:* Failure injection and migration tests added in PR #181; runtime/device validation pending.
+  - *Owner:* [#179](https://github.com/melusi-k/ate-ios/issues/179)
+  - *Feature area:* Health and journal · *Release gate:* No committed release gate · *Initial priority:* P1
 #### Apple Health insights
 
 - **A-HEALTH-01 · No Health prompt at launch** — 🔴

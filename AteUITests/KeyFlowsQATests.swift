@@ -312,9 +312,20 @@ final class KeyFlowsQATests: XCTestCase {
         wait(app.navigationBars["Terms of Use"], 10)
         wait(app.webViews.firstMatch, 10)
         app.buttons["legalDocumentClose"].tap()
+        XCTAssertTrue(app.navigationBars["Terms of Use"].waitForNonExistence(timeout: 5),
+                      "Closing Terms should return to Settings before continuing")
 
-        wait(app.buttons["openSignIn"], 10)
-        app.buttons["openSignIn"].tap()
+        // The Settings Form remains scrolled to About after the legal sheet closes.
+        // Return to the first Account & sync section before querying its lazily rendered buttons.
+        let openSignIn = app.buttons["openSignIn"]
+        var scrollAttempts = 0
+        while !(openSignIn.exists && openSignIn.isHittable) && scrollAttempts < 8 {
+            app.swipeDown(velocity: .slow)
+            scrollAttempts += 1
+        }
+        wait(openSignIn, 10)
+        XCTAssertTrue(openSignIn.isHittable, "Account & sync should be reachable after closing the legal sheet")
+        openSignIn.tap()
 
         let privacy = app.buttons["privacyLink"]
         wait(privacy, 10)

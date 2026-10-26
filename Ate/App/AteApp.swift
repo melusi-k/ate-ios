@@ -249,7 +249,7 @@ struct AteBottomAccessory: View {
                     .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")
             } else {
                 Button { add() } label: {
-                    Label(compact ? "Add" : "Add recipe", systemImage: "plus").font(AteFont.body(15, .semibold))
+                    Label(compact ? "Add" : store.bottomAddContext.title, systemImage: "plus").font(AteFont.body(15, .semibold))
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")

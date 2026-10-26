@@ -304,6 +304,11 @@ extension RootView {
                 }.withTimerBar()
             }
         }
+        .onChange(of: store.tab) { _, selectedTab in
+            // Food diary is a pushed screen rather than a root tab. Root destinations only
+            // use Shopping's add context; all other tabs return to the recipe action.
+            store.bottomAddContext = selectedTab == .shopping ? .shopping : .recipe
+        }
         .tabViewStyle(.tabBarOnly)
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory {

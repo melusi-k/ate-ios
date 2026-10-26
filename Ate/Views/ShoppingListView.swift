@@ -3,6 +3,7 @@ import SwiftUI
 struct ShoppingListView: View {
     @Environment(AppStore.self) private var store
     @State private var newItem = ""
+    @FocusState private var addFieldFocused: Bool
     @State private var share: ShareItems?
     @State private var confirmClearAll = false
     @AppStorage("ate.shopping.byAisle") private var byAisle = true
@@ -20,6 +21,7 @@ struct ShoppingListView: View {
                         TextField("Add something else…", text: $newItem).font(AteFont.body(15))
                             .padding(.horizontal, 18).frame(height: 48)
                             .background(Theme.card, in: Capsule()).overlay(Capsule().stroke(Theme.input))
+                            .focused($addFieldFocused)
                             .onSubmit(addManual).accessibilityIdentifier("shoppingAddField")
                         Button(action: addManual) {
                             Image(systemName: "plus").font(.body.weight(.bold)).foregroundStyle(Theme.primaryForeground)
@@ -59,6 +61,12 @@ struct ShoppingListView: View {
         }
         .navigationTitle("Shopping list")
         .ateRootNavigationChrome(logoID: "shopping.logo")
+        .onAppear { store.bottomAddContext = .shopping }
+        .onChange(of: store.requestShoppingAdd) { _, requested in
+            guard requested else { return }
+            addFieldFocused = true
+            store.requestShoppingAdd = false
+        }
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
     }
 

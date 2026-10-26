@@ -884,6 +884,17 @@ final class AteUITests: XCTestCase {
         wait(app.textFields["nutritionDiary.foodName"], 5)
         app.buttons["Cancel"].tap()
 
+        // Popping the pushed diary must restore Settings' root action.
+        let settingsBack = app.navigationBars.buttons["Settings"].firstMatch
+        wait(settingsBack, 5)
+        settingsBack.tap()
+        XCTAssertEqual(add.label, "Add recipe", "Returning from Food diary restores the Settings root action")
+
+        // Every root tab must replace the previous destination's context.
+        app.tabBars.buttons["Shopping"].tap()
+        XCTAssertEqual(add.label, "Add item")
+        app.tabBars.buttons["Insights"].tap()
+        XCTAssertEqual(add.label, "Add recipe", "Insights must not inherit the Shopping add action")
         app.tabBars.buttons["Library"].tap()
         XCTAssertEqual(add.label, "Add recipe")
         app.tabBars.buttons["Search"].firstMatch.tap()

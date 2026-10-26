@@ -108,7 +108,7 @@ struct NutritionDiaryView: View {
         .navigationTitle("Food diary")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showingAddEntry = true } label: { Label("Log food", systemImage: "plus") }
+                Button { store.showNutritionDiaryEntry = true } label: { Label("Log food", systemImage: "plus") }
                     .accessibilityIdentifier("nutritionDiary.add")
             }
         }

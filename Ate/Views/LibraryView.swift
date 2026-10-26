@@ -76,6 +76,7 @@ struct LibraryView: View {
         .modifier(LibrarySearch(query: $query, placement: searchPlacement, prompt: "Search \(store.recipes.count) recipe\(store.recipes.count == 1 ? "" : "s")"))
         .textInputAutocapitalization(.never)
         .navigationTitle(store.filter.collection?.title ?? L10n.libraryTitle)
+        .onAppear { store.bottomAddContext = .recipe }
         .ateRootNavigationChrome(logoID: "libraryLogo")
         .toolbar { ToolbarItem(placement: .topBarTrailing) { libraryMenu } }
         .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd, global: searchPlacement != .tabBar))

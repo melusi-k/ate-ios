@@ -1139,8 +1139,8 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
 - **A-SYNC-04 · Sync after backgrounding / failure** — ❌
   - *Journey:* As a cook, sync recovers by itself when I come back.
   - *Acceptance:* Given sync failed or the app was backgrounded for >1 h, When I return to the foreground, Then sync retries once, the local library is unchanged on failure, and a non-blocking error shows.
-  - *Verified by:* `none (sync failure path only)` · QA.md (new step)
-  - *Status evidence:* Foreground-retry not tested
+  - *Verified by:* `CoverageUITests.test40_AccountSwitchSyncFailurePreservesLocalLibrary` (new regression; exact-head CI pending)
+  - *Status evidence:* Failed account-switch pull must preserve the prior local library; the added regression is not yet a pass and foreground-retry acceptance remains unverified
   - *Owner:* [#34](https://github.com/melusi-k/ate-ios/issues/34)
   - *Feature area:* Sharing, security and reliability · *Release gate:* Pilot · *Initial priority:* P0
 

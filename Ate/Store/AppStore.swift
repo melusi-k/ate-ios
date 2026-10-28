@@ -576,12 +576,15 @@ final class AppStore {
     func syncNow() async {
         guard var s = session, let sync, let auth else { syncState = .signedOut; return }
         syncState = .syncing
+        // Determine account ownership before any refresh or pull can fail. If this is a switch,
+        // the previous account's local library must never remain visible under the new session.
+        let switchingAccounts = SyncMerge.isAccountSwitch(lastSyncedUser: meta.userID, newUser: s.userID)
+        var accountSwitchPullSucceeded = false
         do {
             if s.expiresAt < Date().timeIntervalSince1970 + 60 {
                 do { s = try await auth.refresh(s); setSession(s); BetaQA.shared.pass("A-AUTH-06", note: "Session refreshed before sync") }
                 catch let e as AuthError where e.kind == .unauthorized { expireSession(); return }
             }
-            let switchingAccounts = SyncMerge.isAccountSwitch(lastSyncedUser: meta.userID, newUser: s.userID)
             // Persist ownership on first sign-in before network I/O. If the first pull fails, a
             // later sign-in after relaunch must not merge this user's local library into another.
             if meta.userID == nil {
@@ -589,6 +592,7 @@ final class AppStore {
                 saveDefaults(meta, key: "ate.sync.v1")
             }
             let remote = try await sync.pull(session: s)
+            accountSwitchPullSucceeded = true
             BetaQA.shared.syncPulled(rows: remote.count)
             if switchingAccounts {
                 // Keep the previous account's local copy until the new account's pull succeeds.
@@ -637,13 +641,30 @@ final class AppStore {
             syncState = .synced(Date())
             BetaQA.shared.syncSucceeded(pushed: out.count)
         } catch SyncError.tableMissing {
-            syncState = .unavailable(SyncError.tableMissing.errorDescription ?? "")
+            if switchingAccounts && !accountSwitchPullSucceeded {
+                signOutAfterFailedAccountSwitch()
+            } else {
+                syncState = .unavailable(SyncError.tableMissing.errorDescription ?? "")
+            }
         } catch SyncError.unauthorized {
             expireSession()
         } catch {
-            syncState = .failed(error.localizedDescription)
+            if switchingAccounts && !accountSwitchPullSucceeded {
+                signOutAfterFailedAccountSwitch()
+            } else {
+                syncState = .failed(error.localizedDescription)
+            }
             BetaQA.shared.syncFailed(Net.friendly(error))
         }
+    }
+
+    /// A failed initial pull during an account switch must not leave account B active over
+    /// account A's local library. Keep the local data intact and require a retry when online.
+    private func signOutAfterFailedAccountSwitch() {
+        setSession(nil)
+        let message = "Account switch couldn't be completed. Your previous library is safe on this iPhone. Reconnect and sign in again."
+        syncState = .failed(message)
+        show(message, error: true, seconds: 5)
     }
 
     /// Session can't be refreshed: sign out locally (keep recipes) and say so plainly.

@@ -453,7 +453,7 @@ final class CoverageUITests: XCTestCase {
         replaceText(app.textFields["authEmail"], "other@example.com")
         replaceText(app.secureTextFields["authPassword"], "password123")
         app.buttons["authSubmit"].tap()
-        wait(app.staticTexts["accountEmail"], 8)
+        // The failed pull may sign account B out before its account row is ever rendered.
         wait(text("Sync failed"), 5)
 
         // A failed account switch must not leave account B active over account A's local data.

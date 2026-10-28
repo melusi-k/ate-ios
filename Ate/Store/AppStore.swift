@@ -139,6 +139,18 @@ struct RecoveryInfo: Identifiable, Equatable {
 
 struct QuickAddRequest: Identifiable, Equatable { let id = UUID(); let mode: WidgetLinks.AddMode }
 
+enum BottomAddContext {
+    case recipe, food, shopping
+
+    var title: String {
+        switch self {
+        case .recipe: "Add recipe"
+        case .food: "Log food"
+        case .shopping: "Add item"
+        }
+    }
+}
+
 @Observable
 @MainActor
 final class AppStore {
@@ -146,6 +158,11 @@ final class AppStore {
     static weak var current: AppStore?
     /// Set by the Quick add widget / control / intent: opens Add recipe on the matching tab.
     var quickAdd: QuickAddRequest?
+    /// Controls the persistent bottom action for the destination currently in view.
+    var bottomAddContext: BottomAddContext = .recipe
+    /// Requests handled by the active Food diary and Shopping list screens.
+    var showNutritionDiaryEntry = false
+    var requestShoppingAdd = false
     /// Set by the system search intent ("Search ate for tripe"): Library adopts it as its query.
     var pendingSearch: String?
     func search(_ term: String) {

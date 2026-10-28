@@ -861,6 +861,42 @@ final class AteUITests: XCTestCase {
         shot("tab-accessory")
         add.tap()
         wait(app.buttons["addCancel"], 5); app.buttons["addCancel"].tap()
+
+        // The same accessory must invoke the current destination's add flow.
+        app.tabBars.buttons["Shopping"].tap()
+        XCTAssertEqual(add.label, "Add item")
+        add.tap()
+        let shoppingField = app.textFields["shoppingAddField"]
+        wait(shoppingField, 5)
+        XCTAssertTrue(shoppingField.isHittable, "Shopping add action keeps the user on the list and focuses its entry field")
+
+        app.tabBars.buttons["Settings"].tap()
+        let diaryLink = app.buttons["settings.nutritionDiary"]
+        var diaryScrolls = 0
+        while !(diaryLink.exists && diaryLink.isHittable) && diaryScrolls < 8 {
+            app.swipeUp(velocity: .slow)
+            diaryScrolls += 1
+        }
+        wait(diaryLink, 5)
+        diaryLink.tap()
+        XCTAssertEqual(add.label, "Log food")
+        add.tap()
+        wait(app.textFields["nutritionDiary.foodName"], 5)
+        app.buttons["Cancel"].tap()
+
+        // Popping the pushed diary must restore Settings' root action.
+        let settingsBack = app.navigationBars.buttons["Settings"].firstMatch
+        wait(settingsBack, 5)
+        settingsBack.tap()
+        XCTAssertEqual(add.label, "Add recipe", "Returning from Food diary restores the Settings root action")
+
+        // Every root tab must replace the previous destination's context.
+        app.tabBars.buttons["Shopping"].tap()
+        XCTAssertEqual(add.label, "Add item")
+        app.tabBars.buttons["Insights"].tap()
+        XCTAssertEqual(add.label, "Add recipe", "Insights must not inherit the Shopping add action")
+        app.tabBars.buttons["Library"].tap()
+        XCTAssertEqual(add.label, "Add recipe")
         app.tabBars.buttons["Search"].firstMatch.tap()
         let field = app.searchFields.firstMatch
         wait(field, 5); field.tap(); field.typeText("soup")

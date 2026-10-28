@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct NutritionDiaryView: View {
+    @Environment(AppStore.self) private var store
     @State private var entries: [NutritionDiaryEntry] = []
     @State private var selectedDayKey = NutritionDiaryDayKey.make(.now)
-    @State private var showingAddEntry = false
     @State private var errorMessage: String?
     private let repository: NutritionDiaryRepository
     private let goalsRepository: NutritionGoalsRepository
@@ -29,6 +29,7 @@ struct NutritionDiaryView: View {
     }
 
     var body: some View {
+        @Bindable var store = store
         List {
             Section {
                 DatePicker("Diary date", selection: selectedDateBinding, displayedComponents: .date)
@@ -107,20 +108,21 @@ struct NutritionDiaryView: View {
         .navigationTitle("Food diary")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showingAddEntry = true } label: { Label("Log food", systemImage: "plus") }
+                Button { store.showNutritionDiaryEntry = true } label: { Label("Log food", systemImage: "plus") }
                     .accessibilityIdentifier("nutritionDiary.add")
             }
         }
-        .sheet(isPresented: $showingAddEntry) {
+        .sheet(isPresented: $store.showNutritionDiaryEntry) {
             NavigationStack {
                 NutritionDiaryEntryForm(date: selectedDate, dayKey: selectedDayKey) { entry in
                     entries.append(entry)
                     persist()
-                    showingAddEntry = false
+                    store.showNutritionDiaryEntry = false
                 }
             }
         }
         .onAppear {
+            store.bottomAddContext = .food
             if ProcessInfo.processInfo.arguments.contains("-resetNutritionDiary") {
                 UserDefaults.standard.removeObject(forKey: NutritionDiaryRepository.storageKey)
             }

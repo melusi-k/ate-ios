@@ -24,7 +24,13 @@ final class NutritionDiaryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Nothing logged"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Unavailable"].firstMatch.exists)
 
-        app.buttons["nutritionDiary.add"].tap()
+        let accessoryAdd = app.buttons["accessoryAdd"].firstMatch
+        if accessoryAdd.waitForExistence(timeout: 2) {
+            XCTAssertEqual(accessoryAdd.label, "Log food")
+            accessoryAdd.tap()
+        } else {
+            app.buttons["nutritionDiary.add"].tap()
+        }
         let foodName = app.textFields["nutritionDiary.foodName"]
         XCTAssertTrue(foodName.waitForExistence(timeout: 5))
         foodName.tap()

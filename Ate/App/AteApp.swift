@@ -231,7 +231,7 @@ enum TabChrome {
     static var usesAccessory: Bool { if #available(iOS 26, *) { return true }; return false }
 }
 
-/// Bottom accessory above the tab bar: "Add recipe", or the timer summary plus a + when timers exist.
+/// Bottom accessory above the tab bar: a destination-aware add action, or timer summary plus a contextual +.
 @available(iOS 26, *)
 struct AteBottomAccessory: View {
     @Environment(AppStore.self) private var store
@@ -242,25 +242,32 @@ struct AteBottomAccessory: View {
             if let session = store.cookSession {
                 CookSessionMiniPlayer(session: session)
                 Button { add() } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
-                    .accessibilityLabel("Add recipe").accessibilityIdentifier("accessoryAdd")
+                    .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")
             } else if !store.timers.timers.isEmpty {
                 TimerBar().padding(.bottom, -4).padding(.horizontal, -12)
                 Button { add() } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
-                    .accessibilityLabel("Add recipe").accessibilityIdentifier("accessoryAdd")
+                    .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")
             } else {
                 Button { add() } label: {
-                    Label(compact ? "Add" : "Add recipe", systemImage: "plus").font(AteFont.body(15, .semibold))
+                    Label(compact ? "Add" : store.bottomAddContext.title, systemImage: "plus").font(AteFont.body(15, .semibold))
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .accessibilityLabel("Add recipe").accessibilityIdentifier("accessoryAdd")
+                .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")
             }
         }
         .padding(.horizontal, compact ? 4 : 12)
         .accessibilityElement(children: .contain).accessibilityIdentifier("bottomAccessory")
     }
     private func add() {
-        if store.tab != .library { store.select(.library) }
-        store.quickAdd = QuickAddRequest(mode: .link)
+        switch store.bottomAddContext {
+        case .recipe:
+            if store.tab != .library { store.select(.library) }
+            store.quickAdd = QuickAddRequest(mode: .link)
+        case .food:
+            store.showNutritionDiaryEntry = true
+        case .shopping:
+            store.requestShoppingAdd = true
+        }
     }
 }
 
@@ -296,6 +303,11 @@ extension RootView {
                     LibraryView(searchPlacement: .tabBar).offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
             }
+        }
+        .onChange(of: store.tab) { _, selectedTab in
+            // Food diary is a pushed screen rather than a root tab. Root destinations only
+            // use Shopping's add context; all other tabs return to the recipe action.
+            store.bottomAddContext = selectedTab == .shopping ? .shopping : .recipe
         }
         .tabViewStyle(.tabBarOnly)
         .tabBarMinimizeBehavior(.onScrollDown)

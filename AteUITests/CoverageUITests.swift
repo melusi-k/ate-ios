@@ -454,7 +454,7 @@ final class CoverageUITests: XCTestCase {
         replaceText(app.secureTextFields["authPassword"], "password123")
         app.buttons["authSubmit"].tap()
         // The failed pull may sign account B out before its account row is ever rendered.
-        wait(text("Sync failed"), 5)
+        wait(text("Account switch couldn't be completed. Your previous library is safe on this iPhone. Reconnect and sign in again."), 5)
 
         // A failed account switch must not leave account B active over account A's local data.
         // The app should sign out safely and preserve the previous library for a later retry.

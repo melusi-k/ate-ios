@@ -456,6 +456,12 @@ final class CoverageUITests: XCTestCase {
         wait(app.staticTexts["accountEmail"], 8)
         wait(text("Sync failed"), 5)
 
+        // A failed account switch must not leave account B active over account A's local data.
+        // The app should sign out safely and preserve the previous library for a later retry.
+        wait(app.buttons["openSignIn"], 5)
+        XCTAssertFalse(app.staticTexts["accountEmail"].exists,
+                       "the new account must not remain active while the previous account's library is visible")
+
         tab("Library")
         wait(text("Keep this stew"), 5)
         shot("account-switch-sync-failure-library-preserved")

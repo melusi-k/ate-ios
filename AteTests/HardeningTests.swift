@@ -58,18 +58,30 @@ final class HardeningTests: XCTestCase {
             return r
         }
         var f = RecipeFilter(); f.maxMinutes = 30; f.tags = ["chicken"]
+
+        // Filtering is independent of grouping/sorting. Measure each phase separately so
+        // this regression catches a slow filter without re-running the same filter 30 times
+        // as every layout combination is exercised below.
+        let filterStart = Date()
+        let tagFiltered = f.apply(lib, query: "")
+        let queryFiltered = RecipeFilter().apply(lib, query: "recipe 4")
+        let filterElapsed = Date().timeIntervalSince(filterStart)
+        XCTAssertGreaterThan(tagFiltered.count, 0)
+        XCTAssertGreaterThan(queryFiltered.count, 0)
+        XCTAssertLessThan(filterElapsed, 1.0, "applying two filters to 500 recipes took \(filterElapsed)s")
+
         let start = Date()
         var count = 0
         for g in LibraryLayout.GroupBy.allCases {
             for s in LibraryLayout.SortBy.allCases {
                 var layout = LibraryLayout(); layout.group = g; layout.sort = s
-                count += layout.sections(f.apply(lib, query: "")).count
-                count += layout.sections(RecipeFilter().apply(lib, query: "recipe 4")).count
+                count += layout.sections(tagFiltered).count
+                count += layout.sections(queryFiltered).count
             }
         }
         let elapsed = Date().timeIntervalSince(start)
         XCTAssertGreaterThan(count, 0)
-        XCTAssertLessThan(elapsed, 3.0, "all group×sort×filter combinations over 500 recipes took \(elapsed)s")
+        XCTAssertLessThan(elapsed, 3.0, "all group×sort combinations over 500 prefiltered recipes took \(elapsed)s")
         measure { _ = LibraryLayout().sections(RecipeFilter().apply(lib, query: "chicken")) }
     }
 

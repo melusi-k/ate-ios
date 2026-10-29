@@ -100,8 +100,16 @@ struct RecipeDetailView: View {
         }
         .confirmationDialog("Share recipe", isPresented: $shareChoice, titleVisibility: .hidden) {
             if let r = store.recipe(recipeID) {
-                Button("Share link") { Task { await doShare(r, asText: false) } }
-                Button("Share as text") { Task { await doShare(r, asText: true) } }
+                Button("Share link") {
+                    // Reset synchronously so the confirmation dialog can be presented again
+                    // after the activity sheet is dismissed.
+                    shareChoice = false
+                    Task { await doShare(r, asText: false) }
+                }
+                Button("Share as text") {
+                    shareChoice = false
+                    Task { await doShare(r, asText: true) }
+                }
             }
         }
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }

@@ -114,7 +114,18 @@ struct RecipeDetailView: View {
                 }
             }
         }
-        .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
+        .sheet(item: $share) { items in
+            ActivityView(items: items.items)
+                .presentationDetents([.medium, .large])
+                .onAppear {
+                    // Record A-SHARE-05 only when the user actually reaches the text-share sheet.
+                    // Showing the outage alert alone is not a completed fallback.
+                    if shareFallbackRecipe != nil {
+                        BetaQA.shared.pass("A-SHARE-05", note: "Backend unavailable; text fallback activity sheet presented")
+                        shareFallbackRecipe = nil
+                    }
+                }
+        }
         .alert("Could not create a share link", isPresented: $shareFallbackAlertPresented) {
             Button("Try again") {
                 guard let recipe = shareFallbackRecipe else { return }
@@ -125,7 +136,7 @@ struct RecipeDetailView: View {
             Button("Share as text") {
                 guard let recipe = shareFallbackRecipe else { return }
                 shareFallbackAlertPresented = false
-                shareFallbackRecipe = nil
+                // Keep the fallback marker until the activity sheet actually appears.
                 share = ShareItems(items: [
                     RecipeLogic.text(for: recipe, factor: factor, units: store.settings.units)
                 ])
@@ -215,7 +226,6 @@ struct RecipeDetailView: View {
             // the activity sheet is invisible and can disappear before the user sees the error.
             shareFallbackRecipe = recipe
             shareFallbackAlertPresented = true
-            BetaQA.shared.pass("A-SHARE-05", note: "Backend unavailable; offered retry and text fallback")
         }
     }
 }

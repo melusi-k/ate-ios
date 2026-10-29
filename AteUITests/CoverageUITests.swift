@@ -410,16 +410,32 @@ final class CoverageUITests: XCTestCase {
         shot("backend-down-library-intact")
     }
 
-    /// A-SHARE-05: publish outage falls back to text sharing and preserves the local recipe.
+    /// A-SHARE-05: publish outage offers retry or text sharing and preserves the local recipe.
     func test39_SharePublishOutageFallsBackToTextAndKeepsLibrary() {
         launch(["-qaSharePublishDown"])
         addPrompt("Keep this stew")
         app.buttons["Share recipe"].tap()
         wait(app.buttons["Share link"], 5)
         app.buttons["Share link"].tap()
+
+        // The failure must be visible and actionable; don't hide the error behind an activity sheet.
         wait(text("Could not create a share link"), 5)
+        wait(app.buttons["Try again"], 5)
+        wait(app.buttons["Share as text"], 5)
+        shot("share-publish-outage-fallback-alert")
+
+        // Retry is expected to fail with this fixture; the user can still choose text sharing.
+        app.buttons["Try again"].tap()
+        wait(text("Could not create a share link"), 5)
+        wait(app.buttons["Share as text"], 5)
+        app.buttons["Share as text"].tap()
+
+        let sheet = app.otherElements["ActivityListView"].firstMatch
+        let opened = sheet.waitForExistence(timeout: 8)
+            || app.navigationBars["UIActivityContentView"].waitForExistence(timeout: 2)
+        XCTAssertTrue(opened, "text fallback activity sheet")
         shot("share-publish-outage-text-fallback")
-        // The activity sheet is presenting the text fallback; dismiss it and verify the local record remains.
+
         app.swipeDown(velocity: .fast)
         tab("Library")
         wait(text("Keep this stew"), 5)

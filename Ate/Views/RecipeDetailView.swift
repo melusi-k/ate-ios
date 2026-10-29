@@ -10,6 +10,8 @@ struct RecipeDetailView: View {
     @State private var confirmDelete = false
     @State private var share: ShareItems?
     @State private var shareChoice = false
+    @State private var shareFallbackRecipe: RecipeCard?
+    @State private var shareFallbackAlertPresented = false
     @Environment(\.dismiss) private var dismiss
     /// Pops whichever stack (or sheet) presented this screen. Never touches store.path directly: the recipe may have been
     /// pushed from More/Settings/Insights while Library has its own path, which made the old custom Back a dead tap.
@@ -113,6 +115,28 @@ struct RecipeDetailView: View {
             }
         }
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
+        .alert("Could not create a share link", isPresented: $shareFallbackAlertPresented) {
+            Button("Try again") {
+                guard let recipe = shareFallbackRecipe else { return }
+                shareFallbackAlertPresented = false
+                shareFallbackRecipe = nil
+                Task { await doShare(recipe, asText: false) }
+            }
+            Button("Share as text") {
+                guard let recipe = shareFallbackRecipe else { return }
+                shareFallbackAlertPresented = false
+                shareFallbackRecipe = nil
+                share = ShareItems(items: [
+                    RecipeLogic.text(for: recipe, factor: factor, units: store.settings.units)
+                ])
+            }
+            Button("Cancel", role: .cancel) {
+                shareFallbackAlertPresented = false
+                shareFallbackRecipe = nil
+            }
+        } message: {
+            Text("Ate couldn't publish the link. You can retry or share the recipe as text instead.")
+        }
     }
 
     /// Image Playground cover on demand (replaces a web image or tile, never a user photo without asking: the menu is explicit).
@@ -186,10 +210,12 @@ struct RecipeDetailView: View {
                 share = ShareItems(items: [LinkShareSource(url: url, title: recipe.title, image: thumbnailImage(for: recipe))])
             }
         } catch {
-            store.show("Could not create a share link. Sharing the text instead.", error: true)
             BetaQA.shared.fail("A-SHARE-01", error: "Publish failed: \(Net.friendly(error))")
-            BetaQA.shared.pass("A-SHARE-05", note: "Backend unavailable → fell back to text share")
-            share = ShareItems(items: [RecipeLogic.text(for: recipe, factor: factor, units: units)])
+            // Present the retry/text choices before opening another presentation. A toast under
+            // the activity sheet is invisible and can disappear before the user sees the error.
+            shareFallbackRecipe = recipe
+            shareFallbackAlertPresented = true
+            BetaQA.shared.pass("A-SHARE-05", note: "Backend unavailable; offered retry and text fallback")
         }
     }
 }

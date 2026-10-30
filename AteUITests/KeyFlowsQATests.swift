@@ -123,7 +123,10 @@ final class KeyFlowsQATests: XCTestCase {
     // MARK: 2 — add from photo (text screenshot + food photo fallback)
 
     func testQA2_AddFromPhoto() {
-        launch()
+        // The mock's second image request is a deterministic no-food classification result.
+        // The first remains a real OCR screenshot fixture; PhotoGuess label handling is tested
+        // separately without depending on simulator Vision taxonomy output.
+        launch(["-qaFoodPhotoAfterFirstImage"])
         openAdd("Image")
         app.buttons["sampleImage"].tap()
         generate(); review()

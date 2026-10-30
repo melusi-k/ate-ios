@@ -199,12 +199,8 @@ enum RecipeProgressInsightService {
     static func insight(
         for input: RecipeProgressInsightInput,
         useModel: Bool = OnDeviceBackend.isModelAvailable && !AppConfig.isUITesting,
-        lifecycle: InsightLifecycleStore = .shared
     ) async -> RecipeProgressInsight? {
         guard let fallback = fallback(for: input) else { return nil }
-        let evidenceFingerprint = RecipeProgressInsightFingerprint.make(input)
-        // An unchanged insight that was already acted on is not surfaced again.
-        guard lifecycle.shouldPresent(id: "recipe-progress", evidenceFingerprint: evidenceFingerprint) else { return nil }
         // Duplicate candidates are deterministic and need a precise review action; do not paraphrase them with a model.
         if !input.duplicateTitleGroups.isEmpty { return fallback }
         guard useModel else { return fallback }
@@ -241,6 +237,8 @@ struct InsightsView: View {
     @State private var recipeProgressInsight: RecipeProgressInsight?
     @State private var recipeProgressSuppressed = false
     @State private var recipeProgressLoading = false
+    @State private var recipeProgressEvidenceFingerprint: String?
+    @State private var recipeProgressRefreshGeneration = 0
     @State private var isEditingInsightOrder = false
     @AppStorage("insights.tileOrder") private var savedInsightTileOrder = ""
     @State private var openRecipe: RecipeSheetTarget?
@@ -450,7 +448,7 @@ struct InsightsView: View {
                 .accessibilityIdentifier("insights.progress.result")
                 VStack(alignment: .leading, spacing: 8) {
                     Button {
-                        InsightLifecycleStore.shared.markSeen("recipe-progress")
+                        markRecipeProgressSeen()
                         store.trackerPath = []
                         store.select(.tracker)
                     } label: {
@@ -458,7 +456,7 @@ struct InsightsView: View {
                     }
                     .accessibilityIdentifier("insights.progress.action.tracker")
                     Button {
-                        InsightLifecycleStore.shared.markSeen("recipe-progress")
+                        markRecipeProgressSeen()
                         store.trackerPath = [.journal]
                         store.select(.tracker)
                     } label: {
@@ -466,7 +464,7 @@ struct InsightsView: View {
                     }
                     .accessibilityIdentifier("insights.progress.action.journal")
                     Button {
-                        InsightLifecycleStore.shared.markSeen("recipe-progress")
+                        markRecipeProgressSeen()
                         store.filter.clear()
                         store.select(.library)
                     } label: {
@@ -488,7 +486,7 @@ struct InsightsView: View {
                 .accessibilityIdentifier("insights.progress.empty")
             }
             if recipeProgressInsight?.title == "Possible overlapping recipe entries" {
-                Button("Review recipes") { InsightLifecycleStore.shared.markSeen("recipe-progress"); store.select(.library) }
+                Button("Review recipes") { markRecipeProgressSeen(); store.select(.library) }
                     .font(AteFont.body(13, .semibold))
                     .accessibilityIdentifier("insights.progress.reviewRecipes")
             }
@@ -519,13 +517,44 @@ struct InsightsView: View {
         .contentShape(Rectangle())
     }
 
+    private var recipeProgressLifecycle: InsightLifecycleStore {
+        InsightLifecycleStore(accountID: store.insightLifecycleAccountID)
+    }
+
+    @MainActor private func markRecipeProgressSeen() {
+        guard let fingerprint = recipeProgressEvidenceFingerprint else { return }
+        _ = recipeProgressLifecycle.markSeen(id: "recipe-progress", evidenceFingerprint: fingerprint)
+        // Remove the card immediately; the next refresh will keep this evidence version suppressed.
+        recipeProgressInsight = nil
+        recipeProgressEvidenceFingerprint = nil
+        recipeProgressSuppressed = true
+    }
+
     @MainActor private func refreshRecipeProgressInsight() async {
+        recipeProgressRefreshGeneration += 1
+        let generation = recipeProgressRefreshGeneration
         recipeProgressLoading = true
-        defer { recipeProgressLoading = false }
+        defer {
+            if generation == recipeProgressRefreshGeneration { recipeProgressLoading = false }
+        }
+
         let input = RecipeProgressInsightInput.make(recipes: store.recipes, historyEvents: CookingHistory.shared.events)
+        let fingerprint = RecipeProgressInsightFingerprint.make(input)
         let hasEvidenceBackedCandidate = RecipeProgressInsightService.fallback(for: input) != nil
-        recipeProgressInsight = await RecipeProgressInsightService.insight(for: input)
-        recipeProgressSuppressed = hasEvidenceBackedCandidate && recipeProgressInsight == nil
+        let generatedInsight = await RecipeProgressInsightService.insight(for: input)
+
+        // Ignore stale model responses before they can update either the UI or lifecycle state.
+        guard generation == recipeProgressRefreshGeneration else { return }
+        guard hasEvidenceBackedCandidate,
+              recipeProgressLifecycle.shouldPresent(id: "recipe-progress", evidenceFingerprint: fingerprint) else {
+            recipeProgressInsight = nil
+            recipeProgressEvidenceFingerprint = nil
+            recipeProgressSuppressed = hasEvidenceBackedCandidate
+            return
+        }
+        recipeProgressInsight = generatedInsight
+        recipeProgressEvidenceFingerprint = generatedInsight == nil ? nil : fingerprint
+        recipeProgressSuppressed = false
     }
 
     @ViewBuilder private var bodyToday: some View {

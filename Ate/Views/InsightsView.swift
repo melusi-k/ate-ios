@@ -153,9 +153,10 @@ enum RecipeProgressInsightService {
     static func candidates(
         for input: RecipeProgressInsightInput,
         shoppingItems: [ShoppingItem] = [],
-        nutritionEntries: [NutritionDiaryEntry] = []
+        nutritionEntries: [NutritionDiaryEntry] = [],
+        isEligible: (RankedRecipeInsightCandidate) -> Bool = { _ in true }
     ) -> [RankedRecipeInsightCandidate] {
-        InsightCandidateEngine.candidates(for: input, shoppingItems: shoppingItems, nutritionEntries: nutritionEntries)
+        InsightCandidateEngine.candidates(for: input, shoppingItems: shoppingItems, nutritionEntries: nutritionEntries, isEligible: isEligible)
     }
 
     static func fallback(for input: RecipeProgressInsightInput) -> RecipeProgressInsight? {
@@ -593,14 +594,21 @@ struct InsightsView: View {
 
         let input = RecipeProgressInsightInput.make(recipes: store.recipes, historyEvents: CookingHistory.shared.events)
         let nutritionEntries = NutritionDiaryRepository(defaults: .standard).load()
-        let candidates = RecipeProgressInsightService.candidates(for: input, shoppingItems: store.shopping, nutritionEntries: nutritionEntries)
-        let eligible = candidates.filter {
-            recipeProgressLifecycle.shouldPresent(id: $0.id, evidenceFingerprint: $0.evidenceFingerprint)
+        let lifecycle = recipeProgressLifecycle
+        var hadSuppressed = false
+        let eligible = RecipeProgressInsightService.candidates(
+            for: input,
+            shoppingItems: store.shopping,
+            nutritionEntries: nutritionEntries
+        ) { candidate in
+            let presentable = lifecycle.shouldPresent(id: candidate.id, evidenceFingerprint: candidate.evidenceFingerprint)
+            if !presentable { hadSuppressed = true }
+            return presentable
         }
 
         guard generation == recipeProgressRefreshGeneration else { return }
         recipeProgressCandidates = eligible
-        recipeProgressSuppressed = eligible.isEmpty && !candidates.isEmpty
+        recipeProgressSuppressed = eligible.isEmpty && hadSuppressed
     }
 
     @ViewBuilder private var bodyToday: some View {

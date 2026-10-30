@@ -246,4 +246,48 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertFalse(InsightCandidateEngine.candidates(for: input, shoppingItems: completed).contains { $0.id == "shopping-multi-recipe" })
     }
 
+
+    func testNutritionDiaryInsightUsesOnlyLocalCoverageCounts() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = ISO8601DateFormatter().date(from: "2026-10-30T12:00:00Z")!
+        let entries = (0..<3).map { offset -> NutritionDiaryEntry in
+            let date = calendar.date(byAdding: .day, value: -offset, to: now)!
+            let snapshot = offset == 0
+                ? NutritionSnapshot(energyKcal: 450, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil)
+                : NutritionSnapshot(energyKcal: nil, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil)
+            return NutritionDiaryEntry(
+                foodName: "Meal \(offset)", date: date, meal: .lunch, quantity: 1,
+                quantityUnit: "serving", servings: 1, source: .userProvided,
+                sourceName: "You", nutrientsPerServing: snapshot,
+                dayKey: NutritionDiaryDayKey.make(date, calendar: calendar)
+            )
+        }
+        let input = RecipeProgressInsightInput(savedRecipeCount: 0, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: [])
+        let candidate = InsightCandidateEngine.candidates(for: input, nutritionEntries: entries, now: now, calendar: calendar)
+            .first { $0.id == "nutrition-diary-coverage" }
+        XCTAssertEqual(candidate?.action, .foodDiary)
+        XCTAssertTrue(candidate?.insight.detail.contains("1 of 3 foods") == true)
+        XCTAssertFalse(candidate?.insight.detail.contains("450") == true)
+    }
+
+    func testNutritionDiaryInsightRequiresThreeRecentEntriesAndOnlyAppearsForPartialCoverage() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = ISO8601DateFormatter().date(from: "2026-10-30T12:00:00Z")!
+        let input = RecipeProgressInsightInput(savedRecipeCount: 0, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: [])
+        let completeEntries = (0..<3).map { offset -> NutritionDiaryEntry in
+            let date = calendar.date(byAdding: .day, value: -offset, to: now)!
+            return NutritionDiaryEntry(
+                foodName: "Meal \(offset)", date: date, meal: .lunch, quantity: 1,
+                quantityUnit: "serving", servings: 1, source: .userProvided, sourceName: "You",
+                nutrientsPerServing: NutritionSnapshot(energyKcal: 400, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil),
+                dayKey: NutritionDiaryDayKey.make(date, calendar: calendar)
+            )
+        }
+        XCTAssertFalse(InsightCandidateEngine.candidates(for: input, nutritionEntries: Array(completeEntries.prefix(2)), now: now, calendar: calendar).contains { $0.id == "nutrition-diary-coverage" })
+        XCTAssertFalse(InsightCandidateEngine.candidates(for: input, nutritionEntries: completeEntries, now: now, calendar: calendar).contains { $0.id == "nutrition-diary-coverage" })
+    }
+
+
 }

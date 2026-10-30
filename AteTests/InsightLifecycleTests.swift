@@ -404,6 +404,7 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertTrue(presented.contains { $0.id == "cooking-streak" })
         XCTAssertFalse(presented.contains { $0.id == "recipe-duplicates" || $0.id == "weekly-cooking" })
     }
+    // Fallbacks are considered only after every evidence-backed candidate is lifecycle-filtered out.
     func testEligibleFallbackCandidatesAppearWhenAllPrimaryCandidatesAreSuppressed() {
         let input = RecipeProgressInsightInput(
             savedRecipeCount: 6, cookedRecipeCount: 3, cookingDayCount: 3,

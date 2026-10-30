@@ -71,6 +71,31 @@ final class InsightsAcceptanceUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 8)
     }
 
+    func testInsightCanBeResolvedAndStaysSuppressedAfterRefresh() {
+        launch()
+        addAndCompleteRecipe()
+
+        tab("Library")
+        app.buttons["libraryBrowseMenu"].tap()
+        let insightsEntry = app.buttons["library.insights"]
+        wait(insightsEntry)
+        insightsEntry.tap()
+
+        let resolve = app.buttons["insights.progress.resolve.weekly-cooking"]
+        wait(resolve, 15)
+        resolve.tap()
+
+        let weeklyAction = app.buttons["insights.progress.action.weekly-cooking"]
+        XCTAssertTrue(weeklyAction.waitForNonExistence(timeout: 5),
+                      "Resolving an insight should remove that evidence version immediately.")
+
+        let refresh = app.buttons["insights.refresh"]
+        wait(refresh, 5)
+        refresh.tap()
+        XCTAssertTrue(weeklyAction.waitForNonExistence(timeout: 5),
+                      "A resolved insight must remain suppressed when refreshed with unchanged evidence.")
+    }
+
     func testWeeklyCookingInsightShowsEvidenceAndNavigatesToTracker() {
         launch()
         addAndCompleteRecipe()

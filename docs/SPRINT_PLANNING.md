@@ -156,3 +156,70 @@ The following timestamps are copied from GitHub event metadata. SAST is UTC+02:0
 | [PR #218](https://github.com/melusi-k/ate-ios/pull/218) | Opened | 2026-10-30 20:10:56Z | 2026-10-30 22:10:56 |
 
 **Historical gaps:** actual implementation start for these issues/PRs, first substantive review of PR #218, qualifying approvals, and completion timestamps must be reconstructed from branch/commit/project history where possible. Do not use the PR #218 automated Codex status comment as a human review or approval. PR #206's review is a COMMENTED review, not an approval.
+
+
+## Sprint 2026-W45 — baseline decision (reviewed 2026-10-30)
+
+**Status:** planned baseline for Monday 2026-11-02 through Sunday 2026-11-08. This review was run before the sprint begins; it is not a retrospective close-out. The Sunday close-out is due 2026-11-08.
+
+**Current main:** `ffa8bb6307e1bc4bc8d694bc8305601642f4ea05` (includes the merge of PR #218). The Build IPA workflow for this SHA was queued at run [41122289453](https://github.com/melusi-k/ate-ios/actions/runs/41122289453) when checked. The current PR #206 head is `02571a4ced4eb2f126aaad345d4b93bfbaa7cad1`; its Compile Check [41120910813](https://github.com/melusi-k/ate-ios/actions/runs/41120910813) and Dogfood Qualification [41120910875](https://github.com/melusi-k/ate-ios/actions/runs/41120910875) were queued/pending, not passing, at review time.
+
+### Committed scope
+
+| Ticket | Commitment | Planned dates | Sprint outcome and acceptance |
+|---|---|---|---|
+| [Issue #179](https://github.com/melusi-k/ate-ios/issues/179) — Nutrition tracking | Committed — bounded increment only; parent feature issue | 2026-11-02 to 2026-11-08 | Deliver the current PR #206 slice only. Do not claim the entire nutrition initiative is complete. Acceptance is measured by the linked PR #206 criteria; the issue and PR are separate tickets but one implementation outcome for throughput reporting. |
+| [PR #206](https://github.com/melusi-k/ate-ios/pull/206) — Nutrition foundation | Committed | 2026-11-02 to 2026-11-08 | Fix archive-import atomicity when goals persistence fails; reject non-finite normalized quantities, factors, nutrient values and totals; add failure/overflow regression tests; run Compile Check and Dogfood Qualification on the exact final head; obtain required independent approval and resolve review threads. Merge only if every required gate and repository requirement passes. Empty verified-food catalogue remains an explicit product limitation, not a reason to invent nutrient data. |
+| [Issue #30](https://github.com/melusi-k/ate-ios/issues/30) — Release readiness | Committed | 2026-11-02 to 2026-11-08 | Refresh current-main release status; distinguish successful, failed, queued and skipped checks by exact SHA; reconcile share/fallback, sync, device, backend and production-security blockers; attach evidence links and a prioritised next-action plan. Do not mark release ready or close the issue while any required release gate remains open. |
+
+### Stretch scope
+
+| Ticket | Planned dates | Bounded acceptance |
+|---|---|---|
+| [Issue #70](https://github.com/melusi-k/ate-ios/issues/70) — PRD/checklist/QA ownership reconciliation | 2026-11-05 to 2026-11-08 | Only if committed work is on track: reconcile one concrete, high-risk acceptance ownership/evidence mismatch surfaced by #30, link the exact source/test/run, and record any unresolved ambiguity. Do not attempt to complete the entire coverage-map initiative within this sprint. |
+
+### Explicitly not committed / carryover candidates
+
+- [PR #181](https://github.com/melusi-k/ate-ios/pull/181) remains draft and non-mergeable, with unresolved review findings, no exact-head Compile/Dogfood evidence, no qualifying approval, and an intentionally empty verified-food catalogue. Its nutrition work overlaps the parent #179 and current PR #206; do not count it as a second delivered nutrition outcome. Reconcile/supersede it explicitly before any merge.
+- [PR #66](https://github.com/melusi-k/ate-ios/pull/66) remains draft and non-mergeable. Its historic journal UI failures and missing exact-head validation make it unsuitable for a W45 commitment. Physical-device Health/Shortcuts evidence remains separately owned by #67.
+- PR #218 is not W45 work: it was merged on 2026-10-30 and delivered this sprint-planning policy/documentation baseline.
+
+### Planning findings and dependencies
+
+- The PRD's implementation-audit header and the MVP checklist progress snapshot are dated 2026-10-24; treat their aggregate status as historical until refreshed from current exact-SHA evidence.
+- The live open-issue inventory contains 40 issues; the live open-PR inventory contains 4 PRs (#66, #181, #206, #218 at the time of the query; #218 has since merged). Recent main commits include the insights fallback fix and dependency updates.
+- The current release-readiness issue #30 records that release go/no-go remains BLOCKED: the recent Build IPA workflow skips full unit/UI/backend validation, while release acceptance still requires share/fallback, local-library/sync safety, production security and device evidence.
+- The repository ruleset `main-production-protection` exists but its enforcement is **disabled**. Its configured rules include one approving review, resolved review threads, strict `compile` and `dogfood-qualification` checks, and linear history. The ruleset also does not require CODEOWNERS approval. The branch-protection endpoint could not be read with the connected GitHub integration (403); do not assume any separate protection is active. No governance setting was changed.
+- Repository metadata reports squash merge available, auto-merge unavailable, and update-branch unavailable. Keep the review/validation path manual and evidence-led.
+- PR #206 depends on fixing the two review findings, exact-head CI completion, an independent approval and any required base reconciliation. PR #30 depends on current Build IPA, Dogfood, Nightly QA, backend/browser and production-security evidence. #70 depends on a bounded finding from #30.
+
+### Date-change record
+
+- 2026-10-30: PR #206's earlier proposed planned end of **2026-11-06** was superseded by the agreed one-week Monday–Sunday sprint end of **2026-11-08**. The earlier proposal is retained here as history; it is not deleted. The other W45 tickets retain their original planned windows.
+
+### Sprint close-out state
+
+No W44 sprint baseline or committed-versus-delivered record was available to close during this Friday 2026-10-30 run. Therefore no retrospective outcomes or sprint metrics are fabricated. W45 close-out remains due Sunday 2026-11-08 and must report committed versus delivered, carryovers, blockers, scope changes, lessons, next actions, exact evidence and metrics only where both endpoints are evidenced.
+
+## Expanded lifecycle reconstruction — 2026-10-30
+
+All times below are exact UTC ISO-8601 metadata unless marked Inferred; SAST is UTC+02:00. Actual work start is the earliest observable implementation activity, not a claim about when a person first began thinking or working. A human COMMENTED review is not an approval; automated Codex/bot comments are excluded from human-review evidence.
+
+| Ticket | Created/opened (UTC; SAST) | First activity / earliest implementation evidence | Actual work start | First substantive human review | Approval | Merge / closure / completion |
+|---|---|---|---|---|---|---|
+| [Issue #30](https://github.com/melusi-k/ate-ios/issues/30) | 2026-10-11T22:50:12Z; 2026-10-12 00:50:12 | First recorded event: `labeled` at 2026-10-11T22:50:13Z; 2026-10-12 00:50:13 (Verified) | Unknown | No single issue-level review event; linked PR reviews are tracked on their own tickets | N/A — issue | Still open; no completion |
+| [Issue #70](https://github.com/melusi-k/ate-ios/issues/70) | 2026-10-13T04:05:22Z; 2026-10-13 06:05:22 | Earliest returned event: `labeled` at 2026-10-21T10:37:09Z; 2026-10-21 12:37:09 (Verified) | Unknown | No single issue-level review event | N/A — issue | Still open; no completion |
+| [Issue #179](https://github.com/melusi-k/ate-ios/issues/179) | 2026-10-25T01:45:00Z; 2026-10-25 03:45:00 | First returned issue event: commit `referenced` at 2026-10-25T21:27:10Z; 2026-10-25 23:27:10 (Verified). Earlier linked implementation commit is recorded below. | 2026-10-25T06:40:40Z; 2026-10-25 08:40:40 (Inferred from earliest commit in linked PR #181; not the issue creation time) | No issue-level review; see PR #181 and #206 | N/A — issue | Still open; no completion |
+| [PR #66](https://github.com/melusi-k/ate-ios/pull/66) | 2026-10-12T23:14:40Z; 2026-10-13 01:14:40 | Earliest branch commit `6ada6530` at 2026-10-12T23:13:39Z; 2026-10-13 01:13:39 (Verified) | 2026-10-12T23:13:39Z; 2026-10-13 01:13:39 (Inferred earliest observable implementation activity) | 2026-10-13T03:39:11Z; 2026-10-13 05:39:11 (Verified, human COMMENTED review by PR author) | None verified | Open, draft, non-mergeable; not completed |
+| [PR #181](https://github.com/melusi-k/ate-ios/pull/181) | 2026-10-25T06:44:01Z; 2026-10-25 08:44:01 | Earliest branch commit `d3a141de` at 2026-10-25T06:40:40Z; 2026-10-25 08:40:40 (Verified) | 2026-10-25T06:40:40Z; 2026-10-25 08:40:40 (Inferred earliest observable implementation activity) | 2026-10-30T05:02:18Z; 2026-10-30 07:02:18 (Verified, substantive human COMMENTED review by PR author; no approval) | None verified | Open, draft, non-mergeable; not completed |
+| [PR #206](https://github.com/melusi-k/ate-ios/pull/206) | 2026-10-30T17:10:20Z; 2026-10-30 19:10:20 | Earliest branch commit `02571a4c` at 2026-10-30T20:08:27Z; 2026-10-30 22:08:27 (Verified) | 2026-10-30T20:08:27Z; 2026-10-30 22:08:27 (Inferred earliest observable implementation activity) | 2026-10-30T17:38:28Z; 2026-10-30 19:38:28 (Verified, human COMMENTED self-review; not independent approval) | None verified | Open, ready-for-review, mergeable flag true; exact-head Compile and Dogfood were queued, not passed |
+| [PR #218](https://github.com/melusi-k/ate-ios/pull/218) | 2026-10-30T20:10:56Z; 2026-10-30 22:10:56 | First branch commit `343128f3` at 2026-10-30T20:10:28Z; 2026-10-30 22:10:28 (Verified) | 2026-10-30T20:10:28Z; 2026-10-30 22:10:28 (Inferred earliest observable implementation activity) | None verified; no human review submission found | None verified | Merged and closed 2026-10-30T20:19:48Z; 2026-10-30 22:19:48; docs delivery complete at merge commit `ffa8bb6307e1bc4bc8d694bc8305601642f4ea05` |
+
+### Evidence-based timing metrics (available samples only)
+
+- PR #218 lead time (created to merged): **8m 52s** (Verified endpoints).
+- PR #218 implementation time is not reported: the first commit is an inferred earliest observable start, not a verified actual start.
+- PR #66 time to first substantive human review: **4h 24m 31s** (Verified timestamps; review was a COMMENTED self-review, not approval).
+- PR #181 time to first substantive human review: **4d 22h 18m 17s** (Verified timestamps; COMMENTED self-review, not approval).
+- PR #206 time to first substantive human review: **28m 08s** (Verified timestamps; COMMENTED self-review, not approval).
+- No qualifying approval time, PR #66/#181/#206 completion time, or issue #30/#70/#179 cycle time is available. Lead/implementation/cycle metrics for open tickets are therefore not calculated.

@@ -150,8 +150,8 @@ struct RecipeProgressInsight: Equatable {
 }
 
 enum RecipeProgressInsightService {
-    static func candidates(for input: RecipeProgressInsightInput) -> [RankedRecipeInsightCandidate] {
-        InsightCandidateEngine.candidates(for: input)
+    static func candidates(for input: RecipeProgressInsightInput, shoppingItems: [ShoppingItem] = []) -> [RankedRecipeInsightCandidate] {
+        InsightCandidateEngine.candidates(for: input, shoppingItems: shoppingItems)
     }
 
     static func fallback(for input: RecipeProgressInsightInput) -> RecipeProgressInsight? {
@@ -542,30 +542,32 @@ struct InsightsView: View {
     }
 
     private func insightActionTitle(for candidate: RankedRecipeInsightCandidate) -> String {
-        switch candidate.id {
-        case "recipe-duplicates": return "Review saved recipes"
-        case "weekly-cooking", "cooking-streak", "cooking-rhythm": return "See your cooking history"
-        case "recipe-discovery": return "Explore new recipes"
-        default: return "Explore your saved recipes"
+        switch candidate.action {
+        case .recipes: return candidate.id == "recipe-duplicates" ? "Review saved recipes" : "Explore new recipes"
+        case .cookingHistory: return "See your cooking history"
+        case .shoppingList: return "Review shopping list"
         }
     }
 
     private func insightActionSymbol(for candidate: RankedRecipeInsightCandidate) -> String {
-        switch candidate.id {
-        case "recipe-duplicates": return "doc.text.magnifyingglass"
-        case "weekly-cooking", "cooking-streak", "cooking-rhythm": return "calendar.badge.clock"
-        default: return "books.vertical"
+        switch candidate.action {
+        case .recipes: return candidate.id == "recipe-duplicates" ? "doc.text.magnifyingglass" : "books.vertical"
+        case .cookingHistory: return "calendar.badge.clock"
+        case .shoppingList: return "basket"
         }
     }
 
     @MainActor private func openInsightDestination(for candidate: RankedRecipeInsightCandidate) {
-        switch candidate.id {
-        case "recipe-duplicates", "recipe-discovery", "recipe-collection":
+        switch candidate.action {
+        case .recipes:
             store.filter.clear()
             store.select(.library)
-        default:
+        case .cookingHistory:
             store.trackerPath = []
             store.select(.tracker)
+        case .shoppingList:
+            store.shoppingPath = []
+            store.select(.shopping)
         }
     }
 
@@ -578,7 +580,7 @@ struct InsightsView: View {
         }
 
         let input = RecipeProgressInsightInput.make(recipes: store.recipes, historyEvents: CookingHistory.shared.events)
-        let candidates = RecipeProgressInsightService.candidates(for: input)
+        let candidates = RecipeProgressInsightService.candidates(for: input, shoppingItems: store.shopping)
         let eligible = candidates.filter {
             recipeProgressLifecycle.shouldPresent(id: $0.id, evidenceFingerprint: $0.evidenceFingerprint)
         }

@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// A stable, local-only lifecycle for evidence-backed insights.
 /// Only a one-way fingerprint is persisted; recipe titles and underlying data are not.
@@ -124,13 +125,8 @@ enum RecipeProgressInsightFingerprint {
             input.recipeTitles.map(normalize).sorted().joined(separator: ","),
             duplicateGroups
         ]
-        let bytes = fields.joined(separator: "|").utf8
-        var hash: UInt64 = 14_695_981_039_346_656_037
-        for byte in bytes {
-            hash ^= UInt64(byte)
-            hash = hash &* 1_099_511_628_211
-        }
-        return String(hash, radix: 16)
+        let digest = SHA256.hash(data: Data(fields.joined(separator: "|").utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 
     private static func normalize(_ value: String) -> String {

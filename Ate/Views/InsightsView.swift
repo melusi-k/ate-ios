@@ -247,6 +247,12 @@ struct InsightsView: View {
                     HStack {
                         Text("Your insights").font(AteFont.display(18))
                         Spacer()
+                        Button { Task { await refreshAllInsights() } } label: {
+                            Label("Refresh", systemImage: "arrow.clockwise")
+                        }
+                        .font(AteFont.body(13, .semibold))
+                        .disabled(model.loading || recipeProgressLoading)
+                        .accessibilityIdentifier("insights.refresh")
                         Button(isEditingInsightOrder ? "Done" : "Edit") {
                             withAnimation(.snappy) { isEditingInsightOrder.toggle() }
                         }
@@ -302,7 +308,7 @@ struct InsightsView: View {
         .onChange(of: model.access) { _, a in
             if a == .denied || a == .unavailable || a == .entitlementMissing { BetaQA.shared.pass("A-HEALTH-05", note: "Graceful \(a) state shown") }
         }
-        .refreshable { await model.refresh(recipes: store.recipes); prompt = model.context?.prompts.first; await refreshRecipeProgressInsight() }
+        .refreshable { await refreshAllInsights() }
         .task { await model.loadIfNeeded(recipes: store.recipes); prompt = prompt ?? model.context?.prompts.first; entries = JournalStore.shared.entries(); await refreshRecipeProgressInsight() }
         .onAppear { entries = JournalStore.shared.entries() }
         .alert("“ate” would like to access your Health data", isPresented: $model.mockPromptShown) {
@@ -428,7 +434,7 @@ struct InsightsView: View {
                     .accessibilityIdentifier("insights.progress.loading")
             } else if let insight = recipeProgressInsight {
                 HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "sparkles").foregroundStyle(Theme.primary)
+                    Image(systemName: recipeProgressInsightSymbol(for: insight)).foregroundStyle(Theme.primary)
                     VStack(alignment: .leading, spacing: 6) {
                         Text(insight.title).font(AteFont.body(15, .semibold))
                         Text(insight.detail).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
@@ -438,27 +444,35 @@ struct InsightsView: View {
                 }
                 .accessibilityIdentifier("insights.progress.result")
                 VStack(alignment: .leading, spacing: 8) {
-                    Button {
-                        store.trackerPath = []
-                        store.select(.tracker)
-                    } label: {
-                        insightActionLabel("Review your tracker", symbol: "calendar.badge.check")
+                    if insight.title == "Possible overlapping recipe entries" {
+                        Button { store.select(.library) } label: {
+                            insightActionLabel("Review saved recipes", symbol: "doc.text.magnifyingglass")
+                        }
+                        .accessibilityIdentifier("insights.progress.action.reviewDuplicates")
+                    } else if insight.title == "Your cooking rhythm" || insight.title == "You're building a steady rhythm" {
+                        Button {
+                            store.trackerPath = []
+                            store.select(.tracker)
+                        } label: {
+                            insightActionLabel("See your cooking history", symbol: "calendar.badge.clock")
+                        }
+                        .accessibilityIdentifier("insights.progress.action.history")
+                        Button {
+                            store.trackerPath = [.journal]
+                            store.select(.tracker)
+                        } label: {
+                            insightActionLabel("Reflect on this week's cooking", symbol: "book.closed")
+                        }
+                        .accessibilityIdentifier("insights.progress.action.journal")
+                    } else {
+                        Button {
+                            store.filter.clear()
+                            store.select(.library)
+                        } label: {
+                            insightActionLabel("Explore your saved recipes", symbol: "books.vertical")
+                        }
+                        .accessibilityIdentifier("insights.progress.action.recipes")
                     }
-                    .accessibilityIdentifier("insights.progress.action.tracker")
-                    Button {
-                        store.trackerPath = [.journal]
-                        store.select(.tracker)
-                    } label: {
-                        insightActionLabel("Reflect in your journal", symbol: "book.closed")
-                    }
-                    .accessibilityIdentifier("insights.progress.action.journal")
-                    Button {
-                        store.filter.clear()
-                        store.select(.library)
-                    } label: {
-                        insightActionLabel("Browse recipes to try", symbol: "fork.knife")
-                    }
-                    .accessibilityIdentifier("insights.progress.action.recipes")
                 }
                 .padding(.top, 4)
             } else {
@@ -478,9 +492,6 @@ struct InsightsView: View {
                     .font(AteFont.body(13, .semibold))
                     .accessibilityIdentifier("insights.progress.reviewRecipes")
             }
-            Button("Refresh insights") { Task { await refreshRecipeProgressInsight() } }
-                .font(AteFont.body(13, .semibold))
-                .accessibilityIdentifier("insights.progress.refresh")
         }
     }
 
@@ -621,8 +632,46 @@ struct InsightsView: View {
     }
 
     private func card<C: View>(_ title: String, @ViewBuilder _ c: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 10) { Text(title).font(AteFont.display(18)); c() }
-            .frame(maxWidth: .infinity, alignment: .leading).cardSurface(padding: 20)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 9) {
+                Image(systemName: insightTileSymbol(for: title))
+                    .font(AteFont.body(16, .semibold))
+                    .foregroundStyle(Theme.primary)
+                    .frame(width: 24)
+                    .accessibilityHidden(true)
+                Text(title).font(AteFont.display(18))
+            }
+            c()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading).cardSurface(padding: 20)
+    }
+
+    private func insightTileSymbol(for title: String) -> String {
+        switch title {
+        case "Cooking tracker": return "calendar"
+        case "Recipe & cooking insights": return "chart.line.uptrend.xyaxis"
+        case "Your body today": return "heart.text.square"
+        case "Suggested meals": return "fork.knife"
+        case "Reflect on your day": return "quote.bubble"
+        case "Your Ate journal": return "book.closed"
+        default: return "lightbulb"
+        }
+    }
+
+    private func recipeProgressInsightSymbol(for insight: RecipeProgressInsight) -> String {
+        switch insight.title {
+        case "Possible overlapping recipe entries": return "doc.on.doc"
+        case "Your cooking rhythm", "You're building a steady rhythm": return "chart.bar.xaxis"
+        case "Your recipe collection is taking shape": return "books.vertical"
+        default: return "lightbulb"
+        }
+    }
+
+    @MainActor private func refreshAllInsights() async {
+        async let healthRefresh: Void = model.refresh(recipes: store.recipes)
+        await refreshRecipeProgressInsight()
+        await healthRefresh
+        prompt = model.context?.prompts.first
     }
 }
 

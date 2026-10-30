@@ -472,6 +472,9 @@ struct InsightsView: View {
                             }
                             .accessibilityIdentifier("insights.progress.action.\(candidate.id)")
                             HStack(spacing: 16) {
+                                Button("I've handled this") { resolveRecipeInsight(candidate) }
+                                    .font(AteFont.body(12, .semibold))
+                                    .accessibilityIdentifier("insights.progress.resolve.\(candidate.id)")
                                 Button("Not useful") { dismissRecipeInsight(candidate) }
                                     .font(AteFont.body(12, .semibold))
                                     .accessibilityIdentifier("insights.progress.dismiss.\(candidate.id)")
@@ -531,6 +534,13 @@ struct InsightsView: View {
     @MainActor private func markRecipeInsightSeen(_ candidate: RankedRecipeInsightCandidate) {
         recipeProgressRefreshGeneration += 1
         _ = recipeProgressLifecycle.markSeen(id: candidate.id, evidenceFingerprint: candidate.evidenceFingerprint)
+        recipeProgressCandidates.removeAll { $0.id == candidate.id }
+        recipeProgressSuppressed = recipeProgressCandidates.isEmpty
+    }
+
+    @MainActor private func resolveRecipeInsight(_ candidate: RankedRecipeInsightCandidate) {
+        recipeProgressRefreshGeneration += 1
+        guard recipeProgressLifecycle.resolve(id: candidate.id, evidenceFingerprint: candidate.evidenceFingerprint) else { return }
         recipeProgressCandidates.removeAll { $0.id == candidate.id }
         recipeProgressSuppressed = recipeProgressCandidates.isEmpty
     }

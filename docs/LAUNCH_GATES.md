@@ -10,10 +10,10 @@ Sections marked **Repo policy** restate rules already in MVP_SCORE.md. Sections 
 |---|---|---:|
 | Pilot (internal beta) | `Pilot` (was Tier A) | 97 |
 | Public launch | `Public launch` (was Tier B), plus every Pilot row must still hold | 13 |
-| Not scored | `No committed release gate` (was Tier C) | 69 |
-| Total acceptance IDs | | 179 |
+| Not scored | `No committed release gate` (was Tier C) | 71 |
+| Total acceptance IDs | | 181 |
 
-The matrix and checklist both contain 179 unique IDs. Earlier text said 176; that was stale and is corrected here. `scripts/check-ids.py` validates unique checklist and matrix IDs, their per-ID release-gate agreement, and the counts in this table against both sources. Update the table when the acceptance inventory changes; these checks validate classification, not release readiness.
+The matrix and checklist both contain 181 unique IDs. Earlier text said 176; that was stale and is corrected here. `scripts/check-ids.py` validates unique checklist and matrix IDs, their per-ID release-gate agreement, and the counts in this table against both sources. Update the table when the acceptance inventory changes; these checks validate classification, not release readiness.
 
 The 59-item tally printed by `scripts/release/readiness.py` is a different measure: it counts items in the release-readiness issue template, each mapped to one or more acceptance IDs or CI jobs. It is a summary for the release issue, not the gate score. Gate scores use acceptance IDs only.
 

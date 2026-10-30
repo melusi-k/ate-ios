@@ -37,7 +37,7 @@ struct NutritionDiaryView: View {
             }
             Section("Daily totals") {
                 let totals = NutritionDayTotals.calculate(entries: dayEntries)
-                let goals = goalsRepository.load()
+                let goals = try? goalsRepository.load()
                 ForEach(NutritionGoalField.allCases) { field in
                     HStack {
                         Text(field.title)
@@ -45,7 +45,7 @@ struct NutritionDiaryView: View {
                         if let amount = totals.value(for: field) {
                             Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) \(field.unit)")
                                 .monospacedDigit()
-                            if let goal = goals[field] {
+                            if let goal = goals?[field] {
                                 Text("/ \(goal.formatted(.number.precision(.fractionLength(0...1))))")
                                     .foregroundStyle(Theme.mutedForeground).monospacedDigit()
                             }
@@ -55,13 +55,24 @@ struct NutritionDiaryView: View {
                     }
                     .accessibilityIdentifier("nutritionDiary.total.\(field.rawValue)")
                 }
-                if goals.isEmpty {
+                if goals?.isEmpty == true {
                     NavigationLink {
                         NutritionGoalsView()
                     } label: {
                         Label("Set optional daily goals", systemImage: "target")
                     }
                     .accessibilityIdentifier("nutritionDiary.configureGoals")
+                } else if goals == nil {
+                    Label("Daily goals couldn't be loaded safely. Open Nutrition goals to retry.", systemImage: "exclamationmark.triangle")
+                        .font(AteFont.body(12))
+                        .foregroundStyle(Theme.mutedForeground)
+                        .accessibilityIdentifier("nutritionDiary.goalsLoadError")
+                    NavigationLink {
+                        NutritionGoalsView()
+                    } label: {
+                        Label("Retry loading daily goals", systemImage: "arrow.clockwise")
+                    }
+                    .accessibilityIdentifier("nutritionDiary.retryGoals")
                 }
             }
             if dayEntries.isEmpty {

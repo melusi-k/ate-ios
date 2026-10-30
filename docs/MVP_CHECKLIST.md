@@ -798,6 +798,22 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
   - *Owner:* [#179](https://github.com/melusi-k/ate-ios/issues/179)
   - *Feature area:* Health and journal · *Release gate:* No committed release gate · *Initial priority:* P1
 
+- **C-NUT-03 · Show complete source-backed recipe nutrition estimates** — 🟡
+  - *Journey:* As a cook, I can see an honest recipe nutrition estimate only when every ingredient is supported by verified data.
+  - *Acceptance:* Given a recipe with supported ingredients and quantities, When I open Recipe detail, Then verified source-backed records with reviewed usage rights and supported quantities contribute to the estimate; incomplete recipes never show partial totals as complete; energy, protein, carbohydrate, fat and fibre use canonical units and explicit rounding.
+  - *Verified by:* `RecipeNutritionTests`
+  - *Status evidence:* Deterministic calculator and recipe-detail summary added; the verified-food catalogue intentionally remains empty until source provenance, preparation state, nutrient values and usage rights are reviewed. Estimates therefore remain unavailable rather than guessed.
+  - *Owner:* [#179](https://github.com/melusi-k/ate-ios/issues/179)
+  - *Feature area:* Health and journal · *Release gate:* No committed release gate · *Initial priority:* P1
+
+- **C-NUT-04 · Preserve nutrition goals when local storage fails** — 🟡
+  - *Journey:* As a cook, my optional goals survive local storage errors safely.
+  - *Acceptance:* Given Settings › Nutrition goals, When a save or clear operation fails, Then the app reports the error and keeps the prior configuration available; successful saves use atomic file writes, and legacy UserDefaults values migrate only after a successful write; read or decode failures are never presented as an empty configuration.
+  - *Verified by:* `NutritionGoalsTests.testFailedWriteThrowsAndPreservesPreviousConfiguration`, `testFailedClearThrowsAndPreservesPreviousConfiguration`, `testLegacyUserDefaultsConfigurationMigratesToFileStorage`, `testStorageReadFailureIsNotTreatedAsEmptyGoals`
+  - *Status evidence:* Injectable storage, atomic writes and failure/migration tests added; exact-head CI and the malformed-file in-app recovery path remain to be validated separately.
+  - *Owner:* [#179](https://github.com/melusi-k/ate-ios/issues/179)
+  - *Feature area:* Health and journal · *Release gate:* No committed release gate · *Initial priority:* P1
+
 #### Apple Health insights
 
 - **A-HEALTH-01 · No Health prompt at launch** — 🔴

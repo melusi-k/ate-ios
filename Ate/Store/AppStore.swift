@@ -501,9 +501,11 @@ final class AppStore {
         var diaryIDs = Set(nutritionDiaryRepository.load().map(\.id))
         let newDiaryEntries = archive.nutritionDiaryEntries.filter { diaryIDs.insert($0.id).inserted }
 
-        // Persist the UserDefaults-backed data before mutating the in-memory store.
-        try nutritionDiaryRepository.save(nutritionDiaryRepository.load() + newDiaryEntries)
+        // Prepare the only encoding that can fail before writing either archive-backed store.
+        // Goals storage is the fallible commit; diary data is committed only after it succeeds.
+        let preparedDiary = try nutritionDiaryRepository.prepare(nutritionDiaryRepository.load() + newDiaryEntries)
         try nutritionGoalsRepository.save(archive.nutritionGoals)
+        nutritionDiaryRepository.savePrepared(preparedDiary)
         recipes = recipeResult.result.map(RecipeLogic.normalize)
         shopping.append(contentsOf: newShoppingItems)
         settings = archive.appSettings
@@ -527,7 +529,7 @@ final class AppStore {
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         let archive = AteDataArchive(recipes: recipes, shoppingItems: shopping,
                                      nutritionDiaryEntries: nutritionDiaryRepository.load(),
-                                     nutritionGoals: nutritionGoalsRepository.load(),
+                                     nutritionGoals: try nutritionGoalsRepository.load(),
                                      appSettings: settings, timerPreferences: timerPrefs)
         return try enc.encode(archive)
     }

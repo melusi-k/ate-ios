@@ -205,9 +205,19 @@ struct NutritionDiaryRepository {
         return sorted
     }
 
-    func save(_ entries: [NutritionDiaryEntry]) throws {
-        let data = try JSONEncoder().encode(entries)
+    /// Encodes a replacement before any related archive state is committed.
+    func prepare(_ entries: [NutritionDiaryEntry]) throws -> Data {
+        try JSONEncoder().encode(entries)
+    }
+
+    /// Commits already-encoded diary data. UserDefaults.set is non-throwing, so
+    /// callers can place this after other fallible archive writes.
+    func savePrepared(_ data: Data) {
         defaults.set(data, forKey: Self.storageKey)
+    }
+
+    func save(_ entries: [NutritionDiaryEntry]) throws {
+        savePrepared(try prepare(entries))
     }
 
     func clear() {

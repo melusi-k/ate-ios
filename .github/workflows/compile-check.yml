@@ -130,6 +130,20 @@ jobs:
 
           grep -E "warning: .*(Widgets|Intents|Snapshot)" build.log > build-warnings.log || true
           tail -n 30 build-warnings.log || true
+      - name: Nutrition foundation focused unit regressions (#206)
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/DataArchiveTests \
+            -only-testing:AteTests/NutritionGoalsTests \
+            -only-testing:AteTests/RecipeNutritionTests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-foundation-unit-tests.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > nutrition-foundation-unit-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-foundation-unit-tests.log || true; tail -120 nutrition-foundation-unit-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
+
       - name: Library Explore native sheet presentation (#83)
         if: ${{ steps.build.outcome == 'success' }}
         run: |

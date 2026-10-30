@@ -6,6 +6,7 @@ struct NutritionGoalsView: View {
     @State private var values: [NutritionGoalField: String] = [:]
     @State private var errors: [NutritionGoalField: String] = [:]
     @State private var saveError: String?
+    @State private var loadError: String?
     @State private var didLoad = false
 
     private let repository: NutritionGoalsRepository
@@ -29,10 +30,12 @@ struct NutritionGoalsView: View {
                     goalRow(field)
                 }
             }
+            .disabled(!didLoad)
 
             Section {
                 Button("Clear all goals", role: .destructive) { clearAll() }
                     .frame(maxWidth: .infinity, alignment: .center)
+                    .disabled(!didLoad)
                     .accessibilityIdentifier("nutritionGoals.clearAll")
                     .accessibilityHint("Turns off every goal in this form. Tap Save goals to confirm the change.")
             } footer: {
@@ -48,6 +51,17 @@ struct NutritionGoalsView: View {
                 Button("Cancel", role: .cancel) { dismiss() }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .accessibilityIdentifier("nutritionGoals.cancel")
+            }
+
+            if let loadError {
+                Section {
+                    Label(loadError, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("nutritionGoals.loadError")
+                    Button("Retry loading goals") { loadDraftIfNeeded() }
+                        .accessibilityIdentifier("nutritionGoals.retryLoad")
+                }
             }
 
             if let saveError {
@@ -135,7 +149,22 @@ struct NutritionGoalsView: View {
 
     private func loadDraftIfNeeded() {
         guard !didLoad else { return }
-        let saved = repository.load()
+        loadError = nil
+        do {
+            applyDraft(try repository.load())
+            didLoad = true
+        } catch let error as NutritionGoalsLoadError {
+            if let fallback = error.fallbackGoals {
+                applyDraft(fallback)
+            }
+            // Keep didLoad false so Save/Clear remain disabled until storage loads successfully.
+            loadError = error.localizedDescription
+        } catch {
+            loadError = "Existing nutrition goals couldn't be loaded safely. Saving is disabled to protect existing data. Retry loading or cancel."
+        }
+    }
+
+    private func applyDraft(_ saved: DailyNutritionGoals) {
         for field in NutritionGoalField.allCases {
             if let value = saved[field] {
                 enabled[field] = true
@@ -145,7 +174,6 @@ struct NutritionGoalsView: View {
                 values[field] = ""
             }
         }
-        didLoad = true
     }
 
     private func save() {

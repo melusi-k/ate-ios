@@ -442,6 +442,47 @@ final class CoverageUITests: XCTestCase {
         shot("share-publish-outage-library-intact")
     }
 
+    /// A-SYNC-04: a failed pull for a newly selected account must not erase the local library.
+    func test40_AccountSwitchSyncFailurePreservesLocalLibrary() {
+        launch(["-qaBackendDown"])
+        addPrompt("Keep this stew")
+
+        tab("Settings")
+        wait(text("Account & sync"))
+        app.buttons["openSignIn"].tap()
+        wait(app.staticTexts["authTitle"])
+        replaceText(app.textFields["authEmail"], "cook@example.com")
+        replaceText(app.secureTextFields["authPassword"], "password123")
+        app.buttons["authSubmit"].tap()
+        wait(app.staticTexts["accountEmail"], 8)
+        wait(text("Sync failed"), 5)
+
+        // Sign out while keeping local recipes, then sign in as a different account while
+        // the sync endpoint remains unavailable. The failed pull must not clear the old copy.
+        app.buttons["signOutButton"].tap()
+        let keep = app.buttons["Sign out, keep recipes on this iPhone"]
+        wait(keep, 5)
+        keep.tap()
+        wait(app.buttons["openSignIn"], 5)
+        app.buttons["openSignIn"].tap()
+        wait(app.staticTexts["authTitle"])
+        replaceText(app.textFields["authEmail"], "other@example.com")
+        replaceText(app.secureTextFields["authPassword"], "password123")
+        app.buttons["authSubmit"].tap()
+        // The failed pull may sign account B out before its account row is ever rendered.
+        wait(text("Account switch couldn't be completed. Your previous library is safe on this iPhone. Reconnect and sign in again."), 5)
+
+        // A failed account switch must not leave account B active over account A's local data.
+        // The app should sign out safely and preserve the previous library for a later retry.
+        wait(app.buttons["openSignIn"], 5)
+        XCTAssertFalse(app.staticTexts["accountEmail"].exists,
+                       "the new account must not remain active while the previous account's library is visible")
+
+        tab("Library")
+        wait(text("Keep this stew"), 5)
+        shot("account-switch-sync-failure-library-preserved")
+    }
+
     /// Issue #89: the first request fails transiently; Retry must submit a fresh request and recover.
     func test36b_RecipeGenerationRetryRecoversAfterTransientFailure() {
         launch(["-qaBackendFailOnce"])

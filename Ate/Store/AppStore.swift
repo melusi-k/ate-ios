@@ -593,22 +593,35 @@ final class AppStore {
     func syncNow() async {
         guard var s = session, let sync, let auth else { syncState = .signedOut; return }
         syncState = .syncing
+        // Determine account ownership before any refresh or pull can fail. If this is a switch,
+        // the previous account's local library must never remain visible under the new session.
+        let switchingAccounts = SyncMerge.isAccountSwitch(lastSyncedUser: meta.userID, newUser: s.userID)
+        var accountSwitchPullSucceeded = false
         do {
             if s.expiresAt < Date().timeIntervalSince1970 + 60 {
                 do { s = try await auth.refresh(s); setSession(s); BetaQA.shared.pass("A-AUTH-06", note: "Session refreshed before sync") }
                 catch let e as AuthError where e.kind == .unauthorized { expireSession(); return }
             }
-            if SyncMerge.isAccountSwitch(lastSyncedUser: meta.userID, newUser: s.userID) {
-                // The previous account's copy is safe on the server; don't leak it into this one.
+            // Persist ownership on first sign-in before network I/O. If the first pull fails, a
+            // later sign-in after relaunch must not merge this user's local library into another.
+            if meta.userID == nil {
+                meta.userID = s.userID
+                saveDefaults(meta, key: "ate.sync.v1")
+            }
+            let remote = try await sync.pull(session: s)
+            accountSwitchPullSucceeded = true
+            BetaQA.shared.syncPulled(rows: remote.count)
+            if switchingAccounts {
+                // Keep the previous account's local copy until the new account's pull succeeds.
+                // A failed request must not erase recipes or change their account ownership.
                 recipes = []; shopping = []; recipeSnapshot = [:]; shopSnapshot = [:]
                 persistRecipes(stamp: false); persistShopping(stamp: false)
                 meta = SyncMeta()
+                meta.userID = s.userID
                 BetaQA.shared.pass("A-SYNC-05", note: "Account switch detected; previous account's copy removed")
                 show("Switched accounts — the other account's recipes were removed from this iPhone (they're still in that account).")
             }
             meta.userID = s.userID
-            let remote = try await sync.pull(session: s)
-            BetaQA.shared.syncPulled(rows: remote.count)
             let enc = JSONEncoder()
             let dec = JSONDecoder()
 
@@ -645,13 +658,30 @@ final class AppStore {
             syncState = .synced(Date())
             BetaQA.shared.syncSucceeded(pushed: out.count)
         } catch SyncError.tableMissing {
-            syncState = .unavailable(SyncError.tableMissing.errorDescription ?? "")
+            if switchingAccounts && !accountSwitchPullSucceeded {
+                signOutAfterFailedAccountSwitch()
+            } else {
+                syncState = .unavailable(SyncError.tableMissing.errorDescription ?? "")
+            }
         } catch SyncError.unauthorized {
             expireSession()
         } catch {
-            syncState = .failed(error.localizedDescription)
+            if switchingAccounts && !accountSwitchPullSucceeded {
+                signOutAfterFailedAccountSwitch()
+            } else {
+                syncState = .failed(error.localizedDescription)
+            }
             BetaQA.shared.syncFailed(Net.friendly(error))
         }
+    }
+
+    /// A failed initial pull during an account switch must not leave account B active over
+    /// account A's local library. Keep the local data intact and require a retry when online.
+    private func signOutAfterFailedAccountSwitch() {
+        setSession(nil)
+        let message = "Account switch couldn't be completed. Your previous library is safe on this iPhone. Reconnect and sign in again."
+        syncState = .failed(message)
+        show(message, error: true, seconds: 5)
     }
 
     /// Session can't be refreshed: sign out locally (keep recipes) and say so plainly.

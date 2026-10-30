@@ -316,6 +316,19 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > settings-about-145.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" settings-about-145.log || true; tail -120 settings-about-145.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" settings-about-145.log | tail -40
 
+      - name: Account-switch sync failure preserves local library (#34)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/test40_AccountSwitchSyncFailurePreservesLocalLibrary \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/account-switch-sync-failure-library.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > account-switch-sync-failure-library.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" account-switch-sync-failure-library.log || true; tail -120 account-switch-sync-failure-library.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" account-switch-sync-failure-library.log | tail -40
+
       - name: Cooking Tracker focused UI tests
         continue-on-error: true
         if: ${{ always() && steps.build.outcome == 'success' }}

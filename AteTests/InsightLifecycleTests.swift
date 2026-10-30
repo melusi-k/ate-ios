@@ -218,4 +218,32 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertEqual(store.record(for: "weekly-cooking")?.evidenceFingerprint, "new")
     }
 
+
+    func testShoppingInsightRequiresMultipleRecipeSourcesAndPendingItems() {
+        let input = RecipeProgressInsightInput(savedRecipeCount: 0, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: [])
+        let shopping = [
+            ShoppingItem(name: "Tomatoes", quantity: 2, unit: "pcs", sources: ["Lentil soup"]),
+            ShoppingItem(name: "Onions", quantity: 1, unit: "pcs", sources: ["Lentil soup", "Vegetable curry"]),
+            ShoppingItem(name: "Rice", quantity: 1, unit: "kg", sources: ["Vegetable curry"]),
+            ShoppingItem(name: "Bread", quantity: 1, unit: "loaf", done: true, sources: ["Bread"])
+        ]
+        let candidate = InsightCandidateEngine.candidates(for: input, shoppingItems: shopping).first
+        XCTAssertEqual(candidate?.id, "shopping-multi-recipe")
+        XCTAssertEqual(candidate?.action, .shoppingList)
+        XCTAssertTrue(candidate?.insight.detail.contains("3 items") == true)
+        XCTAssertTrue(candidate?.insight.detail.contains("2 saved recipes") == true)
+    }
+
+    func testShoppingInsightDoesNotAppearForOneRecipeOrOnlyCompletedItems() {
+        let input = RecipeProgressInsightInput(savedRecipeCount: 0, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: [])
+        let oneSource = [
+            ShoppingItem(name: "Tomatoes", quantity: 2, unit: "pcs", sources: ["Lentil soup"]),
+            ShoppingItem(name: "Onions", quantity: 1, unit: "pcs", sources: ["Lentil soup"]),
+            ShoppingItem(name: "Rice", quantity: 1, unit: "kg", sources: ["Lentil soup"])
+        ]
+        let completed = oneSource.map { item -> ShoppingItem in var value = item; value.done = true; return value }
+        XCTAssertFalse(InsightCandidateEngine.candidates(for: input, shoppingItems: oneSource).contains { $0.id == "shopping-multi-recipe" })
+        XCTAssertFalse(InsightCandidateEngine.candidates(for: input, shoppingItems: completed).contains { $0.id == "shopping-multi-recipe" })
+    }
+
 }

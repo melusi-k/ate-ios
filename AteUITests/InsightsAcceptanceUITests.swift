@@ -69,6 +69,14 @@ final class InsightsAcceptanceUITests: XCTestCase {
         wait(finish, 5)
         finish.tap()
         wait(app.buttons["Cook mode"], 8)
+
+        // Verify the cooking event is visible in the tracker before testing its downstream insight.
+        tab("Insights")
+        let day = Calendar.current.component(.day, from: Date())
+        let today = app.buttons["tracker.day.\(day)"]
+        wait(today, 5)
+        XCTAssertTrue(today.label.contains("cooked") && today.label.contains("today"), today.label)
+        tab("Library")
     }
 
     func testInsightCanBeResolvedAndStaysSuppressedAfterRefresh() {

@@ -192,4 +192,30 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertNotEqual(before, after)
     }
 
+
+    func testCandidateFingerprintIgnoresUnrelatedEvidenceChanges() {
+        let original = RecipeProgressInsightInput(
+            savedRecipeCount: 4, cookedRecipeCount: 2, cookingDayCount: 2,
+            mostCookedRecipe: "Lentil soup", recipeTitles: ["Soup", "Salad"],
+            recordedMealsThisWeek: 2
+        )
+        var changed = original
+        changed.savedRecipeCount = 5
+        changed.mostCookedRecipe = "Salad"
+
+        let originalCandidate = InsightCandidateEngine.candidates(for: original).first { $0.id == "weekly-cooking" }
+        let changedCandidate = InsightCandidateEngine.candidates(for: changed).first { $0.id == "weekly-cooking" }
+        XCTAssertEqual(originalCandidate?.evidenceFingerprint, changedCandidate?.evidenceFingerprint)
+    }
+
+    func testStaleDismissAndSnoozeCannotChangeNewEvidenceVersion() {
+        let (store, defaults, suite) = makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertTrue(store.shouldPresent(id: "weekly-cooking", evidenceFingerprint: "new"))
+        XCTAssertFalse(store.dismiss(id: "weekly-cooking", evidenceFingerprint: "old"))
+        XCTAssertFalse(store.snooze(id: "weekly-cooking", evidenceFingerprint: "old", until: Date().addingTimeInterval(3600)))
+        XCTAssertEqual(store.record(for: "weekly-cooking")?.status, .active)
+        XCTAssertEqual(store.record(for: "weekly-cooking")?.evidenceFingerprint, "new")
+    }
+
 }

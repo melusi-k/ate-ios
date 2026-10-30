@@ -208,6 +208,17 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertEqual(originalCandidate?.evidenceFingerprint, changedCandidate?.evidenceFingerprint)
     }
 
+    func testResolveRequiresMatchingEvidenceFingerprint() {
+        let (store, defaults, suite) = makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertTrue(store.shouldPresent(id: "weekly-cooking", evidenceFingerprint: "current"))
+        XCTAssertFalse(store.resolve(id: "weekly-cooking", evidenceFingerprint: "stale"))
+        XCTAssertEqual(store.record(for: "weekly-cooking")?.status, .active)
+        XCTAssertTrue(store.resolve(id: "weekly-cooking", evidenceFingerprint: "current"))
+        XCTAssertEqual(store.record(for: "weekly-cooking")?.status, .resolved)
+        XCTAssertFalse(store.shouldPresent(id: "weekly-cooking", evidenceFingerprint: "current"))
+    }
+
     func testStaleDismissAndSnoozeCannotChangeNewEvidenceVersion() {
         let (store, defaults, suite) = makeStore()
         defer { defaults.removePersistentDomain(forName: suite) }

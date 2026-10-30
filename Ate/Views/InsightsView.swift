@@ -684,6 +684,9 @@ struct InsightsView: View {
     private func recipeProgressInsightSymbol(for insight: RecipeProgressInsight) -> String {
         switch insight.title {
         case "Possible overlapping recipe entries": return "doc.on.doc"
+        case "This week's cooking": return "calendar"
+        case "New recipes in your rotation": return "sparkles"
+        case "A cooking streak is taking shape": return "flame"
         case "Your cooking rhythm", "You're building a steady rhythm": return "chart.bar.xaxis"
         case "Your recipe collection is taking shape": return "books.vertical"
         default: return "lightbulb"

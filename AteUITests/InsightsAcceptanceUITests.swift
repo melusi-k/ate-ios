@@ -24,6 +24,21 @@ final class InsightsAcceptanceUITests: XCTestCase {
     }
 
     private func tab(_ name: String) {
+        var attempts = 0
+        while !app.tabBars.firstMatch.exists && attempts < 4 {
+            let backBar = app.buttons["backBar"].firstMatch
+            let navigationBack = app.navigationBars.buttons.element(boundBy: 0)
+            if backBar.exists {
+                backBar.tap()
+            } else if navigationBack.exists {
+                navigationBack.tap()
+            } else {
+                app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5))
+                    .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5)))
+            }
+            sleep(1)
+            attempts += 1
+        }
         let button = app.tabBars.buttons[name]
         wait(button, 8)
         button.tap()

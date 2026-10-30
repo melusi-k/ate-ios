@@ -150,50 +150,12 @@ struct RecipeProgressInsight: Equatable {
 }
 
 enum RecipeProgressInsightService {
+    static func candidates(for input: RecipeProgressInsightInput) -> [RankedRecipeInsightCandidate] {
+        InsightCandidateEngine.candidates(for: input)
+    }
+
     static func fallback(for input: RecipeProgressInsightInput) -> RecipeProgressInsight? {
-        if let duplicateGroup = input.duplicateTitleGroups.first {
-            let titles = duplicateGroup.joined(separator: "” and “")
-            return RecipeProgressInsight(
-                title: "Possible overlapping recipe entries",
-                detail: "You have saved recipes with the same title: “\(titles)”. They may be separate versions, so review them before making changes.",
-                evidence: "Based on titles in your saved recipe collection.",
-                generated: false
-            )
-        }
-        guard input.hasEnoughData else { return nil }
-        if input.cookedRecipeCount > 0 {
-            var observations: [String] = []
-            if input.recordedMealsThisWeek > 0 {
-                observations.append("You've recorded \(input.recordedMealsThisWeek) cooked meal\(input.recordedMealsThisWeek == 1 ? "" : "s") this week")
-            }
-            if input.firstTimeRecipesThisWeek > 0 {
-                observations.append("\(input.firstTimeRecipesThisWeek) saved recipe\(input.firstTimeRecipesThisWeek == 1 ? "" : "s") appear in your cooking history for the first time")
-            }
-            if input.currentStreak > 1 {
-                observations.append("your recorded cooking streak is \(input.currentStreak) days")
-            }
-            if observations.count >= 2 {
-                return RecipeProgressInsight(
-                    title: "You're building a steady rhythm",
-                    detail: observations.joined(separator: ", and ") + ". You could revisit a meal, try another saved recipe, or reflect on what worked for you this week—whatever feels useful.",
-                    evidence: "Based on your saved recipes and recorded cooking history.",
-                    generated: false
-                )
-            }
-            let focus = input.mostCookedRecipe.map { " You could revisit \"\($0)\" or try another recipe from your collection." } ?? " Try another recipe from your collection."
-            return RecipeProgressInsight(
-                title: "Your cooking rhythm",
-                detail: "You've cooked \(input.cookedRecipeCount) distinct saved recipe\(input.cookedRecipeCount == 1 ? "" : "s") across \(input.cookingDayCount) recorded day\(input.cookingDayCount == 1 ? "" : "s").\(focus)",
-                evidence: "Based on your saved recipes and recorded cooking history.",
-                generated: false
-            )
-        }
-        return RecipeProgressInsight(
-            title: "Your recipe collection is taking shape",
-            detail: "You have \(input.savedRecipeCount) saved recipes. As you cook and record a few, Ate can surface patterns and ideas to revisit.",
-            evidence: "Based on your saved recipe collection.",
-            generated: false
-        )
+        candidates(for: input).first?.insight
     }
 
     static func insight(for input: RecipeProgressInsightInput, useModel: Bool = OnDeviceBackend.isModelAvailable && !AppConfig.isUITesting) async -> RecipeProgressInsight? {

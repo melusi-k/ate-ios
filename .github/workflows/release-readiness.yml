@@ -37,7 +37,7 @@ jobs:
     # Update status for successful, failed, or cancelled builds so the readiness report cannot go stale.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Update readiness issue
         env:
           GH_TOKEN: ${{ github.token }}

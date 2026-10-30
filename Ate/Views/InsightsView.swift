@@ -150,8 +150,12 @@ struct RecipeProgressInsight: Equatable {
 }
 
 enum RecipeProgressInsightService {
-    static func candidates(for input: RecipeProgressInsightInput, shoppingItems: [ShoppingItem] = []) -> [RankedRecipeInsightCandidate] {
-        InsightCandidateEngine.candidates(for: input, shoppingItems: shoppingItems)
+    static func candidates(
+        for input: RecipeProgressInsightInput,
+        shoppingItems: [ShoppingItem] = [],
+        nutritionEntries: [NutritionDiaryEntry] = []
+    ) -> [RankedRecipeInsightCandidate] {
+        InsightCandidateEngine.candidates(for: input, shoppingItems: shoppingItems, nutritionEntries: nutritionEntries)
     }
 
     static func fallback(for input: RecipeProgressInsightInput) -> RecipeProgressInsight? {
@@ -546,6 +550,7 @@ struct InsightsView: View {
         case .recipes: return candidate.id == "recipe-duplicates" ? "Review saved recipes" : "Explore new recipes"
         case .cookingHistory: return "See your cooking history"
         case .shoppingList: return "Review shopping list"
+        case .foodDiary: return "Review food diary"
         }
     }
 
@@ -554,6 +559,7 @@ struct InsightsView: View {
         case .recipes: return candidate.id == "recipe-duplicates" ? "doc.text.magnifyingglass" : "books.vertical"
         case .cookingHistory: return "calendar.badge.clock"
         case .shoppingList: return "basket"
+        case .foodDiary: return "fork.knife"
         }
     }
 
@@ -568,6 +574,9 @@ struct InsightsView: View {
         case .shoppingList:
             store.shoppingPath = []
             store.select(.shopping)
+        case .foodDiary:
+            store.select(.settings)
+            store.showNutritionDiary = true
         }
     }
 
@@ -580,7 +589,8 @@ struct InsightsView: View {
         }
 
         let input = RecipeProgressInsightInput.make(recipes: store.recipes, historyEvents: CookingHistory.shared.events)
-        let candidates = RecipeProgressInsightService.candidates(for: input, shoppingItems: store.shopping)
+        let nutritionEntries = NutritionDiaryRepository(defaults: .standard).load()
+        let candidates = RecipeProgressInsightService.candidates(for: input, shoppingItems: store.shopping, nutritionEntries: nutritionEntries)
         let eligible = candidates.filter {
             recipeProgressLifecycle.shouldPresent(id: $0.id, evidenceFingerprint: $0.evidenceFingerprint)
         }

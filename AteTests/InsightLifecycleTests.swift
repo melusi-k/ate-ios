@@ -77,4 +77,30 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertFalse(store.shouldPresent(id: "", evidenceFingerprint: "abc"))
         XCTAssertFalse(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: ""))
     }
+
+    func testLifecyclePersistsAcrossStoreInstances() {
+        let (store, defaults, suite) = makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertTrue(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: "abc"))
+        store.dismiss("recipe-progress")
+
+        let reloaded = InsightLifecycleStore(defaults: defaults)
+        XCTAssertFalse(reloaded.shouldPresent(id: "recipe-progress", evidenceFingerprint: "abc"))
+        XCTAssertEqual(reloaded.record(for: "recipe-progress")?.status, .dismissed)
+    }
+
+    func testRecipeProgressServiceSuppressesAnInsightAfterItHasBeenActedOn() async {
+        let (store, defaults, suite) = makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 3, cookedRecipeCount: 2, cookingDayCount: 2,
+            mostCookedRecipe: "Lentil soup", recipeTitles: ["Lentil soup", "Salad", "Oats"]
+        )
+
+        let first = await RecipeProgressInsightService.insight(for: input, useModel: false, lifecycle: store)
+        XCTAssertNotNil(first)
+        store.markSeen("recipe-progress")
+        let repeated = await RecipeProgressInsightService.insight(for: input, useModel: false, lifecycle: store)
+        XCTAssertNil(repeated)
+    }
 }

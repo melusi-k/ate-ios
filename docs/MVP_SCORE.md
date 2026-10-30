@@ -20,4 +20,4 @@ The former aggregate mixed incompatible denominators and is retained only to exp
 - Score from evidence attached to the exact candidate commit, not from source presence, issue labels, accessibility setup flags, or a green non-blocking workflow alone.
 - Keep Not run, Blocked, Failed, Skipped/not discovered, and Quarantined/non-blocking distinct from a pass.
 - Recompute only with one verified denominator, with device/production checks kept separate from simulator/CI checks.
-- The release decision is governed by explicit Pilot and Public launch gates, not by an aggregate percentage alone. [LAUNCH_GATES.md](LAUNCH_GATES.md) separates existing policy from proposed scoring rules; its must-pass list and threshold options are not approved policy.
+- The release owner makes the explicit go/no-go decision against the current definition of done in [issue #45](https://github.com/melusi-k/ate-ios/issues/45); an aggregate percentage alone never approves a release. The proposed thresholds and must-pass rows in [LAUNCH_GATES.md](LAUNCH_GATES.md) are advisory and are not current policy until the owner approves them.

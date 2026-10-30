@@ -91,6 +91,9 @@ final class InsightsAcceptanceUITests: XCTestCase {
 
         let refresh = app.buttons["insights.refresh"]
         wait(refresh, 5)
+        let refreshDeadline = Date().addingTimeInterval(5)
+        while !refresh.isEnabled && Date() < refreshDeadline { usleep(100_000) }
+        XCTAssertTrue(refresh.isEnabled, "Refresh should be enabled after the insight action finishes.")
         refresh.tap()
         XCTAssertTrue(weeklyAction.waitForNonExistence(timeout: 5),
                       "A resolved insight must remain suppressed when refreshed with unchanged evidence.")

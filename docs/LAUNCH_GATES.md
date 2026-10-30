@@ -13,7 +13,7 @@ Sections marked **Repo policy** restate rules already in MVP_SCORE.md. Sections 
 | Not scored | `No committed release gate` (was Tier C) | 69 |
 | Total acceptance IDs | | 179 |
 
-The matrix and checklist both contain 179 unique IDs. Earlier text said 176; that was stale and is corrected here. `scripts/check-ids.py` should assert the checklist and matrix ID sets are identical and that the gate counts above match, so the numbers cannot drift.
+The matrix and checklist both contain 179 unique IDs. Earlier text said 176; that was stale and is corrected here. `scripts/check-ids.py` validates unique checklist and matrix IDs, their per-ID release-gate agreement, and the counts in this table against both sources. Update the table when the acceptance inventory changes; these checks validate classification, not release readiness.
 
 The 59-item tally printed by `scripts/release/readiness.py` is a different measure: it counts items in the release-readiness issue template, each mapped to one or more acceptance IDs or CI jobs. It is a summary for the release issue, not the gate score. Gate scores use acceptance IDs only.
 
@@ -26,8 +26,11 @@ A row passes only with evidence on the exact candidate commit SHA. Every other s
 | Pass | All required automated and device/manual checks recorded for this SHA | 1 |
 | Failed | A recorded check ran and the app did not meet the criterion | 0 |
 | Blocked | Cannot run (missing account, hardware, backend) | 0 |
-| Not run / Skipped / Quarantined | No evidence for this SHA | 0 |
+| Not run | No required checks recorded for this SHA | 0 |
+| Skipped / not discovered | Required checks did not execute on this SHA | 0 |
 | Partial | Some required checks passed, others missing | 0 |
+
+Quarantine/non-blocking is a separate check disposition, not an evidence state. Record whether the check ran, its actual result, the SHA, artifact links, and the quarantine issue. A quarantined failure retains its failure evidence; if product behavior is not yet classified, say so rather than calling the app broken. A skipped quarantined check stays Skipped. Quarantine alone says nothing about whether evidence exists and never supplies a pass.
 
 "Not verified" is not "broken". Reports must show Failed separately from Not run so the app is not described as failing where it is only unproven. Note that in the current matrix the ❌ icon means "not done" and can hide either case; split it into Failed vs Not run when reconciling.
 
@@ -53,4 +56,4 @@ Rationale for Option A: 90% of 97 allows at most 9 non-passing Pilot rows, each 
 
 ## 5. Reporting format
 
-Per gate, always print all of: Pass / Failed / Blocked / Not run (incl. Skipped, Quarantined, Partial) / n/a, the denominator, open must-pass IDs, the SHA, and which jobs ran. Show "x of N Pass" and do not print a bare percentage. Until every row in the gate has been reconciled on one SHA, state "not yet scored".
+Per gate, print separate counts for Pass / Failed / Blocked / Not run / Skipped / Partial / n/a, the denominator, the SHA, and which jobs ran. List quarantined/non-blocking checks separately with their actual execution result, artifact links, and issue; this is an overlapping disposition count, not another row-result bucket. Do not double-count rows. Where a row has both a recorded failure and missing checks, report the failure and missing coverage explicitly rather than hiding either under Not run. Show "x of N Pass" and do not print a bare percentage. Until every row in the gate has been reconciled on one SHA, state "not yet scored". Identify open proposed must-pass IDs as advisory only until the owner approves a policy; do not report either threshold option as the current gate verdict.

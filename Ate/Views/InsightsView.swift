@@ -235,6 +235,7 @@ enum RecipeProgressInsightService {
 struct InsightsView: View {
     var screenTitle: String = "Insights"
     @Environment(AppStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
     @State private var model = InsightsModel.shared
     @State private var draft = ""
     @State private var prompt: JournalPrompt?
@@ -567,6 +568,9 @@ struct InsightsView: View {
     }
 
     @MainActor private func openInsightDestination(for candidate: RankedRecipeInsightCandidate) {
+        // Insights is presented from Library's Explore sheet. Dismiss that presentation before
+        // switching tabs so the requested destination is actually visible to the user.
+        dismiss()
         switch candidate.action {
         case .recipes:
             store.filter.clear()

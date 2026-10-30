@@ -136,4 +136,60 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertTrue(store.markSeen(id: "recipe-progress", evidenceFingerprint: fingerprint))
         XCTAssertFalse(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: fingerprint))
     }
+
+    func testCandidateEngineRanksDuplicateDataAheadOfBehaviouralInsights() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 6, cookedRecipeCount: 3, cookingDayCount: 3,
+            mostCookedRecipe: "Lentil soup",
+            recipeTitles: ["Soup", "Salad"],
+            duplicateTitleGroups: [["Soup", "soup"]],
+            recordedMealsThisWeek: 3,
+            firstTimeRecipesThisWeek: 1,
+            currentStreak: 3
+        )
+
+        let candidates = InsightCandidateEngine.candidates(for: input)
+        XCTAssertEqual(candidates.first?.id, "recipe-duplicates")
+        XCTAssertEqual(candidates.count, InsightCandidateEngine.maximumCandidates)
+        XCTAssertEqual(candidates.map(\.priority), candidates.map(\.priority).sorted(by: >))
+    }
+
+    func testCandidateEngineProducesStableCandidateFingerprints() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 4, cookedRecipeCount: 2, cookingDayCount: 2,
+            mostCookedRecipe: "Lentil soup",
+            recipeTitles: ["Soup", "Salad"],
+            recordedMealsThisWeek: 2,
+            firstTimeRecipesThisWeek: 1
+        )
+
+        let first = InsightCandidateEngine.candidates(for: input)
+        let second = InsightCandidateEngine.candidates(for: input)
+        XCTAssertEqual(first, second)
+        XCTAssertEqual(Set(first.map(\.id)).count, first.count)
+        XCTAssertTrue(first.allSatisfy { !$0.evidenceFingerprint.isEmpty })
+    }
+
+    func testCandidateEngineReturnsNoInsightWithoutSufficientEvidence() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 2, cookedRecipeCount: 0, cookingDayCount: 0,
+            mostCookedRecipe: nil, recipeTitles: []
+        )
+
+        XCTAssertTrue(InsightCandidateEngine.candidates(for: input).isEmpty)
+    }
+
+    func testCandidateFingerprintChangesWhenItsEvidenceChanges() {
+        var input = RecipeProgressInsightInput(
+            savedRecipeCount: 4, cookedRecipeCount: 2, cookingDayCount: 2,
+            mostCookedRecipe: "Lentil soup",
+            recipeTitles: ["Soup", "Salad"],
+            recordedMealsThisWeek: 2
+        )
+        let before = InsightCandidateEngine.candidates(for: input).first?.evidenceFingerprint
+        input.recordedMealsThisWeek = 3
+        let after = InsightCandidateEngine.candidates(for: input).first?.evidenceFingerprint
+        XCTAssertNotEqual(before, after)
+    }
+
 }

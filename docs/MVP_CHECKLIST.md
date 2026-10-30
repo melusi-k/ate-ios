@@ -1194,11 +1194,11 @@ Legend: ✅ pass (evidence) · 🟡 partial / not re-verified · ❌ not done ·
   - *Owner:* [#39](https://github.com/melusi-k/ate-ios/issues/39)
   - *Feature area:* Sharing, security and reliability · *Release gate:* Pilot · *Initial priority:* P0
 
-- **A-SHARE-05 · Backend unavailable fallback** — 🟡
+- **A-SHARE-05 · Backend unavailable fallback** — ❌
   - *Journey:* As a cook, a backend outage doesn't break my library.
-  - *Acceptance:* Given Supabase unreachable, Then sharing shows a clear error with Retry and everything local still works.
-  - *Verified by:* `test19_OfflineAndRetry` · QA.md (new step)
-  - *Status evidence:* Offline tested; 5xx-from-backend not tested
+  - *Acceptance:* Given Supabase unreachable, Then sharing offers a visible error with Retry or Share as text and everything local still works.
+  - *Verified by:* `CoverageUITests.test39_SharePublishOutageFallsBackToTextAndKeepsLibrary` (updated; exact-head CI pending)
+  - *Status evidence:* Prior PR #190 Compile Check [run #40692024276](https://github.com/melusi-k/ate-ios/actions/runs/40692024276) failed because the fallback toast was obscured by the immediately presented activity sheet. New alert/retry/text-fallback behavior remains unverified; keep failing until exact-head test passes.
   - *Owner:* [#39](https://github.com/melusi-k/ate-ios/issues/39)
   - *Feature area:* Sharing, security and reliability · *Release gate:* Pilot · *Initial priority:* P0
 

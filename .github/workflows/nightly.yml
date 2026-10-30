@@ -34,7 +34,7 @@ jobs:
           S=0
           python scripts/e2e/backend_e2e.py --upload --build "nightly $(date -u +%F)" || S=$?
           cat build/e2e/summary.md >> "$GITHUB_STEP_SUMMARY"; exit $S
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nightly-backend-e2e

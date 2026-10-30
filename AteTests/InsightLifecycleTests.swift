@@ -290,4 +290,28 @@ final class InsightLifecycleTests: XCTestCase {
     }
 
 
+    func testCandidatesExposeExplicitSourcePeriodAndCalibratedConfidenceMetadata() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 0, cookedRecipeCount: 0, cookingDayCount: 0,
+            mostCookedRecipe: nil, recipeTitles: [], recordedMealsThisWeek: 2
+        )
+        let candidate = InsightCandidateEngine.candidates(for: input).first
+        XCTAssertEqual(candidate?.id, "weekly-cooking")
+        XCTAssertEqual(candidate?.evidenceMetadata.source, "Cooking history")
+        XCTAssertEqual(candidate?.evidenceMetadata.period, "This week")
+        XCTAssertEqual(candidate?.evidenceMetadata.confidence, .high)
+    }
+
+    func testPossibleDuplicateTitlesUseModerateConfidenceRatherThanClaimingDuplicates() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 2, cookedRecipeCount: 0, cookingDayCount: 0,
+            mostCookedRecipe: nil, recipeTitles: ["Soup", "Soup"],
+            duplicateTitleGroups: [["Soup", "Soup"]]
+        )
+        let candidate = InsightCandidateEngine.candidates(for: input).first
+        XCTAssertEqual(candidate?.evidenceMetadata.source, "Saved recipe titles")
+        XCTAssertEqual(candidate?.evidenceMetadata.period, "Current collection")
+        XCTAssertEqual(candidate?.evidenceMetadata.confidence, .moderate)
+    }
+
 }

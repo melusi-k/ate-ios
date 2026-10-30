@@ -20,4 +20,4 @@ The former aggregate mixed incompatible denominators and is retained only to exp
 - Score from evidence attached to the exact candidate commit, not from source presence, issue labels, accessibility setup flags, or a green non-blocking workflow alone.
 - Keep Not run, Blocked, Failed, Skipped/not discovered, and Quarantined/non-blocking distinct from a pass.
 - Recompute only with one verified denominator, with device/production checks kept separate from simulator/CI checks.
-- The release decision is governed by the Pilot and Public launch gates defined in [LAUNCH_GATES.md](LAUNCH_GATES.md): must-pass rows at 100% plus a per-gate score threshold, not by an aggregate percentage alone.
+- The release decision is governed by explicit Pilot and Public launch gates, not by an aggregate percentage alone. [LAUNCH_GATES.md](LAUNCH_GATES.md) separates existing policy from proposed scoring rules; its must-pass list and threshold options are not approved policy.

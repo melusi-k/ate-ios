@@ -305,6 +305,8 @@ final class AppStore {
 
     // Accounts & sync
     var session: AuthSession?
+    /// Keep lifecycle ownership stable while signed out if local app data is retained.
+    var insightLifecycleAccountID: String? { session?.userID ?? meta.userID }
     var syncState: SyncState = .signedOut
     let auth: AuthService?
     let sync: SyncService?
@@ -805,6 +807,7 @@ final class AppStore {
     }
 
     private func wipeLocalData() {
+        InsightLifecycleStore.clearAll()
         recipes = []; shopping = []
         nutritionDiaryRepository.clear()
         try? nutritionGoalsRepository.save(DailyNutritionGoals())

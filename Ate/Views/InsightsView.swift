@@ -235,6 +235,7 @@ struct InsightsView: View {
     @State private var prompt: JournalPrompt?
     @State private var entries: [JournalEntry] = []
     @State private var recipeProgressInsight: RecipeProgressInsight?
+    @State private var recipeProgressSuppressed = false
     @State private var recipeProgressLoading = false
     @State private var isEditingInsightOrder = false
     @AppStorage("insights.tileOrder") private var savedInsightTileOrder = ""
@@ -317,7 +318,10 @@ struct InsightsView: View {
 
     private var orderedInsightTileIDs: [String] { InsightsTileOrder.resolve(savedInsightTileOrder) }
     private var visibleInsightTileIDs: [String] {
-        orderedInsightTileIDs.filter { !["suggestedMeals", "dailyReflection"].contains($0) || model.context != nil }
+        orderedInsightTileIDs.filter {
+            (!["suggestedMeals", "dailyReflection"].contains($0) || model.context != nil)
+                && !($0 == "recipeProgress" && recipeProgressSuppressed)
+        }
     }
 
     private func insightTileTitle(_ id: String) -> String {
@@ -515,7 +519,9 @@ struct InsightsView: View {
         recipeProgressLoading = true
         defer { recipeProgressLoading = false }
         let input = RecipeProgressInsightInput.make(recipes: store.recipes, historyEvents: CookingHistory.shared.events)
+        let hasEvidenceBackedCandidate = RecipeProgressInsightService.fallback(for: input) != nil
         recipeProgressInsight = await RecipeProgressInsightService.insight(for: input)
+        recipeProgressSuppressed = hasEvidenceBackedCandidate && recipeProgressInsight == nil
     }
 
     @ViewBuilder private var bodyToday: some View {

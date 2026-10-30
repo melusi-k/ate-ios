@@ -487,14 +487,14 @@ struct InsightsView: View {
 
     @MainActor private func dismissRecipeInsight(_ candidate: RankedRecipeInsightCandidate) {
         recipeProgressRefreshGeneration += 1
-        recipeProgressLifecycle.dismiss(candidate.id)
+        recipeProgressLifecycle.dismiss(id: candidate.id, evidenceFingerprint: candidate.evidenceFingerprint)
         recipeProgressCandidates.removeAll { $0.id == candidate.id }
         recipeProgressSuppressed = recipeProgressCandidates.isEmpty
     }
 
     @MainActor private func snoozeRecipeInsight(_ candidate: RankedRecipeInsightCandidate) {
         recipeProgressRefreshGeneration += 1
-        recipeProgressLifecycle.snooze(candidate.id, until: Date().addingTimeInterval(24 * 60 * 60))
+        recipeProgressLifecycle.snooze(id: candidate.id, evidenceFingerprint: candidate.evidenceFingerprint, until: Date().addingTimeInterval(24 * 60 * 60))
         recipeProgressCandidates.removeAll { $0.id == candidate.id }
         recipeProgressSuppressed = recipeProgressCandidates.isEmpty
     }

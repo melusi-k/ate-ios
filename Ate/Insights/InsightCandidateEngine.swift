@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// A deterministic, evidence-backed insight candidate. Candidate generation never performs I/O
 /// and never relies on generated language to establish facts.

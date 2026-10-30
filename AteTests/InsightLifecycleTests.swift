@@ -325,4 +325,83 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertEqual(candidate?.evidenceMetadata.confidence, .moderate)
     }
 
+    func testWeeklyCandidateFingerprintsChangeWhenTheWeekChanges() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let nextWeek = calendar.date(byAdding: .day, value: 7, to: now)!
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 4, cookedRecipeCount: 2, cookingDayCount: 2,
+            mostCookedRecipe: "Lentil soup", recipeTitles: ["Soup", "Salad"],
+            recordedMealsThisWeek: 2, firstTimeRecipesThisWeek: 1
+        )
+        let thisWeek = InsightCandidateEngine.candidates(for: input, now: now, calendar: calendar)
+        let laterWeek = InsightCandidateEngine.candidates(for: input, now: nextWeek, calendar: calendar)
+        for id in ["weekly-cooking", "recipe-discovery"] {
+            let before = thisWeek.first { $0.id == id }?.evidenceFingerprint
+            let after = laterWeek.first { $0.id == id }?.evidenceFingerprint
+            XCTAssertNotNil(before)
+            XCTAssertNotNil(after)
+            XCTAssertNotEqual(before, after, "\(id) must not reuse a previous week's fingerprint")
+        }
+        let sameWeek = InsightCandidateEngine.candidates(for: input, now: now.addingTimeInterval(3600), calendar: calendar)
+        XCTAssertEqual(thisWeek.first { $0.id == "weekly-cooking" }?.evidenceFingerprint,
+                       sameWeek.first { $0.id == "weekly-cooking" }?.evidenceFingerprint)
+    }
+
+    func testDismissedWeeklyInsightReturnsWithNewWeekEvidence() {
+        let (store, defaults, suite) = makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let nextWeek = calendar.date(byAdding: .day, value: 7, to: now)!
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 4, cookedRecipeCount: 2, cookingDayCount: 2,
+            mostCookedRecipe: nil, recipeTitles: ["Soup"], recordedMealsThisWeek: 2
+        )
+        let first = InsightCandidateEngine.candidates(for: input, now: now, calendar: calendar).first { $0.id == "weekly-cooking" }!
+        XCTAssertTrue(store.shouldPresent(id: first.id, evidenceFingerprint: first.evidenceFingerprint))
+        XCTAssertTrue(store.dismiss(id: first.id, evidenceFingerprint: first.evidenceFingerprint))
+        XCTAssertFalse(store.shouldPresent(id: first.id, evidenceFingerprint: first.evidenceFingerprint))
+        let later = InsightCandidateEngine.candidates(for: input, now: nextWeek, calendar: calendar).first { $0.id == "weekly-cooking" }!
+        XCTAssertTrue(store.shouldPresent(id: later.id, evidenceFingerprint: later.evidenceFingerprint))
+    }
+
+    func testSuppressedHighRankCandidatesDoNotCrowdOutEligibleLowerRankCandidates() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 6, cookedRecipeCount: 3, cookingDayCount: 3,
+            mostCookedRecipe: "Lentil soup", recipeTitles: ["Soup", "Salad"],
+            duplicateTitleGroups: [["Soup", "soup"]],
+            recordedMealsThisWeek: 3, firstTimeRecipesThisWeek: 1, currentStreak: 3
+        )
+        let unfiltered = InsightCandidateEngine.candidates(for: input)
+        XCTAssertEqual(unfiltered.map(\.id), ["recipe-duplicates", "weekly-cooking", "recipe-discovery"])
+
+        let suppressed: Set<String> = ["recipe-duplicates", "weekly-cooking"]
+        let filtered = InsightCandidateEngine.candidates(for: input) { !suppressed.contains($0.id) }
+        XCTAssertEqual(filtered.map(\.id), ["recipe-discovery", "cooking-streak"])
+        XCTAssertLessThanOrEqual(filtered.count, InsightCandidateEngine.maximumCandidates)
+    }
+
+    func testLifecycleFilterAppliedBeforeCapSurfacesNextEligibleCandidate() {
+        let (store, defaults, suite) = makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 6, cookedRecipeCount: 3, cookingDayCount: 3,
+            mostCookedRecipe: nil, recipeTitles: ["Soup", "Salad"],
+            duplicateTitleGroups: [["Soup", "soup"]],
+            recordedMealsThisWeek: 3, firstTimeRecipesThisWeek: 1, currentStreak: 3
+        )
+        for candidate in InsightCandidateEngine.candidates(for: input) where candidate.id != "recipe-discovery" {
+            XCTAssertTrue(store.shouldPresent(id: candidate.id, evidenceFingerprint: candidate.evidenceFingerprint))
+            XCTAssertTrue(store.dismiss(id: candidate.id, evidenceFingerprint: candidate.evidenceFingerprint))
+        }
+        let presented = RecipeProgressInsightService.candidates(for: input) {
+            store.shouldPresent(id: $0.id, evidenceFingerprint: $0.evidenceFingerprint)
+        }
+        XCTAssertTrue(presented.contains { $0.id == "recipe-discovery" })
+        XCTAssertTrue(presented.contains { $0.id == "cooking-streak" })
+        XCTAssertFalse(presented.contains { $0.id == "recipe-duplicates" || $0.id == "weekly-cooking" })
+    }
 }

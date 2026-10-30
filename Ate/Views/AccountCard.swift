@@ -53,6 +53,13 @@ struct AccountCard: View {
             } else {
                 Text("Sign in to sync your recipes and shopping list across devices. Everything keeps working offline without an account.")
                     .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
+                if case .failed(let message) = store.syncState {
+                    Text(message)
+                        .font(AteFont.body(13))
+                        .foregroundStyle(Theme.destructive)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("syncStatus")
+                }
                 WrapLayout(spacing: 8) {
                     Button("Sign in") { store.authSheet = .signIn }.buttonStyle(.ate(.primary, height: 40))
                         .accessibilityIdentifier("openSignIn")

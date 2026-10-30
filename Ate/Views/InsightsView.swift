@@ -741,6 +741,8 @@ struct InsightsView: View {
         case "This week's cooking": return "calendar"
         case "New recipes in your rotation": return "sparkles"
         case "A cooking streak is taking shape": return "flame"
+        case "Your shopping list brings recipes together": return "basket"
+        case "Add verified details to your food diary": return "fork.knife"
         case "Your cooking rhythm", "You're building a steady rhythm": return "chart.bar.xaxis"
         case "Your recipe collection is taking shape": return "books.vertical"
         default: return "lightbulb"

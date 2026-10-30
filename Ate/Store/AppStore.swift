@@ -334,6 +334,12 @@ final class AppStore {
         if ProcessInfo.processInfo.arguments.contains("-qaResetCookingHistory") {
             CookingHistory.shared.clear()
         }
+        // Insight lifecycle is persisted across launches. Acceptance tests opt into an isolated
+        // lifecycle so a prior run's resolved/seen weekly insight cannot hide this run's candidate.
+        if AppConfig.isUITesting &&
+            ProcessInfo.processInfo.arguments.contains("-qaResetInsightLifecycle") {
+            InsightLifecycleStore.clearAll()
+        }
         if AppConfig.isUITesting {
             auth = MockAuth(); sync = MockSync()
         } else if let url = AppConfig.supabaseURL, !AppConfig.supabasePublishableKey.isEmpty {

@@ -2,6 +2,7 @@
 """A-CI-05: validate acceptance IDs, actual QA matrix rows, issue ownership, generated beta checks, and client secrets.
   --fix appends missing matrix rows from the checklist and regenerates BetaChecklist.swift."""
 import os, re, subprocess, sys
+from collections import Counter
 os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 ID = re.compile(r'\b([ABC]-[A-Z0-9]+-\d{2})\b')
 ids = lambda p: set(ID.findall(open(p).read()))
@@ -14,7 +15,8 @@ for blk in re.split(r'\n(?=- \*\*[ABC]-)', ck):
         continue
     f = lambda k: (re.search(r'\*%s:\* (.*)' % k, blk) or [None, '—'])[1].strip()
     defined[m.group(1)] = dict(title=m.group(2), mark=m.group(3) or '❌',
-        j=f('Journey'), acc=f('Acceptance'), ver=f('Verified by'), ev=f('Status evidence'))
+        j=f('Journey'), acc=f('Acceptance'), ver=f('Verified by'), ev=f('Status evidence'),
+        gate=f('Release gate').split(' · ')[0])
 errors = []
 heads = re.findall(r'^- \*\*([ABC]-[A-Z0-9]+-\d{2}) · ', ck, re.M)
 errors += [f"{i}: defined more than once in MVP_CHECKLIST"
@@ -35,6 +37,46 @@ if missing and fix:
     missing = []
 for i in missing:
     errors.append(f"{i}: in MVP_CHECKLIST but has no actual QA_MATRIX row")
+
+# Gate classification is explicit metadata, never inferred from an ID prefix.
+# Read the trailing metadata cells: legacy matrix rows have different evidence widths.
+gates = ('Pilot', 'Public launch', 'No committed release gate')
+matrix_gates = {}
+for line in mx.splitlines():
+    match = re.match(r'^\|\s*([ABC]-[A-Z0-9]+-\d{2})\s*\|', line)
+    if not match:
+        continue
+    i = match.group(1)
+    cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
+    if i in matrix_gates:
+        errors.append(f"{i}: defined more than once in QA_MATRIX")
+    matrix_gates[i] = cells[-2] if len(cells) >= 4 else ''
+for i, d in defined.items():
+    if d['gate'] not in gates:
+        errors.append(f"{i}: invalid or missing Release gate in MVP_CHECKLIST: {d['gate']}")
+for i, gate in matrix_gates.items():
+    if gate not in gates:
+        errors.append(f"{i}: invalid or missing Release gate in QA_MATRIX: {gate}")
+    if i in defined and gate != defined[i]['gate']:
+        errors.append(f"{i}: Release gate differs between MVP_CHECKLIST and QA_MATRIX")
+
+# LAUNCH_GATES is an inventory contract, not an approval of candidate thresholds.
+launch = open('docs/LAUNCH_GATES.md').read()
+for gate in gates:
+    counts = re.findall(r'^\|[^|]*\| `'+ re.escape(gate) + r'`[^|]*\| (\d+) \|$', launch, re.M)
+    if len(counts) != 1:
+        errors.append(f"LAUNCH_GATES: expected exactly one count for {gate}")
+        continue
+    expected = int(counts[0])
+    for source, actual in (
+        ('MVP_CHECKLIST', Counter(d['gate'] for d in defined.values())[gate]),
+        ('QA_MATRIX', Counter(matrix_gates.values())[gate]),
+    ):
+        if actual != expected:
+            errors.append(f"{source}: {gate} count {actual} differs from LAUNCH_GATES {expected}")
+totals = re.findall(r'^\| Total acceptance IDs \|\s*\| (\d+) \|$', launch, re.M)
+if len(totals) != 1 or any(int(totals[0]) != n for n in (len(defined), len(matrix_gates))):
+    errors.append("LAUNCH_GATES: total acceptance ID count must match checklist and matrix")
 
 # Every checklist item must have exactly one explicit owning issue link.
 for blk in re.split(r'\n(?=- \*\*[ABC]-)', ck):

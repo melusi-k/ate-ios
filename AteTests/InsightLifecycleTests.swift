@@ -89,6 +89,38 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertEqual(reloaded.record(for: "recipe-progress")?.status, .dismissed)
     }
 
+    func testLifecycleIsIsolatedByAccount() {
+        let suite = "insight-account-scope-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let accountA = InsightLifecycleStore(defaults: defaults, accountID: "account-a")
+        let accountB = InsightLifecycleStore(defaults: defaults, accountID: "account-b")
+
+        XCTAssertTrue(accountA.shouldPresent(id: "recipe-progress", evidenceFingerprint: "same"))
+        XCTAssertTrue(accountA.markSeen(id: "recipe-progress", evidenceFingerprint: "same"))
+        XCTAssertFalse(accountA.shouldPresent(id: "recipe-progress", evidenceFingerprint: "same"))
+        XCTAssertTrue(accountB.shouldPresent(id: "recipe-progress", evidenceFingerprint: "same"))
+    }
+
+    func testStaleActionCannotMarkNewEvidenceVersionAsSeen() {
+        let (store, defaults, suite) = makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertTrue(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: "current"))
+        XCTAssertFalse(store.markSeen(id: "recipe-progress", evidenceFingerprint: "stale"))
+        XCTAssertTrue(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: "current"))
+    }
+
+    func testClearAllRemovesAccountScopedLifecycleMetadata() {
+        let suite = "insight-clear-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = InsightLifecycleStore(defaults: defaults, accountID: "account-a")
+        XCTAssertTrue(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: "same"))
+        InsightLifecycleStore.clearAll(defaults: defaults)
+        let reloaded = InsightLifecycleStore(defaults: defaults, accountID: "account-a")
+        XCTAssertTrue(reloaded.shouldPresent(id: "recipe-progress", evidenceFingerprint: "same"))
+    }
+
     func testRecipeProgressServiceSuppressesAnInsightAfterItHasBeenActedOn() async {
         let (store, defaults, suite) = makeStore()
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -97,10 +129,11 @@ final class InsightLifecycleTests: XCTestCase {
             mostCookedRecipe: "Lentil soup", recipeTitles: ["Lentil soup", "Salad", "Oats"]
         )
 
-        let first = await RecipeProgressInsightService.insight(for: input, useModel: false, lifecycle: store)
+        let fingerprint = RecipeProgressInsightFingerprint.make(input)
+        let first = await RecipeProgressInsightService.insight(for: input, useModel: false)
         XCTAssertNotNil(first)
-        store.markSeen("recipe-progress")
-        let repeated = await RecipeProgressInsightService.insight(for: input, useModel: false, lifecycle: store)
-        XCTAssertNil(repeated)
+        XCTAssertTrue(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: fingerprint))
+        XCTAssertTrue(store.markSeen(id: "recipe-progress", evidenceFingerprint: fingerprint))
+        XCTAssertFalse(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: fingerprint))
     }
 }

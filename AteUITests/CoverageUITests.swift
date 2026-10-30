@@ -589,6 +589,18 @@ extension CoverageUITests {
         app.terminate()
         return names
     }
+    func testInsightsRefreshControlRecalculatesVisibleInsights() {
+        openInsights("recovery")
+        let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
+        wait(text("Recovery day"))
+        let refresh = app.buttons["insights.refresh"]
+        wait(refresh); refresh.tap()
+        wait(text("Recovery day"))
+        XCTAssertTrue(any("insights.progress.result").exists,
+                      "Recipe insight should remain rendered after a combined refresh")
+        XCTAssertFalse(app.buttons["insights.progress.refresh"].exists,
+                       "Refresh belongs to the Insights header, not an individual card")
+    }
     func testHealthScenarioRecovery() { runHealthScenario("recovery", title: "Recovery day", save: true) }
     func testHealthScenarioLowEnergy() { runHealthScenario("lowEnergy", title: "Low-energy day", save: true) }
     func testHealthScenarioPerformance() { runHealthScenario("performance", title: "Good-energy day", save: true) }

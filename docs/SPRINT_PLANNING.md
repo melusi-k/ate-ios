@@ -162,7 +162,7 @@ The following timestamps are copied from GitHub event metadata. SAST is UTC+02:0
 
 **Status:** planned baseline for Monday 2026-11-02 through Sunday 2026-11-08. This review was run before the sprint begins; it is not a retrospective close-out. The Sunday close-out is due 2026-11-08.
 
-**Current main:** `ffa8bb6307e1bc4bc8d694bc8305601642f4ea05` (includes the merge of PR #218). The Build IPA workflow for this SHA was queued at run [41122289453](https://github.com/melusi-k/ate-ios/actions/runs/41122289453) when checked. The current PR #206 head is `02571a4ced4eb2f126aaad345d4b93bfbaa7cad1`; its Compile Check [41120910813](https://github.com/melusi-k/ate-ios/actions/runs/41120910813) and Dogfood Qualification [41120910875](https://github.com/melusi-k/ate-ios/actions/runs/41120910875) were queued/pending, not passing, at review time.
+**Planning review baseline main:** `ffa8bb6307e1bc4bc8d694bc8305601642f4ea05` (includes the merge of PR #218). Its Build IPA run [41122289453](https://github.com/melusi-k/ate-ios/actions/runs/41122289453) and Dogfood run [41122289262](https://github.com/melusi-k/ate-ios/actions/runs/41122289262) were pending/queued when checked. The current PR #206 head is `02571a4ced4eb2f126aaad345d4b93bfbaa7cad1`; its Compile Check [41120910813](https://github.com/melusi-k/ate-ios/actions/runs/41120910813) and Dogfood Qualification [41120910875](https://github.com/melusi-k/ate-ios/actions/runs/41120910875) were queued/pending, not passing, at review time.
 
 ### Committed scope
 
@@ -223,3 +223,7 @@ All times below are exact UTC ISO-8601 metadata unless marked Inferred; SAST is 
 - PR #181 time to first substantive human review: **4d 22h 18m 17s** (Verified timestamps; COMMENTED self-review, not approval).
 - PR #206 time to first substantive human review: **28m 08s** (Verified timestamps; COMMENTED self-review, not approval).
 - No qualifying approval time, PR #66/#181/#206 completion time, or issue #30/#70/#179 cycle time is available. Lead/implementation/cycle metrics for open tickets are therefore not calculated.
+
+
+### Post-update validation state (2026-10-30)
+The sprint-planning documentation update is on current `main` at `85fb3a3b9bce2403d70ca1696c71b6a7cc474e73`. Build IPA [41122745563](https://github.com/melusi-k/ate-ios/actions/runs/41122745563) and Dogfood Qualification [41122745893](https://github.com/melusi-k/ate-ios/actions/runs/41122745893) were queued when last polled. No pass is claimed until these exact-SHA runs complete. The latest completed Release Readiness run [41120466099](https://github.com/melusi-k/ate-ios/actions/runs/41120466099) succeeded on the older SHA `ff49fcb6326fc96b9126c72824a1670eca878758`; it is not current-main validation. The generated readiness issue snapshot sourced from run [41120191792](https://github.com/melusi-k/ate-ios/actions/runs/41120191792) is not current evidence because that Build IPA run was cancelled on `0529e37f56625bb97eb39fb125064e54d802185a`.

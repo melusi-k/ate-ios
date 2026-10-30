@@ -107,6 +107,7 @@ final class MockBackend: BackendService {
     private static var offlineOnce = true
 
     private static var parses = 0
+    private static var imageParses = 0
     private static var didFailOnceForRetryQA = false
     static let args = ProcessInfo.processInfo.arguments
     func parseRecipe(_ request: ParseRequest) async throws -> RecipeCard {
@@ -166,6 +167,14 @@ final class MockBackend: BackendService {
         }
         // Photos: real Vision OCR decides screenshot vs food photo, even in the mock.
         if request.mode == .image {
+            Self.imageParses += 1
+            // Keep the photo-fallback UI test deterministic: its first image is a text
+            // screenshot (OCR path), and its second is a text-free food photo with no
+            // usable Vision labels. Vision label interpretation is covered separately
+            // by PhotoGuess unit tests; simulator taxonomy output must not gate this UI test.
+            if Self.args.contains("-qaFoodPhotoAfterFirstImage"), Self.imageParses > 1 {
+                throw BackendError(message: "Couldn't recognise a dish in that photo. Try a closer shot, a screenshot of the recipe, or describe it in Prompt.")
+            }
             let text = (try? await OnDeviceBackend.ocr(dataURL: request.imageDataUrl ?? "")) ?? ""
             if !PhotoGuess.isScreenshotText(text) {
                 let labels = (try? await OnDeviceBackend.classify(dataURL: request.imageDataUrl ?? "")) ?? []

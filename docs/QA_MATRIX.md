@@ -4,8 +4,8 @@ _Source of truth for acceptance IDs and definitions: [MVP_CHECKLIST.md](MVP_CHEC
 
 ## Unified inventory (classification, not a pass score)
 
-- Checklist acceptance IDs: **176**
-- Checklist-linked QA rows: **176**
+- Checklist acceptance IDs: **179** (Pilot 97, Public launch 13, No committed release gate 69)
+- Checklist-linked QA rows: **179**
 - Supplemental platform test rows: **2**
 - Feature areas: **9**
 - Former commitment mapping is preserved: Tier A → Pilot; Tier B → Public launch; Tier C → No committed release gate.

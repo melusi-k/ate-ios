@@ -66,7 +66,7 @@ A sprint closes on Sunday even if a ticket remains open. Incomplete work is not 
 7. On Friday/Sunday, compare planned and actual outcomes and record why dates moved.
 8. Never weaken a test gate or claim a pass to protect a sprint commitment.
 
-## First sprint — proposed, not yet baselined
+## First sprint — initial proposal (superseded by W45 baseline below)
 
 **Sprint:** 2026-W45  
 **Dates:** 2026-11-02 to 2026-11-08  

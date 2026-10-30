@@ -7,6 +7,7 @@ enum InsightActionDestination: Equatable {
     case recipes
     case cookingHistory
     case shoppingList
+    case foodDiary
 }
 
 struct RankedRecipeInsightCandidate: Equatable {
@@ -22,7 +23,13 @@ struct RankedRecipeInsightCandidate: Equatable {
 enum InsightCandidateEngine {
     static let maximumCandidates = 3
 
-    static func candidates(for input: RecipeProgressInsightInput, shoppingItems: [ShoppingItem] = []) -> [RankedRecipeInsightCandidate] {
+    static func candidates(
+        for input: RecipeProgressInsightInput,
+        shoppingItems: [ShoppingItem] = [],
+        nutritionEntries: [NutritionDiaryEntry] = [],
+        now: Date = Date(),
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> [RankedRecipeInsightCandidate] {
         var result: [RankedRecipeInsightCandidate] = []
         func append(_ id: String, priority: Int, evidence: String, action: InsightActionDestination, insight: RecipeProgressInsight) {
             let fingerprint = RecipeProgressInsightFingerprint.makeEvidence(
@@ -147,6 +154,31 @@ enum InsightCandidateEngine {
                     title: "Your shopping list brings recipes together",
                     detail: "\(pendingItems.count) items are still to buy across \(recipeSources.count) saved recipes. Your list is grouped by aisle to make the shop easier.",
                     evidence: "Based on pending shopping items and their saved-recipe sources.",
+                    generated: false
+                )
+            )
+        }
+
+        let today = calendar.startOfDay(for: now)
+        let weekStart = calendar.date(byAdding: .day, value: -6, to: today) ?? today
+        let nutritionWeek = nutritionEntries.filter { entry in
+            guard let day = NutritionDiaryDayKey.date(for: entry.dayKey, calendar: calendar) else { return false }
+            let normalizedDay = calendar.startOfDay(for: day)
+            return normalizedDay >= weekStart && normalizedDay <= today
+        }
+        let entriesWithNutrients = nutritionWeek.filter { entry in
+            NutritionGoalField.allCases.contains { entry.nutrientsPerServing[$0] != nil }
+        }.count
+        if nutritionWeek.count >= 3, entriesWithNutrients < nutritionWeek.count {
+            append(
+                "nutrition-diary-coverage",
+                priority: 58,
+                evidence: "\(nutritionWeek.count)|\(entriesWithNutrients)|\(NutritionDiaryDayKey.make(weekStart, calendar: calendar))",
+                action: .foodDiary,
+                insight: RecipeProgressInsight(
+                    title: "Add verified details to your food diary",
+                    detail: "\(entriesWithNutrients) of \(nutritionWeek.count) foods logged in the last 7 days have at least one nutrient value. Add details only when you have a source you trust; Ate will leave unknown values blank.",
+                    evidence: "Based on locally stored food-diary entries from the last 7 days.",
                     generated: false
                 )
             )

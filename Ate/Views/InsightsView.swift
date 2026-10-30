@@ -458,6 +458,9 @@ struct InsightsView: View {
                                     Text(candidate.insight.detail).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
                                     Text(candidate.insight.evidence + " · Guided by your saved data")
                                         .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
+                                    Text("Evidence: \(candidate.evidenceMetadata.source) · \(candidate.evidenceMetadata.period) · Confidence: \(candidate.evidenceMetadata.confidence.rawValue)")
+                                        .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
+                                        .accessibilityIdentifier("insights.progress.evidence.\(candidate.id)")
                                 }
                             }
                             Button {

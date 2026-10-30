@@ -39,7 +39,7 @@ _Acceptance inventory reorganised by feature area on 2026-10-22; existing eviden
 
 **Honesty notes (build 36):** UI tests are optional (`run_tests` workflow input) and have **not** run on the build 35/36 changes. "Pass" in the simulator means the last full run before build 35. Landscape rotation was only enabled in build 36 and is **unverified**. The web share page still reads the **old Lovable backend**.
 
-Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-verified · ❌ not done · ⛔ blocked. Only ✅ scores (1 point); everything else scores 0. Gate definitions, thresholds and must-pass rows are in [LAUNCH_GATES.md](LAUNCH_GATES.md).
+Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-verified · ❌ not done · ⛔ blocked. Only ✅ scores (1 point); everything else scores 0. Existing gate policy and proposed scoring rules are separated in [LAUNCH_GATES.md](LAUNCH_GATES.md); its thresholds and must-pass list await owner approval.
 
 ## Platform constraints
 

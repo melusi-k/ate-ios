@@ -198,7 +198,7 @@ enum RecipeProgressInsightService {
 
     static func insight(
         for input: RecipeProgressInsightInput,
-        useModel: Bool = OnDeviceBackend.isModelAvailable && !AppConfig.isUITesting,
+        useModel: Bool = OnDeviceBackend.isModelAvailable && !AppConfig.isUITesting
     ) async -> RecipeProgressInsight? {
         guard let fallback = fallback(for: input) else { return nil }
         // Duplicate candidates are deterministic and need a precise review action; do not paraphrase them with a model.
@@ -523,6 +523,8 @@ struct InsightsView: View {
 
     @MainActor private func markRecipeProgressSeen() {
         guard let fingerprint = recipeProgressEvidenceFingerprint else { return }
+        recipeProgressRefreshGeneration += 1
+        recipeProgressLoading = false
         _ = recipeProgressLifecycle.markSeen(id: "recipe-progress", evidenceFingerprint: fingerprint)
         // Remove the card immediately; the next refresh will keep this evidence version suppressed.
         recipeProgressInsight = nil

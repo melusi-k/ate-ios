@@ -227,3 +227,16 @@ All times below are exact UTC ISO-8601 metadata unless marked Inferred; SAST is 
 
 ### Post-update validation state (2026-10-30)
 The sprint-planning documentation update is on current `main` at `85fb3a3b9bce2403d70ca1696c71b6a7cc474e73`. Build IPA [41122745563](https://github.com/melusi-k/ate-ios/actions/runs/41122745563) and Dogfood Qualification [41122745893](https://github.com/melusi-k/ate-ios/actions/runs/41122745893) were queued when last polled. No pass is claimed until these exact-SHA runs complete. The latest completed Release Readiness run [41120466099](https://github.com/melusi-k/ate-ios/actions/runs/41120466099) succeeded on the older SHA `ff49fcb6326fc96b9126c72824a1670eca878758`; it is not current-main validation. The generated readiness issue snapshot sourced from run [41120191792](https://github.com/melusi-k/ate-ios/actions/runs/41120191792) is not current evidence because that Build IPA run was cancelled on `0529e37f56625bb97eb39fb125064e54d802185a`.
+
+
+### CI refresh — 2026-10-30T20:24Z (UTC) / 2026-10-30 22:24 SAST
+
+The main branch advanced after the initial baseline capture. Current main is now `764de191449704359a5dbdc8cb9fb18b737de50f` (commit message: `docs: record current-main validation state for sprint baseline`). On this exact SHA:
+- Release readiness run [41122835651](https://github.com/melusi-k/ate-ios/actions/runs/41122835651): queued.
+- Release readiness run [41122833951](https://github.com/melusi-k/ate-ios/actions/runs/41122833951): queued.
+- Dogfood Qualification [41122795770](https://github.com/melusi-k/ate-ios/actions/runs/41122795770): queued.
+- Build IPA [41122795709](https://github.com/melusi-k/ate-ios/actions/runs/41122795709): queued.
+- Supabase Preview check: completed **failure** at 2026-10-30T20:23:38Z.
+- Therefore main is not release-cleared; pending jobs are not passes and the Supabase Preview failure remains a blocker to investigate.
+
+PR #206 exact head remains `02571a4ced4eb2f126aaad345d4b93bfbaa7cad1`. Its Compile [41120910813](https://github.com/melusi-k/ate-ios/actions/runs/41120910813) and Dogfood Qualification [41120910875](https://github.com/melusi-k/ate-ios/actions/runs/41120910875) are queued, not passing. A subsequent label-automation check is also queued; it is not a product validation gate.

@@ -238,7 +238,7 @@ jobs:
 
       - name: Upload Tracker release-gate diagnostics
         if: always() && env.RUN_TESTS == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tracker-release-gate-diagnostics
           path: |
@@ -252,7 +252,7 @@ jobs:
 
       - name: Upload QA screenshots
         if: always() && env.RUN_TESTS == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: qa-screenshots
           path: ui-screenshots/*.png
@@ -500,7 +500,7 @@ jobs:
 
       - name: Upload smoke screenshot
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: smoke-launch-screenshot
           path: smoke/*.png
@@ -519,7 +519,7 @@ jobs:
           python3 scripts/e2e/backend_e2e.py --no-checks --extra ci03.json --upload --build "$APP_VERSION ($BUILD_NUMBER)${ATE_CHANNEL:+ $ATE_CHANNEL}" --out build/ci03 || true
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.IPA_NAME }}
           path: dist/*.ipa
@@ -711,7 +711,7 @@ jobs:
 
       - name: Upload UI test screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ui-screenshots-${{ matrix.shard }}
           path: |
@@ -722,7 +722,7 @@ jobs:
 
       - name: Upload UI test xcresult
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: UITests-xcresult-${{ matrix.shard }}
           path: build/UITests.xcresult
@@ -768,7 +768,7 @@ jobs:
           cat build/e2e/summary.md >> "$GITHUB_STEP_SUMMARY"; exit $S
       - name: Upload e2e results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-e2e
           path: build/e2e
@@ -852,7 +852,7 @@ jobs:
         run: python3 scripts/ci-telemetry.py
       - name: Upload CI telemetry report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ci-telemetry-${{ github.run_number }}-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/ate-ci-telemetry.json

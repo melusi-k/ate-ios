@@ -168,7 +168,7 @@ jobs:
 
       - name: Upload dogfood qualification diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dogfood-qualification-${{ github.run_number }}
           path: |
@@ -199,7 +199,7 @@ jobs:
         run: python3 scripts/ci-telemetry.py
       - name: Upload CI telemetry report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ci-telemetry-${{ github.run_number }}-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/ate-ci-telemetry.json

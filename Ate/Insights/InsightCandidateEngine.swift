@@ -42,8 +42,13 @@ enum InsightCandidateEngine {
         shoppingItems: [ShoppingItem] = [],
         nutritionEntries: [NutritionDiaryEntry] = [],
         now: Date = Date(),
-        calendar: Calendar = .autoupdatingCurrent
+        calendar: Calendar = .autoupdatingCurrent,
+        isEligible: (RankedRecipeInsightCandidate) -> Bool = { _ in true }
     ) -> [RankedRecipeInsightCandidate] {
+        // Weekly evidence is scoped to the calendar week it was measured in, so the same count
+        // in a later week is new evidence rather than a previously dismissed insight.
+        let weekKey = calendar.dateInterval(of: .weekOfYear, for: now)
+            .map { NutritionDiaryDayKey.make($0.start, calendar: calendar) } ?? "unknown-week"
         var result: [RankedRecipeInsightCandidate] = []
         func append(_ id: String, priority: Int, evidence: String, metadata: InsightEvidenceMetadata, action: InsightActionDestination, insight: RecipeProgressInsight) {
             let fingerprint = RecipeProgressInsightFingerprint.makeEvidence(
@@ -82,7 +87,7 @@ enum InsightCandidateEngine {
             append(
                 "weekly-cooking",
                 priority: 70 + min(count, 5),
-                evidence: String(count),
+                evidence: "\(weekKey)|\(count)",
                 metadata: InsightEvidenceMetadata(source: "Cooking history", period: "This week", confidence: .high),
                 action: .cookingHistory,
                 insight: RecipeProgressInsight(
@@ -99,7 +104,7 @@ enum InsightCandidateEngine {
             append(
                 "recipe-discovery",
                 priority: 65 + min(count, 5),
-                evidence: String(count),
+                evidence: "\(weekKey)|\(count)",
                 metadata: InsightEvidenceMetadata(source: "Saved recipes and cooking history", period: "This week", confidence: .moderate),
                 action: .recipes,
                 insight: RecipeProgressInsight(
@@ -207,7 +212,10 @@ enum InsightCandidateEngine {
             )
         }
 
+        // Lifecycle eligibility is applied before the cap so suppressed cards cannot crowd out
+        // lower-ranked cards that are still eligible.
         return result
+            .filter(isEligible)
             .sorted {
                 if $0.priority != $1.priority { return $0.priority > $1.priority }
                 return $0.id < $1.id

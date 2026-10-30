@@ -433,7 +433,7 @@ struct InsightsView: View {
                         }
                         .accessibilityIdentifier("insights.progress.candidate.\(candidate.id)")
                         if candidate.id != recipeProgressCandidates.last?.id {
-                            Divider().overlay(Theme.border)
+                            Divider()
                         }
                     }
                 }

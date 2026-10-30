@@ -133,39 +133,6 @@ enum InsightCandidateEngine {
             )
         }
 
-        if result.isEmpty, input.cookedRecipeCount > 0 {
-            let focus = input.mostCookedRecipe.map { " You could revisit “\($0)” or try another recipe from your collection." } ?? " Try another recipe from your collection."
-            append(
-                "cooking-rhythm",
-                priority: 40,
-                evidence: "\(input.cookedRecipeCount)|\(input.cookingDayCount)|\(input.mostCookedRecipe ?? "")",
-                metadata: InsightEvidenceMetadata(source: "Saved recipes and cooking history", period: "Recorded history", confidence: .moderate),
-                action: .cookingHistory,
-                insight: RecipeProgressInsight(
-                    title: "Your cooking rhythm",
-                    detail: "You've cooked \(input.cookedRecipeCount) distinct saved recipe\(input.cookedRecipeCount == 1 ? "" : "s") across \(input.cookingDayCount) recorded day\(input.cookingDayCount == 1 ? "" : "s").\(focus)",
-                    evidence: "Based on your saved recipes and recorded cooking history.",
-                    generated: false
-                )
-            )
-        }
-
-        if result.isEmpty, input.savedRecipeCount >= 3 {
-            append(
-                "recipe-collection",
-                priority: 20,
-                evidence: String(input.savedRecipeCount),
-                metadata: InsightEvidenceMetadata(source: "Saved recipe collection", period: "Current collection", confidence: .high),
-                action: .recipes,
-                insight: RecipeProgressInsight(
-                    title: "Your recipe collection is taking shape",
-                    detail: "You have \(input.savedRecipeCount) saved recipes. As you cook and record a few, Ate can surface patterns and ideas to revisit.",
-                    evidence: "Based on your saved recipe collection.",
-                    generated: false
-                )
-            )
-        }
-
         let pendingItems = shoppingItems.filter { !$0.done }
         let recipeSources = Set(pendingItems.flatMap { $0.sources ?? ($0.from.map { [$0] } ?? []) }
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
@@ -212,10 +179,49 @@ enum InsightCandidateEngine {
             )
         }
 
+        // Evaluate all evidence-backed candidates before deciding whether fallback guidance is
+        // needed. A candidate can exist in the raw set but be hidden by its lifecycle state.
+        var eligibleCandidates = result.filter(isEligible)
+        if eligibleCandidates.isEmpty {
+            let fallbackStart = result.count
+            if input.cookedRecipeCount > 0 {
+                let focus = input.mostCookedRecipe.map { " You could revisit “\($0)” or try another recipe from your collection." } ?? " Try another recipe from your collection."
+                append(
+                    "cooking-rhythm",
+                    priority: 40,
+                    evidence: "\(input.cookedRecipeCount)|\(input.cookingDayCount)|\(input.mostCookedRecipe ?? "")",
+                    metadata: InsightEvidenceMetadata(source: "Saved recipes and cooking history", period: "Recorded history", confidence: .moderate),
+                    action: .cookingHistory,
+                    insight: RecipeProgressInsight(
+                        title: "Your cooking rhythm",
+                        detail: "You've cooked \(input.cookedRecipeCount) distinct saved recipe\(input.cookedRecipeCount == 1 ? "" : "s") across \(input.cookingDayCount) recorded day\(input.cookingDayCount == 1 ? "" : "s").\(focus)",
+                        evidence: "Based on your saved recipes and recorded cooking history.",
+                        generated: false
+                    )
+                )
+            }
+
+            if input.savedRecipeCount >= 3 {
+                append(
+                    "recipe-collection",
+                    priority: 20,
+                    evidence: String(input.savedRecipeCount),
+                    metadata: InsightEvidenceMetadata(source: "Saved recipe collection", period: "Current collection", confidence: .high),
+                    action: .recipes,
+                    insight: RecipeProgressInsight(
+                        title: "Your recipe collection is taking shape",
+                        detail: "You have \(input.savedRecipeCount) saved recipes. As you cook and record a few, Ate can surface patterns and ideas to revisit.",
+                        evidence: "Based on your saved recipe collection.",
+                        generated: false
+                    )
+                )
+            }
+            eligibleCandidates.append(contentsOf: result.dropFirst(fallbackStart).filter(isEligible))
+        }
+
         // Lifecycle eligibility is applied before the cap so suppressed cards cannot crowd out
         // lower-ranked cards that are still eligible.
-        return result
-            .filter(isEligible)
+        return eligibleCandidates
             .sorted {
                 if $0.priority != $1.priority { return $0.priority > $1.priority }
                 return $0.id < $1.id

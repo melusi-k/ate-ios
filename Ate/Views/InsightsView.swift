@@ -120,7 +120,7 @@ struct RecipeProgressInsightInput: Equatable {
         let weekIDs = weekKeys.reduce(into: Set<String>()) { $0.formUnion(events[$1] ?? []) }.intersection(ids)
         let firstTimeIDs = weekIDs.filter { id in
             !events.contains { key, values in
-                guard values.contains(id), let date = CookingHistory.shared.date(for: key), let week else { return false }
+                guard values.contains(id), let date = history.date(for: key), let week else { return false }
                 return date < week.start
             }
         }

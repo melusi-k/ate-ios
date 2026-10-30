@@ -404,4 +404,40 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertTrue(presented.contains { $0.id == "cooking-streak" })
         XCTAssertFalse(presented.contains { $0.id == "recipe-duplicates" || $0.id == "weekly-cooking" })
     }
+    func testEligibleFallbackCandidatesAppearWhenAllPrimaryCandidatesAreSuppressed() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 6, cookedRecipeCount: 3, cookingDayCount: 3,
+            mostCookedRecipe: "Lentil soup", recipeTitles: ["Soup", "Salad"],
+            duplicateTitleGroups: [["Soup", "soup"]],
+            recordedMealsThisWeek: 3, firstTimeRecipesThisWeek: 1, currentStreak: 3
+        )
+        let primaryIDs: Set<String> = [
+            "recipe-duplicates", "weekly-cooking", "recipe-discovery", "cooking-streak"
+        ]
+
+        let presented = InsightCandidateEngine.candidates(for: input) { candidate in
+            !primaryIDs.contains(candidate.id)
+        }
+
+        XCTAssertEqual(presented.map(\.id), ["cooking-rhythm", "recipe-collection"])
+        XCTAssertTrue(presented.allSatisfy { !primaryIDs.contains($0.id) })
+        XCTAssertLessThanOrEqual(presented.count, InsightCandidateEngine.maximumCandidates)
+    }
+
+    func testFallbackCandidatesAreNotAddedWhenAnyPrimaryCandidateIsEligible() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 6, cookedRecipeCount: 3, cookingDayCount: 3,
+            mostCookedRecipe: "Lentil soup", recipeTitles: ["Soup", "Salad"],
+            duplicateTitleGroups: [["Soup", "soup"]],
+            recordedMealsThisWeek: 3, firstTimeRecipesThisWeek: 1, currentStreak: 3
+        )
+
+        let presented = InsightCandidateEngine.candidates(for: input) {
+            $0.id == "cooking-streak"
+        }
+
+        XCTAssertEqual(presented.map(\.id), ["cooking-streak"])
+        XCTAssertFalse(presented.contains { $0.id == "cooking-rhythm" || $0.id == "recipe-collection" })
+    }
+
 }

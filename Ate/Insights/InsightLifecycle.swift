@@ -83,6 +83,11 @@ struct InsightLifecycleStore {
         transition(id, to: .dismissed, now: now)
     }
 
+    @discardableResult
+    func dismiss(id: String, evidenceFingerprint: String, now: Date = Date()) -> Bool {
+        transition(id, to: .dismissed, expectedFingerprint: evidenceFingerprint, now: now)
+    }
+
     func resolve(_ id: String, now: Date = Date()) {
         transition(id, to: .resolved, now: now)
     }
@@ -92,13 +97,20 @@ struct InsightLifecycleStore {
     }
 
     func snooze(_ id: String, until: Date, now: Date = Date()) {
-        guard var allRecord = records()[id] else { return }
-        allRecord.status = .snoozed
-        allRecord.updatedAt = now
-        allRecord.snoozedUntil = max(now, until)
+        guard let record = records()[id] else { return }
+        _ = snooze(id: id, evidenceFingerprint: record.evidenceFingerprint, until: until, now: now)
+    }
+
+    @discardableResult
+    func snooze(id: String, evidenceFingerprint: String, until: Date, now: Date = Date()) -> Bool {
         var all = records()
-        all[id] = allRecord
+        guard var record = all[id], record.evidenceFingerprint == evidenceFingerprint else { return false }
+        record.status = .snoozed
+        record.updatedAt = now
+        record.snoozedUntil = max(now, until)
+        all[id] = record
         save(all)
+        return true
     }
 
     func reset(_ id: String) {

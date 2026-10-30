@@ -193,6 +193,9 @@ struct SettingsView: View {
         .background(Theme.background)
         .foregroundStyle(Theme.foreground)
         .navigationTitle("Settings")
+        .navigationDestination(isPresented: $store.showNutritionDiary) {
+            NutritionDiaryView()
+        }
         .ateRootNavigationChrome(logoID: "settings.logo")
         .onAppear { store.bottomAddContext = .recipe }
         .onChange(of: store.timerPrefs.stepAlerts) { _, on in if on { Task { _ = await TimerAlerts.requestPermission() } } }

@@ -136,4 +136,158 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertTrue(store.markSeen(id: "recipe-progress", evidenceFingerprint: fingerprint))
         XCTAssertFalse(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: fingerprint))
     }
+
+    func testCandidateEngineRanksDuplicateDataAheadOfBehaviouralInsights() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 6, cookedRecipeCount: 3, cookingDayCount: 3,
+            mostCookedRecipe: "Lentil soup",
+            recipeTitles: ["Soup", "Salad"],
+            duplicateTitleGroups: [["Soup", "soup"]],
+            recordedMealsThisWeek: 3,
+            firstTimeRecipesThisWeek: 1,
+            currentStreak: 3
+        )
+
+        let candidates = InsightCandidateEngine.candidates(for: input)
+        XCTAssertEqual(candidates.first?.id, "recipe-duplicates")
+        XCTAssertEqual(candidates.count, InsightCandidateEngine.maximumCandidates)
+        XCTAssertEqual(candidates.map(\.priority), candidates.map(\.priority).sorted(by: >))
+    }
+
+    func testCandidateEngineProducesStableCandidateFingerprints() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 4, cookedRecipeCount: 2, cookingDayCount: 2,
+            mostCookedRecipe: "Lentil soup",
+            recipeTitles: ["Soup", "Salad"],
+            recordedMealsThisWeek: 2,
+            firstTimeRecipesThisWeek: 1
+        )
+
+        let first = InsightCandidateEngine.candidates(for: input)
+        let second = InsightCandidateEngine.candidates(for: input)
+        XCTAssertEqual(first, second)
+        XCTAssertEqual(Set(first.map(\.id)).count, first.count)
+        XCTAssertTrue(first.allSatisfy { !$0.evidenceFingerprint.isEmpty })
+    }
+
+    func testCandidateEngineReturnsNoInsightWithoutSufficientEvidence() {
+        let input = RecipeProgressInsightInput(
+            savedRecipeCount: 2, cookedRecipeCount: 0, cookingDayCount: 0,
+            mostCookedRecipe: nil, recipeTitles: []
+        )
+
+        XCTAssertTrue(InsightCandidateEngine.candidates(for: input).isEmpty)
+    }
+
+    func testCandidateFingerprintChangesWhenItsEvidenceChanges() {
+        var input = RecipeProgressInsightInput(
+            savedRecipeCount: 4, cookedRecipeCount: 2, cookingDayCount: 2,
+            mostCookedRecipe: "Lentil soup",
+            recipeTitles: ["Soup", "Salad"],
+            recordedMealsThisWeek: 2
+        )
+        let before = InsightCandidateEngine.candidates(for: input).first?.evidenceFingerprint
+        input.recordedMealsThisWeek = 3
+        let after = InsightCandidateEngine.candidates(for: input).first?.evidenceFingerprint
+        XCTAssertNotEqual(before, after)
+    }
+
+
+    func testCandidateFingerprintIgnoresUnrelatedEvidenceChanges() {
+        let original = RecipeProgressInsightInput(
+            savedRecipeCount: 4, cookedRecipeCount: 2, cookingDayCount: 2,
+            mostCookedRecipe: "Lentil soup", recipeTitles: ["Soup", "Salad"],
+            recordedMealsThisWeek: 2
+        )
+        var changed = original
+        changed.savedRecipeCount = 5
+        changed.mostCookedRecipe = "Salad"
+
+        let originalCandidate = InsightCandidateEngine.candidates(for: original).first { $0.id == "weekly-cooking" }
+        let changedCandidate = InsightCandidateEngine.candidates(for: changed).first { $0.id == "weekly-cooking" }
+        XCTAssertEqual(originalCandidate?.evidenceFingerprint, changedCandidate?.evidenceFingerprint)
+    }
+
+    func testStaleDismissAndSnoozeCannotChangeNewEvidenceVersion() {
+        let (store, defaults, suite) = makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertTrue(store.shouldPresent(id: "weekly-cooking", evidenceFingerprint: "new"))
+        XCTAssertFalse(store.dismiss(id: "weekly-cooking", evidenceFingerprint: "old"))
+        XCTAssertFalse(store.snooze(id: "weekly-cooking", evidenceFingerprint: "old", until: Date().addingTimeInterval(3600)))
+        XCTAssertEqual(store.record(for: "weekly-cooking")?.status, .active)
+        XCTAssertEqual(store.record(for: "weekly-cooking")?.evidenceFingerprint, "new")
+    }
+
+
+    func testShoppingInsightRequiresMultipleRecipeSourcesAndPendingItems() {
+        let input = RecipeProgressInsightInput(savedRecipeCount: 0, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: [])
+        let shopping = [
+            ShoppingItem(name: "Tomatoes", quantity: 2, unit: "pcs", sources: ["Lentil soup"]),
+            ShoppingItem(name: "Onions", quantity: 1, unit: "pcs", sources: ["Lentil soup", "Vegetable curry"]),
+            ShoppingItem(name: "Rice", quantity: 1, unit: "kg", sources: ["Vegetable curry"]),
+            ShoppingItem(name: "Bread", quantity: 1, unit: "loaf", done: true, sources: ["Bread"])
+        ]
+        let candidate = InsightCandidateEngine.candidates(for: input, shoppingItems: shopping).first
+        XCTAssertEqual(candidate?.id, "shopping-multi-recipe")
+        XCTAssertEqual(candidate?.action, .shoppingList)
+        XCTAssertTrue(candidate?.insight.detail.contains("3 items") == true)
+        XCTAssertTrue(candidate?.insight.detail.contains("2 saved recipes") == true)
+    }
+
+    func testShoppingInsightDoesNotAppearForOneRecipeOrOnlyCompletedItems() {
+        let input = RecipeProgressInsightInput(savedRecipeCount: 0, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: [])
+        let oneSource = [
+            ShoppingItem(name: "Tomatoes", quantity: 2, unit: "pcs", sources: ["Lentil soup"]),
+            ShoppingItem(name: "Onions", quantity: 1, unit: "pcs", sources: ["Lentil soup"]),
+            ShoppingItem(name: "Rice", quantity: 1, unit: "kg", sources: ["Lentil soup"])
+        ]
+        let completed = oneSource.map { item -> ShoppingItem in var value = item; value.done = true; return value }
+        XCTAssertFalse(InsightCandidateEngine.candidates(for: input, shoppingItems: oneSource).contains { $0.id == "shopping-multi-recipe" })
+        XCTAssertFalse(InsightCandidateEngine.candidates(for: input, shoppingItems: completed).contains { $0.id == "shopping-multi-recipe" })
+    }
+
+
+    func testNutritionDiaryInsightUsesOnlyLocalCoverageCounts() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = ISO8601DateFormatter().date(from: "2026-10-30T12:00:00Z")!
+        let entries = (0..<3).map { offset -> NutritionDiaryEntry in
+            let date = calendar.date(byAdding: .day, value: -offset, to: now)!
+            let snapshot = offset == 0
+                ? NutritionSnapshot(energyKcal: 450, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil)
+                : NutritionSnapshot(energyKcal: nil, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil)
+            return NutritionDiaryEntry(
+                foodName: "Meal \(offset)", date: date, meal: .lunch, quantity: 1,
+                quantityUnit: "serving", servings: 1, source: .userProvided,
+                sourceName: "You", nutrientsPerServing: snapshot,
+                dayKey: NutritionDiaryDayKey.make(date, calendar: calendar)
+            )
+        }
+        let input = RecipeProgressInsightInput(savedRecipeCount: 0, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: [])
+        let candidate = InsightCandidateEngine.candidates(for: input, nutritionEntries: entries, now: now, calendar: calendar)
+            .first { $0.id == "nutrition-diary-coverage" }
+        XCTAssertEqual(candidate?.action, .foodDiary)
+        XCTAssertTrue(candidate?.insight.detail.contains("1 of 3 foods") == true)
+        XCTAssertFalse(candidate?.insight.detail.contains("450") == true)
+    }
+
+    func testNutritionDiaryInsightRequiresThreeRecentEntriesAndOnlyAppearsForPartialCoverage() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = ISO8601DateFormatter().date(from: "2026-10-30T12:00:00Z")!
+        let input = RecipeProgressInsightInput(savedRecipeCount: 0, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: [])
+        let completeEntries = (0..<3).map { offset -> NutritionDiaryEntry in
+            let date = calendar.date(byAdding: .day, value: -offset, to: now)!
+            return NutritionDiaryEntry(
+                foodName: "Meal \(offset)", date: date, meal: .lunch, quantity: 1,
+                quantityUnit: "serving", servings: 1, source: .userProvided, sourceName: "You",
+                nutrientsPerServing: NutritionSnapshot(energyKcal: 400, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil),
+                dayKey: NutritionDiaryDayKey.make(date, calendar: calendar)
+            )
+        }
+        XCTAssertFalse(InsightCandidateEngine.candidates(for: input, nutritionEntries: Array(completeEntries.prefix(2)), now: now, calendar: calendar).contains { $0.id == "nutrition-diary-coverage" })
+        XCTAssertFalse(InsightCandidateEngine.candidates(for: input, nutritionEntries: completeEntries, now: now, calendar: calendar).contains { $0.id == "nutrition-diary-coverage" })
+    }
+
+
 }

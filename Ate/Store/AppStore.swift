@@ -162,6 +162,8 @@ final class AppStore {
     var bottomAddContext: BottomAddContext = .recipe
     /// Requests handled by the active Food diary and Shopping list screens.
     var showNutritionDiaryEntry = false
+    /// Opens the Food diary destination from a contextual insight action.
+    var showNutritionDiary = false
     var requestShoppingAdd = false
     /// Set by the system search intent ("Search ate for tripe"): Library adopts it as its query.
     var pendingSearch: String?

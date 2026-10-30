@@ -12,7 +12,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
     @discardableResult
     private func launch() -> XCUIApplication {
         app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
+        app.launchArguments = ["-UITesting", "-qaResetCookingHistory", "-qaResetInsightLifecycle"]
         app.launch()
         return app
     }

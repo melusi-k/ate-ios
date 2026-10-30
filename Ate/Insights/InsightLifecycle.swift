@@ -25,9 +25,25 @@ struct InsightLifecycleStore {
     private let defaults: UserDefaults
     private let storageKey: String
 
-    init(defaults: UserDefaults = .standard, storageKey: String = "insights.lifecycle.v1") {
+    init(defaults: UserDefaults = .standard, storageKey: String? = nil, accountID: String? = nil) {
         self.defaults = defaults
-        self.storageKey = storageKey
+        if let storageKey {
+            self.storageKey = storageKey
+        } else if let accountID, !accountID.isEmpty {
+            let digest = SHA256.hash(data: Data(accountID.utf8))
+            let scope = digest.map { String(format: "%02x", $0) }.joined()
+            self.storageKey = "insights.lifecycle.v1.account.\(scope)"
+        } else {
+            self.storageKey = "insights.lifecycle.v1"
+        }
+    }
+
+    /// Removes all persisted insight lifecycle metadata when the user explicitly wipes local data.
+    static func clearAll(defaults: UserDefaults = .standard) {
+        for key in defaults.dictionaryRepresentation().keys
+        where key == "insights.lifecycle.v1" || key.hasPrefix("insights.lifecycle.v1.account.") {
+            defaults.removeObject(forKey: key)
+        }
     }
 
     func record(for id: String) -> InsightLifecycleRecord? {
@@ -55,6 +71,12 @@ struct InsightLifecycleStore {
 
     func markSeen(_ id: String, now: Date = Date()) {
         transition(id, to: .seen, now: now)
+    }
+
+    /// Marks an insight seen only if its evidence still matches what the user acted on.
+    @discardableResult
+    func markSeen(id: String, evidenceFingerprint: String, now: Date = Date()) -> Bool {
+        transition(id, to: .seen, expectedFingerprint: evidenceFingerprint, now: now)
     }
 
     func dismiss(_ id: String, now: Date = Date()) {
@@ -85,14 +107,17 @@ struct InsightLifecycleStore {
         save(all)
     }
 
-    private func transition(_ id: String, to status: InsightLifecycleStatus, now: Date) {
+    @discardableResult
+    private func transition(_ id: String, to status: InsightLifecycleStatus, expectedFingerprint: String? = nil, now: Date) -> Bool {
         var all = records()
-        guard var record = all[id] else { return }
+        guard var record = all[id],
+              expectedFingerprint == nil || record.evidenceFingerprint == expectedFingerprint else { return false }
         record.status = status
         record.updatedAt = now
         record.snoozedUntil = nil
         all[id] = record
         save(all)
+        return true
     }
 
     private func records() -> [String: InsightLifecycleRecord] {

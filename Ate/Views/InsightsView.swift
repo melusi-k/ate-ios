@@ -198,6 +198,9 @@ enum RecipeProgressInsightService {
 
     static func insight(for input: RecipeProgressInsightInput, useModel: Bool = OnDeviceBackend.isModelAvailable && !AppConfig.isUITesting) async -> RecipeProgressInsight? {
         guard let fallback = fallback(for: input) else { return nil }
+        let evidenceFingerprint = RecipeProgressInsightFingerprint.make(input)
+        // An unchanged insight that was already acted on is not surfaced again.
+        guard InsightLifecycleStore.shared.shouldPresent(id: "recipe-progress", evidenceFingerprint: evidenceFingerprint) else { return nil }
         // Duplicate candidates are deterministic and need a precise review action; do not paraphrase them with a model.
         if !input.duplicateTitleGroups.isEmpty { return fallback }
         guard useModel else { return fallback }
@@ -439,6 +442,7 @@ struct InsightsView: View {
                 .accessibilityIdentifier("insights.progress.result")
                 VStack(alignment: .leading, spacing: 8) {
                     Button {
+                        InsightLifecycleStore.shared.markSeen("recipe-progress")
                         store.trackerPath = []
                         store.select(.tracker)
                     } label: {
@@ -446,6 +450,7 @@ struct InsightsView: View {
                     }
                     .accessibilityIdentifier("insights.progress.action.tracker")
                     Button {
+                        InsightLifecycleStore.shared.markSeen("recipe-progress")
                         store.trackerPath = [.journal]
                         store.select(.tracker)
                     } label: {
@@ -453,6 +458,7 @@ struct InsightsView: View {
                     }
                     .accessibilityIdentifier("insights.progress.action.journal")
                     Button {
+                        InsightLifecycleStore.shared.markSeen("recipe-progress")
                         store.filter.clear()
                         store.select(.library)
                     } label: {
@@ -474,7 +480,7 @@ struct InsightsView: View {
                 .accessibilityIdentifier("insights.progress.empty")
             }
             if recipeProgressInsight?.title == "Possible overlapping recipe entries" {
-                Button("Review recipes") { store.select(.library) }
+                Button("Review recipes") { InsightLifecycleStore.shared.markSeen("recipe-progress"); store.select(.library) }
                     .font(AteFont.body(13, .semibold))
                     .accessibilityIdentifier("insights.progress.reviewRecipes")
             }

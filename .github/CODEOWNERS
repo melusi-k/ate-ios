@@ -1,0 +1,4 @@
+# Default code owner for the repository.
+# Keep this entry until additional maintainers/teams are nominated.
+# CODEOWNERS approval should be required by the main-branch ruleset.
+* @melusi-k

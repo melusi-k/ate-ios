@@ -235,6 +235,7 @@ enum RecipeProgressInsightService {
 struct InsightsView: View {
     var screenTitle: String = "Insights"
     @Environment(AppStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
     @State private var model = InsightsModel.shared
     @State private var draft = ""
     @State private var prompt: JournalPrompt?
@@ -471,6 +472,9 @@ struct InsightsView: View {
                             }
                             .accessibilityIdentifier("insights.progress.action.\(candidate.id)")
                             HStack(spacing: 16) {
+                                Button("I've handled this") { resolveRecipeInsight(candidate) }
+                                    .font(AteFont.body(12, .semibold))
+                                    .accessibilityIdentifier("insights.progress.resolve.\(candidate.id)")
                                 Button("Not useful") { dismissRecipeInsight(candidate) }
                                     .font(AteFont.body(12, .semibold))
                                     .accessibilityIdentifier("insights.progress.dismiss.\(candidate.id)")
@@ -534,6 +538,13 @@ struct InsightsView: View {
         recipeProgressSuppressed = recipeProgressCandidates.isEmpty
     }
 
+    @MainActor private func resolveRecipeInsight(_ candidate: RankedRecipeInsightCandidate) {
+        recipeProgressRefreshGeneration += 1
+        guard recipeProgressLifecycle.resolve(id: candidate.id, evidenceFingerprint: candidate.evidenceFingerprint) else { return }
+        recipeProgressCandidates.removeAll { $0.id == candidate.id }
+        recipeProgressSuppressed = recipeProgressCandidates.isEmpty
+    }
+
     @MainActor private func dismissRecipeInsight(_ candidate: RankedRecipeInsightCandidate) {
         recipeProgressRefreshGeneration += 1
         recipeProgressLifecycle.dismiss(id: candidate.id, evidenceFingerprint: candidate.evidenceFingerprint)
@@ -567,6 +578,9 @@ struct InsightsView: View {
     }
 
     @MainActor private func openInsightDestination(for candidate: RankedRecipeInsightCandidate) {
+        // Insights is presented from Library's Explore sheet. Dismiss that presentation before
+        // switching tabs so the requested destination is actually visible to the user.
+        dismiss()
         switch candidate.action {
         case .recipes:
             store.filter.clear()

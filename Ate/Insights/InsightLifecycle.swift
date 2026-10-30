@@ -92,6 +92,12 @@ struct InsightLifecycleStore {
         transition(id, to: .resolved, now: now)
     }
 
+    /// Resolves only the exact evidence version the user marked as handled.
+    @discardableResult
+    func resolve(id: String, evidenceFingerprint: String, now: Date = Date()) -> Bool {
+        transition(id, to: .resolved, expectedFingerprint: evidenceFingerprint, now: now)
+    }
+
     func expire(_ id: String, now: Date = Date()) {
         transition(id, to: .expired, now: now)
     }

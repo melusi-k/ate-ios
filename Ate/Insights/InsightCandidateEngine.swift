@@ -10,10 +10,24 @@ enum InsightActionDestination: Equatable {
     case foodDiary
 }
 
+enum InsightEvidenceConfidence: String, Equatable {
+    /// The displayed fact is a direct count or state from a local source.
+    case high = "High"
+    /// The insight combines or interprets multiple locally recorded facts.
+    case moderate = "Moderate"
+}
+
+struct InsightEvidenceMetadata: Equatable {
+    let source: String
+    let period: String
+    let confidence: InsightEvidenceConfidence
+}
+
 struct RankedRecipeInsightCandidate: Equatable {
     let id: String
     let priority: Int
     let evidenceFingerprint: String
+    let evidenceMetadata: InsightEvidenceMetadata
     let action: InsightActionDestination
     let insight: RecipeProgressInsight
 }
@@ -31,7 +45,7 @@ enum InsightCandidateEngine {
         calendar: Calendar = .autoupdatingCurrent
     ) -> [RankedRecipeInsightCandidate] {
         var result: [RankedRecipeInsightCandidate] = []
-        func append(_ id: String, priority: Int, evidence: String, action: InsightActionDestination, insight: RecipeProgressInsight) {
+        func append(_ id: String, priority: Int, evidence: String, metadata: InsightEvidenceMetadata, action: InsightActionDestination, insight: RecipeProgressInsight) {
             let fingerprint = RecipeProgressInsightFingerprint.makeEvidence(
                 candidateID: id,
                 evidence: evidence
@@ -40,6 +54,7 @@ enum InsightCandidateEngine {
                 id: id,
                 priority: priority,
                 evidenceFingerprint: fingerprint,
+                evidenceMetadata: metadata,
                 action: action,
                 insight: insight
             ))
@@ -51,6 +66,7 @@ enum InsightCandidateEngine {
                 "recipe-duplicates",
                 priority: 100,
                 evidence: group.sorted().joined(separator: "|"),
+                metadata: InsightEvidenceMetadata(source: "Saved recipe titles", period: "Current collection", confidence: .moderate),
                 action: .recipes,
                 insight: RecipeProgressInsight(
                     title: "Possible overlapping recipe entries",
@@ -67,6 +83,7 @@ enum InsightCandidateEngine {
                 "weekly-cooking",
                 priority: 70 + min(count, 5),
                 evidence: String(count),
+                metadata: InsightEvidenceMetadata(source: "Cooking history", period: "This week", confidence: .high),
                 action: .cookingHistory,
                 insight: RecipeProgressInsight(
                     title: "This week's cooking",
@@ -83,6 +100,7 @@ enum InsightCandidateEngine {
                 "recipe-discovery",
                 priority: 65 + min(count, 5),
                 evidence: String(count),
+                metadata: InsightEvidenceMetadata(source: "Saved recipes and cooking history", period: "This week", confidence: .moderate),
                 action: .recipes,
                 insight: RecipeProgressInsight(
                     title: "New recipes in your rotation",
@@ -99,6 +117,7 @@ enum InsightCandidateEngine {
                 "cooking-streak",
                 priority: 60 + min(streak, 7),
                 evidence: String(streak),
+                metadata: InsightEvidenceMetadata(source: "Cooking history", period: "Current streak", confidence: .high),
                 action: .cookingHistory,
                 insight: RecipeProgressInsight(
                     title: "A cooking streak is taking shape",
@@ -115,6 +134,7 @@ enum InsightCandidateEngine {
                 "cooking-rhythm",
                 priority: 40,
                 evidence: "\(input.cookedRecipeCount)|\(input.cookingDayCount)|\(input.mostCookedRecipe ?? "")",
+                metadata: InsightEvidenceMetadata(source: "Saved recipes and cooking history", period: "Recorded history", confidence: .moderate),
                 action: .cookingHistory,
                 insight: RecipeProgressInsight(
                     title: "Your cooking rhythm",
@@ -130,6 +150,7 @@ enum InsightCandidateEngine {
                 "recipe-collection",
                 priority: 20,
                 evidence: String(input.savedRecipeCount),
+                metadata: InsightEvidenceMetadata(source: "Saved recipe collection", period: "Current collection", confidence: .high),
                 action: .recipes,
                 insight: RecipeProgressInsight(
                     title: "Your recipe collection is taking shape",
@@ -149,6 +170,7 @@ enum InsightCandidateEngine {
                 "shopping-multi-recipe",
                 priority: 75,
                 evidence: "\(pendingItems.count)|\(recipeSources.sorted().joined(separator: ","))",
+                metadata: InsightEvidenceMetadata(source: "Shopping list and recipe sources", period: "Current pending items", confidence: .moderate),
                 action: .shoppingList,
                 insight: RecipeProgressInsight(
                     title: "Your shopping list brings recipes together",
@@ -174,6 +196,7 @@ enum InsightCandidateEngine {
                 "nutrition-diary-coverage",
                 priority: 58,
                 evidence: "\(nutritionWeek.count)|\(entriesWithNutrients)|\(NutritionDiaryDayKey.make(weekStart, calendar: calendar))",
+                metadata: InsightEvidenceMetadata(source: "Locally stored food diary", period: "Last 7 days", confidence: .high),
                 action: .foodDiary,
                 insight: RecipeProgressInsight(
                     title: "Add verified details to your food diary",

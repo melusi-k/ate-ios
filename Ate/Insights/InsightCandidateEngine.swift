@@ -17,12 +17,9 @@ enum InsightCandidateEngine {
 
     static func candidates(for input: RecipeProgressInsightInput) -> [RankedRecipeInsightCandidate] {
         var result: [RankedRecipeInsightCandidate] = []
-        let baseFingerprint = RecipeProgressInsightFingerprint.make(input)
-
         func append(_ id: String, priority: Int, evidence: String, insight: RecipeProgressInsight) {
             let fingerprint = RecipeProgressInsightFingerprint.makeEvidence(
                 candidateID: id,
-                baseFingerprint: baseFingerprint,
                 evidence: evidence
             )
             result.append(RankedRecipeInsightCandidate(
@@ -133,8 +130,8 @@ enum InsightCandidateEngine {
 }
 
 private extension RecipeProgressInsightFingerprint {
-    static func makeEvidence(candidateID: String, baseFingerprint: String, evidence: String) -> String {
-        let payload = [candidateID, baseFingerprint, evidence].joined(separator: "|")
+    static func makeEvidence(candidateID: String, evidence: String) -> String {
+        let payload = [candidateID, evidence].joined(separator: "|")
         return SHA256.hash(data: Data(payload.utf8))
             .map { String(format: "%02x", $0) }
             .joined()

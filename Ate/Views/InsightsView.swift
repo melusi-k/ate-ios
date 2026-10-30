@@ -196,11 +196,15 @@ enum RecipeProgressInsightService {
         )
     }
 
-    static func insight(for input: RecipeProgressInsightInput, useModel: Bool = OnDeviceBackend.isModelAvailable && !AppConfig.isUITesting) async -> RecipeProgressInsight? {
+    static func insight(
+        for input: RecipeProgressInsightInput,
+        useModel: Bool = OnDeviceBackend.isModelAvailable && !AppConfig.isUITesting,
+        lifecycle: InsightLifecycleStore = .shared
+    ) async -> RecipeProgressInsight? {
         guard let fallback = fallback(for: input) else { return nil }
         let evidenceFingerprint = RecipeProgressInsightFingerprint.make(input)
         // An unchanged insight that was already acted on is not surfaced again.
-        guard InsightLifecycleStore.shared.shouldPresent(id: "recipe-progress", evidenceFingerprint: evidenceFingerprint) else { return nil }
+        guard lifecycle.shouldPresent(id: "recipe-progress", evidenceFingerprint: evidenceFingerprint) else { return nil }
         // Duplicate candidates are deterministic and need a precise review action; do not paraphrase them with a model.
         if !input.duplicateTitleGroups.isEmpty { return fallback }
         guard useModel else { return fallback }

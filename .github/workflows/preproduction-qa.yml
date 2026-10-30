@@ -27,7 +27,7 @@ jobs:
         with:
           xcode-version: latest-stable
       - name: Cache Xcode DerivedData
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/Library/Developer/Xcode/DerivedData
           key: macos-26-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
@@ -37,7 +37,7 @@ jobs:
       - name: Validate docs IDs and generated checklist consistency
         run: python3 scripts/check-ids.py
       - name: Cache Homebrew downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/Library/Caches/Homebrew
           key: macos-26-homebrew-xcodegen-v1
@@ -343,14 +343,14 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/Library/Developer/Xcode/DerivedData
           key: macos-26-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
           restore-keys: |
             macos-26-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
             macos-26-xcode-deriveddata-
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/Library/Caches/Homebrew
           key: macos-26-homebrew-xcodegen-v1
@@ -442,7 +442,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ubuntu-playwright-chromium-${{ hashFiles('scripts/e2e/*.py') }}

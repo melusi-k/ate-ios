@@ -32,7 +32,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Cache Xcode DerivedData
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/Library/Developer/Xcode/DerivedData
           key: macos-26-dogfood-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}

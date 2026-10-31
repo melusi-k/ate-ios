@@ -155,24 +155,29 @@ final class AccessibilityAuditUITests: XCTestCase {
         let exitCook = app.buttons["Exit"]
         if exitCook.waitForExistence(timeout: 5) { exitCook.tap() }
         let settingsTab = app.tabBars.buttons["Settings"]
-        guard settingsTab.waitForExistence(timeout: 5) else { return }
+        if !settingsTab.waitForExistence(timeout: 2) {
+            // Recipe detail hides the tab bar (.toolbar(.hidden, for: .tabBar)); step back
+            // to the tab root before looking for the Settings tab (CI: sweep silently
+            // skipped when the tab bar never existed after exiting Cook mode, #179).
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+        }
+        // The sweep must actually reach and capture both screens: a silent skip here
+        // reads as a green pass while collecting nothing (CI: the sweep passed for the
+        // whole v2 run while never leaving recipe detail, #179).
+        XCTAssertTrue(settingsTab.waitForExistence(timeout: 5), "Settings tab should be reachable for the AX5 nutrition sweep")
         settingsTab.tap()
         let diaryEntry = app.buttons["settings.nutritionDiary"]
-        if revealSettingsEntry(diaryEntry) {
-            diaryEntry.tap()
-            if app.navigationBars["Food diary"].waitForExistence(timeout: 10) {
-                try audit("ax5-nutrition-diary", strict: false)
-                let d = XCTAttachment(screenshot: app.screenshot()); d.name = "ax5-nutrition-diary"; d.lifetime = .keepAlways; add(d)
-                app.navigationBars.buttons.element(boundBy: 0).tap()
-                let goalsEntry = app.buttons["settings.nutritionGoals"]
-                if revealSettingsEntry(goalsEntry) {
-                    goalsEntry.tap()
-                    if app.navigationBars["Nutrition goals"].waitForExistence(timeout: 10) {
-                        try audit("ax5-nutrition-goals", strict: false)
-                        let g = XCTAttachment(screenshot: app.screenshot()); g.name = "ax5-nutrition-goals"; g.lifetime = .keepAlways; add(g)
-                    }
-                }
-            }
-        }
+        XCTAssertTrue(revealSettingsEntry(diaryEntry), "Settings should reveal Food diary for the AX5 sweep")
+        diaryEntry.tap()
+        XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10), "Food diary should open for the AX5 sweep")
+        try audit("ax5-nutrition-diary", strict: false)
+        let d = XCTAttachment(screenshot: app.screenshot()); d.name = "ax5-nutrition-diary"; d.lifetime = .keepAlways; add(d)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let goalsEntry = app.buttons["settings.nutritionGoals"]
+        XCTAssertTrue(revealSettingsEntry(goalsEntry), "Settings should reveal Nutrition goals for the AX5 sweep")
+        goalsEntry.tap()
+        XCTAssertTrue(app.navigationBars["Nutrition goals"].waitForExistence(timeout: 10), "Nutrition goals should open for the AX5 sweep")
+        try audit("ax5-nutrition-goals", strict: false)
+        let g = XCTAttachment(screenshot: app.screenshot()); g.name = "ax5-nutrition-goals"; g.lifetime = .keepAlways; add(g)
     }
 }

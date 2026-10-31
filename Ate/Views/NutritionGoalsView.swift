@@ -108,9 +108,11 @@ struct NutritionGoalsView: View {
         .background(Theme.background)
         .foregroundStyle(Theme.foreground)
         .navigationTitle("Nutrition goals")
-        // Let the last rows scroll fully clear of the floating tab bar instead of sitting
-        // under it (audit screenshot evidence: Cancel rested under the bottom chrome, #179).
-        .contentMargins(.bottom, 96, for: .scrollContent)
+        // Keep content clear of the floating tab bar at all times, not only at the
+        // scrolled-to-bottom rest position: the bar overlays pushed screens too (measured
+        // y791-874 = 83pt on the CI simulator) and a scroll-content margin alone still let
+        // Cancel rest behind it (audit screenshots, #179).
+        .safeAreaPadding(.bottom, 96)
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Back up and reset unreadable goals?", isPresented: $showingRecoveryConfirmation, titleVisibility: .visible) {
             Button("Back up and reset", role: .destructive) { recoverCorruptData() }

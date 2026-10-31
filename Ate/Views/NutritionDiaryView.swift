@@ -152,11 +152,12 @@ struct NutritionDiaryView: View {
                 Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.error") }
             }
         }
-        // Keep content clear of the floating tab bar at all times, not only at the
-        // scrolled-to-bottom rest position: the bar overlays pushed screens too (measured
-        // y791-874 = 83pt on the CI simulator) and a scroll-content margin alone still let
-        // the empty-state description rest behind it (audit screenshots, #179).
-        .safeAreaPadding(.bottom, 96)
+        // Pushed screen: hide the tab bar so list content never rests behind it.
+        // safeAreaPadding/contentMargins measurably did NOT inset this list (A/B pixel
+        // diff of runs with and without the modifier: only the status-bar clock changed;
+        // the list's UICollectionView frame stayed {0,0,402,874} in the AX hierarchy).
+        // RecipeDetailView already hides the bar for the same reason (#179).
+        .toolbar(.hidden, for: .tabBar)
         .navigationTitle("Food diary")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

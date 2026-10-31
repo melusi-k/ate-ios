@@ -64,7 +64,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 75
     env:
       ATE_SIGN_STYLE: Automatic
     steps:

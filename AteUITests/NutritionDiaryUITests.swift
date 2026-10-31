@@ -5,6 +5,33 @@ final class NutritionDiaryUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// SwiftUI Lists materialise below-fold cells in the accessibility hierarchy, so `exists`
+    /// alone cannot drive interaction: a tap is synthesised at the element's coordinates even
+    /// when it is off screen or covered by the keyboard, and silently lands on nothing. Scroll
+    /// until the element is genuinely visible before tapping or typing.
+    @discardableResult
+    private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication, max: Int = 8) -> Bool {
+        var attempts = 0
+        while !(element.exists && element.isHittable) && attempts < max {
+            app.swipeUp(velocity: .slow)
+            attempts += 1
+        }
+        return element.exists && element.isHittable
+    }
+
+    private func tapWhenHittable(_ element: XCUIElement, in app: XCUIApplication, _ message: String? = nil) {
+        XCTAssertTrue(scrollToHittable(element, in: app), message ?? "Element should be visible before it is tapped")
+        element.tap()
+    }
+
+    /// Typing before the keyboard finishes its appear animation can drop characters on a
+    /// loaded CI simulator. Wait for the keyboard before sending text.
+    private func typeAfterKeyboard(_ element: XCUIElement, in app: XCUIApplication, _ text: String) {
+        tapWhenHittable(element, in: app)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the focused field")
+        element.typeText(text)
+    }
+
     func testFoodDiaryOpensAndExplicitlyLogsFoodWithUnavailableValues() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-resetNutritionDiary"]
@@ -33,24 +60,20 @@ final class NutritionDiaryUITests: XCTestCase {
         }
         let foodName = app.textFields["nutritionDiary.foodName"]
         XCTAssertTrue(foodName.waitForExistence(timeout: 5))
-        foodName.tap()
-        foodName.typeText("My lunch")
-        app.textFields["nutritionDiary.quantityUnit"].tap()
-        app.textFields["nutritionDiary.quantityUnit"].typeText("bowl")
+        typeAfterKeyboard(foodName, in: app, "My lunch")
+        typeAfterKeyboard(app.textFields["nutritionDiary.quantityUnit"], in: app, "bowl")
         let sourceName = app.textFields["nutritionDiary.sourceName"]
-        sourceName.tap()
-        sourceName.typeText("My notes")
+        typeAfterKeyboard(sourceName, in: app, "My notes")
         let sourcePicker = app.descendants(matching: .any)["nutritionDiary.source"].firstMatch
         XCTAssertTrue(sourcePicker.waitForExistence(timeout: 5))
-        sourcePicker.tap()
+        tapWhenHittable(sourcePicker, in: app)
         let externalSource = app.buttons["External record (not verified by Ate)"]
         XCTAssertTrue(externalSource.waitForExistence(timeout: 5))
         externalSource.tap()
         XCTAssertNotEqual(sourceName.value as? String, "You")
         XCTAssertNotEqual(sourceName.value as? String, "My notes")
-        sourceName.tap()
-        sourceName.typeText("Test food database")
-        app.buttons["nutritionDiary.save"].tap()
+        typeAfterKeyboard(sourceName, in: app, "Test food database")
+        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
 
         XCTAssertTrue(diaryRows(app, containing: "My lunch").firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Unavailable"].firstMatch.exists)
@@ -62,13 +85,8 @@ final class NutritionDiaryUITests: XCTestCase {
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
         settings.tap()
         let diaryEntry = app.buttons["settings.nutritionDiary"]
-        var attempts = 0
-        while !(diaryEntry.exists && diaryEntry.isHittable) && attempts < 8 {
-            app.swipeUp(velocity: .slow)
-            attempts += 1
-        }
         XCTAssertTrue(diaryEntry.waitForExistence(timeout: 10), "Settings should expose Food diary")
-        diaryEntry.tap()
+        tapWhenHittable(diaryEntry, in: app)
         XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10), "Food diary screen should open")
     }
 
@@ -107,15 +125,15 @@ final class NutritionDiaryUITests: XCTestCase {
         openDiary(app)
         openLogForm(app)
         let foodName = app.textFields["nutritionDiary.foodName"]
-        foodName.tap()
-        foodName.typeText("Bad entry")
+        typeAfterKeyboard(foodName, in: app, "Bad entry")
         let quantity = app.textFields["nutritionDiary.quantity"]
-        quantity.tap()
+        tapWhenHittable(quantity, in: app)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the quantity field")
         if let existing = quantity.value as? String {
             quantity.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
         }
         quantity.typeText("0")
-        app.buttons["nutritionDiary.save"].tap()
+        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
         // Error state: visible message, and the form stays open for correction.
         XCTAssertTrue(app.descendants(matching: .any)["nutritionDiary.formError"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Enter a quantity and servings greater than zero."].exists)
@@ -129,9 +147,8 @@ final class NutritionDiaryUITests: XCTestCase {
         openDiary(app)
         openLogForm(app)
         let foodName = app.textFields["nutritionDiary.foodName"]
-        foodName.tap()
-        foodName.typeText("My lunch")
-        app.buttons["nutritionDiary.save"].tap()
+        typeAfterKeyboard(foodName, in: app, "My lunch")
+        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
         // Save-failure state: the diary-level error is shown. The entry exists only in memory,
         // so after a relaunch without the fault argument the diary is empty again.
         XCTAssertTrue(app.descendants(matching: .any)["nutritionDiary.error"].waitForExistence(timeout: 5))
@@ -165,7 +182,7 @@ final class NutritionDiaryUITests: XCTestCase {
         app.launch()
         openDiary(app)
         XCTAssertTrue(app.descendants(matching: .any)["nutritionDiary.goalsLoadError"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["nutritionDiary.retryGoals"].exists)
+        XCTAssertTrue(app.buttons["nutritionDiary.retryGoals"].waitForExistence(timeout: 5))
     }
 
     func testRecipeNutritionShowsIncompleteStateForUnmappedIngredient() throws {
@@ -174,11 +191,21 @@ final class NutritionDiaryUITests: XCTestCase {
         app.launch()
         let card = app.staticTexts["QA pap and rice"].firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 10), "Seeded recipe should appear in the library")
-        card.tap()
+        tapWhenHittable(card, in: app, "Seeded recipe card should be visible before it is tapped")
         // Library cards open a compact sheet; the nutrition card lives in the expanded detail.
+        // The sheet's internal controls are not reliably exposed to accessibility (see
+        // test32c_ExpandableRecipeSheetOpensExpandsAndDismisses), so accept a detail that is
+        // already expanded as well as the compact sheet's expand button.
         let expand = app.buttons["expandRecipeDetails"]
-        XCTAssertTrue(expand.waitForExistence(timeout: 5), "Compact recipe sheet should offer expand")
-        expand.tap()
+        let nutritionCard = app.descendants(matching: .any)["recipeNutrition"]
+        var presentationWait = 0.0
+        while !expand.exists && !nutritionCard.exists && presentationWait < 10 {
+            Thread.sleep(forTimeInterval: 0.5)
+            presentationWait += 0.5
+        }
+        if expand.exists && !nutritionCard.exists {
+            expand.tap()
+        }
         let nutrition = app.descendants(matching: .any)["recipeNutrition"]
         var scrolls = 0
         while !(nutrition.exists && nutrition.isHittable) && scrolls < 8 {
@@ -197,29 +224,35 @@ final class NutritionDiaryUITests: XCTestCase {
         openDiary(app)
         openLogForm(app)
         let foodName = app.textFields["nutritionDiary.foodName"]
-        foodName.tap()
-        foodName.typeText("My lunch")
-        app.textFields["nutritionDiary.quantityUnit"].tap()
-        app.textFields["nutritionDiary.quantityUnit"].typeText("bowl")
-        app.buttons["nutritionDiary.save"].tap()
+        typeAfterKeyboard(foodName, in: app, "My lunch")
+        typeAfterKeyboard(app.textFields["nutritionDiary.quantityUnit"], in: app, "bowl")
+        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
 
         let row = diaryRows(app, containing: "My lunch").firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(scrollToHittable(row, in: app), "Saved entry row should be visible before it is swiped")
         row.swipeLeft()
         app.buttons["Edit"].tap()
         // Edit mode: seeded values, Edit title.
         XCTAssertTrue(app.navigationBars["Edit food"].waitForExistence(timeout: 5))
         let quantity = app.textFields["nutritionDiary.quantity"]
         XCTAssertTrue(quantity.waitForExistence(timeout: 5))
-        quantity.tap()
+        tapWhenHittable(quantity, in: app)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the quantity field")
         if let existing = quantity.value as? String {
             quantity.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
         }
         quantity.typeText("2")
-        app.buttons["nutritionDiary.save"].tap()
+        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
         XCTAssertTrue(diaryRows(app, containing: "2 bowl").firstMatch.waitForExistence(timeout: 5))
         XCTAssertEqual(diaryRows(app, containing: "My lunch").allElementsBoundByIndex.count, 1,
                        "edit must keep one row with the same identity")
+        // Merge-gate evidence: keep a screenshot of the edited diary row in the xcresult.
+        scrollToHittable(row, in: app)
+        let editShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        editShot.name = "diary-row-after-edit"
+        editShot.lifetime = .keepAlways
+        add(editShot)
     }
 
     func testThisWeekSectionShowsTotalsForLoggedEntries() throws {
@@ -239,18 +272,12 @@ final class NutritionDiaryUITests: XCTestCase {
         openLogForm(app)
         let foodName = app.textFields["nutritionDiary.foodName"]
         XCTAssertTrue(foodName.waitForExistence(timeout: 5))
-        foodName.tap()
-        foodName.typeText("Week lunch")
+        typeAfterKeyboard(foodName, in: app, "Week lunch")
         let energy = app.textFields["nutritionDiary.nutrient.energy"]
-        scrolls = 0
-        while !energy.exists && scrolls < 8 {
-            app.swipeUp(velocity: .slow)
-            scrolls += 1
-        }
-        XCTAssertTrue(energy.waitForExistence(timeout: 5))
-        energy.tap()
-        energy.typeText("200")
-        app.buttons["nutritionDiary.save"].tap()
+        // The nutrient fields sit below the fold; scroll until the field is genuinely
+        // visible before typing, or the tap is swallowed and the keyboard never focuses.
+        typeAfterKeyboard(energy, in: app, "200")
+        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
 
         let weeklyEnergy = app.staticTexts["nutritionDiary.weeklyTotal.energy.value"]
         scrolls = 0
@@ -261,5 +288,11 @@ final class NutritionDiaryUITests: XCTestCase {
         XCTAssertTrue(weeklyEnergy.waitForExistence(timeout: 5), "This week section should list an energy total")
         XCTAssertEqual(weeklyEnergy.label, "200 kcal")
         XCTAssertFalse(app.staticTexts["Nothing logged this week yet."].exists)
+        // Merge-gate evidence: keep a screenshot of the populated This week section.
+        scrollToHittable(weeklyEnergy, in: app)
+        let weeklyShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        weeklyShot.name = "this-week-section-populated"
+        weeklyShot.lifetime = .keepAlways
+        add(weeklyShot)
     }
 }

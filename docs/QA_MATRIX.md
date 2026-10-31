@@ -2,6 +2,8 @@
 
 _Source of truth for acceptance IDs and definitions: [MVP_CHECKLIST.md](MVP_CHECKLIST.md). The in-app Beta checks follow the same IDs (CI scripts/check-ids.py). Existing result and evidence fields are preserved by this migration._
 
+**Simulator target:** simulator-based CI runs use iPhone 18 Pro on iOS 27.0 via the `xcode-27` runner image; a missing target is a hard setup failure, not a reason to fall back to another device. The iOS 18 deployment target is unchanged.
+
 **Execution note:** the four full-validation UI shards (`AteUITests`, `CoverageUITests`, `AccessibilityAuditUITests`, `WidgetsIntentsUITests`) run as separate GitHub Actions jobs with up to two Xcode simulator workers per shard. Focused regressions and KeyFlowsQA remain serial. This is an execution strategy only: it does not change this inventory, acceptance criteria, test inclusion, quarantine status, or the meaning of a pass. See [CI execution policy](CI.md).
 
 ## Unified inventory (classification, not a pass score)

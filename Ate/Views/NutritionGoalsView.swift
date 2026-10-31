@@ -44,6 +44,10 @@ struct NutritionGoalsView: View {
                     .accessibilityHint("Turns off every goal in this form. Tap Save goals to confirm the change.")
             } footer: {
                 Text("Clearing goals changes this draft only until you tap Save goals.")
+                    // Explicit scalable font and free vertical growth for every Dynamic
+                    // Type size (accessibility audit, #179).
+                    .font(AteFont.body(12))
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("nutritionGoals.clearAllHint")
             }
 
@@ -111,7 +115,15 @@ struct NutritionGoalsView: View {
         } message: {
             Text("A private local copy of the unreadable data will be saved before the broken configuration is removed. If the backup cannot be saved, no data will be reset.")
         }
-        .task { loadDraftIfNeeded() }
+        .task {
+            // UI-test-only hook (#179 state coverage), gated on -UITesting like the diary
+            // hooks: reset leftover goal state before loading the draft so suites are isolated.
+            if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-resetNutritionGoals") {
+                UserDefaults.standard.removeObject(forKey: DailyNutritionGoals.defaultsKey)
+                try? NutritionGoalsRepository().storage.remove()
+            }
+            loadDraftIfNeeded()
+        }
     }
 
     @ViewBuilder

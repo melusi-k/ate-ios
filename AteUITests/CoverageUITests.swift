@@ -1,7 +1,8 @@
 import XCTest
 
-/// Features without UI coverage until build 49, plus simulator-side Pilot-gate automation
-/// (A-SHARE-05 backend down, A-CREATE-05 killed mid-generation, A-AUTH-06 expired-session refresh).
+/// Features without UI coverage until build 49, plus simulator-side acceptance automation
+/// (A-CREATE-05 killed mid-generation, A-AUTH-06 expired-session refresh). A-SHARE-05 is
+/// owner-approved out of scope and its backend-outage scenario is intentionally not executed.
 /// Runs as its own ui-suite shard so the whole suite fits the job timeout.
 final class CoverageUITests: XCTestCase {
     var app: XCUIApplication!
@@ -410,8 +411,10 @@ final class CoverageUITests: XCTestCase {
         shot("backend-down-library-intact")
     }
 
-    /// A-SHARE-05: publish outage offers retry or text sharing and preserves the local recipe.
-    func test39_SharePublishOutageFallsBackToTextAndKeepsLibrary() {
+    /// Retained as historical regression coverage only; deliberately skipped because A-SHARE-05
+    /// backend-outage behavior is excluded from the current release QA scope.
+    func test39_SharePublishOutageFallsBackToTextAndKeepsLibrary() throws {
+        throw XCTSkip("A-SHARE-05 is owner-approved N/A for this release; backend-unavailable behavior will not be tested.")
         launch(["-qaSharePublishDown"])
         addPrompt("Keep this stew")
         app.buttons["Share recipe"].tap()

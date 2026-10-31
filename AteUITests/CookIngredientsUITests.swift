@@ -65,6 +65,12 @@ final class CookIngredientsUITests: XCTestCase {
         wait(app.buttons["cookIngredientsDone"], 5)
         shot("cook-ingredients-sheet")
 
+        // The sheet pins the current step's instruction above the list (metric units here).
+        let currentStep = app.descendants(matching: .any)["cookIngredientsCurrentStep"]
+        wait(currentStep, 5)
+        XCTAssertTrue(currentStep.label.contains("Step 1 of 4"), currentStep.label)
+        XCTAssertTrue(currentStep.label.contains("Heat the oven to 200"), currentStep.label)
+
         // Amounts reflect the detail factor: rice 150 g x 2, notes preserved.
         let rice = app.buttons["cookIngredient.4"]
         wait(rice, 5)
@@ -107,6 +113,18 @@ final class CookIngredientsUITests: XCTestCase {
         wait(text("1 of 5 gathered"), 5)
         let rice2 = app.buttons.matching(NSPredicate(format: "identifier == %@ AND label CONTAINS %@", "cookIngredient.4", "450 g")).firstMatch
         wait(rice2, 5)
+        app.buttons["cookIngredientsDone"].tap()
+
+        // The pinned instruction follows the cook screen's current step.
+        wait(text("Step 1 of 4"), 5)
+        app.buttons["cookNextStep"].tap()
+        wait(text("Step 2 of 4"), 5)
+        open.tap()
+        let stepTwo = app.descendants(matching: .any)["cookIngredientsCurrentStep"]
+        wait(stepTwo, 5)
+        XCTAssertTrue(stepTwo.label.contains("Step 2 of 4"), stepTwo.label)
+        XCTAssertTrue(stepTwo.label.contains("Mix miso, honey and garlic"), stepTwo.label)
+        app.buttons["cookIngredientsDone"].tap()
     }
 
     /// Accessibility evidence at an accessibility text size, with imperial units: rows keep
@@ -126,6 +144,13 @@ final class CookIngredientsUITests: XCTestCase {
         open.tap()
         wait(app.buttons["cookIngredientsDone"], 5)
         shot("cook-ingredients-sheet-large-text")
+
+        // The pinned current-step header is readable at this size and shows imperial units.
+        let stepHeader = app.descendants(matching: .any)["cookIngredientsCurrentStep"]
+        wait(stepHeader, 5)
+        XCTAssertTrue(stepHeader.label.contains("Step 1 of 4"), stepHeader.label)
+        XCTAssertTrue(stepHeader.label.contains("390"), stepHeader.label)
+        shot("cook-ingredients-sheet-with-instruction-large-text")
 
         // First row: full VoiceOver content and a usable tap target at accessibility size.
         let first = app.buttons["cookIngredient.0"]

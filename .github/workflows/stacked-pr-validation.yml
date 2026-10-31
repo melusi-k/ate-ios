@@ -1,0 +1,28 @@
+name: Stacked PR validation
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: stacked-pr-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-stack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate stack metadata and parent relationship
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/validate-stacked-pr.py
+      - name: Test stack validator
+        run: python3 -m unittest scripts.tests.test_validate_stacked_pr -v

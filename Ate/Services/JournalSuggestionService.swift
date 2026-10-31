@@ -44,13 +44,28 @@ enum JournalSuggestionService {
 }
 
 /// Local SwiftData store for Ate journal entries (in-memory during UI tests). Never synced.
+/// The container also holds Food Journal meal payloads (#245); opening goes through the same
+/// move-aside recovery as the recipes store (R-DATA-01) so a corrupt journal store is backed up
+/// and reported instead of silently showing an empty journal.
 @MainActor
 final class JournalStore {
     static let shared = JournalStore()
     let container: ModelContainer?
+    /// Non-nil when opening needed recovery or failed over; surfaced by the journal UI (#245 phase 3).
+    private(set) var recovery: StoreRecovery.Outcome?
+    static let storeConfigurationName = "AteJournal"
     init(inMemory: Bool = AppConfig.isUITesting) {
-        container = try? ModelContainer(for: JournalEntry.self,
-                                        configurations: ModelConfiguration("AteJournal", isStoredInMemoryOnly: inMemory))
+        let make: (ModelConfiguration) throws -> ModelContainer = {
+            try ModelContainer(for: JournalEntry.self, JournalMealPayload.self, configurations: $0)
+        }
+        if inMemory {
+            container = try? make(ModelConfiguration(Self.storeConfigurationName, isStoredInMemoryOnly: true))
+            recovery = nil
+        } else {
+            let outcome = StoreRecovery.open(url: ModelConfiguration(Self.storeConfigurationName).url, make: make)
+            container = outcome.container
+            recovery = (outcome.recovered || outcome.inMemoryFallback || outcome.container == nil) ? outcome : nil
+        }
         seedMomentEntryForUITests()
         removeImagePromptEntriesOnce()
     }
@@ -80,7 +95,14 @@ final class JournalStore {
     }
     func delete(_ e: JournalEntry) {
         for f in e.mediaFileNames { try? FileManager.default.removeItem(at: Self.mediaURL(f)) }
-        container?.mainContext.delete(e); try? container?.mainContext.save()
+        if let ctx = container?.mainContext {
+            // A meal entry's structured payload goes with it; the timeline never keeps one without the other (#245).
+            let entryID = e.id
+            if let payload = try? ctx.fetch(FetchDescriptor<JournalMealPayload>(predicate: #Predicate { $0.entryID == entryID })).first {
+                ctx.delete(payload)
+            }
+            ctx.delete(e); try? ctx.save()
+        }
     }
     func entry(_ id: String) -> JournalEntry? { entries().first { $0.id == id } }
     func update(_ e: JournalEntry, text: String) {

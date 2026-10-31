@@ -139,10 +139,13 @@ final class CookIngredientsUITests: XCTestCase {
         // Imperial conversion in the checklist: rice 150 g x 2 renders in ounces.
         // At this text size the last row can be offscreen; scroll the sheet to reach it.
         let scroll = app.scrollViews["cookIngredientsScroll"]
-        var rice = app.buttons.matching(NSPredicate(format: "identifier == %@ AND label CONTAINS %@", "cookIngredient.4", "oz")).firstMatch
-        for _ in 0..<6 where !rice.exists {
+        let riceQuery = NSPredicate(format: "identifier == %@ AND label CONTAINS %@", "cookIngredient.4", "oz")
+        var rice = app.buttons.matching(riceQuery).firstMatch
+        // A row can exist in the hierarchy while still clipped at the scroll edge; keep
+        // scrolling until it is actually on screen and tappable, as a user would.
+        for _ in 0..<8 where !(rice.exists && rice.isHittable) {
             scroll.swipeUp()
-            rice = app.buttons.matching(NSPredicate(format: "identifier == %@ AND label CONTAINS %@", "cookIngredient.4", "oz")).firstMatch
+            rice = app.buttons.matching(riceQuery).firstMatch
         }
         wait(rice, 5)
         XCTAssertTrue(rice.label.contains("11 oz"), rice.label)

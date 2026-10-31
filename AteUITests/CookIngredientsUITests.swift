@@ -156,4 +156,32 @@ final class CookIngredientsUITests: XCTestCase {
         XCTAssertTrue(visibleFrame().contains(rice.frame), "rice row not fully within the sheet's visible frame: \(rice.frame) vs \(scroll.frame)")
         shot("cook-ingredients-sheet-large-text-imperial")
     }
+
+    /// Timer pixel evidence at an accessibility text size: step 3 of the mock card carries a
+    /// 600 s timer, so Cook Mode shows its timer card there. Captures the card before start
+    /// and while running, with the ingredient sheet dismissed.
+    func testCookTimerCardLargeText() {
+        launch(["-UITestLargeText"])
+        addPromptRecipe()
+
+        app.buttons["Cook mode"].tap()
+        wait(text("Step 1 of 4"))
+        app.buttons["cookNextStep"].tap()
+        wait(text("Step 2 of 4"))
+        app.buttons["cookNextStep"].tap()
+        wait(text("Step 3 of 4"))
+
+        // Timer card before start: 10:00 for the step's 600 s, start control present.
+        let value = app.staticTexts["cookTimerValue"]
+        wait(value, 5)
+        XCTAssertTrue(value.label.contains("10:00"), value.label)
+        let start = app.buttons["Start timer"]
+        wait(start, 5)
+        shot("cook-timer-card-step3-large-text")
+
+        // Running state: control flips to Pause and the value leaves 10:00.
+        start.tap()
+        wait(app.buttons["Pause timer"], 5)
+        shot("cook-timer-running-step3-large-text")
+    }
 }

@@ -176,6 +176,44 @@ final class DataArchiveTests: XCTestCase {
         XCTAssertEqual(try fixture.goals.load(), goals)
     }
 
+
+    func testArchiveImportRefusesToOverwriteCorruptLocalDiary() throws {
+        let sourceFixture = makeStore()
+        defer {
+            sourceFixture.defaults.removePersistentDomain(forName: sourceFixture.suite)
+            try? FileManager.default.removeItem(at: sourceFixture.directory)
+        }
+        let diaryEntry = NutritionDiaryEntry(foodName: "Bean stew", date: .now, meal: .dinner, quantity: 1,
+                                             quantityUnit: "bowl", servings: 1, source: .externalFoodRecord,
+                                             sourceName: "FoodData Central", sourceIdentifier: "fdc-123",
+                                             verificationNote: "Exact cooked match", nutrientsPerServing: NutritionSnapshot(
+                                                energyKcal: 340, proteinGrams: 18, carbohydratesGrams: nil,
+                                                fatGrams: 10, fibreGrams: 8))
+        try sourceFixture.diary.save([diaryEntry])
+        try sourceFixture.goals.save(DailyNutritionGoals(energyKcal: 2_000, proteinGrams: 100,
+                                                         carbohydratesGrams: nil, fatGrams: nil,
+                                                         fibreGrams: nil))
+        let data = try sourceFixture.store.exportJSON()
+
+        let destinationFixture = makeStore()
+        defer {
+            destinationFixture.defaults.removePersistentDomain(forName: destinationFixture.suite)
+            try? FileManager.default.removeItem(at: destinationFixture.directory)
+        }
+        let corrupt = Data("not a diary payload".utf8)
+        destinationFixture.defaults.set(corrupt, forKey: NutritionDiaryRepository.storageKey)
+
+        XCTAssertThrowsError(try destinationFixture.store.importJSON(data)) { error in
+            guard let archiveError = error as? AteDataArchiveError, case .localDiaryUnreadable = archiveError else {
+                return XCTFail("expected localDiaryUnreadable, got \(error)")
+            }
+        }
+        // Original bytes preserved; no archive-backed store committed (goals file never written).
+        XCTAssertEqual(destinationFixture.defaults.data(forKey: NutritionDiaryRepository.storageKey), corrupt)
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: destinationFixture.directory.appendingPathComponent("goals.json").path))
+    }
+
     private func makeStore() -> (store: AppStore, diary: NutritionDiaryRepository,
                                  goals: NutritionGoalsRepository, defaults: UserDefaults, suite: String,
                                  directory: URL) {

@@ -28,6 +28,14 @@ struct CookIngredientsSheet: View {
         return Set(s.checked)
     }
 
+    /// The cook screen's current step, read through the live session so the sheet keeps the
+    /// instruction being cooked from on screen while ingredients are checked off.
+    private var currentStep: (index: Int, instruction: String)? {
+        guard let s = store.cookSession, s.recipeID == recipe.id, !recipe.steps.isEmpty else { return nil }
+        let i = min(max(0, s.stepIndex), recipe.steps.count - 1)
+        return (i, Units.convertTemperatures(in: recipe.steps[i].instruction, to: store.settings.units))
+    }
+
     var body: some View {
         let scaled = RecipeLogic.scaled(recipe, factor: factor)
         NavigationStack {
@@ -44,7 +52,22 @@ struct CookIngredientsSheet: View {
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("cookIngredientsEmpty")
                 } else {
-                    ScrollView {
+                    VStack(spacing: 0) {
+                        if let step = currentStep {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Step \(step.index + 1) of \(recipe.steps.count)")
+                                    .font(AteFont.body(12, .semibold)).foregroundStyle(Theme.mutedForeground)
+                                Text(step.instruction)
+                                    .font(AteFont.body(15, .medium)).lineSpacing(2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 10)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityIdentifier("cookIngredientsCurrentStep")
+                            .overlay(alignment: .bottom) { Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1) }
+                        }
+                        ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
                             VStack(alignment: .leading, spacing: 8) {
                                 Picker("Servings", selection: Binding(get: { factor }, set: { store.setCookFactor($0) })) {
@@ -67,9 +90,10 @@ struct CookIngredientsSheet: View {
                                 .frame(maxWidth: .infinity, alignment: .center)
                                 .accessibilityIdentifier("cookIngredientsProgress")
                         }
-                        .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 16)
+                            .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 16)
+                        }
+                        .accessibilityIdentifier("cookIngredientsScroll")
                     }
-                    .accessibilityIdentifier("cookIngredientsScroll")
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -83,7 +107,7 @@ struct CookIngredientsSheet: View {
             }
         }
         // Room to read: the reference pattern of a cramped mini-sheet is deliberately avoided.
-        .presentationDetents([.medium, .large])
+        .modifier(CookSheetDetents())
         .presentationDragIndicator(.visible)
         .cookSheetUITestDynamicType()
     }
@@ -123,6 +147,18 @@ struct CookIngredientsSheet: View {
         .accessibilityHint("Double-tap to toggle")
         .accessibilityAddTraits(isChecked ? .isSelected : [])
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1) }
+    }
+}
+
+/// Detent choice for the ingredient sheet. At accessibility text sizes the pinned step header
+/// plus scaled rows leave under half a checklist row visible at the medium detent, so those
+/// sizes get the large detent only (a half-row medium is not a usable resting checklist);
+/// default sizes keep the medium/large choice unchanged. Read inside the view subtree so the
+/// UI test's forced dynamic type override is honored the same as a real accessibility size.
+private struct CookSheetDetents: ViewModifier {
+    @Environment(\.sizeCategory) private var sizeCategory
+    func body(content: Content) -> some View {
+        content.presentationDetents(sizeCategory.isAccessibilityCategory ? [.large] : [.medium, .large])
     }
 }
 

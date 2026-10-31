@@ -3,6 +3,7 @@ import XCTest
 
 /// Cook Mode ingredient sheet state: the cook session carries the servings factor and the
 /// gathered-ingredient checks, and sessions persisted by older builds still decode.
+@MainActor
 final class CookSessionTests: XCTestCase {
 
     func testLegacySessionWithoutFactorDecodesWithDefaults() throws {

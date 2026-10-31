@@ -453,6 +453,12 @@ jobs:
             "CookSessionTests testSessionRoundTripsFactorAndChecked]' passed" \
             "CookSessionTests testToggleCheckedAddsAndRemoves]' passed" \
             "CookSessionTests testScaledIngredientAmountsFollowSessionFactor]' passed" \
+            "CookSessionTests testScaledAmountsRenderForArbitraryFactor]' passed" \
+            "CookSessionTests testEditingIngredientsClearsGatheredChecks]' passed" \
+            "CookSessionTests testNonIngredientEditKeepsGatheredChecks]' passed" \
+            "CookSessionTests testToggleAfterExternalChangeResetsThenApplies]' passed" \
+            "CookSessionTests testBeginCookSessionResetsChecksWhenIngredientsChanged]' passed" \
+            "CookSessionTests testWholesaleRecipeReplacementClearsChecksPreservesFactorAndStep]' passed" \
             "CookIngredientsUITests testCookIngredientSheetScalesChecksAndPersists]' passed"; do
             grep -qF "$evidence" cook-ingredients-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 cook-ingredients-tests.log; exit 1; }
           done

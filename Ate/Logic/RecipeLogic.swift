@@ -11,10 +11,16 @@ enum RecipeLogic {
         return c
     }
 
-    /// Stable fingerprint of the ingredient list. Gathered checks in a cook session are
-    /// positional, so any change to names, quantities, units or order invalidates them.
+    /// Unambiguous fingerprint of the ingredient list: a JSON array of [name, quantity, unit]
+    /// triples. Gathered checks in a cook session are positional, so any change to names,
+    /// quantities, units or order invalidates them, while separator characters in user or
+    /// imported ingredient text can never make two different lists collide. notes is
+    /// deliberately excluded: editing prep notes alone does not invalidate gathered checks.
+    /// Falls back to "" (reset-on-next-write) if encoding fails.
     static func ingredientSignature(_ card: RecipeCard) -> String {
-        card.ingredients.map { "\($0.name)|\($0.quantity)|\($0.unit)" }.joined(separator: ";")
+        let triples = card.ingredients.map { [$0.name, "\($0.quantity)", $0.unit] }
+        guard let data = try? JSONEncoder().encode(triples), let s = String(data: data, encoding: .utf8) else { return "" }
+        return s
     }
 
     static func normalize(_ card: RecipeCard) -> RecipeCard {

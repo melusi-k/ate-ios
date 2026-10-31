@@ -94,9 +94,7 @@ struct NutritionDiaryView: View {
                     .accessibilityIdentifier("nutritionDiary.total.\(field.rawValue)")
                 }
                 if goals?.isEmpty == true {
-                    NavigationLink {
-                        NutritionGoalsView()
-                    } label: {
+                    NavigationLink(value: Route.nutritionGoals) {
                         Label("Set optional daily goals", systemImage: "target")
                             // Wrap with no line cap: a 2-line limit still clipped at the
                             // largest Dynamic Type sizes (accessibility audit, #179).
@@ -108,9 +106,7 @@ struct NutritionDiaryView: View {
                         .font(AteFont.body(12))
                         .foregroundStyle(Theme.mutedForeground)
                         .accessibilityIdentifier("nutritionDiary.goalsLoadError")
-                    NavigationLink {
-                        NutritionGoalsView()
-                    } label: {
+                    NavigationLink(value: Route.nutritionGoals) {
                         Label("Retry loading daily goals", systemImage: "arrow.clockwise")
                     }
                     .accessibilityIdentifier("nutritionDiary.retryGoals")
@@ -185,8 +181,8 @@ struct NutritionDiaryView: View {
                 Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.error") }
             }
         }
-        // Clear the floating Add bar: without a bottom content margin it occludes the
-        // empty-state copy and the last rows (audit screenshot evidence, #179).
+        // Let the last rows scroll fully clear of the floating tab bar instead of sitting
+        // under it (audit screenshot evidence, #179).
         .contentMargins(.bottom, 96, for: .scrollContent)
         .navigationTitle("Food diary")
         .toolbar {

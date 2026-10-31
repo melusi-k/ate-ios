@@ -110,9 +110,7 @@ final class AccessibilityAuditUITests: XCTestCase {
         if tabBar.exists && !tabBar.frame.isEmpty && tabBar.isHittable { bound = min(bound, tabBar.frame.minY - 4) }
         let accessory = app.buttons["accessoryAdd"]
         if accessory.exists && !accessory.frame.isEmpty && accessory.isHittable { bound = min(bound, accessory.frame.minY - 4) }
-        // Pushed-screen bottom chrome (cook mini-player / timer bar) is a safe-area inset
-        // the List/Form measurably ignores, so it overlays rows: the clear band must end
-        // above the measured chrome frame, not above an estimated padding (#179).
+        // Pushed-screen bottom chrome is also measured when present.
         let miniPlayer = app.buttons["cookSessionMiniPlayer"]
         if miniPlayer.exists && !miniPlayer.frame.isEmpty { bound = min(bound, miniPlayer.frame.minY - 4) }
         let timerBar = app.descendants(matching: .any)["timerBar"]
@@ -471,6 +469,31 @@ final class AccessibilityAuditUITests: XCTestCase {
         app.buttons["Cook mode"].tap()
         try audit("ax5-cook-mode", strict: false)
         let c = XCTAttachment(screenshot: app.screenshot()); c.name = "ax5-cook"; c.lifetime = .keepAlways; add(c)
+
+        // Evidence-only sweep of the nutrition screens at AX5 (non-gating): captures whether
+        // the flagged diary/goals texts clip or stop scaling at the largest size (#179).
+        let exitCook = app.buttons["Exit"]
+        if exitCook.waitForExistence(timeout: 5) { exitCook.tap() }
+        let settingsTab = app.tabBars.buttons["Settings"]
+        guard settingsTab.waitForExistence(timeout: 5) else { return }
+        settingsTab.tap()
+        let diaryEntry = app.buttons["settings.nutritionDiary"]
+        if revealSettingsEntry(diaryEntry) {
+            diaryEntry.tap()
+            if app.navigationBars["Food diary"].waitForExistence(timeout: 10) {
+                try audit("ax5-nutrition-diary", strict: false)
+                let d = XCTAttachment(screenshot: app.screenshot()); d.name = "ax5-nutrition-diary"; d.lifetime = .keepAlways; add(d)
+                app.navigationBars.buttons.element(boundBy: 0).tap()
+                let goalsEntry = app.buttons["settings.nutritionGoals"]
+                if revealSettingsEntry(goalsEntry) {
+                    goalsEntry.tap()
+                    if app.navigationBars["Nutrition goals"].waitForExistence(timeout: 10) {
+                        try audit("ax5-nutrition-goals", strict: false)
+                        let g = XCTAttachment(screenshot: app.screenshot()); g.name = "ax5-nutrition-goals"; g.lifetime = .keepAlways; add(g)
+                    }
+                }
+            }
+        }
     }
 
     /// AX5 sweep, part 3 of 3: nutrition diary and goals, with the cook mini-player capsule

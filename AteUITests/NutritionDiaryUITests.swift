@@ -53,6 +53,8 @@ final class NutritionDiaryUITests: XCTestCase {
         let topBound: CGFloat = (navBar.exists && !navBar.frame.isEmpty) ? navBar.frame.maxY + 4 : 120
         var attempts = 0
         var blockedUps = 0
+        var blockedInBand = 0
+        var dismissedKeyboardForOcclusion = false
         while attempts < max {
             attempts += 1
             guard element.exists, !element.frame.isEmpty else {
@@ -69,11 +71,28 @@ final class NutritionDiaryUITests: XCTestCase {
             let bottomBound = bottomClearBound(app, keyboard: keyboardUp ? keyboard : nil)
             if frame.midY >= topBound && frame.midY <= bottomBound {
                 if element.isHittable { return true }
-                // In band but not tappable after settling: re-measure instead of swiping.
-                // A downward swipe on a sheet whose scroll view is at its top is the
-                // sheet-dismiss gesture (CI: Log-food sheet dismissed with an orphaned
-                // keyboard left over the diary, #179).
-                Thread.sleep(forTimeInterval: 0.3)
+                blockedInBand += 1
+                if keyboardUp && !dismissedKeyboardForOcclusion && blockedInBand >= 3 {
+                    // A settled in-band frame that never becomes hittable is a phantom
+                    // position: the cell renders under the keyboard while the AX tree
+                    // serves its pre-keyboard layout (CI recording: 37s of re-measures on
+                    // nutritionDiary.sourceName with the cell hidden, #179). Drop the
+                    // keyboard and re-measure against honest geometry. Decimal pads have
+                    // no Return key; without one, keep re-measuring and fail with evidence.
+                    let returnKey = app.keyboards.buttons["return"]
+                    if returnKey.waitForExistence(timeout: 2) {
+                        returnKey.tap()
+                        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), "Return should dismiss the keyboard")
+                    }
+                    dismissedKeyboardForOcclusion = true
+                    blockedInBand = 0
+                } else {
+                    // In band but not tappable after settling: re-measure instead of
+                    // swiping. A downward swipe on a sheet whose scroll view is at its
+                    // top is the sheet-dismiss gesture (CI: Log-food sheet dismissed
+                    // with an orphaned keyboard left over the diary, #179).
+                    Thread.sleep(forTimeInterval: 0.3)
+                }
             } else if frame.midY > bottomBound {
                 if keyboardUp && blockedUps >= 4 {
                     // The form cannot rise the target past the keyboard by scrolling. This
@@ -120,11 +139,10 @@ final class NutritionDiaryUITests: XCTestCase {
     /// costs one measured re-centre, re-tap and retype, then fails loudly with a screenshot in
     /// the diagnostics artifact.
     private func typeAfterKeyboard(_ element: XCUIElement, in app: XCUIApplication, _ text: String, file: StaticString = #filePath, line: UInt = #line) {
-        let keyboardWasUp = app.keyboards.firstMatch.exists
         tapWhenHittable(element, in: app, file: file, line: line)
-        if !keyboardWasUp {
-            XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the focused field", file: file, line: line)
-        }
+        // scrollToHittable may have dismissed a keyboard that occluded this field, so
+        // prior existence proves nothing: always wait for the keyboard before typing.
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the focused field", file: file, line: line)
         // Clear any default value first: typeText inserts at the cursor, so typing into a
         // prefilled field appends (CI: "servingbowl" passed a substring check for "bowl",
         // #179). The shipped defaults are single tokens; a double-tap selects the word so

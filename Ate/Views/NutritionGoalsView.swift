@@ -137,10 +137,7 @@ struct NutritionGoalsView: View {
         .background(Theme.background)
         .foregroundStyle(Theme.foreground)
         .navigationTitle("Nutrition goals")
-        // Pushed screen: hide the tab bar so the Save/Cancel actions never rest behind it
-        // (Cancel was rendered faded behind the bar at ~818pt; the bar spans y791-874).
-        // safeAreaPadding(.bottom, 96) provably did not inset pushed-screen content
-        // (diary A/B pixel diff, #179); RecipeDetailView already hides the bar instead.
+        // Pushed screen: hide the tab bar so the Save/Cancel actions never rest behind it.
         .toolbar(.hidden, for: .tabBar)
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Back up and reset unreadable goals?", isPresented: $showingRecoveryConfirmation, titleVisibility: .visible) {

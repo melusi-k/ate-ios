@@ -1,5 +1,9 @@
 # CI execution policy
 
+## Standard iOS simulator target
+
+All simulator-based CI test jobs use the GitHub-hosted `xcode-27` runner image with Xcode 27.1 and the **iPhone 18 Pro simulator on iOS 27.0**. The shared selector `scripts/select-ios-simulator.py` requires that exact device/runtime pair and fails with an actionable diagnostic if it is unavailable; it never silently falls back to an older iPhone or a different iOS runtime. This keeps PR qualification, focused regressions, nightly QA, pre-production validation and full-validation UI shards on the same device profile. The simulator target is an execution environment only and does not change the app's iOS 18 deployment target.
+
 ## Full-validation UI shard concurrency
 
 The full-validation UI suite is split into four independent GitHub Actions matrix jobs:
@@ -9,7 +13,7 @@ The full-validation UI suite is split into four independent GitHub Actions matri
 - `AccessibilityAuditUITests`
 - `WidgetsIntentsUITests`
 
-Each shard job runs on its own `macos-26` runner. Within each job, Xcode is configured for **two simulator test workers**:
+Each shard job runs on its own `xcode-27` runner. Within each job, Xcode is configured for **two simulator test workers**:
 
 ```sh
 -parallel-testing-enabled YES
@@ -21,7 +25,7 @@ This policy is applied consistently to the full UI shard matrix in:
 - `.github/workflows/build-ipa.yml` — deliberate full validation / beta-promotion path.
 - `.github/workflows/preproduction-qa.yml` — pre-production release-candidate validation.
 
-The four-way GitHub Actions matrix remains unchanged. Two workers means up to two Xcode-managed simulator test workers **inside each shard job**; it does not mean one shared simulator across shards, nor does it increase the number of matrix shards. If all four shard jobs run concurrently, the matrix can therefore schedule up to **eight simulator test workers across four macOS runners**.
+The four-way GitHub Actions matrix remains unchanged. Two workers means up to two Xcode-managed iPhone 18 Pro simulator test workers **inside each shard job**; it does not mean one shared simulator across shards, nor does it increase the number of matrix shards. If all four shard jobs run concurrently, the matrix can therefore schedule up to **eight simulator test workers across four macOS runners**.
 
 ## Scope boundaries
 

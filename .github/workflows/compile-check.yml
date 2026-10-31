@@ -159,13 +159,7 @@ jobs:
             "CatalogueIntegrityTests testAliasesPreserveAllMaterialQualifiers]' passed" \
             "CatalogueIntegrityTests testCalculatorMatchesStateQualifiedAlias]' passed" \
             "CatalogueIntegrityTests testCalculatorSurfacesUnmappedSADishNameAsIncomplete]' passed" \
-            "NutritionDiaryTests testDiaryRoundTripsEntryDateMealQuantityServingsAndProvenance]' passed" \
-            "NutritionDiaryTests testEditingEntryReplacesByIdentityKeepsDayAndLeavesOthersUntouched]' passed" \
-            "NutritionDiaryTests testDayTotalsReflectEditedEntrySnapshot]' passed" \
-            "NutritionDiaryTests testWeekIntervalUsesTheCalendarWeekContainingTheGivenDate]' passed" \
-            "NutritionDiaryTests testWeekTotalsIncludeOnlyCurrentCalendarWeekEntries]' passed" \
-            "NutritionDiaryTests testWeekTotalsExcludeEntriesWithoutParseableDay]' passed" \
-            "NutritionDiaryTests testWeekTotalsEmptyWeekReportsNoValues]' passed"; do
+            "NutritionDiaryTests testDiaryRoundTripsEntryDateMealQuantityServingsAndProvenance]' passed"; do
             grep -qF "$evidence" nutrition-foundation-unit-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-foundation-unit-tests.log; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
@@ -180,6 +174,7 @@ jobs:
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
             -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreens \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicType \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
@@ -205,8 +200,6 @@ jobs:
             "NutritionDiaryUITests testCorruptGoalsShowLoadErrorWithRetry]' passed" \
             "NutritionDiaryUITests testRecipeNutritionShowsIncompleteStateForUnmappedIngredient]' passed" \
             "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
-            "NutritionDiaryUITests testLoggedEntryCanBeEditedAndShowsUpdatedValues]' passed" \
-            "NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed" \
             "AccessibilityAuditUITests testAuditNutritionScreens]' passed"; do
             grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }
           done

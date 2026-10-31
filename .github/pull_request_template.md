@@ -19,7 +19,7 @@ Every PR must declare its stack status. Use `None` for standalone PRs.
 - **Parent PR:** None
 - **Position:** None
 
-For stacked PRs, use a stable ID such as `issue-179`, the immediate parent PR number (digits only), and a one-based position such as `2/3`. The child PR base must be the immediate parent's head branch. See [stacked PR workflow](../docs/STACKED_PULL_REQUESTS.md).
+For a stack root, use a stable ID (e.g. `issue-179`), Parent PR `None`, Position `1/Total`, and target `main`. For a child, use the same ID, the immediate parent PR number (digits only), a position such as `2/3`, and target the parent's head branch. See [stacked PR workflow](../docs/STACKED_PULL_REQUESTS.md).
 
 ## Verification
 - [ ] Tests added or updated where appropriate

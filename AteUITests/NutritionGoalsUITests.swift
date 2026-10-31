@@ -37,6 +37,22 @@ final class NutritionGoalsUITests: XCTestCase {
         return bound
     }
 
+    /// Read the element's frame only once it stops moving: two equal reads ~0.2s apart.
+    /// XCTest's isHittable is unreliable mid-bounce (CI: sourceName read not-hittable while
+    /// fully visible during scroll settling, #179).
+    private func settledFrame(of element: XCUIElement) -> CGRect {
+        var last = element.frame
+        var stable = 0
+        var polls = 0
+        while stable < 2 && polls < 10 {
+            Thread.sleep(forTimeInterval: 0.2)
+            let f = element.frame
+            if f.equalTo(last) { stable += 1 } else { stable = 0; last = f }
+            polls += 1
+        }
+        return last
+    }
+
     @discardableResult
     private func scrollTo(_ element: XCUIElement, in app: XCUIApplication, max: Int = 12) -> Bool {
         // Measured from the on-screen navigation bar when present; 120pt fallback matches
@@ -51,26 +67,39 @@ final class NutritionGoalsUITests: XCTestCase {
                 app.swipeUp(velocity: .slow)
                 continue
             }
-            let frame = element.frame
+            // Never judge mid-bounce: after any scroll the frame must settle before band
+            // and hittability are read (CI: not-hittable verdict on a fully visible field
+            // during scroll settling fed the sourceName oscillation, #179).
+            let frame = settledFrame(of: element)
             let keyboard = app.keyboards.firstMatch
             let keyboardUp = keyboard.exists
             let bottomBound = bottomClearBound(app, keyboard: keyboardUp ? keyboard : nil)
             if frame.midY >= topBound && frame.midY <= bottomBound {
                 if element.isHittable { return true }
-                app.swipeDown(velocity: .slow)
+                // In band but not tappable after settling: re-measure instead of swiping.
+                // A downward swipe on a sheet whose scroll view is at its top is the
+                // sheet-dismiss gesture (CI: Log-food sheet dismissed with an orphaned
+                // keyboard left over the diary, #179).
+                Thread.sleep(forTimeInterval: 0.3)
             } else if frame.midY > bottomBound {
-                if keyboardUp && blockedUps >= 2 {
-                    app.swipeDown(velocity: .fast) // drag the keyboard away, then re-measure
+                if keyboardUp && blockedUps >= 4 {
+                    // The form cannot rise the target past the keyboard by scrolling. This
+                    // keyboard shows a Return key (CI recording, #179); tap it and require
+                    // observable dismissal rather than assuming the gesture works.
+                    let returnKey = app.keyboards.buttons["return"]
+                    if returnKey.waitForExistence(timeout: 2) {
+                        returnKey.tap()
+                        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), "Return should dismiss the keyboard")
+                    }
                     blockedUps = 0
                 } else {
                     app.swipeUp(velocity: .slow)
                     blockedUps += 1
                 }
             } else {
-                // Overshot above the band: nudge back down. blockedUps deliberately keeps
-                // counting here - resetting it let a keyboard-blocked field alternate
-                // up/down forever without ever dragging the keyboard away (CI: sourceName
-                // oscillated swipe-up/swipe-down 12 attempts, #179).
+                // Overshot above the band: the scroll view is past its top, so a slow
+                // down-swipe scrolls content back and cannot engage sheet dismissal -
+                // that only triggers at scroll-top, which overshoot rules out.
                 app.swipeDown(velocity: .slow)
             }
         }

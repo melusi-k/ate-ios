@@ -62,7 +62,7 @@ jobs:
 
   compile:
     needs: changes
-    if: false
+    if: ${{ false }}
     runs-on: macos-26
     timeout-minutes: 45
     env:
@@ -511,8 +511,6 @@ jobs:
     timeout-minutes: 360
     env:
       CANDIDATE_SHA: f2969dd5133e9c0bce679b40d74dcd7615432ba0
-      DERIVED_DATA: ${{ runner.temp }}/ate-concurrency-derived-data
-      RESULTS_DIR: ${{ runner.temp }}/ate-concurrency-results
     steps:
       - name: Checkout fixed candidate
         uses: actions/checkout@v7
@@ -541,6 +539,9 @@ jobs:
 
       - name: Build CoverageUITests once
         shell: bash
+        env:
+          DERIVED_DATA: ${{ runner.temp }}/ate-concurrency-derived-data
+          RESULTS_DIR: ${{ runner.temp }}/ate-concurrency-results
         run: |
           set -euo pipefail
           mkdir -p "$RESULTS_DIR"
@@ -567,6 +568,9 @@ jobs:
 
       - name: Run three interleaved serial and parallel trials
         shell: bash
+        env:
+          DERIVED_DATA: ${{ runner.temp }}/ate-concurrency-derived-data
+          RESULTS_DIR: ${{ runner.temp }}/ate-concurrency-results
         run: |
           set -uo pipefail
           SUMMARY="$RESULTS_DIR/summary.csv"

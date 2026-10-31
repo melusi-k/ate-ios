@@ -7,6 +7,9 @@ struct CookIngredientsSheet: View {
     let recipe: RecipeCard
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.sizeCategory) private var sizeCategory
+    /// Resting detent; accessibility text sizes open tall instead (see presentationDetents note).
+    @State private var detent: PresentationDetent = .medium
 
     /// Same factor choices as the recipe detail servings picker.
     private static let factors: [Double] = [1, 2, 3]
@@ -107,7 +110,13 @@ struct CookIngredientsSheet: View {
             }
         }
         // Room to read: the reference pattern of a cramped mini-sheet is deliberately avoided.
-        .presentationDetents([.medium, .large])
+        // At accessibility text sizes the pinned step header plus scaled rows leave under half a
+        // checklist row visible at the medium detent, so those sizes open at the large detent
+        // instead; medium stays reachable by dragging down, and default sizes are unchanged.
+        .presentationDetents([.medium, .large], selection: $detent)
+        .onAppear {
+            if sizeCategory.isAccessibilityCategory, detent == .medium { detent = .large }
+        }
         .presentationDragIndicator(.visible)
         .cookSheetUITestDynamicType()
     }

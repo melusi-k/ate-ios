@@ -64,6 +64,11 @@ jobs:
             exit 1
           }
           SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          if ! grep -Fq "id:$SIM_ID" /tmp/xcode-destinations.txt; then
+            echo "ERROR: selected iPhone 18 Pro is not listed as an Ate scheme destination."
+            cat /tmp/xcode-destinations.txt
+            exit 1
+          fi
           echo "id=$SIM_ID" >> "$GITHUB_OUTPUT"
           echo "Selected simulator: $SIM_ID"
           xcrun simctl boot "$SIM_ID" || true

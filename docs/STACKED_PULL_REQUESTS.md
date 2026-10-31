@@ -12,7 +12,7 @@ Every PR body must contain a `## Stack` section with:
 - **Parent PR:** `None` for standalone or the immediate parent PR number (digits only).
 - **Position:** `None` for standalone or one-based `N/Total` (for example `2/3`).
 
-A stacked PR must link its owning issue, name its immediate parent, target the parent's head branch, use the same Stack ID, increment position by one, and remain in this repository. Each PR contains only its incremental diff. The automated validator checks metadata, parent state, stack ID/position, and base alignment.
+A standalone PR uses `None` for all three fields. A stack root uses a Stack ID, Parent PR `None`, Position `1/Total`, and targets `main`. A child names its immediate parent, targets that parent's head branch, uses the same Stack ID and Total, and increments position by one. Every stacked PR links its owning issue and remains in this repository. Each PR contains only its incremental diff. The automated validator checks root/child metadata, parent state, stack ID/position, and base alignment.
 
 ## Branch and PR conventions
 Use `stack/issue-<number>/<position>-<short-name>`, e.g. `stack/issue-179/02-domain`. The root targets `main`; each child targets its immediate parent's branch. Keep branch names stable. Describe what this layer adds, acceptance criteria addressed, parent/children, tests/evidence, limitations, and whether this PR alone completes the issue. GitHub's comparison view should show only the child's incremental changes.

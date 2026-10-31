@@ -16,11 +16,11 @@ class StackMetadataTests(unittest.TestCase):
         r=run("## Stack\n- **Stack ID:** None\n- **Parent PR:** None\n- **Position:** None\n")
         self.assertEqual(r.returncode,0,r.stdout+r.stderr)
     def test_stack_root_is_valid_on_main(self):
-        r=run("## Stack\\n- **Stack ID:** issue-179\\n- **Parent PR:** None\\n- **Position:** 1/2\\n", base_ref="main")
+        r=run("## Stack\n- **Stack ID:** issue-179\n- **Parent PR:** None\n- **Position:** 1/2\n", base_ref="main")
         self.assertEqual(r.returncode,0,r.stdout+r.stderr)
     def test_stack_root_must_be_first_and_target_main(self):
-        wrong_position=run("## Stack\\n- **Stack ID:** issue-179\\n- **Parent PR:** None\\n- **Position:** 2/2\\n", base_ref="main")
-        wrong_base=run("## Stack\\n- **Stack ID:** issue-179\\n- **Parent PR:** None\\n- **Position:** 1/2\\n")
+        wrong_position=run("## Stack\n- **Stack ID:** issue-179\n- **Parent PR:** None\n- **Position:** 2/2\n", base_ref="main")
+        wrong_base=run("## Stack\n- **Stack ID:** issue-179\n- **Parent PR:** None\n- **Position:** 1/2\n")
         self.assertNotEqual(wrong_position.returncode,0)
         self.assertNotEqual(wrong_base.returncode,0)
     def test_missing_stack_section_fails(self):

@@ -54,7 +54,10 @@ enum HealthServiceFactory {
             let s = i + 1 < arguments.count ? arguments[i + 1] : "recovery"
             return MockHealthKitService(scenario: s)
         }
-        if !AppConfig.isUITesting, let s = defaults.string(forKey: debugKey), scenarios.contains(s) { return MockHealthKitService(scenario: s) }
+        // UI tests must never inherit simulator HealthKit authorization or wait on live queries.
+        // Individual Health acceptance tests opt into a deterministic scenario with -qaMockHealth.
+        if AppConfig.isUITesting { return MockHealthKitService(scenario: "unavailable") }
+        if let s = defaults.string(forKey: debugKey), scenarios.contains(s) { return MockHealthKitService(scenario: s) }
         return LiveHealthKitService()
     }
 }

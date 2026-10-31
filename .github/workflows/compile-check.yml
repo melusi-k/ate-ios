@@ -160,7 +160,7 @@ jobs:
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
-            CODE_SIGNING_ALLOWED=NO > insights-evidence-navigation.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" insights-evidence-navigation.log || true; tail -120 insights-evidence-navigation.log; exit 1; }
+            CODE_SIGNING_ALLOWED=NO > insights-evidence-navigation.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" insights-evidence-navigation.log || true; tail -120 insights-evidence-navigation.log; xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" > insights-test-results.json 2>/dev/null || xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" --format json > insights-test-results.json 2>/dev/null || true; xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" --output-path insights-attachments 2>/dev/null || true; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" insights-evidence-navigation.log | tail -40
 
       - name: Share publish outage fallback UI regression (PR #122)
@@ -488,4 +488,7 @@ jobs:
             library-layout-tests.log
             navigation-header-tests.log
             share-publish-outage-tests.log
+            insights-evidence-navigation.log
+            insights-test-results.json
+            insights-attachments/
             ${{ runner.temp }}/ate-test-results/*.xcresult

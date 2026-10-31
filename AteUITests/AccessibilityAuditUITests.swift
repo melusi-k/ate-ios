@@ -68,7 +68,15 @@ final class AccessibilityAuditUITests: XCTestCase {
     /// the Nutrition section above the fold; SwiftUI then dematerialises its cells and the
     /// entry vanishes from the hierarchy (CI failure on #241). Reset to the top first, then
     /// scroll against the measured frame until the entry's centre is inside the visible band.
-    private func revealSettingsEntry(_ entry: XCUIElement) {
+    /// Returns true only when the measured centre sits inside the band and the entry is
+    /// hittable - callers assert before tapping, so exhaustion fails loudly instead of
+    /// tapping stale coordinates.
+    @discardableResult
+    private func revealSettingsEntry(_ entry: XCUIElement) -> Bool {
+        // Measured from the on-screen navigation bar when present; 120pt fallback matches
+        // the pinned CI simulator (402x874).
+        let navBar = app.navigationBars.firstMatch
+        let topBound: CGFloat = (navBar.exists && !navBar.frame.isEmpty) ? navBar.frame.maxY + 4 : 120
         for _ in 0..<6 { app.swipeDown(velocity: .fast) }
         var attempts = 0
         while attempts < 12 {
@@ -79,8 +87,8 @@ final class AccessibilityAuditUITests: XCTestCase {
             }
             let frame = entry.frame
             let bottomBound = app.windows.firstMatch.frame.maxY - 90 // tab bar
-            if frame.midY >= 120 && frame.midY <= bottomBound {
-                if entry.isHittable { return }
+            if frame.midY >= topBound && frame.midY <= bottomBound {
+                if entry.isHittable { return true }
                 app.swipeDown(velocity: .slow)
             } else if frame.midY > bottomBound {
                 app.swipeUp(velocity: .slow)
@@ -88,6 +96,10 @@ final class AccessibilityAuditUITests: XCTestCase {
                 app.swipeDown(velocity: .slow)
             }
         }
+        guard entry.exists, !entry.frame.isEmpty, entry.isHittable else { return false }
+        let finalFrame = entry.frame
+        let bottomBound = app.windows.firstMatch.frame.maxY - 90
+        return finalFrame.midY >= topBound && finalFrame.midY <= bottomBound
     }
 
     /// #179: the nutrition diary and goals screens must actually be reached and audited -
@@ -98,16 +110,16 @@ final class AccessibilityAuditUITests: XCTestCase {
         app.tabBars.buttons["Settings"].tap()
 
         let diaryEntry = app.buttons["settings.nutritionDiary"]
-        revealSettingsEntry(diaryEntry)
         XCTAssertTrue(diaryEntry.waitForExistence(timeout: 10), "Settings must expose the Food diary entry")
+        XCTAssertTrue(revealSettingsEntry(diaryEntry), "Food diary entry should reveal inside the visible band before tapping")
         diaryEntry.tap()
         XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10), "Food diary screen must open before auditing")
         try audit("nutrition-diary")
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
         let goalsEntry = app.buttons["settings.nutritionGoals"]
-        revealSettingsEntry(goalsEntry)
         XCTAssertTrue(goalsEntry.waitForExistence(timeout: 10), "Settings must expose the Nutrition goals entry")
+        XCTAssertTrue(revealSettingsEntry(goalsEntry), "Nutrition goals entry should reveal inside the visible band before tapping")
         goalsEntry.tap()
         XCTAssertTrue(app.navigationBars["Nutrition goals"].waitForExistence(timeout: 10), "Nutrition goals screen must open before auditing")
         try audit("nutrition-goals")

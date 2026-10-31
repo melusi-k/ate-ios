@@ -28,6 +28,31 @@ struct CookTarget: Identifiable, Equatable { let id: String }
 struct CookSession: Codable, Equatable {
     var recipeID: String
     var stepIndex: Int
+    /// Servings factor chosen for this cook (from the recipe detail picker); drives the ingredient checklist sheet.
+    var factor: Double
+    /// Positions of ingredients the cook has marked as gathered. Lives and dies with the session.
+    var checked: [Int]
+
+    init(recipeID: String, stepIndex: Int, factor: Double = 1, checked: [Int] = []) {
+        self.recipeID = recipeID
+        self.stepIndex = stepIndex
+        self.factor = factor
+        self.checked = checked
+    }
+
+    /// Sessions persisted by older builds carry only recipeID and stepIndex; decode them with defaults
+    /// instead of dropping the session on app upgrade.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        recipeID = try c.decode(String.self, forKey: .recipeID)
+        stepIndex = try c.decode(Int.self, forKey: .stepIndex)
+        factor = try c.decodeIfPresent(Double.self, forKey: .factor) ?? 1
+        checked = try c.decodeIfPresent([Int].self, forKey: .checked) ?? []
+    }
+
+    mutating func toggleChecked(_ index: Int) {
+        if let i = checked.firstIndex(of: index) { checked.remove(at: i) } else { checked.append(index) }
+    }
 }
 
 enum AuthMode: String, Identifiable { case signIn, signUp, newPassword; var id: String { rawValue } }
@@ -191,7 +216,33 @@ final class AppStore {
         UserDefaults.standard.set(data, forKey: cookSessionDefaultsKey)
     }
     func updateCookSession(recipeID: String, stepIndex: Int) {
-        cookSession = CookSession(recipeID: recipeID, stepIndex: max(0, stepIndex))
+        // Moving between steps keeps the session's servings factor and gathered checks.
+        if var s = cookSession, s.recipeID == recipeID {
+            s.stepIndex = max(0, stepIndex)
+            cookSession = s
+        } else {
+            cookSession = CookSession(recipeID: recipeID, stepIndex: max(0, stepIndex))
+        }
+    }
+    /// Opening Cook Mode from the recipe detail carries the chosen servings factor into the session.
+    /// Re-entering the same recipe keeps gathered checks; a different recipe starts fresh.
+    func beginCookSession(recipeID: String, factor: Double) {
+        if var s = cookSession, s.recipeID == recipeID {
+            s.factor = factor
+            cookSession = s
+        } else {
+            cookSession = CookSession(recipeID: recipeID, stepIndex: 0, factor: factor)
+        }
+    }
+    func setCookFactor(_ factor: Double) {
+        guard var s = cookSession else { return }
+        s.factor = factor
+        cookSession = s
+    }
+    func toggleCookIngredientChecked(_ index: Int) {
+        guard var s = cookSession else { return }
+        s.toggleChecked(index)
+        cookSession = s
     }
     func clearCookSession(recipeID: String? = nil) {
         guard recipeID == nil || cookSession?.recipeID == recipeID else { return }

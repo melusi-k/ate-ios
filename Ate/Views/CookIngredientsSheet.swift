@@ -69,6 +69,7 @@ struct CookIngredientsSheet: View {
                         }
                         .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 16)
                     }
+                    .accessibilityIdentifier("cookIngredientsScroll")
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -102,7 +103,7 @@ struct CookIngredientsSheet: View {
                     .frame(width: 28)
                 if !amount.isEmpty {
                     Text(amount).font(AteFont.body(15, .medium)).monospacedDigit()
-                        .frame(width: 84, alignment: .leading)
+                        .frame(minWidth: 84, alignment: .leading)
                         .minimumScaleFactor(0.7)
                 }
                 (Text(ing.name) + Text(notes).foregroundColor(Theme.mutedForeground))

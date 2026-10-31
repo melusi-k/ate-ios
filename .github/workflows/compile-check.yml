@@ -150,7 +150,9 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" library-explore-sheets.log | tail -40
 
       - name: Insights evidence and contextual navigation acceptance (issue #195)
+        id: insights_acceptance
         if: ${{ steps.build.outcome == 'success' }}
+        continue-on-error: true
         run: |
           set -o pipefail
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
@@ -464,6 +466,13 @@ jobs:
           report_failure tracker-ui.log "Cooking Tracker UI (#31)" 31
           report_failure navigation-header-tests.log "Shared navigation header (#68)" 68
           report_failure cook-mode-history.log "Cook Mode completion/history (#31)" 31
+          report_failure insights-evidence-navigation.log "Insights evidence and contextual navigation (#195)" 195
+      - name: Enforce Insights acceptance result (#195)
+        if: ${{ always() && steps.insights_acceptance.outcome == 'failure' }}
+        run: |
+          echo "::error::Insights acceptance failed. Later diagnostics were allowed to run, but the compile gate remains blocked until issue #195 is fixed."
+          exit 1
+
       - name: Upload test diagnostics
         if: always()
         uses: actions/upload-artifact@v7

@@ -40,7 +40,7 @@ enum InsightCandidateEngine {
     static func candidates(
         for input: RecipeProgressInsightInput,
         shoppingItems: [ShoppingItem] = [],
-        nutritionEntries: [NutritionDiaryEntry] = [],
+        nutritionEntries: [NutritionDiaryEntry]? = nil,
         now: Date = Date(),
         calendar: Calendar = .autoupdatingCurrent,
         isEligible: (RankedRecipeInsightCandidate) -> Bool = { _ in true }
@@ -155,7 +155,9 @@ enum InsightCandidateEngine {
 
         let today = calendar.startOfDay(for: now)
         let weekStart = calendar.date(byAdding: .day, value: -6, to: today) ?? today
-        let nutritionWeek = nutritionEntries.filter { entry in
+        // nil means the diary store was unreadable: skip diary-derived candidates rather
+        // than fabricating an empty diary. An empty array means genuinely nothing logged.
+        let nutritionWeek = (nutritionEntries ?? []).filter { entry in
             guard let day = NutritionDiaryDayKey.date(for: entry.dayKey, calendar: calendar) else { return false }
             let normalizedDay = calendar.startOfDay(for: day)
             return normalizedDay >= weekStart && normalizedDay <= today

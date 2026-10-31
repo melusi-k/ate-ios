@@ -11,7 +11,12 @@ final class NutritionDiaryTests: XCTestCase {
         suiteName = "NutritionDiaryTests-\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        repository = NutritionDiaryRepository(defaults: defaults)
+        repository = NutritionDiaryRepository(defaults: defaults, backupDirectory: backupDirectory)
+    }
+
+    private var backupDirectory: URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("NutritionDiaryTests-\(UUID().uuidString)", isDirectory: true)
     }
 
     override func tearDown() {
@@ -116,5 +121,95 @@ final class NutritionDiaryTests: XCTestCase {
         NutritionDiaryEntry(foodName: "Food", date: .now, meal: .lunch, quantity: servings,
                             quantityUnit: "serving", servings: servings, source: .userProvided,
                             sourceName: "You", nutrientsPerServing: nutrients)
+    }
+
+    func testCorruptDiaryIsNotReportedAsOrdinaryEmptyDiary() {
+        let corrupt = Data("not a diary payload".utf8)
+        defaults.set(corrupt, forKey: NutritionDiaryRepository.storageKey)
+        XCTAssertEqual(repository.loadState(), .corrupt)
+        XCTAssertTrue(repository.load().isEmpty)
+        XCTAssertNotEqual(repository.loadState(), .absent)
+    }
+
+    func testAbsentDiaryIsDistinguishedFromCorruptDiary() {
+        XCTAssertEqual(repository.loadState(), .absent)
+    }
+
+    func testSaveRefusesToOverwriteCorruptDiary() {
+        let corrupt = Data("not a diary payload".utf8)
+        defaults.set(corrupt, forKey: NutritionDiaryRepository.storageKey)
+        let entry = NutritionDiaryEntry(foodName: "Pap", date: Date(timeIntervalSince1970: 1_790_000_000),
+                                        meal: .breakfast, quantity: 150, quantityUnit: "g", servings: 1,
+                                        source: .userProvided, sourceName: "You",
+                                        nutrientsPerServing: NutritionSnapshot(energyKcal: 200, proteinGrams: 5,
+                                                                               carbohydratesGrams: 40, fatGrams: 2, fibreGrams: 3))
+        XCTAssertThrowsError(try repository.save([entry])) { error in
+            XCTAssertEqual(error as? NutritionDiaryLoadError, .storedDataInvalid)
+        }
+        XCTAssertEqual(defaults.data(forKey: NutritionDiaryRepository.storageKey), corrupt)
+    }
+
+    func testRecoverCorruptDiaryBacksUpOriginalBytesThenResets() throws {
+        let corrupt = Data("not a diary payload".utf8)
+        defaults.set(corrupt, forKey: NutritionDiaryRepository.storageKey)
+        try repository.recoverCorruptData()
+        XCTAssertNil(defaults.data(forKey: NutritionDiaryRepository.storageKey))
+        XCTAssertEqual(repository.loadState(), .absent)
+        let backups = try FileManager.default.contentsOfDirectory(atPath: repository.backupDirectory.path)
+        XCTAssertEqual(backups.count, 1)
+        let backedUp = try Data(contentsOf: repository.backupDirectory.appendingPathComponent(backups[0]))
+        XCTAssertEqual(backedUp, corrupt)
+        try repository.save([])
+        XCTAssertEqual(repository.loadState(), .loaded([]))
+    }
+
+    func testRecoverCorruptDiaryPreservesOriginalWhenBackupWriteFails() throws {
+        let corrupt = Data("not a diary payload".utf8)
+        defaults.set(corrupt, forKey: NutritionDiaryRepository.storageKey)
+        // A backup directory whose parent is a plain file cannot be created.
+        let blockingFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("NutritionDiaryTests-blocker-\(UUID().uuidString)")
+        try Data("blocker".utf8).write(to: blockingFile)
+        defer { try? FileManager.default.removeItem(at: blockingFile) }
+        let failingRepository = NutritionDiaryRepository(
+            defaults: defaults,
+            backupDirectory: blockingFile.appendingPathComponent("backups", isDirectory: true))
+        XCTAssertThrowsError(try failingRepository.recoverCorruptData())
+        XCTAssertEqual(defaults.data(forKey: NutritionDiaryRepository.storageKey), corrupt)
+    }
+
+    func testRecoverThrowsWhenNoDataExists() {
+        XCTAssertThrowsError(try repository.recoverCorruptData()) { error in
+            XCTAssertEqual(error as? NutritionDiaryRecoveryError, .noCorruptData)
+        }
+    }
+
+    func testRecoverThrowsWhenDataIsValidAndLeavesItUntouched() throws {
+        try repository.save([])
+        XCTAssertThrowsError(try repository.recoverCorruptData()) { error in
+            XCTAssertEqual(error as? NutritionDiaryRecoveryError, .dataIsValid)
+        }
+        XCTAssertEqual(repository.loadState(), .loaded([]))
+    }
+
+    func testDayTotalsOverflowingScaleUpReportsUnavailableNotInfinity() {
+        // 2e307 is finite, but 2e307 * 10 overflows to infinity when scaling for rounding.
+        let entry = NutritionDiaryEntry(foodName: "Huge", date: Date(timeIntervalSince1970: 1_790_000_000),
+                                        meal: .lunch, quantity: 1, quantityUnit: "g", servings: 1,
+                                        source: .userProvided, sourceName: "You",
+                                        nutrientsPerServing: NutritionSnapshot(energyKcal: 2e307, proteinGrams: nil,
+                                                                               carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil))
+        let totals = NutritionDayTotals.calculate(entries: [entry])
+        XCTAssertNil(totals.value(for: .energy))
+    }
+
+    func testDayTotalsLargeFiniteSumStillRoundsNormally() {
+        let entry = NutritionDiaryEntry(foodName: "Large", date: Date(timeIntervalSince1970: 1_790_000_000),
+                                        meal: .lunch, quantity: 1, quantityUnit: "g", servings: 1,
+                                        source: .userProvided, sourceName: "You",
+                                        nutrientsPerServing: NutritionSnapshot(energyKcal: 1e307, proteinGrams: nil,
+                                                                               carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil))
+        let totals = NutritionDayTotals.calculate(entries: [entry])
+        XCTAssertEqual(totals.value(for: .energy), 1e307)
     }
 }

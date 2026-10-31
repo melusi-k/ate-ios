@@ -5,6 +5,10 @@ struct NutritionDiaryView: View {
     @State private var entries: [NutritionDiaryEntry] = []
     @State private var selectedDayKey = NutritionDiaryDayKey.make(.now)
     @State private var errorMessage: String?
+    @State private var diaryDataCorrupt = false
+    @State private var showingRecoveryConfirmation = false
+    @State private var recoveryNotice: String?
+    @State private var recoveryFailure: String?
     private let repository: NutritionDiaryRepository
     private let goalsRepository: NutritionGoalsRepository
 
@@ -31,6 +35,34 @@ struct NutritionDiaryView: View {
     var body: some View {
         @Bindable var store = store
         List {
+            if diaryDataCorrupt {
+                Section {
+                    Label("Food diary data couldn't be read safely. Logging and saving are disabled until the data is backed up and reset.", systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("nutritionDiary.corruptDataError")
+                    Button("Back up and reset diary…", role: .destructive) {
+                        showingRecoveryConfirmation = true
+                    }
+                    .accessibilityIdentifier("nutritionDiary.recoverCorruptData")
+                }
+            }
+            if let recoveryNotice {
+                Section {
+                    Label(recoveryNotice, systemImage: "checkmark.circle")
+                        .foregroundStyle(Theme.mutedForeground)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("nutritionDiary.recoveryNotice")
+                }
+            }
+            if let recoveryFailure {
+                Section {
+                    Label(recoveryFailure, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("nutritionDiary.recoveryError")
+                }
+            }
             Section {
                 DatePicker("Diary date", selection: selectedDateBinding, displayedComponents: .date)
                     .accessibilityIdentifier("nutritionDiary.date")
@@ -121,6 +153,7 @@ struct NutritionDiaryView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { store.showNutritionDiaryEntry = true } label: { Label("Log food", systemImage: "plus") }
                     .accessibilityIdentifier("nutritionDiary.add")
+                    .disabled(diaryDataCorrupt)
             }
         }
         .sheet(isPresented: $store.showNutritionDiaryEntry) {
@@ -137,7 +170,38 @@ struct NutritionDiaryView: View {
             if ProcessInfo.processInfo.arguments.contains("-resetNutritionDiary") {
                 UserDefaults.standard.removeObject(forKey: NutritionDiaryRepository.storageKey)
             }
-            entries = repository.load()
+            reloadDiary()
+        }
+        .alert("Back up and reset diary?", isPresented: $showingRecoveryConfirmation) {
+            Button("Back up and reset", role: .destructive) { recoverDiary() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The unreadable diary data is saved to a backup file on this device, then removed from the diary. The backup file is kept for support.")
+        }
+    }
+
+    private func reloadDiary() {
+        switch repository.loadState() {
+        case .loaded(let loaded):
+            entries = loaded
+            diaryDataCorrupt = false
+        case .absent:
+            entries = []
+            diaryDataCorrupt = false
+        case .corrupt:
+            entries = []
+            diaryDataCorrupt = true
+        }
+    }
+
+    private func recoverDiary() {
+        do {
+            try repository.recoverCorruptData()
+            recoveryNotice = "The unreadable diary was backed up to a file on this device and reset."
+            recoveryFailure = nil
+            reloadDiary()
+        } catch {
+            recoveryFailure = "The diary couldn't be reset safely. Please try again."
         }
     }
 
@@ -148,7 +212,10 @@ struct NutritionDiaryView: View {
 
     private func persist() {
         do { try repository.save(entries); errorMessage = nil }
-        catch { errorMessage = "Your diary couldn’t be saved. Please try again." }
+        catch let error as NutritionDiaryLoadError {
+            diaryDataCorrupt = true
+            errorMessage = error.errorDescription
+        } catch { errorMessage = "Your diary couldn’t be saved. Please try again." }
     }
 }
 

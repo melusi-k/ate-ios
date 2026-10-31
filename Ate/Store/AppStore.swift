@@ -91,12 +91,16 @@ enum AteDataArchiveError: LocalizedError {
     case unsupportedFormat
     case unsupportedVersion(Int)
     case invalidNutritionEntry
+    case localDiaryUnreadable
+    case localDiaryUnreadableOnExport
 
     var errorDescription: String? {
         switch self {
         case .unsupportedFormat: "This file is not a supported ate data export."
         case .unsupportedVersion(let version): "This ate data export version (\(version)) is not supported."
         case .invalidNutritionEntry: "This export contains an invalid food diary entry. No data was imported."
+        case .localDiaryUnreadable: "Your saved food diary couldn't be read safely. No data was imported. Back up and reset the diary, then import again."
+        case .localDiaryUnreadableOnExport: "Your saved food diary couldn't be read safely. No export was created. Back up and reset the diary, then export again."
         }
     }
 }
@@ -494,6 +498,9 @@ final class AppStore {
         guard archive.nutritionDiaryEntries.allSatisfy(NutritionDiaryValidation.isValid) else {
             throw AteDataArchiveError.invalidNutritionEntry
         }
+        // An unreadable local diary must never be overwritten by imported data:
+        // refuse the whole import before any archive-backed store is written.
+        if case .corrupt = nutritionDiaryRepository.loadState() { throw AteDataArchiveError.localDiaryUnreadable }
 
         let recipeResult = importRecipesPreservingExisting(archive.recipes)
         var shoppingIDs = Set(shopping.map(\.id))
@@ -525,6 +532,9 @@ final class AppStore {
     }
 
     func exportJSON() throws -> Data {
+        // An unreadable local diary must not be exported as an ordinary empty diary:
+        // fail visibly instead of producing an archive that claims nothing was logged.
+        if case .corrupt = nutritionDiaryRepository.loadState() { throw AteDataArchiveError.localDiaryUnreadableOnExport }
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         let archive = AteDataArchive(recipes: recipes, shoppingItems: shopping,

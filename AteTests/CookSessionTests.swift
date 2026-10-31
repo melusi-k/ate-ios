@@ -127,4 +127,16 @@ final class CookSessionTests: XCTestCase {
         XCTAssertEqual(store.cookSession?.factor, 2)
         XCTAssertEqual(store.cookSession?.stepIndex, 1)
     }
+
+    /// Separator characters in user or imported ingredient text must not let two different
+    /// ingredient lists produce the same signature (would keep checks pointing at wrong rows).
+    func testIngredientSignatureResistsSeparatorCollisions() {
+        var a = RecipeCard()
+        a.ingredients = [Ingredient(name: "salt|100.0|", quantity: 0, unit: "g", notes: nil)]
+        var b = RecipeCard()
+        b.ingredients = [Ingredient(name: "salt", quantity: 100, unit: "|0.0|g", notes: nil)]
+        // In the naive "name|qty|unit" join both lists yield "salt|100.0||0.0|g".
+        XCTAssertNotEqual(RecipeLogic.ingredientSignature(a), RecipeLogic.ingredientSignature(b))
+        XCTAssertEqual(RecipeLogic.ingredientSignature(a), RecipeLogic.ingredientSignature(a))
+    }
 }

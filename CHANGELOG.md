@@ -4,6 +4,12 @@ Every feature commit adds a line under **Unreleased**. CI publishes that section
 
 ## Unreleased
 
+### 💬 In-app beta feedback
+- Added Settings → Beta & diagnostics → Share Feedback for recognised beta-channel builds. Testers can submit bug reports, feature requests, UI/UX suggestions or general feedback directly from Ate.
+- Submissions go through a validated Supabase Edge Function into a private, service-role-only `beta_feedback` table. The client includes app version, build number, channel and short Git SHA; reply email is optional and explicitly opt-in.
+- Added independent atomic rate limits (5/hour and 20/day per hashed client address), strict request-size/content validation, no client read access, and deployment/privacy documentation. No screenshots, recipe content, account IDs, device IDs or local diagnostics are uploaded in this first iteration.
+- Updated beta tester and privacy documentation. Screenshot attachments remain a separately scoped follow-up.
+
 ### 🧭 Navigation
 - Removed the dedicated More/Beta hub from the main tab bar. Beta testing and expectations are now reached from Settings › Beta testing in beta-channel builds only; the primary navigation is Library, Shopping, Tracker, Settings, plus the iOS 26 Search-role tab.
 - **Production channel gate:** the Beta banner and Settings entry are visible only for allow-listed channels (TierA/TierB/TierC/Beta/QA/Internal/Development). Empty, unknown, and Production channels hide them; project.yml defaults to an empty channel and CI beta builds explicitly set TierA.

@@ -107,6 +107,13 @@ struct SettingsView: View {
                                 Label("Beta testing", systemImage: "checklist")
                             }
                             .accessibilityIdentifier("settings.betaTesting")
+
+                            NavigationLink {
+                                BetaFeedbackView()
+                            } label: {
+                                Label("Share Feedback", systemImage: "message.badge")
+                            }
+                            .accessibilityIdentifier("settings.shareFeedback")
                         }
                     }
                     Section("Diagnostics") {

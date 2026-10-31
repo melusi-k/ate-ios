@@ -11,7 +11,7 @@ Thanks for testing ate. This is a controlled beta: the core works, some edges ar
 - **Widgets, Control Center and Siri:** add the ate widgets from the Home Screen (long-press → Edit → Add Widget → ate) and the Kitchen timer from Control Center. On a free Apple ID the widgets may only say "Open ate" if Sideloadly didn't keep the App Group; check Settings › Beta testing › Widgets. Siri ("Start cook mode in ate", "Add milk to my ate list") works regardless.
 - **Cooking Tracker:** a day is recorded only when you reach the final Cook Mode step and tap **Finish cooking**; opening Cook Mode and exiting early does not count. History is stored locally and is not synced.
 - **Your data:** export it from Settings › Tools now and then.
-- **Feedback:** melusi.l.k@gmail.com — say what you tapped, what you expected, and include a screenshot plus the version line from Settings › About.
+- **Feedback:** open Settings › Beta & diagnostics › Share Feedback. Choose a category and describe what happened; version, build, beta channel and short Git SHA are included automatically. Providing an email address is optional and only needed if you want a reply. Do not include passwords, payment details or other people's personal information. Screenshot attachments are not supported yet. You can still email melusi.l.k@gmail.com if needed.
 
 ## Widgets on a free Apple ID (App Group)
 

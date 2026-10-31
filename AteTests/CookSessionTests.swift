@@ -140,4 +140,29 @@ final class CookSessionTests: XCTestCase {
         XCTAssertNotEqual(RecipeLogic.ingredientSignature(a), RecipeLogic.ingredientSignature(b))
         XCTAssertEqual(RecipeLogic.ingredientSignature(a), RecipeLogic.ingredientSignature(a))
     }
+
+    /// The active session owns its servings factor: re-entering the same recipe keeps it;
+    /// only starting a genuinely new session adopts the caller's detail selection.
+    func testReenteringSameRecipeKeepsSessionFactor() {
+        let store = makeStore()
+        store.recipes = [card("r1", ["rice", "miso"]), card("r2", ["beans"])]
+        store.beginCookSession(recipeID: "r1", factor: 2)
+        store.setCookFactor(3)
+        store.beginCookSession(recipeID: "r1", factor: 2) // re-entry from the detail
+        XCTAssertEqual(store.cookSession?.factor, 3)
+        store.beginCookSession(recipeID: "r2", factor: 2) // genuinely new session
+        XCTAssertEqual(store.cookSession?.factor, 2)
+    }
+
+    /// The checklist amount pipeline renders both unit systems: metric stays in grams,
+    /// imperial converts to ounces, and non-convertible units pass through unchanged in both.
+    func testChecklistAmountsRenderMetricAndImperial() {
+        let scaled = RecipeLogic.scaled(card("r1", ["rice"]), factor: 3)
+        let rice = scaled.ingredients[0] // 100 g x 3
+        XCTAssertEqual(CookIngredientsSheet.checklistAmount(for: rice, to: .metric), "300 g")
+        XCTAssertEqual(CookIngredientsSheet.checklistAmount(for: rice, to: .imperial), "11 oz")
+        let garlic = Ingredient(name: "garlic", quantity: 2, unit: "cloves", notes: nil)
+        XCTAssertEqual(CookIngredientsSheet.checklistAmount(for: garlic, to: .metric), "2 cloves")
+        XCTAssertEqual(CookIngredientsSheet.checklistAmount(for: garlic, to: .imperial), "2 cloves")
+    }
 }

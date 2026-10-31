@@ -158,7 +158,7 @@ jobs:
           set +e
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
             -only-testing:AteUITests/KeyFlowsQATests -resultBundlePath build/QA.xcresult \
-            -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            -parallel-testing-enabled YES -parallel-testing-worker-count 2 -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee qa.log | grep --line-buffered -E "Test Case|Test Suite|error:|Testing (started|failed)|Restarting after"
           STATUS=${PIPESTATUS[0]}
           set -e
@@ -613,7 +613,9 @@ jobs:
           fi
           echo "All required focused full-validation gates passed."
 
-  # Full UI shards are required for beta promotion; each shard uploads diagnostics on failure.
+  # Full UI shards are required for beta promotion. Keep four independent Actions jobs;
+  # each shard uses two Xcode simulator workers to reduce its critical path. Focused
+  # regressions above remain serial. See docs/CI.md for policy, rationale and rollback.
   ui-suite:
     if: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
     strategy:

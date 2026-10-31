@@ -10,6 +10,7 @@ from typing import Any
 
 EXPECTED_DEVICE = "iPhone 18 Pro"
 EXPECTED_RUNTIME = "iOS-27-0"
+EXPECTED_RUNTIME_LABEL = "iOS 27.0"
 
 
 def select_device(devices: dict[str, list[dict[str, Any]]]) -> str | None:
@@ -49,7 +50,7 @@ def main() -> int:
             for device in entries
         ]
         print(
-            f"ERROR: required {EXPECTED_DEVICE} simulator on {EXPECTED_RUNTIME.replace('-', '.')} "
+            f"ERROR: required {EXPECTED_DEVICE} simulator on {EXPECTED_RUNTIME_LABEL} "
             "is not available. Use the xcode-27 runner image with Xcode 27.1; "
             "no fallback device will be selected.",
             file=sys.stderr,

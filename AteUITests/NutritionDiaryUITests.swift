@@ -221,4 +221,45 @@ final class NutritionDiaryUITests: XCTestCase {
         XCTAssertEqual(diaryRows(app, containing: "My lunch").allElementsBoundByIndex.count, 1,
                        "edit must keep one row with the same identity")
     }
+
+    func testThisWeekSectionShowsTotalsForLoggedEntries() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-resetNutritionDiary"]
+        app.launch()
+        openDiary(app)
+
+        let weeklyEmpty = app.staticTexts["Nothing logged this week yet."]
+        var scrolls = 0
+        while !weeklyEmpty.exists && scrolls < 8 {
+            app.swipeUp(velocity: .slow)
+            scrolls += 1
+        }
+        XCTAssertTrue(weeklyEmpty.waitForExistence(timeout: 5), "This week empty state should be reachable")
+
+        openLogForm(app)
+        let foodName = app.textFields["nutritionDiary.foodName"]
+        XCTAssertTrue(foodName.waitForExistence(timeout: 5))
+        foodName.tap()
+        foodName.typeText("Week lunch")
+        let energy = app.textFields["nutritionDiary.nutrient.energy"]
+        scrolls = 0
+        while !energy.exists && scrolls < 8 {
+            app.swipeUp(velocity: .slow)
+            scrolls += 1
+        }
+        XCTAssertTrue(energy.waitForExistence(timeout: 5))
+        energy.tap()
+        energy.typeText("200")
+        app.buttons["nutritionDiary.save"].tap()
+
+        let weeklyEnergy = app.staticTexts["nutritionDiary.weeklyTotal.energy.value"]
+        scrolls = 0
+        while !weeklyEnergy.exists && scrolls < 8 {
+            app.swipeUp(velocity: .slow)
+            scrolls += 1
+        }
+        XCTAssertTrue(weeklyEnergy.waitForExistence(timeout: 5), "This week section should list an energy total")
+        XCTAssertEqual(weeklyEnergy.label, "200 kcal")
+        XCTAssertFalse(app.staticTexts["Nothing logged this week yet."].exists)
+    }
 }

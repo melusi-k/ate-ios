@@ -64,6 +64,32 @@ final class AccessibilityAuditUITests: XCTestCase {
         }
     }
 
+    /// Reveal a Settings form entry before tapping it. The previous up-only loop could push
+    /// the Nutrition section above the fold; SwiftUI then dematerialises its cells and the
+    /// entry vanishes from the hierarchy (CI failure on #241). Reset to the top first, then
+    /// scroll against the measured frame until the entry's centre is inside the visible band.
+    private func revealSettingsEntry(_ entry: XCUIElement) {
+        for _ in 0..<6 { app.swipeDown(velocity: .fast) }
+        var attempts = 0
+        while attempts < 12 {
+            attempts += 1
+            guard entry.exists, !entry.frame.isEmpty else {
+                app.swipeUp(velocity: .slow)
+                continue
+            }
+            let frame = entry.frame
+            let bottomBound = app.windows.firstMatch.frame.maxY - 90 // tab bar
+            if frame.midY >= 120 && frame.midY <= bottomBound {
+                if entry.isHittable { return }
+                app.swipeDown(velocity: .slow)
+            } else if frame.midY > bottomBound {
+                app.swipeUp(velocity: .slow)
+            } else {
+                app.swipeDown(velocity: .slow)
+            }
+        }
+    }
+
     /// #179: the nutrition diary and goals screens must actually be reached and audited -
     /// absent navigation fails the test instead of silently skipping the audit.
     func testAuditNutritionScreens() throws {
@@ -72,11 +98,7 @@ final class AccessibilityAuditUITests: XCTestCase {
         app.tabBars.buttons["Settings"].tap()
 
         let diaryEntry = app.buttons["settings.nutritionDiary"]
-        var diaryScrolls = 0
-        while !(diaryEntry.exists && diaryEntry.isHittable) && diaryScrolls < 8 {
-            app.swipeUp(velocity: .slow)
-            diaryScrolls += 1
-        }
+        revealSettingsEntry(diaryEntry)
         XCTAssertTrue(diaryEntry.waitForExistence(timeout: 10), "Settings must expose the Food diary entry")
         diaryEntry.tap()
         XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10), "Food diary screen must open before auditing")
@@ -84,11 +106,7 @@ final class AccessibilityAuditUITests: XCTestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
         let goalsEntry = app.buttons["settings.nutritionGoals"]
-        var goalsScrolls = 0
-        while !(goalsEntry.exists && goalsEntry.isHittable) && goalsScrolls < 8 {
-            app.swipeUp(velocity: .slow)
-            goalsScrolls += 1
-        }
+        revealSettingsEntry(goalsEntry)
         XCTAssertTrue(goalsEntry.waitForExistence(timeout: 10), "Settings must expose the Nutrition goals entry")
         goalsEntry.tap()
         XCTAssertTrue(app.navigationBars["Nutrition goals"].waitForExistence(timeout: 10), "Nutrition goals screen must open before auditing")

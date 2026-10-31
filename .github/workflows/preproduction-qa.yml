@@ -324,6 +324,8 @@ jobs:
             cook-mode-history.log
             ${{ runner.temp }}/ate-test-results/*.xcresult
 
+  # Four independent shard jobs; two Xcode simulator workers within each shard.
+  # Focused UI acceptance steps above deliberately remain serial. See docs/CI.md.
   full-ui-suite:
     name: Full UI suite (${{ matrix.shard }})
     runs-on: macos-26
@@ -367,7 +369,7 @@ jobs:
           set +e
           xcodebuild test -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/${{ matrix.shard }} -resultBundlePath build/UITests.xcresult \
-            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -parallel-testing-enabled YES -parallel-testing-worker-count 2 -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > uitest.log 2>&1
           status=$?

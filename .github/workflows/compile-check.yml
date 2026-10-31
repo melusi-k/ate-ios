@@ -57,6 +57,8 @@ jobs:
 
       - name: Validate docs IDs and generated checklist consistency
         run: python3 scripts/check-ids.py
+      - name: Test release-readiness evidence logic
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
 
   compile:
     needs: changes

@@ -7,9 +7,6 @@ struct CookIngredientsSheet: View {
     let recipe: RecipeCard
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.sizeCategory) private var sizeCategory
-    /// Resting detent; accessibility text sizes open tall instead (see presentationDetents note).
-    @State private var detent: PresentationDetent = .medium
 
     /// Same factor choices as the recipe detail servings picker.
     private static let factors: [Double] = [1, 2, 3]
@@ -110,13 +107,7 @@ struct CookIngredientsSheet: View {
             }
         }
         // Room to read: the reference pattern of a cramped mini-sheet is deliberately avoided.
-        // At accessibility text sizes the pinned step header plus scaled rows leave under half a
-        // checklist row visible at the medium detent, so those sizes open at the large detent
-        // instead; medium stays reachable by dragging down, and default sizes are unchanged.
-        .presentationDetents([.medium, .large], selection: $detent)
-        .onAppear {
-            if sizeCategory.isAccessibilityCategory, detent == .medium { detent = .large }
-        }
+        .modifier(CookSheetDetents())
         .presentationDragIndicator(.visible)
         .cookSheetUITestDynamicType()
     }
@@ -156,6 +147,18 @@ struct CookIngredientsSheet: View {
         .accessibilityHint("Double-tap to toggle")
         .accessibilityAddTraits(isChecked ? .isSelected : [])
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1) }
+    }
+}
+
+/// Detent choice for the ingredient sheet. At accessibility text sizes the pinned step header
+/// plus scaled rows leave under half a checklist row visible at the medium detent, so those
+/// sizes get the large detent only (a half-row medium is not a usable resting checklist);
+/// default sizes keep the medium/large choice unchanged. Read inside the view subtree so the
+/// UI test's forced dynamic type override is honored the same as a real accessibility size.
+private struct CookSheetDetents: ViewModifier {
+    @Environment(\.sizeCategory) private var sizeCategory
+    func body(content: Content) -> some View {
+        content.presentationDetents(sizeCategory.isAccessibilityCategory ? [.large] : [.medium, .large])
     }
 }
 

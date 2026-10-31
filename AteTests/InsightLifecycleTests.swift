@@ -445,7 +445,7 @@ final class InsightLifecycleTests: XCTestCase {
         // nil (diary unreadable) must not produce diary-derived candidates; it is not an empty diary.
         let now = Date(timeIntervalSince1970: 1_790_000_000)
         let calendar = Calendar.autoupdatingCurrent
-        let input = RecipeProgressInsightInput.make(recipes: [], historyEvents: [])
+        let input = RecipeProgressInsightInput.make(recipes: [], historyEvents: [:])
         let candidates = InsightCandidateEngine.candidates(for: input, nutritionEntries: nil, now: now, calendar: calendar)
         XCTAssertFalse(candidates.contains { $0.id == "nutrition-diary-coverage" })
     }

@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   compile:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 90
     env:
       ATE_SIGN_STYLE: Automatic
@@ -25,24 +25,24 @@ jobs:
       - uses: actions/checkout@v7
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "27.1"
       - name: Cache Xcode DerivedData
         uses: actions/cache@v6
         with:
           path: ~/Library/Developer/Xcode/DerivedData
-          key: macos-26-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          key: xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
           restore-keys: |
-            macos-26-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
-            macos-26-xcode-deriveddata-
+            xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            xcode-27-xcode-deriveddata-
       - name: Validate docs IDs and generated checklist consistency
         run: python3 scripts/check-ids.py
       - name: Cache Homebrew downloads
         uses: actions/cache@v6
         with:
           path: ~/Library/Caches/Homebrew
-          key: macos-26-homebrew-xcodegen-v1
+          key: xcode-27-homebrew-xcodegen-v1
           restore-keys: |
-            macos-26-homebrew-
+            xcode-27-homebrew-
       - run: brew install xcodegen && xcodegen generate
       - name: Prepare diagnostics directory
         run: mkdir -p "$RUNNER_TEMP/ate-test-results"
@@ -51,7 +51,8 @@ jobs:
         run: |
           set -o pipefail
           STEP_START=$(date +%s)
-          SIM_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=json.load(sys.stdin)["devices"];print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "Selected iPhone 18 Pro simulator (iOS 27.0): $SIM_ID"
           echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
 
           set +e
@@ -328,7 +329,7 @@ jobs:
   # Focused UI acceptance steps above deliberately remain serial. See docs/CI.md.
   full-ui-suite:
     name: Full UI suite (${{ matrix.shard }})
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -338,31 +339,26 @@ jobs:
       - uses: actions/checkout@v7
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "27.1"
       - uses: actions/cache@v6
         with:
           path: ~/Library/Developer/Xcode/DerivedData
-          key: macos-26-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          key: xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
           restore-keys: |
-            macos-26-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
-            macos-26-xcode-deriveddata-
+            xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            xcode-27-xcode-deriveddata-
       - uses: actions/cache@v6
         with:
           path: ~/Library/Caches/Homebrew
-          key: macos-26-homebrew-xcodegen-v1
+          key: xcode-27-homebrew-xcodegen-v1
           restore-keys: |
-            macos-26-homebrew-
+            xcode-27-homebrew-
       - name: Generate Xcode project
         run: brew install xcodegen && xcodegen generate
       - name: Run complete UI shard
         run: |
           set -o pipefail
-          SIM_ID=$(xcrun simctl list devices available -j | python3 -c '
-          import json,sys
-          d=json.load(sys.stdin)["devices"]
-          c=[(k,x) for k,v in d.items() if "iOS-26" in k for x in v if x["name"]=="iPhone 17"]
-          c=c or [(k,x) for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")]
-          c.sort(key=lambda t:t[0]); print(c[-1][1]["udid"])')
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
           xcrun simctl boot "$SIM_ID" || true
           xcrun simctl bootstatus "$SIM_ID" -b
           mkdir -p build

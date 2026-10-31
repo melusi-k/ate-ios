@@ -124,3 +124,50 @@ Do not destabilize or duplicate the in-flight #179 nutrition stack. Coordinate c
 - Replacing or weakening existing nutrition calculations and provenance.
 - Automatically syncing currently local-only journal content to a cloud service.
 - Writing entries into Apple's Journal app; Ate's Journal remains its own experience.
+
+## 10. Implementation audit and canonical design (recorded 2026-10-31)
+
+This section records the step-1 audit required by the delivery sequence, the canonical model decision, the privacy boundary and the migration plan. File references are against `main` at the time of writing; the in-flight #179 PR stack (#239/#240/#241) extends the diary files noted below.
+
+### 10.1 Current state audit
+
+**Ate Journal (#38 foundation).** `JournalEntry` is a SwiftData `@Model` (Ate/Models/HealthModels.swift) persisted in its own `ModelContainer` (configuration `AteJournal`) owned by `JournalStore` (Ate/Services/JournalSuggestionService.swift). It is local-only by design and code comment ("Never synced or sent anywhere"), matching the #38 privacy invariants in docs/HEALTH_JOURNAL_TRACKER_HUB.md. Fields: stable string `id`, `createdAt`, `prompt`, `text`, `stateRaw` (HealthState), `recipeIDs`, Journaling Suggestions provenance (`journalingSuggestionTitle`, `momentDate`, `sourceRaw`), location (`locationName`/coordinates), `mediaFileNames` (bytes in Application Support/JournalMedia) and `editedAt`. UI is `JournalListView`/`JournalEntryDetailView` (Ate/Views/JournalViews.swift) with search, edit, share and confirmed delete; entry points are the Insights hub preview and the Library explore sheet; Siri/Shortcuts and Journaling Suggestions write through `JournalStore`.
+
+**Food Diary (#179).** `NutritionDiaryEntry` is a Codable struct array in UserDefaults (`ate.nutritionDiary.v1`) behind `NutritionDiaryRepository` (Ate/Logic/NutritionDiary.swift), which distinguishes absent/corrupt payloads, never overwrites unreadable data and backs up before reset. Entries carry stable UUIDs, `date` plus a persisted local `dayKey` (YYYY-MM-DD), meal type, quantity/unit/servings, structured `NutritionSnapshot` (nil means unknown, never estimated) and full provenance (`source`, `sourceName`, `sourceIdentifier`, `verificationNote`). Goals live in a separate repository. UI is `NutritionDiaryView`/`NutritionGoalsView`, entered from Settings > Food diary. PRs #239-#241 (in flight) extend exactly `NutritionDiary.swift`, `NutritionDiaryView.swift`, `NutritionGoalsView.swift` and their tests (CI coverage, entry editing, weekly totals).
+
+**Cooking history (#31).** `CookingHistory` (Ate/Logic/CookingHistory.swift) stores day-key to recipe-ID sets in UserDefaults with explicit Finish-cooking completion semantics. It stays owned by #31; the Food Journal reads it and does not change its semantics.
+
+**Sync boundary.** Supabase sync covers recipes only (last-write-wins via `SyncService`); journal, diary, goals and cooking history are all local today. No Supabase journal/diary tables exist, and this design introduces none.
+
+**Gaps found.** (1) The journal container opens with `try?` and silently degrades to an empty list on store corruption, while the recipes container has `StoreRecovery` move-aside backup semantics; the unified store must not keep that silent-empty behavior. (2) Journal media files have no backup/export path. (3) With diary in UserDefaults and journal in SwiftData, a meal and its reflection have no shared identity, which is the structural problem this initiative removes.
+
+### 10.2 Canonical model decision
+
+One local SwiftData journal store (the evolved `AteJournal` container) is the canonical store. A unified entry has a stable identity, original event `date` plus preserved local `dayKey`, created/updated metadata, and a `kind` of `meal` or `reflection`.
+
+- **Reflection entries** keep every existing `JournalEntry` field and behavior (prompt, text, state, moment provenance, location, media, source).
+- **Meal entries** carry an optional structured meal payload as a typed child model - never prose: meal type, food name, quantity/unit/servings, nutrient snapshot (nullable values; nil stays unknown) and the existing provenance fields verbatim. An optional reflection (text/media) attaches to the same entry identity.
+- **Recipe association** stores the recipe ID plus a durable snapshot (at minimum title and cooked date/day) so the entry remains understandable after the recipe is edited or deleted.
+- Nutrition values remain structured and queryable; diary totals and calculations keep operating on the same typed fields they use today.
+
+Rationale: one identity per meal (editing updates the same entry; no duplicates), one timeline query for the unified view, no second source of truth for diary records, and the local-only privacy promise is preserved because the store is the existing local SwiftData container.
+
+### 10.3 Migration plan
+
+1. `NutritionDiaryRepository` keeps its current API shape (load/save/corrupt-recovery semantics) but becomes a facade over the unified store, so #179 views, calculations and tests keep working unchanged.
+2. A one-time idempotent migrator copies UserDefaults diary records into meal entries keyed by their existing UUIDs. Re-runs skip already-migrated IDs; original `date`, `dayKey`, quantities, nutrients and provenance are preserved verbatim.
+3. The legacy UserDefaults payload is left in place (read-only backup) behind a migrated marker; it is never silently deleted. Malformed or unconvertible records are backed up first and surfaced as an honest recovery state, never dropped.
+4. The unified journal container opens through move-aside backup recovery equivalent to `StoreRecovery` (R-DATA-01), closing the silent-empty gap. Save failures go through the same retry/report path as the rest of the app (R-DATA-02).
+5. Diary corruption handling is preserved through migration: an unreadable legacy payload is backed up before any reset, and saving is disabled until recovery, exactly as today.
+
+### 10.4 Privacy boundary (unchanged)
+
+Journal and meal data remain local-only. No Supabase tables, columns or policies are introduced; no sync behavior changes; signed-out/local-first behavior is untouched. Any future cloud persistence proposal is a separate, explicitly reviewed product decision per section 4.
+
+### 10.5 Sequencing with the in-flight #179 stack
+
+Phase 2 (persistence facade re-point) touches files owned by the active #239-#241 stack. To avoid destabilizing that work: the unified store, migrator and their tests are built as new files in parallel, and the facade re-point lands only after the #179 stack merges. Timeline, composition, prompts and navigation retirement follow the section 6 sequence on top.
+
+### 10.6 Test plan (phase 2 minimum)
+
+Round-trip save/load of both entry kinds; idempotent migration over a populated legacy store (second run creates nothing); stable IDs and day keys across time-zone changes; totals identical before/after migration on fixture data; corrupt legacy payload backed up and surfaced, never discarded; corrupt unified store moved aside with honest recovery state; failed-save reporting; duplicate-prevention when a meal save races migration. UI/accessibility coverage for timeline, detail, edit, filters and states lands with phases 3-5 per section 7.

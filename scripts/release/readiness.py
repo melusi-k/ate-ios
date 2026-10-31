@@ -341,6 +341,8 @@ def build_body(key, title, rtype, version, mx, qr, qnote, rd, rel):
     if rtype == "Public launch" and (unver or f): sug, risk = f"Not approved for public launch: {f} failing, {unver} not fully verified", "High"
     body = "\n".join(out)
     disposition, disposition_reason = release_disposition(rd, tallies)
+    sug = f"{disposition}: {disposition_reason}"
+    risk = "Low" if disposition == "READY FOR HUMAN SIGN-OFF" else "High"
     body = body.replace("Reason:\n", f"Reason:\n- **Suggested (auto, not a decision):** {sug}. Suggested risk: **{risk}**. "
                         f"Failing: {', '.join(failing) or 'none'}.\n", 1)
     counts = (rd or {}).get("counts", {})
@@ -368,7 +370,7 @@ def main():
     run = find_run(a.run_id); rd = run_data(run) if run else None
     if rd and (rd.get("status") != "completed" or not rd.get("sha")):
         raise RuntimeError(f"Readiness requires a completed Build IPA run with a commit SHA; got run {rd.get('id')} status={rd.get('status')}")
-    rel = release_for(rd["sha"] if rd else None)
+    rel = release_for(rd["sha"][:7] if rd else None)
     m = re.search(r"(\d+\.\d+\.\d+) \((\d+)\)", (rel or {}).get("name", "")); ver, build = (m.group(1), m.group(2)) if m else ("0.1.0", "?")
     line = ".".join(ver.split(".")[:2]) + ".x"
     rc = a.new or a.release_type != "Internal beta"

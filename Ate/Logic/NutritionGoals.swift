@@ -88,7 +88,13 @@ enum NutritionGoalValidation {
 protocol NutritionGoalsStorage {
     func read() throws -> Data?
     func write(_ data: Data) throws
+    func preserveCorruptData(_ data: Data) throws
     func remove() throws
+}
+
+enum NutritionGoalsRecoveryError: Error {
+    case noCorruptData
+    case dataIsValid
 }
 
 
@@ -97,6 +103,13 @@ enum NutritionGoalsLoadError: LocalizedError {
     case storedDataInvalid(fallback: DailyNutritionGoals?)
     case legacyDataInvalid
     case migrationWriteFailed(fallback: DailyNutritionGoals)
+
+    var canRecoverCorruptData: Bool {
+        switch self {
+        case .storedDataInvalid, .legacyDataInvalid: true
+        case .storageReadFailed, .migrationWriteFailed: false
+        }
+    }
 
     var fallbackGoals: DailyNutritionGoals? {
         switch self {
@@ -148,6 +161,13 @@ struct FileNutritionGoalsStorage: NutritionGoalsStorage {
         let directory = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         try data.write(to: fileURL, options: .atomic)
+    }
+
+    func preserveCorruptData(_ data: Data) throws {
+        let directory = fileURL.deletingLastPathComponent()
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        let backupURL = directory.appendingPathComponent("nutrition-goals-corrupt-\\(UUID().uuidString).json")
+        try data.write(to: backupURL, options: .atomic)
     }
 
     func remove() throws {
@@ -203,6 +223,34 @@ struct NutritionGoalsRepository {
         defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
         return legacyGoals
     }
+    /// Preserves malformed stored/legacy bytes before removing them. A valid configuration is never reset.
+    func recoverCorruptData() throws {
+        let legacyData = defaults.data(forKey: DailyNutritionGoals.defaultsKey)
+        let storedData = try storage.read()
+        var preservedCorruptData = false
+
+        if let storedData {
+            if (try? JSONDecoder().decode(DailyNutritionGoals.self, from: storedData)) != nil {
+                throw NutritionGoalsRecoveryError.dataIsValid
+            }
+            try storage.preserveCorruptData(storedData)
+            try storage.remove()
+            preservedCorruptData = true
+        }
+
+        if let legacyData {
+            if (try? JSONDecoder().decode(DailyNutritionGoals.self, from: legacyData)) == nil {
+                try storage.preserveCorruptData(legacyData)
+                defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
+                preservedCorruptData = true
+            } else if storedData == nil {
+                throw NutritionGoalsRecoveryError.dataIsValid
+            }
+        }
+
+        guard preservedCorruptData else { throw NutritionGoalsRecoveryError.noCorruptData }
+    }
+
     func save(_ goals: DailyNutritionGoals) throws {
         if goals.isEmpty {
             try storage.remove()

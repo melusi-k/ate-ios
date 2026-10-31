@@ -5,16 +5,46 @@ final class NutritionDiaryUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    /// SwiftUI Lists materialise below-fold cells in the accessibility hierarchy, so `exists`
-    /// alone cannot drive interaction: a tap is synthesised at the element's coordinates even
-    /// when it is off screen or covered by the keyboard, and silently lands on nothing. Scroll
-    /// until the element is genuinely visible before tapping or typing.
+    /// SwiftUI Lists materialise below-fold cells in the accessibility hierarchy, and on this
+    /// platform isHittable also accepts cells clipped by the sheet's navigation bar or pushed
+    /// past the keyboard; taps synthesised at those centres land on the bar or the keyboard
+    /// instead of the control (CI evidence: sourceName accepted at y=57.7-62.7, centre inside
+    /// the nav-bar band; nutrient.energy accepted with its centre off the bottom edge). Scroll
+    /// against the measured frame until the element's centre sits inside the clear band
+    /// between the top bar and the keyboard before tapping.
     @discardableResult
-    private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication, max: Int = 8) -> Bool {
+    private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication, max: Int = 12) -> Bool {
+        let topBound: CGFloat = 112 // below the inline navigation bar in these sheets/screens
         var attempts = 0
-        while !(element.exists && element.isHittable) && attempts < max {
-            app.swipeUp(velocity: .slow)
+        var blockedUps = 0
+        while attempts < max {
             attempts += 1
+            guard element.exists, !element.frame.isEmpty else {
+                // Unmaterialised targets in these flows have always been below the fold.
+                app.swipeUp(velocity: .slow)
+                continue
+            }
+            let frame = element.frame
+            let keyboard = app.keyboards.firstMatch
+            let keyboardUp = keyboard.exists
+            let bottomBound = keyboardUp ? keyboard.frame.minY - 8 : app.windows.firstMatch.frame.maxY - 4
+            if frame.midY >= topBound && frame.midY <= bottomBound {
+                if element.isHittable { return true }
+                app.swipeDown(velocity: .slow) // nudge within the band and re-measure
+            } else if frame.midY > bottomBound {
+                if keyboardUp && blockedUps >= 2 {
+                    // At the form's end the target cannot rise past the keyboard by scrolling;
+                    // drag down once to dismiss it interactively, then re-measure.
+                    app.swipeDown(velocity: .fast)
+                    blockedUps = 0
+                } else {
+                    app.swipeUp(velocity: .slow)
+                    blockedUps += 1
+                }
+            } else {
+                app.swipeDown(velocity: .slow)
+                blockedUps = 0
+            }
         }
         return element.exists && element.isHittable
     }
@@ -25,10 +55,23 @@ final class NutritionDiaryUITests: XCTestCase {
     }
 
     /// Typing before the keyboard finishes its appear animation can drop characters on a
-    /// loaded CI simulator. Wait for the keyboard before sending text.
+    /// loaded CI simulator. Wait for the keyboard before sending text. When the keyboard was
+    /// already up for a previous field, its existence proves nothing about this field's focus,
+    /// so a tap that missed (bar/keyboard overlap) is re-centred and retried once before typing.
     private func typeAfterKeyboard(_ element: XCUIElement, in app: XCUIApplication, _ text: String, file: StaticString = #filePath, line: UInt = #line) {
+        let keyboardWasUp = app.keyboards.firstMatch.exists
         tapWhenHittable(element, in: app, file: file, line: line)
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the focused field", file: file, line: line)
+        if !keyboardWasUp {
+            XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the focused field", file: file, line: line)
+        }
+        // Retry signal only, never a gate: the keyboard-focus attribute is read when the
+        // platform reports it, and an unknown/nil answer simply proceeds to the typeText
+        // below, which remains the asserted interaction. A false reading costs one re-centre
+        // and re-tap, not a spurious failure.
+        if keyboardWasUp, (element.value(forKey: "hasKeyboardFocus") as? Bool) == false {
+            _ = scrollToHittable(element, in: app)
+            element.tap()
+        }
         element.typeText(text)
     }
 

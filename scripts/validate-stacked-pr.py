@@ -50,7 +50,8 @@ def main():
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     if not token: fail("GITHUB_TOKEN is required to validate the parent PR")
     parent_pr = api_pr(repo,int(parent),token)
-    if parent_pr["state"] != "open": fail(f"Parent PR #{parent} is not open; resolve the stack before proceeding")
+    if parent_pr["state"] != "open" and not parent_pr.get("merged"):
+        fail(f"Parent PR #{parent} is closed without merging; resolve the stack before proceeding")
     if parent_pr["base"]["repo"]["full_name"].lower() != repo.lower(): fail("Cross-repository stacks are not supported")
     parent_section = re.search(r"^## Stack\s*$(.*?)(?=^## |\Z)",parent_pr.get("body") or "",re.M|re.S)
     if not parent_section: fail(f"Parent PR #{parent} has no ## Stack metadata")
@@ -60,8 +61,9 @@ def main():
     if parent_position == "None": fail("A stacked child cannot depend on a standalone parent")
     parent_index,parent_total = map(int,parent_position.split("/"))
     if parent_index + 1 != current or parent_total != total: fail("Position must increment by one from immediate parent and share its Total")
-    if pr["base"]["ref"] != parent_pr["head"]["ref"]:
-        fail(f"Stack base mismatch: child targets {pr['base']['ref']}, but parent #{parent} head is {parent_pr['head']['ref']}")
+    expected_base = "main" if parent_pr.get("merged") else parent_pr["head"]["ref"]
+    if pr["base"]["ref"] != expected_base:
+        fail(f"Stack base mismatch: child targets {pr['base']['ref']}, but expected {expected_base} after parent #{parent} state={parent_pr['state']}")
     if parent_pr["head"]["repo"]["full_name"].lower() != repo.lower(): fail("Parent branch must be in the same repository")
     print(f"Stack metadata valid: {stack_id}, PR #{parent} → PR #{pr['number']} ({position}); base={pr['base']['ref']}")
 

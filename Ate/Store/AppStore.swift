@@ -32,12 +32,16 @@ struct CookSession: Codable, Equatable {
     var factor: Double
     /// Positions of ingredients the cook has marked as gathered. Lives and dies with the session.
     var checked: [Int]
+    /// Fingerprint of the recipe's ingredient list (RecipeLogic.ingredientSignature). Checks are
+    /// positional, so an ingredient edit invalidates them; a mismatch resets checked to empty.
+    var ingredientSignature: String
 
-    init(recipeID: String, stepIndex: Int, factor: Double = 1, checked: [Int] = []) {
+    init(recipeID: String, stepIndex: Int, factor: Double = 1, checked: [Int] = [], ingredientSignature: String = "") {
         self.recipeID = recipeID
         self.stepIndex = stepIndex
         self.factor = factor
         self.checked = checked
+        self.ingredientSignature = ingredientSignature
     }
 
     /// Sessions persisted by older builds carry only recipeID and stepIndex; decode them with defaults
@@ -48,6 +52,7 @@ struct CookSession: Codable, Equatable {
         stepIndex = try c.decode(Int.self, forKey: .stepIndex)
         factor = try c.decodeIfPresent(Double.self, forKey: .factor) ?? 1
         checked = try c.decodeIfPresent([Int].self, forKey: .checked) ?? []
+        ingredientSignature = try c.decodeIfPresent(String.self, forKey: .ingredientSignature) ?? ""
     }
 
     mutating func toggleChecked(_ index: Int) {
@@ -227,11 +232,13 @@ final class AppStore {
     /// Opening Cook Mode from the recipe detail carries the chosen servings factor into the session.
     /// Re-entering the same recipe keeps gathered checks; a different recipe starts fresh.
     func beginCookSession(recipeID: String, factor: Double) {
+        let sig = recipe(recipeID).map(RecipeLogic.ingredientSignature) ?? ""
         if var s = cookSession, s.recipeID == recipeID {
             s.factor = factor
+            if s.ingredientSignature != sig { s.checked = []; s.ingredientSignature = sig }
             cookSession = s
         } else {
-            cookSession = CookSession(recipeID: recipeID, stepIndex: 0, factor: factor)
+            cookSession = CookSession(recipeID: recipeID, stepIndex: 0, factor: factor, ingredientSignature: sig)
         }
     }
     func setCookFactor(_ factor: Double) {
@@ -241,6 +248,8 @@ final class AppStore {
     }
     func toggleCookIngredientChecked(_ index: Int) {
         guard var s = cookSession else { return }
+        let sig = recipe(s.recipeID).map(RecipeLogic.ingredientSignature) ?? ""
+        if s.ingredientSignature != sig { s.checked = []; s.ingredientSignature = sig }
         s.toggleChecked(index)
         cookSession = s
     }
@@ -249,7 +258,16 @@ final class AppStore {
         cookSession = nil
     }
 
-    var recipes: [RecipeCard] = []
+    var recipes: [RecipeCard] = [] {
+        didSet {
+            // Gathered checks in an active cook session are positional: any write that changes
+            // the session recipe's ingredient list (editor, add replace-by-id, sync merge) resets
+            // them. Signature-equal writes (title-only edits, reorders) keep them.
+            guard var s = cookSession, let current = recipes.first(where: { $0.id == s.recipeID }) else { return }
+            let sig = RecipeLogic.ingredientSignature(current)
+            if s.ingredientSignature != sig { s.checked = []; s.ingredientSignature = sig; cookSession = s }
+        }
+    }
     var shopping: [ShoppingItem] = []
     /// Library tab's navigation stack (recipes, shared links, not-found).
     var path: [Route] = []

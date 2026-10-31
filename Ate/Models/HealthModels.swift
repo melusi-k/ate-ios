@@ -114,6 +114,10 @@ final class JournalEntry {
     var longitude: Double? = nil
     var mediaFileNames: [String] = []
     var editedAt: Date? = nil
+    // Additive (#245 Food Journal): unified entry kind and meal-day semantics. The defaults keep
+    // existing stores migrating lightly: pre-unification rows decode as reflections with no day key.
+    var kindRaw: String = JournalEntryKind.reflection.rawValue
+    var dayKey: String? = nil
     init(id: String = UUID().uuidString, createdAt: Date = .now, prompt: String, text: String, state: HealthState, recipeIDs: [String] = [],
          journalingSuggestionTitle: String? = nil, momentDate: Date? = nil, source: JournalEntrySource = .ate) {
         self.id = id; self.createdAt = createdAt; self.prompt = prompt; self.text = text; self.stateRaw = state.rawValue; self.recipeIDs = recipeIDs
@@ -121,6 +125,7 @@ final class JournalEntry {
     }
     var source: JournalEntrySource { JournalEntrySource(rawValue: sourceRaw) ?? .ate }
     var state: HealthState { HealthState(rawValue: stateRaw) ?? .balanced }
+    var kind: JournalEntryKind { JournalEntryKind(rawValue: kindRaw) ?? .reflection }
 }
 
 /// Recipes seeded for Health UI tests (`-qaHealthRecipes`) so meal ranking is observable.

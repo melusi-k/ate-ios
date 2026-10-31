@@ -420,11 +420,14 @@ final class AppStore {
             auth = SupabaseAuth(baseURL: url, key: AppConfig.supabasePublishableKey)
             sync = SupabaseSync(baseURL: url, key: AppConfig.supabasePublishableKey)
         } else { auth = nil; sync = nil }
-        settings = Self.loadDefaults(AppSettings.self, key: "ate.settings.v1") ?? AppSettings()
         // UI tests opt into imperial presentation so checklist conversion is exercised end to end.
+        // Mutate before assignment: settings.didSet persists and touches other stored properties
+        // that are not initialized yet at this point in init.
+        var loadedSettings = Self.loadDefaults(AppSettings.self, key: "ate.settings.v1") ?? AppSettings()
         if AppConfig.isUITesting, ProcessInfo.processInfo.arguments.contains("-qaImperialUnits") {
-            settings.units = .imperial
+            loadedSettings.units = .imperial
         }
+        settings = loadedSettings
         timerPrefs = Self.loadDefaults(TimerPrefs.self, key: "ate.timerprefs.v1") ?? TimerPrefs()
         if AppConfig.isUITesting { UserDefaults.standard.removeObject(forKey: "ate.sync.v1"); Keychain.save(nil, account: "session") }
         meta = Self.loadDefaults(SyncMeta.self, key: "ate.sync.v1") ?? SyncMeta()

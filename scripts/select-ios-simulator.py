@@ -55,7 +55,7 @@ def main() -> int:
             file=sys.stderr,
         )
         print("Available iOS simulators:", file=sys.stderr)
-        print("\\n".join(available) if available else "(none)", file=sys.stderr)
+        print("\n".join(available) if available else "(none)", file=sys.stderr)
         return 1
 
     print(f"Selected {EXPECTED_DEVICE} on iOS 27.0: {udid}", file=sys.stderr)

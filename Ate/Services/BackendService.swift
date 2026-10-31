@@ -41,6 +41,8 @@ enum AppConfig {
     static var appVersion: String { string("CFBundleShortVersionString") }
     static var buildNumber: String { string("CFBundleVersion") }
     static var gitSHA: String { string("AteGitSHA").isEmpty ? "dev" : string("AteGitSHA") }
+    static var gitSHAFull: String { string("AteGitSHAFull").isEmpty ? gitSHA : string("AteGitSHAFull") }
+    static var gitRunID: String { string("AteGitRunID") }
     static var backendRef: String { supabaseURL?.host?.components(separatedBy: ".").first ?? "none" }
     /// e.g. "ate 0.1.12 (build 12) · 306e343 · backend ploncuhexmwydjxljuhe"
     /// Release channel (build setting ATE_CHANNEL, e.g. "TierA"); empty/unknown channels are treated as production.

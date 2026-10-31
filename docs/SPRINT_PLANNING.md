@@ -240,3 +240,31 @@ The main branch advanced after the initial baseline capture. Current main is now
 - Therefore main is not release-cleared; pending jobs are not passes and the Supabase Preview failure remains a blocker to investigate.
 
 PR #206 exact head remains `02571a4ced4eb2f126aaad345d4b93bfbaa7cad1`. Its Compile [41120910813](https://github.com/melusi-k/ate-ios/actions/runs/41120910813) and Dogfood Qualification [41120910875](https://github.com/melusi-k/ate-ios/actions/runs/41120910875) are queued, not passing. A subsequent label-automation check is also queued; it is not a product validation gate.
+
+
+## Guardian refresh — 2026-10-31 (W45 pre-start evidence)
+
+**Evidence cutoff:** 2026-10-31T06:53:48Z / 2026-10-31 08:53:48 Africa/Johannesburg. This is a status refresh, not a Monday planning event or Sunday retrospective.
+
+### Current main and release evidence
+- Current main: `cd8d7f9b3db2b3e17a74816c5f1579d99401cf6b`, merged from PR #230 at 2026-10-31T06:39:50Z / 08:39:50 SAST.
+- Build IPA [41177530921](https://github.com/melusi-k/ate-ios/actions/runs/41177530921) is in progress, but unit tests, focused regressions, KeyFlows QA, Tracker/Cook Mode, header regressions, signed IPA build and final full-validation enforcement were skipped; UI-suite and backend-E2E were skipped. This is not a current-main full-validation pass.
+- Supabase Preview failed on the same main SHA: [check run 124468258482](https://github.com/melusi-k/ate-ios/runs/124468258482). Retain as a blocker pending diagnosis and a fresh successful check.
+- PRs #204, #221, #222 and #223 have merged, but issue #195 remains open and its remaining acceptance work and current-main validation must not be assumed complete from merge status alone.
+
+### W45 dependency and PR refresh
+- The W45 committed baseline remains [issue #179](https://github.com/melusi-k/ate-ios/issues/179) + [PR #206](https://github.com/melusi-k/ate-ios/pull/206) for one bounded nutrition-foundation outcome, plus [issue #30](https://github.com/melusi-k/ate-ios/issues/30) for release-readiness evidence. [Issue #70](https://github.com/melusi-k/ate-ios/issues/70) remains Stretch only. Preserve the existing planned windows and the earlier #206 2026-11-06 proposal as historical; the agreed W45 end remains 2026-11-08.
+- **Scope/dependency change recorded 2026-10-31:** [PR #231](https://github.com/melusi-k/ate-ios/pull/231) was added as the stacked child (position 2/2) of root [PR #206](https://github.com/melusi-k/ate-ios/pull/206), to address safe backup-before-reset for corrupt nutrition goals. It inherits the 2026-11-02 to 2026-11-08 W45 window as a dependency, not a separate delivery or throughput outcome. Merge root #206 first; after it merges, retarget/reconcile #231 to main, inspect the incremental diff and rerun all required exact-head checks.
+- PR #206 head `0bb70c22d0e19f6079d2224ee6fbc3366850993a` is 7 ahead / 17 behind current main. Dogfood [41175981615](https://github.com/melusi-k/ate-ios/actions/runs/41175981615) passed; Compile [41175981579](https://github.com/melusi-k/ate-ios/actions/runs/41175981579) is still in progress with focused regression failures in #83 and #145 and Cook Mode tests still running. No independent approval is recorded.
+- PR #231 head `e3a4944bc353404005cb7ee249fab8bfd8f4261b` is 9 commits ahead of its parent branch; Compile [41178109316](https://github.com/melusi-k/ate-ios/actions/runs/41178109316) is queued and Dogfood [41178109351](https://github.com/melusi-k/ate-ios/actions/runs/41178109351) is in progress. It remains draft and unapproved.
+- PR #181 remains draft, dirty, 21 ahead / 240 behind, with three unresolved review threads and no exact-head Compile/Dogfood evidence; its overlapping nutrition implementation is not a second committed outcome. PR #66 remains draft, dirty, 38 ahead / 592 behind, with no exact-head Compile/Dogfood evidence; device acceptance remains separate in #67.
+
+### Governance refresh
+- Ruleset [main-production-protection](https://github.com/melusi-k/ate-ios/rules/26236404) exists but `enforcement=disabled`. It is configured for one approving review, resolved review threads, strict `compile` and `dogfood-qualification` checks, linear history and no bypass actors.
+- `.github/CODEOWNERS` exists with `* @melusi-k`, but the ruleset has `require_code_owner_review=false`; a CODEOWNERS approval is not enforced by this ruleset. The file says owner review should be required, but its only listed owner is the repository author; nominate an independent maintainer/team before enabling that requirement. Never self-approve.
+- The branch-protection endpoint remains inaccessible to the connected integration (403), so any separate protection is unverified. Repository metadata: squash merge enabled, auto-merge disabled, update-branch disabled.
+- Do not auto-merge until enforcement is enabled and the required checks/review/ownership rules are verified. No repository governance setting was changed by this refresh.
+
+### Retrospective timing note
+- 2026-W44 closes Sunday 2026-11-01. No W44 committed baseline was present in the records reviewed, so the Sunday close-out must state that commitment accuracy/carryover denominators are unavailable; do not reconstruct a fictitious commitment or infer actual starts from ticket creation or sprint dates.
+- W45 remains planned for Monday 2026-11-02 through Sunday 2026-11-08. Monday planning should revalidate main, PR #206/#231 exact-head CI, review status, issue #30 release blockers and the current backlog before confirming the commitment. Sunday close-out is due 2026-11-08.

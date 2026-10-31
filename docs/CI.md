@@ -25,7 +25,7 @@ This policy is applied consistently to the full UI shard matrix in:
 - `.github/workflows/build-ipa.yml` — deliberate full validation / beta-promotion path.
 - `.github/workflows/preproduction-qa.yml` — pre-production release-candidate validation.
 
-The four-way GitHub Actions matrix remains unchanged. Two workers means up to two Xcode-managed iPhone 18 Pro simulator test workers **inside each shard job**; it does not mean one shared simulator across shards, nor does it increase the number of matrix shards. If all four shard jobs run concurrently, the matrix can therefore schedule up to **eight simulator test workers across four macOS runners**.
+The four-way GitHub Actions matrix remains unchanged. Two workers means up to two Xcode-managed iPhone 18 Pro simulator test workers **inside each shard job**; it does not mean one shared simulator across shards, nor does it increase the number of matrix shards. If all four shard jobs run concurrently, the matrix can therefore schedule up to **eight simulator test workers across four Xcode 27 runners**.
 
 ## Scope boundaries
 

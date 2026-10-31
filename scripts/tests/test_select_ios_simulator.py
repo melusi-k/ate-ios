@@ -1,11 +1,15 @@
 """Tests for the strict CI simulator selector."""
 
-import sys
+import importlib.util
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from select_ios_simulator import select_device
+MODULE_PATH = Path(__file__).resolve().parents[1] / "select-ios-simulator.py"
+SPEC = importlib.util.spec_from_file_location("select_ios_simulator", MODULE_PATH)
+assert SPEC is not None and SPEC.loader is not None
+MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
+select_device = MODULE.select_device
 
 
 class SelectIOSSimulatorTests(unittest.TestCase):

@@ -33,12 +33,19 @@ def main():
     stack_id, parent, position = (field(section.group(1), name) for name in ("Stack ID","Parent PR","Position"))
     if stack_id == parent == position == "None":
         print("Standalone PR metadata valid."); return
-    if "None" in (stack_id,parent,position): fail("Stack ID, Parent PR, and Position must all be None or all populated")
+    if stack_id == "None" or position == "None":
+        fail("Stack ID and Position must be populated for a stack; Parent PR is None only for the root")
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,63}", stack_id): fail("Stack ID must be a lowercase slug (3–64 characters)")
-    if not re.fullmatch(r"[1-9][0-9]*", parent): fail("Parent PR must be a positive PR number (digits only)")
-    if not re.fullmatch(r"[1-9][0-9]*/[1-9][0-9]*", position): fail("Position must use N/Total notation, for example 2/3")
+    if not re.fullmatch(r"[1-9][0-9]*/[1-9][0-9]*", position): fail("Position must use N/Total notation, for example 1/2")
     current,total = map(int,position.split("/"))
-    if current < 2 or total < current: fail("A child PR position must be at least 2 and no greater than Total")
+    if total < current: fail("Position cannot exceed Total")
+    if parent == "None":
+        if current != 1: fail("A stack root must use position 1/Total")
+        if pr["base"]["ref"] != "main": fail("A stack root must target main")
+        print(f"Stack root metadata valid: {stack_id} ({position}); base=main")
+        return
+    if not re.fullmatch(r"[1-9][0-9]*", parent): fail("Parent PR must be a positive PR number (digits only)")
+    if current < 2: fail("A child PR position must be at least 2")
     repo = pr["base"]["repo"]["full_name"]
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     if not token: fail("GITHUB_TOKEN is required to validate the parent PR")

@@ -11,6 +11,12 @@ struct CookIngredientsSheet: View {
     /// Same factor choices as the recipe detail servings picker.
     private static let factors: [Double] = [1, 2, 3]
 
+    /// The row's amount text, converted to the user's unit system (shared by tests).
+    static func checklistAmount(for ing: Ingredient, to system: UnitSystem) -> String {
+        let (q, u) = Units.convert(quantity: ing.quantity, unit: ing.unit, to: system)
+        return Units.formatAmount(q, u)
+    }
+
     /// Read through the live session so rescaling and checking update in place. A session for
     /// another recipe (or none, e.g. previews) falls back to an unchecked 1x list.
     private var factor: Double { store.cookSession?.recipeID == recipe.id ? (store.cookSession?.factor ?? 1) : 1 }
@@ -78,12 +84,12 @@ struct CookIngredientsSheet: View {
         // Room to read: the reference pattern of a cramped mini-sheet is deliberately avoided.
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+        .cookSheetUITestDynamicType()
     }
 
     private func row(_ idx: Int, _ ing: Ingredient) -> some View {
         let isChecked = checked.contains(idx)
-        let (q, u) = Units.convert(quantity: ing.quantity, unit: ing.unit, to: store.settings.units)
-        let amount = Units.formatAmount(q, u)
+        let amount = Self.checklistAmount(for: ing, to: store.settings.units)
         let notes = (ing.notes ?? "").isEmpty ? "" : " — \(ing.notes ?? "")"
         return Button {
             store.toggleCookIngredientChecked(idx)
@@ -116,5 +122,16 @@ struct CookIngredientsSheet: View {
         .accessibilityHint("Double-tap to toggle")
         .accessibilityAddTraits(isChecked ? .isSelected : [])
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1) }
+    }
+}
+
+extension View {
+    /// UI-test-only: launching with "-UITestLargeText" renders the sheet at an accessibility
+    /// text size so tests exercise the real layout (clipping, tap targets, scrolling) under
+    /// large Dynamic Type. No effect in any other launch.
+    @ViewBuilder func cookSheetUITestDynamicType() -> some View {
+        if AppConfig.isUITesting, ProcessInfo.processInfo.arguments.contains("-UITestLargeText") {
+            self.dynamicTypeSize(.accessibility3)
+        } else { self }
     }
 }

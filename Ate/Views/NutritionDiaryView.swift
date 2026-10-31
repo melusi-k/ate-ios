@@ -94,10 +94,17 @@ struct NutritionDiaryView: View {
                 }
                 if goals?.isEmpty == true {
                     NavigationLink(value: Route.nutritionGoals) {
-                        Label("Set optional daily goals", systemImage: "target")
-                            // Wrap with no line cap: a 2-line limit still clipped at the
-                            // largest Dynamic Type sizes (accessibility audit, #179).
-                            .fixedSize(horizontal: false, vertical: true)
+                        // A Label with an SF symbol stays compact instead of supporting
+                        // every Dynamic Type step (audit: DT partially unsupported + text
+                        // clipped, #179); separate Image + Text scale fully.
+                        HStack {
+                            Image(systemName: "target")
+                                .foregroundStyle(.tint)
+                            Text("Set optional daily goals")
+                                // Wrap with no line cap: a 2-line limit still clipped at
+                                // the largest Dynamic Type sizes (accessibility audit, #179).
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                     .accessibilityIdentifier("nutritionDiary.configureGoals")
                 } else if goals == nil {

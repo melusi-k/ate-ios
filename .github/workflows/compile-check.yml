@@ -212,6 +212,20 @@ jobs:
           done
           grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
 
+      - name: Upload nutrition UI diagnostics (early)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          # Unique per run+attempt and distinct from the tail artifact, so this early upload
+          # never collides with the immutable tail artifact name and nutrition diagnostics
+          # survive even when a later push supersedes this run before the job tail.
+          name: nutrition-ui-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            nutrition-ui-tests.log
+            ${{ runner.temp }}/ate-test-results/nutrition-ui-tests.xcresult
+            ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
+
       - name: Library Explore native sheet presentation (#83)
         if: ${{ steps.build.outcome == 'success' }}
         run: |

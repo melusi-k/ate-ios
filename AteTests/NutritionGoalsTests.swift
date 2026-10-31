@@ -220,6 +220,21 @@ final class NutritionGoalsTests: XCTestCase {
         XCTAssertEqual(storage.data, corrupt)
         XCTAssertTrue(storage.backups.isEmpty)
     }
+
+    func testAllCorruptCopiesAreBackedUpBeforeAnyOriginalIsRemoved() throws {
+        let storedCorrupt = Data("stored-not-json".utf8)
+        let legacyCorrupt = Data("legacy-not-json".utf8)
+        defaults.set(legacyCorrupt, forKey: DailyNutritionGoals.defaultsKey)
+        let storage = FailingNutritionGoalsStorage(data: storedCorrupt, failPreserveOnAttempt: 2)
+        let invalidRepository = NutritionGoalsRepository(defaults: defaults, storage: storage)
+        XCTAssertThrowsError(try invalidRepository.load())
+
+        XCTAssertThrowsError(try invalidRepository.recoverCorruptData())
+
+        XCTAssertEqual(storage.data, storedCorrupt)
+        XCTAssertEqual(defaults.data(forKey: DailyNutritionGoals.defaultsKey), legacyCorrupt)
+        XCTAssertEqual(storage.backups, [storedCorrupt])
+    }
 }
 
 private final class FailingNutritionGoalsStorage: NutritionGoalsStorage {
@@ -228,15 +243,18 @@ private final class FailingNutritionGoalsStorage: NutritionGoalsStorage {
     var failRemoves: Bool
     var failReads: Bool
     var failPreserve: Bool
+    var failPreserveOnAttempt: Int?
+    private var preserveAttempts = 0
     private(set) var backups: [Data] = []
 
     init(data: Data?, failWrites: Bool = false, failRemoves: Bool = false,
-         failReads: Bool = false, failPreserve: Bool = false) {
+         failReads: Bool = false, failPreserve: Bool = false, failPreserveOnAttempt: Int? = nil) {
         self.data = data
         self.failWrites = failWrites
         self.failRemoves = failRemoves
         self.failReads = failReads
         self.failPreserve = failPreserve
+        self.failPreserveOnAttempt = failPreserveOnAttempt
     }
 
     func read() throws -> Data? {
@@ -250,7 +268,10 @@ private final class FailingNutritionGoalsStorage: NutritionGoalsStorage {
     }
 
     func preserveCorruptData(_ data: Data) throws {
-        if failPreserve { throw TestStorageError.preserveFailed }
+        preserveAttempts += 1
+        if failPreserve || failPreserveOnAttempt == preserveAttempts {
+            throw TestStorageError.preserveFailed
+        }
         backups.append(data)
     }
 

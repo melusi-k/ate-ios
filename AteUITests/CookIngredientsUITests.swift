@@ -138,7 +138,7 @@ final class CookIngredientsUITests: XCTestCase {
 
         // Imperial conversion in the checklist: rice 150 g x 2 renders in ounces.
         // At this text size the last row can be offscreen; scroll the sheet to reach it.
-        let scroll = app.scrollViews.firstMatch
+        let scroll = app.scrollViews["cookIngredientsScroll"]
         var rice = app.buttons.matching(NSPredicate(format: "identifier == %@ AND label CONTAINS %@", "cookIngredient.4", "oz")).firstMatch
         for _ in 0..<6 where !rice.exists {
             scroll.swipeUp()

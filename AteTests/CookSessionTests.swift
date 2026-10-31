@@ -112,7 +112,8 @@ final class CookSessionTests: XCTestCase {
         store.recipes = [card("r1", ["miso", "rice"])] // reordered outside update()
         store.beginCookSession(recipeID: "r1", factor: 2)
         XCTAssertEqual(store.cookSession?.checked, [])
-        XCTAssertEqual(store.cookSession?.factor, 2)
+        // The active session owns its factor: same-recipe re-begin never overwrites it.
+        XCTAssertEqual(store.cookSession?.factor, 1)
     }
 
     /// Sync-merge / add-replace-by-id style wholesale replacement of the recipes array also

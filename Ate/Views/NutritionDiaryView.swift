@@ -98,9 +98,8 @@ struct NutritionDiaryView: View {
                         NutritionGoalsView()
                     } label: {
                         Label("Set optional daily goals", systemImage: "target")
-                            // Wrap instead of clipping at larger Dynamic Type sizes
-                            // (accessibility audit, #179).
-                            .lineLimit(2)
+                            // Wrap with no line cap: a 2-line limit still clipped at the
+                            // largest Dynamic Type sizes (accessibility audit, #179).
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .accessibilityIdentifier("nutritionDiary.configureGoals")
@@ -122,6 +121,7 @@ struct NutritionDiaryView: View {
                 if weekEntries.isEmpty {
                     Text("Nothing logged this week yet.")
                         .foregroundStyle(Theme.mutedForeground)
+                        .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("nutritionDiary.weeklyEmpty")
                 } else {
                     let weekTotals = NutritionDayTotals.calculate(entries: weekEntries)

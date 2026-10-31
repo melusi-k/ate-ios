@@ -1,4 +1,5 @@
 """Regression checks for the acceptance-ID and release-gate contract."""
+import re
 import shutil
 import subprocess
 import sys
@@ -50,7 +51,12 @@ class GateContractTests(unittest.TestCase):
         self.check('Pilot count 97 differs from LAUNCH_GATES 96')
 
     def test_documented_total_drift_fails(self):
-        self.edit('docs/LAUNCH_GATES.md', '| 179 |', '| 180 |')
+        path = self.root / 'docs/LAUNCH_GATES.md'
+        text = path.read_text()
+        match = re.search(r'(\| Total acceptance IDs \| \| )(\d+)( \|)', text)
+        self.assertIsNotNone(match)
+        total = int(match.group(2))
+        path.write_text(text[:match.start()] + match.group(1) + str(total + 1) + match.group(3) + text[match.end():])
         self.check('total acceptance ID count must match')
 
     def test_missing_gate_count_fails(self):

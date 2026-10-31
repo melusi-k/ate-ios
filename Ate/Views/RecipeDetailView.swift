@@ -40,6 +40,7 @@ struct RecipeDetailView: View {
                             RecipeHero(recipe: recipe)
                             SourceBadge(source: recipe.source)
                             RecipeCardView(recipe: recipe, factor: factor, units: store.settings.units)
+                            RecipeNutritionView(recipe: RecipeLogic.scaled(recipe, factor: factor))
                             Button {
                                 store.addToShopping(recipe, factor: factor)
                                 store.show("Added to your shopping list")

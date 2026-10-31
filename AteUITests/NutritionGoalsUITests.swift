@@ -29,11 +29,25 @@ final class NutritionGoalsUITests: XCTestCase {
 
         let proteinToggle = app.switches["nutritionGoals.enabled.protein"]
         XCTAssertTrue(proteinToggle.waitForExistence(timeout: 10))
-        proteinToggle.tap()
+        // A tap synthesised while the navigation transition is still settling can be
+        // swallowed on a loaded simulator. Confirm the toggle actually switched on before
+        // relying on the value row it reveals; retry the tap once if it did not register.
+        var toggleOn = false
+        for _ in 0..<2 {
+            proteinToggle.tap()
+            let deadline = Date().addingTimeInterval(5)
+            while Date() < deadline && !toggleOn {
+                toggleOn = (proteinToggle.value as? String) == "1"
+                if !toggleOn { usleep(200_000) }
+            }
+            if toggleOn { break }
+        }
+        XCTAssertTrue(toggleOn, "Protein toggle should turn on")
 
         let proteinValue = app.textFields["nutritionGoals.value.protein"]
         XCTAssertTrue(proteinValue.waitForExistence(timeout: 5))
         proteinValue.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the goal value")
         proteinValue.typeText("100")
 
         let clearAll = app.buttons["nutritionGoals.clearAll"]

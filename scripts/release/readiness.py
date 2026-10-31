@@ -137,9 +137,7 @@ def qa_results(rd):
     try: rows = json.load(urllib.request.urlopen(req, timeout=30))
     except Exception as e: return {}, f"qa_results: read failed ({e})"
     res = {}
-    for r in rows:
-        if r.get("commit_sha") != sha or int(r.get("run_id") or 0) != run_id:
-            continue
+    for r in candidate_qa_rows(rows, rd):
         res.setdefault(r["item_id"], {})[r["source"]] = r
     return res, f"candidate QA evidence: {len(rows)} exact-run rows for {sha[:12]} / run {run_id}"
 
@@ -230,6 +228,23 @@ def run_data(run):
     return d
 
 
+def candidate_qa_rows(rows, rd):
+    """Only evidence from this exact commit and Build IPA run may influence readiness."""
+    if not rd:
+        return []
+    return [r for r in rows if r.get("commit_sha") == rd.get("sha")
+            and int(r.get("run_id") or 0) == int(rd.get("id") or 0)]
+
+
+def matrix_evidence_state(status):
+    """A matrix pass is historical, not evidence for the current candidate."""
+    if status == "❌":
+        return "fail"
+    if status == "⛔":
+        return "blocked"
+    return "none"
+
+
 def ui_suite_verdict(jobs, test_count, test_failures):
     """A UI pass requires all four expected shards to complete successfully."""
     if len(jobs) != 4:
@@ -272,7 +287,7 @@ def verdict(ids, mx, qr, rd):
         if dv: st.append(dv["status"]); ev.append(f"{i} device {dv['status']} ({dv['build']})")
         if cv: st.append(cv["status"]); ev.append(f"{i} ci {cv['status']}")
         if not dv and not cv and i in mx:
-            s = mx[i]["status"]; st.append("pass" if s == "✅" else ("blocked" if s == "⛔" else "none")); ev.append(f"{i} matrix {s}")
+            s = mx[i]["status"]; st.append(matrix_evidence_state(s)); ev.append(f"{i} matrix {s} (not bound to candidate)")
     if "fail" in st: return "fail", ev
     if st and all(s == "pass" for s in st): return "pass", ev
     if "pass" in st: return "partial", ev

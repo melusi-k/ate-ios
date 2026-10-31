@@ -44,28 +44,17 @@ enum JournalSuggestionService {
 }
 
 /// Local SwiftData store for Ate journal entries (in-memory during UI tests). Never synced.
-/// The container also holds Food Journal meal payloads (#245); opening goes through the same
-/// move-aside recovery as the recipes store (R-DATA-01) so a corrupt journal store is backed up
-/// and reported instead of silently showing an empty journal.
+/// The container schema also holds Food Journal meal payloads (#245). The open path is unchanged
+/// in this slice: move-aside recovery (R-DATA-01) for the journal store ships together with its
+/// honest user-facing presentation in the timeline slice, so a recovered-empty journal is never
+/// silently shown as the user's actual history.
 @MainActor
 final class JournalStore {
     static let shared = JournalStore()
     let container: ModelContainer?
-    /// Non-nil when opening needed recovery or failed over; surfaced by the journal UI (#245 phase 3).
-    private(set) var recovery: StoreRecovery.Outcome?
-    static let storeConfigurationName = "AteJournal"
     init(inMemory: Bool = AppConfig.isUITesting) {
-        let make: (ModelConfiguration) throws -> ModelContainer = {
-            try ModelContainer(for: JournalEntry.self, JournalMealPayload.self, configurations: $0)
-        }
-        if inMemory {
-            container = try? make(ModelConfiguration(Self.storeConfigurationName, isStoredInMemoryOnly: true))
-            recovery = nil
-        } else {
-            let outcome = StoreRecovery.open(url: ModelConfiguration(Self.storeConfigurationName).url, make: make)
-            container = outcome.container
-            recovery = (outcome.recovered || outcome.inMemoryFallback || outcome.container == nil) ? outcome : nil
-        }
+        container = try? ModelContainer(for: JournalEntry.self, JournalMealPayload.self,
+                                        configurations: ModelConfiguration("AteJournal", isStoredInMemoryOnly: inMemory))
         seedMomentEntryForUITests()
         removeImagePromptEntriesOnce()
     }

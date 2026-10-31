@@ -42,10 +42,11 @@ enum BetaFeedbackService {
         let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 10, trimmed.count <= 5000 else { throw BetaFeedbackError.invalid }
         let email = contactEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let emailValue: Any = email?.isEmpty == false ? String(email!.prefix(254)) : NSNull()
         let payload: [String: Any] = [
             "category": category.rawValue,
             "message": trimmed,
-            "contactEmail": email?.isEmpty == false ? String(email!.prefix(254)) : NSNull(),
+            "contactEmail": emailValue,
             "appVersion": String(AppConfig.appVersion.prefix(32)),
             "buildNumber": String(AppConfig.buildNumber.prefix(32)),
             "channel": AppConfig.channel,

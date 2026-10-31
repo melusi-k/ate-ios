@@ -164,7 +164,11 @@ jobs:
             "CatalogueIntegrityTests testCalculatorSurfacesUnmappedSADishNameAsIncomplete]' passed" \
             "NutritionDiaryTests testDiaryRoundTripsEntryDateMealQuantityServingsAndProvenance]' passed" \
             "NutritionDiaryTests testEditingEntryReplacesByIdentityKeepsDayAndLeavesOthersUntouched]' passed" \
-            "NutritionDiaryTests testDayTotalsReflectEditedEntrySnapshot]' passed"; do
+            "NutritionDiaryTests testDayTotalsReflectEditedEntrySnapshot]' passed" \
+            "NutritionDiaryTests testWeekIntervalUsesTheCalendarWeekContainingTheGivenDate]' passed" \
+            "NutritionDiaryTests testWeekTotalsIncludeOnlyCurrentCalendarWeekEntries]' passed" \
+            "NutritionDiaryTests testWeekTotalsExcludeEntriesWithoutParseableDay]' passed" \
+            "NutritionDiaryTests testWeekTotalsEmptyWeekReportsNoValues]' passed"; do
             grep -qF "$evidence" nutrition-foundation-unit-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-foundation-unit-tests.log; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
@@ -213,6 +217,7 @@ jobs:
             "NutritionDiaryUITests testRecipeNutritionShowsIncompleteStateForUnmappedIngredient]' passed" \
             "NutritionDiaryUITests testLoggedEntryCanBeEditedAndShowsUpdatedValues]' passed" \
             "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
+            "NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed" \
             "AccessibilityAuditUITests testAuditNutritionScreens]' passed"; do
             grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }
           done

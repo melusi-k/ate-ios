@@ -92,6 +92,9 @@ final class NutritionGoalsUITests: XCTestCase {
         reopenedEntry.tap()
         let reopenedProteinToggle = app.switches["nutritionGoals.enabled.protein"]
         XCTAssertTrue(reopenedProteinToggle.waitForExistence(timeout: 10))
+        let reopenedEnabled = NSPredicate(format: "enabled == true")
+        let reopenedReady = XCTNSPredicateExpectation(predicate: reopenedEnabled, object: reopenedProteinToggle)
+        XCTAssertEqual(XCTWaiter.wait(for: [reopenedReady], timeout: 5), .completed, "Reopened goals must finish loading before checking persistence")
         XCTAssertEqual(reopenedProteinToggle.value as? String, "0", "Cleared goals should remain cleared after reopening")
     }
 }

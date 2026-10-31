@@ -7,6 +7,10 @@ struct NutritionGoalsView: View {
     @State private var errors: [NutritionGoalField: String] = [:]
     @State private var saveError: String?
     @State private var loadError: String?
+    @State private var canRecoverCorruptData = false
+    @State private var showingRecoveryConfirmation = false
+    @State private var recoveryError: String?
+    @State private var recoveryNotice: String?
     @State private var didLoad = false
 
     private let repository: NutritionGoalsRepository
@@ -61,6 +65,30 @@ struct NutritionGoalsView: View {
                         .accessibilityIdentifier("nutritionGoals.loadError")
                     Button("Retry loading goals") { loadDraftIfNeeded() }
                         .accessibilityIdentifier("nutritionGoals.retryLoad")
+                    if canRecoverCorruptData {
+                        Button("Back up and reset goals…", role: .destructive) {
+                            showingRecoveryConfirmation = true
+                        }
+                        .accessibilityIdentifier("nutritionGoals.recoverCorruptData")
+                    }
+                }
+            }
+
+            if let recoveryNotice {
+                Section {
+                    Label(recoveryNotice, systemImage: "checkmark.circle")
+                        .foregroundStyle(Theme.mutedForeground)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("nutritionGoals.recoveryNotice")
+                }
+            }
+
+            if let recoveryError {
+                Section {
+                    Label(recoveryError, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("nutritionGoals.recoveryError")
                 }
             }
 
@@ -77,6 +105,12 @@ struct NutritionGoalsView: View {
         .foregroundStyle(Theme.foreground)
         .navigationTitle("Nutrition goals")
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog("Back up and reset unreadable goals?", isPresented: $showingRecoveryConfirmation, titleVisibility: .visible) {
+            Button("Back up and reset", role: .destructive) { recoverCorruptData() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("A private local copy of the unreadable data will be saved before the broken configuration is removed. If the backup cannot be saved, no data will be reset.")
+        }
         .task { loadDraftIfNeeded() }
     }
 
@@ -150,17 +184,33 @@ struct NutritionGoalsView: View {
     private func loadDraftIfNeeded() {
         guard !didLoad else { return }
         loadError = nil
+        recoveryError = nil
         do {
             applyDraft(try repository.load())
             didLoad = true
+            canRecoverCorruptData = false
         } catch let error as NutritionGoalsLoadError {
             if let fallback = error.fallbackGoals {
                 applyDraft(fallback)
             }
             // Keep didLoad false so Save/Clear remain disabled until storage loads successfully.
+            canRecoverCorruptData = error.canRecoverCorruptData
             loadError = error.localizedDescription
         } catch {
             loadError = "Existing nutrition goals couldn't be loaded safely. Saving is disabled to protect existing data. Retry loading or cancel."
+        }
+    }
+
+    private func recoverCorruptData() {
+        recoveryError = nil
+        recoveryNotice = nil
+        do {
+            try repository.recoverCorruptData()
+            didLoad = false
+            loadDraftIfNeeded()
+            recoveryNotice = "Unreadable nutrition-goals data was backed up locally before reset."
+        } catch {
+            recoveryError = "The unreadable data couldn't be backed up safely, so nothing was reset. Check available storage and try again."
         }
     }
 

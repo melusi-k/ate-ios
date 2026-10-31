@@ -199,10 +199,12 @@ private final class ArchiveFailingNutritionGoalsStorage: NutritionGoalsStorage {
     init(data: Data?) { self.data = data }
     func read() throws -> Data? { data }
     func write(_ data: Data) throws { throw ArchiveImportStorageError.writeFailed }
+    func preserveCorruptData(_ data: Data) throws { throw ArchiveImportStorageError.preserveFailed }
     func remove() throws { throw ArchiveImportStorageError.removeFailed }
 }
 
 private enum ArchiveImportStorageError: Error {
     case writeFailed
+    case preserveFailed
     case removeFailed
 }

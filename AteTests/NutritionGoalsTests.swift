@@ -156,7 +156,84 @@ final class NutritionGoalsTests: XCTestCase {
                 return
             }
             XCTAssertNil(loadError.fallbackGoals)
+            XCTAssertTrue(loadError.canRecoverCorruptData)
         }
+    }
+
+    func testFileStoragePreservesCorruptBytesInUniqueLocalBackup() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("NutritionGoalsBackup-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let fileURL = directory.appendingPathComponent("goals.json")
+        let storage = FileNutritionGoalsStorage(fileURL: fileURL)
+        let corrupt = Data("not-json".utf8)
+
+        try storage.write(corrupt)
+        try storage.preserveCorruptData(corrupt)
+
+        let backupURLs = try FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil
+        ).filter { $0.lastPathComponent.hasPrefix("nutrition-goals-corrupt-") }
+        XCTAssertEqual(backupURLs.count, 1)
+        XCTAssertEqual(try Data(contentsOf: backupURLs[0]), corrupt)
+
+        try storage.remove()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fileURL.path))
+        XCTAssertEqual(try Data(contentsOf: backupURLs[0]), corrupt)
+    }
+
+    func testCorruptStoredDataIsBackedUpBeforeReset() throws {
+        let corrupt = Data("not-json".utf8)
+        let storage = FailingNutritionGoalsStorage(data: corrupt)
+        let invalidRepository = NutritionGoalsRepository(defaults: defaults, storage: storage)
+        XCTAssertThrowsError(try invalidRepository.load())
+
+        try invalidRepository.recoverCorruptData()
+
+        XCTAssertEqual(storage.backups, [corrupt])
+        XCTAssertNil(storage.data)
+        XCTAssertTrue(try invalidRepository.load().isEmpty)
+    }
+
+    func testCorruptLegacyDataIsBackedUpBeforeReset() throws {
+        let corrupt = Data("legacy-not-json".utf8)
+        defaults.set(corrupt, forKey: DailyNutritionGoals.defaultsKey)
+        let storage = FailingNutritionGoalsStorage(data: nil)
+        let invalidRepository = NutritionGoalsRepository(defaults: defaults, storage: storage)
+        XCTAssertThrowsError(try invalidRepository.load())
+
+        try invalidRepository.recoverCorruptData()
+
+        XCTAssertEqual(storage.backups, [corrupt])
+        XCTAssertNil(defaults.data(forKey: DailyNutritionGoals.defaultsKey))
+        XCTAssertTrue(try invalidRepository.load().isEmpty)
+    }
+
+    func testFailedCorruptDataBackupLeavesOriginalDataUntouched() throws {
+        let corrupt = Data("not-json".utf8)
+        let storage = FailingNutritionGoalsStorage(data: corrupt, failPreserve: true)
+        let invalidRepository = NutritionGoalsRepository(defaults: defaults, storage: storage)
+        XCTAssertThrowsError(try invalidRepository.load())
+
+        XCTAssertThrowsError(try invalidRepository.recoverCorruptData())
+
+        XCTAssertEqual(storage.data, corrupt)
+        XCTAssertTrue(storage.backups.isEmpty)
+    }
+
+    func testAllCorruptCopiesAreBackedUpBeforeAnyOriginalIsRemoved() throws {
+        let storedCorrupt = Data("stored-not-json".utf8)
+        let legacyCorrupt = Data("legacy-not-json".utf8)
+        defaults.set(legacyCorrupt, forKey: DailyNutritionGoals.defaultsKey)
+        let storage = FailingNutritionGoalsStorage(data: storedCorrupt, failPreserveOnAttempt: 2)
+        let invalidRepository = NutritionGoalsRepository(defaults: defaults, storage: storage)
+        XCTAssertThrowsError(try invalidRepository.load())
+
+        XCTAssertThrowsError(try invalidRepository.recoverCorruptData())
+
+        XCTAssertEqual(storage.data, storedCorrupt)
+        XCTAssertEqual(defaults.data(forKey: DailyNutritionGoals.defaultsKey), legacyCorrupt)
+        XCTAssertEqual(storage.backups, [storedCorrupt])
     }
 }
 
@@ -165,12 +242,19 @@ private final class FailingNutritionGoalsStorage: NutritionGoalsStorage {
     var failWrites: Bool
     var failRemoves: Bool
     var failReads: Bool
+    var failPreserve: Bool
+    var failPreserveOnAttempt: Int?
+    private var preserveAttempts = 0
+    private(set) var backups: [Data] = []
 
-    init(data: Data?, failWrites: Bool = false, failRemoves: Bool = false, failReads: Bool = false) {
+    init(data: Data?, failWrites: Bool = false, failRemoves: Bool = false,
+         failReads: Bool = false, failPreserve: Bool = false, failPreserveOnAttempt: Int? = nil) {
         self.data = data
         self.failWrites = failWrites
         self.failRemoves = failRemoves
         self.failReads = failReads
+        self.failPreserve = failPreserve
+        self.failPreserveOnAttempt = failPreserveOnAttempt
     }
 
     func read() throws -> Data? {
@@ -183,6 +267,14 @@ private final class FailingNutritionGoalsStorage: NutritionGoalsStorage {
         self.data = data
     }
 
+    func preserveCorruptData(_ data: Data) throws {
+        preserveAttempts += 1
+        if failPreserve || failPreserveOnAttempt == preserveAttempts {
+            throw TestStorageError.preserveFailed
+        }
+        backups.append(data)
+    }
+
     func remove() throws {
         if failRemoves { throw TestStorageError.removeFailed }
         data = nil
@@ -193,4 +285,5 @@ private enum TestStorageError: Error {
     case readFailed
     case writeFailed
     case removeFailed
+    case preserveFailed
 }

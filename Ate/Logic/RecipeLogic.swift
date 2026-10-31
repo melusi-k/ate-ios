@@ -11,6 +11,12 @@ enum RecipeLogic {
         return c
     }
 
+    /// Stable fingerprint of the ingredient list. Gathered checks in a cook session are
+    /// positional, so any change to names, quantities, units or order invalidates them.
+    static func ingredientSignature(_ card: RecipeCard) -> String {
+        card.ingredients.map { "\($0.name)|\($0.quantity)|\($0.unit)" }.joined(separator: ";")
+    }
+
     static func normalize(_ card: RecipeCard) -> RecipeCard {
         var c = card
         let t = c.title.trimmingCharacters(in: .whitespacesAndNewlines)

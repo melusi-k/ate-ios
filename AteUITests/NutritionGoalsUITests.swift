@@ -98,11 +98,11 @@ final class NutritionGoalsUITests: XCTestCase {
         // log so CI artifacts carry the discriminator if this ever fails again.
         proteinToggle.tap()
         var toggleValue = proteinToggle.value as? String
-        print("[goals] protein switch after tap 1: value=\(toggleValue ?? "nil") frame=\(NSStringFromCGRect(proteinToggle.frame))")
+        print("[goals] protein switch after tap 1: value=\(toggleValue ?? "nil") frame=\(NSCoder.string(for: proteinToggle.frame))")
         if toggleValue != "1" {
             proteinToggle.tap()
             toggleValue = proteinToggle.value as? String
-            print("[goals] protein switch after tap 2: value=\(toggleValue ?? "nil") frame=\(NSStringFromCGRect(proteinToggle.frame))")
+            print("[goals] protein switch after tap 2: value=\(toggleValue ?? "nil") frame=\(NSCoder.string(for: proteinToggle.frame))")
         }
         XCTAssertEqual(toggleValue, "1", "Protein toggle should turn on")
 

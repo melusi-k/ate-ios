@@ -152,8 +152,8 @@ struct NutritionDiaryView: View {
                 Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.error") }
             }
         }
-        // Keep content clear of the floating tab bar at all times.
-        .safeAreaPadding(.bottom, 96)
+        // Pushed screen: hide the tab bar so list content never rests behind it.
+        .toolbar(.hidden, for: .tabBar)
         .navigationTitle("Food diary")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

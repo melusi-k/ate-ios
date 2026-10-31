@@ -141,9 +141,11 @@ final class CookIngredientsUITests: XCTestCase {
         let scroll = app.scrollViews["cookIngredientsScroll"]
         let riceQuery = NSPredicate(format: "identifier == %@ AND label CONTAINS %@", "cookIngredient.4", "oz")
         var rice = app.buttons.matching(riceQuery).firstMatch
-        // A row can exist in the hierarchy while still clipped at the scroll edge; keep
-        // scrolling until it is actually on screen and tappable, as a user would.
-        for _ in 0..<8 where !(rice.exists && rice.isHittable) {
+        // A row can exist in the hierarchy while still clipped at the scroll edge, and
+        // isHittable alone has proven unreliable; keep scrolling until the row is fully
+        // inside the sheet's visible frame and tappable, as a user would.
+        let visibleFrame = { scroll.frame.insetBy(dx: 0, dy: -2) }
+        for _ in 0..<8 where !(rice.exists && rice.isHittable && visibleFrame().contains(rice.frame)) {
             scroll.swipeUp()
             rice = app.buttons.matching(riceQuery).firstMatch
         }
@@ -151,6 +153,7 @@ final class CookIngredientsUITests: XCTestCase {
         XCTAssertTrue(rice.label.contains("11 oz"), rice.label)
         XCTAssertTrue(rice.label.contains("rice"), rice.label)
         XCTAssertTrue(rice.isHittable, "rice row not tappable at AX text size")
+        XCTAssertTrue(visibleFrame().contains(rice.frame), "rice row not fully within the sheet's visible frame: \(rice.frame) vs \(scroll.frame)")
         shot("cook-ingredients-sheet-large-text-imperial")
     }
 }

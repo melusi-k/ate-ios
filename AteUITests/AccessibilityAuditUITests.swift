@@ -86,7 +86,7 @@ final class AccessibilityAuditUITests: XCTestCase {
                 continue
             }
             let frame = entry.frame
-            let bottomBound = app.windows.firstMatch.frame.maxY - 90 // tab bar
+            let bottomBound = bottomClearBound(app)
             if frame.midY >= topBound && frame.midY <= bottomBound {
                 if entry.isHittable { return true }
                 app.swipeDown(velocity: .slow)
@@ -98,8 +98,19 @@ final class AccessibilityAuditUITests: XCTestCase {
         }
         guard entry.exists, !entry.frame.isEmpty, entry.isHittable else { return false }
         let finalFrame = entry.frame
-        let bottomBound = app.windows.firstMatch.frame.maxY - 90
+        let bottomBound = bottomClearBound(app)
         return finalFrame.midY >= topBound && finalFrame.midY <= bottomBound
+    }
+
+    /// Bottom edge of the reveal band, measured from the chrome actually on screen
+    /// (floating tab bar, and the Add accessory at tab roots) rather than a fixed offset.
+    private func bottomClearBound(_ app: XCUIApplication) -> CGFloat {
+        var bound = app.windows.firstMatch.frame.maxY - 4
+        let tabBar = app.tabBars.firstMatch
+        if tabBar.exists && !tabBar.frame.isEmpty && tabBar.isHittable { bound = min(bound, tabBar.frame.minY - 4) }
+        let accessory = app.buttons["accessoryAdd"]
+        if accessory.exists && !accessory.frame.isEmpty && accessory.isHittable { bound = min(bound, accessory.frame.minY - 4) }
+        return bound
     }
 
     /// #179: the nutrition diary and goals screens must actually be reached and audited -
@@ -136,5 +147,30 @@ final class AccessibilityAuditUITests: XCTestCase {
         app.buttons["Cook mode"].tap()
         try audit("ax5-cook-mode", strict: false)
         let c = XCTAttachment(screenshot: app.screenshot()); c.name = "ax5-cook"; c.lifetime = .keepAlways; add(c)
+
+        // Evidence-only sweep of the nutrition screens at AX5 (non-gating): captures whether
+        // the flagged diary/goals texts clip or stop scaling at the largest size (#179).
+        let exitCook = app.buttons["Exit"]
+        if exitCook.waitForExistence(timeout: 5) { exitCook.tap() }
+        let settingsTab = app.tabBars.buttons["Settings"]
+        guard settingsTab.waitForExistence(timeout: 5) else { return }
+        settingsTab.tap()
+        let diaryEntry = app.buttons["settings.nutritionDiary"]
+        if revealSettingsEntry(diaryEntry) {
+            diaryEntry.tap()
+            if app.navigationBars["Food diary"].waitForExistence(timeout: 10) {
+                try audit("ax5-nutrition-diary", strict: false)
+                let d = XCTAttachment(screenshot: app.screenshot()); d.name = "ax5-nutrition-diary"; d.lifetime = .keepAlways; add(d)
+                app.navigationBars.buttons.element(boundBy: 0).tap()
+                let goalsEntry = app.buttons["settings.nutritionGoals"]
+                if revealSettingsEntry(goalsEntry) {
+                    goalsEntry.tap()
+                    if app.navigationBars["Nutrition goals"].waitForExistence(timeout: 10) {
+                        try audit("ax5-nutrition-goals", strict: false)
+                        let g = XCTAttachment(screenshot: app.screenshot()); g.name = "ax5-nutrition-goals"; g.lifetime = .keepAlways; add(g)
+                    }
+                }
+            }
+        }
     }
 }

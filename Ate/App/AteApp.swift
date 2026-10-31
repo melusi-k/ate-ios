@@ -391,6 +391,8 @@ struct RouteView: View {
             case .betaNote: AppConfig.isBetaBuild ? AnyView(BetaExpectationsView()) : AnyView(SettingsView())
             case .journal: JournalListView()
             case .journalEntry(let id): JournalEntryDetailView(entryID: id)
+            case .nutritionDiary: NutritionDiaryView()
+            case .nutritionGoals: NutritionGoalsView()
             }
         }
         .toolbarTitleDisplayMode(.inline)

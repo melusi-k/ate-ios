@@ -57,15 +57,14 @@ struct SettingsView: View {
                         .accessibilityIdentifier("toggle.journalingSuggestions")
                     }
                     Section("Nutrition") {
-                        NavigationLink {
-                            NutritionDiaryView()
-                        } label: {
+                        // Typed Route pushes: value-less links never update settingsPath, so
+                        // isAtTabRoot stayed true and the root-only bottom Add accessory kept
+                        // rendering over these pushed screens (audit screenshot evidence, #179).
+                        NavigationLink(value: Route.nutritionDiary) {
                             Label("Food diary", systemImage: "fork.knife")
                         }
                         .accessibilityIdentifier("settings.nutritionDiary")
-                        NavigationLink {
-                            NutritionGoalsView()
-                        } label: {
+                        NavigationLink(value: Route.nutritionGoals) {
                             Label("Nutrition goals", systemImage: "target")
                         }
                         .accessibilityIdentifier("settings.nutritionGoals")
@@ -200,8 +199,10 @@ struct SettingsView: View {
         .background(Theme.background)
         .foregroundStyle(Theme.foreground)
         .navigationTitle("Settings")
-        .navigationDestination(isPresented: $store.showNutritionDiary) {
-            NutritionDiaryView()
+        // Bridge the Insights shortcut onto the typed path so the push is recorded in
+        // settingsPath (isAtTabRoot -> false, root-only bottom accessory stays off, #179).
+        .onChange(of: store.showNutritionDiary) { _, show in
+            if show { store.settingsPath.append(Route.nutritionDiary); store.showNutritionDiary = false }
         }
         .ateRootNavigationChrome(logoID: "settings.logo")
         .onAppear { store.bottomAddContext = .recipe }

@@ -85,7 +85,8 @@ jobs:
           # Marketing version = <major>.<minor>.<run_number> so every build is distinct in iPhone Storage.
           VERSION="$(echo "$BASE" | cut -d. -f1-2).$BUILD_NUMBER"
           SHORT_SHA="${GITHUB_SHA::7}"
-          sed -i '' -E "s/^( *MARKETING_VERSION: ).*/\1\"$VERSION\"/; s/^( *CURRENT_PROJECT_VERSION: ).*/\1\"$BUILD_NUMBER\"/; s/^( *ATE_GIT_SHA: ).*/\1\"$SHORT_SHA\"/; s/^( *ATE_CHANNEL: ).*/\1\"$ATE_CHANNEL\"/" project.yml
+          FULL_SHA="$GITHUB_SHA"
+          sed -i '' -E "s/^( *MARKETING_VERSION: ).*/\1\"$VERSION\"/; s/^( *CURRENT_PROJECT_VERSION: ).*/\1\"$BUILD_NUMBER\"/; s/^( *ATE_GIT_SHA: ).*/\1\"$SHORT_SHA\"/; s/^( *ATE_GIT_SHA_FULL: ).*/\1\"$FULL_SHA\"/; s/^( *ATE_GIT_RUN_ID: ).*/\1\"$GITHUB_RUN_ID\"/; s/^( *ATE_CHANNEL: ).*/\1\"$ATE_CHANNEL\"/" project.yml
           grep -E 'MARKETING_VERSION|CURRENT_PROJECT_VERSION|ATE_GIT_SHA|ATE_CHANNEL' project.yml
           echo "GIT_SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
           xcodegen generate && xcodebuild -version
@@ -334,7 +335,7 @@ jobs:
           IDENTITY="Apple Development"; [ "$EXPORT_METHOD" != development ] && IDENTITY="Apple Distribution"
           xcodebuild archive -project Ate.xcodeproj -scheme "$SCHEME" -configuration Release \
             -destination 'generic/platform=iOS' -archivePath build/Ate.xcarchive \
-            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" MARKETING_VERSION="$APP_VERSION" ATE_GIT_SHA="$GIT_SHORT_SHA" ATE_CHANNEL="$ATE_CHANNEL" ATE_ENTITLEMENTS=Ate/Ate-Signed.entitlements \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" MARKETING_VERSION="$APP_VERSION" ATE_GIT_SHA="$GIT_SHORT_SHA" ATE_GIT_SHA_FULL="$GITHUB_SHA" ATE_GIT_RUN_ID="$GITHUB_RUN_ID" ATE_CHANNEL="$ATE_CHANNEL" ATE_ENTITLEMENTS=Ate/Ate-Signed.entitlements \
             DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_IDENTITY="$IDENTITY" -quiet
           cat > build/ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
@@ -355,7 +356,7 @@ jobs:
         run: |
           xcodebuild archive -project Ate.xcodeproj -scheme "$SCHEME" -configuration Release \
             -destination 'generic/platform=iOS' -archivePath build/Ate.xcarchive \
-            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" MARKETING_VERSION="$APP_VERSION" ATE_GIT_SHA="$GIT_SHORT_SHA" ATE_CHANNEL="$ATE_CHANNEL" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" MARKETING_VERSION="$APP_VERSION" ATE_GIT_SHA="$GIT_SHORT_SHA" ATE_GIT_SHA_FULL="$GITHUB_SHA" ATE_GIT_RUN_ID="$GITHUB_RUN_ID" ATE_CHANNEL="$ATE_CHANNEL" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -quiet
           mkdir -p build/Payload dist
           cp -R build/Ate.xcarchive/Products/Applications/Ate.app build/Payload/
@@ -664,7 +665,8 @@ jobs:
           # Marketing version = <major>.<minor>.<run_number> so every build is distinct in iPhone Storage.
           VERSION="$(echo "$BASE" | cut -d. -f1-2).$BUILD_NUMBER"
           SHORT_SHA="${GITHUB_SHA::7}"
-          sed -i '' -E "s/^( *MARKETING_VERSION: ).*/\1\"$VERSION\"/; s/^( *CURRENT_PROJECT_VERSION: ).*/\1\"$BUILD_NUMBER\"/; s/^( *ATE_GIT_SHA: ).*/\1\"$SHORT_SHA\"/" project.yml
+          FULL_SHA="$GITHUB_SHA"
+          sed -i '' -E "s/^( *MARKETING_VERSION: ).*/\1\"$VERSION\"/; s/^( *CURRENT_PROJECT_VERSION: ).*/\1\"$BUILD_NUMBER\"/; s/^( *ATE_GIT_SHA: ).*/\1\"$SHORT_SHA\"/; s/^( *ATE_GIT_SHA_FULL: ).*/\1\"$FULL_SHA\"/; s/^( *ATE_GIT_RUN_ID: ).*/\1\"$GITHUB_RUN_ID\"/" project.yml
           grep -E 'MARKETING_VERSION|CURRENT_PROJECT_VERSION|ATE_GIT_SHA' project.yml
           echo "GIT_SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
           xcodegen generate && xcodebuild -version

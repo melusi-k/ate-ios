@@ -14,7 +14,10 @@ final class NutritionDiaryUITests: XCTestCase {
     /// between the top bar and the keyboard before tapping.
     @discardableResult
     private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication, max: Int = 12) -> Bool {
-        let topBound: CGFloat = 112 // below the inline navigation bar in these sheets/screens
+        // Clear band top: measured from the on-screen navigation bar when one is present;
+        // the 120pt fallback matches the pinned CI simulator (402x874) inline-bar sheets.
+        let navBar = app.navigationBars.firstMatch
+        let topBound: CGFloat = (navBar.exists && !navBar.frame.isEmpty) ? navBar.frame.maxY + 4 : 120
         var attempts = 0
         var blockedUps = 0
         while attempts < max {
@@ -46,7 +49,15 @@ final class NutritionDiaryUITests: XCTestCase {
                 blockedUps = 0
             }
         }
-        return element.exists && element.isHittable
+        // Exhaustion is a miss: honour the element only when its measured centre is inside
+        // the clear band AND it is hittable. isHittable alone is never sufficient - it also
+        // reports true for cells clipped by the bar or past the keyboard (the original CI
+        // failure shape), so it must not be returned unvalidated.
+        guard element.exists, !element.frame.isEmpty, element.isHittable else { return false }
+        let finalFrame = element.frame
+        let finalKeyboard = app.keyboards.firstMatch
+        let finalBottom = finalKeyboard.exists ? finalKeyboard.frame.minY - 8 : app.windows.firstMatch.frame.maxY - 4
+        return finalFrame.midY >= topBound && finalFrame.midY <= finalBottom
     }
 
     private func tapWhenHittable(_ element: XCUIElement, in app: XCUIApplication, _ message: String? = nil, file: StaticString = #filePath, line: UInt = #line) {
@@ -56,23 +67,31 @@ final class NutritionDiaryUITests: XCTestCase {
 
     /// Typing before the keyboard finishes its appear animation can drop characters on a
     /// loaded CI simulator. Wait for the keyboard before sending text. When the keyboard was
-    /// already up for a previous field, its existence proves nothing about this field's focus,
-    /// so a tap that missed (bar/keyboard overlap) is re-centred and retried once before typing.
+    /// already up for a previous field, its existence proves nothing about THIS field's focus,
+    /// so the typed text is checked against the field's own value - the documented outcome of
+    /// the interaction. A miss (tap eaten by the bar/keyboard, previous field still focused)
+    /// costs one measured re-centre, re-tap and retype, then fails loudly with a screenshot in
+    /// the diagnostics artifact.
     private func typeAfterKeyboard(_ element: XCUIElement, in app: XCUIApplication, _ text: String, file: StaticString = #filePath, line: UInt = #line) {
         let keyboardWasUp = app.keyboards.firstMatch.exists
         tapWhenHittable(element, in: app, file: file, line: line)
         if !keyboardWasUp {
             XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the focused field", file: file, line: line)
         }
-        // Retry signal only, never a gate: the keyboard-focus attribute is read when the
-        // platform reports it, and an unknown/nil answer simply proceeds to the typeText
-        // below, which remains the asserted interaction. A false reading costs one re-centre
-        // and re-tap, not a spurious failure.
-        if keyboardWasUp, (element.value(forKey: "hasKeyboardFocus") as? Bool) == false {
+        element.typeText(text)
+        if !(((element.value as? String) ?? "").contains(text)) {
             _ = scrollToHittable(element, in: app)
             element.tap()
+            element.typeText(text)
         }
-        element.typeText(text)
+        let landed = (element.value as? String) ?? ""
+        if !landed.contains(text) {
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = "typeAfterKeyboard-missed"
+            shot.lifetime = .keepAlways
+            add(shot)
+            XCTFail("Typed text did not land in the field (value after retry: \"\(landed)\")", file: file, line: line)
+        }
     }
 
     func testFoodDiaryOpensAndExplicitlyLogsFoodWithUnavailableValues() throws {

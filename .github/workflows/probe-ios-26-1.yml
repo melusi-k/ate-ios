@@ -36,13 +36,7 @@ jobs:
           # iPhone 18 Pro requires iOS 27 (simctl create: Incompatible device); iPhone 17
           # Pro has the identical 402x874pt geometry and supports 26.1. Prefer it, then fall
           # back through same-generation models.
-          DT=$(xcrun simctl list devicetypes -j | python3 -c 'import json,sys
-ds=json.load(sys.stdin)["devicetypes"]
-pref=["iPhone 17 Pro","iPhone 16 Pro","iPhone 17","iPhone 16","iPhone 15"]
-avail={d["name"]:d["identifier"] for d in ds}
-for n in pref:
-    if n in avail: print(avail[n]); break
-else: print("MISSING")')
+          DT=$(xcrun simctl list devicetypes -j | python3 -c 'import json,sys;ds=json.load(sys.stdin)["devicetypes"];avail={d["name"]:d["identifier"] for d in ds};pref=["iPhone 17 Pro","iPhone 16 Pro","iPhone 17","iPhone 16","iPhone 15"];print(next((avail[n] for n in pref if n in avail), "MISSING"))')
           echo "devicetype=$DT"; test "$DT" != "MISSING"
           UDID=$(xcrun simctl create probe-261 "$DT" "$RT")
           echo "UDID=$UDID" | tee -a "$GITHUB_ENV"

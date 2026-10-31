@@ -162,7 +162,7 @@ final class NutritionGoalsTests: XCTestCase {
 
     func testFileStoragePreservesCorruptBytesInUniqueLocalBackup() throws {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("NutritionGoalsBackup-\\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("NutritionGoalsBackup-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let fileURL = directory.appendingPathComponent("goals.json")
         let storage = FileNutritionGoalsStorage(fileURL: fileURL)

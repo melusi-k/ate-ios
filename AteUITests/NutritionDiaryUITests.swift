@@ -19,16 +19,16 @@ final class NutritionDiaryUITests: XCTestCase {
         return element.exists && element.isHittable
     }
 
-    private func tapWhenHittable(_ element: XCUIElement, in app: XCUIApplication, _ message: String? = nil) {
-        XCTAssertTrue(scrollToHittable(element, in: app), message ?? "Element should be visible before it is tapped")
+    private func tapWhenHittable(_ element: XCUIElement, in app: XCUIApplication, _ message: String? = nil, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(scrollToHittable(element, in: app), message ?? "Element should be visible before it is tapped", file: file, line: line)
         element.tap()
     }
 
     /// Typing before the keyboard finishes its appear animation can drop characters on a
     /// loaded CI simulator. Wait for the keyboard before sending text.
-    private func typeAfterKeyboard(_ element: XCUIElement, in app: XCUIApplication, _ text: String) {
-        tapWhenHittable(element, in: app)
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the focused field")
+    private func typeAfterKeyboard(_ element: XCUIElement, in app: XCUIApplication, _ text: String, file: StaticString = #filePath, line: UInt = #line) {
+        tapWhenHittable(element, in: app, file: file, line: line)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the focused field", file: file, line: line)
         element.typeText(text)
     }
 
@@ -134,8 +134,10 @@ final class NutritionDiaryUITests: XCTestCase {
         }
         quantity.typeText("0")
         tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
-        // Error state: visible message, and the form stays open for correction.
-        XCTAssertTrue(app.descendants(matching: .any)["nutritionDiary.formError"].waitForExistence(timeout: 5))
+        // Error state: visible message, and the form stays open for correction. If the error
+        // section renders outside the materialised cells, scroll it into the hierarchy.
+        let formError = app.descendants(matching: .any)["nutritionDiary.formError"]
+        XCTAssertTrue(scrollToHittable(formError, in: app) || formError.waitForExistence(timeout: 3), "Save error should be visible")
         XCTAssertTrue(app.staticTexts["Enter a quantity and servings greater than zero."].exists)
         XCTAssertTrue(app.buttons["nutritionDiary.save"].exists)
     }
@@ -189,7 +191,10 @@ final class NutritionDiaryUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaNutritionFixtures"]
         app.launch()
-        let card = app.staticTexts["QA pap and rice"].firstMatch
+        // Tap the card button itself: tapping the inner label text synthesises an event that
+        // does not reach the button's action on a loaded simulator, so the sheet never presents.
+        let card = app.buttons.matching(identifier: "listCard")
+            .matching(NSPredicate(format: "label CONTAINS %@", "QA pap and rice")).firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 10), "Seeded recipe should appear in the library")
         tapWhenHittable(card, in: app, "Seeded recipe card should be visible before it is tapped")
         // Library cards open a compact sheet; the nutrition card lives in the expanded detail.

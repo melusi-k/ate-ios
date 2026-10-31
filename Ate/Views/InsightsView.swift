@@ -304,6 +304,7 @@ struct InsightsView: View {
                             moveInsightTile(source, before: tileID)
                             return true
                         }
+                        .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("insights.tile.\(tileID)")
                     }
                 }

@@ -2,7 +2,7 @@
 
 ## Automatic flow
 
-Pull requests targeting `main` run qualification before merge. Every push to `main` starts two independent workflows:
+Pull requests targeting `main` run Dogfood qualification before merge. Every push to `main` starts the fast IPA workflow; Dogfood Qualification runs for pull requests and can be started manually with `workflow_dispatch` for explicit post-merge or release investigations:
 
 1. **Fast engineering IPA** — the existing Build IPA workflow builds, verifies, checksums and publishes an immutable `build-N` artifact plus the rolling `latest-build` release. This remains available even if qualification fails; it is not, by itself, a dogfood approval.
 2. **Dogfood qualification** — `.github/workflows/dogfood-qualification.yml` runs against the exact PR or main commit SHA and requires:
@@ -27,7 +27,8 @@ Do not reuse `BUILD_PROVISION_PROFILE_BASE64` or assume its current development/
 
 ## Acceptance evidence
 
-- [ ] Every main push runs unit tests and the seven required critical flows against the exact pushed SHA.
+- [ ] Every pull request targeting `main` runs unit tests and the seven required critical flows against the exact PR SHA.
+- [ ] A manual post-merge qualification run can validate an exact main SHA when explicitly requested.
 - [ ] Failure of a required check fails qualification while leaving the fast IPA/release artifact path independent.
 - [ ] The Settings/account-sync quarantine remains visible as **QUARANTINED / NOT A QUALIFICATION PASS**, with logs and xcresult retained.
 - [ ] Job summary includes commit SHA, required-check status and quarantine status.

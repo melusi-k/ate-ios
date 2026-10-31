@@ -132,6 +132,9 @@ final class HealthInsightTests: XCTestCase {
             recipes: [soup], historyEvents: historyEvents, calendar: calendar, now: now, history: history
         )
         XCTAssertEqual(input.currentStreak, 2)
+        XCTAssertEqual(input.recordedMealsThisWeek, 2)
+        XCTAssertEqual(input.firstTimeRecipesThisWeek, 1)
+        XCTAssertTrue(RecipeProgressInsightService.candidates(for: input).contains { $0.id == "weekly-cooking" })
     }
 
     func testRecipeProgressInputIgnoresHistoryForRecipesOutsideLibrary() {

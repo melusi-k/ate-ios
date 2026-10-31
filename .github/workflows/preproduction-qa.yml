@@ -73,7 +73,6 @@ jobs:
           grep -E "warning: .*(Widgets|Intents|Snapshot)" build.log > build-warnings.log || true
           tail -n 30 build-warnings.log || true
       - name: Unit tests (non-blocking during feature implementation)
-        continue-on-error: true
         run: |
           STEP_START=$(date +%s)
           set +e
@@ -101,7 +100,6 @@ jobs:
           grep -E "Executed|Test Suite .* (passed|failed)" test.log > test-summary.log || true
           tail -n 30 test-summary.log
       - name: Settings-tab key-flow regression test
-        continue-on-error: true
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
           STEP_START=$(date +%s)
@@ -145,7 +143,6 @@ jobs:
           STEP_END=$(date +%s)
           echo "::notice::CI_TIMING step=settings-tab-key-flow duration_seconds=$((STEP_END-STEP_START)) exit_code=0"
       - name: Cooking Tracker focused UI tests
-        continue-on-error: true
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
           STEP_START=$(date +%s)
@@ -167,7 +164,6 @@ jobs:
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" tracker-ui.log | tail -n 30
       - name: Cook Mode completion/history UI tests
-        continue-on-error: true
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
           STEP_START=$(date +%s)
@@ -189,7 +185,6 @@ jobs:
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" cook-mode-history.log | tail -n 30
       - name: Apple Health and journal acceptance UI tests
-        continue-on-error: true
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
           STEP_START=$(date +%s)
@@ -226,7 +221,6 @@ jobs:
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" health-journal-ui.log | tail -n 40
       - name: Widget/intents UI tests
-        continue-on-error: true
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
           STEP_START=$(date +%s)
@@ -359,7 +353,6 @@ jobs:
       - name: Generate Xcode project
         run: brew install xcodegen && xcodegen generate
       - name: Run complete UI shard
-        continue-on-error: true
         run: |
           set -o pipefail
           SIM_ID=$(xcrun simctl list devices available -j | python3 -c '
@@ -383,8 +376,14 @@ jobs:
           if [ "$status" -ne 0 ]; then
             grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Fatal error|Testing failed|Assertion failed" uitest.log | tail -200 || true
             tail -n 100 uitest.log || true
+            exit "$status"
           fi
-          exit "$status"
+          # A successful xcodebuild exit is insufficient if XCTest discovered no tests.
+          if ! grep -Eq 'Executed [1-9][0-9]* tests?' uitest.log; then
+            echo "::error::UI shard ${{ matrix.shard }} did not report executing any tests; this is NOT a pass."
+            tail -n 100 uitest.log
+            exit 1
+          fi
       - name: Summarize UI shard outcome
         if: always()
         shell: bash
@@ -472,3 +471,37 @@ jobs:
             backend-e2e.log
             build/e2e/
 
+
+  release-gate:
+    name: Pre-production release gate
+    if: always()
+    needs: [compile, full-ui-suite, backend-e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Aggregate required validation outcomes
+        env:
+          COMPILE_RESULT: ${{ needs.compile.result }}
+          FULL_UI_RESULT: ${{ needs.full-ui-suite.result }}
+          BACKEND_E2E_RESULT: ${{ needs.backend-e2e.result }}
+        shell: bash
+        run: |
+          {
+            echo "## Pre-production release gate"
+            echo
+            echo "- Candidate SHA: $GITHUB_SHA"
+            echo "- Compile and focused validation: **$COMPILE_RESULT**"
+            echo "- Full UI matrix: **$FULL_UI_RESULT**"
+            echo "- Backend E2E: **$BACKEND_E2E_RESULT**"
+            echo
+            echo "Only successful required jobs qualify. Quarantined or skipped tests are not passes."
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+          if [ "$COMPILE_RESULT" != "success" ] || [ "$FULL_UI_RESULT" != "success" ] || [ "$BACKEND_E2E_RESULT" != "success" ]; then
+            echo "::error::Pre-production validation failed or did not complete successfully. This candidate is NOT release-qualified."
+            exit 1
+          fi
+
+          echo "All required pre-production jobs completed successfully for $GITHUB_SHA."

@@ -9,7 +9,7 @@ Builds the body of .github/ISSUE_TEMPLATE/release-readiness.md pre-filled from e
 
 Issue logic (idempotent; the key lives in a hidden marker in the body):
   * rolling: one open issue per channel/release line, e.g. "Release readiness: 0.1.x Tier A (Internal beta)".
-    Every successful build regenerates its body and adds one "Build N: ..." comment (never twice for a build).
+    Every completed build attempt regenerates its body and edits one stable readiness comment in place.
   * rc: workflow_dispatch with a release_type other than Internal beta (or --new) creates/updates a
     per-version issue, e.g. "Release readiness: 0.1.50 (Public beta)".
 Release decision + Final signoff checkboxes are always left unchecked; only a SUGGESTION is written.
@@ -120,19 +120,26 @@ def matrix():
     return out
 
 
-def qa_results():
+def qa_results(rd):
     tok = os.environ.get("SUPABASE_ACCESS_TOKEN")
-    if not tok: return {}, "qa_results: not read (no SUPABASE_ACCESS_TOKEN)"
-    q = ("select distinct on (item_id, source) item_id, source, status, build, note, run_url, ts "
-         "from public.qa_results where status <> 'untested' order by item_id, source, ts desc")
+    if not tok: return {}, "candidate QA evidence: not read (no SUPABASE_ACCESS_TOKEN)"
+    if not rd: return {}, "candidate QA evidence: unavailable (no exact Build IPA run)"
+    sha = rd["sha"]
+    run_id = int(rd["id"])
+    # Legacy rows without both identifiers are deliberately excluded from candidate evidence.
+    q = ("select distinct on (item_id, source) item_id, source, status, build, note, run_url, "
+         "commit_sha, run_id, run_number, ts from public.qa_results "
+         f"where status <> 'untested' and commit_sha = '{sha}' and run_id = {run_id} "
+         "order by item_id, source, ts desc")
     req = urllib.request.Request(f"https://api.supabase.com/v1/projects/{REF}/database/query",
         data=json.dumps({"query": q}).encode(), method="POST",
         headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json", "User-Agent": "ate-readiness"})
     try: rows = json.load(urllib.request.urlopen(req, timeout=30))
     except Exception as e: return {}, f"qa_results: read failed ({e})"
     res = {}
-    for r in rows: res.setdefault(r["item_id"], {})[r["source"]] = r
-    return res, f"qa_results: {len(rows)} latest rows (device + ci)"
+    for r in candidate_qa_rows(rows, rd):
+        res.setdefault(r["item_id"], {})[r["source"]] = r
+    return res, f"candidate QA evidence: {len(rows)} exact-run rows for {sha[:12]} / run {run_id}"
 
 
 def job_log(job_id, name):
@@ -151,18 +158,21 @@ def job_log(job_id, name):
 
 def find_run(run_id):
     if run_id: return gh_api(f"repos/{REPO}/actions/runs/{run_id}")
-    runs = gh_api(f"repos/{REPO}/actions/workflows/build-ipa.yml/runs?branch=main&status=success&per_page=1")["workflow_runs"]
+    runs = gh_api(f"repos/{REPO}/actions/workflows/build-ipa.yml/runs?branch=main&status=completed&per_page=1")["workflow_runs"]
     return runs[0] if runs else None
 
 
 def run_data(run):
-    d = {"url": run["html_url"], "id": run["id"], "sha": run["head_sha"][:7], "ci": {}, "counts": {}, "artifacts": []}
+    d = {"url": run["html_url"], "id": run["id"], "run_number": run.get("run_number"), "run_attempt": run.get("run_attempt", 1), "created_at": run.get("created_at"), "updated_at": run.get("updated_at"), "status": run.get("status"), "conclusion": run.get("conclusion"), "name": run.get("name"), "head_branch": run.get("head_branch"), "path": run.get("path"), "sha": run["head_sha"], "commit_url": f"{SERVER}/{REPO}/commit/{run['head_sha']}", "ci": {}, "counts": {}, "artifacts": []}
     d["ci"]["build"] = "pass" if run.get("conclusion") == "success" else ("fail" if run.get("conclusion") in ("failure", "cancelled", "timed_out", "action_required") else None)
     jobs = gh_api(f"repos/{REPO}/actions/runs/{run['id']}/jobs?per_page=50")["jobs"]
     unit = [0, 0]; ui = [0, 0]; qa = {}
-    unit_skipped = qa_skipped = ui_skipped = e2e_skipped = False
+    ui_jobs = []
+    unit_skipped = qa_skipped = e2e_skipped = False
     unit_failed = qa_failed = e2e_failed = False
     for j in jobs:
+        if j["name"].startswith("ui-suite"):
+            ui_jobs.append(j)
         # Steps skipped inside the successful release job must be distinguished from test passes.
         if j["name"] == "release":
             for step in j.get("steps", []):
@@ -192,8 +202,9 @@ def run_data(run):
     if unit[0]: d["ci"]["unit"] = "pass" if unit[1] == 0 else "fail"; d["counts"]["unit"] = f"{unit[0]-unit[1]}/{unit[0]}"
     elif unit_failed: d["ci"]["unit"] = "fail"; d["counts"]["unit"] = "failed"
     elif unit_skipped: d["ci"]["unit"] = "skipped"; d["counts"]["unit"] = "skipped"
-    if ui[0]: d["ci"]["ui"] = "pass" if ui[1] == 0 else "fail"; d["counts"]["ui"] = f"{ui[0]-ui[1]}/{ui[0]}"
-    elif ui_skipped: d["ci"]["ui"] = "skipped"; d["counts"]["ui"] = "skipped"
+    ui_state = ui_suite_verdict(ui_jobs, ui[0], ui[1])
+    d["ci"]["ui"] = ui_state
+    d["counts"]["ui"] = f"{ui[0]-ui[1]}/{ui[0]}" if ui[0] else ui_state
     if qa:
         for n, s in qa.items(): d["ci"][f"qa{n}"] = "pass" if s == "passed" else "fail"
         d["ci"]["qa"] = "pass" if all(s == "passed" for s in qa.values()) and len(qa) == 8 else "fail"
@@ -215,6 +226,42 @@ def run_data(run):
                         d["ci"]["e2e"] = "pass" if ok == len(e2e) else "fail"
             except Exception as ex: print(f"e2e artifact unreadable: {ex}", file=sys.stderr)
     return d
+
+
+def candidate_qa_rows(rows, rd):
+    """Only evidence from this exact commit and Build IPA run may influence readiness."""
+    if not rd:
+        return []
+    return [r for r in rows if r.get("commit_sha") == rd.get("sha")
+            and int(r.get("run_id") or 0) == int(rd.get("id") or 0)]
+
+
+def matrix_evidence_state(status):
+    """A matrix pass is historical, not evidence for the current candidate."""
+    if status == "❌":
+        return "fail"
+    if status == "⛔":
+        return "blocked"
+    return "none"
+
+
+def ui_suite_verdict(jobs, test_count, test_failures):
+    """A UI pass requires all four expected shards to complete successfully."""
+    if len(jobs) != 4:
+        return "skipped" if any(j.get("conclusion") == "skipped" for j in jobs) else "missing"
+    if any(j.get("conclusion") == "failure" for j in jobs) or test_failures:
+        return "fail"
+    if any(j.get("conclusion") == "skipped" for j in jobs):
+        return "skipped"
+    if any(j.get("conclusion") != "success" for j in jobs):
+        return "pending"
+    return "pass" if test_count > 0 else "missing"
+
+
+def is_main_build_ipa_run(run):
+    return bool(run and run.get("name") == "Build IPA" and run.get("head_branch") == "main"
+                and run.get("status") == "completed" and run.get("head_sha")
+                and run.get("id") and run.get("run_number"))
 
 
 def release_for(sha):
@@ -240,12 +287,46 @@ def verdict(ids, mx, qr, rd):
         if dv: st.append(dv["status"]); ev.append(f"{i} device {dv['status']} ({dv['build']})")
         if cv: st.append(cv["status"]); ev.append(f"{i} ci {cv['status']}")
         if not dv and not cv and i in mx:
-            s = mx[i]["status"]; st.append("pass" if s == "✅" else ("blocked" if s == "⛔" else "none")); ev.append(f"{i} matrix {s}")
+            s = mx[i]["status"]; st.append(matrix_evidence_state(s)); ev.append(f"{i} matrix {s} (not bound to candidate)")
     if "fail" in st: return "fail", ev
     if st and all(s == "pass" for s in st): return "pass", ev
     if "pass" in st: return "partial", ev
     if "blocked" in st: return "blocked", ev
     return "none", ev
+
+
+
+def release_disposition(rd, tallies):
+    """Return a conservative, evidence-backed release disposition and reason."""
+    if not rd:
+        return "BLOCKED", "no completed Build IPA run is bound to this snapshot"
+    required = ("build", "unit", "qa", "ui", "e2e")
+    ci = rd.get("ci", {})
+    incomplete = [name for name in required if ci.get(name) != "pass"]
+    if incomplete:
+        details = ", ".join(f"{name}={ci.get(name, 'not reported')}" for name in incomplete)
+        return "BLOCKED", f"required exact-run CI evidence is not green ({details})"
+    if any(tallies.get(k, 0) for k in ("fail", "partial", "blocked", "none")):
+        return "NOT READY", "one or more product, device, security, or manual acceptance items remain failing or unverified"
+    return "READY FOR HUMAN SIGN-OFF", "all tracked evidence is verified on the reported candidate; this is not an automatic release approval"
+
+
+def incoming_run_is_stale(rd, existing_body):
+    """Reject delayed older Build IPA completions before they replace newer evidence."""
+    if not rd:
+        return bool(re.search(r"<!-- readiness-evidence: run_id=", existing_body or ""))
+    match = re.search(r"<!-- readiness-evidence: run_id=(\d+) run_number=(\d+)(?: run_attempt=(\d+))?", existing_body or "")
+    if not match:
+        return False
+    old_id, old_number, old_attempt = int(match.group(1)), int(match.group(2)), int(match.group(3) or 1)
+    new_id = int(rd.get("id") or 0)
+    new_number = int(rd.get("run_number") or 0)
+    new_attempt = int(rd.get("run_attempt") or 1)
+    if new_number != old_number:
+        return new_number < old_number
+    if new_attempt != old_attempt:
+        return new_attempt < old_attempt
+    return new_id != old_id
 
 
 def known_issues():
@@ -312,14 +393,20 @@ def build_body(key, title, rtype, version, mx, qr, qnote, rd, rel):
     else: sug, risk = f"Not approved for {rtype}: {f} failing, {unver} not fully verified", "High"
     if rtype == "Public launch" and (unver or f): sug, risk = f"Not approved for public launch: {f} failing, {unver} not fully verified", "High"
     body = "\n".join(out)
+    disposition, disposition_reason = release_disposition(rd, tallies)
+    sug = f"{disposition}: {disposition_reason}"
+    risk = "Low" if disposition == "READY FOR HUMAN SIGN-OFF" else "High"
     body = body.replace("Reason:\n", f"Reason:\n- **Suggested (auto, not a decision):** {sug}. Suggested risk: **{risk}**. "
                         f"Failing: {', '.join(failing) or 'none'}.\n", 1)
     counts = (rd or {}).get("counts", {})
-    head = (f"<!-- readiness-key: {key} -->\n> 🤖 Auto-generated by `scripts/release/readiness.py` from "
-            f"{' · '.join(links)}. Version **{version}**, commit `{(rd or {}).get('sha','?')}`. "
+    evidence_marker = (f"<!-- readiness-evidence: run_id={rd['id']} run_number={rd.get('run_number', 0)} run_attempt={rd.get('run_attempt', 1)} "
+                       f"created_at={rd.get('created_at', '')} sha={rd['sha']} -->\n") if rd else ""
+    head = (evidence_marker + f"<!-- readiness-key: {key} -->\n> 🤖 Auto-generated by `scripts/release/readiness.py` from "
+            f"{' · '.join(links)}. Version **{version}**, commit `{(rd or {}).get('sha','?')}` ([full commit]({(rd or {}).get('commit_url', '')})). "
             f"Legend: ✅ verified · 🟡 partly verified · ❌ failing · ⛔ blocked · ⚪ untested. "
             f"Checked boxes are evidence only; the **Release decision** and **Final signoff** are for a human.\n>\n"
-            f"> Tally: {tallies['pass']}/{total} verified, {f} failing, {unver} open · "
+            f"> **Disposition: {disposition}** — {disposition_reason}. "
+            f"Tally: {tallies['pass']}/{total} verified, {f} failing, {unver} open · "
             f"unit {counts.get('unit','n/a')} · QA 8-flow {counts.get('qa','n/a')} · UI {counts.get('ui','n/a')} · e2e {counts.get('e2e','n/a')} · {qnote}\n\n")
     return head + body, sug, risk
 
@@ -334,18 +421,22 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     run = find_run(a.run_id); rd = run_data(run) if run else None
-    rel = release_for(rd["sha"] if rd else None)
+    if rd and (rd.get("status") != "completed" or not rd.get("sha")):
+        raise RuntimeError(f"Readiness requires a completed Build IPA run with a commit SHA; got run {rd.get('id')} status={rd.get('status')}")
+    rel = release_for(rd["sha"][:7] if rd else None)
     m = re.search(r"(\d+\.\d+\.\d+) \((\d+)\)", (rel or {}).get("name", "")); ver, build = (m.group(1), m.group(2)) if m else ("0.1.0", "?")
     line = ".".join(ver.split(".")[:2]) + ".x"
     rc = a.new or a.release_type != "Internal beta"
     version = a.version or ver
     if rc: key, title = f"rc|{version}|{a.release_type}", f"Release readiness: {version} ({a.release_type})"
     else: key, title = f"rolling|{line}|Tier A|{a.release_type}", f"Release readiness: {line} Tier A ({a.release_type})"
-    mx = matrix(); qr, qnote = qa_results()
+    if rd and not is_main_build_ipa_run(run):
+        raise RuntimeError(f"Run {run.get('id')} is not a completed Build IPA run on main")
+    mx = matrix(); qr, qnote = qa_results(rd)
     body, sug, risk = build_body(key, title, a.release_type, f"{ver} (build {build})", mx, qr, qnote, rd, rel)
     c = (rd or {}).get("counts", {})
     run_label = f"Build IPA run #{run['run_number']}" if run else "Latest build attempt"
-    comment = (f"<!-- readiness-latest -->**Latest readiness check — {run_label}**: unit {c.get('unit','not reported')}, QA 8-flow {c.get('qa','not reported')}, "
+    comment = (f"<!-- readiness-latest -->**Latest readiness check — {run_label}** · commit `{(rd or {}).get('sha', 'unbound')}`: unit {c.get('unit','not reported')}, QA 8-flow {c.get('qa','not reported')}, "
                f"UI {c.get('ui','not reported')}, e2e {c.get('e2e','not reported')} · suggested: {sug} (risk {risk}) · "
                f"{'[run](' + rd['url'] + ')' if rd else ''} {'· [release](' + rel['html_url'] + ')' if rel else ''}")
     if a.dry_run:
@@ -357,6 +448,9 @@ def main():
     hit = next((i for i in issues if f"readiness-key: {key} -->" in (i.get("body") or "")), None)
     if hit:
         num = hit["number"]
+        if incoming_run_is_stale(rd, hit.get("body") or ""):
+            print(f"{SERVER}/{REPO}/issues/{num} (unchanged: stale or unbound evidence was rejected)")
+            return
         gh_api(f"repos/{REPO}/issues/{num}", "-X", "PATCH", "-f", f"title={title}", "-f", f"body={body}")
         for lb in ("release", "readiness", vlabel): sh("gh", "issue", "edit", str(num), "-R", REPO, "--add-label", lb, check=False)
     else:

@@ -120,7 +120,7 @@ struct RecipeProgressInsightInput: Equatable {
         let weekIDs = weekKeys.reduce(into: Set<String>()) { $0.formUnion(events[$1] ?? []) }.intersection(ids)
         let firstTimeIDs = weekIDs.filter { id in
             !events.contains { key, values in
-                guard values.contains(id), let date = CookingHistory.shared.date(for: key), let week else { return false }
+                guard values.contains(id), let date = history.date(for: key), let week else { return false }
                 return date < week.start
             }
         }
@@ -304,6 +304,7 @@ struct InsightsView: View {
                             moveInsightTile(source, before: tileID)
                             return true
                         }
+                        .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("insights.tile.\(tileID)")
                     }
                 }
@@ -322,7 +323,14 @@ struct InsightsView: View {
             if a == .denied || a == .unavailable || a == .entitlementMissing { BetaQA.shared.pass("A-HEALTH-05", note: "Graceful \(a) state shown") }
         }
         .refreshable { await refreshAllInsights() }
-        .task { await model.loadIfNeeded(recipes: store.recipes); prompt = prompt ?? model.context?.prompts.first; entries = JournalStore.shared.entries(); await refreshRecipeProgressInsight() }
+        .task {
+            // Local cooking-history insights must not wait for unrelated HealthKit queries.
+            async let healthLoad: Void = model.loadIfNeeded(recipes: store.recipes)
+            entries = JournalStore.shared.entries()
+            await refreshRecipeProgressInsight()
+            await healthLoad
+            prompt = prompt ?? model.context?.prompts.first
+        }
         .onAppear { entries = JournalStore.shared.entries() }
         .alert("“ate” would like to access your Health data", isPresented: $model.mockPromptShown) {
             Button("Don't Allow", role: .cancel) {}
@@ -485,12 +493,14 @@ struct InsightsView: View {
                             }
                             .foregroundStyle(Theme.mutedForeground)
                         }
+                        .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("insights.progress.candidate.\(candidate.id)")
                         if candidate.id != recipeProgressCandidates.last?.id {
                             Divider()
                         }
                     }
                 }
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("insights.progress.results")
             } else {
                 ContentUnavailableView {

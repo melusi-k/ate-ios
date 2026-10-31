@@ -117,7 +117,9 @@ final class BetaQA {
         let rows: [[String: Any]] = BetaChecklist.items.compactMap { i in
             let r = result(i.id); guard r.status != .untested else { return nil }
             return ["user_id": session.userID, "build": AppConfig.buildLabel, "item_id": i.id, "status": r.status.rawValue,
-                    "note": r.note, "auto": r.auto, "ts": iso.string(from: r.ts), "source": "device"]
+                    "note": r.note, "auto": r.auto, "ts": iso.string(from: r.ts), "source": "device",
+                    "commit_sha": AppConfig.gitSHAFull, "run_id": Int64(AppConfig.gitRunID) ?? 0,
+                    "run_number": Int64(AppConfig.buildNumber) ?? 0]
         }
         guard !rows.isEmpty else { return "Nothing tested yet." }
         var c = URLComponents(url: base.appendingPathComponent("rest/v1/qa_results"), resolvingAgainstBaseURL: false)!

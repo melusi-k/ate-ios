@@ -16,7 +16,7 @@ on:
         description: "RC version label, e.g. 0.1.50 (blank = latest build)"
         required: false
       run_id:
-        description: "Build IPA run id to take evidence from (blank = latest successful on main)"
+        description: "Build IPA run id to take evidence from (blank = latest completed on main)"
         required: false
       new_issue:
         description: "Force a new per-RC issue even for Internal beta"

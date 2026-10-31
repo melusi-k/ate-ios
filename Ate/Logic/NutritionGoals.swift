@@ -166,7 +166,7 @@ struct FileNutritionGoalsStorage: NutritionGoalsStorage {
     func preserveCorruptData(_ data: Data) throws {
         let directory = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        let backupURL = directory.appendingPathComponent("nutrition-goals-corrupt-\\(UUID().uuidString).json")
+        let backupURL = directory.appendingPathComponent("nutrition-goals-corrupt-\(UUID().uuidString).json")
         try data.write(to: backupURL, options: .atomic)
     }
 

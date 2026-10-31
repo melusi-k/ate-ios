@@ -223,32 +223,46 @@ struct NutritionGoalsRepository {
         defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
         return legacyGoals
     }
-    /// Preserves malformed stored/legacy bytes before removing them. A valid configuration is never reset.
+    /// Backs up every corrupt copy before removing any original bytes. A valid configuration is never reset.
     func recoverCorruptData() throws {
         let legacyData = defaults.data(forKey: DailyNutritionGoals.defaultsKey)
         let storedData = try storage.read()
-        var preservedCorruptData = false
 
+        var corruptStoredData: Data?
         if let storedData {
             if (try? JSONDecoder().decode(DailyNutritionGoals.self, from: storedData)) != nil {
                 throw NutritionGoalsRecoveryError.dataIsValid
             }
-            try storage.preserveCorruptData(storedData)
-            try storage.remove()
-            preservedCorruptData = true
+            corruptStoredData = storedData
         }
 
+        var corruptLegacyData: Data?
         if let legacyData {
             if (try? JSONDecoder().decode(DailyNutritionGoals.self, from: legacyData)) == nil {
-                try storage.preserveCorruptData(legacyData)
-                defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
-                preservedCorruptData = true
+                corruptLegacyData = legacyData
             } else if storedData == nil {
                 throw NutritionGoalsRecoveryError.dataIsValid
             }
         }
 
-        guard preservedCorruptData else { throw NutritionGoalsRecoveryError.noCorruptData }
+        guard corruptStoredData != nil || corruptLegacyData != nil else {
+            throw NutritionGoalsRecoveryError.noCorruptData
+        }
+
+        // Complete all fallible backup writes first. If any backup fails, every original remains in place.
+        if let corruptStoredData {
+            try storage.preserveCorruptData(corruptStoredData)
+        }
+        if let corruptLegacyData {
+            try storage.preserveCorruptData(corruptLegacyData)
+        }
+
+        if corruptStoredData != nil {
+            try storage.remove()
+        }
+        if corruptLegacyData != nil {
+            defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
+        }
     }
 
     func save(_ goals: DailyNutritionGoals) throws {

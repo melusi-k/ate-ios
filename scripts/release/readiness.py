@@ -9,7 +9,7 @@ Builds the body of .github/ISSUE_TEMPLATE/release-readiness.md pre-filled from e
 
 Issue logic (idempotent; the key lives in a hidden marker in the body):
   * rolling: one open issue per channel/release line, e.g. "Release readiness: 0.1.x Tier A (Internal beta)".
-    Every successful build regenerates its body and adds one "Build N: ..." comment (never twice for a build).
+    Every completed build attempt regenerates its body and edits one stable readiness comment in place.
   * rc: workflow_dispatch with a release_type other than Internal beta (or --new) creates/updates a
     per-version issue, e.g. "Release readiness: 0.1.50 (Public beta)".
 Release decision + Final signoff checkboxes are always left unchecked; only a SUGGESTION is written.

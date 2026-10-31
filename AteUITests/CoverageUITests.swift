@@ -17,10 +17,11 @@ final class CoverageUITests: XCTestCase {
     }
     func text(_ s: String) -> XCUIElement { app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", s)).firstMatch }
     /// The opened browse menu: the collection view containing the menu's own "Collections" section
-    /// header. That header is part of the menu definition (LibraryView.swift Section("Collections"))
-    /// and appears nowhere else in the observed hierarchy, so this scopes queries to the open menu.
+    /// header (matched by label via predicate - XCUIT has no containing(_:label:) overload). That header
+    /// is part of the menu definition (LibraryView.swift Section("Collections")) and appears nowhere else
+    /// in the observed hierarchy, so this scopes queries to the open menu.
     var browseMenu: XCUIElement {
-        app.collectionViews.containing(.staticText, label: "Collections").firstMatch
+        app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch
     }
     /// Browse-menu item by exact label, scoped to the opened menu. Observed on the iOS 27 runtime
     /// (identical source resolves them on iOS 26): SwiftUI Menu item buttons no longer expose their

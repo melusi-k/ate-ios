@@ -37,6 +37,15 @@ struct AteApp: App {
         // Hermetic canonical-nutrition route (#179 qualification): no-op unless flagged.
         CanonicalNutritionQARoute.prepareIfRequested(store: st)
 #endif
+        // #179 recipe-nutrition UI coverage: one recipe whose ingredient has no verified food match.
+        if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaNutritionFixtures") && st.recipes.isEmpty {
+            var qaRecipe = RecipeCard()
+            qaRecipe.id = "qa-nutrition-pap"
+            qaRecipe.title = "QA pap and rice"
+            qaRecipe.servings = 2
+            qaRecipe.ingredients = [Ingredient(name: "pap", quantity: 200, unit: "g")]
+            st.recipes = [qaRecipe]
+        }
         _store = State(initialValue: st)
     }
 

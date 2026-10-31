@@ -120,19 +120,28 @@ def matrix():
     return out
 
 
-def qa_results():
+def qa_results(rd):
     tok = os.environ.get("SUPABASE_ACCESS_TOKEN")
-    if not tok: return {}, "qa_results: not read (no SUPABASE_ACCESS_TOKEN)"
-    q = ("select distinct on (item_id, source) item_id, source, status, build, note, run_url, ts "
-         "from public.qa_results where status <> 'untested' order by item_id, source, ts desc")
+    if not tok: return {}, "candidate QA evidence: not read (no SUPABASE_ACCESS_TOKEN)"
+    if not rd: return {}, "candidate QA evidence: unavailable (no exact Build IPA run)"
+    sha = rd["sha"]
+    run_id = int(rd["id"])
+    # Legacy rows without both identifiers are deliberately excluded from candidate evidence.
+    q = ("select distinct on (item_id, source) item_id, source, status, build, note, run_url, "
+         "commit_sha, run_id, run_number, ts from public.qa_results "
+         f"where status <> 'untested' and commit_sha = '{sha}' and run_id = {run_id} "
+         "order by item_id, source, ts desc")
     req = urllib.request.Request(f"https://api.supabase.com/v1/projects/{REF}/database/query",
         data=json.dumps({"query": q}).encode(), method="POST",
         headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json", "User-Agent": "ate-readiness"})
     try: rows = json.load(urllib.request.urlopen(req, timeout=30))
     except Exception as e: return {}, f"qa_results: read failed ({e})"
     res = {}
-    for r in rows: res.setdefault(r["item_id"], {})[r["source"]] = r
-    return res, f"qa_results: {len(rows)} latest rows (device + ci)"
+    for r in rows:
+        if r.get("commit_sha") != sha or int(r.get("run_id") or 0) != run_id:
+            continue
+        res.setdefault(r["item_id"], {})[r["source"]] = r
+    return res, f"candidate QA evidence: {len(rows)} exact-run rows for {sha[:12]} / run {run_id}"
 
 
 def job_log(job_id, name):
@@ -156,13 +165,16 @@ def find_run(run_id):
 
 
 def run_data(run):
-    d = {"url": run["html_url"], "id": run["id"], "run_number": run.get("run_number"), "created_at": run.get("created_at"), "updated_at": run.get("updated_at"), "status": run.get("status"), "conclusion": run.get("conclusion"), "sha": run["head_sha"], "commit_url": f"{SERVER}/{REPO}/commit/{run['head_sha']}", "ci": {}, "counts": {}, "artifacts": []}
+    d = {"url": run["html_url"], "id": run["id"], "run_number": run.get("run_number"), "run_attempt": run.get("run_attempt", 1), "created_at": run.get("created_at"), "updated_at": run.get("updated_at"), "status": run.get("status"), "conclusion": run.get("conclusion"), "name": run.get("name"), "head_branch": run.get("head_branch"), "path": run.get("path"), "sha": run["head_sha"], "commit_url": f"{SERVER}/{REPO}/commit/{run['head_sha']}", "ci": {}, "counts": {}, "artifacts": []}
     d["ci"]["build"] = "pass" if run.get("conclusion") == "success" else ("fail" if run.get("conclusion") in ("failure", "cancelled", "timed_out", "action_required") else None)
     jobs = gh_api(f"repos/{REPO}/actions/runs/{run['id']}/jobs?per_page=50")["jobs"]
     unit = [0, 0]; ui = [0, 0]; qa = {}
-    unit_skipped = qa_skipped = ui_skipped = e2e_skipped = False
+    ui_jobs = []
+    unit_skipped = qa_skipped = e2e_skipped = False
     unit_failed = qa_failed = e2e_failed = False
     for j in jobs:
+        if j["name"].startswith("ui-suite"):
+            ui_jobs.append(j)
         # Steps skipped inside the successful release job must be distinguished from test passes.
         if j["name"] == "release":
             for step in j.get("steps", []):
@@ -192,8 +204,9 @@ def run_data(run):
     if unit[0]: d["ci"]["unit"] = "pass" if unit[1] == 0 else "fail"; d["counts"]["unit"] = f"{unit[0]-unit[1]}/{unit[0]}"
     elif unit_failed: d["ci"]["unit"] = "fail"; d["counts"]["unit"] = "failed"
     elif unit_skipped: d["ci"]["unit"] = "skipped"; d["counts"]["unit"] = "skipped"
-    if ui[0]: d["ci"]["ui"] = "pass" if ui[1] == 0 else "fail"; d["counts"]["ui"] = f"{ui[0]-ui[1]}/{ui[0]}"
-    elif ui_skipped: d["ci"]["ui"] = "skipped"; d["counts"]["ui"] = "skipped"
+    ui_state = ui_suite_verdict(ui_jobs, ui[0], ui[1])
+    d["ci"]["ui"] = ui_state
+    d["counts"]["ui"] = f"{ui[0]-ui[1]}/{ui[0]}" if ui[0] else ui_state
     if qa:
         for n, s in qa.items(): d["ci"][f"qa{n}"] = "pass" if s == "passed" else "fail"
         d["ci"]["qa"] = "pass" if all(s == "passed" for s in qa.values()) and len(qa) == 8 else "fail"
@@ -215,6 +228,25 @@ def run_data(run):
                         d["ci"]["e2e"] = "pass" if ok == len(e2e) else "fail"
             except Exception as ex: print(f"e2e artifact unreadable: {ex}", file=sys.stderr)
     return d
+
+
+def ui_suite_verdict(jobs, test_count, test_failures):
+    """A UI pass requires all four expected shards to complete successfully."""
+    if len(jobs) != 4:
+        return "skipped" if any(j.get("conclusion") == "skipped" for j in jobs) else "missing"
+    if any(j.get("conclusion") == "failure" for j in jobs) or test_failures:
+        return "fail"
+    if any(j.get("conclusion") == "skipped" for j in jobs):
+        return "skipped"
+    if any(j.get("conclusion") != "success" for j in jobs):
+        return "pending"
+    return "pass" if test_count > 0 else "missing"
+
+
+def is_main_build_ipa_run(run):
+    return bool(run and run.get("name") == "Build IPA" and run.get("head_branch") == "main"
+                and run.get("status") == "completed" and run.get("head_sha")
+                and run.get("id") and run.get("run_number"))
 
 
 def release_for(sha):
@@ -268,12 +300,18 @@ def incoming_run_is_stale(rd, existing_body):
     """Reject delayed older Build IPA completions before they replace newer evidence."""
     if not rd:
         return bool(re.search(r"<!-- readiness-evidence: run_id=", existing_body or ""))
-    match = re.search(r"<!-- readiness-evidence: run_id=(\d+) run_number=(\d+)", existing_body or "")
+    match = re.search(r"<!-- readiness-evidence: run_id=(\d+) run_number=(\d+)(?: run_attempt=(\d+))?", existing_body or "")
     if not match:
         return False
-    old_id, old_number = int(match.group(1)), int(match.group(2))
+    old_id, old_number, old_attempt = int(match.group(1)), int(match.group(2)), int(match.group(3) or 1)
+    new_id = int(rd.get("id") or 0)
     new_number = int(rd.get("run_number") or 0)
-    return new_number < old_number or (new_number == old_number and int(rd.get("id") or 0) != old_id)
+    new_attempt = int(rd.get("run_attempt") or 1)
+    if new_number != old_number:
+        return new_number < old_number
+    if new_attempt != old_attempt:
+        return new_attempt < old_attempt
+    return new_id != old_id
 
 
 def known_issues():
@@ -346,7 +384,7 @@ def build_body(key, title, rtype, version, mx, qr, qnote, rd, rel):
     body = body.replace("Reason:\n", f"Reason:\n- **Suggested (auto, not a decision):** {sug}. Suggested risk: **{risk}**. "
                         f"Failing: {', '.join(failing) or 'none'}.\n", 1)
     counts = (rd or {}).get("counts", {})
-    evidence_marker = (f"<!-- readiness-evidence: run_id={rd['id']} run_number={rd.get('run_number', 0)} "
+    evidence_marker = (f"<!-- readiness-evidence: run_id={rd['id']} run_number={rd.get('run_number', 0)} run_attempt={rd.get('run_attempt', 1)} "
                        f"created_at={rd.get('created_at', '')} sha={rd['sha']} -->\n") if rd else ""
     head = (evidence_marker + f"<!-- readiness-key: {key} -->\n> 🤖 Auto-generated by `scripts/release/readiness.py` from "
             f"{' · '.join(links)}. Version **{version}**, commit `{(rd or {}).get('sha','?')}` ([full commit]({(rd or {}).get('commit_url', '')})). "
@@ -377,7 +415,9 @@ def main():
     version = a.version or ver
     if rc: key, title = f"rc|{version}|{a.release_type}", f"Release readiness: {version} ({a.release_type})"
     else: key, title = f"rolling|{line}|Tier A|{a.release_type}", f"Release readiness: {line} Tier A ({a.release_type})"
-    mx = matrix(); qr, qnote = qa_results()
+    if rd and not is_main_build_ipa_run(run):
+        raise RuntimeError(f"Run {run.get('id')} is not a completed Build IPA run on main")
+    mx = matrix(); qr, qnote = qa_results(rd)
     body, sug, risk = build_body(key, title, a.release_type, f"{ver} (build {build})", mx, qr, qnote, rd, rel)
     c = (rd or {}).get("counts", {})
     run_label = f"Build IPA run #{run['run_number']}" if run else "Latest build attempt"

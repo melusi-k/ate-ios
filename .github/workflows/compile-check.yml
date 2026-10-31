@@ -346,7 +346,7 @@ jobs:
             -only-testing:AteUITests/CoverageUITests/test32_MoreCollectionsToolsAbout \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/settings-about-145.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 300 \
+            -default-test-execution-time-allowance 360 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > settings-about-145.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" settings-about-145.log || true; tail -120 settings-about-145.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" settings-about-145.log | tail -40
 

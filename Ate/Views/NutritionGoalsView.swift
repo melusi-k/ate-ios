@@ -108,11 +108,11 @@ struct NutritionGoalsView: View {
         .background(Theme.background)
         .foregroundStyle(Theme.foreground)
         .navigationTitle("Nutrition goals")
-        // Keep content clear of the floating tab bar at all times, not only at the
-        // scrolled-to-bottom rest position: the bar overlays pushed screens too (measured
-        // y791-874 = 83pt on the CI simulator) and a scroll-content margin alone still let
-        // Cancel rest behind it (audit screenshots, #179).
-        .safeAreaPadding(.bottom, 96)
+        // Pushed screen: hide the tab bar so the Save/Cancel actions never rest behind it
+        // (Cancel was rendered faded behind the bar at ~818pt; the bar spans y791-874).
+        // safeAreaPadding(.bottom, 96) provably did not inset pushed-screen content
+        // (diary A/B pixel diff, #179); RecipeDetailView already hides the bar instead.
+        .toolbar(.hidden, for: .tabBar)
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Back up and reset unreadable goals?", isPresented: $showingRecoveryConfirmation, titleVisibility: .visible) {
             Button("Back up and reset", role: .destructive) { recoverCorruptData() }

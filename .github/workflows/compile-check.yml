@@ -142,11 +142,58 @@ jobs:
             -only-testing:AteTests/DataArchiveTests \
             -only-testing:AteTests/NutritionGoalsTests \
             -only-testing:AteTests/RecipeNutritionTests \
+            -only-testing:AteTests/NutritionDiaryTests \
+            -only-testing:AteTests/CatalogueIntegrityTests \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-foundation-unit-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > nutrition-foundation-unit-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-foundation-unit-tests.log || true; tail -120 nutrition-foundation-unit-tests.log; exit 1; }
+          # CatalogueIntegrityTests is introduced by PR #238 (food catalogue) and must merge
+          # before this slice; the pass-line guard below fails the job if the suite is absent.
+          # Execution evidence: a green selection that ran nothing is a failure, and the suites
+          # wired in by name must each show their own pass lines.
+          if grep -q "Executed 0 tests" nutrition-foundation-unit-tests.log; then echo "::error::nutrition unit selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "CatalogueIntegrityTests testCatalogueRecordsVerifiedWithRightsAndFiniteValues]' passed" \
+            "CatalogueIntegrityTests testCatalogueIDsAndNormalizedNamesAndAliasesUnique]' passed" \
+            "CatalogueIntegrityTests testAliasesPreserveAllMaterialQualifiers]' passed" \
+            "CatalogueIntegrityTests testCalculatorMatchesStateQualifiedAlias]' passed" \
+            "CatalogueIntegrityTests testCalculatorSurfacesUnmappedSADishNameAsIncomplete]' passed" \
+            "NutritionDiaryTests testDiaryRoundTripsEntryDateMealQuantityServingsAndProvenance]' passed"; do
+            grep -qF "$evidence" nutrition-foundation-unit-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-foundation-unit-tests.log; exit 1; }
+          done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
+
+      - name: Nutrition diary and goals UI regressions (#179)
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          # Clean process so launch arguments are real (same rationale as other UI shards).
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/NutritionDiaryUITests \
+            -only-testing:AteUITests/NutritionGoalsUITests \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreens \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > nutrition-ui-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-ui-tests.log || true; tail -120 nutrition-ui-tests.log; exit 1; }
+          # Execution evidence: a green selection that ran nothing is a failure, and every
+          # named test must appear with its own pass line in the log.
+          if grep -q "Executed 0 tests" nutrition-ui-tests.log; then echo "::error::nutrition UI selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "NutritionDiaryUITests testFoodDiaryOpensAndExplicitlyLogsFoodWithUnavailableValues]' passed" \
+            "NutritionDiaryUITests testDiaryShowsGoalPromptWhenGoalsUnconfiguredAndEmptyState]' passed" \
+            "NutritionDiaryUITests testLogFoodRejectsNonPositiveQuantityWithVisibleError]' passed" \
+            "NutritionDiaryUITests testLogFoodSurfacesSaveFailure]' passed" \
+            "NutritionDiaryUITests testCorruptDiaryShowsErrorAndRecoversAfterBackupReset]' passed" \
+            "NutritionDiaryUITests testCorruptGoalsShowLoadErrorWithRetry]' passed" \
+            "NutritionDiaryUITests testRecipeNutritionShowsIncompleteStateForUnmappedIngredient]' passed" \
+            "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
+            "AccessibilityAuditUITests testAuditNutritionScreens]' passed"; do
+            grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
 
       - name: Library Explore native sheet presentation (#83)
         if: ${{ steps.build.outcome == 'success' }}

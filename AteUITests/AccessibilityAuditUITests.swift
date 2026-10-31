@@ -64,6 +64,37 @@ final class AccessibilityAuditUITests: XCTestCase {
         }
     }
 
+    /// #179: the nutrition diary and goals screens must actually be reached and audited -
+    /// absent navigation fails the test instead of silently skipping the audit.
+    func testAuditNutritionScreens() throws {
+        launch(["-resetNutritionDiary", "-resetNutritionGoals"])
+        XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
+        app.tabBars.buttons["Settings"].tap()
+
+        let diaryEntry = app.buttons["settings.nutritionDiary"]
+        var diaryScrolls = 0
+        while !(diaryEntry.exists && diaryEntry.isHittable) && diaryScrolls < 8 {
+            app.swipeUp(velocity: .slow)
+            diaryScrolls += 1
+        }
+        XCTAssertTrue(diaryEntry.waitForExistence(timeout: 10), "Settings must expose the Food diary entry")
+        diaryEntry.tap()
+        XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10), "Food diary screen must open before auditing")
+        try audit("nutrition-diary")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        let goalsEntry = app.buttons["settings.nutritionGoals"]
+        var goalsScrolls = 0
+        while !(goalsEntry.exists && goalsEntry.isHittable) && goalsScrolls < 8 {
+            app.swipeUp(velocity: .slow)
+            goalsScrolls += 1
+        }
+        XCTAssertTrue(goalsEntry.waitForExistence(timeout: 10), "Settings must expose the Nutrition goals entry")
+        goalsEntry.tap()
+        XCTAssertTrue(app.navigationBars["Nutrition goals"].waitForExistence(timeout: 10), "Nutrition goals screen must open before auditing")
+        try audit("nutrition-goals")
+    }
+
     /// AX5 sweep: largest accessibility text size. Recorded (not gating yet) so clipping can be tracked per build.
     func testAuditLargestDynamicType() throws {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])

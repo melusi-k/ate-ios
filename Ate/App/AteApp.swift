@@ -32,6 +32,15 @@ struct AteApp: App {
         if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaHealthRecipes") && st.recipes.isEmpty {
             st.recipes = HealthFixtures.library
         }
+        // #179 recipe-nutrition UI coverage: one recipe whose ingredient has no verified food match.
+        if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaNutritionFixtures") && st.recipes.isEmpty {
+            var qaRecipe = RecipeCard()
+            qaRecipe.id = "qa-nutrition-pap"
+            qaRecipe.title = "QA pap and rice"
+            qaRecipe.servings = 2
+            qaRecipe.ingredients = [Ingredient(name: "pap", quantity: 200, unit: "g")]
+            st.recipes = [qaRecipe]
+        }
         _store = State(initialValue: st)
     }
 

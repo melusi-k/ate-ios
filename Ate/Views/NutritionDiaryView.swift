@@ -170,6 +170,18 @@ struct NutritionDiaryView: View {
             if ProcessInfo.processInfo.arguments.contains("-resetNutritionDiary") {
                 UserDefaults.standard.removeObject(forKey: NutritionDiaryRepository.storageKey)
             }
+            // UI-test-only hooks (#179 state coverage). Every new argument is gated on -UITesting so a
+            // normal launch can never reset, seed or fail user data.
+            if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-resetNutritionGoals") {
+                UserDefaults.standard.removeObject(forKey: DailyNutritionGoals.defaultsKey)
+                try? NutritionGoalsRepository().storage.remove()
+            }
+            if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-seedCorruptNutritionDiary") {
+                UserDefaults.standard.set(Data("qa-corrupt-diary".utf8), forKey: NutritionDiaryRepository.storageKey)
+            }
+            if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-seedCorruptNutritionGoals") {
+                try? NutritionGoalsRepository().storage.write(Data("qa-corrupt-goals".utf8))
+            }
             reloadDiary()
         }
         .alert("Back up and reset diary?", isPresented: $showingRecoveryConfirmation) {
@@ -211,6 +223,12 @@ struct NutritionDiaryView: View {
     }
 
     private func persist() {
+        // UI-test-only fault injection (#179 save-failure state); gated on -UITesting.
+        // Every save fails while the argument is present; remove the argument to recover.
+        if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-failDiarySaves") {
+            errorMessage = "Your diary couldn’t be saved. Please try again."
+            return
+        }
         do { try repository.save(entries); errorMessage = nil }
         catch let error as NutritionDiaryLoadError {
             diaryDataCorrupt = true

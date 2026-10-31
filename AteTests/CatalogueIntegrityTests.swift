@@ -96,13 +96,14 @@ final class CatalogueIntegrityTests: XCTestCase {
         }
     }
 
-    func testCalculatorMatchesStateQualifiedAlias() {
+    func testCalculatorMatchesStateQualifiedAlias() throws {
         let recipe = RecipeCard(servings: 1, ingredients: [
             Ingredient(name: "white rice, long-grain, raw, unenriched", quantity: 150, unit: "g", notes: nil)
         ])
         let result = RecipeNutritionCalculator(foods: NutritionFoodCatalogue.records).calculate(recipe)
         XCTAssertTrue(result.isComplete)
-        XCTAssertEqual(result.totalRecipe?.energyKcal, 547.5, accuracy: 0.01)
+        let totalEnergyKcal = try XCTUnwrap(result.totalRecipe?.energyKcal)
+        XCTAssertEqual(totalEnergyKcal, 547.5, accuracy: 0.01)
     }
 
     func testCalculatorSurfacesUnmappedSADishNameAsIncomplete() {

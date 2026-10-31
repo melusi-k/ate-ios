@@ -234,7 +234,8 @@ final class AppStore {
     func beginCookSession(recipeID: String, factor: Double) {
         let sig = recipe(recipeID).map(RecipeLogic.ingredientSignature) ?? ""
         if var s = cookSession, s.recipeID == recipeID {
-            s.factor = factor
+            // The active session owns its servings factor: re-entering the same recipe keeps
+            // it; only a genuinely new session adopts the caller's detail selection.
             if s.ingredientSignature != sig { s.checked = []; s.ingredientSignature = sig }
             cookSession = s
         } else {
@@ -420,6 +421,10 @@ final class AppStore {
             sync = SupabaseSync(baseURL: url, key: AppConfig.supabasePublishableKey)
         } else { auth = nil; sync = nil }
         settings = Self.loadDefaults(AppSettings.self, key: "ate.settings.v1") ?? AppSettings()
+        // UI tests opt into imperial presentation so checklist conversion is exercised end to end.
+        if AppConfig.isUITesting, ProcessInfo.processInfo.arguments.contains("-qaImperialUnits") {
+            settings.units = .imperial
+        }
         timerPrefs = Self.loadDefaults(TimerPrefs.self, key: "ate.timerprefs.v1") ?? TimerPrefs()
         if AppConfig.isUITesting { UserDefaults.standard.removeObject(forKey: "ate.sync.v1"); Keychain.save(nil, account: "session") }
         meta = Self.loadDefaults(SyncMeta.self, key: "ate.sync.v1") ?? SyncMeta()

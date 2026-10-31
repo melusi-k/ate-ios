@@ -189,4 +189,36 @@ final class NutritionDiaryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Nutrition estimate unavailable"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["No verified food match: pap"].exists)
     }
+
+    func testLoggedEntryCanBeEditedAndShowsUpdatedValues() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-resetNutritionDiary"]
+        app.launch()
+        openDiary(app)
+        openLogForm(app)
+        let foodName = app.textFields["nutritionDiary.foodName"]
+        foodName.tap()
+        foodName.typeText("My lunch")
+        app.textFields["nutritionDiary.quantityUnit"].tap()
+        app.textFields["nutritionDiary.quantityUnit"].typeText("bowl")
+        app.buttons["nutritionDiary.save"].tap()
+
+        let row = diaryRows(app, containing: "My lunch").firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.swipeLeft()
+        app.buttons["Edit"].tap()
+        // Edit mode: seeded values, Edit title.
+        XCTAssertTrue(app.navigationBars["Edit food"].waitForExistence(timeout: 5))
+        let quantity = app.textFields["nutritionDiary.quantity"]
+        XCTAssertTrue(quantity.waitForExistence(timeout: 5))
+        quantity.tap()
+        if let existing = quantity.value as? String {
+            quantity.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
+        }
+        quantity.typeText("2")
+        app.buttons["nutritionDiary.save"].tap()
+        XCTAssertTrue(diaryRows(app, containing: "2 bowl").firstMatch.waitForExistence(timeout: 5))
+        XCTAssertEqual(diaryRows(app, containing: "My lunch").allElementsBoundByIndex.count, 1,
+                       "edit must keep one row with the same identity")
+    }
 }

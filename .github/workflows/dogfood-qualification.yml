@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   dogfood-qualification:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 60
     env:
       SCHEME: Ate
@@ -24,19 +24,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Select Xcode 26
+      - name: Select Xcode 27.1
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "27.1"
 
       - name: Cache Xcode DerivedData
         uses: actions/cache@v6
         with:
           path: ~/Library/Developer/Xcode/DerivedData
-          key: macos-26-dogfood-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          key: xcode-27-dogfood-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
           restore-keys: |
-            macos-26-dogfood-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
-            macos-26-xcode-deriveddata-
+            xcode-27-dogfood-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            xcode-27-xcode-deriveddata-
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -54,7 +54,7 @@ jobs:
       - name: CI telemetry unit tests
         run: python3 -m unittest discover -s scripts/tests -v
 
-      - name: Select simulator present in Xcode destinations
+      - name: Select iPhone 18 Pro simulator (iOS 27.0)
         id: select_simulator
         run: |
           set -euo pipefail
@@ -63,32 +63,12 @@ jobs:
             cat /tmp/xcode-destinations.txt
             exit 1
           }
-          SIM_ID=$(python3 - <<'PY'
-          import json, re, sys
-          with open('/tmp/available-simulators.json') as f:
-              devices = json.load(f)['devices']
-          with open('/tmp/xcode-destinations.txt') as f:
-              destinations = f.read()
-          xcode_ids = set(re.findall(r'id:([A-Fa-f0-9-]{36})', destinations))
-          candidates = []
-          for runtime, entries in devices.items():
-              if 'iOS' not in runtime:
-                  continue
-              for device in entries:
-                  if device.get('isAvailable') and device.get('udid') in xcode_ids:
-                      score = (runtime.startswith('iOS-26'), device.get('name') == 'iPhone 17', device.get('name', '').startswith('iPhone'))
-                      candidates.append((score, device['udid'], runtime, device.get('name', 'unknown')))
-          if not candidates:
-              print('ERROR: no available iOS simulator is shared by simctl and xcodebuild destinations.', file=sys.stderr)
-              print('Available runtimes/devices:', devices, file=sys.stderr)
-              print('Xcode destinations:', destinations, file=sys.stderr)
-              raise SystemExit(1)
-          candidates.sort(reverse=True)
-          _, udid, runtime, name = candidates[0]
-          print(f'Selected {name} ({udid}) on {runtime}', file=sys.stderr)
-          print(udid)
-          PY
-          )
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          if ! grep -Fq "id:$SIM_ID" /tmp/xcode-destinations.txt; then
+            echo "ERROR: selected iPhone 18 Pro is not listed as an Ate scheme destination."
+            cat /tmp/xcode-destinations.txt
+            exit 1
+          fi
           echo "id=$SIM_ID" >> "$GITHUB_OUTPUT"
           echo "Selected simulator: $SIM_ID"
           xcrun simctl boot "$SIM_ID" || true

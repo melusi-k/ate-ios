@@ -177,7 +177,14 @@ jobs:
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
-            CODE_SIGNING_ALLOWED=NO > nutrition-ui-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-ui-tests.log || true; tail -120 nutrition-ui-tests.log; exit 1; }
+            CODE_SIGNING_ALLOWED=NO > nutrition-ui-tests.log 2>&1 || {
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-ui-tests.log || true
+            tail -120 nutrition-ui-tests.log
+            # Export failure screenshots, hierarchy snapshots and audit attachments so the
+            # diagnostics artifact carries the evidence the console excerpt cannot show.
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/nutrition-ui-attachments" 2>/dev/null || true
+            exit 1
+          }
           # Execution evidence: a green selection that ran nothing is a failure, and every
           # named test must appear with its own pass line in the log.
           if grep -q "Executed 0 tests" nutrition-ui-tests.log; then echo "::error::nutrition UI selection executed 0 tests"; exit 1; fi
@@ -562,4 +569,6 @@ jobs:
             library-layout-tests.log
             navigation-header-tests.log
             share-publish-outage-tests.log
+            nutrition-ui-tests.log
+            ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult

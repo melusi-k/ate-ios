@@ -153,7 +153,7 @@ enum RecipeProgressInsightService {
     static func candidates(
         for input: RecipeProgressInsightInput,
         shoppingItems: [ShoppingItem] = [],
-        nutritionEntries: [NutritionDiaryEntry] = [],
+        nutritionEntries: [NutritionDiaryEntry]? = nil,
         isEligible: (RankedRecipeInsightCandidate) -> Bool = { _ in true }
     ) -> [RankedRecipeInsightCandidate] {
         InsightCandidateEngine.candidates(for: input, shoppingItems: shoppingItems, nutritionEntries: nutritionEntries, isEligible: isEligible)
@@ -617,7 +617,14 @@ struct InsightsView: View {
         }
 
         let input = RecipeProgressInsightInput.make(recipes: store.recipes, historyEvents: CookingHistory.shared.events)
-        let nutritionEntries = NutritionDiaryRepository(defaults: .standard).load()
+        // A corrupt diary is unavailable, not empty: pass nil so diary-derived insights
+        // are skipped instead of computed against a fabricated empty diary.
+        let nutritionEntries: [NutritionDiaryEntry]?
+        switch NutritionDiaryRepository(defaults: .standard).loadState() {
+        case .loaded(let entries): nutritionEntries = entries
+        case .absent: nutritionEntries = []
+        case .corrupt: nutritionEntries = nil
+        }
         let lifecycle = recipeProgressLifecycle
         var hadSuppressed = false
         let eligible = RecipeProgressInsightService.candidates(

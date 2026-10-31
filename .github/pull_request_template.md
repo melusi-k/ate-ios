@@ -13,6 +13,14 @@ Select at least one. GitHub Actions applies the matching labels automatically.
 - [ ] Documentation — `documentation`
 - [ ] Release or release-readiness work — `release`
 
+## Stack
+Every PR must declare its stack status. Use `None` for standalone PRs.
+- **Stack ID:** None
+- **Parent PR:** None
+- **Position:** None
+
+For a stack root, use a stable ID (e.g. `issue-179`), Parent PR `None`, Position `1/Total`, and target `main`. For a child, use the same ID, the immediate parent PR number (digits only), a position such as `2/3`, and target the parent's head branch. See [stacked PR workflow](../docs/STACKED_PULL_REQUESTS.md).
+
 ## Verification
 - [ ] Tests added or updated where appropriate
 - [ ] Relevant tests run, or the reason they could not be run is stated below

@@ -181,9 +181,11 @@ struct NutritionDiaryView: View {
                 Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.error") }
             }
         }
-        // Let the last rows scroll fully clear of the floating tab bar instead of sitting
-        // under it (audit screenshot evidence, #179).
-        .contentMargins(.bottom, 96, for: .scrollContent)
+        // Keep content clear of the floating tab bar at all times, not only at the
+        // scrolled-to-bottom rest position: the bar overlays pushed screens too (measured
+        // y791-874 = 83pt on the CI simulator) and a scroll-content margin alone still let
+        // the empty-state description rest behind it (audit screenshots, #179).
+        .safeAreaPadding(.bottom, 96)
         .navigationTitle("Food diary")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

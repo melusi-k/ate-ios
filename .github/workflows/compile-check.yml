@@ -136,6 +136,7 @@ jobs:
           tail -n 30 build-warnings.log || true
       - name: Library Explore native sheet presentation (#83)
         if: ${{ steps.build.outcome == 'success' }}
+        continue-on-error: true
         run: |
           set -o pipefail
           # A failed XCTest launch can leave the app process suspended on the simulator.

@@ -381,7 +381,7 @@ def main():
     body, sug, risk = build_body(key, title, a.release_type, f"{ver} (build {build})", mx, qr, qnote, rd, rel)
     c = (rd or {}).get("counts", {})
     run_label = f"Build IPA run #{run['run_number']}" if run else "Latest build attempt"
-    comment = (f"<!-- readiness-latest -->**Latest readiness check — {run_label}**: unit {c.get('unit','not reported')}, QA 8-flow {c.get('qa','not reported')}, "
+    comment = (f"<!-- readiness-latest -->**Latest readiness check — {run_label}** · commit `{(rd or {}).get('sha', 'unbound')}`: unit {c.get('unit','not reported')}, QA 8-flow {c.get('qa','not reported')}, "
                f"UI {c.get('ui','not reported')}, e2e {c.get('e2e','not reported')} · suggested: {sug} (risk {risk}) · "
                f"{'[run](' + rd['url'] + ')' if rd else ''} {'· [release](' + rel['html_url'] + ')' if rel else ''}")
     if a.dry_run:

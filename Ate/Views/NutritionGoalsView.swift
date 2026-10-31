@@ -108,6 +108,9 @@ struct NutritionGoalsView: View {
         .background(Theme.background)
         .foregroundStyle(Theme.foreground)
         .navigationTitle("Nutrition goals")
+        // Let the last rows scroll fully clear of the floating tab bar instead of sitting
+        // under it (audit screenshot evidence: Cancel rested under the bottom chrome, #179).
+        .contentMargins(.bottom, 96, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Back up and reset unreadable goals?", isPresented: $showingRecoveryConfirmation, titleVisibility: .visible) {
             Button("Back up and reset", role: .destructive) { recoverCorruptData() }

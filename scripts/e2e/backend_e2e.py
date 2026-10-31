@@ -310,7 +310,10 @@ def upload(ctx, results, build, run_url):
     uid = owner_id(ctx)
     if not uid: print("no owner with device results yet; skipping upload"); return
     rows = [{"user_id": uid, "build": build, "item_id": i, "status": r["status"], "note": r["note"][:400], "auto": True,
-             "source": "ci", "run_url": run_url, "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())} for i, r in results.items()]
+             "source": "ci", "run_url": run_url, "commit_sha": os.environ.get("GITHUB_SHA"),
+             "run_id": int(os.environ["GITHUB_RUN_ID"]) if os.environ.get("GITHUB_RUN_ID", "").isdigit() else None,
+             "run_number": int(os.environ["GITHUB_RUN_NUMBER"]) if os.environ.get("GITHUB_RUN_NUMBER", "").isdigit() else None,
+             "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())} for i, r in results.items()]
     h = {**ctx.svc(), "Prefer": "resolution=merge-duplicates,return=minimal"}
     code, j = http("POST", f"{URL}/rest/v1/qa_results?on_conflict=user_id,build,item_id,source", h, rows)
     print(f"qa_results upload: {code} ({len(rows)} rows)" + ("" if code < 300 else f" {j}"))

@@ -31,6 +31,8 @@ settings:
     DEVELOPMENT_TEAM: "${TEAM_ID}"
     # Overwritten by CI with the short commit sha (see build-ipa.yml).
     ATE_GIT_SHA: "dev"
+    ATE_GIT_SHA_FULL: "dev"
+    ATE_GIT_RUN_ID: ""
     # Empty by default: beta-only UI is fail-closed unless CI explicitly sets a recognized beta channel.
     ATE_CHANNEL: ""
     # Legal pages: source docs/legal/*.md → scripts/build-legal.py → public repo melusi-k/ate-legal (GitHub Pages).
@@ -94,6 +96,8 @@ targets:
         AteShareURLTemplate: $(ATE_SHARE_URL_TEMPLATE)
         AtePrivacyURL: $(ATE_PRIVACY_URL)
         AteGitSHA: $(ATE_GIT_SHA)
+        AteGitSHAFull: $(ATE_GIT_SHA_FULL)
+        AteGitRunID: $(ATE_GIT_RUN_ID)
         AteChannel: $(ATE_CHANNEL)
         AteTermsURL: $(ATE_TERMS_URL)
         CFBundleURLTypes:

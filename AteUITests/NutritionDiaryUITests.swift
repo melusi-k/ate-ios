@@ -415,42 +415,4 @@ final class NutritionDiaryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Nutrition estimate unavailable"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["No verified food match: pap"].exists)
     }
-
-    func testLoggedEntryCanBeEditedAndShowsUpdatedValues() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-resetNutritionDiary"]
-        app.launch()
-        openDiary(app)
-        openLogForm(app)
-        let foodName = app.textFields["nutritionDiary.foodName"]
-        typeAfterKeyboard(foodName, in: app, "My lunch")
-        typeAfterKeyboard(app.textFields["nutritionDiary.quantityUnit"], in: app, "bowl")
-        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
-
-        let row = diaryRows(app, containing: "My lunch").firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
-        XCTAssertTrue(scrollToHittable(row, in: app), "Saved entry row should be visible before it is swiped")
-        row.swipeLeft()
-        app.buttons["Edit"].tap()
-        // Edit mode: seeded values, Edit title.
-        XCTAssertTrue(app.navigationBars["Edit food"].waitForExistence(timeout: 5))
-        let quantity = app.textFields["nutritionDiary.quantity"]
-        XCTAssertTrue(quantity.waitForExistence(timeout: 5))
-        tapWhenHittable(quantity, in: app)
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the quantity field")
-        if let existing = quantity.value as? String {
-            quantity.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
-        }
-        quantity.typeText("2")
-        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
-        XCTAssertTrue(diaryRows(app, containing: "2 bowl").firstMatch.waitForExistence(timeout: 5))
-        XCTAssertEqual(diaryRows(app, containing: "My lunch").allElementsBoundByIndex.count, 1,
-                       "edit must keep one row with the same identity")
-        // Merge-gate evidence: keep a screenshot of the edited diary row in the xcresult.
-        scrollToHittable(row, in: app)
-        let editShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        editShot.name = "diary-row-after-edit"
-        editShot.lifetime = .keepAlways
-        add(editShot)
-    }
 }

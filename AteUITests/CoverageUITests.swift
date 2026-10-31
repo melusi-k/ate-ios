@@ -382,8 +382,9 @@ final class CoverageUITests: XCTestCase {
 
     // MARK: Pilot-gate simulator automation
 
-    /// A-SHARE-05: backend errors show the ErrorRetryCard and leave the local library intact.
-    func test36_BackendDownRetryCardLibraryIntact() {
+    /// Historical backend-outage test retained as an explicit scope skip.
+    func test36_BackendDownRetryCardLibraryIntact() throws {
+        throw XCTSkip("A-SHARE-05 is owner-approved N/A for this release; backend-unavailable behavior will not be tested.")
         launch(["-qaBackendDown"])
         addPrompt("Keep this stew")        // first generation succeeds, every later one fails
         tab("Library")

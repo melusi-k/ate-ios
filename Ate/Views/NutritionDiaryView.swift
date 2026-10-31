@@ -152,8 +152,8 @@ struct NutritionDiaryView: View {
                 Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.error") }
             }
         }
-        // Keep the empty state and last rows clear of the floating Add bar/tab bar.
-        .contentMargins(.bottom, 96, for: .scrollContent)
+        // Keep content clear of the floating tab bar at all times.
+        .safeAreaPadding(.bottom, 96)
         .navigationTitle("Food diary")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

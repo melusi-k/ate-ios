@@ -5,6 +5,7 @@ struct CookModeView: View {
     var onExit: (() -> Void)? = nil
     @Environment(AppStore.self) private var store
     @State private var index = 0
+    @State private var showIngredients = false
     @State private var voice = VoiceController()
     @State private var testUtterance = ""
 
@@ -66,6 +67,11 @@ struct CookModeView: View {
             HStack {
                 Button(action: exit) { Image(systemName: "xmark").font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44) }
                     .buttonStyle(.ate(.ghost, height: 44)).accessibilityLabel("Exit")   // design review: icon-only ✕
+                Button { showIngredients = true } label: { Image(systemName: "list.bullet").font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44) }
+                    .buttonStyle(.ate(.ghost, height: 44))
+                    .accessibilityLabel("Ingredients")
+                    .accessibilityHint("Shows the ingredient checklist, scaled to your servings")
+                    .accessibilityIdentifier("cookIngredientsButton")
                 Spacer()
                 Text("Step \(index + 1) of \(n)").font(AteFont.body(14, .medium))
                 Button {
@@ -148,6 +154,9 @@ struct CookModeView: View {
         }
         .padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 12)
         .pageWidth()
+        .sheet(isPresented: $showIngredients) {
+            CookIngredientsSheet(recipe: recipe).environment(store)
+        }
         .toolbar {
             // Back / Next live in the system bottom toolbar (bottom-bar semantics, glass on iOS 26).
             ToolbarItemGroup(placement: .bottomBar) {

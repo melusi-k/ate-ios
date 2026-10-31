@@ -28,6 +28,36 @@ struct CookTarget: Identifiable, Equatable { let id: String }
 struct CookSession: Codable, Equatable {
     var recipeID: String
     var stepIndex: Int
+    /// Servings factor chosen for this cook (from the recipe detail picker); drives the ingredient checklist sheet.
+    var factor: Double
+    /// Positions of ingredients the cook has marked as gathered. Lives and dies with the session.
+    var checked: [Int]
+    /// Fingerprint of the recipe's ingredient list (RecipeLogic.ingredientSignature). Checks are
+    /// positional, so an ingredient edit invalidates them; a mismatch resets checked to empty.
+    var ingredientSignature: String
+
+    init(recipeID: String, stepIndex: Int, factor: Double = 1, checked: [Int] = [], ingredientSignature: String = "") {
+        self.recipeID = recipeID
+        self.stepIndex = stepIndex
+        self.factor = factor
+        self.checked = checked
+        self.ingredientSignature = ingredientSignature
+    }
+
+    /// Sessions persisted by older builds carry only recipeID and stepIndex; decode them with defaults
+    /// instead of dropping the session on app upgrade.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        recipeID = try c.decode(String.self, forKey: .recipeID)
+        stepIndex = try c.decode(Int.self, forKey: .stepIndex)
+        factor = try c.decodeIfPresent(Double.self, forKey: .factor) ?? 1
+        checked = try c.decodeIfPresent([Int].self, forKey: .checked) ?? []
+        ingredientSignature = try c.decodeIfPresent(String.self, forKey: .ingredientSignature) ?? ""
+    }
+
+    mutating func toggleChecked(_ index: Int) {
+        if let i = checked.firstIndex(of: index) { checked.remove(at: i) } else { checked.append(index) }
+    }
 }
 
 enum AuthMode: String, Identifiable { case signIn, signUp, newPassword; var id: String { rawValue } }
@@ -191,14 +221,54 @@ final class AppStore {
         UserDefaults.standard.set(data, forKey: cookSessionDefaultsKey)
     }
     func updateCookSession(recipeID: String, stepIndex: Int) {
-        cookSession = CookSession(recipeID: recipeID, stepIndex: max(0, stepIndex))
+        // Moving between steps keeps the session's servings factor and gathered checks.
+        if var s = cookSession, s.recipeID == recipeID {
+            s.stepIndex = max(0, stepIndex)
+            cookSession = s
+        } else {
+            cookSession = CookSession(recipeID: recipeID, stepIndex: max(0, stepIndex))
+        }
+    }
+    /// Opening Cook Mode from the recipe detail carries the chosen servings factor into the session.
+    /// Re-entering the same recipe keeps gathered checks; a different recipe starts fresh.
+    func beginCookSession(recipeID: String, factor: Double) {
+        let sig = recipe(recipeID).map(RecipeLogic.ingredientSignature) ?? ""
+        if var s = cookSession, s.recipeID == recipeID {
+            // The active session owns its servings factor: re-entering the same recipe keeps
+            // it; only a genuinely new session adopts the caller's detail selection.
+            if s.ingredientSignature != sig { s.checked = []; s.ingredientSignature = sig }
+            cookSession = s
+        } else {
+            cookSession = CookSession(recipeID: recipeID, stepIndex: 0, factor: factor, ingredientSignature: sig)
+        }
+    }
+    func setCookFactor(_ factor: Double) {
+        guard var s = cookSession else { return }
+        s.factor = factor
+        cookSession = s
+    }
+    func toggleCookIngredientChecked(_ index: Int) {
+        guard var s = cookSession else { return }
+        let sig = recipe(s.recipeID).map(RecipeLogic.ingredientSignature) ?? ""
+        if s.ingredientSignature != sig { s.checked = []; s.ingredientSignature = sig }
+        s.toggleChecked(index)
+        cookSession = s
     }
     func clearCookSession(recipeID: String? = nil) {
         guard recipeID == nil || cookSession?.recipeID == recipeID else { return }
         cookSession = nil
     }
 
-    var recipes: [RecipeCard] = []
+    var recipes: [RecipeCard] = [] {
+        didSet {
+            // Gathered checks in an active cook session are positional: any write that changes
+            // the session recipe's ingredient list (editor, add replace-by-id, sync merge) resets
+            // them. Signature-equal writes (title-only edits, reorders) keep them.
+            guard var s = cookSession, let current = recipes.first(where: { $0.id == s.recipeID }) else { return }
+            let sig = RecipeLogic.ingredientSignature(current)
+            if s.ingredientSignature != sig { s.checked = []; s.ingredientSignature = sig; cookSession = s }
+        }
+    }
     var shopping: [ShoppingItem] = []
     /// Library tab's navigation stack (recipes, shared links, not-found).
     var path: [Route] = []
@@ -350,7 +420,14 @@ final class AppStore {
             auth = SupabaseAuth(baseURL: url, key: AppConfig.supabasePublishableKey)
             sync = SupabaseSync(baseURL: url, key: AppConfig.supabasePublishableKey)
         } else { auth = nil; sync = nil }
-        settings = Self.loadDefaults(AppSettings.self, key: "ate.settings.v1") ?? AppSettings()
+        // UI tests opt into imperial presentation so checklist conversion is exercised end to end.
+        // Mutate before assignment: settings.didSet persists and touches other stored properties
+        // that are not initialized yet at this point in init.
+        var loadedSettings = Self.loadDefaults(AppSettings.self, key: "ate.settings.v1") ?? AppSettings()
+        if AppConfig.isUITesting, ProcessInfo.processInfo.arguments.contains("-qaImperialUnits") {
+            loadedSettings.units = .imperial
+        }
+        settings = loadedSettings
         timerPrefs = Self.loadDefaults(TimerPrefs.self, key: "ate.timerprefs.v1") ?? TimerPrefs()
         if AppConfig.isUITesting { UserDefaults.standard.removeObject(forKey: "ate.sync.v1"); Keychain.save(nil, account: "session") }
         meta = Self.loadDefaults(SyncMeta.self, key: "ate.sync.v1") ?? SyncMeta()

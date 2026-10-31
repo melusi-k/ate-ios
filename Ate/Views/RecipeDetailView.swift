@@ -63,7 +63,10 @@ struct RecipeDetailView: View {
         // Bottom area, one system: this inset (Cook mode) sits directly above the stack's timer bar inset.
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if !editing, store.recipe(recipeID) != nil {
-                Button { store.cookTarget = CookTarget(id: recipeID) } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
+                Button {
+                    store.beginCookSession(recipeID: recipeID, factor: factor)
+                    store.cookTarget = CookTarget(id: recipeID)
+                } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
                     .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)
                     .frame(maxWidth: .infinity)
             }

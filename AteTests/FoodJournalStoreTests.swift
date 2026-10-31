@@ -278,14 +278,18 @@ final class FoodJournalStoreTests: XCTestCase {
     func testCorruptJournalStoreIsMovedAsideAndReplacesItself() throws {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("fj-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         let url = dir.appendingPathComponent("journal.store")
-        try Data(repeating: 0x5A, count: 4096).write(to: url)
+        try Data(repeating: 0x5A, count: 4096).write(to: url)               // corrupt fixture: not SQLite
+        try Data("junk".utf8).write(to: URL(fileURLWithPath: url.path + "-wal"))
         let outcome = StoreRecovery.open(url: url) {
             try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self, configurations: $0)
         }
         XCTAssertTrue(outcome.recovered, "a corrupt journal store is moved aside, never mistaken for an empty journal")
-        XCTAssertNotNil(outcome.backupURL)
+        let backup = try XCTUnwrap(outcome.backupURL)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: backup.path), "the corrupt store file is preserved")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: backup.path + "-wal"), "the WAL sidecar is preserved with it")
         let store = FoodJournalStore(container: try XCTUnwrap(outcome.container))
         try store.saveMeal(sampleEntry())
         XCTAssertEqual(store.mealEntries().count, 1, "the recovered store works")

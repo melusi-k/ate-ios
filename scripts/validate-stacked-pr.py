@@ -28,7 +28,7 @@ def main():
     if not pr:
         print("No pull_request payload; stack validation is not applicable."); return
     body = pr.get("body") or ""
-    section = re.search(r"^## Stack[ \\t]*\\r?\\n(.*?)(?=^## |\\Z)", body, re.M | re.S)
+    section = re.search(r"^## Stack[ \t]*\r?\n(.*?)(?=^## |\Z)", body, re.M | re.S)
     if not section: fail("PR description must include a ## Stack section")
     stack_id, parent, position = (field(section.group(1), name) for name in ("Stack ID","Parent PR","Position"))
     if stack_id == parent == position == "None":
@@ -53,7 +53,7 @@ def main():
     if parent_pr["state"] != "open" and not parent_pr.get("merged"):
         fail(f"Parent PR #{parent} is closed without merging; resolve the stack before proceeding")
     if parent_pr["base"]["repo"]["full_name"].lower() != repo.lower(): fail("Cross-repository stacks are not supported")
-    parent_section = re.search(r"^## Stack[ \\t]*\\r?\\n(.*?)(?=^## |\\Z)",parent_pr.get("body") or "",re.M|re.S)
+    section = re.search(r"^## Stack[ \t]*\r?\n(.*?)(?=^## |\Z)", body, re.M | re.S)
     if not parent_section: fail(f"Parent PR #{parent} has no ## Stack metadata")
     parent_id = field(parent_section.group(1),"Stack ID")
     parent_position = field(parent_section.group(1),"Position")

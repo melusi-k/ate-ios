@@ -1,0 +1,60 @@
+name: Probe iOS 26.1 capsule overlay
+on:
+  push:
+    branches: ["probe/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: xcode-27
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Runner inventory (actual, not assumed)
+        run: |
+          uname -m
+          sw_vers
+          xcodebuild -version
+          echo "--- runtimes before:"
+          xcrun simctl list runtimes
+          df -h /System/Volumes/Data | tail -1
+      - name: Install iOS 26.1 simulator runtime
+        run: |
+          set -x
+          time xcodebuild -downloadPlatform iOS -buildVersion 26.1 || time sudo xcodebuild -downloadPlatform iOS -buildVersion 26.1
+      - name: Create and boot iPhone 18 Pro on iOS 26.1
+        run: |
+          xcrun simctl list runtimes
+          RT=$(xcrun simctl list runtimes -j | python3 -c 'import json,sys;rs=json.load(sys.stdin)["runtimes"];m=[r for r in rs if r.get("version")=="26.1" and r.get("isAvailable")];print(m[0]["identifier"] if m else "MISSING")')
+          echo "runtime=$RT"; test "$RT" != "MISSING"
+          DT=$(xcrun simctl list devicetypes -j | python3 -c 'import json,sys;ds=json.load(sys.stdin)["devicetypes"];m=[d for d in ds if d["name"]=="iPhone 18 Pro"];print(m[0]["identifier"] if m else "MISSING")')
+          echo "devicetype=$DT"; test "$DT" != "MISSING"
+          UDID=$(xcrun simctl create probe-261 "$DT" "$RT")
+          echo "UDID=$UDID" | tee -a "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl list devices | grep -i "$UDID"
+      - name: Build app for testing
+        run: |
+          brew install xcodegen && xcodegen generate
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$UDID" -resultBundlePath "${{ runner.temp }}/probe/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || { tail -60 build.log; exit 1; }
+      - name: Focused overlay reproduction (diary+goals audit on 26.1)
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$UDID" -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreens -resultBundlePath "${{ runner.temp }}/probe/audit26-1.xcresult" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO > audit.log 2>&1 || true
+          grep -E "Test Case|error:|a11y-audit" audit.log | head -40 || true
+      - name: Upload probe results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-26-1-capsule
+          path: |
+            ${{ runner.temp }}/probe
+            build.log
+            audit.log

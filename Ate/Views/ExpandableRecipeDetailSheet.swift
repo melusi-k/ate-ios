@@ -83,6 +83,10 @@ struct ExpandableRecipeDetailSheet: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.background.ignoresSafeArea())
         .foregroundStyle(Theme.foreground)
+        // .contain keeps this identifier on the container only: a bare
+        // .accessibilityIdentifier on a container absorbs all descendant identifiers
+        // (CI: expandRecipeDetails button reported as recipeQuickLook, #179).
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("recipeQuickLook")
     }
 }

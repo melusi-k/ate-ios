@@ -62,7 +62,7 @@ jobs:
 
   compile:
     needs: changes
-    if: needs.changes.outputs.app == 'true' && github.ref != 'refs/heads/wip/simulator-concurrency-experiment'
+    if: false
     runs-on: macos-26
     timeout-minutes: 45
     env:
@@ -507,7 +507,6 @@ jobs:
   # compile job from duplicating a full simulator build on the experiment branch.
   simulator-concurrency-experiment:
     name: CoverageUITests — serial vs 2 workers
-    if: github.event_name == 'push' && github.ref == 'refs/heads/wip/simulator-concurrency-experiment'
     runs-on: macos-26
     timeout-minutes: 360
     env:

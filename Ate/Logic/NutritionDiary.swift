@@ -165,11 +165,21 @@ struct NutritionDayTotals: Equatable {
                 guard let value = entry.nutrientsPerServing[field], value.isFinite else { complete = false; break }
                 sum += value * entry.servings
             }
-            totals[field] = complete && sum.isFinite ? (sum * 10).rounded() / 10 : nil
+            totals[field] = complete && sum.isFinite ? roundedTenth(sum) : nil
         }
         return NutritionDayTotals(values: totals)
     }
+
+    /// Rounds to one decimal without overflowing: scaling a large finite sum by 10
+    /// can exceed Double.greatestFiniteMagnitude and return infinity to the UI.
+    private static func roundedTenth(_ value: Double) -> Double? {
+        let scaled = value * 10
+        guard scaled.isFinite else { return nil }
+        let rounded = scaled.rounded() / 10
+        return rounded.isFinite ? rounded : nil
+    }
 }
+
 
 enum NutritionDiaryValidation {
     static func isValid(_ entry: NutritionDiaryEntry) -> Bool {
@@ -185,15 +195,49 @@ enum NutritionDiaryValidation {
     }
 }
 
+enum NutritionDiaryLoadState: Equatable {
+    case absent
+    case loaded([NutritionDiaryEntry])
+    case corrupt
+}
+
+enum NutritionDiaryLoadError: LocalizedError {
+    case storedDataInvalid
+
+    var errorDescription: String? {
+        switch self {
+        case .storedDataInvalid:
+            return "The saved food diary couldn't be decoded. Saving is disabled until the unreadable data is backed up and reset."
+        }
+    }
+}
+
+enum NutritionDiaryRecoveryError: Error {
+    case noCorruptData
+    case dataIsValid
+}
+
 struct NutritionDiaryRepository {
     let defaults: UserDefaults
+    let fileManager: FileManager
+    let backupDirectory: URL
     static let storageKey = "ate.nutritionDiary.v1"
+    static let corruptBackupDirectoryName = "NutritionDiaryCorruptBackups"
 
-    init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+    init(defaults: UserDefaults = .standard, fileManager: FileManager = .default,
+         backupDirectory: URL? = nil) {
+        self.defaults = defaults
+        self.fileManager = fileManager
+        self.backupDirectory = backupDirectory
+            ?? fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent(Self.corruptBackupDirectoryName, isDirectory: true)
+    }
 
-    func load() -> [NutritionDiaryEntry] {
-        guard let data = defaults.data(forKey: Self.storageKey),
-              let entries = try? JSONDecoder().decode([NutritionDiaryEntry].self, from: data) else { return [] }
+    /// Distinguishes an absent diary from an unreadable one. A corrupt payload is
+    /// never silently reported as an empty diary and never overwritten implicitly.
+    func loadState() -> NutritionDiaryLoadState {
+        guard let data = defaults.data(forKey: Self.storageKey) else { return .absent }
+        guard let entries = try? JSONDecoder().decode([NutritionDiaryEntry].self, from: data) else { return .corrupt }
         let legacyRecords = ((try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]])?
             .contains { $0["dayKey"] == nil } ?? false
         let sorted = entries.sorted {
@@ -201,8 +245,13 @@ struct NutritionDiaryRepository {
         }
         // Persist migrated keys immediately so a later time-zone change cannot
         // reinterpret legacy entries a second time.
-        if legacyRecords { try? save(sorted) }
-        return sorted
+        if legacyRecords, let migrated = try? prepare(sorted) { savePrepared(migrated) }
+        return .loaded(sorted)
+    }
+
+    func load() -> [NutritionDiaryEntry] {
+        guard case .loaded(let entries) = loadState() else { return [] }
+        return entries
     }
 
     /// Encodes a replacement before any related archive state is committed.
@@ -217,7 +266,22 @@ struct NutritionDiaryRepository {
     }
 
     func save(_ entries: [NutritionDiaryEntry]) throws {
+        // Saving is disabled while unreadable data occupies the store: overwriting
+        // it would destroy the only copy of the original diary.
+        guard loadState() != .corrupt else { throw NutritionDiaryLoadError.storedDataInvalid }
         savePrepared(try prepare(entries))
+    }
+
+    /// Backs up the unreadable payload to an atomically written file before removing
+    /// it, so resetting the diary never destroys the only copy. The backup write throws
+    /// on failure: if the backup cannot be proven written, the original stays in place.
+    func recoverCorruptData() throws {
+        guard let data = defaults.data(forKey: Self.storageKey) else { throw NutritionDiaryRecoveryError.noCorruptData }
+        guard (try? JSONDecoder().decode([NutritionDiaryEntry].self, from: data)) == nil else { throw NutritionDiaryRecoveryError.dataIsValid }
+        try fileManager.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
+        let backupURL = backupDirectory.appendingPathComponent("nutrition-diary-corrupt-\(UUID().uuidString).json")
+        try data.write(to: backupURL, options: .atomic)
+        defaults.removeObject(forKey: Self.storageKey)
     }
 
     func clear() {

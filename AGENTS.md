@@ -24,6 +24,10 @@ Add or update focused XCTest coverage in `AteTests/` for logic and service behav
 
 Recent commits use short imperative subjects, usually with prefixes such as `feat:`, `fix:`, `build:`, `ci:`, or `docs:`; keep the subject focused. Complete `.github/pull_request_template.md`, explain changes, link issues, and include test evidence. Add screenshots for UI changes; update docs or QA checklists when acceptance criteria change.
 
+## Stacked pull requests
+
+Follow [docs/STACKED_PULL_REQUESTS.md](docs/STACKED_PULL_REQUESTS.md) for stack selection, metadata, branch/base conventions, validation, merge order, and issue-closure rules. Every PR must declare Stack ID, Parent PR, and Position in its `## Stack` section; use `None` for all three on standalone PRs. Keep stacked diffs incremental, target the immediate parent's branch, and merge from root to leaf only after exact-head checks and independent approvals pass. A merged PR does not by itself complete an issue.
+
 ## Security & Configuration
 
 Never commit credentials, signing material, or Supabase secret keys. App configuration belongs in `project.yml` build settings and secrets belong in GitHub Actions secrets. Keep database access protected by the existing Supabase policies and migrations; include security implications when modifying auth, sharing, or stored user data.

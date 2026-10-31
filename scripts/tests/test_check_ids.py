@@ -46,8 +46,8 @@ class GateContractTests(unittest.TestCase):
         self.check()
 
     def test_documented_gate_count_drift_fails(self):
-        self.edit('docs/LAUNCH_GATES.md', '| 97 |', '| 96 |')
-        self.check('Pilot count 97 differs from LAUNCH_GATES 96')
+        self.edit('docs/LAUNCH_GATES.md', '| 96 |', '| 95 |')
+        self.check('Pilot count 96 differs from LAUNCH_GATES 95')
 
     def test_documented_total_drift_fails(self):
         self.edit('docs/LAUNCH_GATES.md', '| 179 |', '| 180 |')
@@ -68,7 +68,7 @@ class GateContractTests(unittest.TestCase):
     def test_matching_reclassification_requires_updated_counts(self):
         self.edit('docs/MVP_CHECKLIST.md', '*Release gate:* Pilot', '*Release gate:* Public launch')
         self.edit('docs/QA_MATRIX.md', '| Pilot | P1 |', '| Public launch | P1 |')
-        self.check('Pilot count 96 differs from LAUNCH_GATES 97')
+        self.check('Pilot count 95 differs from LAUNCH_GATES 96')
 
     def test_unknown_matrix_gate_fails(self):
         self.edit('docs/QA_MATRIX.md', '| Pilot | P1 |', '| Typo | P1 |')

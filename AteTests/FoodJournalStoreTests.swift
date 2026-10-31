@@ -13,7 +13,7 @@ final class FoodJournalStoreTests: XCTestCase {
 
     override func setUpWithError() throws {
         try super.setUpWithError()
-        container = try ModelContainer(for: JournalEntry.self, JournalMealPayload.self,
+        container = try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,
                                        configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         store = FoodJournalStore(container: container)
         suiteName = "FoodJournalStoreTests-\(UUID().uuidString)"
@@ -77,7 +77,7 @@ final class FoodJournalStoreTests: XCTestCase {
     func testSavedMealIsOneJournalEntryWithMealKind() throws {
         let entry = sampleEntry()
         try store.saveMeal(entry)
-        let journalEntries = try container.mainContext.fetch(FetchDescriptor<JournalEntry>())
+        let journalEntries = try container.mainContext.fetch(FetchDescriptor<Ate.JournalEntry>())
         XCTAssertEqual(journalEntries.count, 1, "exactly one journal entry per saved meal")
         let stored = try XCTUnwrap(journalEntries.first)
         XCTAssertEqual(stored.kind, .meal)
@@ -91,7 +91,7 @@ final class FoodJournalStoreTests: XCTestCase {
     }
 
     func testExistingReflectionDefaultsToReflectionKind() throws {
-        let reflection = JournalEntry(prompt: "What did you enjoy?", text: "Pap night", state: .balanced)
+        let reflection = Ate.JournalEntry(prompt: "What did you enjoy?", text: "Pap night", state: .balanced)
         container.mainContext.insert(reflection)
         try container.mainContext.save()
         XCTAssertEqual(reflection.kind, .reflection, "pre-unification rows decode as reflections via the model default")
@@ -156,7 +156,7 @@ final class FoodJournalStoreTests: XCTestCase {
         try store.saveMeal(entry)
         store.deleteMeal(id: entry.id)
         XCTAssertTrue(store.mealEntries().isEmpty)
-        XCTAssertTrue(try container.mainContext.fetch(FetchDescriptor<JournalEntry>()).isEmpty)
+        XCTAssertTrue(try container.mainContext.fetch(FetchDescriptor<Ate.JournalEntry>()).isEmpty)
         XCTAssertTrue(try container.mainContext.fetch(FetchDescriptor<JournalMealPayload>()).isEmpty)
     }
 
@@ -202,7 +202,7 @@ final class FoodJournalStoreTests: XCTestCase {
 
         // Journal-store recovery scenario: the store is gone but the legacy backup semantics let the
         // migrator repopulate a fresh store from a payload that still exists (never silently lost).
-        let freshStore = FoodJournalStore(container: try ModelContainer(for: JournalEntry.self, JournalMealPayload.self,
+        let freshStore = FoodJournalStore(container: try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,
                                                                         configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
         try legacyRepository().save(entries)
         defaults.removeObject(forKey: FoodJournalMigration.markerKey)
@@ -267,7 +267,7 @@ final class FoodJournalStoreTests: XCTestCase {
             .appendingPathComponent("journal.store")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let make: (ModelConfiguration) throws -> ModelContainer = {
-            try ModelContainer(for: JournalEntry.self, JournalMealPayload.self, configurations: $0)
+            try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self, configurations: $0)
         }
         let first = FoodJournalStore(container: try make(ModelConfiguration(url: url)))
         try first.saveMeal(sampleEntry())
@@ -282,7 +282,7 @@ final class FoodJournalStoreTests: XCTestCase {
         let url = dir.appendingPathComponent("journal.store")
         try Data(repeating: 0x5A, count: 4096).write(to: url)
         let outcome = StoreRecovery.open(url: url) {
-            try ModelContainer(for: JournalEntry.self, JournalMealPayload.self, configurations: $0)
+            try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self, configurations: $0)
         }
         XCTAssertTrue(outcome.recovered, "a corrupt journal store is moved aside, never mistaken for an empty journal")
         XCTAssertNotNil(outcome.backupURL)

@@ -261,7 +261,7 @@ PR #206 exact head remains `02571a4ced4eb2f126aaad345d4b93bfbaa7cad1`. Its Compi
 
 ### Governance refresh
 - Ruleset [main-production-protection](https://github.com/melusi-k/ate-ios/rules/26236404) exists but `enforcement=disabled`. It is configured for one approving review, resolved review threads, strict `compile` and `dogfood-qualification` checks, linear history and no bypass actors.
-- `.github/CODEOWNERS` exists with `* @melusi-k`, but the ruleset has `require_code_owner_review=false`; a CODEOWNERS approval is not enforced by this ruleset.
+- `.github/CODEOWNERS` exists with `* @melusi-k`, but the ruleset has `require_code_owner_review=false`; a CODEOWNERS approval is not enforced by this ruleset. The file says owner review should be required, but its only listed owner is the repository author; nominate an independent maintainer/team before enabling that requirement. Never self-approve.
 - The branch-protection endpoint remains inaccessible to the connected integration (403), so any separate protection is unverified. Repository metadata: squash merge enabled, auto-merge disabled, update-branch disabled.
 - Do not auto-merge until enforcement is enabled and the required checks/review/ownership rules are verified. No repository governance setting was changed by this refresh.
 

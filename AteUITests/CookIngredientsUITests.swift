@@ -152,10 +152,10 @@ final class CookIngredientsUITests: XCTestCase {
         XCTAssertTrue(stepHeader.label.contains("390"), stepHeader.label)
         shot("cook-ingredients-sheet-with-instruction-large-text")
 
-        // Resting state: at accessibility text sizes the sheet opens at the tall detent, so
-        // several full rows must sit inside the visible scroll frame without any scrolling.
+        // Resting state: at accessibility text sizes the sheet only offers the tall detent,
+        // so several full rows must sit inside the visible scroll frame without any scrolling.
         // (Regression guard: with the header pinned at the medium detent, under half of the
-        // first row was visible at rest.) The detent change animates in, so poll briefly.
+        // first row was visible at rest.) Poll briefly while the sheet settles after opening.
         let scroll = app.scrollViews["cookIngredientsScroll"]
         let visibleFrame = { scroll.frame.insetBy(dx: 0, dy: -2) }
         var restedRows = 0

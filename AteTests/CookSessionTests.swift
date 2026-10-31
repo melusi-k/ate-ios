@@ -53,4 +53,78 @@ final class CookSessionTests: XCTestCase {
         XCTAssertEqual(Units.formatAmount(q, u), "225 g")
         XCTAssertEqual(scaled.servings, 3)
     }
+
+    // MARK: Ingredient edits invalidate positional gathered checks
+
+    private func makeStore() -> AppStore {
+        UserDefaults.standard.removeObject(forKey: "ate.cookSession.v1")
+        return AppStore(context: nil, backend: MockBackend())
+    }
+
+    private func card(_ id: String, _ ings: [String]) -> RecipeCard {
+        var r = RecipeCard()
+        r.id = id; r.title = id; r.servings = 2
+        r.ingredients = ings.map { Ingredient(name: $0, quantity: 100, unit: "g", notes: nil) }
+        r.steps = [Step(order: 1, instruction: "Cook it.", timeSeconds: nil)]
+        return r
+    }
+
+    func testEditingIngredientsClearsGatheredChecks() {
+        let store = makeStore()
+        store.recipes = [card("r1", ["rice", "miso"])]
+        store.beginCookSession(recipeID: "r1", factor: 1)
+        store.toggleCookIngredientChecked(0)
+        XCTAssertEqual(store.cookSession?.checked, [0])
+        store.update(card("r1", ["rice", "miso", "honey"]))
+        XCTAssertEqual(store.cookSession?.checked, [])
+    }
+
+    func testNonIngredientEditKeepsGatheredChecks() {
+        let store = makeStore()
+        store.recipes = [card("r1", ["rice", "miso"])]
+        store.beginCookSession(recipeID: "r1", factor: 1)
+        store.toggleCookIngredientChecked(1)
+        var edited = card("r1", ["rice", "miso"])
+        edited.title = "Renamed"
+        store.update(edited)
+        XCTAssertEqual(store.cookSession?.checked, [1])
+    }
+
+    /// A session whose signature no longer matches (legacy data, or a recipe changed elsewhere,
+    /// e.g. sync) resets on the next toggle instead of checking the wrong row.
+    func testToggleAfterExternalChangeResetsThenApplies() {
+        let store = makeStore()
+        store.recipes = [card("r1", ["rice", "miso"])]
+        store.beginCookSession(recipeID: "r1", factor: 1)
+        store.toggleCookIngredientChecked(0)
+        store.cookSession?.ingredientSignature = "stale"
+        store.toggleCookIngredientChecked(4)
+        XCTAssertEqual(store.cookSession?.checked, [4])
+    }
+
+    /// beginCookSession on the same recipe keeps checks only while the ingredient list is unchanged.
+    func testBeginCookSessionResetsChecksWhenIngredientsChanged() {
+        let store = makeStore()
+        store.recipes = [card("r1", ["rice", "miso"])]
+        store.beginCookSession(recipeID: "r1", factor: 1)
+        store.toggleCookIngredientChecked(0)
+        store.recipes = [card("r1", ["miso", "rice"])] // reordered outside update()
+        store.beginCookSession(recipeID: "r1", factor: 2)
+        XCTAssertEqual(store.cookSession?.checked, [])
+        XCTAssertEqual(store.cookSession?.factor, 2)
+    }
+
+    /// Sync-merge / add-replace-by-id style wholesale replacement of the recipes array also
+    /// invalidates checks for the session recipe, while factor and step are preserved.
+    func testWholesaleRecipeReplacementClearsChecksPreservesFactorAndStep() {
+        let store = makeStore()
+        store.recipes = [card("r1", ["rice", "miso"])]
+        store.beginCookSession(recipeID: "r1", factor: 2)
+        store.updateCookSession(recipeID: "r1", stepIndex: 1)
+        store.toggleCookIngredientChecked(0)
+        store.recipes = [card("r1", ["rice", "miso", "honey"])]
+        XCTAssertEqual(store.cookSession?.checked, [])
+        XCTAssertEqual(store.cookSession?.factor, 2)
+        XCTAssertEqual(store.cookSession?.stepIndex, 1)
+    }
 }

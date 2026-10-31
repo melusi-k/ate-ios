@@ -13,7 +13,6 @@ struct NutritionDiaryView: View {
     /// reading storage during body evaluation goes stale when a reset or a goals-screen
     /// edit does not change any other state on this screen (#179).
     @State private var dailyGoals: DailyNutritionGoals?
-    @State private var editingEntry: NutritionDiaryEntry?
     private let repository: NutritionDiaryRepository
     private let goalsRepository: NutritionGoalsRepository
 
@@ -112,32 +111,6 @@ struct NutritionDiaryView: View {
                     .accessibilityIdentifier("nutritionDiary.retryGoals")
                 }
             }
-            Section("This week") {
-                let weekEntries = NutritionWeekTotals.entries(entries, inWeekOf: .now)
-                if weekEntries.isEmpty {
-                    Text("Nothing logged this week yet.")
-                        .foregroundStyle(Theme.mutedForeground)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("nutritionDiary.weeklyEmpty")
-                } else {
-                    let weekTotals = NutritionDayTotals.calculate(entries: weekEntries)
-                    ForEach(NutritionGoalField.allCases) { field in
-                        HStack {
-                            Text(field.title)
-                            Spacer()
-                            if let amount = weekTotals.value(for: field) {
-                                Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) \(field.unit)")
-                                    .monospacedDigit()
-                                    .accessibilityIdentifier("nutritionDiary.weeklyTotal.\(field.rawValue).value")
-                            } else {
-                                Text("Unavailable").foregroundStyle(Theme.mutedForeground)
-                                    .accessibilityIdentifier("nutritionDiary.weeklyTotal.\(field.rawValue).value")
-                            }
-                        }
-                        .accessibilityIdentifier("nutritionDiary.weeklyTotal.\(field.rawValue)")
-                    }
-                }
-            }
             if dayEntries.isEmpty {
                 ContentUnavailableView("Nothing logged", systemImage: "fork.knife", description: Text("Add food when you’ve eaten it. Cooking a recipe never logs it automatically."))
                     .listRowBackground(Color.clear)
@@ -167,8 +140,6 @@ struct NutritionDiaryView: View {
                                 .accessibilityElement(children: .combine)
                                 .accessibilityIdentifier("nutritionDiary.entry.\(entry.id.uuidString)")
                                 .swipeActions {
-                                    Button("Edit") { editingEntry = entry }
-                                        .accessibilityIdentifier("nutritionDiary.edit.\(entry.id.uuidString)")
                                     Button("Delete", role: .destructive) { delete(entry) }
                                         .accessibilityIdentifier("nutritionDiary.delete.\(entry.id.uuidString)")
                                 }
@@ -181,11 +152,12 @@ struct NutritionDiaryView: View {
                 Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.error") }
             }
         }
-        // Keep content clear of the floating tab bar at all times, not only at the
-        // scrolled-to-bottom rest position: the bar overlays pushed screens too (measured
-        // y791-874 = 83pt on the CI simulator) and a scroll-content margin alone still let
-        // the empty-state description rest behind it (audit screenshots, #179).
-        .safeAreaPadding(.bottom, 96)
+        // Pushed screen: hide the tab bar so list content never rests behind it.
+        // safeAreaPadding/contentMargins measurably did NOT inset this list (A/B pixel
+        // diff of runs with and without the modifier: only the status-bar clock changed;
+        // the list's UICollectionView frame stayed {0,0,402,874} in the AX hierarchy).
+        // RecipeDetailView already hides the bar for the same reason (#179).
+        .toolbar(.hidden, for: .tabBar)
         .navigationTitle("Food diary")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -200,17 +172,6 @@ struct NutritionDiaryView: View {
                     entries.append(entry)
                     persist()
                     store.showNutritionDiaryEntry = false
-                }
-            }
-        }
-        .sheet(item: $editingEntry) { entry in
-            NavigationStack {
-                NutritionDiaryEntryForm(date: entry.date, dayKey: entry.dayKey, existing: entry) { updated in
-                    if let index = entries.firstIndex(where: { $0.id == updated.id }) {
-                        entries[index] = updated
-                    }
-                    persist()
-                    editingEntry = nil
                 }
             }
         }
@@ -290,7 +251,6 @@ struct NutritionDiaryView: View {
 private struct NutritionDiaryEntryForm: View {
     let date: Date
     let dayKey: String
-    let existing: NutritionDiaryEntry?
     let onSave: (NutritionDiaryEntry) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var foodName = ""
@@ -304,41 +264,6 @@ private struct NutritionDiaryEntryForm: View {
     @State private var verificationNote = ""
     @State private var nutrientText: [NutritionGoalField: String] = [:]
     @State private var errorMessage: String?
-
-    /// Seeds a new form, or every field from an entry being edited (#179 edit behaviour).
-    init(date: Date, dayKey: String, existing: NutritionDiaryEntry? = nil,
-         onSave: @escaping (NutritionDiaryEntry) -> Void) {
-        self.date = existing?.date ?? date
-        self.dayKey = existing?.dayKey ?? dayKey
-        self.existing = existing
-        self.onSave = onSave
-        _foodName = State(initialValue: existing?.foodName ?? "")
-        _meal = State(initialValue: existing?.meal ?? .lunch)
-        _quantity = State(initialValue: existing.map { Self.numberText($0.quantity) } ?? "1")
-        _quantityUnit = State(initialValue: existing?.quantityUnit ?? "serving")
-        _servings = State(initialValue: existing.map { Self.numberText($0.servings) } ?? "1")
-        _source = State(initialValue: existing?.source ?? .userProvided)
-        _sourceName = State(initialValue: existing?.sourceName ?? "You")
-        _sourceIdentifier = State(initialValue: existing?.sourceIdentifier ?? "")
-        _verificationNote = State(initialValue: existing?.verificationNote ?? "")
-        var nutrients: [NutritionGoalField: String] = [:]
-        if let existing {
-            for field in NutritionGoalField.allCases {
-                if let value = existing.nutrientsPerServing[field] {
-                    nutrients[field] = Self.numberText(value)
-                }
-            }
-        }
-        _nutrientText = State(initialValue: nutrients)
-        _errorMessage = State(initialValue: nil)
-    }
-
-    /// Shortest round-trippable form: editing and saving without touching a field must
-    /// never lose precision, and no grouping separator may enter the decimal pad.
-    /// NutritionDiaryNumber.parse accepts the period separator in any locale.
-    private static func numberText(_ value: Double) -> String {
-        String(value)
-    }
 
     var body: some View {
         Form {
@@ -391,7 +316,7 @@ private struct NutritionDiaryEntryForm: View {
         // The decimal-pad fields have no return key; let a scroll dismiss the keyboard so
         // it cannot trap itself over the lower form.
         .scrollDismissesKeyboard(.interactively)
-        .navigationTitle(existing == nil ? "Log food" : "Edit food")
+        .navigationTitle("Log food")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: source) { _, newSource in
             sourceName = newSource.suggestedSourceName
@@ -432,7 +357,6 @@ private struct NutritionDiaryEntryForm: View {
                                          carbohydratesGrams: values[.carbohydrates], fatGrams: values[.fat],
                                          fibreGrams: values[.fibre])
         let entry = NutritionDiaryEntry(
-            id: existing?.id ?? UUID(),
             foodName: foodName, date: date, meal: meal, quantity: quantityValue, quantityUnit: quantityUnit,
             servings: servingCount, source: source, sourceName: sourceName, sourceIdentifier: sourceIdentifier,
             verificationNote: verificationNote, nutrientsPerServing: snapshot, dayKey: dayKey

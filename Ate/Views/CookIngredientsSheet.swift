@@ -14,7 +14,13 @@ struct CookIngredientsSheet: View {
     /// Read through the live session so rescaling and checking update in place. A session for
     /// another recipe (or none, e.g. previews) falls back to an unchecked 1x list.
     private var factor: Double { store.cookSession?.recipeID == recipe.id ? (store.cookSession?.factor ?? 1) : 1 }
-    private var checked: Set<Int> { store.cookSession?.recipeID == recipe.id ? Set(store.cookSession?.checked ?? []) : [] }
+    /// Positional checks are only shown while the session's ingredient fingerprint matches the
+    /// recipe; a stale session (edited or legacy) reads as unchecked, and the first toggle resets it.
+    private var checked: Set<Int> {
+        guard let s = store.cookSession, s.recipeID == recipe.id,
+              s.ingredientSignature == RecipeLogic.ingredientSignature(recipe) else { return [] }
+        return Set(s.checked)
+    }
 
     var body: some View {
         let scaled = RecipeLogic.scaled(recipe, factor: factor)

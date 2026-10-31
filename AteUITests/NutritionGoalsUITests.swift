@@ -14,11 +14,38 @@ final class NutritionGoalsUITests: XCTestCase {
         return app
     }
 
-    private func scrollTo(_ element: XCUIElement, in app: XCUIApplication, max: Int = 8) {
+    /// Scroll against the measured frame, not isHittable: on this platform cells clipped by
+    /// the navigation bar or pushed past the keyboard still report hittable, and taps
+    /// synthesised at those centres land on the bar or keyboard instead of the control.
+    private func scrollTo(_ element: XCUIElement, in app: XCUIApplication, max: Int = 12) {
+        let topBound: CGFloat = 112
         var attempts = 0
-        while !(element.exists && element.isHittable) && attempts < max {
-            app.swipeUp(velocity: .slow)
+        var blockedUps = 0
+        while attempts < max {
             attempts += 1
+            guard element.exists, !element.frame.isEmpty else {
+                app.swipeUp(velocity: .slow)
+                continue
+            }
+            let frame = element.frame
+            let keyboard = app.keyboards.firstMatch
+            let keyboardUp = keyboard.exists
+            let bottomBound = keyboardUp ? keyboard.frame.minY - 8 : app.windows.firstMatch.frame.maxY - 4
+            if frame.midY >= topBound && frame.midY <= bottomBound {
+                if element.isHittable { return }
+                app.swipeDown(velocity: .slow)
+            } else if frame.midY > bottomBound {
+                if keyboardUp && blockedUps >= 2 {
+                    app.swipeDown(velocity: .fast) // drag the keyboard away, then re-measure
+                    blockedUps = 0
+                } else {
+                    app.swipeUp(velocity: .slow)
+                    blockedUps += 1
+                }
+            } else {
+                app.swipeDown(velocity: .slow)
+                blockedUps = 0
+            }
         }
     }
 
@@ -42,18 +69,22 @@ final class NutritionGoalsUITests: XCTestCase {
         }
         XCTAssertTrue(toggleEnabled, "Protein toggle should become tappable once goals load")
         // A tap synthesised while the navigation transition is still settling can be
-        // swallowed on a loaded simulator. Confirm the effect - switching on reveals the
-        // goal's value row - before retrying, so a retry can never toggle an already-on
-        // goal back off because of a stale value observation.
+        // swallowed on a loaded simulator. Decide the retry from the switch's own value, not
+        // from the value row's existence: the row render can race the query, and a blind
+        // second tap would toggle an already-on goal back off. Value and frame go to the test
+        // log so CI artifacts carry the discriminator if this ever fails again.
         proteinToggle.tap()
-        var revealed = app.textFields["nutritionGoals.value.protein"].waitForExistence(timeout: 5)
-        if !revealed {
+        var toggleValue = proteinToggle.value as? String
+        print("[goals] protein switch after tap 1: value=\(toggleValue ?? "nil") frame=\(NSStringFromCGRect(proteinToggle.frame))")
+        if toggleValue != "1" {
             proteinToggle.tap()
-            revealed = app.textFields["nutritionGoals.value.protein"].waitForExistence(timeout: 5)
+            toggleValue = proteinToggle.value as? String
+            print("[goals] protein switch after tap 2: value=\(toggleValue ?? "nil") frame=\(NSStringFromCGRect(proteinToggle.frame))")
         }
-        XCTAssertTrue(revealed, "Protein toggle should turn on")
+        XCTAssertEqual(toggleValue, "1", "Protein toggle should turn on")
 
         let proteinValue = app.textFields["nutritionGoals.value.protein"]
+        XCTAssertTrue(proteinValue.waitForExistence(timeout: 5), "Enabled protein goal should reveal its value field")
         proteinValue.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the goal value")
         proteinValue.typeText("100")

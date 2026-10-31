@@ -486,12 +486,14 @@ struct InsightsView: View {
                             }
                             .foregroundStyle(Theme.mutedForeground)
                         }
+                        .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("insights.progress.candidate.\(candidate.id)")
                         if candidate.id != recipeProgressCandidates.last?.id {
                             Divider()
                         }
                     }
                 }
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("insights.progress.results")
             } else {
                 ContentUnavailableView {

@@ -159,7 +159,9 @@ jobs:
             "CatalogueIntegrityTests testAliasesPreserveAllMaterialQualifiers]' passed" \
             "CatalogueIntegrityTests testCalculatorMatchesStateQualifiedAlias]' passed" \
             "CatalogueIntegrityTests testCalculatorSurfacesUnmappedSADishNameAsIncomplete]' passed" \
-            "NutritionDiaryTests testDiaryRoundTripsEntryDateMealQuantityServingsAndProvenance]' passed"; do
+            "NutritionDiaryTests testDiaryRoundTripsEntryDateMealQuantityServingsAndProvenance]' passed" \
+            "NutritionDiaryTests testEditingEntryReplacesByIdentityKeepsDayAndLeavesOthersUntouched]' passed" \
+            "NutritionDiaryTests testDayTotalsReflectEditedEntrySnapshot]' passed"; do
             grep -qF "$evidence" nutrition-foundation-unit-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-foundation-unit-tests.log; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
@@ -190,6 +192,7 @@ jobs:
             "NutritionDiaryUITests testCorruptGoalsShowLoadErrorWithRetry]' passed" \
             "NutritionDiaryUITests testRecipeNutritionShowsIncompleteStateForUnmappedIngredient]' passed" \
             "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
+            "NutritionDiaryUITests testLoggedEntryCanBeEditedAndShowsUpdatedValues]' passed" \
             "AccessibilityAuditUITests testAuditNutritionScreens]' passed"; do
             grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }
           done

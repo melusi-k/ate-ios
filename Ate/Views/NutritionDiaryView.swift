@@ -9,6 +9,7 @@ struct NutritionDiaryView: View {
     @State private var showingRecoveryConfirmation = false
     @State private var recoveryNotice: String?
     @State private var recoveryFailure: String?
+    @State private var editingEntry: NutritionDiaryEntry?
     private let repository: NutritionDiaryRepository
     private let goalsRepository: NutritionGoalsRepository
 
@@ -136,6 +137,8 @@ struct NutritionDiaryView: View {
                                 .accessibilityElement(children: .combine)
                                 .accessibilityIdentifier("nutritionDiary.entry.\(entry.id.uuidString)")
                                 .swipeActions {
+                                    Button("Edit") { editingEntry = entry }
+                                        .accessibilityIdentifier("nutritionDiary.edit.\(entry.id.uuidString)")
                                     Button("Delete", role: .destructive) { delete(entry) }
                                         .accessibilityIdentifier("nutritionDiary.delete.\(entry.id.uuidString)")
                                 }
@@ -162,6 +165,17 @@ struct NutritionDiaryView: View {
                     entries.append(entry)
                     persist()
                     store.showNutritionDiaryEntry = false
+                }
+            }
+        }
+        .sheet(item: $editingEntry) { entry in
+            NavigationStack {
+                NutritionDiaryEntryForm(date: entry.date, dayKey: entry.dayKey, existing: entry) { updated in
+                    if let index = entries.firstIndex(where: { $0.id == updated.id }) {
+                        entries[index] = updated
+                    }
+                    persist()
+                    editingEntry = nil
                 }
             }
         }
@@ -240,6 +254,7 @@ struct NutritionDiaryView: View {
 private struct NutritionDiaryEntryForm: View {
     let date: Date
     let dayKey: String
+    let existing: NutritionDiaryEntry?
     let onSave: (NutritionDiaryEntry) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var foodName = ""
@@ -253,6 +268,41 @@ private struct NutritionDiaryEntryForm: View {
     @State private var verificationNote = ""
     @State private var nutrientText: [NutritionGoalField: String] = [:]
     @State private var errorMessage: String?
+
+    /// Seeds a new form, or every field from an entry being edited (#179 edit behaviour).
+    init(date: Date, dayKey: String, existing: NutritionDiaryEntry? = nil,
+         onSave: @escaping (NutritionDiaryEntry) -> Void) {
+        self.date = existing?.date ?? date
+        self.dayKey = existing?.dayKey ?? dayKey
+        self.existing = existing
+        self.onSave = onSave
+        _foodName = State(initialValue: existing?.foodName ?? "")
+        _meal = State(initialValue: existing?.meal ?? .lunch)
+        _quantity = State(initialValue: existing.map { Self.numberText($0.quantity) } ?? "1")
+        _quantityUnit = State(initialValue: existing?.quantityUnit ?? "serving")
+        _servings = State(initialValue: existing.map { Self.numberText($0.servings) } ?? "1")
+        _source = State(initialValue: existing?.source ?? .userProvided)
+        _sourceName = State(initialValue: existing?.sourceName ?? "You")
+        _sourceIdentifier = State(initialValue: existing?.sourceIdentifier ?? "")
+        _verificationNote = State(initialValue: existing?.verificationNote ?? "")
+        var nutrients: [NutritionGoalField: String] = [:]
+        if let existing {
+            for field in NutritionGoalField.allCases {
+                if let value = existing.nutrientsPerServing[field] {
+                    nutrients[field] = Self.numberText(value)
+                }
+            }
+        }
+        _nutrientText = State(initialValue: nutrients)
+        _errorMessage = State(initialValue: nil)
+    }
+
+    /// Shortest round-trippable form: editing and saving without touching a field must
+    /// never lose precision, and no grouping separator may enter the decimal pad.
+    /// NutritionDiaryNumber.parse accepts the period separator in any locale.
+    private static func numberText(_ value: Double) -> String {
+        String(value)
+    }
 
     var body: some View {
         Form {
@@ -300,7 +350,7 @@ private struct NutritionDiaryEntryForm: View {
             }
             if let errorMessage { Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.formError") } }
         }
-        .navigationTitle("Log food")
+        .navigationTitle(existing == nil ? "Log food" : "Edit food")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: source) { _, newSource in
             sourceName = newSource.suggestedSourceName
@@ -341,6 +391,7 @@ private struct NutritionDiaryEntryForm: View {
                                          carbohydratesGrams: values[.carbohydrates], fatGrams: values[.fat],
                                          fibreGrams: values[.fibre])
         let entry = NutritionDiaryEntry(
+            id: existing?.id ?? UUID(),
             foodName: foodName, date: date, meal: meal, quantity: quantityValue, quantityUnit: quantityUnit,
             servings: servingCount, source: source, sourceName: sourceName, sourceIdentifier: sourceIdentifier,
             verificationNote: verificationNote, nutrientsPerServing: snapshot, dayKey: dayKey

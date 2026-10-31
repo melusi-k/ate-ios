@@ -212,4 +212,62 @@ final class NutritionDiaryTests: XCTestCase {
         let totals = NutritionDayTotals.calculate(entries: [entry])
         XCTAssertEqual(totals.value(for: .energy), 1e307)
     }
+
+    func testEditingEntryReplacesByIdentityKeepsDayAndLeavesOthersUntouched() throws {
+        let date = Date(timeIntervalSince1970: 1_790_000_000)
+        let original = NutritionDiaryEntry(foodName: "Oats", date: date, meal: .breakfast, quantity: 40,
+                                           quantityUnit: "g", servings: 1, source: .userProvided,
+                                           sourceName: "You",
+                                           nutrientsPerServing: NutritionSnapshot(energyKcal: 150, proteinGrams: 5,
+                                                                                  carbohydratesGrams: 27, fatGrams: 3,
+                                                                                  fibreGrams: 4))
+        let other = NutritionDiaryEntry(foodName: "Tea", date: date, meal: .breakfast, quantity: 1,
+                                        quantityUnit: "cup", servings: 1, source: .userProvided,
+                                        sourceName: "You",
+                                        nutrientsPerServing: NutritionSnapshot(energyKcal: 2, proteinGrams: nil,
+                                                                               carbohydratesGrams: nil, fatGrams: nil,
+                                                                               fibreGrams: nil))
+        try repository.save([original, other])
+
+        var edited = original
+        edited.foodName = "Oats with milk"
+        edited.quantity = 60
+        edited.servings = 1.5
+        var entries = repository.load()
+        guard let index = entries.firstIndex(where: { $0.id == original.id }) else {
+            XCTFail("edited entry missing")
+            return
+        }
+        entries[index] = edited
+        try repository.save(entries)
+
+        let reloaded = repository.load()
+        XCTAssertEqual(reloaded.count, 2)
+        XCTAssertTrue(reloaded.contains(other))
+        let stored = try XCTUnwrap(reloaded.first { $0.id == original.id })
+        XCTAssertEqual(stored, edited)
+        XCTAssertEqual(stored.dayKey, original.dayKey)
+        XCTAssertEqual(stored.date, original.date)
+    }
+
+    func testDayTotalsReflectEditedEntrySnapshot() throws {
+        let date = Date(timeIntervalSince1970: 1_790_000_000)
+        let original = NutritionDiaryEntry(foodName: "Oats", date: date, meal: .breakfast, quantity: 40,
+                                           quantityUnit: "g", servings: 1, source: .userProvided,
+                                           sourceName: "You",
+                                           nutrientsPerServing: NutritionSnapshot(energyKcal: 150, proteinGrams: nil,
+                                                                                  carbohydratesGrams: nil, fatGrams: nil,
+                                                                                  fibreGrams: nil))
+        try repository.save([original])
+
+        var edited = original
+        edited.nutrientsPerServing.energyKcal = 300
+        var entries = repository.load()
+        let index = try XCTUnwrap(entries.firstIndex(where: { $0.id == original.id }))
+        entries[index] = edited
+        try repository.save(entries)
+
+        let totals = NutritionDayTotals.calculate(entries: repository.load())
+        XCTAssertEqual(totals.value(for: .energy), 300)
+    }
 }

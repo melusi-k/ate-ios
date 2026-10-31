@@ -114,7 +114,7 @@ final class MockBackend: BackendService {
     static let args = ProcessInfo.processInfo.arguments
     func parseRecipe(_ request: ParseRequest) async throws -> RecipeCard {
         // QA hooks: -qaSlowGenerate keeps a generation running (kill mid-generation, A-CREATE-05);
-        // -qaBackendDown fails every generation after the first (A-SHARE-05 / backend outage);
+        // -qaBackendDown is retained for the historical, owner-excluded A-SHARE-05 outage regression;
         // -qaBackendFailOnce proves Retry starts a fresh request and can recover.
         if Self.args.contains("-qaSlowGenerate") { try await Task.sleep(nanoseconds: 90_000_000_000) }
         if Self.args.contains("-qaBackendDown"), Self.parses >= 1 {

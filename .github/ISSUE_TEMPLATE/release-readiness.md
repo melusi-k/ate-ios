@@ -87,7 +87,6 @@ The following must be validated end-to-end:
 - [ ] Shared recipe retrieval works
 - [ ] Deep links open correctly
 - [ ] Share URL behavior is correct in real conditions
-- [ ] Fallbacks behave gracefully when backend is unavailable
 - [ ] AI parse failures are understandable to the user
 - [ ] Production share host is correctly configured
 

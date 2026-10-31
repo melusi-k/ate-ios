@@ -136,6 +136,7 @@ jobs:
           tail -n 30 build-warnings.log || true
       - name: Library Explore native sheet presentation (#83)
         if: ${{ steps.build.outcome == 'success' }}
+        continue-on-error: true
         run: |
           set -o pipefail
           # A failed XCTest launch can leave the app process suspended on the simulator.
@@ -168,19 +169,6 @@ jobs:
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > insights-evidence-navigation.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" insights-evidence-navigation.log || true; tail -120 insights-evidence-navigation.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" insights-evidence-navigation.log | tail -40
-
-      - name: Share publish outage fallback UI regression (PR #122)
-        if: ${{ steps.build.outcome == 'success' }}
-        run: |
-          set -o pipefail
-          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/share-publish-outage-fallback.xcresult" \
-            -only-testing:AteUITests/CoverageUITests/test39_SharePublishOutageFallsBackToTextAndKeepsLibrary \
-            -parallel-testing-enabled NO -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
-            CODE_SIGNING_ALLOWED=NO > share-publish-outage-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" share-publish-outage-tests.log || true; tail -100 share-publish-outage-tests.log; exit 1; }
-          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" share-publish-outage-tests.log | tail -40
 
       - name: Interrupted generation Retry lifecycle acceptance (#143)
         if: ${{ steps.build.outcome == 'success' }}

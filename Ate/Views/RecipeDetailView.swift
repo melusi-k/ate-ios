@@ -118,12 +118,9 @@ struct RecipeDetailView: View {
             ActivityView(items: items.items)
                 .presentationDetents([.medium, .large])
                 .onAppear {
-                    // Record A-SHARE-05 only when the user actually reaches the text-share sheet.
-                    // Showing the outage alert alone is not a completed fallback.
-                    if shareFallbackRecipe != nil {
-                        BetaQA.shared.pass("A-SHARE-05", note: "Backend unavailable; text fallback activity sheet presented")
-                        shareFallbackRecipe = nil
-                    }
+                    // Clear the one-shot fallback presentation state. A-SHARE-05 is owner-approved
+                    // out of scope for this release and must not be auto-recorded as a QA pass.
+                    if shareFallbackRecipe != nil { shareFallbackRecipe = nil }
                 }
         }
         .alert("Could not create a share link", isPresented: $shareFallbackAlertPresented) {

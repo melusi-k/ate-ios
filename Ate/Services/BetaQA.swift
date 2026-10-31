@@ -142,7 +142,7 @@ struct CIResult: Equatable { var status: BetaQA.Status; var note: String; var bu
 @MainActor enum CIStatus {
     static var results: [String: CIResult] = AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaCIResults")
         ? ["A-SYNC-02": CIResult(status: .pass, note: "7 fixture scenarios converge", build: "ci", ts: "2026-10-10T02:17:00Z"),
-           "A-SHARE-05": CIResult(status: .fail, note: "ErrorRetryCard missing", build: "ci", ts: "2026-10-10T02:17:00Z")]
+           ]
         : [:]
     static var lastError: String?
     /// Latest CI verdict per item (owner-readable via RLS).

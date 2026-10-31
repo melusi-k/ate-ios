@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Maps xcodebuild UI-test log lines to Tier A items → JSON for backend_e2e.py --extra (source='ci')."""
 import json, re, sys
-MAP = {"test36_BackendDownRetryCardLibraryIntact": ["A-SHARE-05"],
-       "test37_KilledMidGenerationRecovers": ["A-CREATE-05"],
+MAP = {"test37_KilledMidGenerationRecovers": ["A-CREATE-05"],
        "test38_ExpiredSessionRefreshes": ["A-AUTH-06"]}
 log, out = sys.argv[1], sys.argv[2]
 res = {}

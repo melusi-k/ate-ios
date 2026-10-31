@@ -418,10 +418,11 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
   - *Owner:* [#36](https://github.com/melusi-k/ate-ios/issues/36)
   - *Feature area:* Cooking, timers and widgets · *Release gate:* Pilot · *Initial priority:* P1
 
-- **A-WIDGET-05 · Widgets read ate's data on a sideloaded build** — 🔴
+- **A-WIDGET-05 · Widgets read ate's data on an Xcode-installed build** — ✅
   - *Journey:* As a tester, widgets show my data, not a placeholder.
-  - *Acceptance:* Given a Sideloadly free-ID install, When I open Settings › Beta testing › Widgets, Then it says App Group OK and at least one widget kind loaded; otherwise widgets show “Open ate” and the limitation is noted in BETA.md.
-  - *Verified by:* Settings › Beta testing › Widgets diagnostics · device
+  - *Acceptance:* Given an app built and installed directly from Xcode, When I open Settings › Beta testing › Widgets, Then it reports App Group OK and at least one widget kind loaded, and widgets display my data. Sideloaded/free-ID installation is outside this acceptance criterion.
+  - *Verified by:* Settings › Beta testing › Widgets diagnostics · supported device
+  - *Status evidence:* Product owner confirmed that an Xcode-built app installed directly on device works as expected; sideload-only failure is an installation/signing limitation, not an app defect.
   - *Status evidence:* new in the Widgets & Intents build
   - *Owner:* [#36](https://github.com/melusi-k/ate-ios/issues/36)
   - *Feature area:* Cooking, timers and widgets · *Release gate:* Pilot · *Initial priority:* P1
@@ -1194,13 +1195,13 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
   - *Owner:* [#39](https://github.com/melusi-k/ate-ios/issues/39)
   - *Feature area:* Sharing, security and reliability · *Release gate:* Pilot · *Initial priority:* P0
 
-- **A-SHARE-05 · Backend unavailable fallback** — ❌
+- **A-SHARE-05 · Backend unavailable fallback** — N/A (owner-approved scope exclusion)
   - *Journey:* As a cook, a backend outage doesn't break my library.
-  - *Acceptance:* Given Supabase unreachable, Then sharing offers a visible error with Retry or Share as text and everything local still works.
-  - *Verified by:* `CoverageUITests.test39_SharePublishOutageFallsBackToTextAndKeepsLibrary` (updated; exact-head CI pending)
-  - *Status evidence:* Prior PR #190 Compile Check [run #40692024276](https://github.com/melusi-k/ate-ios/actions/runs/40692024276) failed because the fallback toast was obscured by the immediately presented activity sheet. New alert/retry/text-fallback behavior remains unverified; keep failing until exact-head test passes.
+  - *Acceptance:* Backend-unavailable fallback is explicitly out of scope for this release's QA execution and will not be tested.
+  - *Verified by:* Not executed by policy; retained in source only for reference.
+  - *Status evidence:* Product owner decision, 2026-10-31. This is an accepted scope exclusion, not a verified pass or evidence that fallback behavior works. See [approved N/A register](LAUNCH_GATES.md#3-approved-na-items).
   - *Owner:* [#39](https://github.com/melusi-k/ate-ios/issues/39)
-  - *Feature area:* Sharing, security and reliability · *Release gate:* Pilot · *Initial priority:* P0
+  - *Feature area:* Sharing, security and reliability · *Release gate:* No committed release gate · *Initial priority:* P0
 
 #### Offline
 

@@ -36,7 +36,7 @@ IDs below are generated from the current checklist's actual item labels. The che
 - **Edit / save / delete:** A-EDIT-01, A-EDIT-02, A-EDIT-03, A-EDIT-04, A-EDIT-05
 - **Auth (launch gate):** A-AUTH-01, A-AUTH-02, A-AUTH-03, A-AUTH-04, A-AUTH-05, A-AUTH-06, A-AUTH-07, A-AUTH-08, A-AUTH-09
 - **Sync:** A-SYNC-01, A-SYNC-02, A-SYNC-03, A-SYNC-04, A-SYNC-05, A-SYNC-06
-- **Share + deep link (launch gate):** A-SHARE-01, A-SHARE-02, A-SHARE-03, A-SHARE-04, A-SHARE-05
+- **Share + deep link (launch gate):** A-SHARE-01, A-SHARE-02, A-SHARE-03, A-SHARE-04 (A-SHARE-05 is owner-approved N/A; see LAUNCH_GATES.md)
 - **Timer reliability:** A-TIMER-01, A-TIMER-02, A-TIMER-03
 - **Offline:** A-OFF-01, A-OFF-02
 - **Reliability:** A-REL-01, A-NAV-01

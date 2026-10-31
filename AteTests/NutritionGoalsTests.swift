@@ -160,6 +160,28 @@ final class NutritionGoalsTests: XCTestCase {
         }
     }
 
+    func testFileStoragePreservesCorruptBytesInUniqueLocalBackup() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("NutritionGoalsBackup-\\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let fileURL = directory.appendingPathComponent("goals.json")
+        let storage = FileNutritionGoalsStorage(fileURL: fileURL)
+        let corrupt = Data("not-json".utf8)
+
+        try storage.write(corrupt)
+        try storage.preserveCorruptData(corrupt)
+
+        let backupURLs = try FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil
+        ).filter { $0.lastPathComponent.hasPrefix("nutrition-goals-corrupt-") }
+        XCTAssertEqual(backupURLs.count, 1)
+        XCTAssertEqual(try Data(contentsOf: backupURLs[0]), corrupt)
+
+        try storage.remove()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fileURL.path))
+        XCTAssertEqual(try Data(contentsOf: backupURLs[0]), corrupt)
+    }
+
     func testCorruptStoredDataIsBackedUpBeforeReset() throws {
         let corrupt = Data("not-json".utf8)
         let storage = FailingNutritionGoalsStorage(data: corrupt)

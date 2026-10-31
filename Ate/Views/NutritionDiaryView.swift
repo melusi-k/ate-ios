@@ -9,6 +9,10 @@ struct NutritionDiaryView: View {
     @State private var showingRecoveryConfirmation = false
     @State private var recoveryNotice: String?
     @State private var recoveryFailure: String?
+    /// Goals drive the daily-totals rows and the configure prompt. Keep them in state:
+    /// reading storage during body evaluation goes stale when a reset or a goals-screen
+    /// edit does not change any other state on this screen (#179).
+    @State private var dailyGoals: DailyNutritionGoals?
     @State private var editingEntry: NutritionDiaryEntry?
     private let repository: NutritionDiaryRepository
     private let goalsRepository: NutritionGoalsRepository
@@ -16,6 +20,7 @@ struct NutritionDiaryView: View {
     init(repository: NutritionDiaryRepository = NutritionDiaryRepository(), goalsRepository: NutritionGoalsRepository = NutritionGoalsRepository()) {
         self.repository = repository
         self.goalsRepository = goalsRepository
+        _dailyGoals = State(initialValue: try? goalsRepository.load())
     }
 
     private var dayEntries: [NutritionDiaryEntry] {
@@ -70,7 +75,7 @@ struct NutritionDiaryView: View {
             }
             Section("Daily totals") {
                 let totals = NutritionDayTotals.calculate(entries: dayEntries)
-                let goals = try? goalsRepository.load()
+                let goals = dailyGoals
                 ForEach(NutritionGoalField.allCases) { field in
                     HStack {
                         Text(field.title)
@@ -93,6 +98,10 @@ struct NutritionDiaryView: View {
                         NutritionGoalsView()
                     } label: {
                         Label("Set optional daily goals", systemImage: "target")
+                            // Wrap instead of clipping at larger Dynamic Type sizes
+                            // (accessibility audit, #179).
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .accessibilityIdentifier("nutritionDiary.configureGoals")
                 } else if goals == nil {
@@ -176,6 +185,9 @@ struct NutritionDiaryView: View {
                 Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.error") }
             }
         }
+        // Clear the floating Add bar: without a bottom content margin it occludes the
+        // empty-state copy and the last rows (audit screenshot evidence, #179).
+        .contentMargins(.bottom, 96, for: .scrollContent)
         .navigationTitle("Food diary")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -232,6 +244,7 @@ struct NutritionDiaryView: View {
     }
 
     private func reloadDiary() {
+        dailyGoals = try? goalsRepository.load()
         switch repository.loadState() {
         case .loaded(let loaded):
             entries = loaded
@@ -331,6 +344,9 @@ private struct NutritionDiaryEntryForm: View {
 
     var body: some View {
         Form {
+            // Validation errors belong at the top: with the keyboard up, a message rendered
+            // at the bottom of this long form is hidden exactly when the user needs it.
+            if let errorMessage { Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.formError") } }
             Section("Food consumed") {
                 TextField("Food or recipe name", text: $foodName)
                     .accessibilityIdentifier("nutritionDiary.foodName")
@@ -373,8 +389,10 @@ private struct NutritionDiaryEntryForm: View {
             } header: { Text("Nutrients per serving (optional)") } footer: {
                 Text("Enter only values you can verify from the source. Each logged entry keeps this snapshot if the source changes later.")
             }
-            if let errorMessage { Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.formError") } }
         }
+        // The decimal-pad fields have no return key; let a scroll dismiss the keyboard so
+        // it cannot trap itself over the lower form.
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle(existing == nil ? "Log food" : "Edit food")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: source) { _, newSource in

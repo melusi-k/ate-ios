@@ -20,6 +20,23 @@ final class NutritionGoalsUITests: XCTestCase {
     /// on the WRONG control entirely when the centre lands on a different row. Returns true
     /// only when the measured centre sits inside the clear band and the element is hittable;
     /// callers assert before tapping, so exhaustion fails loudly instead of tapping blind.
+
+    /// Bottom edge of the tappable band, measured from the chrome actually on screen: the
+    /// floating tab bar and, at tab roots, the Add accessory floating above it. A fixed
+    /// offset let rows resting behind that chrome count as reachable - on the CI simulator
+    /// the Food diary row's centre sat at y=869, inside the tab bar's 791-874 frame, so the
+    /// old maxY-4 bound judged it "in band", the nudge swiped the wrong way and the tap was
+    /// intercepted by the bar (CI hierarchy + recording, #179).
+    private func bottomClearBound(_ app: XCUIApplication, keyboard: XCUIElement?) -> CGFloat {
+        var bound = app.windows.firstMatch.frame.maxY - 4
+        if let keyboard { bound = min(bound, keyboard.frame.minY - 8) }
+        let tabBar = app.tabBars.firstMatch
+        if tabBar.exists && !tabBar.frame.isEmpty && tabBar.isHittable { bound = min(bound, tabBar.frame.minY - 4) }
+        let accessory = app.buttons["accessoryAdd"]
+        if accessory.exists && !accessory.frame.isEmpty && accessory.isHittable { bound = min(bound, accessory.frame.minY - 4) }
+        return bound
+    }
+
     @discardableResult
     private func scrollTo(_ element: XCUIElement, in app: XCUIApplication, max: Int = 12) -> Bool {
         // Measured from the on-screen navigation bar when present; 120pt fallback matches
@@ -37,7 +54,7 @@ final class NutritionGoalsUITests: XCTestCase {
             let frame = element.frame
             let keyboard = app.keyboards.firstMatch
             let keyboardUp = keyboard.exists
-            let bottomBound = keyboardUp ? keyboard.frame.minY - 8 : app.windows.firstMatch.frame.maxY - 4
+            let bottomBound = bottomClearBound(app, keyboard: keyboardUp ? keyboard : nil)
             if frame.midY >= topBound && frame.midY <= bottomBound {
                 if element.isHittable { return true }
                 app.swipeDown(velocity: .slow)
@@ -50,22 +67,28 @@ final class NutritionGoalsUITests: XCTestCase {
                     blockedUps += 1
                 }
             } else {
+                // Overshot above the band: nudge back down. blockedUps deliberately keeps
+                // counting here - resetting it let a keyboard-blocked field alternate
+                // up/down forever without ever dragging the keyboard away (CI: sourceName
+                // oscillated swipe-up/swipe-down 12 attempts, #179).
                 app.swipeDown(velocity: .slow)
-                blockedUps = 0
             }
         }
         guard element.exists, !element.frame.isEmpty, element.isHittable else { return false }
         let finalFrame = element.frame
         let finalKeyboard = app.keyboards.firstMatch
-        let finalBottom = finalKeyboard.exists ? finalKeyboard.frame.minY - 8 : app.windows.firstMatch.frame.maxY - 4
+        let finalBottom = bottomClearBound(app, keyboard: finalKeyboard.exists ? finalKeyboard : nil)
         return finalFrame.midY >= topBound && finalFrame.midY <= finalBottom
     }
 
     func testGoalsCanBeConfiguredAndClearedFromSettings() {
         var app = launchSettings()
         let entry = app.buttons["settings.nutritionGoals"]
-        XCTAssertTrue(entry.waitForExistence(timeout: 10), "Settings should expose Nutrition goals")
-        XCTAssertTrue(scrollTo(entry, in: app), "Nutrition goals should be reachable inside the visible band before tapping")
+        // The goals row starts below the fold (dematerialised behind the tab chrome), so a
+        // hard existence assert before revealing can never pass on that state. Reveal first:
+        // scrollTo swipes up while the row is absent, and reaching it proves presence.
+        _ = entry.waitForExistence(timeout: 5)
+        XCTAssertTrue(scrollTo(entry, in: app), "Settings should expose Nutrition goals inside the clear band before tapping")
         entry.tap()
 
         let proteinRow = app.switches["nutritionGoals.enabled.protein"]

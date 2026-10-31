@@ -12,6 +12,23 @@ final class NutritionDiaryUITests: XCTestCase {
     /// the nav-bar band; nutrient.energy accepted with its centre off the bottom edge). Scroll
     /// against the measured frame until the element's centre sits inside the clear band
     /// between the top bar and the keyboard before tapping.
+
+    /// Bottom edge of the tappable band, measured from the chrome actually on screen: the
+    /// floating tab bar and, at tab roots, the Add accessory floating above it. A fixed
+    /// offset let rows resting behind that chrome count as reachable - on the CI simulator
+    /// the Food diary row's centre sat at y=869, inside the tab bar's 791-874 frame, so the
+    /// old maxY-4 bound judged it "in band", the nudge swiped the wrong way and the tap was
+    /// intercepted by the bar (CI hierarchy + recording, #179).
+    private func bottomClearBound(_ app: XCUIApplication, keyboard: XCUIElement?) -> CGFloat {
+        var bound = app.windows.firstMatch.frame.maxY - 4
+        if let keyboard { bound = min(bound, keyboard.frame.minY - 8) }
+        let tabBar = app.tabBars.firstMatch
+        if tabBar.exists && !tabBar.frame.isEmpty && tabBar.isHittable { bound = min(bound, tabBar.frame.minY - 4) }
+        let accessory = app.buttons["accessoryAdd"]
+        if accessory.exists && !accessory.frame.isEmpty && accessory.isHittable { bound = min(bound, accessory.frame.minY - 4) }
+        return bound
+    }
+
     @discardableResult
     private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication, max: Int = 12) -> Bool {
         // Clear band top: measured from the on-screen navigation bar when one is present;
@@ -30,7 +47,7 @@ final class NutritionDiaryUITests: XCTestCase {
             let frame = element.frame
             let keyboard = app.keyboards.firstMatch
             let keyboardUp = keyboard.exists
-            let bottomBound = keyboardUp ? keyboard.frame.minY - 8 : app.windows.firstMatch.frame.maxY - 4
+            let bottomBound = bottomClearBound(app, keyboard: keyboardUp ? keyboard : nil)
             if frame.midY >= topBound && frame.midY <= bottomBound {
                 if element.isHittable { return true }
                 app.swipeDown(velocity: .slow) // nudge within the band and re-measure
@@ -45,8 +62,11 @@ final class NutritionDiaryUITests: XCTestCase {
                     blockedUps += 1
                 }
             } else {
+                // Overshot above the band: nudge back down. blockedUps deliberately keeps
+                // counting here - resetting it let a keyboard-blocked field alternate
+                // up/down forever without ever dragging the keyboard away (CI: sourceName
+                // oscillated swipe-up/swipe-down 12 attempts, #179).
                 app.swipeDown(velocity: .slow)
-                blockedUps = 0
             }
         }
         // Exhaustion is a miss: honour the element only when its measured centre is inside
@@ -56,7 +76,7 @@ final class NutritionDiaryUITests: XCTestCase {
         guard element.exists, !element.frame.isEmpty, element.isHittable else { return false }
         let finalFrame = element.frame
         let finalKeyboard = app.keyboards.firstMatch
-        let finalBottom = finalKeyboard.exists ? finalKeyboard.frame.minY - 8 : app.windows.firstMatch.frame.maxY - 4
+        let finalBottom = bottomClearBound(app, keyboard: finalKeyboard.exists ? finalKeyboard : nil)
         return finalFrame.midY >= topBound && finalFrame.midY <= finalBottom
     }
 

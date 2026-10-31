@@ -68,8 +68,20 @@ final class NutritionGoalsUITests: XCTestCase {
         XCTAssertTrue(scrollTo(entry, in: app), "Nutrition goals should be reachable inside the visible band before tapping")
         entry.tap()
 
-        let proteinToggle = app.switches["nutritionGoals.enabled.protein"]
-        XCTAssertTrue(proteinToggle.waitForExistence(timeout: 10))
+        let proteinRow = app.switches["nutritionGoals.enabled.protein"]
+        XCTAssertTrue(proteinRow.waitForExistence(timeout: 10))
+        // SwiftUI merges the Toggle row into a Switch-typed element (370x59 in the CI
+        // hierarchy) whose synthesized centre tap lands on the label text, not the control;
+        // the old taps changed nothing (row and inner control both still read value 0 in
+        // the failure snapshot). The actual UISwitch is the small Switch element inside
+        // the row - tap that, and decide any retry from its own value.
+        let proteinControl = app.switches.allElementsBoundByIndex.first {
+            $0.identifier.isEmpty && $0.frame.width < 120 && $0.frame.height < 60 && proteinRow.frame.contains($0.frame)
+        }
+        if proteinControl == nil {
+            print("[goals] WARN inner switch control not found; falling back to the row element")
+        }
+        let proteinToggle = proteinControl ?? proteinRow
         // The goals draft loads asynchronously and every control stays disabled until it
         // finishes; a tap on a disabled switch is silently ignored. Wait for a live control.
         var toggleEnabled = false

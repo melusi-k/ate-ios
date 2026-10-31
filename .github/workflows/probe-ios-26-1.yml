@@ -28,12 +28,21 @@ jobs:
         run: |
           set -x
           time xcodebuild -downloadPlatform iOS -buildVersion 26.1 || time sudo xcodebuild -downloadPlatform iOS -buildVersion 26.1
-      - name: Create and boot iPhone 18 Pro on iOS 26.1
+      - name: Create and boot an iPhone on iOS 26.1
         run: |
           xcrun simctl list runtimes
           RT=$(xcrun simctl list runtimes -j | python3 -c 'import json,sys;rs=json.load(sys.stdin)["runtimes"];m=[r for r in rs if r.get("version")=="26.1" and r.get("isAvailable")];print(m[0]["identifier"] if m else "MISSING")')
           echo "runtime=$RT"; test "$RT" != "MISSING"
-          DT=$(xcrun simctl list devicetypes -j | python3 -c 'import json,sys;ds=json.load(sys.stdin)["devicetypes"];m=[d for d in ds if d["name"]=="iPhone 18 Pro"];print(m[0]["identifier"] if m else "MISSING")')
+          # iPhone 18 Pro requires iOS 27 (simctl create: Incompatible device); iPhone 17
+          # Pro has the identical 402x874pt geometry and supports 26.1. Prefer it, then fall
+          # back through same-generation models.
+          DT=$(xcrun simctl list devicetypes -j | python3 -c 'import json,sys
+ds=json.load(sys.stdin)["devicetypes"]
+pref=["iPhone 17 Pro","iPhone 16 Pro","iPhone 17","iPhone 16","iPhone 15"]
+avail={d["name"]:d["identifier"] for d in ds}
+for n in pref:
+    if n in avail: print(avail[n]); break
+else: print("MISSING")')
           echo "devicetype=$DT"; test "$DT" != "MISSING"
           UDID=$(xcrun simctl create probe-261 "$DT" "$RT")
           echo "UDID=$UDID" | tee -a "$GITHUB_ENV"

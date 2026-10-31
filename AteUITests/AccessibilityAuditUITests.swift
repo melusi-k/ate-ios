@@ -120,17 +120,19 @@ final class AccessibilityAuditUITests: XCTestCase {
         XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
         app.tabBars.buttons["Settings"].tap()
 
+        // Reveal-driven existence: the nutrition rows sit below the fold and SwiftUI
+        // dematerialises their cells, so a hard existence wait before revealing can never
+        // pass on that state (CI: goals row absent at 46% scroll after Back, #179).
+        // revealSettingsEntry scrolls while the row is absent; reaching it proves presence.
         let diaryEntry = app.buttons["settings.nutritionDiary"]
-        XCTAssertTrue(diaryEntry.waitForExistence(timeout: 10), "Settings must expose the Food diary entry")
-        XCTAssertTrue(revealSettingsEntry(diaryEntry), "Food diary entry should reveal inside the visible band before tapping")
+        XCTAssertTrue(revealSettingsEntry(diaryEntry), "Settings must expose the Food diary entry inside the visible band")
         diaryEntry.tap()
         XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10), "Food diary screen must open before auditing")
         try audit("nutrition-diary")
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
         let goalsEntry = app.buttons["settings.nutritionGoals"]
-        XCTAssertTrue(goalsEntry.waitForExistence(timeout: 10), "Settings must expose the Nutrition goals entry")
-        XCTAssertTrue(revealSettingsEntry(goalsEntry), "Nutrition goals entry should reveal inside the visible band before tapping")
+        XCTAssertTrue(revealSettingsEntry(goalsEntry), "Settings must expose the Nutrition goals entry inside the visible band")
         goalsEntry.tap()
         XCTAssertTrue(app.navigationBars["Nutrition goals"].waitForExistence(timeout: 10), "Nutrition goals screen must open before auditing")
         try audit("nutrition-goals")

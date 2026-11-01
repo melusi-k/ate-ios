@@ -1,0 +1,182 @@
+name: PR gate shared-build proof (CI turnaround)
+
+# Bounded prototype for the CI turnaround work: build the app+test bundles ONCE,
+# hand the build products to parallel test jobs as an artifact, and run
+# test-without-building against the transferred .xctestrun on separate runners.
+# It changes no existing gate: compile-check, dogfood-qualification and the
+# journal lanes are untouched, and its check names (proof-*) are new.
+# Measured on its own PR before any adoption decision.
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: pr-gate-proof-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proof-build:
+    name: proof-build
+    runs-on: xcode-27
+    timeout-minutes: 25
+    outputs:
+      products_bytes: ${{ steps.products_info.outputs.products_bytes }}
+    steps:
+      # PR validation must build the exact proposed head, not GitHub's synthetic merge commit.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Cache Xcode DerivedData
+        # Same lineage as compile-check so the proof benefits from its warm cache.
+        # lookup-only: the proof never saves, so it cannot evict entries real lanes use.
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          lookup-only: true
+          key: xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            xcode-27-xcode-deriveddata-
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: xcode-27-homebrew-xcodegen-v1
+          restore-keys: |
+            xcode-27-homebrew-
+      - run: brew install xcodegen && xcodegen generate
+      - name: Build for testing (iOS simulator)
+        run: |
+          set -o pipefail
+          STEP_START=$(date +%s)
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+          set +e
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+          status=$?
+          set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=build-for-testing duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Simulator build failed (xcodebuild exit $status). Matching diagnostics and recent log follow:"
+            grep -n -B 8 -A 12 -E "error:|failed|Fatal error|Testing failed" build.log || true
+            tail -n 100 build.log
+            exit "$status"
+          fi
+          echo "build-for-testing succeeded on $SIM_ID"
+      - name: Measure and upload build products
+        id: products_info
+        run: |
+          DD=$(ls -d ~/Library/Developer/Xcode/DerivedData/Ate-* 2>/dev/null | head -1)
+          [ -n "$DD" ] || { echo "::error::No Ate DerivedData dir found"; ls ~/Library/Developer/Xcode/DerivedData || true; exit 1; }
+          PRODUCTS="$DD/Build/Products"
+          ls "$PRODUCTS" || { echo "::error::No Build/Products dir under $DD"; exit 1; }
+          XCTESTRUN=$(ls "$PRODUCTS"/*.xctestrun 2>/dev/null | head -1)
+          [ -n "$XCTESTRUN" ] || { echo "::error::No .xctestrun under $PRODUCTS"; find "$PRODUCTS" -maxdepth 2 | head -40; exit 1; }
+          BYTES=$(du -sk "$PRODUCTS" | cut -f1)
+          echo "products_bytes=$((BYTES*1024))" >> "$GITHUB_OUTPUT"
+          echo "Products: $PRODUCTS ($((BYTES/1024)) MB); xctestrun: $(basename "$XCTESTRUN")"
+          mkdir -p proof-products
+          cp -R "$PRODUCTS/" proof-products/
+          du -sh proof-products
+      - name: Upload build products artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: proof-build-products-${{ github.run_id }}
+          path: proof-products
+          retention-days: 1
+          if-no-files-found: error
+
+  proof-tests:
+    name: proof-tests (${{ matrix.shard }})
+    needs: proof-build
+    runs-on: xcode-27
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: unit
+            filter: "-only-testing:AteTests"
+          - shard: keyflows
+            filter: "-only-testing:AteUITests/KeyFlowsQATests"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Download build products
+        uses: actions/download-artifact@v7
+        with:
+          name: proof-build-products-${{ github.run_id }}
+          path: build/Products
+      - name: Verify transferred products
+        run: |
+          ls build/Products
+          XCTESTRUN=$(ls build/Products/*.xctestrun 2>/dev/null | head -1)
+          [ -n "$XCTESTRUN" ] || { echo "::error::No .xctestrun in transferred products - relocatability FAILED"; exit 1; }
+          echo "XCTESTRUN=$XCTESTRUN" >> "$GITHUB_ENV"
+          du -sh build/Products
+      - name: Run ${{ matrix.shard }} tests without building
+        run: |
+          set -o pipefail
+          STEP_START=$(date +%s)
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "SIM_ID=$SIM_ID"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          mkdir -p "$RUNNER_TEMP/ate-test-results"
+          set +e
+          xcodebuild test-without-building -xctestrun "$XCTESTRUN" -destination "id=$SIM_ID" \
+            ${{ matrix.filter }} \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/proof-${{ matrix.shard }}.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > proof-${{ matrix.shard }}.log 2>&1
+          status=$?
+          set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=test-without-building-${{ matrix.shard }} duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
+          if [ "$status" -ne 0 ]; then
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" "proof-${{ matrix.shard }}.log" || true
+            tail -120 "proof-${{ matrix.shard }}.log"
+            exit "$status"
+          fi
+          grep -E "Test Suite|Executed|TEST SUCCEEDED" "proof-${{ matrix.shard }}.log" | tail -10
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: proof-${{ matrix.shard }}-diagnostics-${{ github.run_id }}
+          path: |
+            proof-${{ matrix.shard }}.log
+            ${{ runner.temp }}/ate-test-results/proof-${{ matrix.shard }}.xcresult
+          if-no-files-found: warn
+
+  proof-gate:
+    name: proof-gate
+    needs: [proof-build, proof-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report product size and propagate outcomes
+        env:
+          BUILD_RESULT: ${{ needs.proof-build.result }}
+          TESTS_RESULT: ${{ needs.proof-tests.result }}
+          PRODUCTS_BYTES: ${{ needs.proof-build.outputs.products_bytes }}
+        run: |
+          {
+            echo "### Shared-build proof"
+            echo "- Build job: ${BUILD_RESULT}; transferred products: $((PRODUCTS_BYTES/1048576)) MB"
+            echo "- Test shards: ${TESTS_RESULT}"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "$BUILD_RESULT" = "success" ] && [ "$TESTS_RESULT" = "success" ]

@@ -120,6 +120,13 @@ final class AccessibilityAuditUITests: XCTestCase {
         return bound
     }
 
+    /// Top edge of the unobscured content band: below the navigation bar when present.
+    private func topClearBound(_ app: XCUIApplication) -> CGFloat {
+        let navBar = app.navigationBars.firstMatch
+        if navBar.exists && !navBar.frame.isEmpty { return navBar.frame.maxY + 2 }
+        return 0
+    }
+
     /// #179: the nutrition diary and goals screens must actually be reached and audited -
     /// absent navigation fails the test instead of silently skipping the audit.
     /// Targeted same-element cross-size captures for the three elements the strict audit
@@ -211,7 +218,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     /// provide the effectiveness check: only a step where a control's geometry moves
     /// while a flagged element's does not is evidence of a container-level plateau.
     /// Diagnostic only: assertions are existence-only. No gate change.
-    // MARK: - Live Dynamic Type diagnostic (issue #179, v4 scope)
+    // MARK: - Live Dynamic Type diagnostic (issue #179, v5 scope)
     //
     // Design rules (main review, #179):
     // - One TARGET per test (bounded workload); full category coverage L, XXXL, AX1..AX5 and back.
@@ -222,7 +229,12 @@ final class AccessibilityAuditUITests: XCTestCase {
     //   matches>1 is recorded as ambiguous-incomplete, never measured at index 0.
     // - Targets are scrolled into view with a bounded swipe budget (dropped List
     //   cells must be RECOVERED, never inferred absent); an unrecovered target is
-    //   incomplete, not evidence of plateau or support.
+    //   incomplete, not evidence of plateau or support. Recovery covers BOTH cells
+    //   absent from the AX tree AND cells present but partially offscreen; swipe
+    //   direction follows the target's last known/measured position, and captures are
+    //   taken only when the element is fully inside the unobscured content band
+    //   (nav-bar-aware top, measured bottom chrome) - no truncation verdict from a
+    //   viewport-edge capture (main review, #179 v5).
     // - Every measurement attaches one full-window capture serving as BOTH the viewport
     //   baseline checksum and the target's context (minimal capture set: element + window),
     //   plus the qa.probe requested/effective category; x/y positions are viewport-dependent
@@ -261,44 +273,82 @@ final class AccessibilityAuditUITests: XCTestCase {
         // Control (unflagged text) is spot-checked at the ends and mid-boundary only:
         // enough to detect a control plateau without paying per-phase cost.
         let controlPhases: Set<String> = ["L", "AX1", "AX5", "L-back"]
-        var log: [String] = ["v4 \(screen): w/h + element png sum are the comparable evidence; x/y are viewport-dependent under scroll-to-target. Wrap vs scaling is flagged from width saturation, not assumed."]
+        var log: [String] = ["v5 \(screen): w/h + element png sum are the comparable evidence; x/y are viewport-dependent under scroll-to-target. Wrap vs scaling is flagged from width saturation, not assumed. Captures require full visibility inside the unobscured band."]
         var incomplete: [String] = []
+        var lastRect: [String: CGRect] = [:]
         func attachLog(_ tag: String) {
             let a = XCTAttachment(string: log.joined(separator: "\n"))
-            a.name = "live-dt-v4-\(screen)-\(tag)"; a.lifetime = .keepAlways; add(a)
+            a.name = "live-dt-v5-\(screen)-\(tag)"; a.lifetime = .keepAlways; add(a)
         }
         func probeLabel() -> String {
             app.staticTexts["qa.probe"].firstMatch.exists ? app.staticTexts["qa.probe"].firstMatch.label : "qa.probe-missing"
         }
 
         func measure(_ t: LiveDTTarget, _ phase: String) {
+            // v5: a capture is evidence only when the element is fully inside the
+            // unobscured content band (nav-bar-aware top, measured bottom chrome).
+            func fullyVisible(_ f: CGRect) -> Bool {
+                !f.isEmpty && f.minY >= topClearBound(app) && f.maxY <= bottomClearBound(app)
+            }
+            // Direction follows the target's position: cut below / last seen low -> swipe
+            // up to reveal downward content; cut above / last seen high -> swipe down.
+            // No position signal defaults to up and is logged via the swipe count.
+            func swipeUpNeeded(for f: CGRect?) -> Bool {
+                guard let f = f, !f.isEmpty else { return true }
+                let top = topClearBound(app), bottom = bottomClearBound(app)
+                if f.maxY > bottom { return true }
+                if f.minY < top { return false }
+                return f.midY >= (top + bottom) / 2
+            }
             // 1. Typed query, uniqueness bounded to the typed subset (element at
             // index 1 existence), never a full-tree .count scan.
             var el = t.typed.element(boundBy: 0)
             var unique = true
             var viaFallback = false
-            if !el.waitForExistence(timeout: 2) {
-                // 2. Existence-only fallback for the automation type mismatch seen at
-                // AX categories; uniqueness is UNVERIFIED on this path.
-                if let fb = t.fallback, fb.firstMatch.waitForExistence(timeout: 2) {
-                    el = fb.firstMatch; unique = false; viaFallback = true
-                    incomplete.append("\(screen).\(t.name)@\(phase): matched only via any-type fallback; uniqueness unverified")
-                } else {
-                    incomplete.append("\(screen).\(t.name)@\(phase): required target missing before scroll")
-                    log.append("\(phase) \(screen).\(t.name): MISSING-pre-scroll [\(probeLabel())]")
+            func fallbackHit() -> Bool {
+                guard let fb = t.fallback, fb.firstMatch.waitForExistence(timeout: 2) else { return false }
+                el = fb.firstMatch; unique = false; viaFallback = true
+                incomplete.append("\(screen).\(t.name)@\(phase): matched only via any-type fallback; uniqueness unverified")
+                return true
+            }
+            if !el.waitForExistence(timeout: 2) && !fallbackHit() {
+                // 2. v5: bounded recovery for cells dropped from the AX tree - scroll
+                // while re-querying existence; absence after budget is INCOMPLETE, never
+                // evidence of product absence.
+                var absentSwipes = 0
+                while !el.exists && absentSwipes < 3 {
+                    if swipeUpNeeded(for: lastRect[t.name]) { app.swipeUp(velocity: .fast) } else { app.swipeDown(velocity: .fast) }
+                    absentSwipes += 1
+                    _ = el.waitForExistence(timeout: 2)
+                    if !el.exists { _ = fallbackHit() }
+                }
+                if !el.exists {
+                    incomplete.append("\(screen).\(t.name)@\(phase): required target absent after \(absentSwipes) recovery swipes")
+                    log.append("\(phase) \(screen).\(t.name): ABSENT-unrecovered swipes=\(absentSwipes) [\(probeLabel())]")
                     return
                 }
-            } else if t.typed.element(boundBy: 1).exists {
+                log.append("\(phase) \(screen).\(t.name): recovered-from-absence swipes=\(absentSwipes) [\(probeLabel())]")
+                if !viaFallback && t.typed.element(boundBy: 1).exists {
+                    incomplete.append("\(screen).\(t.name)@\(phase): multiple typed matches after recovery; index-0 measurement refused")
+                    log.append("\(phase) \(screen).\(t.name): AMBIGUOUS(>1)-post-recovery [\(probeLabel())]")
+                    return
+                }
+            } else if !viaFallback && t.typed.element(boundBy: 1).exists {
                 incomplete.append("\(screen).\(t.name)@\(phase): multiple typed matches; index-0 measurement refused")
                 log.append("\(phase) \(screen).\(t.name): AMBIGUOUS(>1) [\(probeLabel())]")
                 return
             }
-            // 3. Recover dropped List cells with a bounded scroll; failure = incomplete.
+            // 3. v5: recover present-but-not-fully-visible (partially offscreen or under
+            // chrome) with a bounded direction-aware scroll; failure = incomplete, never
+            // a truncation verdict from a viewport-edge capture.
             var swipes = 0
-            while !el.isHittable && swipes < 3 { app.swipeUp(velocity: .fast); swipes += 1 }
-            if !el.isHittable {
-                incomplete.append("\(screen).\(t.name)@\(phase): target not recoverable within scroll budget")
-                log.append("\(phase) \(screen).\(t.name): UNRECOVERED after \(swipes) swipes [\(probeLabel())]")
+            while !(el.isHittable && fullyVisible(el.frame)) && swipes < 4 {
+                if swipeUpNeeded(for: el.frame.isEmpty ? lastRect[t.name] : el.frame) { app.swipeUp(velocity: .fast) } else { app.swipeDown(velocity: .fast) }
+                swipes += 1
+            }
+            if !(el.isHittable && fullyVisible(el.frame)) {
+                incomplete.append("\(screen).\(t.name)@\(phase): not fully visible inside unobscured band after \(swipes) swipes; no truncation verdict")
+                log.append("\(phase) \(screen).\(t.name): UNRECOVERED-visibility after \(swipes) swipes [\(probeLabel())]")
                 return
             }
             // 4. Measure: frame + element pixels + viewport baseline + probe readback.
@@ -313,10 +363,11 @@ final class AccessibilityAuditUITests: XCTestCase {
             let ctx = app.windows.firstMatch.screenshot().pngRepresentation
             let ctxSum = ctx.reduce(0) { ($0 &+ (Int($1) &+ 1)) & 0x7fffffff }
             log.append("\(phase) \(screen).\(t.name): w=\(Int(f.width)) h=\(Int(f.height)) x=\(Int(f.minX)) y=\(Int(f.minY)) png=\(shot.count)B sum=\(sum) swipes=\(swipes) fallback=\(viaFallback) unique=\(unique) [\(probe)] [ctx=\(ctx.count)B/\(ctxSum)]")
+            lastRect[t.name] = f
             let s = XCTAttachment(data: shot, uniformTypeIdentifier: "public.png")
-            s.name = "livedt4-\(screen)-\(phase)-\(t.name)"; s.lifetime = .keepAlways; add(s)
+            s.name = "livedt5-\(screen)-\(phase)-\(t.name)"; s.lifetime = .keepAlways; add(s)
             let c = XCTAttachment(data: ctx, uniformTypeIdentifier: "public.png")
-            c.name = "livedt4-\(screen)-\(phase)-\(t.name)-ctx"; c.lifetime = .keepAlways; add(c)
+            c.name = "livedt5-\(screen)-\(phase)-\(t.name)-ctx"; c.lifetime = .keepAlways; add(c)
         }
         for (phase, category) in steps {
             if phase != "L" { liveSetCategory(category) }
@@ -330,8 +381,8 @@ final class AccessibilityAuditUITests: XCTestCase {
         }
         if !incomplete.isEmpty {
             let note = XCTAttachment(string: incomplete.joined(separator: "\n"))
-            note.name = "live-dt-v4-\(screen)-incomplete"; note.lifetime = .keepAlways; add(note)
-            XCTFail("Incomplete live-DT diagnostic on \(screen) (\(incomplete.count) issue(s)); missing or ambiguous data is not evidence of support. See live-dt-v4-\(screen)-incomplete.")
+            note.name = "live-dt-v5-\(screen)-incomplete"; note.lifetime = .keepAlways; add(note)
+            XCTFail("Incomplete live-DT diagnostic on \(screen) (\(incomplete.count) issue(s)); missing or ambiguous data is not evidence of support. See live-dt-v5-\(screen)-incomplete.")
         }
     }
 

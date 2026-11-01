@@ -198,6 +198,105 @@ final class AccessibilityAuditUITests: XCTestCase {
         app.terminate()
     }
 
+    /// #179 live-toggle diagnostic: the strict audit reports "Dynamic Type partially
+    /// unsupported" while launch-time cross-size captures show full scaling at five
+    /// sampled sizes (v8 pixels). External reports of this verdict describe the audit
+    /// enumerating EVERY category step and flagging steps with no size change - so
+    /// endpoint-only evidence cannot exclude an intermediate-step plateau. This test
+    /// therefore steps L -> XXXL -> AX1 -> AX2 -> AX3 -> AX4 -> AX5 -> L IN-PROCESS
+    /// (UIKit window trait override via the DEBUG-gated LiveDTProbe) and records
+    /// SAME-ELEMENT geometry and pixels at every step. The override imposes a UIKit
+    /// trait, which may differ from the audit's exact transition mechanism; the
+    /// control elements ('Daily totals', goals intro - both unflagged by the audit)
+    /// provide the effectiveness check: only a step where a control's geometry moves
+    /// while a flagged element's does not is evidence of a container-level plateau.
+    /// Diagnostic only: assertions are existence-only. No gate change.
+    func testLiveDynamicTypeToggle() throws {
+        launch(["-UITestLiveDT", "-resetNutritionDiary", "-resetNutritionGoals",
+                "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
+        XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
+        app.tabBars.buttons["Settings"].tap()
+        let diaryEntry = app.buttons["settings.nutritionDiary"]
+        XCTAssertTrue(revealSettingsEntry(diaryEntry), "Settings should reveal Food diary")
+        diaryEntry.tap()
+        XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10))
+
+        // (label, launch-arg category, short phase tag) - every step from L to AX5.
+        let steps: [(String, String)] = [
+            ("L", "UICTContentSizeCategoryL"),
+            ("XXXL", "UICTContentSizeCategoryXXXL"),
+            ("AX1", "UICTContentSizeCategoryAccessibilityM"),
+            ("AX2", "UICTContentSizeCategoryAccessibilityL"),
+            ("AX3", "UICTContentSizeCategoryAccessibilityXL"),
+            ("AX4", "UICTContentSizeCategoryAccessibilityXXL"),
+            ("AX5", "UICTContentSizeCategoryAccessibilityXXXL"),
+            ("L-back", "UICTContentSizeCategoryL"),
+        ]
+        var log: [String] = []
+        func measure(_ label: String, _ el: XCUIElement, _ phase: String) {
+            if !el.firstMatch.exists {
+                for _ in 0..<5 where !el.firstMatch.exists { app.swipeUp(velocity: .slow) }
+            }
+            let f = el.firstMatch.frame
+            // Pixels as well as frames: equal frames can hide a font change, and a frame
+            // change can come from other layout (main review, #179). The byte count +
+            // checksum detect a re-render; the attachments provide the decisive pixels.
+            var pixelNote = "pixels=unavailable"
+            var shotData = Data()
+            if el.firstMatch.exists && !f.isEmpty {
+                shotData = el.firstMatch.screenshot().pngRepresentation
+                let checksum = shotData.reduce(0) { ($0 &+ (Int($1) &+ 1)) & 0x7fffffff }
+                pixelNote = "png=\(shotData.count)B sum=\(checksum)"
+            }
+            // qa.probe carries the probe's requested + effective category readback.
+            let probeLabel = app.staticTexts["qa.probe"].firstMatch.exists ? app.staticTexts["qa.probe"].firstMatch.label : "qa.probe-missing"
+            log.append("\(phase) \(label): exists=\(el.firstMatch.exists) x=\(Int(f.minX)) y=\(Int(f.minY)) w=\(Int(f.width)) h=\(Int(f.height)) \(pixelNote) [\(probeLabel)]")
+            if !shotData.isEmpty {
+                let s = XCTAttachment(data: shotData, uniformTypeIdentifier: "public.png")
+                s.name = "live-dt-\(phase)-\(label)"; s.lifetime = .keepAlways; add(s)
+            }
+        }
+        let diaryTargets: [(String, XCUIElement)] = [
+            ("goals-row", text("Set optional daily goals")),
+            ("diary-empty", app.descendants(matching: .any)["nutritionDiary.empty"]),
+            ("daily-totals-control", text("Daily totals")),
+        ]
+        let goalsTargets: [(String, XCUIElement)] = [
+            ("clear-all-hint", app.staticTexts["nutritionGoals.clearAllHint"]),
+            ("goals-cancel", app.buttons["nutritionGoals.cancel"]),
+            ("intro-control", app.staticTexts["nutritionGoals.intro"]),
+        ]
+        func runSteps(_ prefix: String, _ targets: [(String, XCUIElement)]) {
+            for (phase, category) in steps {
+                if phase != "L" { liveSetCategory(category) }
+                for (label, el) in targets {
+                    if phase == "L" { XCTAssertTrue(el.firstMatch.waitForExistence(timeout: 10), "\(prefix).\(label) should exist at L") }
+                    measure(prefix + "." + label, el, phase)
+                }
+            }
+        }
+        runSteps("diary", diaryTargets)
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let goalsEntry = app.buttons["settings.nutritionGoals"]
+        XCTAssertTrue(revealSettingsEntry(goalsEntry), "Settings should reveal Nutrition goals")
+        goalsEntry.tap()
+        XCTAssertTrue(app.navigationBars["Nutrition goals"].waitForExistence(timeout: 10))
+        runSteps("goals", goalsTargets)
+
+        let a = XCTAttachment(string: log.joined(separator: "\n"))
+        a.name = "live-dt-geometry"; a.lifetime = .keepAlways; add(a)
+        app.terminate()
+    }
+
+    /// Posts a Darwin notification consumed by the DEBUG-gated LiveDTProbe in the app
+    /// process, then lets the app re-render. The payload travels in the notification name.
+    private func liveSetCategory(_ category: String) {
+        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
+            CFNotificationName("atedt.set.\(category)" as CFString), nil, nil, true)
+        RunLoop.current.run(until: Date().addingTimeInterval(1.0))
+    }
+
     func testAuditNutritionScreens() throws {
         launch(["-resetNutritionDiary", "-resetNutritionGoals"])
         XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))

@@ -2,6 +2,8 @@ import SwiftUI
 
 struct NutritionGoalsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppStore.self) private var store
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var enabled: [NutritionGoalField: Bool] = [:]
     @State private var values: [NutritionGoalField: String] = [:]
     @State private var errors: [NutritionGoalField: String] = [:]
@@ -101,6 +103,19 @@ struct NutritionGoalsView: View {
                     Label(saveError, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.red)
                         .accessibilityIdentifier("nutritionGoals.saveError")
+                }
+            }
+
+            // The pushed-screen bottom chrome (cook mini-player / timer bar) is a
+            // safe-area inset this Form measurably ignores (CI pixel evidence: the
+            // capsule overlays the Energy/Protein rows at AX5, #179), so reserve real
+            // scrollable space while it is up. Height evidence: see the diary change.
+            if store.cookTarget == nil && (store.cookSession != nil || !store.timers.timers.isEmpty) {
+                Section {
+                    Color.clear
+                        .frame(height: dynamicTypeSize.isAccessibilitySize ? 130 : 72)
+                        .listRowBackground(Color.clear)
+                        .accessibilityHidden(true)
                 }
             }
         }

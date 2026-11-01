@@ -97,8 +97,9 @@ Ate validates AI features in three lanes. Adopted by the project owner on 2026-1
 - Preflight checks `SystemLanguageModel.default.availability` and requires `.available`.
 - It then executes a small **real** generation request and validates that inference completes.
 - It fails explicitly on device ineligibility, disabled Apple Intelligence, or model-not-ready. It never silently substitutes a mock and never skips to green.
-- **Same-device rule:** the readiness check, the generation smoke and the lane's real-model tests execute in one job on one simulator. A preflight pass on one machine never qualifies another machine.
-- Failure messages identify the exact condition via structured prefixes: `AI-LANE ELIGIBILITY`, `AI-LANE READINESS`, `AI-LANE INFERENCE`.
+- **Same-device rule:** the readiness check, the generation smoke and the lane's real-model tests execute in one job on one simulator UDID, as ordered job steps: GATE 1 (availability) must pass before GATE 2 (inference smoke) runs, and evaluation suites run only after GATE 2. Step ordering is the gating mechanism - it does not rely on XCTest method order. A preflight pass on one machine never qualifies another machine.
+- Failure messages identify the exact condition via structured prefixes: `AI-LANE ELIGIBILITY`, `AI-LANE READINESS`, `AI-LANE INFERENCE`, surfaced as per-condition job annotations from the test log.
+- Inference is bounded: test execution allowances (240s default / 480s max) fail a hung generation through the same annotation path.
 - Preflight implementation: `AteModelReadinessTests` (separate test target; no standard-lane `-only-testing` filter selects it, so ordinary lanes never execute it).
 - Real-model evaluation tests join this lane as they land; today the lane runs the preflight + inference smoke.
 - Trigger and merge-gate policy for this lane is the owner's pending decision; it is manual-dispatch only until adopted. AI-ready runner provisioning remains subject to the owner's approval.

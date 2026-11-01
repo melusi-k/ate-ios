@@ -56,9 +56,9 @@ jobs:
               if isinstance(o, dict):
                   n = o.get('name') or o.get('testName') or ''
                   if isinstance(n, str) and 'testExplore' in n:
-                      i = o.get('id') or o.get('identifier') or o.get('testIdentifier')
+                      i = o.get('nodeIdentifier') or o.get('id') or o.get('identifier') or o.get('testIdentifier')
                       if i:
-                          ids.append((n, i))
+                          ids.append((n, str(i)))
                   for v in o.values():
                       walk(v)
               elif isinstance(o, list):

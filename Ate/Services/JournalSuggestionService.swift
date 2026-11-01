@@ -44,12 +44,16 @@ enum JournalSuggestionService {
 }
 
 /// Local SwiftData store for Ate journal entries (in-memory during UI tests). Never synced.
+/// The container schema also holds Food Journal meal payloads (#245). The open path is unchanged
+/// in this slice: move-aside recovery (R-DATA-01) for the journal store ships together with its
+/// honest user-facing presentation in the timeline slice, so a recovered-empty journal is never
+/// silently shown as the user's actual history.
 @MainActor
 final class JournalStore {
     static let shared = JournalStore()
     let container: ModelContainer?
     init(inMemory: Bool = AppConfig.isUITesting) {
-        container = try? ModelContainer(for: JournalEntry.self,
+        container = try? ModelContainer(for: JournalEntry.self, JournalMealPayload.self,
                                         configurations: ModelConfiguration("AteJournal", isStoredInMemoryOnly: inMemory))
         seedMomentEntryForUITests()
         removeImagePromptEntriesOnce()
@@ -80,7 +84,14 @@ final class JournalStore {
     }
     func delete(_ e: JournalEntry) {
         for f in e.mediaFileNames { try? FileManager.default.removeItem(at: Self.mediaURL(f)) }
-        container?.mainContext.delete(e); try? container?.mainContext.save()
+        if let ctx = container?.mainContext {
+            // A meal entry's structured payload goes with it; the timeline never keeps one without the other (#245).
+            let entryID = e.id
+            if let payload = try? ctx.fetch(FetchDescriptor<JournalMealPayload>(predicate: #Predicate { $0.entryID == entryID })).first {
+                ctx.delete(payload)
+            }
+            ctx.delete(e); try? ctx.save()
+        }
     }
     func entry(_ id: String) -> JournalEntry? { entries().first { $0.id == id } }
     func update(_ e: JournalEntry, text: String) {

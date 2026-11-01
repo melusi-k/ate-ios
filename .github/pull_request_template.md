@@ -13,6 +13,15 @@ Select at least one. GitHub Actions applies the matching labels automatically.
 - [ ] Documentation — `documentation`
 - [ ] Release or release-readiness work — `release`
 
+## Product lifecycle context
+- **Related issue(s):**
+- **Outcome / JTBD:** What customer problem or engineering objective does this serve?
+- **Expected customer/system change:** What should be different after this ships?
+- **Measurement / observation:** Link the outcome contract, or explain why measurement is not applicable.
+- **Important decisions and trade-offs:**
+
+For bug fixes and maintenance, keep this proportionate. For significant customer-facing work, the linked issue should contain the full Plan-stage outcome contract. See [PRODUCT_LIFECYCLE.md](../PRODUCT_LIFECYCLE.md) and [PRODUCT_OUTCOMES.md](../PRODUCT_OUTCOMES.md).
+
 ## Stack
 Every PR must declare its stack status. Use `None` for standalone PRs.
 - **Stack ID:** None
@@ -26,13 +35,16 @@ For a stack root, use a stable ID (e.g. `issue-179`), Parent PR `None`, Position
 - [ ] Relevant tests run, or the reason they could not be run is stated below
 - [ ] CI/build impact reviewed
 - [ ] User-facing behavior checked on device/simulator when applicable
+- [ ] Exact candidate SHA/build evidence will be captured in `VERIFICATION_RECORDS/` before release
 
 **Verification notes**
-<!-- Commands, test results, device details, or outstanding limitations. -->
+<!-- Commands, test results, device details, exact SHA/build, workflow links, or outstanding limitations. Do not claim unrun tests passed. -->
 
 ## Risk and rollout
 - **Risk:** Low / Medium / High
 - **Migration, configuration, or backend changes:** None / Describe
+- **Privacy, telemetry or data handling impact:** None / Describe
+- **Rollout / rollback:**
 - **Follow-up required:** None / Link issues
 
 ## Screenshots / evidence

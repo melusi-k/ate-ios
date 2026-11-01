@@ -139,8 +139,15 @@ enum RecipePrompt {
     static func context(for text: String, region: String? = Locale.current.region?.identifier) -> Context {
         let l = text.lowercased()
         var c = Context()
-        c.dietary = dietaryWords.filter { l.contains($0) }
-        if let r = l.range(of: #"(?:for|serves)\s+(\d{1,2})"#, options: .regularExpression),
+        // The word immediately before decides negation, so sloppy spacing and punctuation still
+        // count ("not  vegan", "isn't vegan", "non-vegan") and look-alikes ("knot") do not.
+        c.dietary = dietaryWords.filter { w in
+            guard let r = l.range(of: w) else { return false }
+            let prefix = l[..<r.lowerBound]
+            let prevWord = prefix.split { $0.isWhitespace }.last.map(String.init) ?? ""
+            return !(["not", "no", "non", "isn't", "isnt", "without", "never"].contains(prevWord) || prefix.hasSuffix("non-"))
+        }
+        if let r = l.range(of: #"(?:for|serves)\s+(\d{1,2})\b(?!\s*(?:minutes?|mins?|hours?|hrs?|h|seconds?|secs?)\b)"#, options: .regularExpression),
            let n = Int(l[r].filter(\.isNumber)), n > 0 { c.servings = n }
         c.region = region == "ZA" ? "South Africa" : nil
         return c
@@ -252,3 +259,4 @@ struct PhotoNeedsDishError: LocalizedError, Equatable {
                : "Not sure what this dish is. Tell ate what it is for a better recipe."
     }
 }
+

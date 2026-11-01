@@ -22,6 +22,8 @@ permissions:
 jobs:
   dump:
     runs-on: xcode-27
+    env:
+      XC_PATH: ${{ inputs.xcresult_path || '_temp/ate-test-results/library-explore-sheets.xcresult' }}
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -35,14 +37,15 @@ jobs:
       - name: Dump xcresult diagnostics
         run: |
           set -x
-          XC="diag/${{ inputs.xcresult_path || '_temp/ate-test-results/library-explore-sheets.xcresult' }}"
+          XC="diag/$XC_PATH"
           ls -la "$XC" || true
           (xcrun xcresulttool get log --type action --path "$XC" --legacy > step-log.txt 2>log-err.txt) || (xcrun xcresulttool get log --type action --path "$XC" > step-log.txt 2>>log-err.txt) || true
           xcrun xcresulttool get test-results summary --path "$XC" --format json > summary.json 2>summary-err.txt || true
           xcrun xcresulttool get test-results tests --path "$XC" --format json > tests.json 2>tests-err.txt || true
           xcrun xcresulttool export attachments --path "$XC" --output-path attachments > export.txt 2>export-err.txt || true
           python3 - <<'PY'
-          import json, subprocess
+          import json, os, subprocess
+          xc = os.path.join('diag', os.environ['XC_PATH'])
           try:
               t = json.load(open('tests.json'))
           except Exception as e:
@@ -66,9 +69,9 @@ jobs:
           for n, i in ids[:4]:
               safe = n.replace('()', '').replace(' ', '_')
               with open('details-%s.json' % safe, 'w') as f:
-                  subprocess.run(['xcrun','xcresulttool','get','test-results','test-details','--path','diag/${{ inputs.xcresult_path || \'_temp/ate-test-results/library-explore-sheets.xcresult\' }}','--test-id',i,'--format','json'], stdout=f, stderr=subprocess.DEVNULL)
+                  subprocess.run(['xcrun','xcresulttool','get','test-results','test-details','--path',xc,'--test-id',i,'--format','json'], stdout=f, stderr=subprocess.DEVNULL)
               with open('activities-%s.json' % safe, 'w') as f:
-                  subprocess.run(['xcrun','xcresulttool','get','test-results','activities','--path','diag/${{ inputs.xcresult_path || \'_temp/ate-test-results/library-explore-sheets.xcresult\' }}','--test-id',i,'--format','json'], stdout=f, stderr=subprocess.DEVNULL)
+                  subprocess.run(['xcrun','xcresulttool','get','test-results','activities','--path',xc,'--test-id',i,'--format','json'], stdout=f, stderr=subprocess.DEVNULL)
           PY
           (find diag -iname '*spindump*' -o -iname '*sample*' -o -iname '*.crash' -o -iname '*.hang' -o -iname '*diagnostic*' | head -50) > diag-files.txt || true
           ls attachments 2>/dev/null | head -80 >> diag-files.txt || true

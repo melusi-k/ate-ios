@@ -1,0 +1,81 @@
+name: Product outcome / feature
+description: Define a customer problem, measurable outcome and acceptance contract.
+title: "[Outcome] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use for meaningful customer-facing initiatives. For small bugs and maintenance, use the lighter existing issue paths. See [Ate Product Lifecycle](../../PRODUCT_LIFECYCLE.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Customer problem and JTBD
+      description: Who is the user, in what context, and what are they trying to achieve?
+      placeholder: "When I..., I want to..., so that..."
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and assumptions
+      description: Separate observed evidence from assumptions and unknowns.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Intended customer outcome
+      description: What meaningful change should the customer experience?
+    validations:
+      required: true
+  - type: textarea
+    id: measurement
+    attributes:
+      label: Measurement plan
+      description: Primary measure, definition/denominator, baseline, target or baseline-needed, cohort, observation window and source. Explain privacy constraints.
+      value: |
+        - Primary measure:
+        - Definition / denominator:
+        - Baseline: To be established / ...
+        - Target and rationale:
+        - Cohort / observation window:
+        - Data source:
+        - Known limitations:
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Observable, testable Given/When/Then criteria.
+      placeholder: |
+        - Given ...
+          When ...
+          Then ...
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification and release approach
+      value: |
+        - Automated checks:
+        - Manual/device checks:
+        - Backend/configuration:
+        - Release gate: Pilot / Public launch / No committed release gate
+        - Risks and dependencies:
+    validations:
+      required: true
+  - type: textarea
+    id: observation
+    attributes:
+      label: Observation and decision plan
+      description: How and when will we know whether the outcome happened? What decision follows?
+      value: |
+        - Observation owner:
+        - Review window:
+        - Success / iterate / stop decision rule:
+        - Follow-up review:
+    validations:
+      required: true

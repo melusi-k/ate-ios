@@ -57,3 +57,7 @@ Rationale for Option A: 90% of 97 allows at most 9 non-passing Pilot rows, each 
 ## 5. Reporting format
 
 Per gate, print separate counts for Pass / Failed / Blocked / Not run / Skipped / Partial / n/a, the denominator, the SHA, and which jobs ran. List quarantined/non-blocking checks separately with their actual execution result, artifact links, and issue; this is an overlapping disposition count, not another row-result bucket. Do not double-count rows. Where a row has both a recorded failure and missing checks, report the failure and missing coverage explicitly rather than hiding either under Not run. Show "x of N Pass" and do not print a bare percentage. Until every row in the gate has been reconciled on one SHA, state "not yet scored". Identify open proposed must-pass IDs as advisory only until the owner approves a policy; do not report either threshold option as the current gate verdict.
+
+## Product lifecycle verification record
+
+For each release candidate decision, create a candidate-specific record in [VERIFICATION_RECORDS/](../VERIFICATION_RECORDS/) following the [Ate Product Lifecycle](../PRODUCT_LIFECYCLE.md). The record must identify the exact full SHA, build/version, channel, environment, test/device conditions, workflow and artifact links, separate result states, known limitations and explicit human decision. This record supplements rather than replaces the acceptance inventory, readiness scripts or launch-gate policy. A green workflow conclusion or historical matrix pass is not a release decision.

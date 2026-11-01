@@ -180,7 +180,7 @@ final class MockBackend: BackendService {
             let text = (try? await OnDeviceBackend.ocr(dataURL: request.imageDataUrl ?? "")) ?? ""
             if !PhotoGuess.isScreenshotText(text) {
                 let labels = (try? await OnDeviceBackend.classify(dataURL: request.imageDataUrl ?? "")) ?? []
-                guard let dish = PhotoGuess.dishes(from: labels).first, PhotoGuess.prompt(labels: labels, ocrText: text) != nil else {
+                guard let dish = PhotoGuess.dishes(from: labels).first, PhotoGuess.canDraft(from: labels) else {
                     throw BackendError(message: "Couldn't recognise a dish in that photo. Try a closer shot, a screenshot of the recipe, or describe it in Prompt.")
                 }
                 var c = RecipeCard(title: "Guessed: " + dish.capitalized, description: "Drafted from a photo — check quantities.",
@@ -310,3 +310,4 @@ final class SupabaseBackend: BackendService {
         return try JSONDecoder().decode(CardEnvelope.self, from: data).card
     }
 }
+

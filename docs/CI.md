@@ -80,3 +80,7 @@ The serial-versus-two-worker experiment for `CoverageUITests` is tracked under [
 ## Ownership of this policy
 
 Changes to worker count or scope must update this document, both full-validation workflow invocations, the QA release instructions and the rollout evidence on issue #138 in the same pull request.
+
+## Product lifecycle evidence
+
+CI is a Build/Verify evidence producer, not the product outcome authority. Preserve exact-SHA results, job/test counts, diagnostics and downloadable artifacts so a candidate-specific record can be assembled in [VERIFICATION_RECORDS/](../VERIFICATION_RECORDS/) under the [Ate Product Lifecycle](../PRODUCT_LIFECYCLE.md). Workflow success must not be represented as proof of customer value or used to infer unexecuted acceptance checks. Product outcomes and post-release interpretation are governed by [PRODUCT_OUTCOMES.md](../PRODUCT_OUTCOMES.md) and [OBSERVATION_REVIEWS/](../OBSERVATION_REVIEWS/).

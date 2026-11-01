@@ -141,6 +141,7 @@ current failures occur. The compile and dogfood lanes share stages 1-4 and 7-8.
 | --- | --- | --- | --- |
 | Launch mediation stall | 5-6 | 153-175s pre-fork; XCTest launch timeout at ~140s, or 240s allowance death | Open; intermittent across 4+ heads; last run (41333393387) did not reproduce |
 | Transition idle-notification | 7 | Two ~60s "animations complete" caps on Library -> Journal per affected test | Reproduced 2026-11-01; bounded and non-fatal in that run; cause open |
+| Library-explore-sheets first test red | 6-7 | `CoverageUITests.testExploreInsightsPresentsAsSheetAndDismissesToLibrary`: ~337s wall before xcodebuild restarted it; automation attach at t11.81, last excerpt t24.32 after Library idle | Open; single occurrence (run 41333393413); crash vs timeout unresolved; exact cause not established |
 
 ## Instrumentation record
 
@@ -159,6 +160,26 @@ current failures occur. The compile and dogfood lanes share stages 1-4 and 7-8.
   the true first attach was 29.31s by xcodebuild's own stamps.
 - **Reading rule for watcher output:** check snapshot etimes against the
   header epoch before trusting any T+ label.
+- 2026-11-01 (controlled battery on `69fe2ffd`, compile-check run
+  41333393413): the compile lane went red once. The
+  library-explore-sheets shard's first test
+  (`CoverageUITests.testExploreInsightsPresentsAsSheetAndDismissesToLibrary`)
+  started 18:05:11Z, attached automation at t11.81, logged its last excerpt
+  at t24.32 after the Library idle, and was restarted by xcodebuild at
+  18:10:48.808 (~337s wall). Whether the process crashed or hit a timeout is
+  unresolved from the archived artifacts. After the restart the Journal test
+  passed in 178.899s, showing the two ~60s transition caps again (32.96 ->
+  93, 95.12 -> 155.17) and dismiss at 178.59. Other shards were green. The
+  battery closed with openstate, discovery, and dogfood green and compile
+  red; per policy this single red does not change the family's status and
+  does not by itself establish an Insights-specific kill cause.
+- **Provenance/retention gap (measured):** the compile diagnostics artifact
+  for 41333393413 (`compile-check-diagnostics-41333393413-1`, id
+  13096215697) does not include the raw shard log, and the uploaded xcresult
+  lacks `database.sqlite3`. The absence of that file alone does not prove
+  all xcresult evidence is unrecoverable, but as archived the run cannot
+  answer crash-vs-timeout. Red-run diagnostics retention needs to be fixed
+  before the next occurrence can be diagnosed.
 
 ## Known gaps (tracking list)
 
@@ -170,6 +191,10 @@ current failures occur. The compile and dogfood lanes share stages 1-4 and 7-8.
 5. The ~82s ps blockage cause (stage instrumentation itself).
 6. Watcher scope covers only the first launch; stalls on later launches are
    unobserved.
+7. Red-run diagnostics retention: raw shard logs are not archived in compile
+   diagnostics artifacts, and xcresult uploads can lack `database.sqlite3`
+   (observed on 41333393413). Recording timing and retention need tightening
+   so a red run keeps enough evidence to resolve crash vs timeout.
 
 ## Maintaining this document
 

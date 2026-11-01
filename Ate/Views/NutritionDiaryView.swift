@@ -135,9 +135,30 @@ struct NutritionDiaryView: View {
                 }
             }
             if dayEntries.isEmpty {
-                ContentUnavailableView("Nothing logged", systemImage: "fork.knife", description: Text("Add food when you’ve eaten it. Cooking a recipe never logs it automatically."))
-                    .listRowBackground(Color.clear)
-                    .accessibilityIdentifier("nutritionDiary.empty")
+                // Custom empty content replaces the system ContentUnavailableView: its
+                // single-line title clipped at the trailing screen edge at AX5 (v8 pixel
+                // evidence, #179) and the CUV API exposes no wrapping control. Same
+                // wording, symbol, identifier and VoiceOver order; both texts wrap and
+                // scale with Dynamic Type.
+                VStack(spacing: 12) {
+                    Image(systemName: "fork.knife")
+                        .font(.system(.largeTitle))
+                        .foregroundStyle(Theme.mutedForeground)
+                        .accessibilityHidden(true)
+                    Text("Nothing logged")
+                        .font(AteFont.display(28))
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Add food when you’ve eaten it. Cooking a recipe never logs it automatically.")
+                        .font(AteFont.body(16))
+                        .foregroundStyle(Theme.mutedForeground)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+                .listRowBackground(Color.clear)
+                .accessibilityIdentifier("nutritionDiary.empty")
             } else {
                 ForEach(NutritionMeal.allCases) { meal in
                     let mealEntries = dayEntries.filter { $0.meal == meal }

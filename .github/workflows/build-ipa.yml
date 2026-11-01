@@ -536,13 +536,16 @@ jobs:
             --title "Build ${APP_VERSION} (${BUILD_NUMBER})${CH_TITLE} @ ${GITHUB_SHA::7}" --notes-file build/notes.md \
             || echo "$TAG already exists, leaving it untouched"
           # Rolling latest-build: recreated so its ONLY asset is the current versioned .ipa (no plain Ate.ipa).
-          gh release delete latest-build --cleanup-tag -y || true
-          git push origin ":refs/tags/latest-build" 2>/dev/null || true
-          git tag -f latest-build "$GITHUB_SHA" && git push origin "refs/tags/latest-build"
-          gh release create latest-build "dist/$IPA_NAME" "dist/$IPA_NAME.sha256" --prerelease --verify-tag \
-            --title "Latest build ${APP_VERSION} (${BUILD_NUMBER})${CH_TITLE} — ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}" --notes-file build/notes.md
-          ASSETS=$(gh release view latest-build --json assets -q '[.assets[].name]|sort|join(" ")')
-          [ "$ASSETS" = "$IPA_NAME $IPA_NAME.sha256" ] || { echo "::error::latest-build assets are: $ASSETS"; exit 1; }
+          # Eval/topic-branch builds must not repoint the rolling latest-build: normal delivery stays on main.
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            gh release delete latest-build --cleanup-tag -y || true
+            git push origin ":refs/tags/latest-build" 2>/dev/null || true
+            git tag -f latest-build "$GITHUB_SHA" && git push origin "refs/tags/latest-build"
+            gh release create latest-build "dist/$IPA_NAME" "dist/$IPA_NAME.sha256" --prerelease --verify-tag \
+              --title "Latest build ${APP_VERSION} (${BUILD_NUMBER})${CH_TITLE} — ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}" --notes-file build/notes.md
+            ASSETS=$(gh release view latest-build --json assets -q '[.assets[].name]|sort|join(" ")')
+            [ "$ASSETS" = "$IPA_NAME $IPA_NAME.sha256" ] || { echo "::error::latest-build assets are: $ASSETS"; exit 1; }
+          fi
           BASE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download"
           {
             echo "### Download"
@@ -842,3 +845,4 @@ jobs:
           path: ${{ runner.temp }}/ate-ci-telemetry.json
           if-no-files-found: warn
           retention-days: 30
+

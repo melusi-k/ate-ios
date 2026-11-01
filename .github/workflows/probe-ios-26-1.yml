@@ -47,11 +47,42 @@ jobs:
         run: |
           brew install xcodegen && xcodegen generate
           xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$UDID" -resultBundlePath "${{ runner.temp }}/probe/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || { tail -60 build.log; exit 1; }
+      - name: Preflight app launch on 26.1
+        run: |
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -name "Ate.app" -path "*iphonesimulator*" | head -1)
+          echo "app=$APP"; test -n "$APP"
+          BID=$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist")
+          echo "bundleid=$BID" | tee -a "$GITHUB_ENV"
+          xcrun simctl install booted "$APP"
+          xcrun simctl launch --console booted "$BID" > preflight-launch.log 2>&1 &
+          LPID=$!
+          sleep 12
+          xcrun simctl terminate booted "$BID" || true
+          kill $LPID 2>/dev/null || true
+          xcrun simctl io booted screenshot preflight.png || true
+          tail -30 preflight-launch.log || true
       - name: Focused overlay reproduction (diary+goals audit on 26.1)
         run: |
-          set -o pipefail
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$UDID" -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreens -resultBundlePath "${{ runner.temp }}/probe/audit26-1.xcresult" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO > audit.log 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$UDID" -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreens -resultBundlePath "${{ runner.temp }}/probe/audit26-1.xcresult" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO > audit.log 2>&1
+          echo "AUDIT_EXIT=$?" >> "$GITHUB_ENV"
           grep -E "Test Case|error:|a11y-audit" audit.log | head -40 || true
+          exit 0
+      - name: Collect crash diagnostics
+        if: always()
+        run: |
+          mkdir -p "${{ runner.temp }}/probe/diagnostics"
+          ls -la ~/Library/Logs/DiagnosticReports/ | tail -25 || true
+          for f in ~/Library/Logs/DiagnosticReports/*.ips; do
+            case "$(basename "$f")" in Ate*|*Runner*) cp "$f" "${{ runner.temp }}/probe/diagnostics/" 2>/dev/null || true;; esac
+          done
+          xcrun simctl spawn booted log show --last 15m --predicate 'process == "AteUITests-Runner" OR process == "Ate" OR processImagePath CONTAINS "testmanagerd" OR process == "assertd"' --style compact > "${{ runner.temp }}/probe/diagnostics/device-filtered.log" 2>&1 || true
+          wc -l "${{ runner.temp }}/probe/diagnostics/device-filtered.log" || true
+          ls -la "${{ runner.temp }}/probe/diagnostics/"
+      - name: Verdict gate
+        run: |
+          echo "audit exit was $AUDIT_EXIT"
+          test "$AUDIT_EXIT" = "0"
       - name: Upload probe results
         if: always()
         uses: actions/upload-artifact@v4

@@ -11,7 +11,10 @@ final class QAProbe {
     var finishHaptics = 0
     var widgetPublishes = 0
     var lastIntent = "none"
-    var summary: String { "la=\(liveActivityRequests) chime=\(chimes) haptic=\(finishHaptics) widgets=\(widgetPublishes) intent=\(lastIntent)" }
+    /// #179 live-toggle diagnostic: last category the DEBUG LiveDTProbe applied and the
+    /// window's effective trait after applying it. Empty unless -UITestLiveDT drove one.
+    var lastLiveDT = ""
+    var summary: String { "la=\(liveActivityRequests) chime=\(chimes) haptic=\(finishHaptics) widgets=\(widgetPublishes) intent=\(lastIntent)\(lastLiveDT.isEmpty ? "" : " " + lastLiveDT)" }
 }
 
 extension AppConfig {

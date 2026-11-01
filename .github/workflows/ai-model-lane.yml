@@ -1,0 +1,147 @@
+name: AI model lane (Foundation Models)
+
+# AI-ready real-model lane per docs/CI.md (architecture decision, 2026-11-01).
+#
+# Structure: ONE job, ONE simulator UDID. GATE 1 (availability preflight) must
+# pass before GATE 2 (real-inference smoke) runs; real-model evaluation suites
+# join after GATE 2. Step ordering is the gating mechanism - a failed gate
+# stops the job, so evaluation can never continue or qualify after a failed
+# availability or smoke check. All gates share this job's SIM_ID: a readiness
+# pass qualifies this machine only.
+#
+# Policy: require SystemLanguageModel .available, then prove real inference.
+# Explicit failure on deviceNotEligible / Apple Intelligence disabled /
+# model not ready / inference failure. No mock substitution, no skip-to-green.
+# Failure strings carry AI-LANE ELIGIBILITY / READINESS / INFERENCE prefixes,
+# surfaced as job annotations below.
+#
+# Inference bound: test-timeouts are enabled with a 240s default / 480s max
+# execution allowance, so a hung generation fails the smoke test with
+# XCTest's execution-allowance error and surfaces through the same
+# AI-LANE annotation path.
+#
+# Trigger and merge-gate policy is the owner's pending decision (docs/CI.md);
+# manual dispatch only in the merged state. Eligible-runner provisioning
+# requires owner approval. A 2026-11-01 run on the hosted xcode-27 config
+# measured availability .unavailable with reported reason modelNotReady (the
+# enum reports one reason; that run alone does not establish device
+# eligibility). GATE 1 fails explicitly with the structured reason.
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ai-model-lane-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ai-model-preflight:
+    name: ai-model-preflight
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Cache Xcode DerivedData
+        # Shared lineage with compile-check; lookup-only so this lane never
+        # saves and cannot evict entries the standard lanes rely on.
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          lookup-only: true
+          key: xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            xcode-27-xcode-deriveddata-
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: xcode-27-homebrew-xcodegen-v1
+          restore-keys: |
+            xcode-27-homebrew-
+      - run: brew install xcodegen && xcodegen generate
+      - name: Build for testing (iOS simulator)
+        run: |
+          set -o pipefail
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+          set +e
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Simulator build failed (xcodebuild exit $status). Matching diagnostics and recent log follow:"
+            grep -n -B 8 -A 12 -E "error:|failed|Fatal error|Testing failed" build.log || true
+            tail -n 100 build.log
+            exit "$status"
+          fi
+          echo "build-for-testing succeeded on $SIM_ID"
+      - name: GATE 1 - availability preflight (this simulator)
+        run: |
+          set -o pipefail
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteModelReadinessTests/ModelReadinessPreflightTests/testModelAvailabilityPreflight \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/ai-lane-gate1.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > ai-lane-gate1.log 2>&1
+          status=$?
+          set -e
+          grep -E "Test Case .* (passed|failed)|Executed" ai-lane-gate1.log | tail -5 || true
+          if [ "$status" -ne 0 ]; then
+            # Surface each structured verdict as its own annotation so the exact
+            # availability failure is visible without opening logs.
+            grep -oE "AI-LANE (ELIGIBILITY|READINESS|INFERENCE): [^\"]+" ai-lane-gate1.log | sort -u | while IFS= read -r line; do
+              echo "::error::GATE 1 FAILED - $line"
+            done
+            echo "::error::GATE 1 failed on simulator $SIM_ID - smoke and real-model evaluation are NOT run; this machine is not qualified."
+            grep -n -B 4 -A 10 -E "AI-LANE|error:|failed|Fatal error|Testing failed" ai-lane-gate1.log | head -80 || true
+            exit "$status"
+          fi
+          echo "::notice::GATE 1 PASS: SystemLanguageModel availability is .available on simulator $SIM_ID"
+      - name: GATE 2 - real inference smoke (this simulator; only after GATE 1 passes)
+        run: |
+          set -o pipefail
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteModelReadinessTests/ModelReadinessPreflightTests/testRealInferenceSmoke \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/ai-lane-gate2.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > ai-lane-gate2.log 2>&1
+          status=$?
+          set -e
+          grep -E "Test Case .* (passed|failed)|Executed" ai-lane-gate2.log | tail -5 || true
+          if [ "$status" -ne 0 ]; then
+            grep -oE "AI-LANE (ELIGIBILITY|READINESS|INFERENCE): [^\"]+" ai-lane-gate2.log | sort -u | while IFS= read -r line; do
+              echo "::error::GATE 2 FAILED - $line"
+            done
+            echo "::error::GATE 2 failed on simulator $SIM_ID - real-model evaluation is NOT run; this machine is not qualified."
+            grep -n -B 4 -A 10 -E "AI-LANE|error:|failed|Fatal error|Testing failed|execution time allowance" ai-lane-gate2.log | head -80 || true
+            exit "$status"
+          fi
+          echo "::notice::GATE 2 PASS: real inference smoke succeeded on simulator $SIM_ID"
+      # Real-model evaluation suites join here as they land (#254 evaluation),
+      # after GATE 2, in this job, on this SIM_ID. They never execute when a
+      # gate failed and never on a machine other than the one that passed.
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ai-model-lane-${{ github.run_id }}
+          path: |
+            ai-lane-gate1.log
+            ai-lane-gate2.log
+            ${{ runner.temp }}/ate-test-results/ai-lane-gate1.xcresult
+            ${{ runner.temp }}/ate-test-results/ai-lane-gate2.xcresult
+          if-no-files-found: warn

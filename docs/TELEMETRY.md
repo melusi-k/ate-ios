@@ -34,3 +34,7 @@
 ## CI telemetry
 
 CI emits a separate JSON artifact derived from GitHub Actions run/job/step metadata. It includes the commit SHA, workflow/run identifiers, runner metadata, outcomes and available timing values. Creation-to-start durations are explicitly named as such; they are not described as queue time because run creation is not a queue timestamp. Missing timings stay null. The collection is best-effort and non-blocking; it must not change build/test outcomes. No source files, logs, secrets, app data, or tester data are collected by this artifact.
+
+## Product lifecycle and observation
+
+Telemetry is one input to the Observe stage in the [Ate Product Lifecycle](../PRODUCT_LIFECYCLE.md), not a measure of product success by itself. Product measures, cohorts, baselines, observation windows and decision rules belong in [PRODUCT_OUTCOMES.md](../PRODUCT_OUTCOMES.md); interpreted findings and resulting decisions belong in [OBSERVATION_REVIEWS/](../OBSERVATION_REVIEWS/). Keep event semantics and payloads within this contract. Do not add events, identifiers or user-content fields solely to satisfy a metric without a separate privacy and product review. Telemetry delivery is best-effort and missing events must be treated as missing evidence, not zero activity.

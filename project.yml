@@ -272,6 +272,18 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.uitests
         TEST_TARGET_NAME: Ate
+  AteModelReadinessTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [AteModelReadinessTests]
+    dependencies:
+      - target: Ate
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.modelreadinesstests
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Ate.app/Ate
+        BUNDLE_LOADER: $(TEST_HOST)
 schemes:
   Ate:
     build:
@@ -279,8 +291,9 @@ schemes:
         Ate: all
         AteTests: [test]
         AteUITests: [test]
+        AteModelReadinessTests: [test]
     test:
-      targets: [AteTests, AteUITests]
+      targets: [AteTests, AteUITests, AteModelReadinessTests]
   AteClip:
     build:
       targets:

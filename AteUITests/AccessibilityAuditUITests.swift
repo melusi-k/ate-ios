@@ -138,9 +138,35 @@ final class AccessibilityAuditUITests: XCTestCase {
         try audit("nutrition-goals")
     }
 
+    /// Same-element AX5 captures for cross-size measurement: the strict audit already
+    /// attaches element screenshots at the default size; these pair with them so a DT
+    /// verdict can be measured as rendered pixels at two sizes (main review, #179).
+    /// The element is scrolled into the clear band first; a miss is attached as text,
+    /// never silently skipped.
+    private func captureElementAX5(_ query: XCUIElement, _ name: String) {
+        let el = query.firstMatch
+        var ok = false
+        var attempts = 0
+        while attempts < 8 {
+            if !el.exists { app.swipeUp(velocity: .slow); attempts += 1; continue }
+            let f = el.frame
+            let navBar = app.navigationBars.firstMatch
+            let top: CGFloat = (navBar.exists && !navBar.frame.isEmpty) ? navBar.frame.maxY : 120
+            if !f.isEmpty && f.midY > top && f.midY < bottomClearBound(app) { ok = true; break }
+            app.swipeUp(velocity: .slow)
+            attempts += 1
+        }
+        if ok && el.exists {
+            let s = XCTAttachment(screenshot: el.screenshot()); s.name = name; s.lifetime = .keepAlways; add(s)
+        } else {
+            let t = XCTAttachment(string: name + ": element not reachable in the clear band at AX5")
+            t.name = name + "-MISS"; t.lifetime = .keepAlways; add(t)
+        }
+    }
+
     /// AX5 sweep: largest accessibility text size. Recorded (not gating yet) so clipping can be tracked per build.
     func testAuditLargestDynamicType() throws {
-        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL", "-resetNutritionDiary", "-resetNutritionGoals"])
         XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
         try audit("ax5-library", strict: false)
         addRecipe()
@@ -172,6 +198,9 @@ final class AccessibilityAuditUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10), "Food diary should open for the AX5 sweep")
         try audit("ax5-nutrition-diary", strict: false)
         let d = XCTAttachment(screenshot: app.screenshot()); d.name = "ax5-nutrition-diary"; d.lifetime = .keepAlways; add(d)
+        captureElementAX5(app.descendants(matching: .any)["nutritionDiary.empty"], "ax5-elem-diary-empty")
+        captureElementAX5(text("Set optional daily goals"), "ax5-elem-goals-row")
+        captureElementAX5(app.buttons["cookSessionMiniPlayer"], "ax5-elem-mini-player")
         app.navigationBars.buttons.element(boundBy: 0).tap()
         let goalsEntry = app.buttons["settings.nutritionGoals"]
         XCTAssertTrue(revealSettingsEntry(goalsEntry), "Settings should reveal Nutrition goals for the AX5 sweep")
@@ -179,5 +208,7 @@ final class AccessibilityAuditUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Nutrition goals"].waitForExistence(timeout: 10), "Nutrition goals should open for the AX5 sweep")
         try audit("ax5-nutrition-goals", strict: false)
         let g = XCTAttachment(screenshot: app.screenshot()); g.name = "ax5-nutrition-goals"; g.lifetime = .keepAlways; add(g)
+        captureElementAX5(app.buttons["nutritionGoals.cancel"], "ax5-elem-goals-cancel")
+        captureElementAX5(app.staticTexts["nutritionGoals.clearAllHint"], "ax5-elem-clear-all-hint")
     }
 }

@@ -22,22 +22,15 @@ name: AI model lane (Foundation Models)
 #
 # Trigger and merge-gate policy is the owner's pending decision (docs/CI.md);
 # manual dispatch only in the merged state. Eligible-runner provisioning
-# requires owner approval. Current hosted xcode-27 config measured
-# deviceNotEligible, so a run there fails GATE 1 explicitly - the intended
-# honest result, not a defect.
+# requires owner approval. A 2026-11-01 run on the hosted xcode-27 config
+# measured availability .unavailable with reported reason modelNotReady (the
+# enum reports one reason; that run alone does not establish device
+# eligibility). GATE 1 fails explicitly with the structured reason.
 permissions:
   contents: read
 
 on:
   workflow_dispatch:
-  # TEMPORARY for PR #260 verification only: lets the lane demonstrate its
-  # negative path on this PR (workflow_dispatch requires the file on the
-  # default branch). Scoped to lane files; REMOVED before merge.
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "AteModelReadinessTests/**"
-      - ".github/workflows/ai-model-lane.yml"
 
 concurrency:
   group: ai-model-lane-${{ github.ref }}

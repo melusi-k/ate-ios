@@ -460,3 +460,12 @@ No first qualifying approval was found for the listed PRs. For merged PRs, the m
 ### Metrics and denominator guard
 
 No issue lead time, implementation time, or issue cycle time is calculated for #179, #245 or #253 because the issues remain open and actual completion is Unknown. Earliest commit timestamps are Inferred work-start proxies, not verified human start times. No approval-time sample exists for the merged W44 PRs because no qualifying approval was submitted. W44 commitment accuracy and carryover rate remain unavailable because the committed-scope denominator is missing. Preserve the prior W45 planning proposal and its original planned dates; the Monday 2026-11-02 planning review must append any new scope/date decisions rather than rewrite this history.
+
+
+## Post-close CI status delta — 2026-11-01T10:05:26Z (SAST 12:05:26)
+
+This is an append-only update after the W44 evidence cutoff above; it does not alter the 09:58:03Z snapshot.
+
+- **PR #260:** AI model preflight failed at 2026-11-01T10:02:06Z because the simulator reported `modelNotReady` (model assets not downloaded/ready); open-state UI failed at 10:02:55Z because `JournalOpenStateUITests.testHealthyOpenShowsNoBanner` timed out launching the app. Compile remained in progress and Dogfood was queued at the latest poll. This confirms the lane is not ready for merge.
+- **PR #259:** proof-build and open-state UI passed; Compile remained in progress; proof KeyFlows and Dogfood were in progress; proof unit tests were queued. This is still incomplete and is not a substitute for required gates.
+- **PR #261 (this documentation PR):** docs-validation passed; the stack validator passed after the PR body was corrected to the repository's required bold Stack metadata format. App Compile was skipped by the docs-only path; Dogfood and open-state UI remained queued. The PR remains draft and unapproved.

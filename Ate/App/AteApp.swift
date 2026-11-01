@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import SwiftData
+import UIKit
 
 @main
 struct AteApp: App {
@@ -11,6 +12,9 @@ struct AteApp: App {
         TabBarStyle.apply()
         if AppConfig.isUITesting {
             for k in ["ate.settings.v1", "ate.timerprefs.v1", "ate.cookSession.v1"] { UserDefaults.standard.removeObject(forKey: k) }
+        }
+        if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaDisableAnimations") {
+            UIView.setAnimationsEnabled(false)
         }
         // Corruption-safe open: a broken store is moved aside and a fresh one opened; never crashes (R-DATA-01).
         let corruptQA = AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaCorruptStore")
@@ -40,6 +44,13 @@ struct AteApp: App {
             RootView()
                 .environment(store)
                 .onOpenURL { store.handle(url: $0) }
+                .background {
+                    if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaDisableAnimations") {
+                        Text("qa.animationsFlag")
+                            .accessibilityIdentifier("qa.animationsFlag")
+                            .accessibilityValue("\(UIView.areAnimationsEnabled)")
+                    }
+                }
                 .task {
                     PhoneWatchBridge.shared.activate()
                     // ImageCreator can hang the simulator launch handshake on CI even though

@@ -28,14 +28,14 @@ jobs:
           xcode-version: "27.1"
       - uses: actions/download-artifact@v7
         with:
-          name: ${{ inputs.artifact_name }}
-          run-id: ${{ inputs.run_id }}
+          name: ${{ inputs.artifact_name || 'compile-check-diagnostics-41254392421-2' }}
+          run-id: ${{ inputs.run_id || '41254392421' }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: diag
       - name: Dump xcresult diagnostics
         run: |
           set -x
-          XC="diag/${{ inputs.xcresult_path }}"
+          XC="diag/${{ inputs.xcresult_path || '_temp/ate-test-results/library-explore-sheets.xcresult' }}"
           ls -la "$XC" || true
           (xcrun xcresulttool get log --type action --path "$XC" --legacy > step-log.txt 2>log-err.txt) || (xcrun xcresulttool get log --type action --path "$XC" > step-log.txt 2>>log-err.txt) || true
           xcrun xcresulttool get test-results summary --path "$XC" --format json > summary.json 2>summary-err.txt || true
@@ -66,9 +66,9 @@ jobs:
           for n, i in ids[:4]:
               safe = n.replace('()', '').replace(' ', '_')
               with open('details-%s.json' % safe, 'w') as f:
-                  subprocess.run(['xcrun','xcresulttool','get','test-results','test-details','--path','diag/${{ inputs.xcresult_path }}','--test-id',i,'--format','json'], stdout=f, stderr=subprocess.DEVNULL)
+                  subprocess.run(['xcrun','xcresulttool','get','test-results','test-details','--path','diag/${{ inputs.xcresult_path || \'_temp/ate-test-results/library-explore-sheets.xcresult\' }}','--test-id',i,'--format','json'], stdout=f, stderr=subprocess.DEVNULL)
               with open('activities-%s.json' % safe, 'w') as f:
-                  subprocess.run(['xcrun','xcresulttool','get','test-results','activities','--path','diag/${{ inputs.xcresult_path }}','--test-id',i,'--format','json'], stdout=f, stderr=subprocess.DEVNULL)
+                  subprocess.run(['xcrun','xcresulttool','get','test-results','activities','--path','diag/${{ inputs.xcresult_path || \'_temp/ate-test-results/library-explore-sheets.xcresult\' }}','--test-id',i,'--format','json'], stdout=f, stderr=subprocess.DEVNULL)
           PY
           (find diag -iname '*spindump*' -o -iname '*sample*' -o -iname '*.crash' -o -iname '*.hang' -o -iname '*diagnostic*' | head -50) > diag-files.txt || true
           ls attachments 2>/dev/null | head -80 >> diag-files.txt || true

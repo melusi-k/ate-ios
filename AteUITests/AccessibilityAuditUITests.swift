@@ -232,47 +232,86 @@ final class AccessibilityAuditUITests: XCTestCase {
             ("AX5", "UICTContentSizeCategoryAccessibilityXXXL"),
             ("L-back", "UICTContentSizeCategoryL"),
         ]
-        var log: [String] = []
-        func measure(_ label: String, _ el: XCUIElement, _ phase: String) {
-            if !el.firstMatch.exists {
-                for _ in 0..<5 where !el.firstMatch.exists { app.swipeUp(velocity: .slow) }
+        // The fixed top swipe is a reference ATTEMPT, not proof of an identical
+        // viewport: if content height changes between steps, rows can still shift.
+        // Per-step crop checksums and the qa.probe readback carry the decisive
+        // evidence; frame comparisons stay indicative (main review, #179).
+        var log: [String] = ["viewport reference = 3x fast swipeDown to top per phase (attempt only; content-height changes can still shift rows; per-step png sums + qa.probe readback are the comparable evidence)"]
+        // Missing or ambiguous required observations stay an explicit INCOMPLETE
+        // diagnostic (XCTFail at the end), never a silent pass read as support
+        // (main review, #179).
+        var incomplete: [String] = []
+        // Attached per phase (not only at test end) so a mid-test failure still
+        // preserves every completed step's geometry AND the probe's requested vs
+        // effective category readback (main review, #179).
+        func attachLog(_ tag: String) {
+            let a = XCTAttachment(string: log.joined(separator: "\n"))
+            a.name = "live-dt-geometry-\(tag)"; a.lifetime = .keepAlways; add(a)
+        }
+        // Exact-label match, resolved fresh per phase: staticText query first (modern
+        // attribute path), any-type EXACT-label fallback only when the element computes
+        // as a non-StaticText type at the current category (automation type mismatch
+        // seen at AX1+). Equality, never CONTAINS, so an unrelated descendant cannot
+        // be silently chosen; match count is asserted per phase (main review, #179).
+        func labelledQuery(_ s: String) -> () -> XCUIElementQuery {
+            let pred = NSPredicate(format: "label == %@", s)
+            return {
+                let stq = self.app.staticTexts.matching(pred)
+                if stq.count > 0 { return stq }
+                return self.app.descendants(matching: .any).matching(pred)
             }
-            let f = el.firstMatch.frame
+        }
+        func measure(_ name: String, _ makeQuery: () -> XCUIElementQuery, _ phase: String, _ screen: String) {
+            let q = makeQuery()
+            let n = q.count
+            if n > 1 { incomplete.append("\(screen).\(name)@\(phase): \(n) matches for a query that must be unique") }
+            let el = q.element(boundBy: 0)
+            // No scroll hunting: the per-phase fixed top reference keeps frames
+            // comparable, and a missing element is recorded as incomplete, not chased.
+            let found = el.waitForExistence(timeout: 3)
+            if !found { incomplete.append("\(screen).\(name)@\(phase): required target missing") }
+            let f = found ? el.frame : .zero
             // Pixels as well as frames: equal frames can hide a font change, and a frame
             // change can come from other layout (main review, #179). The byte count +
             // checksum detect a re-render; the attachments provide the decisive pixels.
             var pixelNote = "pixels=unavailable"
             var shotData = Data()
-            if el.firstMatch.exists && !f.isEmpty {
-                shotData = el.firstMatch.screenshot().pngRepresentation
+            if found && !f.isEmpty {
+                shotData = el.screenshot().pngRepresentation
                 let checksum = shotData.reduce(0) { ($0 &+ (Int($1) &+ 1)) & 0x7fffffff }
                 pixelNote = "png=\(shotData.count)B sum=\(checksum)"
             }
-            // qa.probe carries the probe's requested + effective category readback.
+            // qa.probe carries the probe's requested + effective category readback;
+            // without it the effective category at this step is UNKNOWN.
             let probeLabel = app.staticTexts["qa.probe"].firstMatch.exists ? app.staticTexts["qa.probe"].firstMatch.label : "qa.probe-missing"
-            log.append("\(phase) \(label): exists=\(el.firstMatch.exists) x=\(Int(f.minX)) y=\(Int(f.minY)) w=\(Int(f.width)) h=\(Int(f.height)) \(pixelNote) [\(probeLabel)]")
+            if probeLabel == "qa.probe-missing" { incomplete.append("\(screen).\(name)@\(phase): qa.probe effective-category readback missing") }
+            log.append("\(phase) \(screen).\(name): exists=\(found) matches=\(n) x=\(Int(f.minX)) y=\(Int(f.minY)) w=\(Int(f.width)) h=\(Int(f.height)) \(pixelNote) [\(probeLabel)]")
             if !shotData.isEmpty {
                 let s = XCTAttachment(data: shotData, uniformTypeIdentifier: "public.png")
-                s.name = "live-dt-\(phase)-\(label)"; s.lifetime = .keepAlways; add(s)
+                s.name = "live-dt-\(phase)-\(name)"; s.lifetime = .keepAlways; add(s)
             }
         }
-        let diaryTargets: [(String, XCUIElement)] = [
-            ("goals-row", text("Set optional daily goals")),
-            ("diary-empty", app.descendants(matching: .any)["nutritionDiary.empty"]),
-            ("daily-totals-control", text("Daily totals")),
+        let diaryTargets: [(String, () -> XCUIElementQuery)] = [
+            ("goals-row", labelledQuery("Set optional daily goals")),
+            ("diary-empty", { self.app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "nutritionDiary.empty")) }),
+            ("diary-empty-title", labelledQuery("Nothing logged")),
+            ("daily-totals-control", labelledQuery("Daily totals")),
         ]
-        let goalsTargets: [(String, XCUIElement)] = [
-            ("clear-all-hint", app.staticTexts["nutritionGoals.clearAllHint"]),
-            ("goals-cancel", app.buttons["nutritionGoals.cancel"]),
-            ("intro-control", app.staticTexts["nutritionGoals.intro"]),
+        let goalsTargets: [(String, () -> XCUIElementQuery)] = [
+            ("clear-all-hint", { self.app.staticTexts.matching(identifier: "nutritionGoals.clearAllHint") }),
+            ("goals-cancel", { self.app.buttons.matching(identifier: "nutritionGoals.cancel") }),
+            ("intro-control", { self.app.staticTexts.matching(identifier: "nutritionGoals.intro") }),
         ]
-        func runSteps(_ prefix: String, _ targets: [(String, XCUIElement)]) {
+        func runSteps(_ prefix: String, _ targets: [(String, () -> XCUIElementQuery)]) {
             for (phase, category) in steps {
                 if phase != "L" { liveSetCategory(category) }
-                for (label, el) in targets {
-                    if phase == "L" { XCTAssertTrue(el.firstMatch.waitForExistence(timeout: 10), "\(prefix).\(label) should exist at L") }
-                    measure(prefix + "." + label, el, phase)
+                // Fixed top scroll reference attempt per step (caveat in log header).
+                for _ in 0..<3 { app.swipeDown(velocity: .fast) }
+                for (name, makeQuery) in targets {
+                    if phase == "L" { XCTAssertTrue(makeQuery().element(boundBy: 0).waitForExistence(timeout: 10), "\(prefix).\(name) should exist at L") }
+                    measure(name, makeQuery, phase, prefix)
                 }
+                attachLog("\(prefix)-\(phase)")
             }
         }
         runSteps("diary", diaryTargets)
@@ -284,8 +323,14 @@ final class AccessibilityAuditUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Nutrition goals"].waitForExistence(timeout: 10))
         runSteps("goals", goalsTargets)
 
-        let a = XCTAttachment(string: log.joined(separator: "\n"))
-        a.name = "live-dt-geometry"; a.lifetime = .keepAlways; add(a)
+        // Missing required targets, non-unique queries or a missing effective-category
+        // readback make the diagnostic INCOMPLETE - explicit failure, never silent
+        // pass-as-support (main review, #179).
+        if !incomplete.isEmpty {
+            let note = XCTAttachment(string: incomplete.joined(separator: "\n"))
+            note.name = "live-dt-incomplete"; note.lifetime = .keepAlways; add(note)
+            XCTFail("Incomplete live-DT diagnostic (\(incomplete.count) issue(s)); missing data is not evidence of support. See live-dt-incomplete attachment.")
+        }
         app.terminate()
     }
 

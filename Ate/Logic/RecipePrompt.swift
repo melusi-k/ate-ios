@@ -135,13 +135,61 @@ enum RecipePrompt {
     /// Conditional prompt lines (code-along 205 Prompt { } builder): dietary preference, servings and region.
     struct Context: Equatable { var dietary: [String] = []; var servings: Int? = nil; var region: String? = nil }
     static let dietaryWords = ["vegan", "vegetarian", "halal", "kosher", "gluten-free", "dairy-free", "pescatarian", "low-carb"]
+    /// Phrasings that present a diet as an optional adaptation, not the dish's requirement
+    /// (scraped content: "make it vegan by...", "swap butter for a dairy-free option").
+    static let dietaryAlternativeMarkers = ["make it ", "to make ", "can be made ", "swap", "substitut", "alternative", "option", "variation", "version", "adapt", "instead", "if you prefer", "if you want"]
+    /// Phrasings that state a diet as the dish's own requirement ("This recipe is gluten-free").
+    static let dietaryRequirementMarkers = ["this recipe is ", "this dish is ", "suitable for ", "perfect for ", "ideal for ", "naturally "]
+    /// Ingredients that contradict a scraped dietary identity when the user explicitly asks for them.
+    static let dietaryConflicts: [String: [String]] = [
+        "vegan": ["chicken", "beef", "pork", "lamb", "bacon", "mince", "steak", "ham", "turkey", "wors", "biltong", "fish", "salmon", "tuna", "prawn", "shrimp", "hake", "snoek", "calamari", "cheese", "milk", "butter", "cream", "yogurt", "yoghurt", "egg", "honey"],
+        "vegetarian": ["chicken", "beef", "pork", "lamb", "bacon", "mince", "steak", "ham", "turkey", "wors", "biltong", "fish", "salmon", "tuna", "prawn", "shrimp", "hake", "snoek", "calamari"],
+        "pescatarian": ["chicken", "beef", "pork", "lamb", "bacon", "mince", "steak", "ham", "turkey", "wors", "biltong"],
+        "dairy-free": ["cheese", "milk", "butter", "cream", "yogurt", "yoghurt"],
+        "gluten-free": ["bread", "flour", "pasta", "noodle", "wheat", "couscous", "bulgur"]
+    ]
+    static func isNegated(_ l: String, _ r: Range<String.Index>) -> Bool {
+        let before = l[..<r.lowerBound].suffix(8)
+        return ["not ", "no ", "non-", "non ", "isn't ", "without"].contains { before.hasSuffix($0) }
+    }
+    static func sentence(containing r: Range<String.Index>, in l: String) -> String {
+        let lo = l[..<r.lowerBound].lastIndex(where: { ".!?\n".contains($0) }).map { l.index(after: $0) } ?? l.startIndex
+        let hi = l[r.upperBound...].firstIndex(where: { ".!?\n".contains($0) }) ?? l.endIndex
+        return String(l[lo..<hi])
+    }
+    /// Dietary words that count as constraints from scraped source text. Descriptive alternatives and
+    /// negations never count. Long full-recipe sources (web pages, screenshot OCR) must state the diet
+    /// as the dish's identity (title region, first 120 chars) or in requirement phrasing; short
+    /// dish-defining sources (social captions, photo hints/OCR) count any non-alternative mention.
+    static func sourceDietary(in text: String, longForm: Bool) -> [String] {
+        let l = text.lowercased()
+        return dietaryWords.filter { w in
+            var start = l.startIndex
+            var ok = false
+            while !ok, let r = l.range(of: w, range: start..<l.endIndex) {
+                if !isNegated(l, r) {
+                    let sent = sentence(containing: r, in: l)
+                    let alternative = dietaryAlternativeMarkers.contains { sent.contains($0) }
+                    if !alternative {
+                        if !longForm { ok = true } else {
+                            let inTitle = l.distance(from: l.startIndex, to: r.lowerBound) < 120
+                            let requirement = dietaryRequirementMarkers.contains { sent.contains($0) }
+                            ok = inTitle || requirement
+                        }
+                    }
+                }
+                start = r.upperBound
+            }
+            return ok
+        }
+    }
+    /// The user's own words: any non-negated mention is intent ("make it vegan" is an instruction here).
     static func context(for text: String, region: String? = Locale.current.region?.identifier) -> Context {
         let l = text.lowercased()
         var c = Context()
         c.dietary = dietaryWords.filter { w in
             guard let r = l.range(of: w) else { return false }
-            let before = l[..<r.lowerBound].suffix(8)
-            return !["not ", "no ", "non-", "non ", "isn't ", "without"].contains { before.hasSuffix($0) }
+            return !isNegated(l, r)
         }
         if let r = l.range(of: #"(?:for|serves)\s+(\d{1,2})(?!\s*(?:minutes?|mins?|hours?|hrs?|h|seconds?|secs?)\b)"#, options: .regularExpression),
            let n = Int(l[r].filter(\.isNumber)), n > 0 { c.servings = n }
@@ -155,15 +203,23 @@ enum RecipePrompt {
         if let r = c.region { out.append("The cook is in \(r): use locally available ingredients and names.") }
         return out
     }
-    /// Merge cues from the user's own words and the scraped source. Explicit user text wins on
-    /// servings; dietary cues combine (union), but long full-recipe sources (web pages, screenshot
-    /// OCR) mention diets descriptively ("make it vegan by..."), so only short dish-defining
-    /// sources (social captions, photo hints/OCR) are trusted for dietary.
-    static func context(userText: String, sourceText: String, trustSourceDietary: Bool, region: String? = Locale.current.region?.identifier) -> Context {
+    /// Merge cues from the user's own words and the scraped source, with explicit precedence and
+    /// attribution. Servings: explicit user text wins over scraped text. Dietary: an explicit user
+    /// requirement wins outright; otherwise the source's *stated* dietary identity applies (see
+    /// sourceDietary), except where the user's own words contradict it ("chicken curry" beats a
+    /// page's "vegan") - the dish the user asked for wins over a blind union.
+    static func context(userText: String, sourceText: String, sourceIsLongForm: Bool, region: String? = Locale.current.region?.identifier) -> Context {
         let u = context(for: userText, region: region)
         let s = context(for: sourceText, region: region)
         var c = Context()
-        c.dietary = u.dietary + (trustSourceDietary ? s.dietary.filter { !u.dietary.contains($0) } : [])
+        if !u.dietary.isEmpty {
+            c.dietary = u.dietary
+        } else {
+            let l = userText.lowercased()
+            c.dietary = sourceDietary(in: sourceText, longForm: sourceIsLongForm).filter { w in
+                !(dietaryConflicts[w] ?? []).contains { ing in l.range(of: "\\b" + ing + "\\b", options: .regularExpression) != nil }
+            }
+        }
         c.servings = u.servings ?? s.servings
         c.region = u.region ?? s.region
         return c

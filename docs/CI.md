@@ -84,3 +84,53 @@ Changes to worker count or scope must update this document, both full-validation
 ## Product lifecycle evidence
 
 CI is a Build/Verify evidence producer, not the product outcome authority. Preserve exact-SHA results, job/test counts, diagnostics and downloadable artifacts so a candidate-specific record can be assembled in [VERIFICATION_RECORDS/](../VERIFICATION_RECORDS/) under the [Ate Product Lifecycle](../PRODUCT_LIFECYCLE.md). Workflow success must not be represented as proof of customer value or used to infer unexecuted acceptance checks. Product outcomes and post-release interpretation are governed by [PRODUCT_OUTCOMES.md](../PRODUCT_OUTCOMES.md) and [OBSERVATION_REVIEWS/](../OBSERVATION_REVIEWS/).
+
+## Apple Intelligence / Foundation Models lanes (decision, 2026-11-01)
+
+Ate validates AI features in three lanes. Adopted by the project owner on 2026-11-01 as a formal CI architecture decision, implemented as part of the existing CI governance work.
+
+### 1. Standard CI lane (existing runners, unchanged)
+
+- Build and compile validation, unit tests, UI automation.
+- Foundation Models **unavailable-state** tests and mock-based deterministic tests stay in this lane.
+- No changes to ordinary build/UI test runner allocation. The four-shard, two-worker full-validation UI strategy above is unchanged.
+
+### 2. AI-ready real-model lane (eligibility required)
+
+- Workflow: `.github/workflows/ai-model-lane.yml`, independently visible job `ai-model-preflight`.
+- Preflight checks `SystemLanguageModel.default.availability` and requires `.available`.
+- It then executes a small **real** generation request and validates that inference completes.
+- It fails explicitly on device ineligibility, disabled Apple Intelligence, or model-not-ready. It never silently substitutes a mock and never skips to green.
+- **Same-device rule:** the readiness check, the generation smoke and the lane's real-model tests execute in one job on one simulator UDID, as ordered job steps: GATE 1 (availability) must pass before GATE 2 (inference smoke) runs, and evaluation suites run only after GATE 2. Step ordering is the gating mechanism - it does not rely on XCTest method order. A preflight pass on one machine never qualifies another machine.
+- Failure messages identify the exact condition via structured prefixes: `AI-LANE ELIGIBILITY`, `AI-LANE READINESS`, `AI-LANE INFERENCE`, surfaced as per-condition job annotations from the test log.
+- Inference is bounded: test execution allowances (240s default / 480s max) fail a hung generation through the same annotation path.
+- Preflight implementation: `AteModelReadinessTests` (separate test target; no standard-lane `-only-testing` filter selects it, so ordinary lanes never execute it).
+- Real-model evaluation tests join this lane as they land; today the lane runs the preflight + inference smoke.
+- Trigger and merge-gate policy for this lane is the owner's pending decision; it is manual-dispatch only until adopted. AI-ready runner provisioning remains subject to the owner's approval.
+- Measured evidence (2026-11-01, PR #260 lane run): on the GitHub-hosted `xcode-27` config, availability returned `.unavailable` with reported reason `modelNotReady`; the lane failed GATE 1 with that structured reason and skipped the inference smoke. The availability enum reports a single reason, so this run alone does not establish that device eligibility checks passed. Simulator inference requires macOS Tahoe on the host with Apple Intelligence enabled and the model downloaded (Apple DTS: https://developer.apple.com/forums/thread/815397; availability reasons: https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel/availability-swift.enum/unavailablereason). No supported readiness route is verified for the hosted VM; a physical Apple-Intelligence-enabled Mac or a physical device is the verified Apple-supported shape. AI-ready runner provisioning remains subject to owner approval.
+
+### 3. Physical-device quality lane (iPhone)
+
+- Real-device inference validation, response quality and correctness, latency/performance, memory and stability observations.
+- Current route: the owner's iPhone with sideloaded dev builds.
+
+### Preflight verdicts
+
+| Condition | Expected result |
+| --- | --- |
+| `.available` | Continue to generation smoke |
+| `deviceNotEligible` | Fail eligibility |
+| Apple Intelligence disabled | Fail eligibility |
+| Model not ready | Fail readiness |
+| Generation fails or times out | Fail inference |
+| Real generation succeeds | Pass |
+
+### Standing acceptance criteria
+
+1. No changes to ordinary build/UI test runner allocation.
+2. Existing unavailable-state coverage remains active.
+3. Real-model tests cannot pass through mock substitution.
+4. The real-model lane has an independently visible CI result.
+5. Failure messages identify the exact availability or inference failure.
+6. AI-ready runner provisioning remains subject to owner approval.
+7. Simulator requirements and the physical-device testing strategy are documented here and kept current.

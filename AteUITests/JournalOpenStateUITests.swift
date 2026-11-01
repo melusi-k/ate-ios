@@ -76,7 +76,7 @@ final class JournalOpenStateUITests: XCTestCase {
         let item = menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", "Journal")).firstMatch
         wait(item, 10)
         item.tap()
-        wait(app.navigationBars["Journal"], 10)
+        wait(app.navigationBars["Food Journal"], 10)
     }
 
     private func banner(_ timeout: TimeInterval = 10,

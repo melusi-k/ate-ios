@@ -232,6 +232,13 @@ enum TabChrome {
 }
 
 /// Bottom accessory above the tab bar: a destination-aware add action, or timer summary plus a contextual +.
+private extension View {
+    /// Branches a modifier chain on OS availability without splitting the view expression.
+    @ViewBuilder func modify<Content: View>(@ViewBuilder _ transform: (Self) -> Content) -> some View {
+        transform(self)
+    }
+}
+
 @available(iOS 26, *)
 struct AteBottomAccessory: View {
     @Environment(AppStore.self) private var store
@@ -311,10 +318,21 @@ extension RootView {
         }
         .tabViewStyle(.tabBarOnly)
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory {
+        .modify { view in
             // Pushed screens reserve their own timer-bar inset. Keeping the accessory
             // at tab roots avoids a second timer bar beneath RecipeDetailView's Cook mode.
-            if store.cookTarget == nil && store.isAtTabRoot { AteBottomAccessory() }
+            // iOS 26.1 renders the accessory capsule even when the content is EmptyView
+            // (CI pixel evidence, #179), so gate visibility, not just content; the
+            // isEnabled: variant needs iOS 26.2, CI runs 27.0.
+            if #available(iOS 26.2, *) {
+                view.tabViewBottomAccessory(isEnabled: store.cookTarget == nil && store.isAtTabRoot) {
+                    AteBottomAccessory()
+                }
+            } else {
+                view.tabViewBottomAccessory {
+                    if store.cookTarget == nil && store.isAtTabRoot { AteBottomAccessory() }
+                }
+            }
         }
     }
 

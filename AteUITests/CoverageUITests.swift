@@ -238,7 +238,7 @@ final class CoverageUITests: XCTestCase {
 
         let dismiss = app.buttons["library.explore.dismiss"]
         wait(dismiss)
-        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 5),
+        XCTAssertTrue(app.navigationBars["Food Journal"].waitForExistence(timeout: 5),
                       "Journal should open in its own sheet navigation stack")
         dismiss.tap()
         wait(app.buttons["libraryBrowseMenu"])

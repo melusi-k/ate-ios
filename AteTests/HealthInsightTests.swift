@@ -163,7 +163,7 @@ final class HealthInsightTests: XCTestCase {
         let moved = InsightsTileOrder.moving(initial, id: "journal", before: "tracker")
         XCTAssertEqual(moved.first, "journal")
         XCTAssertEqual(Set(moved), Set(initial))
-        XCTAssertEqual(InsightsTileOrder.moving(initial, id: "tracker", offset: -1), initial)
+        XCTAssertEqual(InsightsTileOrder.moving(initial, id: "journal", offset: -1), initial)
     }
 
     func testRecipeProgressInputFindsDuplicateTitlesConservatively() {

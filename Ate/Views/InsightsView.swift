@@ -58,7 +58,9 @@ final class InsightsModel {
 
 /// Minimal, privacy-conscious snapshot used for recipe/progress insights. It contains no Health data.
 enum InsightsTileOrder {
-    static let defaults = ["tracker", "recipeProgress", "bodyToday", "suggestedMeals", "dailyReflection", "journal"]
+    // #245: the Food Journal leads the default layout so it is findable without scrolling.
+    // resolve() keeps any order the user already saved and only appends tiles they have not placed.
+    static let defaults = ["journal", "tracker", "recipeProgress", "bodyToday", "suggestedMeals", "dailyReflection"]
 
     static func resolve(_ stored: String) -> [String] {
         let known = Set(defaults)
@@ -233,6 +235,21 @@ enum RecipeProgressInsightService {
 }
 
 /// More → Insights: "Your body today", "Suggested meals", "Reflect on your day", "Save to journal".
+/// The always-present door into the unified Food Journal (#245). The user must be able to find
+/// the journal without hunting: this link renders regardless of entry count, inside the existing
+/// Insights tab - no tab-bar addition.
+struct FoodJournalDestinationLink: View {
+    let entryCount: Int
+    var body: some View {
+        NavigationLink(value: Route.journal) {
+            Label(entryCount == 0 ? "Open Food Journal" : entryCount == 1 ? "View entry" : "See all \(entryCount) entries",
+                  systemImage: "book.closed")
+                .font(AteFont.body(14, .semibold))
+        }
+        .accessibilityIdentifier("insights.openFoodJournal")
+    }
+}
+
 struct InsightsView: View {
     var screenTitle: String = "Insights"
     @Environment(AppStore.self) private var store
@@ -354,6 +371,7 @@ struct InsightsView: View {
         case "bodyToday": return "Your body today"
         case "suggestedMeals": return "Suggested meals"
         case "dailyReflection": return "Reflect on your day"
+        case "journal": return "Food Journal"
         default: return "Your Ate journal"
         }
     }
@@ -683,7 +701,7 @@ struct InsightsView: View {
     }
 
     @ViewBuilder private var journalCard: some View {
-        card("Your Ate journal") {
+        card("Food Journal") {
             if journalingEnabled && JournalingSuggestionsGate.isAvailable && !AppConfig.isUITesting {
                 JournalingSuggestionsButton { m in handle(moment: m) }
             }
@@ -706,10 +724,9 @@ struct InsightsView: View {
                 .accessibilityIdentifier("insights.entry")
                 .contextMenu { Button("Delete", role: .destructive) { JournalStore.shared.delete(e); entries = JournalStore.shared.entries() } }
             }
-            if entries.count > 5 {
-                NavigationLink(value: Route.journal) { Text("See all \(entries.count) entries").font(AteFont.body(14, .semibold)) }
-                    .accessibilityIdentifier("insights.allEntries")
-            }
+            // The unified Journal destination (#245) is always reachable: discovery never
+            // depends on how many entries exist.
+            FoodJournalDestinationLink(entryCount: entries.count)
         }
     }
 
@@ -772,6 +789,7 @@ struct InsightsView: View {
         case "Your body today": return "heart.text.square"
         case "Suggested meals": return "fork.knife"
         case "Reflect on your day": return "quote.bubble"
+        case "Food Journal": return "book.closed"
         case "Your Ate journal": return "book.closed"
         default: return "lightbulb"
         }

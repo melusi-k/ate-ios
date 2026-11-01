@@ -35,7 +35,7 @@ struct JournalListView: View {
             }
         }
         .searchable(text: $query, prompt: "Search journal")
-        .navigationTitle("Journal")
+        .navigationTitle("Food Journal")
         .onAppear { entries = JournalStore.shared.entries() }
     }
 }

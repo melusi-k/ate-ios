@@ -54,13 +54,218 @@ jobs:
       - name: Journal open state app-launch UI tests
         run: |
           set -o pipefail
+          # OBSERVATION ONLY (first-launch mediation evidence): background watcher.
+          # No warmup/preboot, no timeout/assertion/ordering changes, no retries;
+          # the step's exit code remains xcodebuild's, and the watcher never
+          # signals any app, test, or xcodebuild process.
+          #
+          # Observer cost (disclosed, unquantified): the 0.5s trigger poll, the
+          # 10s ps snapshots and any spindump all run on the same shared host and
+          # can perturb timing. A spindump firing during a late-but-viable attach
+          # CAN turn an eventual slow pass into a timeout. Samples narrow the
+          # stage where time goes; they cannot prove it.
+          #
+          # Threshold calibration: pre-fork sampling fires at T+90 after the
+          # xcodebuild "Launch com.melusik.ate" line if no Ate process is
+          # visible. Observed green launch-to-automation-session times on this
+          # lane are 14-49.14s, so a no-fork T+90 already exceeds every observed
+          # green launch-to-session time. The green launch-to-FORK envelope
+          # itself is unmeasured: T+90 remains a calibration choice, not a
+          # universal bound, and on a healthy-but-slower-than-observed launch
+          # the sample can catch a passing run. The perturbation risk above
+          # (a capture can push a late-but-viable attach past a timeout)
+          # remains.
+          #
+          # ps absence means absence OR matcher miss; watcher-outcome.txt says
+          # which the watcher assumed. Matcher: this job's simulator-UDID path
+          # prefix + "/Ate.app/Ate" at a token boundary, tolerating trailing
+          # launch arguments (the app launches with -UITesting /
+          # -qaJournalOpenState, so end-anchoring the binary name never matches
+          # a real launch; bare comm matching is the diag run's false negative).
+          # Multiple matches are reported as count=N and never sampled from:
+          # ambiguous identity is inconclusive, not evidence.
+          #
+          # Sample budget: at most 2 spindumps - 1 pre-fork (T+90 with no app
+          # process yet), 1 post-fork (fork+30s, identity re-checked). The
+          # post-fork slot is reserved and can never be spent pre-fork: the
+          # post-fork / pre-session-attach interval is the one existing
+          # kill-time dumps do not always cover (a late attach leaves no
+          # kill-time dump).
+          #
+          # Lifecycle: each capture runs under a self-owned wrapper (pidfile):
+          # spindump writes $out.partial, the wrapper atomically renames it on
+          # exit 0 and then records the exit status in $out.status. The wrapper
+          # survives watcher shutdown, so a completed capture is never lost to
+          # a step-end kill. At step end the watcher is stopped and reaped, the
+          # step waits a bounded 30s for any in-flight spindump, kills only
+          # processes matching this watcher's unique output-path pattern, then
+          # waits briefly for the wrapper's own status record. Acceptance moves
+          # a capture into watcher-accepted/ only when its status is 0 AND the
+          # atomically renamed output exists; watcher-accepted/ is the ONLY
+          # capture path uploaded, so a capture finished after acceptance (or
+          # never accepted) can never reach the artifact.
+          rm -f watcher-outcome.txt watcher-ps-series.txt watcher-stop watcher-spindump.pid watcher-spindump-*.txt watcher-spindump-*.status watcher-spindump-*.partial
+          rm -rf watcher-accepted
+          (
+            exec >> watcher-outcome.txt 2>&1
+            echo "watcher: armed epoch=$(date +%s) sim=$SIM_ID"
+            seen=""
+            for i in $(seq 1 720); do
+              if grep -q 'Launch com.melusik.ate' journal-open-state-ui.log 2>/dev/null; then seen=1; break; fi
+              sleep 0.5
+            done
+            [ -z "$seen" ] && { echo "watcher: trigger line never appeared within ~360s of arming (log buffering or earlier failure); no samples taken"; exit 0; }
+            echo "watcher: first launch line epoch=$(date +%s) (subject to xcodebuild log-flush timing; diag run lag measured 0.8s)"
+            MATCH() { awk -v u="/CoreSimulator/Devices/$SIM_ID/" 'index($0,u)>0 && $0 ~ /\/Ate\.app\/Ate([[:space:]]|$)/ {n++; if(n==1) p=$1} END {if(n>0) print p" count="n; else print "NOMATCH"}'; }
+            # Self-owned capture lifecycle: the wrapper (not the watcher) owns
+            # completion. spindump writes to $out.partial; on exit 0 the wrapper
+            # atomically renames it to $out, THEN records the exit status in
+            # $out.status (mv-before-status, so a status of 0 implies the
+            # complete renamed output already exists). The wrapper is reparented
+            # and keeps running if the watcher is killed mid-wait, so a capture
+            # that completes survives watcher shutdown. Process disappearance is
+            # never treated as success: only a status file containing 0 plus the
+            # renamed output counts as evidence.
+            run_spindump() {
+              local out="$1"; shift
+              [ -f watcher-stop ] && { echo "watcher: stop requested before $out; skipped"; return 1; }
+              rm -f "$out" "$out.partial" "$out.status"
+              (
+                sudo spindump "$@" -duration 3 -o "$out.partial" >> watcher-outcome.txt 2>&1
+                rc=$?
+                [ "$rc" -eq 0 ] && mv "$out.partial" "$out"
+                printf '%s' "$rc" > "$out.status.tmp" && mv "$out.status.tmp" "$out.status"
+              ) &
+              local wrap=$!
+              echo "$wrap" > watcher-spindump.pid
+              wait "$wrap" 2>/dev/null
+              rm -f watcher-spindump.pid
+              if [ -f "$out.status" ]; then
+                echo "watcher: capture $out finished, status=$(cat "$out.status")"
+              else
+                echo "watcher: capture $out interrupted before status record; settle will reject it"
+              fi
+            }
+            fork_t=""
+            pre_done=""
+            post_done=""
+            for t in $(seq 10 10 300); do
+              sleep 10
+              [ -f watcher-stop ] && { echo "watcher: stop requested; exiting"; exit 0; }
+              echo "--- T+$t epoch=$(date +%s)" >> watcher-ps-series.txt
+              ps -Ao pid,ppid,etime,args >> watcher-ps-series.txt 2>>watcher-outcome.txt
+              if grep -q 'Setting up automation session' journal-open-state-ui.log 2>/dev/null; then
+                echo "watcher: automation-session line at ~T+$t; stopping series (attach path)"
+                exit 0
+              fi
+              RES=$(ps -Ao pid=,args= | MATCH)
+              case "$RES" in
+                NOMATCH)
+                  if [ -z "$fork_t" ] && [ -z "$pre_done" ] && [ "$t" -eq 90 ]; then
+                    echo "watcher: no Ate process by T+90 (absence or matcher miss); pre-fork spindump for mediation-daemon state (1 of 2)"
+                    run_spindump watcher-spindump-preFork-T90.txt && pre_done=1
+                  fi
+                  ;;
+                *count=1)
+                  if [ -z "$fork_t" ]; then
+                    fork_t=$t
+                    FORK_PID=${RES%% *}
+                    echo "watcher: Ate pid=$FORK_PID matched (count=1); fork bracketed to T+$((t-10))..T+$t (10s sampling bound)"
+                  fi
+                  ;;
+                *count=*)
+                  if [ -z "$fork_t" ]; then
+                    fork_t="ambiguous"
+                    echo "watcher: ambiguous identity ($RES) at T+$t; no sample taken, manual review required"
+                  fi
+                  ;;
+              esac
+              if [ -z "$post_done" ] && [ -n "$fork_t" ] && [ "$fork_t" != "ambiguous" ] && [ "$t" -ge "$((fork_t+30))" ]; then
+                post_done=1
+                RECHECK=$(ps -p "$FORK_PID" -o args= 2>/dev/null | awk -v u="/CoreSimulator/Devices/$SIM_ID/" 'index($0,u)>0 && $0 ~ /\/Ate\.app\/Ate([[:space:]]|$)/ {print "ok"}')
+                if [ "$RECHECK" = "ok" ] && [ ! -f watcher-stop ]; then
+                  echo "watcher: fork ~T+$fork_t, identity re-check ok, no session line by T+$t; post-fork spindump (2 of 2)"
+                  run_spindump "watcher-spindump-postFork-T$t.txt" "$FORK_PID"
+                else
+                  echo "watcher: identity re-check failed or stop requested; no post-fork sample - inconclusive, not evidence"
+                fi
+              fi
+            done
+            echo "watcher: cap T+300 reached epoch=$(date +%s)"
+          ) &
+          WATCHER_PID=$!
+          set +e
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/JournalOpenStateUITests \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/journal-open-state-ui.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
-            CODE_SIGNING_ALLOWED=NO > journal-open-state-ui.log 2>&1 || \
-            { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" journal-open-state-ui.log || true; tail -120 journal-open-state-ui.log; exit 1; }
+            CODE_SIGNING_ALLOWED=NO > journal-open-state-ui.log 2>&1
+          status=$?
+          set -e
+          # Watcher settle: stop + reap first, then a bounded 30s wait for any
+          # in-flight spindump (normally ~3-5s), then kill only this watcher's
+          # spindumps via their unique output-path pattern. App/test/xcodebuild
+          # processes are never signaled.
+          touch watcher-stop
+          kill "$WATCHER_PID" 2>/dev/null || true
+          wait "$WATCHER_PID" 2>/dev/null || true
+          # Bounded wait for any in-flight spindump (normally ~3-5s).
+          for i in $(seq 1 30); do
+            pgrep -f 'spindump .*watcher-spindump-' >/dev/null 2>&1 || break
+            sleep 1
+          done
+          if pgrep -f 'spindump .*watcher-spindump-' >/dev/null 2>&1; then
+            sudo pkill -f 'spindump .*watcher-spindump-' 2>/dev/null || true
+            echo "step: spindump exceeded 30s settle bound; killed via watcher pattern only" >> watcher-outcome.txt
+          fi
+          # Short grace for the capture wrapper (reparented if the watcher was
+          # killed) to record its own status after spindump exit/kill. Waiting
+          # for the wrapper is NOT treating disappearance as success; evidence
+          # acceptance below still requires a status of 0.
+          if [ -f watcher-spindump.pid ]; then
+            WPID=$(cat watcher-spindump.pid 2>/dev/null)
+            for i in $(seq 1 10); do
+              [ -n "$WPID" ] && kill -0 "$WPID" 2>/dev/null || break
+              sleep 0.5
+            done
+          fi
+          rm -f watcher-spindump.pid
+          # Evidence acceptance: keep only captures with a self-recorded status
+          # of 0 AND the atomically renamed output. Reject and discard anything
+          # else explicitly: nonzero/missing status, or a leftover .partial
+          # (interrupted or failed capture).
+          for st in watcher-spindump-*.txt.status; do
+            [ -e "$st" ] || continue
+            out=${st%.status}
+            rc=$(cat "$st" 2>/dev/null)
+            if [ "$rc" = "0" ] && [ -f "$out" ]; then
+              mkdir -p watcher-accepted
+              mv "$out" watcher-accepted/
+              echo "step: accepted complete capture $out (status 0) -> watcher-accepted/" >> watcher-outcome.txt
+            else
+              rm -f "$out" "$out.partial"
+              echo "step: rejected capture $out (status=${rc:-missing}); output and partial discarded" >> watcher-outcome.txt
+            fi
+            rm -f "$st"
+          done
+          for p in watcher-spindump-*.txt.partial; do
+            [ -e "$p" ] || continue
+            rm -f "$p"
+            echo "step: discarded orphaned partial $p (no status record; capture interrupted)" >> watcher-outcome.txt
+          done
+          # Packaging guarantee: only watcher-accepted/ is uploaded. Anything a
+          # late wrapper finishes after acceptance stays in the workdir and is
+          # excluded from the artifact; log any such file explicitly.
+          for f in watcher-spindump-*.txt watcher-spindump-*.txt.status; do
+            [ -e "$f" ] || continue
+            echo "step: unvalidated leftover $f excluded from upload (never accepted)" >> watcher-outcome.txt
+          done
+          if [ "$status" -ne 0 ]; then
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" journal-open-state-ui.log || true
+            tail -120 journal-open-state-ui.log
+            exit 1
+          fi
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" journal-open-state-ui.log | tail -40
       - name: Export rendered screenshots
         if: always()
@@ -92,4 +297,7 @@ jobs:
             journal-open-state-ui.log
             ui-screenshots
             ${{ runner.temp }}/ate-test-results/journal-open-state-ui.xcresult
+            watcher-outcome.txt
+            watcher-ps-series.txt
+            watcher-accepted/
           if-no-files-found: warn

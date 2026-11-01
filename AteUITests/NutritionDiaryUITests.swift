@@ -225,6 +225,30 @@ final class NutritionDiaryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Unavailable"].firstMatch.exists)
     }
 
+    /// DIAGNOSTIC variant only (#179): mirrors the source-picker segment of the required
+    /// test above, but resigns the keyboard via Return before interacting with the picker.
+    /// The original keyboard-up path is the gate and stays untouched; it times out
+    /// deterministically (app never idles 60s+, v3+v5 artifacts). This variant only
+    /// isolates whether the keyboard is implicated in that non-idle state. A green result
+    /// here cannot satisfy the original gate and proves nothing about the underlying
+    /// cause; any app-side fix must verify the real keyboard + picker user flow.
+    func testFoodDiarySourcePickerKeyboardResignedDiagnostic() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-resetNutritionDiary"]
+        app.launch()
+        openDiary(app)
+        openLogForm(app)
+        let sourceName = app.textFields["nutritionDiary.sourceName"]
+        typeAfterKeyboard(sourceName, in: app, "My notes")
+        sourceName.typeText("\n")
+        let sourcePicker = app.descendants(matching: .any)["nutritionDiary.source"].firstMatch
+        XCTAssertTrue(sourcePicker.waitForExistence(timeout: 5))
+        tapWhenHittable(sourcePicker, in: app)
+        let externalSource = app.buttons["External record (not verified by Ate)"]
+        XCTAssertTrue(externalSource.waitForExistence(timeout: 30),
+                      "picker option should be reachable after keyboard resign (diagnostic)")
+    }
+
     /// Shared navigation: Settings tab -> Food diary screen.
     private func openDiary(_ app: XCUIApplication) {
         let settings = app.tabBars.buttons["Settings"]

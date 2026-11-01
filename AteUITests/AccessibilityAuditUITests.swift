@@ -161,6 +161,9 @@ final class AccessibilityAuditUITests: XCTestCase {
         } else {
             let t = XCTAttachment(string: name + ": element not reachable in the clear band at AX5")
             t.name = name + "-MISS"; t.lifetime = .keepAlways; add(t)
+            // Required reach/capture: without a hard failure a green sweep could once
+            // again mean missing evidence (main review, #179).
+            XCTFail("Required AX5 cross-size capture missed: \(name)")
         }
     }
 

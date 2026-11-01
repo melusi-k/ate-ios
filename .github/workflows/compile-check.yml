@@ -64,7 +64,10 @@ jobs:
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
-    timeout-minutes: 75
+    # Raised 75 -> 120 with owner approval (#179): the independently bounded test workloads
+    # (per-size font captures, split AX5 sweeps) exceed 75 min wall time; v7/v8 runs were
+    # cancelled by this cap mid-execution. Per-test allowances are unchanged.
+    timeout-minutes: 120
     env:
       ATE_SIGN_STYLE: Automatic
     steps:

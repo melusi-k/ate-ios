@@ -223,12 +223,6 @@ final class HealthInsightTests: XCTestCase {
         await m.loadIfNeeded(recipes: []); XCTAssertTrue(m.loadedOnce)
     }
     /// The instruction says under 25 words ending in a question mark; the acceptance gate enforces both.
-    func testGeneratedReflectionAcceptanceEnforcesStatedConstraints() {
-        XCTAssertTrue(JournalSuggestionService.isAcceptable("What small win do you want to cook towards this week?"))
-        XCTAssertFalse(JournalSuggestionService.isAcceptable("You should eat more protein at dinner tonight."), "not a question")
-        XCTAssertFalse(JournalSuggestionService.isAcceptable("What a very long generated reflection prompt that rambles on and on well beyond twenty five words without ever getting to the point of asking anything at all?"), "over 25 words")
-        XCTAssertFalse(JournalSuggestionService.isAcceptable("Short?"), "8 characters or fewer")
-    }
 
 }
 

@@ -1,5 +1,7 @@
 name: Diagnose 245 explore-sheets xcresult
 on:
+  push:
+    branches: [diag/**]
   workflow_dispatch:
     inputs:
       run_id:

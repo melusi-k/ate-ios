@@ -50,7 +50,7 @@ final class RecipePromptTests: XCTestCase {
         Saturday special 🔥 Mogodu, ujeqe and morogo R85. Order on WhatsApp
         \"\"\"
         This caption looks like an advert or menu, not a recipe. Only use dish names that appear in it.
-        Regional dishes mentioned: Ujeqe (steamed bread); Mogodu / ulusu (tripe); Morogo. Call lookupRegionalDish for each before writing ingredients.
+        Regional dishes mentioned: Ujeqe (steamed bread); Mogodu / ulusu (tripe); Morogo.
 
         """
         XCTAssertEqual(p, expected)
@@ -61,6 +61,79 @@ final class RecipePromptTests: XCTestCase {
         for must in ["Never use place names", "hashtags", "@handles", "NAMED dish", "Unknown dish", "metric", "tripe takes 2 to 3 h", "confidence"] {
             XCTAssertTrue(i.contains(must), must)
         }
+    }
+
+    /// Consolidation guard: each critical rule is stated exactly once in the shared instructions,
+    /// so a future edit cannot silently drop it or reintroduce the duplication the review found.
+    func testCriticalRulesAppearExactlyOnce() {
+        let i = RecipePrompt.instructions
+        for phrase in ["First identify the dish", "confidence below 0.2", "Do not invent a different dish", "call lookupRegionalDish"] {
+            XCTAssertEqual(i.components(separatedBy: phrase).count - 1, 1, phrase)
+        }
+        let u = RecipePrompt.photoUnnamed(labels: [], candidates: [], ocr: "")
+        XCTAssertEqual(u.components(separatedBy: "Unknown dish").count - 1, 1, "photoUnnamed states the Unknown-dish fallback once")
+        XCTAssertEqual(u.components(separatedBy: "confidence below 0.2").count - 1, 1)
+    }
+
+    /// instructions(for:) is the shared block plus exactly this brief. Snapshot per mode:
+    /// change deliberately, then update the expected text.
+    func testPerModeBriefSnapshots() {
+        let briefs: [(RecipePrompt.Input, String)] = [
+            (.link, "Input: text scraped from a recipe web page. Ignore navigation, ads and comments."),
+            (.social, "Input: a social media caption. It may be an advert or menu; follow rule 3 and 4 strictly."),
+            (.photo, "Input: a photo of food or a beverage, optionally named by the user. If you need printed text in the photo (menu boards, labels), call readPhotoText. Distinguish plated food from a drink/cocktail only when image labels and scene clues support it. A glass, plate, utensil, wooden object, cookware or tableware alone is not enough to identify a recipe."),
+            (.screenshot, "Input: OCR text of a recipe screenshot. Keep the original quantities and order."),
+            (.prompt, "Input: the user's own description. A sensible traditional recipe is fine; still follow the units and timing rules."),
+            (.rewrite, "Input: an existing recipe card as JSON plus the user's change request. Change only what is asked."),
+        ]
+        XCTAssertEqual(briefs.count, 6, "one brief per input mode")
+        for (input, brief) in briefs {
+            XCTAssertEqual(RecipePrompt.instructions(for: input), RecipePrompt.instructions + "\n" + brief, "\(input)")
+        }
+    }
+
+    /// Prompt-size guard (measured characters; the on-device window is 4,096 tokens per Apple TN3193,
+    /// roughly 3-4 characters per token). Consolidation savings must stay saved.
+    /// Raise only with a deliberate, reviewed prompt change.
+    func testPromptSizeGuard() {
+        XCTAssertLessThanOrEqual(RecipePrompt.instructions.count, 3450, "shared instructions grew (measured 3,433 after the Nov 2026 consolidation)")
+        for input in [RecipePrompt.Input.link, .social, .photo, .screenshot, .prompt, .rewrite] {
+            XCTAssertLessThanOrEqual(RecipePrompt.instructions(for: input).count, 3900, "instructions(for: \(input)) grew")
+        }
+        let u = RecipePrompt.photoUnnamed(labels: ["food", "bowl"], candidates: ["Mogodu (tripe)"], ocr: "menu text")
+        XCTAssertLessThanOrEqual(u.count, 1600, "photoUnnamed assembled body grew")
+    }
+
+    /// Dietary/servings cues come from attributable text (the user's own words, the scraped source),
+    /// never the assembled prompt's examples or guidance.
+    func testContextFromScrapedSourceText() {
+        let c = RecipePrompt.context(userText: "https://instagram.com/p/xyz", sourceText: "Vegan chakalaka for 6", trustSourceDietary: true, region: "ZA")
+        XCTAssertEqual(c.dietary, ["vegan"]); XCTAssertEqual(c.servings, 6); XCTAssertEqual(c.region, "South Africa")
+    }
+
+    /// Cooking times are not servings; negated diets are not requirements.
+    func testContextIgnoresTimeUnitsAndNegation() {
+        XCTAssertNil(RecipePrompt.context(for: "Simmer for 20 minutes, then bake for 2 hours.").servings)
+        XCTAssertEqual(RecipePrompt.context(for: "Serves 8.").servings, 8)
+        XCTAssertEqual(RecipePrompt.context(for: "not vegan at all").dietary, [])
+        XCTAssertEqual(RecipePrompt.context(for: "make it vegan").dietary, ["vegan"])
+    }
+
+    /// Explicit user text wins over the scraped recipe; untrusted sources never set dietary.
+    func testContextPriorityUserOverSource() {
+        let c = RecipePrompt.context(userText: "chakalaka for 2", sourceText: "Serves 8. Vegan.", trustSourceDietary: false, region: "US")
+        XCTAssertEqual(c.servings, 2, "the user's explicit servings win over the page")
+        XCTAssertEqual(c.dietary, [], "a long page mentioning 'vegan' descriptively is not a hard constraint")
+        let d = RecipePrompt.context(userText: "", sourceText: "Serves 8. Vegan.", trustSourceDietary: true, region: "US")
+        XCTAssertEqual(d.servings, 8); XCTAssertEqual(d.dietary, ["vegan"])
+    }
+
+    /// The retry tells the same-session model exactly what to repair.
+    func testRetryInstructionCarriesGapsAndVisibleLabels() {
+        let s = RecipePrompt.retryInstruction(gaps: ["Needs at least 3 ingredients."], visibleLabels: ["bread", "lettuce"])
+        XCTAssertTrue(s.contains("previous draft fell short")); XCTAssertTrue(s.contains("Needs at least 3 ingredients."))
+        XCTAssertTrue(s.contains("bread, lettuce")); XCTAssertTrue(s.hasSuffix("Return the corrected card."))
+        XCTAssertFalse(RecipePrompt.retryInstruction(gaps: ["g"], visibleLabels: []).contains("visible component"))
     }
 
     func testPhotoAssessment() {
@@ -74,7 +147,9 @@ final class RecipePromptTests: XCTestCase {
         XCTAssertEqual(PhotoGuess.assess(labels: [("pizza", 0.85), ("food", 0.9)], ocrText: ""), .confident("pizza"))
         XCTAssertEqual(PhotoGuess.assess(labels: generic, ocrText: "Mogodu Saturday"), .confident("Mogodu / ulusu (tripe)"))
         let p = RecipePrompt.photo(dish: "ujeqe", labels: ["bread"], ocr: "")
-        XCTAssertTrue(p.contains("exactly that dish")); XCTAssertTrue(p.contains("lookupRegionalDish"))
+        XCTAssertTrue(p.contains("exactly that dish"))
+        XCTAssertTrue(RecipePrompt.instructions(for: .photo).contains("lookupRegionalDish"), "tool instruction lives once in the shared instructions")
         XCTAssertTrue(RecipePrompt.lookupRegionalDish("ujeqe").contains("steam 1 h"), "glossary detail now comes from the tool")
     }
 }
+

@@ -66,22 +66,31 @@ final class OnDeviceBackend: BackendService {
         var visibleLabels: [String] = []
         var visionLabels: [(String, Float)] = []
         var photoOCR = ""
+        // Attributable cue sources for dietary/servings detection: the user's own words
+        // (request text / photo hint) and the scraped source. The assembled prompt also
+        // carries examples and guidance, so it is never scanned for cues.
+        var contextUser = request.text ?? ""
+        var contextSource = ""
+        var trustSourceDietary = false
         switch request.mode {
         case .prompt:
             prompt = RecipePrompt.prompt(request.text ?? "")
         case .url where socialCaption != nil:
             prompt = RecipePrompt.social(caption: socialCaption!); input = .social
+            contextSource = socialCaption!; trustSourceDietary = true
         case .url:
             let page: String
             if let html = pageHTML { page = String(Self.htmlToText(html).prefix(3500)) }
             else { page = try await Self.fetchPageText(request.text ?? "") }
             prompt = RecipePrompt.page(page); input = .link
+            contextSource = page
         case .image:
             let text = try await Self.ocr(dataURL: request.imageDataUrl ?? "")
             photoOCR = text
             let hint = (request.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             if PhotoGuess.isScreenshotText(text) && hint.isEmpty {
                 prompt = RecipePrompt.screenshot(text); input = .screenshot
+                contextSource = text; contextUser = ""
             } else {
                 // A food photo: OCR + labels; generic labels mean we ask the user before generating.
                 let labels = try await Self.classify(dataURL: request.imageDataUrl ?? "")
@@ -106,6 +115,7 @@ final class OnDeviceBackend: BackendService {
                 }
                 prompt = pp + "\n" + scene
                 source = .photoGuess
+                contextSource = text; trustSourceDietary = true
             }
         case .rewrite:
             var c = request.currentRecipe ?? RecipeCard()
@@ -114,7 +124,7 @@ final class OnDeviceBackend: BackendService {
             prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"; input = .rewrite
             reviseID = c.id
         }
-        let ctx = RecipePrompt.context(for: request.text ?? "")
+        let ctx = RecipePrompt.context(userText: contextUser, sourceText: contextSource, trustSourceDietary: trustSourceDietary)
         var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx)
         // Never show a confident recipe for an object the camera saw instead of food.
         // Send the user back through the dish question so the next pass is grounded by a human label.
@@ -124,9 +134,21 @@ final class OnDeviceBackend: BackendService {
         // Too thin, or missing what the photo shows: regenerate ONCE with the gaps spelled out.
         let gaps = RecipeQuality.shortfall(card, labels: visibleLabels)
         if request.mode != .rewrite, !gaps.isEmpty {
-            let fix = prompt + "\nThe previous draft fell short: " + gaps.joined(separator: " ")
-                + (visibleLabels.isEmpty ? "" : " Include every visible component: \(visibleLabels.prefix(8).joined(separator: ", ")).")
-            if let again = try? await Self.generate(fix, input: input, photoDataURL: photoForTool, context: ctx),
+            // Repair, don't re-roll. Prefer the same session: generate() keys it by card.id, so the
+            // failed draft is still in the transcript and the instruction prefix is not re-paid.
+            // When no session survives (eviction between generations), inline the draft as JSON so
+            // the model always sees what it is fixing.
+            let retryText = RecipePrompt.retryInstruction(gaps: gaps, visibleLabels: visibleLabels)
+            let fix: String
+            let retryReviseID: String?
+            if await Self.sessionExists(for: card.id) {
+                fix = retryText; retryReviseID = card.id
+            } else {
+                let draft = (try? String(data: JSONEncoder().encode(card), encoding: .utf8)) ?? ""
+                fix = prompt + "\nPrevious draft (JSON):\n" + draft + "\n" + retryText
+                retryReviseID = nil
+            }
+            if let again = try? await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx),
                RecipeQuality.shortfall(again, labels: visibleLabels).count < gaps.count { card = again }
         }
         if source == .photoGuess {
@@ -248,15 +270,24 @@ final class OnDeviceBackend: BackendService {
     }
 
     #if canImport(FoundationModels)
-    /// Instructions { } builder: persona, rules and format; the glossary now comes from lookupRegionalDish on demand.
+    /// Session instructions: persona, rules and format per input mode. The lookupRegionalDish call
+    /// instruction lives once in shared rule 7; glossary detail comes from the tool on demand.
     @available(iOS 26.0, *)
     static func makeSession(tools: [any Tool], input: RecipePrompt.Input) -> LanguageModelSession {
         LanguageModelSession(tools: tools, instructions: Instructions {
             RecipePrompt.instructions(for: input)
-            "For any regional or unfamiliar dish name, call lookupRegionalDish before writing ingredients."
         })
     }
     #endif
+
+    /// Whether a generation session survives for this card id (shortfall retry reuses it so the
+    /// failed draft stays in the transcript; the retry inlines the draft JSON when this is false).
+    @MainActor static func sessionExists(for id: String) -> Bool {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) { return sessions[id] != nil }
+        #endif
+        return false
+    }
 
     /// Move a revised card's session to the recipe's stable id (rewrite keeps the original id).
     @MainActor static func rekeySession(from old: String, to new: String) {
@@ -461,7 +492,7 @@ struct GenStep {
 @available(iOS 26.0, *)
 @Generable
 struct DishIdentification {
-    @Guide(description: "Most likely edible dish name from the caption/OCR/image labels and glossary; never a utensil, plate, bowl, cookware, tableware, place, business, hashtag or handle; use Unknown dish when no food is established") var name: String
+    @Guide(description: "Most likely edible dish name from the caption/OCR/image labels and glossary; never a non-food object (utensil, plate, bowl, cookware, tableware), place, business, hashtag or handle; use Unknown dish when no food is established") var name: String
     @Guide(description: "Cuisine in one or two words, e.g. South African, Italian") var cuisine: String
     @Guide(description: "How sure you are the dish is `name`; below 0.8 when the input doesn't clearly name or show it", .range(0.0...1.0)) var confidence: Double
     @Guide(description: "Other plausible dish names, most likely first; empty when sure", .maximumCount(4)) var alternatives: [String]
@@ -472,7 +503,7 @@ struct DishIdentification {
 @Generable
 struct GenRecipe {
     @Guide(description: "Identify the dish first") var dish: DishIdentification
-    @Guide(description: "The card title: the identified edible dish name as written; never an object such as utensil or plate") var title: String
+    @Guide(description: "The card title: the identified edible dish name as written; never a non-food object (utensil, plate, bowl, cookware, tableware), place, business, hashtag or handle") var title: String
     @Guide(description: "Under 20 words") var description: String
     @Guide(description: "Servings that suit the dish (stews 4 to 6); for one plated item in a photo (one sandwich, one bowl) use 1", .range(1...24)) var servings: Int
     @Guide(description: "Total minutes: the sum of all step minutes plus a short prep time; never more than that", .range(1...2880)) var timeMinutes: Int
@@ -561,3 +592,4 @@ extension GenerationFailure {
     }
 }
 #endif
+

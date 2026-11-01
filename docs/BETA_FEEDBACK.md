@@ -22,3 +22,7 @@ Beta testers open Settings → Beta & diagnostics → Share Feedback. They selec
 
 ## Current scope
 Screenshot/file attachments are deliberately not included in this first implementation. The app does not upload photos or local diagnostic logs. Add attachments only with a separate private-storage, consent, size-limit, retention and deletion design.
+
+## Product lifecycle and feedback triage
+
+Beta feedback is qualitative evidence for the Observe stage in the [Ate Product Lifecycle](../PRODUCT_LIFECYCLE.md). A submission is not automatically a validated finding or a product commitment. Triage themes, severity, build/cohort context and disposition; link resulting issues and decisions. Summarise interpreted themes in [OBSERVATION_REVIEWS/](../OBSERVATION_REVIEWS/) and connect them to the relevant outcome in [PRODUCT_OUTCOMES.md](../PRODUCT_OUTCOMES.md). Preserve the existing privacy and minimisation rules; do not copy unnecessary personal or sensitive content into review records.

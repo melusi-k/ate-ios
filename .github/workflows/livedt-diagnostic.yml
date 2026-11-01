@@ -1,0 +1,103 @@
+name: Live-DT diagnostic (manual, non-qualification)
+
+# MANUAL-ONLY diagnostic lane for issue #179 live Dynamic Type evidence.
+# - workflow_dispatch ONLY: no push, no pull_request, no schedule. It can never
+#   run as a PR gate and its results are NOT qualification evidence for any PR.
+# - Lives only on the diagnostic branch (diagnostic/issue-179-livedt-v4), which
+#   must never get a PR; standard compile-check gates are unchanged.
+# - Mirrors compile-check.yml's compile-job build config (runner, Xcode, caches,
+#   xcodegen, build-for-testing) so the diagnostic binary matches gate builds.
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: livedt-diagnostic-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  livedt:
+    runs-on: xcode-27
+    # Diagnostic lane's own bound: build (~25m) + 5 bounded per-target tests
+    # (~15m) + margin. Independent of the compile job's 120-minute capacity.
+    timeout-minutes: 60
+    env:
+      ATE_SIGN_STYLE: Automatic
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            xcode-27-xcode-deriveddata-
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: xcode-27-homebrew-xcodegen-v1
+          restore-keys: |
+            xcode-27-homebrew-
+      - run: brew install xcodegen && xcodegen generate
+      - name: Prepare diagnostics directory
+        run: mkdir -p "$RUNNER_TEMP/ate-test-results"
+      - name: Build for testing (iOS simulator)
+        id: build
+        run: |
+          set -o pipefail
+          STEP_START=$(date +%s)
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+          set +e
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+          status=$?
+          set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=build-for-testing duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Simulator build failed (xcodebuild exit $status)."
+            grep -n -B 8 -A 12 -E "error:|warning:|failed|Fatal error|Testing failed" build.log || true
+            tail -n 100 build.log
+            exit "$status"
+          fi
+      - name: Live-DT per-target diagnostics (#179, non-qualification)
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeDiaryGoalsRow \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeDiaryEmptyTitle \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeDiaryEmptyDescription \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeGoalsClearAllHint \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeGoalsCancel \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/livedt-ui-tests.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > livedt-ui-tests.log 2>&1 || status=$?
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/livedt-ui-tests.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/livedt-ui-attachments" 2>/dev/null || true
+          grep -E "Test Case .* (passed|failed)|Executed" livedt-ui-tests.log | tail -40 || true
+          if grep -q "Executed 0 tests" livedt-ui-tests.log; then echo "::error::live-DT selection executed 0 tests"; exit 1; fi
+          # Diagnostic lane: a failing/incomplete test is evidence, not a gate breach;
+          # exit non-zero so the run is visibly red but artifacts still upload.
+          if [ "${status:-0}" -ne 0 ]; then exit 1; fi
+      - name: Upload live-DT diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: livedt-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            livedt-ui-tests.log
+            ${{ runner.temp }}/ate-test-results/livedt-ui-tests.xcresult
+            ${{ runner.temp }}/ate-test-results/livedt-ui-attachments

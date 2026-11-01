@@ -191,7 +191,7 @@ enum RecipePrompt {
             guard let r = l.range(of: w) else { return false }
             return !isNegated(l, r)
         }
-        if let r = l.range(of: #"(?:for|serves)\s+(\d{1,2})(?!\s*(?:minutes?|mins?|hours?|hrs?|h|seconds?|secs?)\b)"#, options: .regularExpression),
+        if let r = l.range(of: #"(?:for|serves)\s+(\d{1,2})\b(?!\s*(?:minutes?|mins?|hours?|hrs?|h|seconds?|secs?)\b)"#, options: .regularExpression),
            let n = Int(l[r].filter(\.isNumber)), n > 0 { c.servings = n }
         c.region = region == "ZA" ? "South Africa" : nil
         return c

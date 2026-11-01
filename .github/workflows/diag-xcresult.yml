@@ -7,11 +7,11 @@ on:
       run_id:
         description: "Source run id holding the diagnostics artifact"
         required: true
-        default: "41254392421"
+        default: "41248710169"
       artifact_name:
         description: "Artifact name inside that run"
         required: true
-        default: "compile-check-diagnostics-41254392421-2"
+        default: "compile-check-diagnostics-41248710169-1"
       xcresult_path:
         description: "xcresult path inside the artifact"
         required: true
@@ -30,8 +30,8 @@ jobs:
           xcode-version: "27.1"
       - uses: actions/download-artifact@v7
         with:
-          name: ${{ inputs.artifact_name || 'compile-check-diagnostics-41254392421-2' }}
-          run-id: ${{ inputs.run_id || '41254392421' }}
+          name: ${{ inputs.artifact_name || 'compile-check-diagnostics-41248710169-1' }}
+          run-id: ${{ inputs.run_id || '41248710169' }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: diag
       - name: Dump xcresult diagnostics

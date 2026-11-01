@@ -229,7 +229,12 @@ final class CoverageUITests: XCTestCase {
     }
 
     func testExploreJournalPresentsAsSheetAndDismissesToLibrary() {
-        launch()
+        launch(["-qaDisableAnimations"])
+        let animFlag = app.descendants(matching: .any)["qa.animationsFlag"].firstMatch
+        XCTAssertTrue(animFlag.waitForExistence(timeout: 5),
+                      "-qaDisableAnimations marker must exist in the diagnostic session")
+        XCTAssertEqual(animFlag.value as? String, "false",
+                       "UIKit animation flag must read back disabled before the Explore route")
         tab("Library")
         app.buttons["libraryBrowseMenu"].tap()
         let journal = browseMenuItem("Journal")

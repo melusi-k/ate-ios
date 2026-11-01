@@ -111,12 +111,21 @@ final class RecipePromptTests: XCTestCase {
         XCTAssertEqual(c.dietary, ["vegan"]); XCTAssertEqual(c.servings, 6); XCTAssertEqual(c.region, "South Africa")
     }
 
-    /// Cooking times are not servings; negated diets are not requirements.
+    /// Cooking times are not servings; negated diets are not requirements (even with sloppy spacing).
     func testContextIgnoresTimeUnitsAndNegation() {
         XCTAssertNil(RecipePrompt.context(for: "Simmer for 20 minutes, then bake for 2 hours.").servings)
+        XCTAssertNil(RecipePrompt.context(for: "Rest for 30 min, then bake for 2h.").servings)
         XCTAssertEqual(RecipePrompt.context(for: "Serves 8.").servings, 8)
+        XCTAssertEqual(RecipePrompt.context(for: "Dinner for 2 people").servings, 2)
+        XCTAssertEqual(RecipePrompt.context(for: "chakalaka for 6").servings, 6)
         XCTAssertEqual(RecipePrompt.context(for: "not vegan at all").dietary, [])
+        XCTAssertEqual(RecipePrompt.context(for: "definitely not  vegan, thanks").dietary, [])
+        XCTAssertEqual(RecipePrompt.context(for: "isn't vegan").dietary, [])
+        XCTAssertEqual(RecipePrompt.context(for: "never vegetarian tonight").dietary, [])
+        XCTAssertEqual(RecipePrompt.context(for: "non-vegan").dietary, [])
         XCTAssertEqual(RecipePrompt.context(for: "make it vegan").dietary, ["vegan"])
+        XCTAssertEqual(RecipePrompt.context(for: "Vegan!").dietary, ["vegan"])
+        XCTAssertEqual(RecipePrompt.context(for: "a knot in the vegan thread").dietary, ["vegan"], "'knot' is not a negator")
     }
 
     /// Explicit user text wins over the scraped recipe; a stated dietary identity applies even on long pages.
@@ -135,6 +144,7 @@ final class RecipePromptTests: XCTestCase {
         XCTAssertEqual(RecipePrompt.sourceDietary(in: "Mac and Cheese\n\nThis recipe is naturally gluten-free and feeds a crowd.", longForm: true), ["gluten-free"], "requirement phrasing counts")
         XCTAssertEqual(RecipePrompt.sourceDietary(in: "Mac and Cheese\n\nA family favourite. To make it vegan, swap the butter for oil and use a dairy-free cheese alternative.", longForm: true), [], "optional adaptations are not requirements")
         XCTAssertEqual(RecipePrompt.sourceDietary(in: "A rich stew. Not vegan, but easily adapted with beans.", longForm: true), [], "negated mentions are not requirements")
+        XCTAssertEqual(RecipePrompt.sourceDietary(in: "Definitely not  vegan, sadly.", longForm: false), [], "sloppy spacing still negates")
         XCTAssertEqual(RecipePrompt.sourceDietary(in: "Sunday lunch sorted: vegan chakalaka and rice!", longForm: false), ["vegan"], "short dish-defining sources count a plain mention")
         XCTAssertEqual(RecipePrompt.sourceDietary(in: "Love this? Try our vegetarian version next week.", longForm: false), [], "advert-style alternatives are not the dish")
     }

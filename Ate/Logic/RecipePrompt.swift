@@ -44,18 +44,17 @@ enum CaptionAnalysis {
 enum RecipePrompt {
     static let instructions = """
     You are a South African home-cooking expert who also knows Southern and West African, and international, home cooking. You turn the user's input into one recipe card.
-    Format: first identify the dish (name, cuisine, confidence, alternatives), then write title, servings, time, ingredients (amount, unit, name, prep) and steps (instruction, minutes, temperatureC).
+    Format: First identify the dish (dishName, cuisine, confidence, alternatives), then write the recipe for that dish: title, servings, time, ingredients (amount, unit, name, prep) and steps (instruction, minutes, temperatureC). confidence is 0 to 1: how sure you are about dishName; use below 0.8 when the input does not clearly name or show it.
     Rules:
-    1. Ground everything in the provided text. Copy dish names and ingredients verbatim when they are given. Do not invent a different dish.
+    1. Ground everything in the provided text. Copy dish names and ingredients verbatim when they are given. Do not invent a different dish or drink than the input names or shows.
     2. Never use place names, business or account names, hashtags, @handles, phone numbers, prices or delivery/ordering text as the dish, title or ingredients.
     3. If the text is a menu or an advert that names a dish but has no recipe, write a best-effort traditional recipe for that NAMED dish and say so in note.
-    4. For text-only inputs, if no dish is named at all, title the card "Unknown dish", set confidence below 0.2 and explain in note. For photo inputs, use only visible evidence and image labels to identify food or a beverage; if the item cannot be established, use "Unknown dish" with confidence below 0.2. Never turn an ambiguous colour, glass or object into a specific ingredient or recipe.
+    4. If no dish is named (text) or the item cannot be established from visible evidence and image labels (photo), title the card "Unknown dish", set confidence below 0.2 and explain in note. Never turn an ambiguous colour, glass or object into a specific ingredient or recipe.
     5. Use realistic home quantities in metric units (g, kg, ml, l, tbsp, tsp, cloves, pcs). Servings must suit the dish (stews and braises usually 4 to 6).
     6. Give minutes for every waiting or cooking step, matching the time written in the step ("simmer 20 minutes" is 20; "2 to 3 h" is 180). timeMinutes is the sum of all steps plus prep: tripe takes 2 to 3 h, steamed bread over 1 h, samp and beans 2 to 3 h.
-    7. Respect regional cuisines (South African, Southern African, West African). Use the glossary when provided. Never replace them with an unrelated Western dish.
-    8. First identify the dish (dishName, cuisine, confidence, alternatives), then write the recipe for that dish. confidence is 0 to 1: how sure you are about dishName; use below 0.8 when the input does not clearly name or show it.
-    9. A main dish needs at least 4 real ingredients with quantities. Oven steps give the temperature in °C. Every step says how (heat, cue), never just "cook the ribs". Times must be realistic: simmer/stew 20+ min, braise 1 h+, pap 15+ min, browning 5+ min. Start each step with a specific verb. Never invent steps or ingredients the source contradicts.
-    10. Ingredient–step consistency is mandatory: every named food, wrapper, sauce, fat or binder used in a step must appear as a measured ingredient. Conversely, do not list ingredients that the steps never use. For a photo, account for the dish's structure (for example, a spring roll needs a wrapper and a named filling); do not turn a generic vegetable mixture into a complete recipe.
+    7. Respect regional cuisines (South African, Southern African, West African). For any regional or unfamiliar dish name, call lookupRegionalDish before writing ingredients. Never replace them with an unrelated Western dish.
+    8. A main dish needs at least 4 real ingredients with quantities. Oven steps give the temperature in °C. Every step says how (heat, cue), never just "cook the ribs". Times must be realistic: simmer/stew 20+ min, braise 1 h+, pap 15+ min, browning 5+ min. Start each step with a specific verb. Never invent steps or ingredients the source contradicts.
+    9. Ingredient–step consistency is mandatory: every named food, wrapper, sauce, fat or binder used in a step must appear as a measured ingredient. Conversely, do not list ingredients that the steps never use. For a photo, account for the dish's structure (for example, a spring roll needs a wrapper and a named filling); do not turn a generic vegetable mixture into a complete recipe.
     Example 1 (South African), input "chakalaka": dish Chakalaka, South African, confidence 0.95. Ingredients: 2 tbsp oil; 1 onion, diced; 2 carrots, grated; 1 green pepper, diced; 2 tsp curry powder; 400 g tinned baked beans. Steps: Sauté the onion in the oil over medium heat until soft, 5 min. Stir in the carrot, pepper and curry powder and fry 3 min. Add the beans and simmer uncovered until thick, 15 min.
     Example 2, input "sticky oven ribs": dish Sticky pork ribs, American, confidence 0.9. Ingredients: 1.2 kg pork ribs; 3 tbsp brown sugar; 2 tsp smoked paprika; 3 cloves garlic, crushed; 125 ml barbecue sauce. Steps: Rub the ribs with sugar, paprika and garlic. Wrap in foil and bake at 160°C until tender, 120 min. Unwrap, brush with sauce and roast at 220°C until sticky, 15 min.
     """
@@ -69,7 +68,7 @@ enum RecipePrompt {
         switch input {
         case .link: brief = "Input: text scraped from a recipe web page. Ignore navigation, ads and comments."
         case .social: brief = "Input: a social media caption. It may be an advert or menu; follow rule 3 and 4 strictly."
-        case .photo: brief = "Input: a photo of food or a beverage, optionally named by the user. If you need printed text in the photo (menu boards, labels), call readPhotoText. Never invent a different dish or drink than the user named. Distinguish plated food from a drink/cocktail only when image labels and scene clues support it. A glass, plate, utensil, wooden object, cookware or tableware alone is not enough to identify a recipe. If the edible item cannot be established, return Unknown dish with confidence below 0.2 instead of inventing a recipe."
+        case .photo: brief = "Input: a photo of food or a beverage, optionally named by the user. If you need printed text in the photo (menu boards, labels), call readPhotoText. Distinguish plated food from a drink/cocktail only when image labels and scene clues support it. A glass, plate, utensil, wooden object, cookware or tableware alone is not enough to identify a recipe."
         case .screenshot: brief = "Input: OCR text of a recipe screenshot. Keep the original quantities and order."
         case .prompt: brief = "Input: the user's own description. A sensible traditional recipe is fine; still follow the units and timing rules."
         case .rewrite: brief = "Input: an existing recipe card as JSON plus the user's change request. Change only what is asked."
@@ -111,7 +110,7 @@ enum RecipePrompt {
 
     /// Food photo with no confident name: the model identifies the dish in the same pass (dishName first).
     static func photoUnnamed(labels: [String], candidates: [String], ocr: String, ocrViaTool: Bool = false) -> String {
-        var p = "A photo of food or a beverage. First identify whether the image evidence supports a prepared food dish or a drink/cocktail, then create an editable recipe only when there is a reasonable basis. Use supplied image labels, visible text and scene clues as evidence, not certainty. For cocktails and drinks, never infer a specific spirit by name (including brandy, gin, vodka, rum or tequila), liqueur, mixer, garnish or exact quantity from colour, bubbles, ice, fruit colour or glassware alone. Do not turn a generic label such as cocktail, drink, liquid or glass into a specific drink recipe. If the drink identity or ingredients are not visibly supported, return title Unknown dish, confidence below 0.2, empty or minimal recipe fields, and ask the user to identify the drink instead of inventing ingredients. For any other uncertain ingredient or quantity, omit unsupported specifics or explicitly mark estimates in the note. If the edible item or beverage cannot be established, return title Unknown dish, confidence below 0.2, empty or minimal recipe fields, and explain that the user must identify it; never invent a recipe around an object."
+        var p = "A photo of food or a beverage. First identify whether the image evidence supports a prepared food dish or a drink/cocktail, then create an editable recipe only when there is a reasonable basis. Use supplied image labels, visible text and scene clues as evidence, not certainty. For cocktails and drinks, never infer a specific spirit by name (including brandy, gin, vodka, rum or tequila), liqueur, mixer, garnish or exact quantity from colour, bubbles, ice, fruit colour or glassware alone. Do not turn a generic label such as cocktail, drink, liquid or glass into a specific drink recipe. If the drink identity or ingredients are not visibly supported, return title Unknown dish, confidence below 0.2, empty or minimal recipe fields, and ask the user to identify the drink instead of inventing ingredients. For any other uncertain ingredient or quantity, omit unsupported specifics or explicitly mark estimates in the note. If the edible item itself cannot be established, do the same and never invent a recipe around an object."
         if !labels.isEmpty { p += " Image labels: \(labels.prefix(6).joined(separator: ", "))." }
         if !candidates.isEmpty { p += " Likely regional candidates: \(candidates.prefix(8).joined(separator: ", "))." }
         let o = ocr.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -123,7 +122,7 @@ enum RecipePrompt {
     /// Short pointer only; the full entries come from the lookupRegionalDish tool on demand (saves context).
     static func glossary(for text: String) -> String {
         let m = CuisineGlossary.matches(in: text)
-        return m.isEmpty ? "" : "Regional dishes mentioned: " + m.map(\.name).joined(separator: "; ") + ". Call lookupRegionalDish for each before writing ingredients.\n"
+        return m.isEmpty ? "" : "Regional dishes mentioned: " + m.map(\.name).joined(separator: "; ") + ".\n"
     }
 
     /// Tool body for lookupRegionalDish: glossary entries (traditional ingredients, method, time) for a dish name.
@@ -139,8 +138,12 @@ enum RecipePrompt {
     static func context(for text: String, region: String? = Locale.current.region?.identifier) -> Context {
         let l = text.lowercased()
         var c = Context()
-        c.dietary = dietaryWords.filter { l.contains($0) }
-        if let r = l.range(of: #"(?:for|serves)\s+(\d{1,2})"#, options: .regularExpression),
+        c.dietary = dietaryWords.filter { w in
+            guard let r = l.range(of: w) else { return false }
+            let before = l[..<r.lowerBound].suffix(8)
+            return !["not ", "no ", "non-", "non ", "isn't ", "without"].contains { before.hasSuffix($0) }
+        }
+        if let r = l.range(of: #"(?:for|serves)\s+(\d{1,2})(?!\s*(?:minutes?|mins?|hours?|hrs?|h|seconds?|secs?)\b)"#, options: .regularExpression),
            let n = Int(l[r].filter(\.isNumber)), n > 0 { c.servings = n }
         c.region = region == "ZA" ? "South Africa" : nil
         return c
@@ -152,6 +155,29 @@ enum RecipePrompt {
         if let r = c.region { out.append("The cook is in \(r): use locally available ingredients and names.") }
         return out
     }
+    /// Merge cues from the user's own words and the scraped source. Explicit user text wins on
+    /// servings; dietary cues combine (union), but long full-recipe sources (web pages, screenshot
+    /// OCR) mention diets descriptively ("make it vegan by..."), so only short dish-defining
+    /// sources (social captions, photo hints/OCR) are trusted for dietary.
+    static func context(userText: String, sourceText: String, trustSourceDietary: Bool, region: String? = Locale.current.region?.identifier) -> Context {
+        let u = context(for: userText, region: region)
+        let s = context(for: sourceText, region: region)
+        var c = Context()
+        c.dietary = u.dietary + (trustSourceDietary ? s.dietary.filter { !u.dietary.contains($0) } : [])
+        c.servings = u.servings ?? s.servings
+        c.region = u.region ?? s.region
+        return c
+    }
+
+    /// Shortfall retry text. The retry runs in the SAME session when it survives (the failed card's
+    /// id as reviseID), so the model still sees its draft in the transcript and repairs it instead
+    /// of re-rolling; OnDeviceBackend inlines the draft JSON when no session survives.
+    static func retryInstruction(gaps: [String], visibleLabels: [String]) -> String {
+        var s = "The previous draft fell short: " + gaps.joined(separator: " ")
+        if !visibleLabels.isEmpty { s += " Include every visible component: \(visibleLabels.prefix(8).joined(separator: ", "))." }
+        return s + " Return the corrected card."
+    }
+
     /// A/B switch for code-along 205 step 3: with the one-shot GenRecipe example in the prompt, the schema can be left out.
     static var includeSchemaInPrompt: Bool { ProcessInfo.processInfo.arguments.contains("-qaIncludeSchema") || UserDefaults.standard.bool(forKey: "ate.ai.includeSchema") }
     static let exampleLead = "Here is an example of the desired format, but don't copy its content:"
@@ -252,3 +278,4 @@ struct PhotoNeedsDishError: LocalizedError, Equatable {
                : "Not sure what this dish is. Tell ate what it is for a better recipe."
     }
 }
+

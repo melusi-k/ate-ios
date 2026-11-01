@@ -1,38 +1,77 @@
-name: Compile check (DIAGNOSTIC NON-QUALIFICATION - do not merge)
+name: Compile check
 
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# DIAGNOSTIC-BRANCH COPY - NEVER MERGE, NEVER OPEN A PR FROM THIS BRANCH.
-# This file exists ONLY on diagnostic/issue-179-livedt-v4. It strips the
-# production Compile check gate down to a manual-only build + five bounded
-# per-target live-DT diagnostic tests (#179). The full qualification
-# workflow on main and all product branches is UNCHANGED and unaffected:
-# workflow_dispatch of "Compile check" with ref=diagnostic/issue-179-livedt-v4
-# executes THIS copy (the dispatched ref's file version, per GitHub's
-# documented --ref semantics); production refs keep their own copies.
-# Results here are diagnostic evidence only, never qualification.
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+# Everyday gate: build the app and run a small, high-value smoke set.
+# Exhaustive unit/UI coverage is retained in preproduction-qa.yml.
 permissions:
   contents: read
   pull-requests: read
   issues: write
 
 on:
+  push:
+    branches: ["wip/**"]
+  # Run on every PR target, including stacked feature/test branches, so a
+  # dependent PR cannot silently bypass the compile gate while based on another PR.
+  pull_request:
   workflow_dispatch:
 
 concurrency:
   group: compile-check-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Classify changed files
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            app:
+              - 'Ate/**'
+              - 'AteClip/**'
+              - 'AteTests/**'
+              - 'AteUITests/**'
+              - 'AteWidgets/**'
+              - 'AteWatch/**'
+              - 'Ate.xcodeproj/**'
+              - 'project.yml'
+              - 'Package.swift'
+              - 'Package.resolved'
+              - 'scripts/**'
+              - 'supabase/**'
+              - '.github/workflows/**'
+
+  docs-validation:
+    needs: changes
+    if: needs.changes.outputs.app != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate docs IDs and generated checklist consistency
+        run: python3 scripts/check-ids.py
+      - name: Test release-readiness evidence logic
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
+
   compile:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
-    # Diagnostic lane's own bound; independent of the production 120-minute
-    # capacity comment/claim. Per-test allowances (240/480) unchanged.
-    timeout-minutes: 60
+    # Raised 75 -> 120 with owner approval (#179): the independently bounded test workloads
+    # (per-size font captures, split AX5 sweeps) exceed 75 min wall time; v7/v8 runs were
+    # cancelled by this cap mid-execution. Per-test allowances are unchanged.
+    timeout-minutes: 120
     env:
       ATE_SIGN_STYLE: Automatic
     steps:
+      # PR validation must build the exact proposed head, not GitHub's synthetic merge commit.
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -47,6 +86,10 @@ jobs:
           restore-keys: |
             xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
             xcode-27-xcode-deriveddata-
+      - name: Validate docs IDs and generated checklist consistency
+        run: python3 scripts/check-ids.py
+      - name: Test release-readiness evidence logic
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
       - name: Cache Homebrew downloads
         uses: actions/cache@v6
         with:
@@ -55,6 +98,17 @@ jobs:
           restore-keys: |
             xcode-27-homebrew-
       - run: brew install xcodegen && xcodegen generate
+      - name: Build isolated App Clip target
+        run: |
+          set -o pipefail
+          xcodebuild build -project Ate.xcodeproj -scheme AteClip -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO > app-clip-build.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|Testing failed" app-clip-build.log || true; tail -100 app-clip-build.log; exit 1; }
+          grep -E "BUILD SUCCEEDED|warning:" app-clip-build.log | tail -30
+      - name: Run App Clip URL contract tests
+        run: |
+          set -o pipefail
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          xcodebuild test -project Ate.xcodeproj -scheme AteClip -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/app-clip-tests.xcresult" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO > app-clip-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" app-clip-tests.log || true; tail -100 app-clip-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" app-clip-tests.log | tail -40
       - name: Prepare diagnostics directory
         run: mkdir -p "$RUNNER_TEMP/ate-test-results"
       - name: Build for testing (iOS simulator)
@@ -64,44 +118,536 @@ jobs:
           STEP_START=$(date +%s)
           SIM_ID=$(python3 scripts/select-ios-simulator.py)
           echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+
           set +e
           xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
           status=$?
           set -e
           STEP_END=$(date +%s)
           echo "::notice::CI_TIMING step=build-for-testing duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
+
           if [ "$status" -ne 0 ]; then
-            echo "::error::Simulator build failed (xcodebuild exit $status)."
+            echo "::error::Simulator build failed (xcodebuild exit $status). Matching diagnostics and recent log follow:"
             grep -n -B 8 -A 12 -E "error:|warning:|failed|Fatal error|Testing failed" build.log || true
+            echo "::group::Last 100 build log lines"
             tail -n 100 build.log
+            echo "::endgroup::"
             exit "$status"
           fi
-      - name: Live-DT per-target diagnostics (#179, NON-QUALIFICATION)
+
+          grep -E "warning: .*(Widgets|Intents|Snapshot)" build.log > build-warnings.log || true
+          tail -n 30 build-warnings.log || true
+      - name: Nutrition foundation focused unit regressions (#206)
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/DataArchiveTests \
+            -only-testing:AteTests/NutritionGoalsTests \
+            -only-testing:AteTests/RecipeNutritionTests \
+            -only-testing:AteTests/NutritionDiaryTests \
+            -only-testing:AteTests/CatalogueIntegrityTests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-foundation-unit-tests.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > nutrition-foundation-unit-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-foundation-unit-tests.log || true; tail -120 nutrition-foundation-unit-tests.log; exit 1; }
+          # CatalogueIntegrityTests is introduced by PR #238 (food catalogue) and must merge
+          # before this slice; the pass-line guard below fails the job if the suite is absent.
+          # Execution evidence: a green selection that ran nothing is a failure, and the suites
+          # wired in by name must each show their own pass lines.
+          if grep -q "Executed 0 tests" nutrition-foundation-unit-tests.log; then echo "::error::nutrition unit selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "CatalogueIntegrityTests testCatalogueRecordsVerifiedWithRightsAndFiniteValues]' passed" \
+            "CatalogueIntegrityTests testCatalogueIDsAndNormalizedNamesAndAliasesUnique]' passed" \
+            "CatalogueIntegrityTests testAliasesPreserveAllMaterialQualifiers]' passed" \
+            "CatalogueIntegrityTests testCalculatorMatchesStateQualifiedAlias]' passed" \
+            "CatalogueIntegrityTests testCalculatorSurfacesUnmappedSADishNameAsIncomplete]' passed" \
+            "NutritionDiaryTests testDiaryRoundTripsEntryDateMealQuantityServingsAndProvenance]' passed"; do
+            grep -qF "$evidence" nutrition-foundation-unit-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-foundation-unit-tests.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
+
+      - name: Nutrition diary and goals UI regressions (#179)
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          # Clean process so launch arguments are real (same rationale as other UI shards).
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/NutritionDiaryUITests \
+            -only-testing:AteUITests/NutritionGoalsUITests \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreens \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeLibraryAndRecipe \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeCookMode \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeNutrition \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingXS \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingXXXL \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX1 \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX3 \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX5 \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeToggle \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > nutrition-ui-tests.log 2>&1 || status=$?
+          # Export screenshots, hierarchy snapshots and audit attachments on every outcome, so
+          # the diagnostics artifact also carries merge-gate pixel evidence for green runs
+          # (keepAlways success screenshots) rather than only failure evidence.
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/nutrition-ui-attachments" 2>/dev/null || true
+          if [ "${status:-0}" -ne 0 ]; then
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-ui-tests.log || true
+            tail -120 nutrition-ui-tests.log
+            exit 1
+          fi
+          # Execution evidence: a green selection that ran nothing is a failure, and every
+          # named test must appear with its own pass line in the log.
+          if grep -q "Executed 0 tests" nutrition-ui-tests.log; then echo "::error::nutrition UI selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "NutritionDiaryUITests testFoodDiaryOpensAndExplicitlyLogsFoodWithUnavailableValues]' passed" \
+            "NutritionDiaryUITests testDiaryShowsGoalPromptWhenGoalsUnconfiguredAndEmptyState]' passed" \
+            "NutritionDiaryUITests testLogFoodRejectsNonPositiveQuantityWithVisibleError]' passed" \
+            "NutritionDiaryUITests testLogFoodSurfacesSaveFailure]' passed" \
+            "NutritionDiaryUITests testCorruptDiaryShowsErrorAndRecoversAfterBackupReset]' passed" \
+            "NutritionDiaryUITests testCorruptGoalsShowLoadErrorWithRetry]' passed" \
+            "NutritionDiaryUITests testRecipeNutritionShowsIncompleteStateForUnmappedIngredient]' passed" \
+            "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
+            "AccessibilityAuditUITests testAuditNutritionScreens]' passed"; do
+            grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
+
+      - name: Upload nutrition UI diagnostics (early)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          # Unique per run+attempt and distinct from the tail artifact, so this early upload
+          # never collides with the immutable tail artifact name and nutrition diagnostics
+          # survive even when a later push supersedes this run before the job tail.
+          name: nutrition-ui-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            nutrition-ui-tests.log
+            ${{ runner.temp }}/ate-test-results/nutrition-ui-tests.xcresult
+            ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
+
+      - name: Library Explore native sheet presentation (#83)
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          # A failed XCTest launch can leave the app process suspended on the simulator.
+          # Reboot this isolated shard's device so the two Explore tests start cleanly.
+          xcrun simctl shutdown "$SIM_ID" >/dev/null 2>&1 || true
+          xcrun simctl boot "$SIM_ID" >/dev/null 2>&1 || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/testExploreInsightsPresentsAsSheetAndDismissesToLibrary \
+            -only-testing:AteUITests/CoverageUITests/testExploreJournalPresentsAsSheetAndDismissesToLibrary \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/library-explore-sheets.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > library-explore-sheets.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" library-explore-sheets.log || true; tail -100 library-explore-sheets.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" library-explore-sheets.log | tail -40
+
+      - name: Insights evidence and contextual navigation acceptance (issue #195)
+        id: insights_acceptance
+        if: ${{ steps.build.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testWeeklyCookingInsightShowsEvidenceAndNavigatesToTracker \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testInsightCanBeResolvedAndStaysSuppressedAfterRefresh \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > insights-evidence-navigation.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" insights-evidence-navigation.log || true; tail -120 insights-evidence-navigation.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" insights-evidence-navigation.log | tail -40
+
+      - name: Share publish outage fallback UI regression (PR #122)
         if: ${{ steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeDiaryGoalsRow \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeDiaryEmptyTitle \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeDiaryEmptyDescription \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeGoalsClearAllHint \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeGoalsCancel \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/livedt-ui-tests.xcresult" \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/share-publish-outage-fallback.xcresult" \
+            -only-testing:AteUITests/CoverageUITests/test39_SharePublishOutageFallsBackToTextAndKeepsLibrary \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > share-publish-outage-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" share-publish-outage-tests.log || true; tail -100 share-publish-outage-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" share-publish-outage-tests.log | tail -40
+
+      - name: Interrupted generation Retry lifecycle acceptance (#143)
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/test37_KilledMidGenerationRecovers \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/interrupted-generation-retry-lifecycle.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
-            CODE_SIGNING_ALLOWED=NO > livedt-ui-tests.log 2>&1 || status=$?
-          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/livedt-ui-tests.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/livedt-ui-attachments" 2>/dev/null || true
-          grep -E "Test Case .* (passed|failed)|Executed" livedt-ui-tests.log | tail -40 || true
-          if grep -q "Executed 0 tests" livedt-ui-tests.log; then echo "::error::live-DT selection executed 0 tests"; exit 1; fi
-          if [ "${status:-0}" -ne 0 ]; then exit 1; fi
-      - name: Upload live-DT diagnostics
+            CODE_SIGNING_ALLOWED=NO > interrupted-generation-retry-lifecycle.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" interrupted-generation-retry-lifecycle.log || true; tail -120 interrupted-generation-retry-lifecycle.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" interrupted-generation-retry-lifecycle.log | tail -40
+
+      - name: Recipe generation focused unit regressions (#89) — quarantined, not a pass
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/SyncFixtureTests/testInterruptedPhotoGenerationRestoresImageInput \
+            -only-testing:AteTests/SyncFixtureTests/testLegacyPendingDraftWithoutPhotoStillDecodes \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/recipe-generation-regressions.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            CODE_SIGNING_ALLOWED=NO > recipe-generation-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" recipe-generation-tests.log || true; tail -100 recipe-generation-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" recipe-generation-tests.log | tail -40
+
+      - name: Drink-photo prompt guardrails (#89) — blocking
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/PhotoRegressionTests/testAmbiguousPhotoPromptSupportsDrinksWithoutInventingSpirits \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/drink-photo-prompt-guardrails.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            CODE_SIGNING_ALLOWED=NO > drink-photo-prompt-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" drink-photo-prompt-tests.log || true; tail -100 drink-photo-prompt-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" drink-photo-prompt-tests.log | tail -40
+
+      - name: Transient generation Retry recovery (#89)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/test36b_RecipeGenerationRetryRecoversAfterTransientFailure \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/transient-generation-retry.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > transient-generation-retry.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" transient-generation-retry.log || true; tail -120 transient-generation-retry.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" transient-generation-retry.log | tail -40
+
+      - name: Photo recipe output validation (#144)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/PhotoRecipeOutputValidationTests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/photo-recipe-output-validation.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            CODE_SIGNING_ALLOWED=NO > photo-recipe-output-validation.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" photo-recipe-output-validation.log || true; tail -100 photo-recipe-output-validation.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" photo-recipe-output-validation.log | tail -40
+
+      - name: Library layout and reorder guard regressions (#73)
+        continue-on-error: true
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/LibraryLayoutTests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/library-layout-regressions.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            CODE_SIGNING_ALLOWED=NO > library-layout-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" library-layout-tests.log || true; tail -100 library-layout-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" library-layout-tests.log | tail -40
+
+      - name: Expandable recipe-detail sheet regression (#101)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/expandable-recipe-sheet.xcresult" \
+            -only-testing:AteUITests/CoverageUITests/test32c_ExpandableRecipeSheetOpensExpandsAndDismisses \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > expandable-recipe-sheet-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" expandable-recipe-sheet-tests.log || true; tail -100 expandable-recipe-sheet-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" expandable-recipe-sheet-tests.log | tail -40
+
+      - name: Settings-tab key-flow regression test
+        continue-on-error: true
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          STEP_START=$(date +%s)
+          set -e
+          run_focused_test() {
+            test_id="$1"
+            log_file="$2"
+            result_name="$3"
+            # XCUITest can leave the app process alive after a prior suite. Force a
+            # clean process before each channel case so its launch arguments are real.
+            xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+            if xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+              -resultBundlePath "$RUNNER_TEMP/ate-test-results/$result_name.xcresult" \
+              "-only-testing:$test_id" -parallel-testing-enabled NO -test-timeouts-enabled YES \
+              -default-test-execution-time-allowance 420 -maximum-test-execution-time-allowance 480 \
+              CODE_SIGNING_ALLOWED=NO > "$log_file" 2>&1; then
+              grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" "$log_file" | tail -n 30
+            else
+              status=$?
+              echo "::error::$test_id failed (xcodebuild exit $status). Full log and xcresult are uploaded."
+              grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" "$log_file" || true
+              tail -n 100 "$log_file" || true
+              return "$status"
+            fi
+          }
+          # QUARANTINED, NOT PASSED: issue #76 tracks the unstable Done-button selector in testQA7_SyncAccount.
+          # Run it for evidence, but do not let this UI-automation failure block the build. Pre-production remains blocking.
+          if run_focused_test "AteUITests/KeyFlowsQATests/testQA7_SyncAccount" "settings-sync.log" "settings-sync"; then
+            settings_sync_status=0
+          else
+            settings_sync_status=$?
+          fi
+          if [ "$settings_sync_status" -ne 0 ]; then
+            {
+              echo "### Quarantined test — NOT PASSED"
+              echo
+              echo "- Test: AteUITests/KeyFlowsQATests/testQA7_SyncAccount"
+              echo "- Issue: https://github.com/melusi-k/ate-ios/issues/76"
+              echo "- Reason: Settings/account-sync UI flow intermittently cannot locate/tap the recipe editor Done button; underlying product behavior is not yet classified."
+              echo "- Owner: iOS QA/automation maintainer, with #34 auth/sync and #74 Settings owners"
+              echo "- Everyday CI disposition: non-blocking quarantine only; full failure logs and xcresult retained."
+              echo "- Pre-production disposition: still execute and report the true failure; do not count this as a pass."
+              echo "- Exit condition: stable accessibility selector and repeated passing pre-production runs."
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::warning::QUARANTINED testQA7_SyncAccount — NOT PASSED; see issue #76. Continuing everyday build gates."
+          else
+            echo "Settings/account-sync UI test passed on this run."
+          fi
+          # Quarantined: testBetaChannelShowsBetaDiagnosticsEntry currently fails because the beta launch channel is not reliably applied in CI. Keep the test source for follow-up; production-channel hiding remains gated.
+          echo "Skipping known-failing beta-channel UI test pending launch-channel test harness fix."
+          run_focused_test "AteUITests/ProductionChannelUITests/testProductionChannelHidesBetaDiagnostics" "production-channel-production.log" "production-channel-production"
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=settings-tab-key-flow duration_seconds=$((STEP_END-STEP_START)) exit_code=0"
+      - name: Settings About build notes and timer rows (#145)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/test32_MoreCollectionsToolsAbout \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/settings-about-145.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 360 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > settings-about-145.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" settings-about-145.log || true; tail -120 settings-about-145.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" settings-about-145.log | tail -40
+
+      - name: Account-switch sync failure preserves local library (#34)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/test40_AccountSwitchSyncFailurePreservesLocalLibrary \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/account-switch-sync-failure-library.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > account-switch-sync-failure-library.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" account-switch-sync-failure-library.log || true; tail -120 account-switch-sync-failure-library.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" account-switch-sync-failure-library.log | tail -40
+
+      - name: Cooking Tracker focused UI tests
+        continue-on-error: true
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          STEP_START=$(date +%s)
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cooking-tracker-ui-tests.xcresult" -only-testing:AteUITests/CookingTrackerEntryUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1
+          status=$?
+          set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=cooking-tracker-ui-tests duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
+
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Cooking Tracker UI tests failed (xcodebuild exit $status). Exact diagnostics follow; tracker-ui.log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" tracker-ui.log || true
+            echo "::group::Last 100 Cooking Tracker UI-test log lines"
+            tail -n 100 tracker-ui.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
+
+          grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" tracker-ui.log | tail -n 30
+      - name: Shared navigation header regressions (#68)
+        continue-on-error: true
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/testNavigationHeadersRemainStableOnShoppingAndSettings \
+            -only-testing:AteUITests/CoverageUITests/testCookingTrackerMonthNavigationAndSelectedDay \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/navigation-header-regressions.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            CODE_SIGNING_ALLOWED=NO > navigation-header-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" navigation-header-tests.log || true; tail -100 navigation-header-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" navigation-header-tests.log | tail -40
+
+      - name: Cook Mode completion/history UI tests
+        continue-on-error: true
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          STEP_START=$(date +%s)
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-mode-history-ui-tests.xcresult" -only-testing:AteUITests/AteUITests/test06_CookMode -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > cook-mode-history.log 2>&1
+          status=$?
+          set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=cook-mode-history-ui-tests duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
+
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Cook Mode completion/history UI tests failed (xcodebuild exit $status). Exact diagnostics follow; cook-mode-history.log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" cook-mode-history.log || true
+            echo "::group::Last 100 Cook Mode history-test log lines"
+            tail -n 100 cook-mode-history.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
+
+          grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" cook-mode-history.log | tail -n 30
+
+      - name: Cook Mode ingredient sheet (session unit + UI)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          # Clean process so launch arguments are real (same rationale as other UI shards).
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/CookSessionTests \
+            -only-testing:AteUITests/CookIngredientsUITests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-ingredients-tests.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > cook-ingredients-tests.log 2>&1
+          status=$?
+          set -e
+          # Export screenshots and attachments on green runs too: for this feature the rendered
+          # sheet is itself the evidence, not only failure diagnostics (keepAlways shots).
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/cook-ingredients-tests.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/cook-ingredients-attachments" 2>/dev/null || true
+          if [ "$status" -ne 0 ]; then
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" cook-ingredients-tests.log || true
+            tail -120 cook-ingredients-tests.log
+            exit "$status"
+          fi
+          # Execution evidence: a green selection that ran nothing is a failure, and every
+          # named test must appear with its own pass line in the log.
+          if grep -q "Executed 0 tests" cook-ingredients-tests.log; then echo "::error::cook ingredient selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "CookSessionTests testLegacySessionWithoutFactorDecodesWithDefaults]' passed" \
+            "CookSessionTests testSessionRoundTripsFactorAndChecked]' passed" \
+            "CookSessionTests testToggleCheckedAddsAndRemoves]' passed" \
+            "CookSessionTests testScaledIngredientAmountsFollowSessionFactor]' passed" \
+            "CookSessionTests testScaledAmountsRenderForArbitraryFactor]' passed" \
+            "CookSessionTests testEditingIngredientsClearsGatheredChecks]' passed" \
+            "CookSessionTests testNonIngredientEditKeepsGatheredChecks]' passed" \
+            "CookSessionTests testToggleAfterExternalChangeResetsThenApplies]' passed" \
+            "CookSessionTests testBeginCookSessionResetsChecksWhenIngredientsChanged]' passed" \
+            "CookSessionTests testWholesaleRecipeReplacementClearsChecksPreservesFactorAndStep]' passed" \
+            "CookSessionTests testIngredientSignatureResistsSeparatorCollisions]' passed" \
+            "CookSessionTests testReenteringSameRecipeKeepsSessionFactor]' passed" \
+            "CookSessionTests testChecklistAmountsRenderMetricAndImperial]' passed" \
+            "CookIngredientsUITests testCookIngredientSheetScalesChecksAndPersists]' passed" \
+            "CookIngredientsUITests testCookIngredientSheetLargeTextAccessibilityAndImperial]' passed" \
+            "CookIngredientsUITests testCookTimerCardLargeText]' passed"; do
+            grep -qF "$evidence" cook-ingredients-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 cook-ingredients-tests.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" cook-ingredients-tests.log | tail -40
+
+      - name: Summarize non-blocking regression outcomes
+        if: always()
+        shell: bash
+        run: |
+          failed=0
+          for log in recipe-generation-tests.log library-layout-tests.log settings-sync.log production-channel-production.log tracker-ui.log navigation-header-tests.log cook-mode-history.log share-publish-outage-tests.log; do
+            [ -f "$log" ] || continue
+            # CoreData/platform diagnostics can contain "error:" even when xcodebuild
+            # exits 0 and XCTest reports zero failures. Use explicit test-failure markers;
+            # the individual xcodebuild step exit status remains authoritative.
+            if grep -Eq 'Testing failed|TEST FAILED|Test Case .* failed|Executed [0-9]+ tests?, with [1-9][0-9]* failures?|XCTAssert|Assertion Failure|Fatal error|Assertion failed' "$log"; then
+              echo "::warning::Regression diagnostics indicate a failure in $log; see retained log and xcresult artifact. This is NOT a pass."
+              {
+                echo "### Regression failure detected — NOT PASSED"
+                echo "- Log: $log"
+                echo "- Candidate SHA: $GITHUB_SHA"
+                echo "- Artifacts: compile-check-diagnostics-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+                echo "- Action: link the failure evidence and reproduction steps to the owning issue."
+                echo
+              } >> "$GITHUB_STEP_SUMMARY"
+              failed=1
+            fi
+          done
+          if [ "$failed" -eq 0 ]; then
+            echo "No regression failure markers were found in available logs. A skipped/quarantined test is not counted as a pass." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Link regression failures to owning issues
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          report_failure() {
+            log_file="$1"; suite="$2"; issue="$3"
+            [ -f "$log_file" ] || return 0
+            if ! grep -Eq 'Testing failed|TEST FAILED|Test Case .* failed|XCTAssert|Assertion Failure|Fatal error|Assertion failed' "$log_file"; then return 0; fi
+            marker="<!-- ate-ci-regression:${GITHUB_RUN_ID}:${log_file} -->"
+            details=$(grep -n -E 'Test Case .* failed|XCTAssert|Assertion Failure|Fatal error|Assertion failed|Testing failed|TEST FAILED' "$log_file" | tail -n 12 | cut -c1-500 || true)
+            [ -n "$details" ] || details="Failure markers found; inspect the full retained log and xcresult."
+            run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            if [ "$issue" = "auto" ]; then
+              existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "CI regression: $suite in:title" --json number,title --jq '.[0].number // empty')
+              if [ -n "$existing" ]; then issue="$existing"; else
+                created=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "CI regression: $suite" --body "Automated regression report for candidate ${GITHUB_SHA}.\n\nWorkflow run/artifacts: $run_url\nLog: $log_file\n\nFailure evidence:\n\n$details\n\nTriage: reproduce on the exact SHA, add reproduction steps, and verify a fix. This issue is generated from CI evidence and still needs owner/classification.") || { echo "::warning::Could not create backlog issue for $suite"; return 0; }
+                issue="${created##*/}"
+              fi
+            fi
+            if [ -z "$issue" ]; then echo "::warning::No issue target resolved for $suite ($log_file)."; return 0; fi
+            if gh api "repos/${GITHUB_REPOSITORY}/issues/$issue/comments?per_page=100" --paginate --jq '.[].body' 2>/dev/null | grep -Fq "$marker"; then echo "Issue #$issue already has this run's regression report."; return 0; fi
+            body=$(printf '%s\n' "$marker" "## CI regression detected — NOT PASSED" "- **Suite:** $suite" "- **Candidate SHA:** ${GITHUB_SHA}" "- **Workflow run and retained artifacts:** $run_url" "- **Log:** $log_file" "" "### Failure evidence (tail)" '```text' "$details" '```' "" "### Triage" "Reproduce from the exact candidate SHA, record reproduction steps, and keep this open until a fix is verified. continue-on-error allowed later suites to proceed; it does not mean this test passed.")
+            if gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$body"; then
+              echo "::warning::Regression in $suite recorded on issue #$issue (NOT PASSED)."
+              echo "- **Issue:** #$issue — $suite" >> "$GITHUB_STEP_SUMMARY"
+              echo "- **Evidence:** $run_url" >> "$GITHUB_STEP_SUMMARY"
+            else echo "::warning::Could not comment regression evidence for $suite on issue #$issue; run: $run_url"; fi
+          }
+          report_failure recipe-generation-tests.log "Recipe generation (#89)" 89
+          report_failure library-layout-tests.log "Library layout and reorder (#73)" 73
+          report_failure settings-sync.log "Settings/account sync (#76)" 76
+          report_failure production-channel-production.log "Production channel UI" auto
+          report_failure tracker-ui.log "Cooking Tracker UI (#31)" 31
+          report_failure navigation-header-tests.log "Shared navigation header (#68)" 68
+          report_failure cook-mode-history.log "Cook Mode completion/history (#31)" 31
+          report_failure insights-evidence-navigation.log "Insights evidence and contextual navigation (#195)" 195
+      - name: Enforce Insights acceptance result (#195)
+        if: ${{ always() && steps.insights_acceptance.outcome == 'failure' }}
+        run: |
+          echo "::error::Insights acceptance failed. Later diagnostics were allowed to run, but the compile gate remains blocked until issue #195 is fixed."
+          exit 1
+
+      - name: Upload test diagnostics
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: livedt-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          name: compile-check-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
-            livedt-ui-tests.log
-            ${{ runner.temp }}/ate-test-results/livedt-ui-tests.xcresult
-            ${{ runner.temp }}/ate-test-results/livedt-ui-attachments
+            build.log
+            app-clip-build.log
+            app-clip-tests.log
+            ${{ runner.temp }}/app-clip-tests.xcresult
+            build-warnings.log
+            test.log
+            test-summary.log
+            ui.log
+            ui-summary.log
+            production-channel-production.log
+            settings-sync.log
+            tracker-ui.log
+            cook-mode-history.log
+            recipe-generation-tests.log
+            library-layout-tests.log
+            navigation-header-tests.log
+            share-publish-outage-tests.log
+            nutrition-ui-tests.log
+            ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
+            ${{ runner.temp }}/ate-test-results/*.xcresult
+            cook-ingredients-tests.log
+            ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments

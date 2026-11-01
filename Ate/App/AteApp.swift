@@ -75,8 +75,11 @@ struct TimerBarInset: ViewModifier {
         content.safeAreaInset(edge: .bottom, spacing: 0) {
             // iOS 26: at tab roots the timer lives in the tab bar's bottom accessory, so the inset only shows on pushed screens.
             if store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot) {
-                if let session = store.cookSession { CookSessionMiniPlayer(session: session) }
-                if !store.timers.timers.isEmpty { TimerBar() }
+                Group {
+                    if let session = store.cookSession { CookSessionMiniPlayer(session: session) }
+                    if !store.timers.timers.isEmpty { TimerBar() }
+                }
+                .bottomChromeMeasured()
             }
         }
     }
@@ -128,6 +131,8 @@ struct RootView: View {
     @Environment(\.scenePhase) private var phase
     @Environment(\.verticalSizeClass) private var vSize
     private let tick = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
+    /// Measured floating-chrome top edge, republished for pushed screens (#179).
+    @State private var bottomChromeMinY: CGFloat?
 
     var body: some View {
         @Bindable var store = store
@@ -142,6 +147,8 @@ struct RootView: View {
             // Collections are sidebar-only; back in portrait keep the filter but show the Library tab.
             if v != .compact, case .collection = store.tab { store.tab = .library }
         }
+        .onPreferenceChange(BottomChromeMinYKey.self) { bottomChromeMinY = $0 }
+        .environment(\.bottomChromeMinY, bottomChromeMinY)
         .fullScreenCover(item: $store.cookTarget) { target in
             NavigationStack { CookModeView(recipeID: target.id, onExit: { store.cookTarget = nil }) }.environment(store)
         }
@@ -240,6 +247,35 @@ enum TabChrome {
     static var usesAccessory: Bool { if #available(iOS 26, *) { return true }; return false }
 }
 
+/// #179: measured global top edge of the floating bottom chrome (the iOS 26 tab accessory or
+/// the pushed-screen safe-area inset). Pushed screens reserve exactly the band the chrome
+/// covers instead of a fixed constant, because the capsule's height changes with content size.
+struct BottomChromeMinYKey: PreferenceKey {
+    static var defaultValue: CGFloat? { nil }
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) { if let n = nextValue() { value = n } }
+}
+
+struct BottomChromeMinYEnvironmentKey: EnvironmentKey {
+    static let defaultValue: CGFloat? = nil
+}
+
+extension EnvironmentValues {
+    var bottomChromeMinY: CGFloat? {
+        get { self[BottomChromeMinYEnvironmentKey.self] }
+        set { self[BottomChromeMinYEnvironmentKey.self] = newValue }
+    }
+}
+
+private struct BottomChromeMeasure: ViewModifier {
+    func body(content: Content) -> some View {
+        content.background(GeometryReader { g in
+            Color.clear.preference(key: BottomChromeMinYKey.self, value: g.frame(in: .global).minY)
+        })
+    }
+}
+
+extension View { func bottomChromeMeasured() -> some View { modifier(BottomChromeMeasure()) } }
+
 /// Bottom accessory above the tab bar: a destination-aware add action, or timer summary plus a contextual +.
 private extension View {
     /// Branches a modifier chain on OS availability without splitting the view expression.
@@ -273,6 +309,7 @@ struct AteBottomAccessory: View {
         }
         .padding(.horizontal, compact ? 4 : 12)
         .accessibilityElement(children: .contain).accessibilityIdentifier("bottomAccessory")
+        .bottomChromeMeasured()
     }
     private func add() {
         switch store.bottomAddContext {

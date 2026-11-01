@@ -13,6 +13,7 @@ struct NutritionDiaryView: View {
     /// reading storage during body evaluation goes stale when a reset or a goals-screen
     /// edit does not change any other state on this screen (#179).
     @State private var dailyGoals: DailyNutritionGoals?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private let repository: NutritionDiaryRepository
     private let goalsRepository: NutritionGoalsRepository
 
@@ -76,21 +77,23 @@ struct NutritionDiaryView: View {
                 let totals = NutritionDayTotals.calculate(entries: dayEntries)
                 let goals = dailyGoals
                 ForEach(NutritionGoalField.allCases) { field in
-                    HStack {
-                        Text(field.title)
-                        Spacer()
-                        if let amount = totals.value(for: field) {
-                            Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) \(field.unit)")
-                                .monospacedDigit()
-                            if let goal = goals?[field] {
-                                Text("/ \(goal.formatted(.number.precision(.fractionLength(0...1))))")
-                                    .foregroundStyle(Theme.mutedForeground).monospacedDigit()
-                            }
-                        } else {
-                            Text("Unavailable").foregroundStyle(Theme.mutedForeground)
+                    // At accessibility sizes a squeezed value wraps mid-word beside the
+                    // label (CI AX5 pixel evidence: "Un-avail-able", #179), so stack the
+                    // label over the value instead of one squeezed HStack.
+                    if dynamicTypeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(field.title)
+                            totalsValue(field, totals: totals, goals: goals)
                         }
+                        .accessibilityIdentifier("nutritionDiary.total.\(field.rawValue)")
+                    } else {
+                        HStack {
+                            Text(field.title)
+                            Spacer()
+                            totalsValue(field, totals: totals, goals: goals)
+                        }
+                        .accessibilityIdentifier("nutritionDiary.total.\(field.rawValue)")
                     }
-                    .accessibilityIdentifier("nutritionDiary.total.\(field.rawValue)")
                 }
                 if goals?.isEmpty == true {
                     NavigationLink(value: Route.nutritionGoals) {
@@ -232,6 +235,21 @@ struct NutritionDiaryView: View {
             reloadDiary()
         } catch {
             recoveryFailure = "The diary couldn't be reset safely. Please try again."
+        }
+    }
+
+    @ViewBuilder private func totalsValue(_ field: NutritionGoalField, totals: NutritionDayTotals, goals: DailyNutritionGoals?) -> some View {
+        if let amount = totals.value(for: field) {
+            HStack(spacing: 4) {
+                Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) \(field.unit)")
+                    .monospacedDigit()
+                if let goal = goals?[field] {
+                    Text("/ \(goal.formatted(.number.precision(.fractionLength(0...1))))")
+                        .foregroundStyle(Theme.mutedForeground).monospacedDigit()
+                }
+            }
+        } else {
+            Text("Unavailable").foregroundStyle(Theme.mutedForeground)
         }
     }
 

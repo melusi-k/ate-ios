@@ -139,8 +139,12 @@ enum RecipePrompt {
     static func context(for text: String, region: String? = Locale.current.region?.identifier) -> Context {
         let l = text.lowercased()
         var c = Context()
-        c.dietary = dietaryWords.filter { l.contains($0) }
-        if let r = l.range(of: #"(?:for|serves)\s+(\d{1,2})"#, options: .regularExpression),
+        c.dietary = dietaryWords.filter { w in
+            guard let r = l.range(of: w) else { return false }
+            let before = l[..<r.lowerBound].suffix(8)
+            return !["not ", "no ", "non-", "non ", "isn't ", "without"].contains { before.hasSuffix($0) }
+        }
+        if let r = l.range(of: #"(?:for|serves)\s+(\d{1,2})(?!\s*(?:minutes?|mins?|hours?|hrs?|h|seconds?|secs?)\b)"#, options: .regularExpression),
            let n = Int(l[r].filter(\.isNumber)), n > 0 { c.servings = n }
         c.region = region == "ZA" ? "South Africa" : nil
         return c
@@ -252,3 +256,4 @@ struct PhotoNeedsDishError: LocalizedError, Equatable {
                : "Not sure what this dish is. Tell ate what it is for a better recipe."
     }
 }
+

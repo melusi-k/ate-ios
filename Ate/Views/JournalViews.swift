@@ -12,10 +12,18 @@ struct JournalListView: View {
             || ($0.locationName ?? "").localizedCaseInsensitiveContains(q) || $0.state.title.localizedCaseInsensitiveContains(q) }
     }
     var body: some View {
+        let openState = JournalStore.shared.openState
         List {
+            if openState != .ok {
+                Section { JournalOpenStateBanner(state: openState) }
+            }
             if entries.isEmpty {
-                ContentUnavailableView("No journal entries yet", systemImage: "book.closed",
-                                       description: Text("Save one from Insights, or ask Siri to save a journal entry in Ate."))
+                // With anything but a clean open the banner above carries the honest state; an
+                // empty "no entries yet" here would present a recovered-empty journal as real history.
+                if openState == .ok {
+                    ContentUnavailableView("No journal entries yet", systemImage: "book.closed",
+                                           description: Text("Save one from Insights, or ask Siri to save a journal entry in Ate."))
+                }
             } else if filtered.isEmpty {
                 ContentUnavailableView.search(text: query)
             }
@@ -163,5 +171,34 @@ struct JournalEntryDetailView: View {
         s += e.text
         if let l = e.locationName { s += "\n\n📍 " + l }
         return s
+    }
+}
+
+/// Honest journal open state (#245 phase 3): a recovered or temporary journal is never
+/// presented as the user's real history.
+struct JournalOpenStateBanner: View {
+    let state: JournalOpenState
+    var body: some View {
+        Group {
+            switch state {
+            case .ok:
+                EmptyView()
+            case .recovered(let backup):
+                Label {
+                    Text("Journal recovered. The saved journal on this iPhone was damaged, so Ate moved it aside and started a fresh one. The damaged copy is kept in Backups\(backup.map { " (\($0))" } ?? ""); entries saved from Siri with photos or voice notes keep their media on this iPhone.")
+                } icon: { Image(systemName: "exclamationmark.arrow.triangle.2.circlepath") }
+            case .inMemoryFallback:
+                Label {
+                        Text("Journal is temporary right now. Ate could not open the saved journal or start a fresh one, so anything you save will disappear when you close Ate.")
+                } icon: { Image(systemName: "exclamationmark.triangle") }
+            case .unavailable:
+                Label {
+                    Text("Journal unavailable. Ate could not open the journal on this iPhone.")
+                } icon: { Image(systemName: "exclamationmark.triangle") }
+            }
+        }
+        .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("journal.openStateBanner")
     }
 }

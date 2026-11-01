@@ -164,14 +164,17 @@ struct NutritionDiaryView: View {
             // The pushed-screen bottom chrome (cook mini-player / timer bar) is a
             // safe-area inset this List measurably ignores (CI pixel evidence: the
             // capsule overlays rows at AX5, #179), so reserve real scrollable space
-            // while it is up. Height: the wrapped capsule measured ~143pt tall at AX5
-            // (v5 full-screen capture), ~52pt at default; 150/72 covers the wrap with
-            // margin. The AX value is still an estimate pending this run's pixel
-            // verification, not a proven fit.
+            // while it is up. Measured on iPhone 18 Pro / iOS 27 (v6 run 41266373705
+            // pixels): at AX5 the wrapped capsule's visual pill top rests ~717pt from
+            // the screen top (pill ~104pt tall) while its AX element frame is ~143pt
+            // tall (top ~697pt), so last content needs ~181pt of reserve to clear the
+            // AX-frame band; 220 covers that plus about one more wrapped title line.
+            // Default size: ~52pt pill (v5) + same bottom offset and frame padding puts the band bottom ~745pt, so last content needs ~129pt plus scroll-settle margin; 140.
+            // Intermediate sizes are verified by the scale-* mini-player captures.
             if store.cookTarget == nil && (store.cookSession != nil || !store.timers.timers.isEmpty) {
                 Section {
                     Color.clear
-                        .frame(height: dynamicTypeSize.isAccessibilitySize ? 150 : 72)
+                        .frame(height: dynamicTypeSize.isAccessibilitySize ? 220 : 140)
                         .listRowBackground(Color.clear)
                         .accessibilityHidden(true)
                 }
@@ -354,8 +357,12 @@ private struct NutritionDiaryEntryForm: View {
             }
         }
         // The decimal-pad fields have no return key; let a scroll dismiss the keyboard so
-        // it cannot trap itself over the lower form.
-        .scrollDismissesKeyboard(.interactively)
+        // it cannot trap itself over the lower form. Dismiss on scroll touch-down rather
+        // than tracking the drag interactively: the interactive keyboard-tracking
+        // transition is the leading suspect for the app never reporting idle when the
+        // keyboard is up across a navigation push/pop (Log food source picker, #179) -
+        // the original keyboard-up UI gate is the judge of this candidate mechanism.
+        .scrollDismissesKeyboard(.immediately)
         .navigationTitle("Log food")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: source) { _, newSource in

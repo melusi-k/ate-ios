@@ -127,6 +127,9 @@ final class AccessibilityAuditUITests: XCTestCase {
     /// the goals clear-all hint and the goals Cancel button. performAccessibilityAudit
     /// reports the failing category, not the failing size step, so measure each element's
     /// rendered pixels at five fixed steps between XS and AX5 before changing app code.
+    /// Every capture runs with the cook mini-player capsule UP (session started once,
+    /// resumed across relaunches), so the diary bottom reserve and the mini-player's own
+    /// rendering are also verified against the chrome-aware band at each size.
     /// Diagnostic only: verdicts stay with the strict audit; this test adds pixel evidence.
     func testNutritionFontScalingCaptures() throws {
         let sizes: [(String, String)] = [
@@ -139,12 +142,50 @@ final class AccessibilityAuditUITests: XCTestCase {
         for (label, category) in sizes {
             launch(["-UIPreferredContentSizeCategoryName", category, "-resetNutritionDiary", "-resetNutritionGoals"])
             XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
-            app.tabBars.buttons["Settings"].tap()
+            // Bottom chrome must be PRESENT for these captures: the mini-player capsule
+            // overlaps list content (v6 AX5 pixels, #179), so the diary/goals bottom
+            // reserve is verified against the real chrome-aware band at every size, not
+            // assumed from one. An active session persists across relaunches; start one
+            // only when the capsule is not already up.
+            if !app.buttons["cookSessionMiniPlayer"].waitForExistence(timeout: 3) {
+                addRecipe()
+                app.buttons["Cook mode"].tap()
+                let exitCook = app.buttons["Exit"]
+                if exitCook.waitForExistence(timeout: 5) { exitCook.tap() }
+            }
+            // Setup failure must fail EXPLICITLY: captures taken without the capsule up
+            // would silently verify a chrome-free band (main review, #179).
+            XCTAssertTrue(app.buttons["cookSessionMiniPlayer"].waitForExistence(timeout: 10),
+                          "Cook mini-player capsule should be up so every capture verifies the chrome-aware band at \(label)")
+            let settingsTab = app.tabBars.buttons["Settings"]
+            if !settingsTab.waitForExistence(timeout: 2) {
+                // Recipe detail hides the tab bar; step back to the tab root first.
+                app.navigationBars.buttons.element(boundBy: 0).tap()
+            }
+            XCTAssertTrue(settingsTab.waitForExistence(timeout: 5), "Settings tab should be reachable at \(label)")
+            settingsTab.tap()
             let diaryEntry = app.buttons["settings.nutritionDiary"]
             XCTAssertTrue(revealSettingsEntry(diaryEntry), "Settings should reveal Food diary at \(label)")
             diaryEntry.tap()
             XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10))
             captureElementAX5(text("Set optional daily goals"), "scale-\(label)-goals-row")
+            captureElementAX5(app.descendants(matching: .any)["nutritionDiary.empty"], "scale-\(label)-diary-empty-chrome")
+            // Last-content reachability: a PARTIAL oversized capture is evidence to
+            // inspect, not proof the content end clears the chrome (main review, #179).
+            // Scroll to the bounded bottom and require the CUV's trailing edge to rest
+            // above the chrome-aware band.
+            var lastBottom = CGFloat.greatestFiniteMagnitude
+            for _ in 0..<6 {
+                app.swipeUp(velocity: .slow)
+                let cuv = app.descendants(matching: .any)["nutritionDiary.empty"].firstMatch
+                guard cuv.exists, !cuv.frame.isEmpty else { break }
+                if cuv.frame.maxY >= lastBottom { break }
+                lastBottom = cuv.frame.maxY
+            }
+            let cuv = app.descendants(matching: .any)["nutritionDiary.empty"].firstMatch
+            XCTAssertTrue(cuv.exists && !cuv.frame.isEmpty && cuv.frame.maxY < bottomClearBound(app),
+                          "Empty-state trailing edge should rest above the chrome-aware band at \(label)")
+            captureElementAX5(app.buttons["cookSessionMiniPlayer"], "scale-\(label)-mini-player", isChrome: true)
             app.navigationBars.buttons.element(boundBy: 0).tap()
             let goalsEntry = app.buttons["settings.nutritionGoals"]
             XCTAssertTrue(revealSettingsEntry(goalsEntry), "Settings should reveal Nutrition goals at \(label)")
@@ -207,8 +248,22 @@ final class AccessibilityAuditUITests: XCTestCase {
         let el = query.firstMatch
         var ok = false
         var attempts = 0
+        var misses = 0
         while attempts < 12 {
-            if !el.exists { app.swipeUp(velocity: .slow); attempts += 1; continue }
+            if !el.exists {
+                // Off-screen SwiftUI cells vanish from the AX tree, so !exists carries no
+                // direction information. Hunt around the starting point in expanding
+                // sweeps (2 up, 4 down, repeating): the down legs undo the up travel AND
+                // search below the start, so both sides of the starting position are
+                // covered within the bound (CI: the goals row sat above the scrolled
+                // position while the loop kept swiping up, #179).
+                let huntUp = [true, true, false, false, false, false]
+                if huntUp[misses % huntUp.count] { app.swipeUp(velocity: .slow) } else { app.swipeDown(velocity: .slow) }
+                misses += 1
+                attempts += 1
+                continue
+            }
+            misses = 0
             let f = el.frame
             if isChrome {
                 // Chrome elements (the mini-player capsule itself) live at the screen edge;

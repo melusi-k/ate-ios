@@ -77,4 +77,13 @@ final class RecipePromptTests: XCTestCase {
         XCTAssertTrue(p.contains("exactly that dish")); XCTAssertTrue(p.contains("lookupRegionalDish"))
         XCTAssertTrue(RecipePrompt.lookupRegionalDish("ujeqe").contains("steam 1 h"), "glossary detail now comes from the tool")
     }
+    /// Cooking times are not servings; negated diets are not requirements.
+    func testContextIgnoresTimeUnitsAndNegation() {
+        XCTAssertNil(RecipePrompt.context(for: "Simmer for 20 minutes, then bake for 2 hours.").servings)
+        XCTAssertEqual(RecipePrompt.context(for: "Serves 8.").servings, 8)
+        XCTAssertEqual(RecipePrompt.context(for: "not vegan at all").dietary, [])
+        XCTAssertEqual(RecipePrompt.context(for: "make it vegan").dietary, ["vegan"])
+    }
+
 }
+

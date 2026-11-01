@@ -82,13 +82,12 @@ final class PhotoGuessTests: XCTestCase {
     func testDishPromptFromLabels() {
         let labels: [(String, Float)] = [("food", 0.9), ("pizza", 0.7), ("plate", 0.6), ("cheese", 0.3)]
         XCTAssertEqual(PhotoGuess.dishes(from: labels), ["pizza", "cheese"])
-        let p = PhotoGuess.prompt(labels: labels, ocrText: "")!
-        XCTAssertTrue(p.contains("pizza, cheese"))
+        XCTAssertTrue(PhotoGuess.canDraft(from: labels))
         XCTAssertEqual(RecipeSource.photoGuess.badge, "Guessed from photo")
     }
     func testNoFoodMeansNoGuess() {
-        XCTAssertNil(PhotoGuess.prompt(labels: [("plate", 0.8), ("table", 0.5)], ocrText: ""))
-        XCTAssertNil(PhotoGuess.prompt(labels: [], ocrText: ""))
+        XCTAssertFalse(PhotoGuess.canDraft(from: [("plate", 0.8), ("table", 0.5)]))
+        XCTAssertFalse(PhotoGuess.canDraft(from: []))
     }
     func testObjectsCannotBecomeDishCandidates() {
         let labels: [(String, Float)] = [("food", 0.95), ("wooden_utensil", 0.95), ("plate", 0.82), ("tableware", 0.7)]
@@ -99,3 +98,4 @@ final class PhotoGuessTests: XCTestCase {
         XCTAssertTrue(PhotoGuess.isNonDishObject("wooden utensil"))
     }
 }
+

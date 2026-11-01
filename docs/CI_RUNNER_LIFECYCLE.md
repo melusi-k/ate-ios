@@ -56,9 +56,11 @@ current failures occur. The compile and dogfood lanes share stages 1-4 and 7-8.
 
 - **What happens:** `xcodebuild build-for-testing` for scheme Ate on `SIM_ID`,
   `CODE_SIGNING_ALLOWED=NO`.
-- **Measured:** on run 41333393387 the test runner process existed ~75s before
-  the test suite started (runner first log line 17:54:56.97; suite start
-  17:56:12.244).
+- **Measured:** on run 41333393387 the test runner's first log line is
+  17:54:56.97, ~75s before suite start 17:56:12.244. The watcher snapshot's
+  etimes anchor the runner process's actual start to ~17:54:10, ~122s before
+  suite start. First-log time is not process birth; the ~47s between process
+  start and first log is unaccounted.
 
 ### 4. Test-without-building start (pre-launch)
 
@@ -67,6 +69,11 @@ current failures occur. The compile and dogfood lanes share stages 1-4 and 7-8.
   `-parallel-testing-enabled NO`, `-test-timeouts-enabled YES`,
   `-default-test-execution-time-allowance 240`,
   `-maximum-test-execution-time-allowance 480`.
+  Allowances differ by workflow and shard: the journal and dogfood lanes and
+  most compile-check shards use default 240 / maximum 480, but the
+  compile-check `library-explore-sheets` shard (the two
+  `CoverageUITests` Explore sheet tests) runs with default 180 / maximum 240
+  (compile-check.yml).
 - **Measured (green run 41333393387):** 17:51:39.6 testing start ->
   17:54:56.97 runner "Running tests" -> 17:56:12.244 suite start. About 4.5
   minutes of pre-launch setup on that run.
@@ -102,10 +109,12 @@ current failures occur. The compile and dogfood lanes share stages 1-4 and 7-8.
     timeout, before any assertion.
   - Mid-test execution-allowance death: PR #260 journal run
     [41297742575](https://github.com/melusi-k/ate-ios/actions/runs/41297742575)
-    attempt 1 died 4m40s+ into the test (240s allowance, timeout-compatible).
-- **Open:** whether the two phases share a cause. Failures are observed on 4+
-  heads; no single branch's content explains the pattern; runner/environment
-  variability is the common factor. Root cause stays open.
+    (green overall on retry) died 4m40s+ into the test on its attempt 1, per
+    that attempt's logs (240s allowance, timeout-compatible).
+- **Open:** whether the two phases share a cause. Failures are observed on
+  4+ heads. Both the shared code/route under test and the runner environment
+  are common across the observations; neither is established as causal.
+  Root cause stays open.
 
 ### 7. Test execution
 
@@ -166,13 +175,16 @@ current failures occur. The compile and dogfood lanes share stages 1-4 and 7-8.
   (`CoverageUITests.testExploreInsightsPresentsAsSheetAndDismissesToLibrary`)
   started 18:05:11Z, attached automation at t11.81, logged its last excerpt
   at t24.32 after the Library idle, and was restarted by xcodebuild at
-  18:10:48.808 (~337s wall). Whether the process crashed or hit a timeout is
-  unresolved from the archived artifacts. After the restart the Journal test
-  passed in 178.899s, showing the two ~60s transition caps again (32.96 ->
-  93, 95.12 -> 155.17) and dismiss at 178.59. Other shards were green. The
+  18:10:48.808 (~337s wall). The shard's allowances are default 180 /
+  maximum 240, but the restart time does not establish when or why the first
+  attempt died: whether the process crashed or hit a timeout is unresolved
+  from the artifacts as archived and inspected, and xcresult tooling has not
+  been tried against them. After the restart the Journal test passed in
+  178.899s, showing the two ~60s transition caps again (32.96 -> 93,
+  95.12 -> 155.17) and dismiss at 178.59. Other shards were green. The
   battery closed with openstate, discovery, and dogfood green and compile
-  red; per policy this single red does not change the family's status and
-  does not by itself establish an Insights-specific kill cause.
+  red. This single red does not by itself establish an Insights-specific
+  kill cause and does not close or confirm any failure family.
 - **Provenance/retention gap (measured):** the compile diagnostics artifact
   for 41333393413 (`compile-check-diagnostics-41333393413-1`, id
   13096215697) does not include the raw shard log, and the uploaded xcresult

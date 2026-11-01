@@ -66,6 +66,17 @@ final class NutritionDiaryUITests: XCTestCase {
             // and hittability are read (CI: not-hittable verdict on a fully visible field
             // during scroll settling fed the sourceName oscillation, #179).
             let frame = settledFrame(of: element)
+            // Toolbar / navigation-bar chrome is not scroll content: a chrome control's
+            // frame sits above the content band, so band classification swipes forever
+            // (CI 241: nutritionDiary.save - a .confirmationAction in the sheet's nav bar -
+            // exhausted 12 down-swipes without ever being offered a tap, #179). Require
+            // REAL chrome membership by identifier - a frame-overlap guess can falsely
+            // pass scroll content clipped under a bar - then trust settled + isHittable:
+            // XCTest reports false for chrome genuinely covered by an alert or keyboard.
+            if !element.identifier.isEmpty,
+               app.navigationBars.buttons[element.identifier].exists || app.toolbars.buttons[element.identifier].exists {
+                return element.isHittable
+            }
             let keyboard = app.keyboards.firstMatch
             let keyboardUp = keyboard.exists
             let bottomBound = bottomClearBound(app, keyboard: keyboardUp ? keyboard : nil)

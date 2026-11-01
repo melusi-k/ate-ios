@@ -185,5 +185,27 @@ final class RecipePromptTests: XCTestCase {
     }
     /// Cooking times are not servings; negated diets are not requirements (even with sloppy spacing).
 
+    /// A negated first mention must not hide a later explicit instruction.
+    /// Trace: "not vegan, but make it vegan" - occurrence 1 negated by "not", occurrence 2
+    /// preceded by "it" (not a negator) -> binds, per the documented any-non-negated rule.
+    func testContextMixedNegatedThenPositiveMention() {
+        XCTAssertEqual(RecipePrompt.context(for: "not vegan, but make it vegan").dietary, ["vegan"])
+    }
+
+    /// Fully negated mentions still never bind.
+    /// Trace: "not vegan" single negated occurrence -> no non-negated occurrence -> dropped.
+    func testContextFullyNegatedDoesNotBind() {
+        XCTAssertEqual(RecipePrompt.context(for: "I am not vegan").dietary, [])
+        XCTAssertEqual(RecipePrompt.context(for: "not vegan, not vegetarian").dietary, [])
+    }
+
+    /// Positive-then-negated behavior is UNCHANGED by this fix and pinned as-is: the documented
+    /// rule treats any non-negated mention as intent, and a negation qualifies only the
+    /// occurrence it precedes. Known limitation (not a dietary-safety claim): a later retraction
+    /// does not undo an earlier explicit instruction; surfacing that internal contradiction
+    /// belongs to the pending Save-conflict policy decision, not to this fix.
+    func testContextPositiveThenNegatedBehaviorUnchanged() {
+        XCTAssertEqual(RecipePrompt.context(for: "make it vegan, actually not vegan").dietary, ["vegan"])
+    }
 }
 

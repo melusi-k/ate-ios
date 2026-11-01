@@ -1,0 +1,146 @@
+name: Journal open state UI (#245)
+
+# Exact-head, app-launch verification that a non-clean journal open is presented
+# honestly (banner + suppressed empty state). Kept in its own workflow because
+# compile-check.yml's test selection is shared with the in-flight nutrition stack
+# (#239-#241); additive coverage must not collide with that file.
+permissions:
+  contents: read
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: journal-open-state-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  open-state-ui:
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      # PR validation must build the exact proposed head, not GitHub's synthetic merge commit.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: xcode-27-homebrew-xcodegen-v1
+          restore-keys: |
+            xcode-27-homebrew-
+      - run: brew install xcodegen && xcodegen generate
+      - name: Build for testing (iOS simulator)
+        run: |
+          set -o pipefail
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+          set +e
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Simulator build failed (xcodebuild exit $status). Matching diagnostics and recent log follow:"
+            grep -n -B 8 -A 12 -E "error:|failed|Fatal error|Testing failed" build.log || true
+            tail -n 100 build.log
+            exit "$status"
+          fi
+          echo "build-for-testing succeeded on $SIM_ID"
+      - name: Journal open state app-launch UI tests
+        run: |
+          set -o pipefail
+          # DIAGNOSTIC ONLY (first-launch/handshake evidence; not for merge): a background
+          # watcher waits for the FIRST app-launch line in the streamed log, then at T+90s
+          # records Ate process state scoped to this job's booted simulator ($SIM_ID).
+          # Observation-only: no warmup, no timeout/assertion changes, no retries.
+          rm -f watcher-outcome.txt watcher-ps.txt watcher-spindump-T90.txt
+          (
+            exec 2>>watcher-outcome.txt
+            echo "watcher: armed epoch=$(date +%s)"
+            seen=""
+            for i in $(seq 1 720); do
+              if grep -q 'Launch com.melusik.ate' journal-open-state-ui.log 2>/dev/null; then seen=1; break; fi
+              sleep 0.5
+            done
+            if [ -z "$seen" ]; then
+              echo "watcher: trigger line never appeared within 360s of arming (log buffering or earlier failure); no sample taken" >> watcher-outcome.txt
+              exit 0
+            fi
+            echo "watcher: first 'Launch com.melusik.ate' seen epoch=$(date +%s)" >> watcher-outcome.txt
+            sleep 90
+            echo "watcher: T+90 epoch=$(date +%s)" >> watcher-outcome.txt
+            ps -Ao pid,ppid,etime,comm,args > watcher-ps.txt 2>>watcher-outcome.txt || echo "watcher: ps failed (exit $?)" >> watcher-outcome.txt
+            # Identity: executable named Ate whose binary path is under THIS simulator's
+            # device directory - excludes other simulators' and stale Ate processes.
+            PID=$(awk -v u="/Devices/$SIM_ID/" '$4=="Ate" && index($0,u)>0 {print $1}' watcher-ps.txt | head -1)
+            if [ -z "$PID" ]; then
+              echo "watcher: no matching Ate process visible at T+90 - observation only; does not exclude fork-then-exit, restart, or identity mismatch" >> watcher-outcome.txt
+              exit 0
+            fi
+            echo "watcher: candidate PID=$PID at T+90" >> watcher-outcome.txt
+            # Re-verify identity immediately before sampling: same PID still alive, still
+            # named Ate, still under the same simulator device path.
+            if ps -p "$PID" -o comm=,args= 2>>watcher-outcome.txt | grep -q "^Ate .*/Devices/$SIM_ID/"; then
+              ps -p "$PID" -o pid,ppid,etime,comm >> watcher-outcome.txt 2>&1
+              sudo spindump "$PID" -duration 3 -o watcher-spindump-T90.txt >> watcher-outcome.txt 2>&1 || echo "watcher: spindump failed (exit $?)" >> watcher-outcome.txt
+            else
+              echo "watcher: identity re-check failed for PID=$PID; no sample taken - ambiguous identity is inconclusive, not evidence" >> watcher-outcome.txt
+            fi
+          ) &
+          WATCHER_PID=$!
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/JournalOpenStateUITests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/journal-open-state-ui.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > journal-open-state-ui.log 2>&1
+          status=$?
+          set -e
+          kill "$WATCHER_PID" 2>/dev/null || true
+          wait "$WATCHER_PID" 2>/dev/null || true
+          if [ "$status" -ne 0 ]; then
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" journal-open-state-ui.log || true
+            tail -120 journal-open-state-ui.log
+            exit 1
+          fi
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" journal-open-state-ui.log | tail -40
+      - name: Export rendered screenshots
+        if: always()
+        run: |
+          mkdir -p ui-screenshots/raw
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/journal-open-state-ui.xcresult" --output-path ui-screenshots/raw || true
+          python3 - <<'PY'
+          import json, os, shutil
+          raw = "ui-screenshots/raw"
+          try:
+              man = json.load(open(os.path.join(raw, "manifest.json")))
+          except Exception:
+              man = []
+          for t in man:
+              tn = t.get("testIdentifier", "t").split("/")[-1].replace("()", "")
+              for a in t.get("attachments", []):
+                  n = a.get("suggestedHumanReadableName") or a["exportedFileName"]
+                  base = n.split("_0_")[0] if "_0_" in n else os.path.splitext(n)[0]
+                  ext = os.path.splitext(a["exportedFileName"])[1] or ".png"
+                  shutil.copy(os.path.join(raw, a["exportedFileName"]), f"ui-screenshots/{tn}__{base}{ext}")
+          PY
+          ls -la ui-screenshots || true
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: journal-open-state-ui-${{ github.run_number }}
+          path: |
+            journal-open-state-ui.log
+            ui-screenshots
+            watcher-outcome.txt
+            watcher-ps.txt
+            watcher-spindump-T90.txt
+            ${{ runner.temp }}/ate-test-results/journal-open-state-ui.xcresult
+          if-no-files-found: warn

@@ -161,6 +161,20 @@ struct NutritionDiaryView: View {
             if let errorMessage {
                 Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.error") }
             }
+            // The pushed-screen bottom chrome (cook mini-player / timer bar) is a
+            // safe-area inset this List measurably ignores (CI pixel evidence: the
+            // capsule overlays rows at AX5, #179), so reserve real scrollable space
+            // while it is up. Height: capsule measured ~94pt tall at AX5 before the
+            // two-line wrap, ~52pt at default; 130/72 covers the wrap with margin and
+            // is pixel-verified against the next run's screenshots.
+            if store.cookTarget == nil && (store.cookSession != nil || !store.timers.timers.isEmpty) {
+                Section {
+                    Color.clear
+                        .frame(height: dynamicTypeSize.isAccessibilitySize ? 130 : 72)
+                        .listRowBackground(Color.clear)
+                        .accessibilityHidden(true)
+                }
+            }
         }
         // Pushed screen: hide the tab bar so list content never rests behind it.
         // safeAreaPadding/contentMargins measurably did NOT inset this list (A/B pixel

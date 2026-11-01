@@ -14,6 +14,19 @@ struct NutritionDiaryView: View {
     /// edit does not change any other state on this screen (#179).
     @State private var dailyGoals: DailyNutritionGoals?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.bottomChromeMinY) private var bottomChromeMinY
+    @State private var listBottomY: CGFloat?
+
+    /// Layout-derived bottom reserve (#179): the measured band from the floating chrome's
+    /// top edge to the bottom of this view's list frame, plus settle margin. The capsule's
+    /// rendered height changes with content size category, so it is measured at runtime
+    /// rather than guessed; the fixed constants remain only until the first measurement.
+    private var bottomChromeReserve: CGFloat {
+        if let chromeMinY = bottomChromeMinY, let listBottomY {
+            return max(0, listBottomY - chromeMinY) + 8
+        }
+        return dynamicTypeSize.isAccessibilitySize ? 220 : 140
+    }
     private let repository: NutritionDiaryRepository
     private let goalsRepository: NutritionGoalsRepository
 
@@ -174,12 +187,13 @@ struct NutritionDiaryView: View {
             if store.cookTarget == nil && (store.cookSession != nil || !store.timers.timers.isEmpty) {
                 Section {
                     Color.clear
-                        .frame(height: dynamicTypeSize.isAccessibilitySize ? 220 : 140)
+                        .frame(height: bottomChromeReserve)
                         .listRowBackground(Color.clear)
                         .accessibilityHidden(true)
                 }
             }
         }
+        .modifier(ListBottomMeasure(listBottomY: $listBottomY))
         // Pushed screen: hide the tab bar so list content never rests behind it.
         // safeAreaPadding/contentMargins measurably did NOT inset this list (A/B pixel
         // diff of runs with and without the modifier: only the status-bar clock changed;
@@ -415,5 +429,24 @@ private struct NutritionDiaryEntryForm: View {
             return
         }
         onSave(entry)
+    }
+}
+
+
+/// #179: publishes the global bottom edge of the list/form frame so the bottom chrome
+/// reserve is layout-derived rather than a fixed constant.
+private struct ListBottomYKey: PreferenceKey {
+    static var defaultValue: CGFloat? { nil }
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) { if let n = nextValue() { value = n } }
+}
+
+private struct ListBottomMeasure: ViewModifier {
+    @Binding var listBottomY: CGFloat?
+    func body(content: Content) -> some View {
+        content
+            .background(GeometryReader { g in
+                Color.clear.preference(key: ListBottomYKey.self, value: g.frame(in: .global).maxY)
+            })
+            .onPreferenceChange(ListBottomYKey.self) { listBottomY = $0 }
     }
 }

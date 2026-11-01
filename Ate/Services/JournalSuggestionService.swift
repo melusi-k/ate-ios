@@ -43,20 +43,50 @@ enum JournalSuggestionService {
     }
 }
 
+/// How the journal store opened (#245 phase 3). The timeline presents anything but `.ok`
+/// honestly: a recovered-empty journal is never silently shown as the user's actual history.
+enum JournalOpenState: Equatable {
+    case ok
+    case recovered(backupName: String?)
+    case inMemoryFallback(error: String?)
+    case unavailable(error: String?)
+}
+
 /// Local SwiftData store for Ate journal entries (in-memory during UI tests). Never synced.
-/// The container schema also holds Food Journal meal payloads (#245). The open path is unchanged
-/// in this slice: move-aside recovery (R-DATA-01) for the journal store ships together with its
-/// honest user-facing presentation in the timeline slice, so a recovered-empty journal is never
-/// silently shown as the user's actual history.
+/// The container schema also holds Food Journal meal payloads (#245). The open path mirrors the
+/// recipe store's corruption recovery (R-DATA-01): a damaged store is moved aside with its
+/// -wal/-shm sidecars before a fresh one opens, and `openState` carries what happened so the
+/// timeline can say it. Journal media (Application Support/JournalMedia) lives outside the
+/// store files and is never touched by recovery.
 @MainActor
 final class JournalStore {
     static let shared = JournalStore()
     let container: ModelContainer?
+    private(set) var openState: JournalOpenState
     init(inMemory: Bool = AppConfig.isUITesting) {
-        container = try? ModelContainer(for: JournalEntry.self, JournalMealPayload.self,
-                                        configurations: ModelConfiguration("AteJournal", isStoredInMemoryOnly: inMemory))
+        if inMemory {
+            container = try? ModelContainer(for: JournalEntry.self, JournalMealPayload.self,
+                                            configurations: ModelConfiguration("AteJournal", isStoredInMemoryOnly: true))
+            openState = container == nil ? .unavailable(error: "the in-memory journal failed to open") : .ok
+        } else {
+            // "AteJournal" has always resolved to this URL in the default directory, so opening
+            // by URL keeps every existing entry while giving recovery a path to move aside.
+            let outcome = StoreRecovery.open(url: ModelConfiguration("AteJournal").url) { cfg in
+                try ModelContainer(for: JournalEntry.self, JournalMealPayload.self, configurations: cfg)
+            }
+            container = outcome.container
+            openState = Self.openState(for: outcome)
+        }
         seedMomentEntryForUITests()
         removeImagePromptEntriesOnce()
+    }
+
+    /// Maps a recovery outcome to the presented state. Kept separate for unit tests.
+    static func openState(for outcome: StoreRecovery.Outcome) -> JournalOpenState {
+        if outcome.recovered { return .recovered(backupName: outcome.backupURL?.lastPathComponent) }
+        if outcome.inMemoryFallback { return .inMemoryFallback(error: outcome.error) }
+        if outcome.container == nil { return .unavailable(error: outcome.error) }
+        return .ok
     }
     /// One-time cleanup (b81): earlier builds saved image-generation prompts routed through the journal schema as entries.
     private func removeImagePromptEntriesOnce() {

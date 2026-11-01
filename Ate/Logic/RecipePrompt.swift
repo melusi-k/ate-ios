@@ -148,9 +148,12 @@ enum RecipePrompt {
         "dairy-free": ["cheese", "milk", "butter", "cream", "yogurt", "yoghurt"],
         "gluten-free": ["bread", "flour", "pasta", "noodle", "wheat", "couscous", "bulgur"]
     ]
+    /// The word immediately before decides negation, so sloppy spacing and punctuation still count
+    /// ("not  vegan", "isn't vegan", "non-vegan") and look-alikes ("knot") do not.
     static func isNegated(_ l: String, _ r: Range<String.Index>) -> Bool {
-        let before = l[..<r.lowerBound].suffix(8)
-        return ["not ", "no ", "non-", "non ", "isn't ", "without"].contains { before.hasSuffix($0) }
+        let prefix = l[..<r.lowerBound]
+        let prevWord = prefix.split { $0.isWhitespace }.last.map(String.init) ?? ""
+        return ["not", "no", "non", "isn't", "isnt", "without", "never"].contains(prevWord) || prefix.hasSuffix("non-")
     }
     static func sentence(containing r: Range<String.Index>, in l: String) -> String {
         let lo = l[..<r.lowerBound].lastIndex(where: { ".!?\n".contains($0) }).map { l.index(after: $0) } ?? l.startIndex

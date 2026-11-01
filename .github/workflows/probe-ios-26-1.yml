@@ -49,18 +49,19 @@ jobs:
           xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$UDID" -resultBundlePath "${{ runner.temp }}/probe/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || { tail -60 build.log; exit 1; }
       - name: Preflight app launch on 26.1
         run: |
-          APP=$(find ~/Library/Developer/Xcode/DerivedData -name "Ate.app" -path "*iphonesimulator*" | head -1)
+          # Every simctl call is watchdogged: iteration 3 hung ~10 min on one of these
+          # (step never emitted its tail), so no unbounded simctl invocation remains.
+          bounded() { local secs=$1; shift; "$@" & local p=$!; ( sleep $secs; kill -9 $p 2>/dev/null ) & local w=$!; wait $p 2>/dev/null; local rc=$?; kill $w 2>/dev/null; wait $w 2>/dev/null; return $rc; }
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -name "Ate.app" -path "*iphonesimulator*" -maxdepth 8 | head -1)
           echo "app=$APP"; test -n "$APP"
           BID=$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist")
           echo "bundleid=$BID" | tee -a "$GITHUB_ENV"
-          xcrun simctl install booted "$APP"
-          xcrun simctl launch --console booted "$BID" > preflight-launch.log 2>&1 &
-          LPID=$!
-          sleep 12
-          xcrun simctl terminate booted "$BID" || true
-          kill $LPID 2>/dev/null || true
-          xcrun simctl io booted screenshot preflight.png || true
-          tail -30 preflight-launch.log || true
+          echo "--- install:"; bounded 60 xcrun simctl install booted "$APP" && echo install-ok || echo install-FAILED
+          echo "--- launch:"; bounded 20 xcrun simctl launch booted "$BID" && echo launch-ok || echo launch-FAILED
+          sleep 10
+          echo "--- screenshot:"; bounded 45 xcrun simctl io booted screenshot preflight.png && echo shot-ok || echo shot-FAILED
+          echo "--- terminate:"; bounded 30 xcrun simctl terminate booted "$BID" && echo term-ok || echo term-FAILED
+          echo "--- preflight done"
       - name: Focused overlay reproduction (diary+goals audit on 26.1)
         run: |
           set +e

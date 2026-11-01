@@ -46,6 +46,8 @@ improvement when this golden set says so.
 - **Prose examples.** Drop Example 1 and Example 2 from the shared instructions, keeping the
   structured one-shot (`exampleMogodu`), behind the `-qaIncludeSchema`-style A/B flag with an eval
   comparison - not deletion on principle.
-- **Dietary cues from long page text.** Dietary detection currently trusts only the user's own
-  words, social captions and photo hints/OCR; long recipe pages mention diets descriptively
-  ("make it vegan by...") and must not become hard constraints. Loosen only with fixture evidence.
+- **Dietary cues from long page text.** Stated-identity/requirement cues from long pages now ship
+  (a title like "Vegan Mac and Cheese", or "This recipe is gluten-free"); descriptive adaptations
+  ("make it vegan by...") and negations never become hard constraints, and an explicit user
+  instruction overrides a conflicting scraped identity. Loosening beyond stated identity needs
+  fixture evidence.

@@ -187,7 +187,7 @@ final class CodeAlong205Tests: XCTestCase {
     }
     func testInstructionsNoLongerDumpTheGlossary() {
         XCTAssertFalse(RecipePrompt.prompt("mogodu").contains("about 180 min total"), "entries come from the tool, not the prompt")
-        XCTAssertTrue(RecipePrompt.prompt("mogodu").contains("lookupRegionalDish"))
+        XCTAssertTrue(RecipePrompt.instructions.contains("lookupRegionalDish"), "the tool instruction lives once in the shared instructions")
     }
     func testConditionalContextLines() {
         let c = RecipePrompt.context(for: "Vegan chakalaka for 6", region: "ZA")
@@ -334,3 +334,4 @@ final class EditorRegressionTests: XCTestCase {
         XCTAssertEqual(RecipeLogic.normalize(manual).title, "sushi", "what the user typed is left alone")
     }
 }
+

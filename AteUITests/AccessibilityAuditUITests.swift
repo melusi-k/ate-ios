@@ -131,15 +131,17 @@ final class AccessibilityAuditUITests: XCTestCase {
     /// resumed across relaunches), so the diary bottom reserve and the mini-player's own
     /// rendering are also verified against the chrome-aware band at each size.
     /// Diagnostic only: verdicts stay with the strict audit; this test adds pixel evidence.
-    func testNutritionFontScalingCaptures() throws {
-        let sizes: [(String, String)] = [
-            ("XS", "UICTContentSizeCategoryXS"),
-            ("XXXL", "UICTContentSizeCategoryXXXL"),
-            ("AX1", "UICTContentSizeCategoryAccessibilityM"),
-            ("AX3", "UICTContentSizeCategoryAccessibilityL"),
-            ("AX5", "UICTContentSizeCategoryAccessibilityXXXL"),
-        ]
-        for (label, category) in sizes {
+    // Split per size: one test running all five passes sequentially exceeded the test-time
+    // allowance with continuous activity (v7: killed mid-navigation during the XXXL pass, so
+    // AX1/AX3/AX5 never executed). Each size now gets the full allowance; the pass body is
+    // unchanged, so every check is retained (#179).
+    func testNutritionFontScalingXS() throws { try captureFontScalingSize("XS", "UICTContentSizeCategoryXS") }
+    func testNutritionFontScalingXXXL() throws { try captureFontScalingSize("XXXL", "UICTContentSizeCategoryXXXL") }
+    func testNutritionFontScalingAX1() throws { try captureFontScalingSize("AX1", "UICTContentSizeCategoryAccessibilityM") }
+    func testNutritionFontScalingAX3() throws { try captureFontScalingSize("AX3", "UICTContentSizeCategoryAccessibilityL") }
+    func testNutritionFontScalingAX5() throws { try captureFontScalingSize("AX5", "UICTContentSizeCategoryAccessibilityXXXL") }
+
+    private func captureFontScalingSize(_ label: String, _ category: String) throws {
             launch(["-UIPreferredContentSizeCategoryName", category, "-resetNutritionDiary", "-resetNutritionGoals"])
             XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
             // Bottom chrome must be PRESENT for these captures: the mini-player capsule
@@ -193,8 +195,7 @@ final class AccessibilityAuditUITests: XCTestCase {
             XCTAssertTrue(app.navigationBars["Nutrition goals"].waitForExistence(timeout: 10))
             captureElementAX5(app.buttons["nutritionGoals.cancel"], "scale-\(label)-goals-cancel")
             captureElementAX5(app.staticTexts["nutritionGoals.clearAllHint"], "scale-\(label)-clear-all-hint")
-            app.terminate()
-        }
+        app.terminate()
     }
 
     func testAuditNutritionScreens() throws {
@@ -305,22 +306,45 @@ final class AccessibilityAuditUITests: XCTestCase {
         }
     }
 
-    /// AX5 sweep: largest accessibility text size. Recorded (not gating yet) so clipping can be tracked per build.
-    func testAuditLargestDynamicType() throws {
+    /// AX5 sweep, part 1 of 3: library and recipe detail at the largest accessibility text
+    /// size. The combined sweep exceeded the test-time allowance with continuous activity
+    /// (v7: killed mid-audit on the goals screen), so the logically independent workloads
+    /// now run as separate tests; every original audit, capture and assertion is retained (#179).
+    func testAuditLargestDynamicTypeLibraryAndRecipe() throws {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL", "-resetNutritionDiary", "-resetNutritionGoals"])
         XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
         try audit("ax5-library", strict: false)
         addRecipe()
         try audit("ax5-recipe-detail", strict: false)
         let s = XCTAttachment(screenshot: app.screenshot()); s.name = "ax5-recipe-detail"; s.lifetime = .keepAlways; add(s)
+    }
+
+    /// AX5 sweep, part 2 of 3: Cook mode at the largest accessibility text size.
+    func testAuditLargestDynamicTypeCookMode() throws {
+        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL", "-resetNutritionDiary", "-resetNutritionGoals"])
+        XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
+        addRecipe()
         app.buttons["Cook mode"].tap()
         try audit("ax5-cook-mode", strict: false)
         let c = XCTAttachment(screenshot: app.screenshot()); c.name = "ax5-cook"; c.lifetime = .keepAlways; add(c)
+    }
 
-        // Evidence-only sweep of the nutrition screens at AX5 (non-gating): captures whether
-        // the flagged diary/goals texts clip or stop scaling at the largest size (#179).
+    /// AX5 sweep, part 3 of 3: nutrition diary and goals, with the cook mini-player capsule
+    /// up so the bottom reserve is audited against the real chrome-aware band (#179).
+    func testAuditLargestDynamicTypeNutrition() throws {
+        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL", "-resetNutritionDiary", "-resetNutritionGoals"])
+        XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
+        // The capsule must be up for this sweep: it overlaps list content at AX5 (v6 pixels,
+        // #179), so a chrome-free pass would verify an assumed band instead of the real one.
+        if !app.buttons["cookSessionMiniPlayer"].waitForExistence(timeout: 3) {
+            addRecipe()
+            app.buttons["Cook mode"].tap()
+        }
         let exitCook = app.buttons["Exit"]
         if exitCook.waitForExistence(timeout: 5) { exitCook.tap() }
+        XCTAssertTrue(app.buttons["cookSessionMiniPlayer"].waitForExistence(timeout: 10),
+                      "Cook mini-player capsule should be up so the AX5 sweep audits the chrome-aware band")
+
         let settingsTab = app.tabBars.buttons["Settings"]
         if !settingsTab.waitForExistence(timeout: 2) {
             // Recipe detail hides the tab bar (.toolbar(.hidden, for: .tabBar)); step back

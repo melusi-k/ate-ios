@@ -9,6 +9,9 @@ struct AteApp: App {
 
     init() {
         TabBarStyle.apply()
+        #if DEBUG
+        LiveDTProbe.installIfRequested()
+        #endif
         if AppConfig.isUITesting {
             for k in ["ate.settings.v1", "ate.timerprefs.v1", "ate.cookSession.v1"] { UserDefaults.standard.removeObject(forKey: k) }
         }
@@ -573,3 +576,71 @@ enum TabBarStyle {
         UITabBar.appearance().unselectedItemTintColor = off
     }
 }
+
+
+
+#if DEBUG
+/// #179 live-toggle diagnostic (strict-audit verdict investigation): applies an in-process
+/// content-size-category change through the normal UIKit trait system (window
+/// traitOverrides) so a UI test can measure same-element geometry across a LIVE category
+/// change, not only across relaunches. Active solely when launched with -UITestLiveDT;
+/// completely inert otherwise. The payload travels in the Darwin notification name
+/// ("atedt.set.<UICTContentSizeCategory...>") so no shared-container IPC is needed.
+final class LiveDTProbe {
+    static let shared = LiveDTProbe()
+    private init() {}
+    private var observed = false
+
+    private static let namePrefix = "atedt.set."
+    private static let categories: [(String, UIContentSizeCategory)] = [
+        ("UICTContentSizeCategoryL", .large),
+        ("UICTContentSizeCategoryXL", .extraLarge),
+        ("UICTContentSizeCategoryXXXL", .extraExtraExtraLarge),
+        ("UICTContentSizeCategoryAccessibilityM", .accessibilityMedium),
+        ("UICTContentSizeCategoryAccessibilityL", .accessibilityLarge),
+        ("UICTContentSizeCategoryAccessibilityXL", .accessibilityExtraLarge),
+        ("UICTContentSizeCategoryAccessibilityXXL", .accessibilityExtraExtraLarge),
+        ("UICTContentSizeCategoryAccessibilityXXXL", .accessibilityExtraExtraExtraLarge),
+    ]
+
+    static func installIfRequested() { shared.installIfRequested() }
+
+    private func installIfRequested() {
+        guard !observed, ProcessInfo.processInfo.arguments.contains("-UITestLiveDT") else { return }
+        observed = true
+        for (name, _) in LiveDTProbe.categories {
+            CFNotificationCenterAddObserver(
+                CFNotificationCenterGetDarwinNotifyCenter(),
+                nil,
+                { _, _, name, _, _ in
+                    guard let name else { return }
+                    let raw = name.rawValue as String
+                    guard raw.hasPrefix(LiveDTProbe.namePrefix) else { return }
+                    LiveDTProbe.apply(String(raw.dropFirst(LiveDTProbe.namePrefix.count)))
+                },
+                (LiveDTProbe.namePrefix + name) as CFString,
+                nil,
+                .deliverImmediately)
+        }
+    }
+
+    private static func apply(_ category: String) {
+        guard let value = categories.first(where: { $0.0 == category })?.1 else { return }
+        Task { @MainActor in
+            for scene in UIApplication.shared.connectedScenes {
+                guard let windowScene = scene as? UIWindowScene else { continue }
+                for window in windowScene.windows {
+                    window.traitOverrides.preferredContentSizeCategory = value
+                }
+            }
+            // Read back the EFFECTIVE trait after a beat so the diagnostic log shows the
+            // override actually landed, not just that it was requested (main review, #179).
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            let effective = UIApplication.shared.connectedScenes
+                .compactMap { ($0 as? UIWindowScene)?.windows.first?.traitCollection.preferredContentSizeCategory.rawValue }
+                .first ?? "unknown"
+            QAProbe.shared.lastLiveDT = "dt req=\(category) eff=\(effective)"
+        }
+    }
+}
+#endif

@@ -1,0 +1,89 @@
+name: diag-sampled-explore-sheets
+on:
+  push:
+    branches:
+      - 'diag/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sampled:
+    runs-on: xcode-27
+    timeout-minutes: 60
+    env:
+      ATE_SIGN_STYLE: Automatic
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 37f29ef914dc5a8075527299dbebeb00de080f79
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-37f29ef914dc5a8075527299dbebeb00de080f79
+          restore-keys: |
+            xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            xcode-27-xcode-deriveddata-
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: xcode-27-homebrew-xcodegen-v1
+          restore-keys: |
+            xcode-27-homebrew-
+      - run: brew install xcodegen && xcodegen generate
+      - name: Prepare diagnostics directory
+        run: mkdir -p "$RUNNER_TEMP/ate-test-results"
+      - name: Build for testing (iOS simulator)
+        id: build
+        run: |
+          set -o pipefail
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || { tail -n 100 build.log; exit 1; }
+      - name: Sampled run of the two Explore sheet tests
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl shutdown "$SIM_ID" >/dev/null 2>&1 || true
+          xcrun simctl boot "$SIM_ID" >/dev/null 2>&1 || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          mkdir -p samples
+          (
+            for i in $(seq 1 45); do
+              APP_PID=$(pgrep -x Ate | head -1 || true)
+              RUN_PID=$(pgrep -f "AteUITests-Runner" | head -1 || true)
+              if [ -n "$APP_PID" ]; then sample "$APP_PID" 2 -mayDie > "samples/app-$i.txt" 2>/dev/null || true; fi
+              if [ -n "$RUN_PID" ]; then sample "$RUN_PID" 2 -mayDie > "samples/runner-$i.txt" 2>/dev/null || true; fi
+              date -u +"sample $i at %H:%M:%S" >> samples/index.txt
+              sleep 6
+            done
+          ) &
+          SAMPLER=$!
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CoverageUITests/testExploreInsightsPresentsAsSheetAndDismissesToLibrary \
+            -only-testing:AteUITests/CoverageUITests/testExploreJournalPresentsAsSheetAndDismissesToLibrary \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/library-explore-sheets.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > library-explore-sheets.log 2>&1
+          status=$?
+          set -e
+          kill $SAMPLER >/dev/null 2>&1 || true
+          grep -E "Test Case .* (passed|failed)|Executed|TEST" library-explore-sheets.log | tail -40 || true
+          echo "test_exit=$status" | tee samples/test-exit.txt
+      - name: Upload sampled diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diag-sampled-explore-${{ github.run_id }}
+          path: |
+            samples/
+            library-explore-sheets.log
+            ${{ runner.temp }}/ate-test-results/library-explore-sheets.xcresult
+          retention-days: 14

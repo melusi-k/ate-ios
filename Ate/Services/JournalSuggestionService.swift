@@ -35,11 +35,20 @@ enum JournalSuggestionService {
             let ask = "Today: \(insight.headline) State: \(insight.state.title). Write the question."
             if let r = try? await session.respond(to: ask) {
                 let text = r.content.trimmingCharacters(in: .whitespacesAndNewlines)
-                if text.count > 8, text.count < 220 { return [JournalPrompt(text: text, state: insight.state, generated: true)] + base.prefix(1) }
+                if Self.isAcceptable(text) { return [JournalPrompt(text: text, state: insight.state, generated: true)] + base.prefix(1) }
             }
         }
         #endif
         return base
+    }
+
+    /// Acceptance gate for a generated reflection. The instruction says under 25 words ending in a
+    /// question mark, so the check enforces both now (the old 8-220 character check let long
+    /// non-questions through). A rejection just falls back to the templates.
+    static func isAcceptable(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let words = t.split { $0.isWhitespace }.count
+        return t.count > 8 && t.count < 220 && words < 25 && t.hasSuffix("?")
     }
 }
 
@@ -133,3 +142,4 @@ enum JournalTextGuard {
         return startsLikePrompt || hits >= 2
     }
 }
+

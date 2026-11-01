@@ -185,6 +185,7 @@ jobs:
             -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX1 \
             -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX3 \
             -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX5 \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeToggle \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \

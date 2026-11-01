@@ -71,26 +71,26 @@ final class OnDeviceBackend: BackendService {
         // carries examples and guidance, so it is never scanned for cues.
         var contextUser = request.text ?? ""
         var contextSource = ""
-        var trustSourceDietary = false
+        var sourceIsLongForm = false
         switch request.mode {
         case .prompt:
             prompt = RecipePrompt.prompt(request.text ?? "")
         case .url where socialCaption != nil:
             prompt = RecipePrompt.social(caption: socialCaption!); input = .social
-            contextSource = socialCaption!; trustSourceDietary = true
+            contextSource = socialCaption!  // short dish-defining source
         case .url:
             let page: String
             if let html = pageHTML { page = String(Self.htmlToText(html).prefix(3500)) }
             else { page = try await Self.fetchPageText(request.text ?? "") }
             prompt = RecipePrompt.page(page); input = .link
-            contextSource = page
+            contextSource = page; sourceIsLongForm = true
         case .image:
             let text = try await Self.ocr(dataURL: request.imageDataUrl ?? "")
             photoOCR = text
             let hint = (request.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             if PhotoGuess.isScreenshotText(text) && hint.isEmpty {
                 prompt = RecipePrompt.screenshot(text); input = .screenshot
-                contextSource = text; contextUser = ""
+                contextSource = text; contextUser = ""; sourceIsLongForm = true
             } else {
                 // A food photo: OCR + labels; generic labels mean we ask the user before generating.
                 let labels = try await Self.classify(dataURL: request.imageDataUrl ?? "")
@@ -115,7 +115,7 @@ final class OnDeviceBackend: BackendService {
                 }
                 prompt = pp + "\n" + scene
                 source = .photoGuess
-                contextSource = text; trustSourceDietary = true
+                contextSource = text  // short dish-defining source
             }
         case .rewrite:
             var c = request.currentRecipe ?? RecipeCard()
@@ -124,7 +124,7 @@ final class OnDeviceBackend: BackendService {
             prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"; input = .rewrite
             reviseID = c.id
         }
-        let ctx = RecipePrompt.context(userText: contextUser, sourceText: contextSource, trustSourceDietary: trustSourceDietary)
+        let ctx = RecipePrompt.context(userText: contextUser, sourceText: contextSource, sourceIsLongForm: sourceIsLongForm)
         var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx)
         // Never show a confident recipe for an object the camera saw instead of food.
         // Send the user back through the dish question so the next pass is grounded by a human label.

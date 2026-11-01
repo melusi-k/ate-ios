@@ -190,9 +190,18 @@ enum RecipePrompt {
     static func context(for text: String, region: String? = Locale.current.region?.identifier) -> Context {
         let l = text.lowercased()
         var c = Context()
+        // Every occurrence is examined, not just the first: a negated first mention must not
+        // hide a later explicit instruction ("not vegan, but make it vegan"). The rule is the
+        // documented one - any non-negated mention is intent; a negation qualifies only the
+        // occurrence it precedes.
         c.dietary = dietaryWords.filter { w in
-            guard let r = l.range(of: w) else { return false }
-            return !isNegated(l, r)
+            var start = l.startIndex
+            var found = false
+            while !found, let r = l.range(of: w, range: start..<l.endIndex) {
+                if !isNegated(l, r) { found = true }
+                start = r.upperBound
+            }
+            return found
         }
         if let r = l.range(of: #"(?:for|serves)\s+(\d{1,2})\b(?!\s*(?:minutes?|mins?|hours?|hrs?|h|seconds?|secs?)\b)"#, options: .regularExpression),
            let n = Int(l[r].filter(\.isNumber)), n > 0 { c.servings = n }

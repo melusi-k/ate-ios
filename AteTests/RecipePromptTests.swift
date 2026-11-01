@@ -107,7 +107,7 @@ final class RecipePromptTests: XCTestCase {
     /// Dietary/servings cues come from attributable text (the user's own words, the scraped source),
     /// never the assembled prompt's examples or guidance.
     func testContextFromScrapedSourceText() {
-        let c = RecipePrompt.context(userText: "https://instagram.com/p/xyz", sourceText: "Vegan chakalaka for 6", trustSourceDietary: true, region: "ZA")
+        let c = RecipePrompt.context(userText: "https://instagram.com/p/xyz", sourceText: "Vegan chakalaka for 6", sourceIsLongForm: false, region: "ZA")
         XCTAssertEqual(c.dietary, ["vegan"]); XCTAssertEqual(c.servings, 6); XCTAssertEqual(c.region, "South Africa")
     }
 
@@ -119,13 +119,35 @@ final class RecipePromptTests: XCTestCase {
         XCTAssertEqual(RecipePrompt.context(for: "make it vegan").dietary, ["vegan"])
     }
 
-    /// Explicit user text wins over the scraped recipe; untrusted sources never set dietary.
+    /// Explicit user text wins over the scraped recipe; a stated dietary identity applies even on long pages.
     func testContextPriorityUserOverSource() {
-        let c = RecipePrompt.context(userText: "chakalaka for 2", sourceText: "Serves 8. Vegan.", trustSourceDietary: false, region: "US")
+        let c = RecipePrompt.context(userText: "chakalaka for 2", sourceText: "Serves 8. Vegan.", sourceIsLongForm: true, region: "US")
         XCTAssertEqual(c.servings, 2, "the user's explicit servings win over the page")
-        XCTAssertEqual(c.dietary, [], "a long page mentioning 'vegan' descriptively is not a hard constraint")
-        let d = RecipePrompt.context(userText: "", sourceText: "Serves 8. Vegan.", trustSourceDietary: true, region: "US")
+        XCTAssertEqual(c.dietary, ["vegan"], "the page states vegan as the dish's identity (title region)")
+        let d = RecipePrompt.context(userText: "", sourceText: "Serves 8. Vegan.", sourceIsLongForm: false, region: "US")
         XCTAssertEqual(d.servings, 8); XCTAssertEqual(d.dietary, ["vegan"])
+    }
+
+    /// Long full-recipe sources: a diet counts when the recipe states it as its identity or
+    /// requirement, never as an optional adaptation; negations never count.
+    func testSourceDietaryStatedIdentityOnly() {
+        XCTAssertEqual(RecipePrompt.sourceDietary(in: "Vegan Mac and Cheese\n\nA creamy cashew sauce makes this a favourite.", longForm: true), ["vegan"], "title region states the identity")
+        XCTAssertEqual(RecipePrompt.sourceDietary(in: "Mac and Cheese\n\nThis recipe is naturally gluten-free and feeds a crowd.", longForm: true), ["gluten-free"], "requirement phrasing counts")
+        XCTAssertEqual(RecipePrompt.sourceDietary(in: "Mac and Cheese\n\nA family favourite. To make it vegan, swap the butter for oil and use a dairy-free cheese alternative.", longForm: true), [], "optional adaptations are not requirements")
+        XCTAssertEqual(RecipePrompt.sourceDietary(in: "A rich stew. Not vegan, but easily adapted with beans.", longForm: true), [], "negated mentions are not requirements")
+        XCTAssertEqual(RecipePrompt.sourceDietary(in: "Sunday lunch sorted: vegan chakalaka and rice!", longForm: false), ["vegan"], "short dish-defining sources count a plain mention")
+        XCTAssertEqual(RecipePrompt.sourceDietary(in: "Love this? Try our vegetarian version next week.", longForm: false), [], "advert-style alternatives are not the dish")
+    }
+
+    /// Dietary precedence: an explicit user requirement wins outright; a scraped identity yields to
+    /// the dish the user actually asked for (no blind union).
+    func testDietaryPrecedenceAndConflicts() {
+        let c = RecipePrompt.context(userText: "chicken curry for supper", sourceText: "Easy vegan curry", sourceIsLongForm: false, region: "ZA")
+        XCTAssertEqual(c.dietary, [], "explicit 'chicken' contradicts the caption's 'vegan'; the user's dish wins")
+        let v = RecipePrompt.context(userText: "make it vegetarian please", sourceText: "Vegan lentil soup", sourceIsLongForm: false, region: "US")
+        XCTAssertEqual(v.dietary, ["vegetarian"], "an explicit user requirement wins outright")
+        let g = RecipePrompt.context(userText: "add cheese", sourceText: "Dairy-free mac", sourceIsLongForm: false, region: "US")
+        XCTAssertEqual(g.dietary, [], "explicit 'cheese' contradicts 'dairy-free'")
     }
 
     /// The retry tells the same-session model exactly what to repair.

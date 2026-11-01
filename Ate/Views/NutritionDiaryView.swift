@@ -9,12 +9,31 @@ struct NutritionDiaryView: View {
     @State private var showingRecoveryConfirmation = false
     @State private var recoveryNotice: String?
     @State private var recoveryFailure: String?
+    /// Goals drive the daily-totals rows and the configure prompt. Keep them in state:
+    /// reading storage during body evaluation goes stale when a reset or a goals-screen
+    /// edit does not change any other state on this screen (#179).
+    @State private var dailyGoals: DailyNutritionGoals?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.bottomChromeMinY) private var bottomChromeMinY
+    @State private var listBottomY: CGFloat?
+
+    /// Layout-derived bottom reserve (#179): the measured band from the floating chrome's
+    /// top edge to the bottom of this view's list frame, plus settle margin. The capsule's
+    /// rendered height changes with content size category, so it is measured at runtime
+    /// rather than guessed; the fixed constants remain only until the first measurement.
+    private var bottomChromeReserve: CGFloat {
+        if let chromeMinY = bottomChromeMinY, let listBottomY {
+            return max(0, listBottomY - chromeMinY) + 8
+        }
+        return dynamicTypeSize.isAccessibilitySize ? 220 : 140
+    }
     private let repository: NutritionDiaryRepository
     private let goalsRepository: NutritionGoalsRepository
 
     init(repository: NutritionDiaryRepository = NutritionDiaryRepository(), goalsRepository: NutritionGoalsRepository = NutritionGoalsRepository()) {
         self.repository = repository
         self.goalsRepository = goalsRepository
+        _dailyGoals = State(initialValue: try? goalsRepository.load())
     }
 
     private var dayEntries: [NutritionDiaryEntry] {
@@ -69,29 +88,39 @@ struct NutritionDiaryView: View {
             }
             Section("Daily totals") {
                 let totals = NutritionDayTotals.calculate(entries: dayEntries)
-                let goals = try? goalsRepository.load()
+                let goals = dailyGoals
                 ForEach(NutritionGoalField.allCases) { field in
-                    HStack {
-                        Text(field.title)
-                        Spacer()
-                        if let amount = totals.value(for: field) {
-                            Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) \(field.unit)")
-                                .monospacedDigit()
-                            if let goal = goals?[field] {
-                                Text("/ \(goal.formatted(.number.precision(.fractionLength(0...1))))")
-                                    .foregroundStyle(Theme.mutedForeground).monospacedDigit()
-                            }
-                        } else {
-                            Text("Unavailable").foregroundStyle(Theme.mutedForeground)
+                    // At accessibility sizes a squeezed value wraps mid-word beside the
+                    // label (CI AX5 pixel evidence: "Un-avail-able", #179), so stack the
+                    // label over the value instead of one squeezed HStack.
+                    if dynamicTypeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(field.title)
+                            totalsValue(field, totals: totals, goals: goals)
                         }
+                        .accessibilityIdentifier("nutritionDiary.total.\(field.rawValue)")
+                    } else {
+                        HStack {
+                            Text(field.title)
+                            Spacer()
+                            totalsValue(field, totals: totals, goals: goals)
+                        }
+                        .accessibilityIdentifier("nutritionDiary.total.\(field.rawValue)")
                     }
-                    .accessibilityIdentifier("nutritionDiary.total.\(field.rawValue)")
                 }
                 if goals?.isEmpty == true {
-                    NavigationLink {
-                        NutritionGoalsView()
-                    } label: {
-                        Label("Set optional daily goals", systemImage: "target")
+                    NavigationLink(value: Route.nutritionGoals) {
+                        // A Label with an SF symbol stays compact instead of supporting
+                        // every Dynamic Type step (audit: DT partially unsupported + text
+                        // clipped, #179); separate Image + Text scale fully.
+                        HStack {
+                            Image(systemName: "target")
+                                .foregroundStyle(.tint)
+                            Text("Set optional daily goals")
+                                // Wrap with no line cap: a 2-line limit still clipped at
+                                // the largest Dynamic Type sizes (accessibility audit, #179).
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                     .accessibilityIdentifier("nutritionDiary.configureGoals")
                 } else if goals == nil {
@@ -99,18 +128,37 @@ struct NutritionDiaryView: View {
                         .font(AteFont.body(12))
                         .foregroundStyle(Theme.mutedForeground)
                         .accessibilityIdentifier("nutritionDiary.goalsLoadError")
-                    NavigationLink {
-                        NutritionGoalsView()
-                    } label: {
+                    NavigationLink(value: Route.nutritionGoals) {
                         Label("Retry loading daily goals", systemImage: "arrow.clockwise")
                     }
                     .accessibilityIdentifier("nutritionDiary.retryGoals")
                 }
             }
             if dayEntries.isEmpty {
-                ContentUnavailableView("Nothing logged", systemImage: "fork.knife", description: Text("Add food when you’ve eaten it. Cooking a recipe never logs it automatically."))
-                    .listRowBackground(Color.clear)
-                    .accessibilityIdentifier("nutritionDiary.empty")
+                // Custom empty content replaces the system ContentUnavailableView: its
+                // single-line title clipped at the trailing screen edge at AX5 (v8 pixel
+                // evidence, #179) and the CUV API exposes no wrapping control. Same
+                // wording, symbol, identifier and VoiceOver order; both texts wrap and
+                // scale with Dynamic Type.
+                VStack(spacing: 12) {
+                    Image(systemName: "fork.knife")
+                        .font(.system(.largeTitle))
+                        .foregroundStyle(Theme.mutedForeground)
+                        .accessibilityHidden(true)
+                    Text("Nothing logged")
+                        .font(AteFont.display(28))
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Add food when you’ve eaten it. Cooking a recipe never logs it automatically.")
+                        .font(AteFont.body(16))
+                        .foregroundStyle(Theme.mutedForeground)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+                .listRowBackground(Color.clear)
+                .accessibilityIdentifier("nutritionDiary.empty")
             } else {
                 ForEach(NutritionMeal.allCases) { meal in
                     let mealEntries = dayEntries.filter { $0.meal == meal }
@@ -147,7 +195,32 @@ struct NutritionDiaryView: View {
             if let errorMessage {
                 Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.error") }
             }
+            // The pushed-screen bottom chrome (cook mini-player / timer bar) is a
+            // safe-area inset this List measurably ignores (CI pixel evidence: the
+            // capsule overlays rows at AX5, #179), so reserve real scrollable space
+            // while it is up. Measured on iPhone 18 Pro / iOS 27 (v6 run 41266373705
+            // pixels): at AX5 the wrapped capsule's visual pill top rests ~717pt from
+            // the screen top (pill ~104pt tall) while its AX element frame is ~143pt
+            // tall (top ~697pt), so last content needs ~181pt of reserve to clear the
+            // AX-frame band; 220 covers that plus about one more wrapped title line.
+            // Default size: ~52pt pill (v5) + same bottom offset and frame padding puts the band bottom ~745pt, so last content needs ~129pt plus scroll-settle margin; 140.
+            // Intermediate sizes are verified by the scale-* mini-player captures.
+            if store.cookTarget == nil && (store.cookSession != nil || !store.timers.timers.isEmpty) {
+                Section {
+                    Color.clear
+                        .frame(height: bottomChromeReserve)
+                        .listRowBackground(Color.clear)
+                        .accessibilityHidden(true)
+                }
+            }
         }
+        .modifier(ListBottomMeasure(listBottomY: $listBottomY))
+        // Pushed screen: hide the tab bar so list content never rests behind it.
+        // safeAreaPadding/contentMargins measurably did NOT inset this list (A/B pixel
+        // diff of runs with and without the modifier: only the status-bar clock changed;
+        // the list's UICollectionView frame stayed {0,0,402,874} in the AX hierarchy).
+        // RecipeDetailView already hides the bar for the same reason (#179).
+        .toolbar(.hidden, for: .tabBar)
         .navigationTitle("Food diary")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -170,6 +243,18 @@ struct NutritionDiaryView: View {
             if ProcessInfo.processInfo.arguments.contains("-resetNutritionDiary") {
                 UserDefaults.standard.removeObject(forKey: NutritionDiaryRepository.storageKey)
             }
+            // UI-test-only hooks (#179 state coverage). Every new argument is gated on -UITesting so a
+            // normal launch can never reset, seed or fail user data.
+            if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-resetNutritionGoals") {
+                UserDefaults.standard.removeObject(forKey: DailyNutritionGoals.defaultsKey)
+                try? NutritionGoalsRepository().storage.remove()
+            }
+            if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-seedCorruptNutritionDiary") {
+                UserDefaults.standard.set(Data("qa-corrupt-diary".utf8), forKey: NutritionDiaryRepository.storageKey)
+            }
+            if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-seedCorruptNutritionGoals") {
+                try? NutritionGoalsRepository().storage.write(Data("qa-corrupt-goals".utf8))
+            }
             reloadDiary()
         }
         .alert("Back up and reset diary?", isPresented: $showingRecoveryConfirmation) {
@@ -181,6 +266,7 @@ struct NutritionDiaryView: View {
     }
 
     private func reloadDiary() {
+        dailyGoals = try? goalsRepository.load()
         switch repository.loadState() {
         case .loaded(let loaded):
             entries = loaded
@@ -205,12 +291,33 @@ struct NutritionDiaryView: View {
         }
     }
 
+    @ViewBuilder private func totalsValue(_ field: NutritionGoalField, totals: NutritionDayTotals, goals: DailyNutritionGoals?) -> some View {
+        if let amount = totals.value(for: field) {
+            HStack(spacing: 4) {
+                Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) \(field.unit)")
+                    .monospacedDigit()
+                if let goal = goals?[field] {
+                    Text("/ \(goal.formatted(.number.precision(.fractionLength(0...1))))")
+                        .foregroundStyle(Theme.mutedForeground).monospacedDigit()
+                }
+            }
+        } else {
+            Text("Unavailable").foregroundStyle(Theme.mutedForeground)
+        }
+    }
+
     private func delete(_ entry: NutritionDiaryEntry) {
         entries.removeAll { $0.id == entry.id }
         persist()
     }
 
     private func persist() {
+        // UI-test-only fault injection (#179 save-failure state); gated on -UITesting.
+        // Every save fails while the argument is present; remove the argument to recover.
+        if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-failDiarySaves") {
+            errorMessage = "Your diary couldn’t be saved. Please try again."
+            return
+        }
         do { try repository.save(entries); errorMessage = nil }
         catch let error as NutritionDiaryLoadError {
             diaryDataCorrupt = true
@@ -238,6 +345,9 @@ private struct NutritionDiaryEntryForm: View {
 
     var body: some View {
         Form {
+            // Validation errors belong at the top: with the keyboard up, a message rendered
+            // at the bottom of this long form is hidden exactly when the user needs it.
+            if let errorMessage { Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.formError") } }
             Section("Food consumed") {
                 TextField("Food or recipe name", text: $foodName)
                     .accessibilityIdentifier("nutritionDiary.foodName")
@@ -280,8 +390,14 @@ private struct NutritionDiaryEntryForm: View {
             } header: { Text("Nutrients per serving (optional)") } footer: {
                 Text("Enter only values you can verify from the source. Each logged entry keeps this snapshot if the source changes later.")
             }
-            if let errorMessage { Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.formError") } }
         }
+        // The decimal-pad fields have no return key; let a scroll dismiss the keyboard so
+        // it cannot trap itself over the lower form. Dismiss on scroll touch-down rather
+        // than tracking the drag interactively: the interactive keyboard-tracking
+        // transition is the leading suspect for the app never reporting idle when the
+        // keyboard is up across a navigation push/pop (Log food source picker, #179) -
+        // the original keyboard-up UI gate is the judge of this candidate mechanism.
+        .scrollDismissesKeyboard(.immediately)
         .navigationTitle("Log food")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: source) { _, newSource in
@@ -334,5 +450,24 @@ private struct NutritionDiaryEntryForm: View {
             return
         }
         onSave(entry)
+    }
+}
+
+
+/// #179: publishes the global bottom edge of the list/form frame so the bottom chrome
+/// reserve is layout-derived rather than a fixed constant.
+private struct ListBottomYKey: PreferenceKey {
+    static var defaultValue: CGFloat? { nil }
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) { if let n = nextValue() { value = n } }
+}
+
+private struct ListBottomMeasure: ViewModifier {
+    @Binding var listBottomY: CGFloat?
+    func body(content: Content) -> some View {
+        content
+            .background(GeometryReader { g in
+                Color.clear.preference(key: ListBottomYKey.self, value: g.frame(in: .global).maxY)
+            })
+            .onPreferenceChange(ListBottomYKey.self) { listBottomY = $0 }
     }
 }

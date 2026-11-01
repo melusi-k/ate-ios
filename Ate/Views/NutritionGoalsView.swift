@@ -2,6 +2,21 @@ import SwiftUI
 
 struct NutritionGoalsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppStore.self) private var store
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.bottomChromeMinY) private var bottomChromeMinY
+    @State private var listBottomY: CGFloat?
+
+    /// Layout-derived bottom reserve (#179): the measured band from the floating chrome's
+    /// top edge to the bottom of this view's list frame, plus settle margin. The capsule's
+    /// rendered height changes with content size category, so it is measured at runtime
+    /// rather than guessed; the fixed constants remain only until the first measurement.
+    private var bottomChromeReserve: CGFloat {
+        if let chromeMinY = bottomChromeMinY, let listBottomY {
+            return max(0, listBottomY - chromeMinY) + 8
+        }
+        return dynamicTypeSize.isAccessibilitySize ? 220 : 140
+    }
     @State private var enabled: [NutritionGoalField: Bool] = [:]
     @State private var values: [NutritionGoalField: String] = [:]
     @State private var errors: [NutritionGoalField: String] = [:]
@@ -44,6 +59,10 @@ struct NutritionGoalsView: View {
                     .accessibilityHint("Turns off every goal in this form. Tap Save goals to confirm the change.")
             } footer: {
                 Text("Clearing goals changes this draft only until you tap Save goals.")
+                    // Explicit scalable font and free vertical growth for every Dynamic
+                    // Type size (accessibility audit, #179).
+                    .font(AteFont.body(12))
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("nutritionGoals.clearAllHint")
             }
 
@@ -99,11 +118,30 @@ struct NutritionGoalsView: View {
                         .accessibilityIdentifier("nutritionGoals.saveError")
                 }
             }
+
+            // The pushed-screen bottom chrome (cook mini-player / timer bar) is a
+            // safe-area inset this Form measurably ignores (CI pixel evidence: the
+            // capsule overlays the Energy/Protein rows at AX5, #179), so reserve real
+            // scrollable space while it is up. Height evidence: see the diary change.
+            if store.cookTarget == nil && (store.cookSession != nil || !store.timers.timers.isEmpty) {
+                Section {
+                    Color.clear
+                        .frame(height: bottomChromeReserve)
+                        .listRowBackground(Color.clear)
+                        .accessibilityHidden(true)
+                }
+            }
         }
+        .modifier(ListBottomMeasure(listBottomY: $listBottomY))
         .scrollContentBackground(.hidden)
         .background(Theme.background)
         .foregroundStyle(Theme.foreground)
         .navigationTitle("Nutrition goals")
+        // Pushed screen: hide the tab bar so the Save/Cancel actions never rest behind it
+        // (Cancel was rendered faded behind the bar at ~818pt; the bar spans y791-874).
+        // safeAreaPadding(.bottom, 96) provably did not inset pushed-screen content
+        // (diary A/B pixel diff, #179); RecipeDetailView already hides the bar instead.
+        .toolbar(.hidden, for: .tabBar)
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Back up and reset unreadable goals?", isPresented: $showingRecoveryConfirmation, titleVisibility: .visible) {
             Button("Back up and reset", role: .destructive) { recoverCorruptData() }
@@ -111,7 +149,15 @@ struct NutritionGoalsView: View {
         } message: {
             Text("A private local copy of the unreadable data will be saved before the broken configuration is removed. If the backup cannot be saved, no data will be reset.")
         }
-        .task { loadDraftIfNeeded() }
+        .task {
+            // UI-test-only hook (#179 state coverage), gated on -UITesting like the diary
+            // hooks: reset leftover goal state before loading the draft so suites are isolated.
+            if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-resetNutritionGoals") {
+                UserDefaults.standard.removeObject(forKey: DailyNutritionGoals.defaultsKey)
+                try? NutritionGoalsRepository().storage.remove()
+            }
+            loadDraftIfNeeded()
+        }
     }
 
     @ViewBuilder
@@ -264,5 +310,24 @@ struct NutritionGoalsView: View {
 #Preview {
     NavigationStack {
         NutritionGoalsView(repository: NutritionGoalsRepository(defaults: UserDefaults(suiteName: "nutrition-goals-preview")!))
+    }
+}
+
+
+/// #179: publishes the global bottom edge of the list/form frame so the bottom chrome
+/// reserve is layout-derived rather than a fixed constant.
+private struct ListBottomYKey: PreferenceKey {
+    static var defaultValue: CGFloat? { nil }
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) { if let n = nextValue() { value = n } }
+}
+
+private struct ListBottomMeasure: ViewModifier {
+    @Binding var listBottomY: CGFloat?
+    func body(content: Content) -> some View {
+        content
+            .background(GeometryReader { g in
+                Color.clear.preference(key: ListBottomYKey.self, value: g.frame(in: .global).maxY)
+            })
+            .onPreferenceChange(ListBottomYKey.self) { listBottomY = $0 }
     }
 }

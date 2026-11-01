@@ -219,9 +219,11 @@ struct CookSessionMiniPlayer: View {
                 HStack(spacing: 10) {
                     Image(systemName: "frying.pan").foregroundStyle(Theme.primary)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(recipe.title).font(AteFont.body(13, .semibold)).lineLimit(1)
+                        Text(recipe.title).font(AteFont.body(13, .semibold)).lineLimit(2)
+                        // Two lines at accessibility sizes: one line truncated the step
+                        // text inside the capsule at AX5 (CI pixel evidence, #179).
                         Text("Resume · Step \(min(session.stepIndex, recipe.steps.count - 1) + 1) of \(recipe.steps.count)")
-                            .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground).lineLimit(1)
+                            .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground).lineLimit(2)
                     }
                     Spacer(minLength: 4)
                     Image(systemName: "play.fill").font(.system(size: 12, weight: .semibold))

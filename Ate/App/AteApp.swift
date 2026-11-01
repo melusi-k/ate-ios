@@ -9,6 +9,9 @@ struct AteApp: App {
 
     init() {
         TabBarStyle.apply()
+        #if DEBUG
+        LiveDTProbe.installIfRequested()
+        #endif
         if AppConfig.isUITesting {
             for k in ["ate.settings.v1", "ate.timerprefs.v1", "ate.cookSession.v1"] { UserDefaults.standard.removeObject(forKey: k) }
         }
@@ -31,6 +34,15 @@ struct AteApp: App {
         StoreSaver.onFailure = { [weak st] msg in st?.show(msg, error: true, seconds: 4) }
         if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaHealthRecipes") && st.recipes.isEmpty {
             st.recipes = HealthFixtures.library
+        }
+        // #179 recipe-nutrition UI coverage: one recipe whose ingredient has no verified food match.
+        if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaNutritionFixtures") && st.recipes.isEmpty {
+            var qaRecipe = RecipeCard()
+            qaRecipe.id = "qa-nutrition-pap"
+            qaRecipe.title = "QA pap and rice"
+            qaRecipe.servings = 2
+            qaRecipe.ingredients = [Ingredient(name: "pap", quantity: 200, unit: "g")]
+            st.recipes = [qaRecipe]
         }
         _store = State(initialValue: st)
     }
@@ -66,8 +78,11 @@ struct TimerBarInset: ViewModifier {
         content.safeAreaInset(edge: .bottom, spacing: 0) {
             // iOS 26: at tab roots the timer lives in the tab bar's bottom accessory, so the inset only shows on pushed screens.
             if store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot) {
-                if let session = store.cookSession { CookSessionMiniPlayer(session: session) }
-                if !store.timers.timers.isEmpty { TimerBar() }
+                Group {
+                    if let session = store.cookSession { CookSessionMiniPlayer(session: session) }
+                    if !store.timers.timers.isEmpty { TimerBar() }
+                }
+                .bottomChromeMeasured()
             }
         }
     }
@@ -119,6 +134,8 @@ struct RootView: View {
     @Environment(\.scenePhase) private var phase
     @Environment(\.verticalSizeClass) private var vSize
     private let tick = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
+    /// Measured floating-chrome top edge, republished for pushed screens (#179).
+    @State private var bottomChromeMinY: CGFloat?
 
     var body: some View {
         @Bindable var store = store
@@ -133,6 +150,8 @@ struct RootView: View {
             // Collections are sidebar-only; back in portrait keep the filter but show the Library tab.
             if v != .compact, case .collection = store.tab { store.tab = .library }
         }
+        .onPreferenceChange(BottomChromeMinYKey.self) { bottomChromeMinY = $0 }
+        .environment(\.bottomChromeMinY, bottomChromeMinY)
         .fullScreenCover(item: $store.cookTarget) { target in
             NavigationStack { CookModeView(recipeID: target.id, onExit: { store.cookTarget = nil }) }.environment(store)
         }
@@ -231,7 +250,43 @@ enum TabChrome {
     static var usesAccessory: Bool { if #available(iOS 26, *) { return true }; return false }
 }
 
+/// #179: measured global top edge of the floating bottom chrome (the iOS 26 tab accessory or
+/// the pushed-screen safe-area inset). Pushed screens reserve exactly the band the chrome
+/// covers instead of a fixed constant, because the capsule's height changes with content size.
+struct BottomChromeMinYKey: PreferenceKey {
+    static var defaultValue: CGFloat? { nil }
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) { if let n = nextValue() { value = n } }
+}
+
+struct BottomChromeMinYEnvironmentKey: EnvironmentKey {
+    static let defaultValue: CGFloat? = nil
+}
+
+extension EnvironmentValues {
+    var bottomChromeMinY: CGFloat? {
+        get { self[BottomChromeMinYEnvironmentKey.self] }
+        set { self[BottomChromeMinYEnvironmentKey.self] = newValue }
+    }
+}
+
+private struct BottomChromeMeasure: ViewModifier {
+    func body(content: Content) -> some View {
+        content.background(GeometryReader { g in
+            Color.clear.preference(key: BottomChromeMinYKey.self, value: g.frame(in: .global).minY)
+        })
+    }
+}
+
+extension View { func bottomChromeMeasured() -> some View { modifier(BottomChromeMeasure()) } }
+
 /// Bottom accessory above the tab bar: a destination-aware add action, or timer summary plus a contextual +.
+private extension View {
+    /// Branches a modifier chain on OS availability without splitting the view expression.
+    @ViewBuilder func modify<Content: View>(@ViewBuilder _ transform: (Self) -> Content) -> some View {
+        transform(self)
+    }
+}
+
 @available(iOS 26, *)
 struct AteBottomAccessory: View {
     @Environment(AppStore.self) private var store
@@ -257,6 +312,7 @@ struct AteBottomAccessory: View {
         }
         .padding(.horizontal, compact ? 4 : 12)
         .accessibilityElement(children: .contain).accessibilityIdentifier("bottomAccessory")
+        .bottomChromeMeasured()
     }
     private func add() {
         switch store.bottomAddContext {
@@ -311,10 +367,21 @@ extension RootView {
         }
         .tabViewStyle(.tabBarOnly)
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory {
+        .modify { view in
             // Pushed screens reserve their own timer-bar inset. Keeping the accessory
             // at tab roots avoids a second timer bar beneath RecipeDetailView's Cook mode.
-            if store.cookTarget == nil && store.isAtTabRoot { AteBottomAccessory() }
+            // iOS 26.1 renders the accessory capsule even when the content is EmptyView
+            // (CI pixel evidence, #179), so gate visibility, not just content; the
+            // isEnabled: variant needs iOS 26.2, CI runs 27.0.
+            if #available(iOS 26.2, *) {
+                view.tabViewBottomAccessory(isEnabled: store.cookTarget == nil && store.isAtTabRoot) {
+                    AteBottomAccessory()
+                }
+            } else {
+                view.tabViewBottomAccessory {
+                    if store.cookTarget == nil && store.isAtTabRoot { AteBottomAccessory() }
+                }
+            }
         }
     }
 
@@ -382,6 +449,8 @@ struct RouteView: View {
             case .betaNote: AppConfig.isBetaBuild ? AnyView(BetaExpectationsView()) : AnyView(SettingsView())
             case .journal: JournalListView()
             case .journalEntry(let id): JournalEntryDetailView(entryID: id)
+            case .nutritionDiary: NutritionDiaryView()
+            case .nutritionGoals: NutritionGoalsView()
             }
         }
         .toolbarTitleDisplayMode(.inline)
@@ -507,3 +576,71 @@ enum TabBarStyle {
         UITabBar.appearance().unselectedItemTintColor = off
     }
 }
+
+
+
+#if DEBUG
+/// #179 live-toggle diagnostic (strict-audit verdict investigation): applies an in-process
+/// content-size-category change through the normal UIKit trait system (window
+/// traitOverrides) so a UI test can measure same-element geometry across a LIVE category
+/// change, not only across relaunches. Active solely when launched with -UITestLiveDT;
+/// completely inert otherwise. The payload travels in the Darwin notification name
+/// ("atedt.set.<UICTContentSizeCategory...>") so no shared-container IPC is needed.
+final class LiveDTProbe {
+    static let shared = LiveDTProbe()
+    private init() {}
+    private var observed = false
+
+    private static let namePrefix = "atedt.set."
+    private static let categories: [(String, UIContentSizeCategory)] = [
+        ("UICTContentSizeCategoryL", .large),
+        ("UICTContentSizeCategoryXL", .extraLarge),
+        ("UICTContentSizeCategoryXXXL", .extraExtraExtraLarge),
+        ("UICTContentSizeCategoryAccessibilityM", .accessibilityMedium),
+        ("UICTContentSizeCategoryAccessibilityL", .accessibilityLarge),
+        ("UICTContentSizeCategoryAccessibilityXL", .accessibilityExtraLarge),
+        ("UICTContentSizeCategoryAccessibilityXXL", .accessibilityExtraExtraLarge),
+        ("UICTContentSizeCategoryAccessibilityXXXL", .accessibilityExtraExtraExtraLarge),
+    ]
+
+    static func installIfRequested() { shared.installIfRequested() }
+
+    private func installIfRequested() {
+        guard !observed, ProcessInfo.processInfo.arguments.contains("-UITestLiveDT") else { return }
+        observed = true
+        for (name, _) in LiveDTProbe.categories {
+            CFNotificationCenterAddObserver(
+                CFNotificationCenterGetDarwinNotifyCenter(),
+                nil,
+                { _, _, name, _, _ in
+                    guard let name else { return }
+                    let raw = name.rawValue as String
+                    guard raw.hasPrefix(LiveDTProbe.namePrefix) else { return }
+                    LiveDTProbe.apply(String(raw.dropFirst(LiveDTProbe.namePrefix.count)))
+                },
+                (LiveDTProbe.namePrefix + name) as CFString,
+                nil,
+                .deliverImmediately)
+        }
+    }
+
+    private static func apply(_ category: String) {
+        guard let value = categories.first(where: { $0.0 == category })?.1 else { return }
+        Task { @MainActor in
+            for scene in UIApplication.shared.connectedScenes {
+                guard let windowScene = scene as? UIWindowScene else { continue }
+                for window in windowScene.windows {
+                    window.traitOverrides.preferredContentSizeCategory = value
+                }
+            }
+            // Read back the EFFECTIVE trait after a beat so the diagnostic log shows the
+            // override actually landed, not just that it was requested (main review, #179).
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            let effective = UIApplication.shared.connectedScenes
+                .compactMap { ($0 as? UIWindowScene)?.windows.first?.traitCollection.preferredContentSizeCategory.rawValue }
+                .first ?? "unknown"
+            QAProbe.shared.lastLiveDT = "dt req=\(category) eff=\(effective)"
+        }
+    }
+}
+#endif

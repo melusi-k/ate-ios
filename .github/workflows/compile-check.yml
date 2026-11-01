@@ -174,8 +174,14 @@ jobs:
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
             -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreens \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicType \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingCaptures \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeLibraryAndRecipe \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeCookMode \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeNutrition \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingXS \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingXXXL \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX1 \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX3 \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX5 \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \

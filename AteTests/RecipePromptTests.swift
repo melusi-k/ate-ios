@@ -183,5 +183,22 @@ final class RecipePromptTests: XCTestCase {
         XCTAssertTrue(RecipePrompt.instructions(for: .photo).contains("lookupRegionalDish"), "tool instruction lives once in the shared instructions")
         XCTAssertTrue(RecipePrompt.lookupRegionalDish("ujeqe").contains("steam 1 h"), "glossary detail now comes from the tool")
     }
+    /// Cooking times are not servings; negated diets are not requirements (even with sloppy spacing).
+    func testContextIgnoresTimeUnitsAndNegation() {
+        XCTAssertNil(RecipePrompt.context(for: "Simmer for 20 minutes, then bake for 2 hours.").servings)
+        XCTAssertNil(RecipePrompt.context(for: "Rest for 30 min, then bake for 2h.").servings)
+        XCTAssertEqual(RecipePrompt.context(for: "Serves 8.").servings, 8)
+        XCTAssertEqual(RecipePrompt.context(for: "Dinner for 2 people").servings, 2)
+        XCTAssertEqual(RecipePrompt.context(for: "chakalaka for 6").servings, 6)
+        XCTAssertEqual(RecipePrompt.context(for: "not vegan at all").dietary, [])
+        XCTAssertEqual(RecipePrompt.context(for: "definitely not  vegan, thanks").dietary, [])
+        XCTAssertEqual(RecipePrompt.context(for: "isn't vegan").dietary, [])
+        XCTAssertEqual(RecipePrompt.context(for: "never vegetarian tonight").dietary, [])
+        XCTAssertEqual(RecipePrompt.context(for: "non-vegan").dietary, [])
+        XCTAssertEqual(RecipePrompt.context(for: "make it vegan").dietary, ["vegan"])
+        XCTAssertEqual(RecipePrompt.context(for: "Vegan!").dietary, ["vegan"])
+        XCTAssertEqual(RecipePrompt.context(for: "a knot in the vegan thread").dietary, ["vegan"], "'knot' is not a negator")
+    }
+
 }
 

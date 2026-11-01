@@ -113,7 +113,7 @@ struct NutritionGoalsView: View {
             if store.cookTarget == nil && (store.cookSession != nil || !store.timers.timers.isEmpty) {
                 Section {
                     Color.clear
-                        .frame(height: dynamicTypeSize.isAccessibilitySize ? 130 : 72)
+                        .frame(height: dynamicTypeSize.isAccessibilitySize ? 150 : 72)
                         .listRowBackground(Color.clear)
                         .accessibilityHidden(true)
                 }

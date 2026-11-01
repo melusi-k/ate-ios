@@ -268,3 +268,83 @@ PR #206 exact head remains `02571a4ced4eb2f126aaad345d4b93bfbaa7cad1`. Its Compi
 ### Retrospective timing note
 - 2026-W44 closes Sunday 2026-11-01. No W44 committed baseline was present in the records reviewed, so the Sunday close-out must state that commitment accuracy/carryover denominators are unavailable; do not reconstruct a fictitious commitment or infer actual starts from ticket creation or sprint dates.
 - W45 remains planned for Monday 2026-11-02 through Sunday 2026-11-08. Monday planning should revalidate main, PR #206/#231 exact-head CI, review status, issue #30 release blockers and the current backlog before confirming the commitment. Sunday close-out is due 2026-11-08.
+
+
+## Guardian refresh — 2026-10-31T09:05:44Z (UTC) / 2026-10-31 11:05:44 Africa/Johannesburg
+
+**Evidence cutoff:** 2026-10-31T09:05:44Z. This is a Saturday pre-sprint status refresh, not a Monday planning event or Sunday retrospective. No planned dates were changed.
+
+### Sprint schedule and commitment status
+
+- **2026-W44:** closes Sunday 2026-11-01. No W44 committed baseline was found in the reviewed records. Sunday retrospective must report commitment accuracy and carryover rate as unavailable; do not invent a denominator.
+- **2026-W45:** Monday 2026-11-02 through Sunday 2026-11-08. Existing baseline remains unchanged:
+  - **Committed:** issue #30 (release-readiness evidence refresh); issue #179 + root PR #206 (one bounded nutrition-foundation delivery outcome).
+  - **Dependent child:** PR #231 inherits the #179/#206 window and acceptance dependency; do not count it as a second delivery.
+  - **Stretch:** issue #70, limited to one evidence-backed ownership/QA mismatch if committed work is on track.
+  - **Carryover candidates:** PR #181 (older overlapping nutrition work) and PR #66 (journal acceptance coverage). Neither is a W45 commitment and neither receives new dates.
+  - **Not scheduled:** PR #234 (QA scope reclassification). It changes release acceptance policy and must be reviewed/approved separately before being considered for a sprint.
+- Original planned dates are preserved. The earlier #206 proposal ending 2026-11-06 remains historical; the agreed Monday–Sunday window ends 2026-11-08.
+
+### Current main and release readiness
+
+- Current `main`: `7a84441651da07e08cfe398a72588d89af9888cd`; PR #233 merged at 2026-10-31T08:09:24Z / 10:09:24 SAST.
+- Current release-readiness snapshot [run 41183432551](https://github.com/melusi-k/ate-ios/actions/runs/41183432551) on that SHA is **BLOCKED**: 1/59 verified, 12 failing, 46 open. Unit, QA 8-flow, UI and backend-E2E jobs were skipped; QA-results retrieval failed with HTTP 400. A successful workflow wrapper or artifact does not override skipped inner validation.
+- The main-branch QA matrix remains authoritative until PR #234 is explicitly approved and merged. Its proposed A-SHARE-05 N/A and A-WIDGET-05 Pass changes are not current-main acceptance evidence.
+
+### Open PR status at evidence cutoff
+
+| PR | Sprint classification | Branch / exact-head evidence | Decision |
+|---|---|---|---|
+| [#206](https://github.com/melusi-k/ate-ios/pull/206) | W45 committed root for #179 | Head `75da84cc955cbeefe58b28b888a3fb3cc786b093`, 12 ahead / 0 behind main. Dogfood passed [41185965394](https://github.com/melusi-k/ate-ios/actions/runs/41185965394); Compile [41185965539](https://github.com/melusi-k/ate-ios/actions/runs/41185965539) still in progress. | Blocked: no independent approval; current code still treats corrupt diary bytes as empty (possible overwrite) and daily-total rounding can overflow at `sum * 10`. |
+| [#231](https://github.com/melusi-k/ate-ios/pull/231) | Dependent child of committed #206; not separately counted | Head `e3a4944bc353404005cb7ee249fab8bfd8f4261b`, based on old #206 head `0bb70c22d0e19f6079d2224ee6fbc3366850993a`. Dogfood passed [41178109351](https://github.com/melusi-k/ate-ios/actions/runs/41178109351); Compile failed [41178109316](https://github.com/melusi-k/ate-ios/actions/runs/41178109316) at #83 and #145. | Draft. Root must merge first; then reconcile child to main and rerun exact-head checks. |
+| [#234](https://github.com/melusi-k/ate-ios/pull/234) | Not selected for W45; no dates | Head `ae637f5a6593705f6e8cbc5c58ac2b3e5b099862`, 22 ahead / 3 behind main. Dogfood passed [41184200200](https://github.com/melusi-k/ate-ios/actions/runs/41184200200); Compile failed [41184200185](https://github.com/melusi-k/ate-ios/actions/runs/41184200185) at #145 and #195; docs validation skipped. | Blocked: adds `continue-on-error: true` to required regression #83; proposes A-SHARE-05 N/A without a qualifying recorded human approval; A-WIDGET-05 Pass lacks device/build details. |
+| [#181](https://github.com/melusi-k/ate-ios/pull/181) | Carryover / supersession candidate | 21 ahead / 243 behind main; draft; three unresolved threads; no exact-head Compile/Dogfood evidence. | Do not double-count with #206/#231. Retain until explicit supersession/closure decision. |
+| [#66](https://github.com/melusi-k/ate-ios/pull/66) | Carryover | 38 ahead / 595 behind main; draft; no exact-head Compile/Dogfood evidence; no approval. | Reconcile/split manually; preserve strict accessibility assertions. Device/Shortcuts evidence remains in #67. |
+
+No branch was rewritten. GitHub update-branch is disabled and the connected integration exposes no safe rebase operation.
+
+### Repository merge governance
+
+- Ruleset [main-production-protection](https://github.com/melusi-k/ate-ios/rules/26236404) exists with `enforcement=disabled`. Its configured requirements include one approving review, resolved review threads, strict `compile` and `dogfood-qualification` checks, and linear history.
+- `.github/CODEOWNERS` exists with `* @melusi-k`, but the ruleset has `require_code_owner_review=false`. The sole owner is the PR author; nominate an independent maintainer/team before requiring owner approval.
+- Repository metadata: squash merge enabled, auto-merge disabled, update-branch disabled. Branch-protection API access remains 403, so separate branch protection is unverified.
+- No governance setting was changed. Do not auto-merge while ruleset enforcement and independent ownership/review requirements are unverified.
+
+### Lifecycle reconstruction addendum
+
+All timestamps below are exact GitHub UTC metadata/commit timestamps; SAST is UTC+02:00. Actual work start is not equated with ticket or PR creation.
+
+| Ticket | Event | UTC | SAST | Confidence |
+|---|---|---|---|---|
+| [Issue #179](https://github.com/melusi-k/ate-ios/issues/179) | Created | 2026-10-25T01:45:00Z | 2026-10-25 03:45:00 | Verified |
+| Issue #179 | First recorded activity: cross-reference to #180 | 2026-10-25T01:48:25Z | 2026-10-25 03:48:25 | Verified |
+| Issue #179 | Actual work start: earliest linked implementation commit in #181, `d3a141de8c61f33194b712819a18b07d74c2362a` | 2026-10-25T06:40:40Z | 2026-10-25 08:40:40 | Inferred earliest observable activity |
+| [PR #206](https://github.com/melusi-k/ate-ios/pull/206) | Created / opened | 2026-10-30T17:10:20Z | 2026-10-30 19:10:20 | Verified |
+| PR #206 | First recorded activity: GitHub Project automation | 2026-10-30T17:10:22Z | 2026-10-30 19:10:22 | Verified |
+| PR #206 | First substantive human review: author COMMENTED self-review; not approval | 2026-10-30T17:38:28Z | 2026-10-30 19:38:28 | Verified |
+| PR #206 | Actual work start: earliest implementation commit `02571a4ced4eb2f126aaad345d4b93bfbaa7cad1` | 2026-10-30T20:08:27Z | 2026-10-30 22:08:27 | Inferred earliest observable activity |
+| [PR #231](https://github.com/melusi-k/ate-ios/pull/231) | Created / opened | 2026-10-31T06:34:20Z | 2026-10-31 08:34:20 | Verified |
+| PR #231 | Actual work start: earliest implementation commit `3ab5a8d6a8c9b53ad5be10fe944732d813cc154d` | 2026-10-31T06:33:58Z | 2026-10-31 08:33:58 | Inferred earliest observable activity |
+| PR #231 | First human review / approval | Unknown / none verified | Unknown / none verified | Unknown |
+| [PR #234](https://github.com/melusi-k/ate-ios/pull/234) | Created / opened | 2026-10-31T07:30:58Z | 2026-10-31 09:30:58 | Verified |
+| PR #234 | Actual work start: earliest implementation commit `af9563e4f454381003f632b7d01bbcb75f4111a2` | 2026-10-31T07:25:42Z | 2026-10-31 09:25:42 | Inferred earliest observable activity |
+| PR #234 | Codex review summary (automated, not a human review) | 2026-10-31T07:31:03Z | 2026-10-31 09:31:03 | Verified |
+| PR #234 | First substantive human review / approval | Unknown / none verified | Unknown / none verified | Unknown |
+
+Existing lifecycle records for #66 and #181 remain unchanged: their first implementation commits and COMMENTED human reviews are already recorded in the preceding lifecycle table. Neither has a qualifying approval or completion event.
+
+### Timing and sprint metrics
+
+- PR #206 time from PR open to first human COMMENTED review: **28m 08s** (Verified endpoints; self-review, not approval).
+- PR #181 and #66 first-review intervals remain the previously recorded samples; both first reviews were COMMENTED, not approvals.
+- PR #231 and #234 have no verified human review or approval timestamps.
+- No qualifying approval time, merge/close time, or accepted completion time exists for #179/#206/#231/#234. Lead time, implementation time and cycle time are not calculated for these open tickets.
+- W44 commitment accuracy and carryover rate remain **unavailable** because no committed W44 denominator was recorded.
+
+### Next actions
+
+1. Fix #206 diary corruption preservation and daily-total overflow; wait for exact-head Compile and Dogfood to finish, then obtain independent approval.
+2. Keep #231 draft; after #206 is accepted/merged, reconcile the child to current main and rerun all exact-head tests.
+3. Fix #234 by removing the #83 error waiver, resolving #145/#195 failures, recording the explicit A-SHARE-05 scope decision and device evidence for A-WIDGET-05, then rerun required checks.
+4. Keep #181/#66 as carryovers until maintainers decide whether to supersede/split them.
+5. On Sunday 2026-11-01, close W44 with unavailable denominators stated explicitly. On Monday 2026-11-02, revalidate W45 commitments against fresh main, CI, PR reviews and release evidence.

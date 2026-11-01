@@ -491,6 +491,55 @@ jobs:
           fi
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" cook-mode-history.log | tail -n 30
+
+      - name: Cook Mode ingredient sheet (session unit + UI)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          # Clean process so launch arguments are real (same rationale as other UI shards).
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/CookSessionTests \
+            -only-testing:AteUITests/CookIngredientsUITests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-ingredients-tests.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > cook-ingredients-tests.log 2>&1
+          status=$?
+          set -e
+          # Export screenshots and attachments on green runs too: for this feature the rendered
+          # sheet is itself the evidence, not only failure diagnostics (keepAlways shots).
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/cook-ingredients-tests.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/cook-ingredients-attachments" 2>/dev/null || true
+          if [ "$status" -ne 0 ]; then
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" cook-ingredients-tests.log || true
+            tail -120 cook-ingredients-tests.log
+            exit "$status"
+          fi
+          # Execution evidence: a green selection that ran nothing is a failure, and every
+          # named test must appear with its own pass line in the log.
+          if grep -q "Executed 0 tests" cook-ingredients-tests.log; then echo "::error::cook ingredient selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "CookSessionTests testLegacySessionWithoutFactorDecodesWithDefaults]' passed" \
+            "CookSessionTests testSessionRoundTripsFactorAndChecked]' passed" \
+            "CookSessionTests testToggleCheckedAddsAndRemoves]' passed" \
+            "CookSessionTests testScaledIngredientAmountsFollowSessionFactor]' passed" \
+            "CookSessionTests testScaledAmountsRenderForArbitraryFactor]' passed" \
+            "CookSessionTests testEditingIngredientsClearsGatheredChecks]' passed" \
+            "CookSessionTests testNonIngredientEditKeepsGatheredChecks]' passed" \
+            "CookSessionTests testToggleAfterExternalChangeResetsThenApplies]' passed" \
+            "CookSessionTests testBeginCookSessionResetsChecksWhenIngredientsChanged]' passed" \
+            "CookSessionTests testWholesaleRecipeReplacementClearsChecksPreservesFactorAndStep]' passed" \
+            "CookSessionTests testIngredientSignatureResistsSeparatorCollisions]' passed" \
+            "CookSessionTests testReenteringSameRecipeKeepsSessionFactor]' passed" \
+            "CookSessionTests testChecklistAmountsRenderMetricAndImperial]' passed" \
+            "CookIngredientsUITests testCookIngredientSheetScalesChecksAndPersists]' passed" \
+            "CookIngredientsUITests testCookIngredientSheetLargeTextAccessibilityAndImperial]' passed" \
+            "CookIngredientsUITests testCookTimerCardLargeText]' passed"; do
+            grep -qF "$evidence" cook-ingredients-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 cook-ingredients-tests.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" cook-ingredients-tests.log | tail -40
+
       - name: Summarize non-blocking regression outcomes
         if: always()
         shell: bash
@@ -589,3 +638,5 @@ jobs:
             nutrition-ui-tests.log
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
+            cook-ingredients-tests.log
+            ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments

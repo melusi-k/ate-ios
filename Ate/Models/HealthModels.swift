@@ -118,6 +118,9 @@ final class JournalEntry {
     // existing stores migrating lightly: pre-unification rows decode as reflections with no day key.
     var kindRaw: String = JournalEntryKind.reflection.rawValue
     var dayKey: String? = nil
+    // Additive (#245 phase 5): durable recipe snapshots (JournalRecipeSnapshotCodec JSON). nil on every row written
+    // before this field and on rows with no snapshot; reading never rewrites it. recipeIDs stays the source of links.
+    var recipeSnapshotsRaw: String? = nil
     init(id: String = UUID().uuidString, createdAt: Date = .now, prompt: String, text: String, state: HealthState, recipeIDs: [String] = [],
          journalingSuggestionTitle: String? = nil, momentDate: Date? = nil, source: JournalEntrySource = .ate) {
         self.id = id; self.createdAt = createdAt; self.prompt = prompt; self.text = text; self.stateRaw = state.rawValue; self.recipeIDs = recipeIDs
@@ -126,6 +129,22 @@ final class JournalEntry {
     var source: JournalEntrySource { JournalEntrySource(rawValue: sourceRaw) ?? .ate }
     var state: HealthState { HealthState(rawValue: stateRaw) ?? .balanced }
     var kind: JournalEntryKind { JournalEntryKind(rawValue: kindRaw) ?? .reflection }
+    /// Decoded view of `recipeSnapshotsRaw`; `.undecodable` leaves the raw value as stored.
+    var recipeSnapshotDecoding: JournalRecipeSnapshotDecoding { JournalRecipeSnapshotCodec.decode(recipeSnapshotsRaw) }
+    /// Replaces the stored snapshots with the ones the caller captured (cooked-context title and day).
+    /// Returns false and changes nothing for an empty list: clearing has no authorised semantics yet.
+    /// Throws, leaving `recipeSnapshotsRaw` byte-identical, when the existing payload is undecodable (damaged or from
+    /// a newer version) or encoding fails. It never assigns nil on an error path.
+    @discardableResult
+    func setRecipeSnapshots(_ snapshots: [JournalRecipeSnapshot]) throws -> Bool {
+        guard !snapshots.isEmpty else { return false }
+        if case .undecodable(let reason) = recipeSnapshotDecoding {
+            throw JournalRecipeSnapshotWriteError.existingPayloadUndecodable(reason: reason)
+        }
+        guard let encoded = try JournalRecipeSnapshotCodec.encode(snapshots) else { return false }
+        recipeSnapshotsRaw = encoded
+        return true
+    }
 }
 
 /// Recipes seeded for Health UI tests (`-qaHealthRecipes`) so meal ranking is observable.

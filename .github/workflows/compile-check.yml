@@ -561,6 +561,7 @@ jobs:
             tracker-ui.log
             cook-mode-history.log
             recipe-generation-tests.log
+            library-explore-sheets.log
             library-layout-tests.log
             navigation-header-tests.log
             share-publish-outage-tests.log

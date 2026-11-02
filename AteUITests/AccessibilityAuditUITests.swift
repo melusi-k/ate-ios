@@ -284,7 +284,7 @@ final class AccessibilityAuditUITests: XCTestCase {
             app.staticTexts["qa.probe"].firstMatch.exists ? app.staticTexts["qa.probe"].firstMatch.label : "qa.probe-missing"
         }
 
-        func measure(_ t: LiveDTTarget, _ phase: String) {
+        func measure(_ t: LiveDTTarget, _ phase: String, requested: String?) {
             // v5: a capture is evidence only when the element is fully inside the
             // unobscured content band (nav-bar-aware top, measured bottom chrome).
             func fullyVisible(_ f: CGRect) -> Bool {
@@ -357,6 +357,19 @@ final class AccessibilityAuditUITests: XCTestCase {
             let sum = shot.reduce(0) { ($0 &+ (Int($1) &+ 1)) & 0x7fffffff }
             let probe = probeLabel()
             if probe == "qa.probe-missing" { incomplete.append("\(screen).\(t.name)@\(phase): qa.probe effective-category readback missing") }
+            // v5.1: a measurement is evidence for `phase` ONLY when the probe proves THIS
+            // phase's requested==effective category. The app writes the pair atomically as
+            // "dt req=<tok> eff=<tok>" at the END of the qa.probe label, so hasSuffix cannot
+            // prefix-collide (UICTContentSizeCategoryL vs UICTContentSizeCategoryAccessibilityL),
+            // and a STALE pair (previous phase's req=eff) fails the req token. Unproven =>
+            // INCOMPLETE with no pixel attach (same handling as AMBIGUOUS/unrecovered):
+            // loud, never a silently mislabeled measurement.
+            if let requested, probe != "qa.probe-missing",
+               !probe.hasSuffix("dt req=\(requested) eff=\(requested)") {
+                incomplete.append("\(screen).\(t.name)@\(phase): probe [\(probe)] does not prove requested==effective for \(requested); measurement not evidence for \(phase)")
+                log.append("\(phase) \(screen).\(t.name): CATEGORY-UNPROVEN [\(probe)]")
+                return
+            }
             // Per-target context: ONE full-screen capture at measurement time serves as
             // both the viewport-baseline checksum and the context attachment (main review
             // 16:06) - each target carries its own viewport/scroll context.
@@ -371,12 +384,13 @@ final class AccessibilityAuditUITests: XCTestCase {
         }
         for (phase, category) in steps {
             if phase != "L" { liveSetCategory(category) }
+            if phase == "L" { log.append("L: category proven by launch argument -UIPreferredContentSizeCategoryName UICTContentSizeCategoryL; no atedt.set posted, qa.probe carries no dt token by design") }
             for _ in 0..<2 { app.swipeDown(velocity: .fast) }  // baseline: return to top
             for t in targets {
                 if phase == "L" { XCTAssertTrue(t.typed.element(boundBy: 0).waitForExistence(timeout: 10), "\(screen).\(t.name) should exist at L") }
-                measure(t, phase)
+                measure(t, phase, requested: phase == "L" ? nil : category)
             }
-            if controlPhases.contains(phase) { measure(control, phase) }
+            if controlPhases.contains(phase) { measure(control, phase, requested: phase == "L" ? nil : category) }
             attachLog(phase)
         }
         if !incomplete.isEmpty {

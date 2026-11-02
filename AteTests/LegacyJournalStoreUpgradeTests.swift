@@ -116,6 +116,8 @@ final class LegacyJournalStoreUpgradeTests: XCTestCase {
         for row in rows {
             XCTAssertEqual(row.kind, .reflection, "pre-unification rows decode as reflections")
             XCTAssertNil(row.dayKey, "pre-unification rows carry no day key")
+            XCTAssertNil(row.recipeSnapshotsRaw, "pre-snapshot rows carry no recipe snapshots")
+            XCTAssertEqual(row.recipeSnapshotDecoding, .none)
         }
         for name in withMedia.mediaFileNames {
             XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent(name).path),

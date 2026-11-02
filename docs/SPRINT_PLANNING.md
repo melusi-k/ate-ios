@@ -725,3 +725,9 @@ All timestamps are exact UTC ISO-8601 with Africa/Johannesburg shown at UTC+02:0
 ### W45 ISO-week boundary clarification — 2026-11-02
 
 W45 is the full Monday–Sunday sprint **2026-11-02 through 2026-11-08**. Issue #70's pre-existing 2026-11-05 to 2026-11-08 dates are retained as a proposed late-week stretch execution window only; they are not the sprint start/end dates and do not create a separate sprint. This clarification preserves the original ticket dates and does not promote stretch work into the committed scope.
+
+
+### Documentation PR #267 lifecycle and validation note — 2026-11-02
+
+- PR #267 opened 2026-11-02T09:24:24Z (Africa/Johannesburg 2026-11-02 11:24:24, Verified); first activity is the PR-created event at the same timestamp (Verified); no independent human review or approval; draft/open, not merged.
+- The initial `validate-stack` run failed because the PR-created event payload did not contain the required standalone `## Stack` metadata. The PR description was corrected to explicitly record Stack ID=None, Parent PR=None and Position=None. Rerunning the original workflow attempt still reads its original event payload; a new PR synchronize event is needed to validate the corrected description. This documentation PR remains a separate maintenance record and is not W45 product scope.

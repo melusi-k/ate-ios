@@ -827,3 +827,14 @@ No submitted human APPROVED review exists on the 12 open PRs. COMMENTED reviews 
 ### PR #267 post-refresh CI delta — 2026-11-02
 
 The documentation update in this PR created prior head `b8a29ed78762543363e29b645762b7f6d2fcf364`. On that exact head, docs-validation passed [41423180766](https://github.com/melusi-k/ate-ios/actions/runs/41423180766) and stack validation passed [41423180783](https://github.com/melusi-k/ate-ios/actions/runs/41423180783); Compile and Supabase Preview were skipped; Dogfood Qualification [41423180812](https://github.com/melusi-k/ate-ios/actions/runs/41423180812) and open-state UI [41423180849](https://github.com/melusi-k/ate-ios/actions/runs/41423180849) were in progress at the latest poll. This append creates a new PR head, so those results are historical for the prior SHA; applicable checks must be rerun on the resulting head. No approval or merge is inferred.
+
+
+
+### Lifecycle provenance corrections — 2026-11-02
+
+The GitHub issue timeline API was re-read to resolve two earlier first-activity labels. These are append-only corrections; prior rows remain visible as historical records.
+
+- **Issue #179:** earliest timeline event is the cross-reference to #180 at `2026-10-25T01:48:25Z` (Africa/Johannesburg `2026-10-25 03:48:25`, UTC+02:00) — **Verified**. The previously cited `2026-10-25T21:27:10Z` referenced-commit event is later activity, not first activity. Actual work-start proxy remains `2026-10-25T06:40:40Z` (SAST `08:40:40`) — **Inferred** from the earliest linked #181 commit, not a verified human start. Issue remains open; actual completion Unknown.
+- **Issue #70:** earliest timeline event is the cross-reference to #30 at `2026-10-13T04:05:36Z` (Africa/Johannesburg `2026-10-13 06:05:36`, UTC+02:00) — **Verified**. The previously cited `2026-10-21T10:37:09Z` label event is later activity, not first activity. Actual work start remains **Unknown**; issue creation, sprint dates and ticket activity are not implementation-start evidence. Issue remains open; actual completion Unknown.
+
+Before this append, PR #267 head `ab1e380ac396baa52f4aea413e66dbddc46fc263` had only a Supabase Preview **skipped** result visible; no docs-validation, stack-validation, Dogfood or open-state result was present on that exact SHA. This append changes the PR head, so all prior-head results remain historical and the applicable checks must run again on the new head.

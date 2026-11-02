@@ -731,3 +731,11 @@ W45 is the full Monday–Sunday sprint **2026-11-02 through 2026-11-08**. Issue 
 
 - PR #267 opened 2026-11-02T09:24:24Z (Africa/Johannesburg 2026-11-02 11:24:24, Verified); first activity is the PR-created event at the same timestamp (Verified); no independent human review or approval; draft/open, not merged.
 - The initial `validate-stack` run failed because the PR-created event payload did not contain the required standalone `## Stack` metadata. The PR description was corrected to explicitly record Stack ID=None, Parent PR=None and Position=None. Rerunning the original workflow attempt still reads its original event payload; a new PR synchronize event is needed to validate the corrected description. This documentation PR remains a separate maintenance record and is not W45 product scope.
+
+
+### PR #267 lifecycle precision — 2026-11-02
+
+- PR opened: 2026-11-02T09:24:24Z (Africa/Johannesburg 2026-11-02 11:24:24, Verified).
+- First activity: 2026-11-02T09:24:26Z (SAST 11:24:26, Verified project-automation event).
+- Actual work-start proxy: 2026-11-02T09:24:14Z (SAST 11:24:14, Inferred from the earliest linked documentation commit; not a verified human start).
+- First substantive human review: Unknown; approval: Unknown/no qualifying approval; merge: Unknown/not merged. PR remains draft. Its validation status is tracked in the PR conversation; skipped Compile/Supabase jobs are not passes.

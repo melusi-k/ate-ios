@@ -627,3 +627,16 @@ Existing lifecycle rows for #66, #181, #206, #231, #237, #238, #246, #247, #250,
 - No issue lead/cycle time is calculated for #30, #31, #70, #179, #245, #253, #138 or #195 because they remain open. No implementation duration is calculated from inferred earliest commits.
 - No review/approval duration is calculable for the new PR set because no qualifying human approval was submitted. COMMENTED reviews and bot/Codex activity are not approvals.
 - W44 commitment accuracy and carryover remain unavailable because the W44 committed-scope denominator was not recoverable. W45 metrics are not yet due; record outcomes at Sunday close-out only from the committed baseline and verified evidence.
+
+
+## Lifecycle precision and planning-commit delta — 2026-11-02
+
+This append-only correction supersedes the incomplete cells for PRs #260, #261 and #264 in the lifecycle table above; it does not alter their verified open/merge timestamps or rewrite earlier history.
+
+- **Issue #179 first activity correction:** the first timeline event is a cross-reference at 2026-10-25T01:48:25Z (SAST 2026-10-25 03:48:25, Verified). The 2026-10-25T21:27:10Z referenced event recorded in the earlier W44 table is later activity, not the first activity. The earliest linked implementation commit remains 2026-10-25T06:40:40Z (SAST 08:40:40, Inferred).
+- **PR #260:** opened 2026-11-01T09:19:48Z (SAST 11:19:48, Verified); first activity 09:19:50Z (SAST 11:19:50, project automation, Verified); earliest linked commit 09:17:58Z (SAST 11:17:58, Inferred); no submitted human review or approval; merged 16:47:25Z (SAST 18:47:25, Verified).
+- **PR #261:** opened 2026-11-01T10:01:26Z (SAST 12:01:26, Verified); first activity 10:01:28Z (SAST 12:01:28, project automation, Verified); earliest linked commit 10:01:17Z (SAST 12:01:17, Inferred); no submitted human review or approval; merged 11:30:58Z (SAST 13:30:58, Verified).
+- **PR #264:** opened 2026-11-01T14:07:04Z (SAST 16:07:04, Verified); first activity 14:07:05Z (SAST 16:07:05, project automation, Verified); earliest linked commit 14:05:53Z (SAST 16:05:53, Inferred); no submitted human review or approval; merged 15:48:13Z (SAST 17:48:13, Verified).
+- No approval duration is calculated for these PRs because no qualifying human approval exists. Their merge timestamps are verified, but do not imply independent review or parent-issue completion.
+
+The first W45 planning documentation commit is 51e046fffb02fb77d477a9a96922d19dc2c1e4c6, committed 2026-11-02T06:51:04Z (SAST 08:51:04). Its main-push Build IPA run [41402531733](https://github.com/melusi-k/ate-ios/actions/runs/41402531733) started 2026-11-02T06:51:07Z on that documentation-only SHA. This push follows the artifact-only main workflow; it is not full qualification and is not counted as release acceptance. Any later planning-document commit is likewise documentation-only unless a separate full-validation run proves otherwise.

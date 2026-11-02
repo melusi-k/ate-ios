@@ -720,3 +720,8 @@ All timestamps are exact UTC ISO-8601 with Africa/Johannesburg shown at UTC+02:0
 - No lead/cycle time is calculated for #30, #179 or #70 while they remain open. Implementation duration is not calculated from inferred commit proxies.
 - No approval/review duration is calculable for the open PR set because no qualifying human approval exists. W45 commitment accuracy and carryover rate are not due until Sunday close-out; W44 denominators remain unavailable.
 - Monday actions: keep #30 and #179 as the only committed outcomes; maintain the #239 → #240 → #241 order; fix main's failed Compile/Supabase and complete exact-SHA release gates; obtain independent review governance; keep all candidate/carryover work unscheduled unless the committed scope is accepted.
+
+
+### W45 ISO-week boundary clarification — 2026-11-02
+
+W45 is the full Monday–Sunday sprint **2026-11-02 through 2026-11-08**. Issue #70's pre-existing 2026-11-05 to 2026-11-08 dates are retained as a proposed late-week stretch execution window only; they are not the sprint start/end dates and do not create a separate sprint. This clarification preserves the original ticket dates and does not promote stretch work into the committed scope.

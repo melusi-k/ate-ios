@@ -149,7 +149,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
 
       - name: Library Explore native sheet presentation (#83)
-        if: ${{ steps.build.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
           # A failed XCTest launch can leave the app process suspended on the simulator.
@@ -169,7 +169,7 @@ jobs:
 
       - name: Insights evidence and contextual navigation acceptance (issue #195)
         id: insights_acceptance
-        if: ${{ steps.build.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         continue-on-error: true
         run: |
           set -o pipefail
@@ -184,7 +184,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" insights-evidence-navigation.log | tail -40
 
       - name: Share publish outage fallback UI regression (PR #122)
-        if: ${{ steps.build.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
@@ -197,7 +197,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" share-publish-outage-tests.log | tail -40
 
       - name: Interrupted generation Retry lifecycle acceptance (#143)
-        if: ${{ steps.build.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true

@@ -640,3 +640,83 @@ This append-only correction supersedes the incomplete cells for PRs #260, #261 a
 - No approval duration is calculated for these PRs because no qualifying human approval exists. Their merge timestamps are verified, but do not imply independent review or parent-issue completion.
 
 The first W45 planning documentation commit is 51e046fffb02fb77d477a9a96922d19dc2c1e4c6, committed 2026-11-02T06:51:04Z (SAST 08:51:04). Its main-push Build IPA run [41402531733](https://github.com/melusi-k/ate-ios/actions/runs/41402531733) started 2026-11-02T06:51:07Z on that documentation-only SHA. This push follows the artifact-only main workflow; it is not full qualification and is not counted as release acceptance. Any later planning-document commit is likewise documentation-only unless a separate full-validation run proves otherwise.
+
+
+## W45 Monday Guardian revalidation — 2026-11-02T09:16:44Z (SAST 2026-11-02 11:16:44)
+
+**Evidence cutoff:** 2026-11-02T09:16:44Z / 2026-11-02 11:16:44 Africa/Johannesburg (UTC+02:00). This is an append-only Monday revalidation; prior W44/W45 dates and historical evidence above are preserved.
+
+### W45 plan — current commitment and scope
+
+- **Sprint:** 2026-W45, Monday 2026-11-02 through Sunday 2026-11-08.
+- **Committed issue #30:** bounded release-readiness evidence refresh. Acceptance is a current-main exact-SHA gate ledger, truthful pass/fail/skipped/cancelled/missing classification, owner/dependency/next-action blockers, and a human go/no-go only after required evidence and signoff.
+- **Committed issue #179:** bounded diary/goals follow-up, **at risk / entry-gated**, counted once as one issue-level outcome. Selected PR sequence: #239 root → #240 edit child → #241 weekly-totals child. PR records remain distinct from issue #179; child PRs are not separate throughput outcomes.
+- **Stretch issue #70:** remains stretch only, with the existing planned window 2026-11-05 to 2026-11-08. No stretch work is started or promoted while #30/#179 committed work remains blocked. Do not broaden it into the full coverage-map audit.
+- **Carryovers:** #181 and #66 remain stale drafts, not W45 commitments. #234 remains blocked. #251 and #254 remain uncommitted candidates. #263 and #266 are documentation/evidence candidates. #265 is a main-to-feature synchronization PR, not a product delivery.
+- No new sprint dates are assigned to any other ticket. Existing planned dates are unchanged.
+
+### Monday source review and backlog drift
+
+Reviewed the unified backlog index, PRD, PRD gap register, MVP checklist, QA matrix, current main, all 42 open issue records and all 11 open PRs.
+
+- `docs/PRD.md` implementation-audit banner and `docs/MVP_CHECKLIST.md` progress snapshot are dated 2026-10-24; `docs/PRODUCT_BACKLOG.md` still identifies itself as migration-in-progress as of 2026-10-22.
+- The product-backlog Health/Journal index omits active issue #179 and #245; active Generation issue #253 is also absent from the index.
+- `docs/PRD_GAP_REGISTER.md` records 176 intended IDs from its 2026-10-21 structural audit, while `docs/QA_MATRIX.md` reports 179 checklist IDs/rows. Do not silently change the denominator.
+- The MVP/QA C-NUT-03 wording still says the verified catalogue is empty, while merged PR #238 added 30 source-traceable USDA SR Legacy records. Reconcile the actual records, source/version/provenance and usage-rights evidence before changing acceptance status; South African-source reuse rights remain unconfirmed.
+- These are source-freshness/ownership findings for the wider #70 backlog. They do not expand the single bounded W45 stretch item or change any release gate, acceptance ID or denominator.
+
+### Current main, release and governance
+
+- Current `main`: `014bf30eec618059b1fba7e3830651ac4c3dd2a4` (commit timestamp 2026-11-02T06:53:15Z).
+- Issue #33's Build IPA/readiness run [41402760851](https://github.com/melusi-k/ate-ios/actions/runs/41402760851) generated build 349 on this SHA. Wrapper/readiness success is not full qualification: unit, 8-flow QA, UI and backend-E2E were skipped; the disposition remains **BLOCKED: 1/59 verified, 12 failing, 46 open**, with QA-results retrieval HTTP 400.
+- Exact-main Compile failed [run 41402795863](https://github.com/melusi-k/ate-ios/actions/runs/41402795863); Supabase Preview failed on the same SHA [run 41402760851](https://github.com/melusi-k/ate-ios/actions/runs/41402760851), check 125138144106. Open-state UI passed [41402795834](https://github.com/melusi-k/ate-ios/actions/runs/41402795834), but this does not replace full validation. No exact-main Dogfood Qualification pass is recorded.
+- Main is unprotected (`protected=false`). Ruleset `main-production-protection` ID 26236404 exists with enforcement **disabled**. It configures one approving review, stale-review dismissal, thread resolution, strict `compile` and `dogfood-qualification` checks, but none is enforced while disabled. `.github/CODEOWNERS` contains only `* @melusi-k`; CODEOWNERS review and latest-push approval are both false. Squash is enabled; auto-merge and update-branch are disabled.
+- Governance remediation: nominate an independent maintainer/team; enable the ruleset only after owner policy is valid; enforce independent approval, latest-push approval, CODEOWNERS review, resolved threads and strict required checks; enable supported update-branch or document a safe reviewed reconciliation path. No repository setting or policy was changed.
+
+### Open PR status at Monday review
+
+The 11-PR inventory was fetched before review. No PR satisfied all merge conditions; none was merged or branch-updated.
+
+| PR | Relationship / divergence from current main | Exact-head evidence and decision |
+|---|---|---|
+| [#239](https://github.com/melusi-k/ate-ios/pull/239) | #179 root; 76 ahead / 28 behind | Dogfood passed; nutrition-focused 53-unit and 14-UI selections passed inside Compile, but overall Compile failed on CookingTrackerEntry, Cook Mode and CookIngredients regressions; open-state UI failed. No approval. Blocked. |
+| [#240](https://github.com/melusi-k/ate-ios/pull/240) | #179 child 2/3; base is old #239 head; 65 ahead / 120 behind | Compile cancelled; no exact-head Dogfood. Non-mergeable/dirty; no approval. Blocked child. |
+| [#241](https://github.com/melusi-k/ate-ios/pull/241) | #179 child 3/3; base is old #240 head; 64 ahead / 120 behind | Compile cancelled; no exact-head Dogfood. Diff removes diary-edit UI coverage and named pass guards; restore both. Blocked child. |
+| [#251](https://github.com/melusi-k/ate-ios/pull/251) | Food Journal discovery candidate; 74 ahead / 28 behind | Compile failed; Dogfood, open-state UI and discovery UI passed. No approval. Not committed to W45. |
+| [#254](https://github.com/melusi-k/ate-ios/pull/254) | Generation candidate; 22 ahead / 28 behind | Compile and open-state UI failed; Dogfood passed. On-device 11-fixture golden-set evaluation missing. No approval. Not committed. |
+| [#234](https://github.com/melusi-k/ate-ios/pull/234) | QA scope proposal; 22 ahead / 161 behind; dirty | Compile failed; Dogfood passed. Still proposes `continue-on-error` for required #83 and unapproved A-SHARE-05 N/A/status changes. Blocked. |
+| [#181](https://github.com/melusi-k/ate-ios/pull/181) | Old nutrition draft; 21 ahead / 401 behind; dirty | Compile/Dogfood missing; Supabase Preview skipped; three unresolved review threads; no approval. Draft carryover. |
+| [#66](https://github.com/melusi-k/ate-ios/pull/66) | Old journal draft; 38 ahead / 753 behind; dirty | Compile/Dogfood missing; Supabase Preview skipped; one old P1 thread resolved/outdated; no approval. Draft carryover. |
+| [#263](https://github.com/melusi-k/ate-ios/pull/263) | Draft evidence-only; 20 ahead / 28 behind | Docs validation passed; Compile skipped; Dogfood and open-state UI cancelled. Its manual evidence notes preserve result columns. Draft. |
+| [#266](https://github.com/melusi-k/ate-ios/pull/266) | CI lifecycle documentation; 1 ahead / 2 behind | Docs validation passed; Compile skipped; Dogfood and open-state UI failed. No approval. Blocked. |
+| [#265](https://github.com/melusi-k/ate-ios/pull/265) | Sync PR: head `main`, base `feat/issue-253-generation-pipeline`; 28 ahead / 24 behind relative to feature base | Not a product PR into main. Exact main head has failed Compile and Supabase Preview; release wrapper skipped required validation. No approval. Blocked synchronization request. |
+
+No submitted human APPROVED review exists on any of the 11 open PRs. #181/#66 contain COMMENTED reviews only; Codex/bot comments are not human reviews. #181 has three unresolved threads; #66's sole thread is resolved/outdated; no review threads were returned for the other open PRs.
+
+### Branch update and merge decisions
+
+Repository metadata reports `allow_update_branch=false`; no supported update-branch action is exposed. No force-push, speculative merge commit, independent child rebase or unsafe branch rewrite was attempted. Manual maintainer reconciliation is required for #239/#251/#254/#266; #240/#241 must follow the root-to-leaf stack order. PR #265 is not a substitute for a supported update-branch action. No merge was attempted because the repository's main ruleset is disabled, there are no independent approvals, and exact-head required checks are failed, cancelled, skipped or missing.
+
+### Lifecycle append — separate issue and PR timelines
+
+All timestamps are exact UTC ISO-8601 with Africa/Johannesburg shown at UTC+02:00. **Verified** = GitHub metadata/timeline; **Inferred** = earliest linked implementation commit proxy; **Unknown** = no defensible evidence. These append to, and do not rewrite, prior lifecycle rows.
+
+**Issue timelines**
+- #30 created 2026-10-11T22:50:12Z (SAST 2026-10-12 00:50:12, Verified); first activity 2026-10-11T22:50:13Z (SAST 2026-10-12 00:50:13, Verified label event); actual work start Unknown; still open; completion Unknown.
+- #179 created 2026-10-25T01:45:00Z (SAST 03:45:00, Verified); first activity 2026-10-25T01:48:25Z (SAST 03:48:25, Verified cross-reference); actual work-start proxy 2026-10-25T06:40:40Z (SAST 08:40:40, Inferred from earliest linked #181 commit); still open; completion Unknown.
+- #70 created 2026-10-13T04:05:22Z (SAST 06:05:22, Verified); first activity 2026-10-21T10:37:09Z (SAST 12:37:09, Verified label event); actual work start Unknown; still open; completion Unknown.
+
+**PR timelines**
+- #239 opened 2026-10-31T14:48:54Z (SAST 16:48:54, Verified); first activity 14:48:55Z (16:48:55, Verified automation event); actual work-start proxy 14:46:42Z (16:46:42, Inferred earliest linked commit); no human review/approval; open, not merged.
+- #240 opened 2026-10-31T14:51:06Z (SAST 16:51:06, Verified); first activity 14:51:08Z (16:51:08, Verified automation event); actual work-start proxy 14:49:38Z (16:49:38, Inferred); no human review/approval; open, not merged.
+- #241 opened 2026-10-31T15:03:41Z (SAST 17:03:41, Verified); first activity 15:03:42Z (17:03:42, Verified automation event); actual work-start proxy 15:00:56Z (17:00:56, Inferred); no human review/approval; open, not merged.
+- #263 opened 2026-11-01T12:45:52Z (SAST 14:45:52, Verified); first activity 12:45:54Z (14:45:54, Verified automation event); actual work-start proxy 12:44:57Z (14:44:57, Inferred); no human review/approval; draft/open.
+- #265 opened 2026-11-01T16:59:38Z (SAST 18:59:38, Verified); first activity 16:59:40Z (18:59:40, Verified automation event); actual work start Unknown (main-to-feature synchronization does not establish implementation start); no human review/approval; open.
+- #266 opened 2026-11-01T18:45:42Z (SAST 20:45:42, Verified); first activity 18:45:44Z (20:45:44, Verified automation event); actual work-start proxy 18:45:08Z (20:45:08, Inferred earliest linked commit); no human review/approval; open.
+- No qualifying first substantive human review or approval is recorded for the open PR set. COMMENTED reviews and bot/Codex comments are not approvals. No PR merge or issue completion is inferred from these open records.
+
+### Metrics and next actions
+
+- No lead/cycle time is calculated for #30, #179 or #70 while they remain open. Implementation duration is not calculated from inferred commit proxies.
+- No approval/review duration is calculable for the open PR set because no qualifying human approval exists. W45 commitment accuracy and carryover rate are not due until Sunday close-out; W44 denominators remain unavailable.
+- Monday actions: keep #30 and #179 as the only committed outcomes; maintain the #239 → #240 → #241 order; fix main's failed Compile/Supabase and complete exact-SHA release gates; obtain independent review governance; keep all candidate/carryover work unscheduled unless the committed scope is accepted.

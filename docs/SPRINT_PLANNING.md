@@ -469,3 +469,161 @@ This is an append-only update after the W44 evidence cutoff above; it does not a
 - **PR #260:** AI model preflight failed at 2026-11-01T10:02:06Z because the simulator reported `modelNotReady` (model assets not downloaded/ready); open-state UI failed at 10:02:55Z because `JournalOpenStateUITests.testHealthyOpenShowsNoBanner` timed out launching the app. Compile remained in progress and Dogfood was queued at the latest poll. This confirms the lane is not ready for merge.
 - **PR #259:** proof-build and open-state UI passed; Compile remained in progress; proof KeyFlows and Dogfood were in progress; proof unit tests were queued. This is still incomplete and is not a substitute for required gates.
 - **PR #261 (this documentation PR):** docs-validation passed; the stack validator passed after the PR body was corrected to the repository's required bold Stack metadata format. App Compile was skipped by the docs-only path; Dogfood and open-state UI remained queued. The PR remains draft and unapproved.
+
+
+## Sprint 2026-W45 Monday plan and evidence revalidation — 2026-11-02
+
+**Planning observation:** 2026-11-02T06:39:30Z (2026-11-02 08:39:30 Africa/Johannesburg).  
+**Sprint window:** Monday 2026-11-02 through Sunday 2026-11-08. The original W45 planned dates are preserved. Actual sprint work start/end remain **Unknown**; the planning observation is not implementation-start evidence.
+
+### Monday decision
+
+| Work | W45 disposition | Planned dates | Outcome accounting |
+|---|---|---|---|
+| [#30 — release readiness follow-up](https://github.com/melusi-k/ate-ios/issues/30) | **Committed — bounded evidence refresh** | 2026-11-02 to 2026-11-08 | One issue-level outcome: current-main go/no-go evidence and a prioritized blocker plan. This is not a release approval. |
+| [#179 — nutrition tracking](https://github.com/melusi-k/ate-ios/issues/179) | **Committed — at risk / entry-gated** | 2026-11-02 to 2026-11-08 | One bounded diary/goals increment through PRs #239 → #240 → #241. Count the parent outcome once; retain each PR as a separate lifecycle ticket. Do not claim all of #179 or Phase 1 is complete. |
+| [#70 — requirements/QA ownership reconciliation](https://github.com/melusi-k/ate-ios/issues/70) | **Stretch only** | 2026-11-05 to 2026-11-08 | At most one separately verifiable high-risk evidence/ownership mismatch; not the full coverage-map audit. |
+| [#181](https://github.com/melusi-k/ate-ios/pull/181), [#66](https://github.com/melusi-k/ate-ios/pull/66) | Carryover / not committed | No W45 dates | Preserve until an explicit supersession/reconciliation decision and fresh exact-head evidence exist. |
+| [#251](https://github.com/melusi-k/ate-ios/pull/251), [#254](https://github.com/melusi-k/ate-ios/pull/254), [#263](https://github.com/melusi-k/ate-ios/pull/263), [#266](https://github.com/melusi-k/ate-ios/pull/266) | Candidate / not committed | No W45 dates | Reconsider only when their own dependencies, exact-head checks and independent review are satisfied. |
+| [#234](https://github.com/melusi-k/ate-ios/pull/234) | Blocked / not selected | No W45 dates | Proposes changing QA scope and adding continue-on-error to required regression #83; do not merge or treat the proposed denominator change as accepted. |
+| [#259](https://github.com/melusi-k/ate-ios/pull/259) | Closed without merge | N/A | Shared-build proof prototype was not adopted; no CI turnaround improvement is assumed. |
+| [#265](https://github.com/melusi-k/ate-ios/pull/265), [#262](https://github.com/melusi-k/ate-ios/pull/262) | Branch synchronization only | N/A | Not independent product deliveries and not throughput outcomes. |
+
+### Product, backlog and acceptance-source review
+
+- **Main baseline at planning time:** 2616420eaa16d83a9df646874be3021d08b6d393. It includes the recent merged work described below.
+- **PRD:** the implementation-audit banner is dated 2026-10-24 and references an older main SHA and a 44/59 readiness snapshot. It is historical, not current evidence.
+- **MVP checklist:** its progress snapshot is also dated 2026-10-24. The nutrition rows C-NUT-01 through C-NUT-04 remain Partial; their device and current-main evidence is not established by this snapshot.
+- **QA matrix:** 179 checklist IDs and 179 linked rows, plus two supplemental platform rows; it explicitly asserts no current pass percentage. The nutrition rows still say exact-head CI pending and device results not run.
+- **Gap register:** its structural audit still describes 176 unique IDs/rows/owner links. That does not reconcile with the QA matrix's 179/179 inventory. Treat this as an open #70 discrepancy, not as proof that either inventory is behaviorally complete.
+- **Product backlog index:** its migration status is dated 2026-10-22 and the Health and Journal index does not yet list newer issues #179, #245 or #253. The GitHub issue tracker remains authoritative until the index is reconciled.
+- **QA and CI policy:** docs/QA.md and .github/workflows/build-ipa.yml agree that ordinary pushes to main are artifact-only. Full Build IPA validation is opt-in through workflow_dispatch run_tests or a commit message containing [run tests]. The previous W44 note in #70 claiming every main push sets RUN_TESTS=true is incorrect; an append-only correction is recorded in #70 below.
+- **Nutrition source status:** PR #238 merged 30 source-traceable USDA SR Legacy records and the FDC policy permits this public-domain source. SAFOODS commercial reuse rights remain unconfirmed. The checklist and QA matrix still describe the verified catalogue as empty; reconcile that stale wording and verify the bundled records on a current exact main SHA before changing C-NUT-03 to Complete. The 30 records do not establish broad South African food coverage or complete #179.
+- **Generation/AI validation:** merged PR #260 establishes separate standard, AI-ready real-model and physical-device lanes. The hosted xcode-27 run returned modelNotReady and skipped inference; a hosted simulator is not evidence of real-model output quality. PR #254's 11-fixture device golden-set evaluation remains pending.
+
+### Committed scope, dependencies and acceptance
+
+#### #30 — release-readiness evidence refresh
+
+**Commitment:** committed; planned 2026-11-02 to 2026-11-08.
+
+**Outcome:** refresh the release decision against a named exact main SHA, enumerate each gate as pass/fail/skipped/not run/unknown, and maintain an owner/action/dependency list for the remaining blockers. A successful workflow wrapper or artifact build is not a release decision.
+
+**Dependencies and current baseline:**
+- [Issue #33](https://github.com/melusi-k/ate-ios/issues/33), current main SHA and exact-run job results.
+- Build IPA run [41328117329](https://github.com/melusi-k/ate-ios/actions/runs/41328117329) was a main push on SHA 2616420eaa16d83a9df646874be3021d08b6d393. The artifact workflow concluded success, but Run unit tests, KeyFlows QA, Cooking Tracker/Cook Mode, shared-navigation regressions, UI shards, backend E2E and beta promotion were skipped. This is an artifact-only build, not full qualification.
+- Release-readiness wrapper [41330257168](https://github.com/melusi-k/ate-ios/actions/runs/41330257168) concluded success, but issue #33's generated report remains **BLOCKED**: 1/59 verified, 12 failing, 46 open; unit, 8-flow QA, UI and E2E skipped; qa_results retrieval returned HTTP 400.
+- The report lists failures in timer completion, sign-in, password reset, magic link, rate-limit/offline auth handling, offline sync/local-library stability, backend-unavailable fallback, real-iPhone core flows, crash paths and background/relaunch behavior. It also records two unresolved and three accepted blockers.
+
+**Acceptance criteria:**
+1. Record the exact candidate SHA and link every required workflow/job result; do not substitute wrapper success for inner-gate evidence.
+2. Refresh #33's blocker ledger, separating product failures, skipped validation, external/device dependencies and accepted constraints.
+3. Keep the disposition BLOCKED while required evidence is skipped, failed, stale or missing; record a human release decision only when the evidence and signoffs exist.
+4. Keep production sharing/security, Universal Links, real-account/device evidence and external Apple-account constraints distinct.
+5. Do not change branch protection, rulesets, required checks or QA denominators as part of this work.
+
+#### #179 — bounded diary/goals follow-up stack
+
+**Commitment:** retain the W45 issue-level commitment as **at risk / entry-gated**, planned 2026-11-02 to 2026-11-08. The issue and PRs remain separate lifecycle tickets; the shared feature outcome is counted once.
+
+**Delivery sequence:**
+1. [PR #239](https://github.com/melusi-k/ate-ios/pull/239) — root: wire diary/goals/catalogue and accessibility coverage into required validation.
+2. [PR #240](https://github.com/melusi-k/ate-ios/pull/240) — child of #239: edit logged diary entries while preserving identity, local day and untouched precision.
+3. [PR #241](https://github.com/melusi-k/ate-ios/pull/241) — child of #240: current-calendar-week nutrient totals; no weekly goals.
+
+**Current exact-head evidence and blockers:**
+- PR #239 head 308cf71078a09911d70abe7f00bafd4b987a761c is based on old main 7427ed69962fdf013428fc4e59629436bcc7f98f, not current main. Exact-head Dogfood passed [41307451102](https://github.com/melusi-k/ate-ios/actions/runs/41307451102). Its nutrition-focused unit selection executed 53 tests with zero failures, and the nutrition diary/goals/accessibility UI selection executed 14 tests with zero failures in [Compile run 41307451114](https://github.com/melusi-k/ate-ios/actions/runs/41307451114). However, the overall Compile check failed on CookingTrackerEntry month-navigation assertions, Cook Mode completion process termination, and CookIngredients large-text UI-query timeout. Separate open-state UI run [41307451213](https://github.com/melusi-k/ate-ios/actions/runs/41307451213) failed because JournalOpenStateUITests.testHealthyOpenShowsNoBanner timed out launching the app. These are real blocking failures even though the nutrition-focused selections passed.
+- PR #240 head 98f71aad2c75ac361cf3dcff18e79c84dce1b3f4 is based on an older #239 head 03c6725ef375d3cc1b219ed066c38939e204442b. Its Compile run [41259962103](https://github.com/melusi-k/ate-ios/actions/runs/41259962103) was cancelled; no current exact-head Dogfood evidence was found. GitHub currently reports mergeable=false.
+- PR #241 head 38d04465636f962634405d2b54c25e29a0016453 is based on an older #240 head f20f7a83381685e7a8a8b7e2cd52a903c174534a. Its Compile run [41260002276](https://github.com/melusi-k/ate-ios/actions/runs/41260002276) was cancelled; no current exact-head Dogfood evidence was found. It removes the edit-flow UI test and named pass-evidence guard; restore or replace both before consideration.
+- No qualifying human approval or submitted human review was found for #239, #240 or #241. No review threads were returned for these three PRs. Current branches require manual reconciliation; repository update-branch is disabled.
+- PR #238 is merged and added 30 USDA SR Legacy records. The old checklist/QA statement that the verified catalogue is empty is now stale; verify the source records and update evidence before claiming C-NUT-03 complete.
+
+**Dependencies:** root #239 must be reconciled to current main and the failed shared regressions diagnosed/fixed or validly rerun; #240 must be retargeted to the accepted #239 head; #241 must be retargeted to the accepted #240 head and restore edit coverage/pass guards; all final heads need exact Compile and Dogfood passes, independent approval and resolved review threads. The catalogue/source-rights status remains a separate parent-issue acceptance dependency.
+
+**Acceptance criteria:**
+1. Diary add/delete, goals recovery and incomplete-nutrition behavior remain covered; the nutrition-focused 53-unit/14-UI pass evidence is repeated on the final reconciled heads.
+2. Edit preserves entry identity, local calendar day and untouched values; tests cover edit and recalculated totals.
+3. Weekly totals use persisted local-day semantics; empty weeks and unknown nutrients remain explicit; no weekly goals are introduced.
+4. Corrupt diary/goals data is backed up before reset; backup failure preserves original bytes.
+5. All required exact-head checks pass; no required test is removed, waived, skipped or counted as a pass without execution; independent review and thread resolution are present.
+6. Keep #179 open until its wider initiative acceptance, including source-backed recipe nutrition and the remaining product/device evidence, is genuinely complete.
+
+**Adaptive checkpoint:** re-evaluate on Wednesday 2026-11-04. If #239 is still red on the reconciled head or #241's edit-coverage guard is not restored, de-scope #240/#241 to carryover rather than compressing validation or weakening a gate. Any verified root-only slice must be described narrowly.
+
+#### #70 — stretch only
+
+**Planned dates:** 2026-11-05 to 2026-11-08. **Commitment:** stretch, not committed.
+
+Bound the work to one high-risk evidence/ownership discrepancy surfaced by #30. The first candidate is the incorrect W44 statement about Build IPA trigger behavior: ordinary main pushes are artifact-only; full validation is opt-in. docs/QA.md already describes this correctly. A separate structural discrepancy remains: gap register 176 versus QA matrix 179. Do not attempt the full 179-row coverage audit in this sprint.
+
+**Acceptance:** one named discrepancy, authoritative source, affected requirement/owner, exact run or test evidence, append-only correction and explicit resolved/unresolved disposition. No acceptance IDs, release-gate classes, denominators or CI enforcement are changed without an explicit decision.
+
+### Rolling-sprint execution rule
+
+Do not wait for Sunday when committed work finishes early. Once #30 and the bounded #179 outcome are genuinely accepted with exact evidence, pull #70's single bounded stretch item first. After that, reconsider #251 only after main reconciliation, green exact-head Compile/Dogfood and independent review; reconsider #254 only after its CI failures and device golden-set evaluation are complete. #263/#266 remain lower-priority documentation candidates, and #234 remains blocked. A PR merge alone never completes its parent issue.
+
+### CI, release and governance snapshot
+
+- Current release disposition is **BLOCKED**, not ready. Build IPA push success on 2616420 is artifact-only because all validation steps were skipped. The readiness wrapper success does not change #33's 1/59, 12 failing, 46 open disposition.
+- PR #251: Compile failed [41333393413](https://github.com/melusi-k/ate-ios/actions/runs/41333393413); Dogfood, open-state UI and discovery UI passed. No human approval.
+- PR #254: Compile failed [41329003425](https://github.com/melusi-k/ate-ios/actions/runs/41329003425), open-state UI failed [41329003365](https://github.com/melusi-k/ate-ios/actions/runs/41329003365), Dogfood passed. The 11-fixture on-device golden-set baseline remains pending.
+- PR #266: docs-validation passed, Compile was skipped, Dogfood failed [41338655777](https://github.com/melusi-k/ate-ios/actions/runs/41338655777) and open-state UI failed [41338655767](https://github.com/melusi-k/ate-ios/actions/runs/41338655767). Documentation-only scope does not waive the checks that did run.
+- PR #234: Compile failed and Dogfood passed; its proposed continue-on-error for #83 and A-SHARE-05 N/A change remain unapproved and unaccepted.
+- PR #263 is draft/evidence-only. PR #265 is a main-to-feature sync PR, not a product delivery.
+- The main-production-protection ruleset (ID 26236404) still has enforcement **disabled**. Its configured one-approval, resolved-thread and strict compile/dogfood rules are therefore not enforced. Branch-protection details returned 403, so no separate branch protection is assumed. CODEOWNERS review is not required. Repository settings still report auto-merge and update-branch disabled. No governance change was made.
+
+### Recently closed work reviewed
+
+- Nutrition: #206, #231, #237 and #238 merged before W45; #238 added 30 USDA records. They are one parent #179 outcome, not four throughput outcomes.
+- Food Journal: #246, #247 and #250 merged; #251 remains open. They are one parent #245 outcome, not three separate product outcomes.
+- Generation: #255 merged as a partial #253 fix; #254 remains open and eval-gated.
+- Cook Mode: issue #242 closed after PR #243 merged; PR #244 subsequently added pinned-step and timer pixel evidence. The new CookIngredients UI regression now appears in #239's failed Compile run.
+- CI/model lane and lifecycle: #260, #261 and #264 merged. PR #259 closed without merge; the shared-build proof was not adopted. PR #262 merged into the #251 feature branch only, not main.
+- These recent merges had no submitted human APPROVED reviews in the review metadata checked here. A merge timestamp is verified delivery metadata, not evidence of approval or parent-issue completion.
+
+### Lifecycle reconstruction delta — 2026-11-02
+
+All times are UTC ISO-8601 with the corresponding Africa/Johannesburg local time (UTC+02:00). **Verified** means GitHub metadata/timeline; **Inferred** means earliest observable linked commit, not a verified human start; **Unknown** means no defensible evidence. PR lifecycle remains separate from issue lifecycle.
+
+#### Recent issue lifecycle
+
+| Ticket | Created (UTC; SAST) | First activity (UTC; SAST) | Actual work start | Closure / actual completion |
+|---|---|---|---|---|
+| [#242](https://github.com/melusi-k/ate-ios/issues/242) | 2026-10-31T17:09:49Z; 2026-10-31 19:09:49 — Verified | 2026-10-31T17:09:50Z; 2026-10-31 19:09:50, label event — Verified | 2026-10-31T16:24:28Z; 2026-10-31 18:24:28 — Inferred from earliest PR #243 commit | Closed 2026-10-31T19:25:08Z; 2026-10-31 21:25:08 — Verified; linked PR #243 merged one second earlier |
+| [#31](https://github.com/melusi-k/ate-ios/issues/31) | 2026-10-11T22:56:10Z; 2026-10-12 00:56:10 — Verified | Not reconstructed in this pass | Unknown | Still open; actual completion Unknown. It owns the current Cooking Tracker/Cook Mode regressions observed on #239. |
+| [#30](https://github.com/melusi-k/ate-ios/issues/30) | 2026-10-11T22:50:12Z; 2026-10-12 00:50:12 — Verified | 2026-10-11T22:50:13Z; 2026-10-12 00:50:13, label event — Verified | Unknown | Still open; actual completion Unknown |
+| [#70](https://github.com/melusi-k/ate-ios/issues/70) | 2026-10-13T04:05:22Z; 2026-10-13 06:05:22 — Verified | 2026-10-21T10:37:09Z; 2026-10-21 12:37:09, label event — Verified | Unknown | Still open; actual completion Unknown |
+| [#179](https://github.com/melusi-k/ate-ios/issues/179) | 2026-10-25T01:45:00Z; 2026-10-25 03:45:00 — Verified | 2026-10-25T01:48:25Z; 2026-10-25 03:48:25, cross-reference to #180 — Verified | 2026-10-25T06:40:40Z; 2026-10-25 08:40:40 — Inferred from earliest linked PR #181 commit | Still open; actual completion Unknown |
+| [#245](https://github.com/melusi-k/ate-ios/issues/245) | 2026-10-31T20:55:12Z; 2026-10-31 22:55:12 — Verified | 2026-10-31T20:55:15Z; 2026-10-31 22:55:15, project automation — Verified | 2026-10-31T20:55:44Z; 2026-10-31 22:55:44 — Inferred from PR #246 | Still open; actual completion Unknown |
+| [#253](https://github.com/melusi-k/ate-ios/issues/253) | 2026-11-01T04:49:56Z; 2026-11-01 06:49:56 — Verified | 2026-11-01T04:49:58Z; 2026-11-01 06:49:58, label event — Verified | 2026-11-01T04:50:43Z; 2026-11-01 06:50:43 — Inferred from PR #254 | Still open; actual completion Unknown |
+| [#33](https://github.com/melusi-k/ate-ios/issues/33) | 2026-10-11T22:56:59Z; 2026-10-12 00:56:59 — Verified | 2026-10-11T22:57:00Z; 2026-10-12 00:57:00, assignment event — Verified | Unknown | Still open; release decision BLOCKED |
+| [#138](https://github.com/melusi-k/ate-ios/issues/138) | 2026-10-20T23:59:51Z; 2026-10-21 01:59:51 — Verified | 2026-10-20T23:59:53Z; 2026-10-21 01:59:53, label event — Verified | Unknown | Still open; actual completion Unknown |
+| [#195](https://github.com/melusi-k/ate-ios/issues/195) | 2026-10-30T07:30:05Z; 2026-10-30 09:30:05 — Verified | 2026-10-30T07:30:06Z; 2026-10-30 09:30:06, label event — Verified | Unknown | Still open; actual completion Unknown |
+
+#### Recent PR lifecycle
+
+| PR | Opened (UTC; SAST) | First activity (UTC; SAST) | Actual work start (UTC; SAST) | First substantive human review / approval | Merged or closed (UTC; SAST) |
+|---|---|---|---|---|---|
+| [#239](https://github.com/melusi-k/ate-ios/pull/239) | 2026-10-31T14:48:54Z; 16:48:54 — Verified | 2026-10-31T14:48:55Z; 16:48:55, project automation — Verified | 2026-10-31T14:46:42Z; 16:46:42 — Inferred | No submitted human review; no approval | Open; merge/completion Unknown |
+| [#240](https://github.com/melusi-k/ate-ios/pull/240) | 2026-10-31T14:51:06Z; 16:51:06 — Verified | 2026-10-31T14:51:08Z; 16:51:08, project automation — Verified | 2026-10-31T14:49:38Z; 16:49:38 — Inferred | No submitted human review; no approval | Open; merge/completion Unknown |
+| [#241](https://github.com/melusi-k/ate-ios/pull/241) | 2026-10-31T15:03:41Z; 17:03:41 — Verified | 2026-10-31T15:03:42Z; 17:03:42, project automation — Verified | 2026-10-31T15:00:56Z; 17:00:56 — Inferred | No submitted human review; no approval | Open; merge/completion Unknown |
+| [#243](https://github.com/melusi-k/ate-ios/pull/243) | 2026-10-31T17:10:26Z; 19:10:26 — Verified | 2026-10-31T17:10:28Z; 19:10:28, project automation — Verified | 2026-10-31T16:24:28Z; 18:24:28 — Inferred | No submitted human review; no approval | Merged 2026-10-31T19:25:07Z; 21:25:07 — Verified |
+| [#244](https://github.com/melusi-k/ate-ios/pull/244) | 2026-10-31T19:28:44Z; 21:28:44 — Verified | 2026-10-31T19:28:46Z; 21:28:46, project automation — Verified | 2026-10-31T19:27:30Z; 21:27:30 — Inferred | No submitted human review; no approval | Merged 2026-10-31T22:16:50Z; 2026-11-01 00:16:50 — Verified |
+| [#259](https://github.com/melusi-k/ate-ios/pull/259) | 2026-11-01T09:10:08Z; 11:10:08 — Verified | 2026-11-01T09:10:10Z; 11:10:10, project automation — Verified | 2026-11-01T09:09:57Z; 11:09:57 — Inferred | No submitted human review; no approval | Closed unmerged 2026-11-01T11:01:13Z; 13:01:13 — Verified |
+| [#262](https://github.com/melusi-k/ate-ios/pull/262) | 2026-11-01T10:43:41Z; 12:43:41 — Verified | 2026-11-01T10:43:42Z; 12:43:42, project automation — Verified | Unknown — branch synchronization only | No submitted human review; no approval | Merged into #251 feature branch 2026-11-01T10:44:02Z; 12:44:02 — Verified; not merged to main |
+| [#263](https://github.com/melusi-k/ate-ios/pull/263) | 2026-11-01T12:45:52Z; 14:45:52 — Verified | 2026-11-01T12:45:54Z; 14:45:54, project automation — Verified | 2026-11-01T12:44:57Z; 14:44:57 — Inferred | No submitted human review; no approval | Open draft; merge/completion Unknown |
+| [#265](https://github.com/melusi-k/ate-ios/pull/265) | 2026-11-01T16:59:38Z; 18:59:38 — Verified | 2026-11-01T16:59:40Z; 18:59:40, project automation — Verified | Unknown — main-to-feature synchronization, not independent implementation | No submitted human review; no approval | Open; merge/completion Unknown |
+| [#266](https://github.com/melusi-k/ate-ios/pull/266) | 2026-11-01T18:45:42Z; 20:45:42 — Verified | 2026-11-01T18:45:44Z; 20:45:44, project automation — Verified | 2026-11-01T18:45:08Z; 20:45:08 — Inferred | No submitted human review; no approval | Open; merge/completion Unknown |
+| [#260](https://github.com/melusi-k/ate-ios/pull/260) | 2026-11-01T09:19:48Z; 11:19:48 — Verified | Not reconstructed here | Not calculated | No submitted human review; no approval | Merged 2026-11-01T16:47:25Z; 18:47:25 — Verified |
+| [#261](https://github.com/melusi-k/ate-ios/pull/261) | 2026-11-01T10:01:26Z; 12:01:26 — Verified | Not reconstructed here | Not calculated | No submitted human review; no approval | Merged 2026-11-01T11:30:58Z; 13:30:58 — Verified |
+| [#264](https://github.com/melusi-k/ate-ios/pull/264) | 2026-11-01T14:07:04Z; 16:07:04 — Verified | Not reconstructed here | Not calculated | No submitted human review; no approval | Merged 2026-11-01T15:48:13Z; 17:48:13 — Verified |
+
+Existing lifecycle rows for #66, #181, #206, #231, #237, #238, #246, #247, #250, #251, #254, #255 and #234 remain in the 2026-11-01 addendum. PR #66's and #181's author COMMENTED reviews remain comments, not approvals. Bot/Codex comments are not human reviews. No first qualifying approval was found for the newly checked PRs above.
+
+### Metrics and uncertainty
+
+- Issue #242 created-to-closed lead time: **2h15m19s** (verified endpoints). Its implementation duration is not calculated because the earliest linked commit is only an inferred start.
+- PR #243 opened-to-merged elapsed time: **2h14m41s**; PR #244: **2h48m06s**; PR #260: **7h27m37s**; PR #261: **1h29m32s**; PR #264: **1h41m09s**. These are PR metadata intervals, not implementation time or issue cycle time.
+- No issue lead/cycle time is calculated for #30, #31, #70, #179, #245, #253, #138 or #195 because they remain open. No implementation duration is calculated from inferred earliest commits.
+- No review/approval duration is calculable for the new PR set because no qualifying human approval was submitted. COMMENTED reviews and bot/Codex activity are not approvals.
+- W44 commitment accuracy and carryover remain unavailable because the W44 committed-scope denominator was not recoverable. W45 metrics are not yet due; record outcomes at Sunday close-out only from the committed baseline and verified evidence.

@@ -1,0 +1,129 @@
+name: Diagnostic - audit main screens navigation check
+
+# Diagnostic only. Runs ONE existing selector, AccessibilityAuditUITests/testAuditMainScreens,
+# on the exact head of PR #270 (d6450152bd1d0a0f8b4727c2efeb61054d282ea2) plus only this file.
+# Audit rules, app code and test code are unchanged. Nothing is published, released or written back.
+# Trigger: push to branch diag/audit-nav-check only (runs this file from that branch).
+# workflow_dispatch is intentionally absent: it would need this file on the default branch.
+on:
+  push:
+    branches: ["diag/audit-nav-check"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diag-audit-nav-check
+  cancel-in-progress: false
+
+env:
+  TESTED_PARENT: d6450152bd1d0a0f8b4727c2efeb61054d282ea2
+  EXPECTED_TEST_SHA256: e84833f87adc6ade6ba7f030c827d88ba04405d81315469c00f381498c64dcc8
+  SELECTOR: AteUITests/AccessibilityAuditUITests/testAuditMainScreens
+
+jobs:
+  audit-main-screens:
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+      - name: Verify tested provenance
+        run: |
+          set -euo pipefail
+          {
+            echo "head=$(git rev-parse HEAD)"
+            echo "parent=$(git rev-parse HEAD^)"
+            echo "files_changed_vs_parent:"; git diff --name-only HEAD^ HEAD
+            echo "test_file_sha256=$(shasum -a 256 AteUITests/AccessibilityAuditUITests.swift | cut -d' ' -f1)"
+          } | tee provenance.txt
+          [ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ] || { echo "::error::checked-out HEAD is not the pushed SHA"; exit 1; }
+          [ "$(git rev-parse HEAD^)" = "$TESTED_PARENT" ] || { echo "::error::parent is not the #270 head"; exit 1; }
+          [ "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/diag-audit-main-screens.yml" ] || { echo "::error::branch differs from #270 head by more than this workflow file"; exit 1; }
+          [ "$(shasum -a 256 AteUITests/AccessibilityAuditUITests.swift | cut -d' ' -f1)" = "$EXPECTED_TEST_SHA256" ] || { echo "::error::audit test file is not the reviewed content"; exit 1; }
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Record toolchain
+        run: |
+          { xcodebuild -version; xcrun simctl list runtimes | grep -i "iOS 27"; } 2>&1 | tee toolchain.txt
+      - uses: actions/cache/restore@v6
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: xcode-27-homebrew-xcodegen-v1
+          restore-keys: |
+            xcode-27-homebrew-
+      - run: brew install xcodegen && xcodegen generate
+      - name: Build for testing
+        timeout-minutes: 25
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/ate-test-results"
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || { tail -100 build.log; exit 1; }
+      - name: Run testAuditMainScreens (strict audit unchanged)
+        id: audit
+        timeout-minutes: 15
+        run: |
+          set +e
+          xcrun simctl shutdown "$SIM_ID" >/dev/null 2>&1
+          xcrun simctl boot "$SIM_ID" >/dev/null 2>&1
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:"$SELECTOR" \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/audit-main-screens.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > audit-main-screens.log 2> audit-main-screens.stderr.log
+          status=$?
+          echo "xcodebuild_exit=$status" | tee -a provenance.txt
+          # The named selector must have been executed exactly once, and a skipped or zero-test run is a failure.
+          ran=$(grep -cE "Test Case '-\[AteUITests\.AccessibilityAuditUITests testAuditMainScreens\]' (passed|failed)" audit-main-screens.log)
+          echo "selector_result_lines=$ran" | tee -a provenance.txt
+          grep -E "Test Case .* (passed|failed|skipped)|error:|Executed [0-9]+ test|TEST (SUCCEEDED|FAILED)" audit-main-screens.log | tail -60
+          if [ "$ran" -ne 1 ]; then echo "::error::testAuditMainScreens did not report exactly one result (this is NOT a pass)"; exit 1; fi
+          exit "$status"
+      - name: Export attachments, list completed audits, collect error lines
+        if: ${{ always() }}
+        timeout-minutes: 5
+        run: |
+          set +e
+          R="$RUNNER_TEMP/ate-test-results"
+          xcrun xcresulttool export attachments --path "$R/audit-main-screens.xcresult" --output-path "$R/audit-main-screens-attachments" > export.log 2>&1
+          python3 - "$R/audit-main-screens-attachments" > audit-screens-completed.txt <<'PY'
+          import json, os, sys
+          d = sys.argv[1]
+          try:
+              m = json.load(open(os.path.join(d, "manifest.json")))
+          except Exception as e:
+              print("no manifest:", e); sys.exit(0)
+          for t in m:
+              for a in t.get("attachments", []):
+                  print(a.get("suggestedHumanReadableName", a.get("exportedFileName")))
+          PY
+          echo "(completed audits only: an attachment is added after that screen's audit returns)" >> audit-screens-completed.txt
+          cat audit-screens-completed.txt
+          grep -n -E "error:|Failed to|did not open|has no |Missing |XCTAssert" audit-main-screens.log > audit-error-lines.txt
+          cat audit-error-lines.txt
+      - name: Upload diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: audit-nav-check-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          path: |
+            provenance.txt
+            toolchain.txt
+            build.log
+            audit-main-screens.log
+            audit-main-screens.stderr.log
+            export.log
+            audit-screens-completed.txt
+            audit-error-lines.txt
+            ${{ runner.temp }}/ate-test-results/build.xcresult
+            ${{ runner.temp }}/ate-test-results/audit-main-screens.xcresult
+            ${{ runner.temp }}/ate-test-results/audit-main-screens-attachments

@@ -821,3 +821,9 @@ No submitted human APPROVED review exists on the 12 open PRs. COMMENTED reviews 
 - W45 commitment accuracy and carryover rate are not due until Sunday 2026-11-08 close-out.
 - No lead/cycle time is calculated for open issues. No approval/review duration is calculable because there are no qualifying human approvals. Inferred earliest-commit proxies are not treated as verified work starts.
 - This is Monday planning/revalidation, not a Sunday retrospective. No W45 completion or actual work start is inferred from the sprint start, ticket creation or PR creation.
+
+
+
+### PR #267 post-refresh CI delta — 2026-11-02
+
+The documentation update in this PR created prior head `b8a29ed78762543363e29b645762b7f6d2fcf364`. On that exact head, docs-validation passed [41423180766](https://github.com/melusi-k/ate-ios/actions/runs/41423180766) and stack validation passed [41423180783](https://github.com/melusi-k/ate-ios/actions/runs/41423180783); Compile and Supabase Preview were skipped; Dogfood Qualification [41423180812](https://github.com/melusi-k/ate-ios/actions/runs/41423180812) and open-state UI [41423180849](https://github.com/melusi-k/ate-ios/actions/runs/41423180849) were in progress at the latest poll. This append creates a new PR head, so those results are historical for the prior SHA; applicable checks must be rerun on the resulting head. No approval or merge is inferred.

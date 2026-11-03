@@ -603,7 +603,7 @@ struct InsightsView: View {
             store.filter.clear()
             store.select(.library)
         case .cookingHistory:
-            store.trackerPath = []
+            store.trackerPath = [.insights]
             store.select(.tracker)
         case .shoppingList:
             store.shoppingPath = []

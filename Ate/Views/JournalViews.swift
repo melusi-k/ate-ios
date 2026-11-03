@@ -36,6 +36,12 @@ struct JournalListView: View {
         }
         .searchable(text: $query, prompt: "Search journal")
         .navigationTitle("Journal")
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                NavigationLink { JournalTimelineView() } label: { Label("Timeline", systemImage: "calendar.day.timeline.left") }
+                    .accessibilityIdentifier("journal.timelineLink")
+            }
+        }
         .onAppear { entries = JournalStore.shared.entries() }
     }
 }
@@ -204,4 +210,3 @@ struct JournalOpenStateBanner: View {
         .accessibilityIdentifier("journal.openStateBanner")
     }
 }
-

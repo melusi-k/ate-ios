@@ -173,14 +173,16 @@ struct RecoveryInfo: Identifiable, Equatable {
 
 struct QuickAddRequest: Identifiable, Equatable { let id = UUID(); let mode: WidgetLinks.AddMode }
 
-enum BottomAddContext {
-    case recipe, food, shopping
+enum BottomAddContext: Equatable {
+    case recipe, food, shopping, journal, none
 
     var title: String {
         switch self {
         case .recipe: "Add recipe"
         case .food: "Log food"
         case .shopping: "Add item"
+        case .journal: "New journal entry"
+        case .none: ""
         }
     }
 }
@@ -205,6 +207,15 @@ final class AppStore {
 
     /// Controls the persistent bottom action for the destination currently in view.
     var bottomAddContext: BottomAddContext = .recipe
+    var activeBottomAddContext: BottomAddContext {
+        guard isAtTabRoot else { return bottomAddContext }
+        switch tab {
+        case .library, .collection, .search: return .recipe
+        case .shopping: return .shopping
+        case .tracker: return .journal
+        case .settings, .more: return .none
+        }
+    }
     /// Requests handled by the active Food diary and Shopping list screens.
     var showNutritionDiaryEntry = false
     /// Opens the Food diary destination from a contextual insight action.
@@ -284,7 +295,7 @@ final class AppStore {
     /// Library tab's navigation stack (recipes, shared links, not-found).
     var path: [Route] = []
     var shoppingPath: [Route] = []
-    /// Dedicated Cooking Tracker tab's navigation stack.
+    /// Journal-primary Insights tab navigation stack.
     var trackerPath: [Route] = []
     var settingsPath: [Route] = []
     var morePath: [Route] = []
@@ -929,9 +940,9 @@ final class AppStore {
 
     // MARK: deep links
     func openJournalEntry(_ id: String) {
-        // More is not a shipped tab. Keep journal deep links inside the visible Tracker navigation stack.
+        // Journal is now the root of the shipped Insights tab. Back returns to history once.
         select(.tracker)
-        trackerPath = [.journal, .journalEntry(id)]
+        trackerPath = [.journalEntry(id)]
     }
 
     func handle(url: URL) {

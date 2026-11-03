@@ -129,6 +129,7 @@ struct RootView: View {
                 if #available(iOS 26, *) { tabs26 } else { tabs }   // portrait iPhone: bottom tab bar; iPad: adaptable sidebar
             }
         }
+        .modifier(JournalTaskHost())
         .onChange(of: vSize) { _, v in
             // Collections are sidebar-only; back in portrait keep the filter but show the Library tab.
             if v != .compact, case .collection = store.tab { store.tab = .library }

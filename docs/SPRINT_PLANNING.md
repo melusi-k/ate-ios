@@ -914,3 +914,16 @@ W44 commitment accuracy/carryover and W45 completion metrics remain unavailable 
 ### PR #267 exact-head check poll correction — 2026-11-03T09:42:12Z
 
 The Tuesday append created PR #267 head `ea0afbcf0f3dd4f832a5e3995ab045a7a313aadc`. The first poll after that commit showed Compile passed [run 41614377568](https://github.com/melusi-k/ate-ios/actions/runs/41614377568) and stacked validation passed [run 41614377649](https://github.com/melusi-k/ate-ios/actions/runs/41614377649); Dogfood Qualification [run 41614377537](https://github.com/melusi-k/ate-ios/actions/runs/41614377537) and Journal open-state UI [run 41614377628](https://github.com/melusi-k/ate-ios/actions/runs/41614377628) were still in progress. No approval or merge is inferred. The branch remains 8 commits ahead / 10 behind current main and draft. These are exact-head results for this documentation SHA only; any subsequent commit requires fresh validation.
+
+
+### PR #267 exact-head poll correction — 2026-11-03T09:53Z (Africa/Johannesburg 2026-11-03 11:53 SAST)
+
+The prior exact head `aa15700ecbd5746016cabcd915865ab344a55fbc` now has:
+- docs-validation passed [run 41614643407](https://github.com/melusi-k/ate-ios/actions/runs/41614643407);
+- Compile was **skipped** by the docs-only path (same run);
+- stacked validation passed [run 41614669519](https://github.com/melusi-k/ate-ios/actions/runs/41614669519);
+- Dogfood Qualification [run 41614643596](https://github.com/melusi-k/ate-ios/actions/runs/41614643596) remained pending;
+- Journal open-state UI [run 41614643482](https://github.com/melusi-k/ate-ios/actions/runs/41614643482) remained in progress;
+- Supabase Preview was skipped.
+
+This poll corrects the earlier "no runs visible" note for `aa15700`; it does not establish a green result for the pending/in-progress checks. This append creates another documentation head, so the above results remain evidence for `aa15700` only and all applicable checks must run again on the new SHA. The PR remains draft and the branch remains behind current main; no merge or approval is implied.

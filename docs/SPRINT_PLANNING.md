@@ -909,3 +909,8 @@ W44 commitment accuracy/carryover and W45 completion metrics remain unavailable 
 - Updated the W45 Tuesday status blocks on issues #30, #179 and #70 and appended matching status to selected PR bodies #239–#241.
 - The new Tuesday record is appended on the existing draft documentation branch for PR #267, not on main. The branch is stale against current main and GitHub update-branch is disabled; a maintainer must reconcile it safely and all applicable checks must rerun on the new SHA.
 - No PR was merged, no application branch was rewritten, no issue was closed, no sprint commitment/date was changed, and no repository policy was modified.
+
+
+### PR #267 exact-head check poll correction — 2026-11-03T09:42:12Z
+
+The Tuesday append created PR #267 head `ea0afbcf0f3dd4f832a5e3995ab045a7a313aadc`. The first poll after that commit showed Compile passed [run 41614377568](https://github.com/melusi-k/ate-ios/actions/runs/41614377568) and stacked validation passed [run 41614377649](https://github.com/melusi-k/ate-ios/actions/runs/41614377649); Dogfood Qualification [run 41614377537](https://github.com/melusi-k/ate-ios/actions/runs/41614377537) and Journal open-state UI [run 41614377628](https://github.com/melusi-k/ate-ios/actions/runs/41614377628) were still in progress. No approval or merge is inferred. The branch remains 8 commits ahead / 10 behind current main and draft. These are exact-head results for this documentation SHA only; any subsequent commit requires fresh validation.

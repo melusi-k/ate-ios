@@ -80,15 +80,28 @@ final class JournalOpenStateUITests: XCTestCase {
         app.tabBars.buttons["Library"].tap()
         wait(app.buttons["libraryBrowseMenu"], 10)
         app.buttons["libraryBrowseMenu"].tap()
-        let menu = app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch
+        // The "Collections" header scrolls out of the realized range after the first swipe (CI run 41631190141,
+        // MENU-EVIDENCE: collectionsLabel=false, Journal button realized at y=766 but outside the visible popover).
+        // So no label is a stable anchor through scrolling. Find the open menu ONCE, while its "Collections" header
+        // (LibraryView Section("Collections"), present only in this menu) is realized, then keep addressing that same
+        // container by its position among app.collectionViews instead of re-matching by label after each swipe.
+        let header = NSPredicate(format: "label == %@", "Collections")
+        let located = app.collectionViews.containing(header).firstMatch
+        let menuAppeared = located.waitForExistence(timeout: 10)
+        var menuIndex = -1
+        if menuAppeared {
+            for (i, cv) in app.collectionViews.allElementsBoundByIndex.enumerated()
+            where cv.descendants(matching: .any).matching(header).firstMatch.exists { menuIndex = i; break }
+        }
+        // ASSUMPTION (unproven): the popover's collection view keeps this index while it is open. If the popover is
+        // dismissed and the index now resolves to another collection view (e.g. the Library list), menu.exists stays
+        // true and does not prove the popover is open. This is not a proof of no false pass. The test relies on the
+        // bounded loop, MENU-EVIDENCE and the unchanged assertions (Journal button exists and is hittable, the Journal
+        // navigation bar appears after the tap) to fail honestly when the container is not the popover.
+        let menu = app.collectionViews.element(boundBy: max(menuIndex, 0))
         let item = menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", "Journal")).firstMatch
-        // The menu itself must be realized before anything is scrolled. CI run 41623874568 (XXXL) failed in
-        // menu.swipeUp() with "No matches found" for this query after only a 3s item wait, while run 41617917747's
-        // hierarchy showed the same menu realized (Collections .. Cooked Meals) within the earlier 10s wait.
-        // Wait for the menu with the full timeout; if it never appears, record scoped evidence and fail honestly.
-        let menuAppeared = menu.waitForExistence(timeout: 10)
-        if !menuAppeared { menuEvidence("jos-menu-not-realized", item: item) }
-        XCTAssertTrue(menuAppeared, "Missing \(menu)")
+        if !menuAppeared || menuIndex < 0 { menuEvidence("jos-menu-not-realized", item: item) }
+        XCTAssertTrue(menuAppeared && menuIndex >= 0, "Missing \(located)")
         // At accessibility text sizes the menu rows grow and "Journal" sits below the fold, where the lazy list
         // has not realized it (run 41617917747 XXXL hierarchy: no Journal button). Scroll the realized menu
         // until the item exists and is hittable. Bounded (8); the assertion below is unchanged.

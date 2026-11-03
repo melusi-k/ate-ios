@@ -1,7 +1,7 @@
 import SwiftUI
 import MapKit
 
-/// More › Journal: every Ate journal entry, newest first, with search.
+/// Primary journal: every Ate journal entry, newest first, with search.
 struct JournalListView: View {
     @Environment(AppStore.self) private var store
     /// Tests render the banner and empty-state suppression without mutating the shared store.
@@ -37,14 +37,22 @@ struct JournalListView: View {
         }
         .searchable(text: $query, prompt: "Search journal")
         .navigationTitle("Journal")
+        .ateRootNavigationChrome(logoID: "journal.logo")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 Button { store.beginManualJournal() } label: { Label("New journal entry", systemImage: "square.and.pencil") }
                     .accessibilityIdentifier("journal.newEntry")
+                Menu {
+                    Button { store.journalExploreDestination = .insights } label: {
+                        Label("Insights & cooking history", systemImage: "chart.bar.xaxis")
+                    }
+                    .accessibilityIdentifier("journal.insights")
+                } label: { Label("Journal options", systemImage: "ellipsis.circle") }
+                .accessibilityIdentifier("journal.menu")
             }
         }
         .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
-        .onAppear { entries = JournalStore.shared.entries() }
+        .onAppear { entries = JournalStore.shared.entries(); store.bottomAddContext = .journal }
     }
 }
 

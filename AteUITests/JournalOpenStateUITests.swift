@@ -4,7 +4,7 @@ import XCTest
 /// These launch the real app with a QA-forced open state (`-qaJournalOpenState`,
 /// JournalStore.qaForcedOpenState) and verify the banner through the running app's
 /// realized accessibility tree, over the actual route a user takes:
-/// Library tab -> browse menu -> Journal sheet.
+/// Library tab -> Journal shortcut -> primary Journal.
 ///
 /// Why UI tests and not hosted rendering: a UIHostingController hosted in a unit
 /// test never realizes SwiftUI's accessibility tree (no accessibility server queries
@@ -70,28 +70,14 @@ final class JournalOpenStateUITests: XCTestCase {
         print("SNAPSHOT-END \(name)")
     }
 
-    /// The existing route to the journal timeline: Library tab -> browse menu -> Journal.
-    /// Menu items surface as labelled buttons on this runtime (identifiers are not exposed
-    /// inside the open menu; see CoverageUITests), so the item is matched by label.
+    /// Library's visible Journal shortcut opens the primary destination, not a sheet.
     private func openJournal() {
         wait(app.tabBars.firstMatch, 15)
         app.tabBars.buttons["Library"].tap()
-        wait(app.buttons["libraryBrowseMenu"], 10)
-        app.buttons["libraryBrowseMenu"].tap()
-        // At XXXL the scrolled menu no longer retains its Collections header in AX.
-        // Scope by the actual destination button, which the retained failure hierarchy exposes.
-        let journalLabel = NSPredicate(format: "label == %@", "Journal")
-        let menu = app.collectionViews.containing(journalLabel).firstMatch
-        wait(menu, 10)
-        let item = menu.buttons.matching(journalLabel).firstMatch
-        for _ in 0..<8 {
-            if item.exists && item.isHittable { break }
-            menu.swipeUp()
-        }
-        wait(item, 10)
-        XCTAssertTrue(item.isHittable)
-        item.tap()
-        wait(app.navigationBars["Journal"], 10)
+        wait(app.buttons["library.todayJournalHub"])
+        app.buttons["library.todayJournalHub"].tap()
+        wait(app.navigationBars["Journal"])
+        XCTAssertTrue(app.tabBars.buttons["Insights"].isSelected)
     }
 
     private func banner(_ timeout: TimeInterval = 10,
@@ -139,7 +125,7 @@ final class JournalOpenStateUITests: XCTestCase {
         XCTAssertFalse(text("No journal entries yet").exists,
                        "an unavailable journal must not be presented as an empty healthy one")
         // The screen stays navigable: the user is never trapped on a broken journal.
-        wait(app.buttons["library.explore.dismiss"], 10)
+        wait(app.tabBars.buttons["Library"], 10)
         shot("jos-03-unavailable")
     }
 
@@ -153,7 +139,7 @@ final class JournalOpenStateUITests: XCTestCase {
     }
 }
 
-// Manual creation regression: the actual history sheet and Insights routes must both expose writing.
+// Manual creation regression: the actual primary history and secondary Insights routes must both expose writing.
 // Generic fixtures only. Never copy private journal text into tests or retained screenshots.
 extension JournalOpenStateUITests {
     private func composeFromHistory(extra: [String] = []) {
@@ -280,6 +266,11 @@ extension JournalOpenStateUITests {
         launch(extra: ["-qaMockHealth", "empty"])
         wait(app.tabBars.firstMatch, 15)
         app.tabBars.buttons["Insights"].tap()
+        wait(app.navigationBars["Journal"])
+        app.buttons["journal.menu"].tap()
+        let secondary = app.buttons.matching(NSPredicate(format: "label == %@", "Insights & cooking history")).firstMatch
+        wait(secondary); secondary.tap()
+        wait(app.navigationBars["Insights"])
         let action = app.buttons["insights.newJournalEntry"]
         for _ in 0..<12 {
             if action.exists && action.isHittable { break }
@@ -306,6 +297,8 @@ extension JournalOpenStateUITests {
         wait(discard)
         discard.buttons["Discard draft"].tap()
         waitUntilGone(editor)
-        XCTAssertTrue(app.tabBars.firstMatch.exists)
+        wait(app.navigationBars["Insights"])
+        app.buttons["library.explore.dismiss"].tap()
+        wait(app.navigationBars["Journal"])
     }
 }

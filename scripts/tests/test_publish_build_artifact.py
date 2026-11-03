@@ -260,6 +260,31 @@ class PublicationTests(unittest.TestCase):
             with self.assertRaises(pub.PublicationError): pub.validate_args(self.args)
             setattr(self.args, field, old)
 
+    def test_custom_channel_tags_validate_without_new_enum(self):
+        for channel in ("Internal-QA", "Internal.QA", "Internal_QA", "Production", "TierA", "TierB", "TierC"):
+            self.args.tag = "build-353-" + channel
+            with patch.object(pub, "run", side_effect=lambda *args: __import__("subprocess").check_output(args, text=True)):
+                pub.validate_args(self.args)
+
+    def test_invalid_git_channel_fails_validation(self):
+        self.args.tag = "build-353-Internal..QA"
+        with patch.object(pub, "run", side_effect=lambda *args: __import__("subprocess").check_output(args, text=True)):
+            with self.assertRaises(__import__("subprocess").CalledProcessError):
+                pub.validate_args(self.args)
+
+    def test_current_custom_channel_alias_does_not_block_later_main(self):
+        for channel in ("Internal-QA", "Internal.QA", "Internal_QA"):
+            current = {"assets": [{"name": "Ate-0.1.353-build353-" + channel + ".ipa"}]}
+            with patch.object(pub, "release", return_value=current):
+                self.assertTrue(pub.rolling_allowed(354, SHA, "refs/heads/main"))
+                self.assertFalse(pub.rolling_allowed(352, SHA, "refs/heads/main"))
+
+    def test_current_custom_channel_alias_same_build_keeps_source_check(self):
+        current = {"assets": [{"name": "Ate-0.1.353-build353-Internal-QA.ipa"}]}
+        with patch.object(pub, "release", return_value=current), patch.object(pub, "tag_sha", return_value="b" * 40):
+            with self.assertRaises(pub.PublicationError):
+                pub.rolling_allowed(353, SHA, "refs/heads/main")
+
 
 if __name__ == "__main__":
     unittest.main()

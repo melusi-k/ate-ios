@@ -242,25 +242,29 @@ struct AteBottomAccessory: View {
         HStack(spacing: 8) {
             if let session = store.cookSession {
                 CookSessionMiniPlayer(session: session)
-                Button { add() } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
-                    .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")
+                if store.activeBottomAddContext != .none {
+                    Button { add() } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
+                        .accessibilityLabel(store.activeBottomAddContext.title).accessibilityIdentifier("accessoryAdd")
+                }
             } else if !store.timers.timers.isEmpty {
                 TimerBar().padding(.bottom, -4).padding(.horizontal, -12)
-                Button { add() } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
-                    .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")
-            } else {
+                if store.activeBottomAddContext != .none {
+                    Button { add() } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
+                        .accessibilityLabel(store.activeBottomAddContext.title).accessibilityIdentifier("accessoryAdd")
+                }
+            } else if store.activeBottomAddContext != .none {
                 Button { add() } label: {
-                    Label(compact ? "Add" : store.bottomAddContext.title, systemImage: "plus").font(AteFont.body(15, .semibold))
+                    Label(compact ? "Add" : store.activeBottomAddContext.title, systemImage: "plus").font(AteFont.body(15, .semibold))
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")
+                .accessibilityLabel(store.activeBottomAddContext.title).accessibilityIdentifier("accessoryAdd")
             }
         }
         .padding(.horizontal, compact ? 4 : 12)
         .accessibilityElement(children: .contain).accessibilityIdentifier("bottomAccessory")
     }
     private func add() {
-        switch store.bottomAddContext {
+        switch store.activeBottomAddContext {
         case .recipe:
             if store.tab != .library { store.select(.library) }
             store.quickAdd = QuickAddRequest(mode: .link)
@@ -268,6 +272,10 @@ struct AteBottomAccessory: View {
             store.showNutritionDiaryEntry = true
         case .shopping:
             store.requestShoppingAdd = true
+        case .journal:
+            store.beginManualJournal()
+        case .none:
+            break
         }
     }
 }
@@ -304,11 +312,6 @@ extension RootView {
                     LibraryView(searchPlacement: .tabBar).offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
             }
-        }
-        .onChange(of: store.tab) { _, selectedTab in
-            // Food diary is a pushed screen rather than a root tab. Root destinations only
-            // use Shopping's add context; all other tabs return to the recipe action.
-            store.bottomAddContext = selectedTab == .shopping ? .shopping : .recipe
         }
         .tabViewStyle(.tabBarOnly)
         .tabBarMinimizeBehavior(.onScrollDown)

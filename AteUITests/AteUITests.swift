@@ -208,6 +208,9 @@ final class AteUITests: XCTestCase {
 
         // Leaving Cook Mode is not completion. Inspect the calendar's accessible day label.
         tab("Insights")
+        app.buttons["journal.menu"].tap()
+        let secondary = app.buttons.matching(NSPredicate(format: "label == %@", "Insights & cooking history")).firstMatch
+        wait(secondary); secondary.tap()
         let todayWithoutCooking = app.buttons.matching(
             NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@", "no cooking recorded", "today")
         ).firstMatch
@@ -235,6 +238,9 @@ final class AteUITests: XCTestCase {
 
         // Completion must update the persistent Tracker, not merely dismiss Cook Mode.
         tab("Insights")
+        app.buttons["journal.menu"].tap()
+        let secondary = app.buttons.matching(NSPredicate(format: "label == %@", "Insights & cooking history")).firstMatch
+        wait(secondary); secondary.tap()
         let day = Calendar.current.component(.day, from: Date())
         let today = app.buttons["tracker.day.\(day)"]
         wait(today, 5)
@@ -838,8 +844,8 @@ final class AteUITests: XCTestCase {
     }
 
     func pick(_ menu: String, _ option: String) {
-        // Group and Sort live inside one icon-only "Group & sort" toolbar menu.
-        if !app.buttons[menu].exists { app.buttons["groupSortMenu"].firstMatch.tap() }
+        // Group and Sort are explicit submenus of Library options.
+        if !app.buttons[menu].exists { app.buttons["libraryBrowseMenu"].firstMatch.tap() }
         var m = app.buttons[menu].firstMatch
         if !m.waitForExistence(timeout: 2) { m = app.buttons[menu == "sortMenu" ? "Sort" : "Group by"].firstMatch }
         wait(m, 3); m.tap()
@@ -879,8 +885,10 @@ final class AteUITests: XCTestCase {
         }
         wait(diaryLink, 5)
         diaryLink.tap()
-        XCTAssertEqual(add.label, "Log food")
-        add.tap()
+        let logFood = app.buttons["nutritionDiary.add"]
+        wait(logFood, 5)
+        XCTAssertEqual(logFood.label, "Log food")
+        logFood.tap()
         wait(app.textFields["nutritionDiary.foodName"], 5)
         app.buttons["Cancel"].tap()
 
@@ -888,13 +896,16 @@ final class AteUITests: XCTestCase {
         let settingsBack = app.navigationBars.buttons["Settings"].firstMatch
         wait(settingsBack, 5)
         settingsBack.tap()
-        XCTAssertEqual(add.label, "Add recipe", "Returning from Food diary restores the Settings root action")
+        XCTAssertFalse(add.exists, "Settings has no unrelated recipe add action")
 
         // Every root tab must replace the previous destination's context.
         app.tabBars.buttons["Shopping"].tap()
         XCTAssertEqual(add.label, "Add item")
         app.tabBars.buttons["Insights"].tap()
-        XCTAssertEqual(add.label, "Add recipe", "Insights must not inherit the Shopping add action")
+        XCTAssertEqual(add.label, "New journal entry", "The primary Journal must not inherit Shopping's action")
+        add.tap()
+        wait(app.textViews["journal.compose.text"])
+        app.buttons["journal.compose.cancel"].tap()
         app.tabBars.buttons["Library"].tap()
         XCTAssertEqual(add.label, "Add recipe")
         app.tabBars.buttons["Search"].firstMatch.tap()

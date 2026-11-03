@@ -187,15 +187,44 @@ extension JournalOpenStateUITests {
         XCTAssertFalse(any("journal.entry").exists)
     }
 
-    func testManualSaveUnavailableRetainsDraftAndShowsError() {
-        composeFromHistory(extra: ["-qaJournalOpenState", "unavailable"])
+    private func verifyFailedSaveIsVisible(extra: [String] = [], landscape: Bool = false,
+                                          captureName: String) {
+        composeFromHistory(extra: ["-qaJournalOpenState", "unavailable"] + extra)
+        if landscape { XCUIDevice.shared.orientation = .landscapeLeft }
+        defer { XCUIDevice.shared.orientation = .portrait }
         let editor = app.textViews["journal.compose.text"]
         editor.tap(); editor.typeText("Generic retained failure draft")
+        wait(app.keyboards.firstMatch)
+        shot("\(captureName)-keyboard-before-save")
         app.buttons["journal.compose.save"].tap()
-        wait(any("journal.compose.error"))
+        let failure = app.alerts["Journal entry not saved"]
+        wait(failure)
+        XCTAssertTrue(failure.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "cannot save")).firstMatch.exists)
+        XCTAssertTrue(failure.buttons["Continue writing"].isHittable)
+        shot("\(captureName)-failure-alert")
+        failure.buttons["Continue writing"].tap()
         XCTAssertEqual(editor.value as? String, "Generic retained failure draft")
-        XCTAssertTrue(any("journal.compose.error").label.contains("cannot save"))
-        shot("manual-05-unavailable-retains-draft")
+        wait(app.keyboards.firstMatch)
+        wait(any("journal.compose.error"))
+        shot("\(captureName)-keyboard-retained-draft")
+        // A second explicit save must present the error again without losing or duplicating the draft.
+        app.buttons["journal.compose.save"].tap()
+        wait(failure)
+        failure.buttons["Continue writing"].tap()
+        XCTAssertEqual(editor.value as? String, "Generic retained failure draft")
+    }
+
+    func testManualSaveUnavailableRetainsDraftAndShowsError() {
+        verifyFailedSaveIsVisible(captureName: "manual-05-unavailable")
+    }
+
+    func testManualSaveFailureVisibleInCompactLandscape() {
+        verifyFailedSaveIsVisible(landscape: true, captureName: "manual-07-compact")
+    }
+
+    func testManualSaveFailureVisibleAtXXXL() {
+        verifyFailedSaveIsVisible(extra: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryXXXL"],
+                                 captureName: "manual-08-xxxl")
     }
 
     func testManualActionFromInsightsDoesNotRequireHealth() {

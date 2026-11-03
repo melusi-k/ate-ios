@@ -266,4 +266,30 @@ final class JournalOpenStateUITests: XCTestCase {
         XCTAssertTrue(any("journal.timeline.filter").isHittable, "the filter must stay tappable at the largest text size")
         shot("jt-07-fixture-large-text")
     }
+
+    /// The last fixture entry must scroll fully clear of the floating search bar at the largest text size.
+    /// Geometry cannot prove readable text under a translucent bar, so jt-08 is captured BEFORE any assertion for
+    /// visual inspection. A missing row, a missing search bar, no clearance after the bounded scroll, or a timeout is
+    /// reported as what it is; none of them is assumed to be an app defect.
+    func testTimelineFixtureAtLargestTextSizeLastRowClearsSearchBar() {
+        launch(extra: ["-qaJournalTimeline", "fixture", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        openTimeline()
+        let nav = app.navigationBars["Food Journal"]   // the same bar openTimeline() waits for
+        let searchBar = app.searchFields.firstMatch    // the same query the existing search test uses
+        let last = row("Soup was the best part")
+        _ = searchBar.waitForExistence(timeout: 10)    // non-asserting; existence is asserted after the screenshot
+        // The last row is lazily realized, so it is not waited for before scrolling: the bounded loop brings it in.
+        func clear() -> Bool {
+            last.exists && last.isHittable && nav.exists && searchBar.exists
+                && last.frame.minY >= nav.frame.maxY && last.frame.maxY <= searchBar.frame.minY
+        }
+        var swipes = 0
+        while !clear() && swipes < 6 { app.swipeUp(); swipes += 1 }
+        shot("jt-08-fixture-large-text-last-row")
+        XCTAssertTrue(nav.exists, "the Food Journal navigation bar must exist (swipes: \(swipes))")
+        XCTAssertTrue(searchBar.exists, "the search field must exist (swipes: \(swipes))")
+        XCTAssertTrue(last.exists, "the last row was never realized after \(swipes) swipes")
+        XCTAssertTrue(clear(),
+                      "the last row must lie between the navigation bar and the search bar (swipes: \(swipes), row: \(last.frame), nav: \(nav.frame), bar: \(searchBar.frame), hittable: \(last.isHittable))")
+    }
 }

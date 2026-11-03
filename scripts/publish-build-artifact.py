@@ -99,7 +99,7 @@ def rolling_allowed(build, sha, ref):
     names = [a["name"] for a in current.get("assets", []) if a["name"].endswith(".ipa")]
     if len(names) != 1:
         raise PublicationError("Cannot identify current latest-build number safely")
-    match = re.fullmatch(r"Ate-[0-9.]+-build([0-9]+)(?:-[A-Za-z0-9]+)?\.ipa", names[0])
+    match = re.fullmatch(r"Ate-[0-9.]+-build([0-9]+)(?:-[^/]+)?\.ipa", names[0])
     if not match:
         raise PublicationError("Unrecognized latest-build asset name")
     previous = int(match[1])
@@ -186,8 +186,11 @@ def load_handoff(args):
 def validate_args(args):
     if not re.fullmatch(r"[0-9a-f]{40}", args.sha or "") or not isinstance(args.build, int) or args.build < 1:
         raise PublicationError("Expected full source SHA and positive build number")
-    if not re.fullmatch(r"build-" + str(args.build) + r"(?:-[A-Za-z0-9]+)?", args.tag or ""):
+    if not re.fullmatch(r"build-" + str(args.build) + r"(?:-[^/]+)?", args.tag or ""):
         raise PublicationError("Tag must identify this build number exactly")
+    # workflow_dispatch channel is free text, not an alphanumeric enum. Retain
+    # literal filename-safe suffixes that Git already accepts, without renaming.
+    run("git", "check-ref-format", "refs/tags/" + args.tag)
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", args.version or ""):
         raise PublicationError("Expected numeric app version")
 

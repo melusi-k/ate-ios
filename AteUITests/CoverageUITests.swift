@@ -16,26 +16,19 @@ final class CoverageUITests: XCTestCase {
         let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
     }
     func text(_ s: String) -> XCUIElement { app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", s)).firstMatch }
-    /// The opened browse menu: the collection view containing the menu's own "Collections" section
-    /// header (matched by label via predicate - XCUIT has no containing(_:label:) overload). That header
-    /// is part of the menu definition (LibraryView.swift Section("Collections")) and appears nowhere else
-    /// in the observed hierarchy, so this scopes queries to the open menu.
-    var browseMenu: XCUIElement {
-        app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch
+    /// Nested menu values are unique within the visible submenu, not ordered duplicates.
+    func browseMenuItem(_ label: String) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label == %@", label)).firstMatch
     }
-    /// Browse-menu item by exact label, scoped to the opened menu. Observed on the iOS 27 runtime
-    /// (identical source resolves them on iOS 26): SwiftUI Menu item buttons no longer expose their
-    /// accessibility identifiers (library.insights / library.journal / library.collection.*) to XCUIT;
-    /// the open menu renders them as labelled buttons, so identifier queries can never match there.
-    /// Taps and destination assertions are unchanged. Menu-item identifier contract coverage is lost
-    /// on this runtime. `icon` anchors duplicates structurally, not by element order: "Recently added"
-    /// exists as both the Collections entry (icon clock.arrow.trianglehead.counterclockwise.rotate.90)
-    /// and a Group by option (icon calendar), and the SF-symbol image identifiers still surface inside
-    /// each button in the observed hierarchy.
-    func browseMenuItem(_ label: String, icon: String? = nil) -> XCUIElement {
-        var q = browseMenu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", label))
-        if let icon = icon { q = q.containing(.image, identifier: icon) }
-        return q.firstMatch
+    private func openSecondaryInsights() {
+        let shortcut = app.buttons["library.todayJournalHub"]
+        wait(shortcut); shortcut.tap()
+        wait(app.navigationBars["Journal"])
+        let menu = app.buttons["journal.menu"]
+        wait(menu); menu.tap()
+        let action = app.buttons.matching(NSPredicate(format: "label == %@", "Insights & cooking history")).firstMatch
+        wait(action); action.tap()
+        wait(app.navigationBars["Insights"])
     }
     func wait(_ e: XCUIElement, _ t: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(e.waitForExistence(timeout: t), "Missing \(e)", file: file, line: line)
@@ -165,10 +158,11 @@ final class CoverageUITests: XCTestCase {
         addPrompt("Miso salmon for two")
         tab("Library")
         app.buttons["libraryBrowseMenu"].tap()
-        wait(browseMenuItem("Recently added", icon: "clock.arrow.trianglehead.counterclockwise.rotate.90"))
+        wait(browseMenuItem("Collections")); browseMenuItem("Collections").tap()
+        wait(browseMenuItem("Recently added"))
         XCTAssertTrue(browseMenuItem("Favourites").exists || browseMenuItem("Favorites").exists)
         shot("library-collections")
-        browseMenuItem("Recently added", icon: "clock.arrow.trianglehead.counterclockwise.rotate.90").tap()
+        browseMenuItem("Recently added").tap()
         wait(app.tabBars.buttons["Library"], 5)
         XCTAssertTrue(app.tabBars.buttons["Library"].isSelected, "collection should open the Library tab")
         wait(text("Miso salmon"), 5)
@@ -213,37 +207,36 @@ final class CoverageUITests: XCTestCase {
     func testExploreInsightsPresentsAsSheetAndDismissesToLibrary() {
         launch()
         tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let insights = browseMenuItem("Insights & journal")
-        wait(insights)
-        insights.tap()
+        openSecondaryInsights()
 
         let dismiss = app.buttons["library.explore.dismiss"]
         wait(dismiss)
         XCTAssertTrue(app.navigationBars["Insights"].waitForExistence(timeout: 5),
                       "Insights should open in its own sheet navigation stack")
         dismiss.tap()
-        wait(app.buttons["libraryBrowseMenu"])
-        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected,
-                      "Dismissing Explore should return to the same Library tab")
+        wait(app.navigationBars["Journal"])
+        XCTAssertTrue(app.tabBars.buttons["Insights"].isSelected,
+                      "Dismissing secondary Insights returns to primary Journal")
     }
 
+    // Name retained for the existing required focused workflow selection.
+    // Journal is intentionally no longer a Library menu sheet.
     func testExploreJournalPresentsAsSheetAndDismissesToLibrary() {
         launch()
         tab("Library")
         app.buttons["libraryBrowseMenu"].tap()
-        let journal = browseMenuItem("Journal")
-        wait(journal)
-        journal.tap()
-
-        let dismiss = app.buttons["library.explore.dismiss"]
-        wait(dismiss)
-        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 5),
-                      "Journal should open in its own sheet navigation stack")
-        dismiss.tap()
+        wait(browseMenuItem("Collections"))
+        XCTAssertFalse(browseMenuItem("Journal").exists)
+        XCTAssertFalse(browseMenuItem("Insights & journal").exists)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.6)).tap() // outside the top-trailing menu
+        app.buttons["library.todayJournalHub"].tap()
+        wait(app.navigationBars["Journal"])
+        XCTAssertTrue(app.tabBars.buttons["Insights"].isSelected)
+        XCTAssertTrue(app.buttons["journal.newEntry"].exists)
+        XCTAssertFalse(app.buttons["library.explore.dismiss"].exists)
+        shot("journal-primary-root")
+        tab("Library")
         wait(app.buttons["libraryBrowseMenu"])
-        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected,
-                      "Dismissing Explore should return to the same Library tab")
     }
 
     // MARK: photo dish step
@@ -586,9 +579,7 @@ extension CoverageUITests {
     func openInsights(_ scenario: String) {
         launch(["-qaMockHealth", scenario, "-qaHealthRecipes"])
         tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let row = browseMenuItem("Insights & journal")
-        wait(row); row.tap()
+        openSecondaryInsights()
     }
     func any(_ id: String) -> XCUIElement { app.descendants(matching: .any)[id] }
     /// Connects, checks title + prompts, returns suggestion titles, saves a journal entry.
@@ -723,7 +714,7 @@ extension CoverageUITests {
     /// Regression guard (StepTrackerTCA lesson): Connect must still ask for Health when access is undecided.
     func testHealthPermissionPromptAppearsWhenUndecided() {
         launch(["-qaMockHealth", "recovery", "-qaHealthRecipes", "-qaHealthPrompt"])
-        tab("Library"); app.buttons["libraryBrowseMenu"].tap(); let row = browseMenuItem("Insights & journal"); wait(row); row.tap()
+        tab("Library"); openSecondaryInsights()
         let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
         let alert = app.alerts.firstMatch; wait(alert, 5)
         XCTAssertTrue(alert.label.contains("Health"), alert.label)
@@ -740,7 +731,7 @@ extension CoverageUITests {
     /// Journaling Suggestions picker is never presented under UI tests; check the context row instead.
     func testJournalMomentContextRow() {
         launch(["-qaMockHealth", "recovery", "-qaJournalMomentEntry"])
-        tab("Library"); app.buttons["libraryBrowseMenu"].tap(); let row = browseMenuItem("Insights & journal"); wait(row); row.tap()
+        tab("Library"); openSecondaryInsights()
         let ctx = any("insights.entryMomentContext"); scrollTo(ctx); wait(ctx)
         XCTAssertTrue(ctx.label.contains("Dinner at Mama"), ctx.label)
         XCTAssertFalse(any("insights.journalingPicker").exists)
@@ -752,9 +743,7 @@ extension CoverageUITests {
     func testCookingTrackerMonthNavigationAndSelectedDay() {
         launch(["-qaMockHealth", "empty", "-qaHealthRecipes"])
         tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let insights = browseMenuItem("Insights & journal")
-        wait(insights); insights.tap()
+        openSecondaryInsights()
 
         let insightsTitle = app.navigationBars["Insights"]
         wait(insightsTitle)

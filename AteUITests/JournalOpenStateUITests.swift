@@ -74,6 +74,16 @@ final class JournalOpenStateUITests: XCTestCase {
         app.buttons["libraryBrowseMenu"].tap()
         let menu = app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch
         let item = menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", "Journal")).firstMatch
+        // At accessibility text sizes the menu rows grow and "Journal" sits below the fold, where the
+        // lazy list has not realized it (CI run 41617917747, XXXL hierarchy: Collections .. Cooked Meals
+        // visible, no Journal button). Scroll the menu until the item is realized and hittable.
+        // Bounded, and the assertion below is unchanged: if it never appears the test still fails.
+        _ = item.waitForExistence(timeout: 3)
+        var swipes = 0
+        while !(item.exists && item.isHittable) && swipes < 8 {
+            menu.swipeUp()
+            swipes += 1
+        }
         wait(item, 10)
         item.tap()
         wait(app.navigationBars["Journal"], 10)
@@ -152,7 +162,7 @@ final class JournalOpenStateUITests: XCTestCase {
         wait(app.navigationBars["Food Journal"], 10)
     }
 
-    func testTimelineFixtureShowsEveryRecordThenFilterAndSearchNarrow() {
+    func testTimelineFixtureShowsEveryRecordAcrossDays() {
         launch(extra: ["-qaJournalTimeline", "fixture"])
         openTimeline()
         wait(any("journal.timeline.filter"), 10)
@@ -164,11 +174,23 @@ final class JournalOpenStateUITests: XCTestCase {
         XCTAssertFalse(any("journal.timeline.empty").exists)
         XCTAssertFalse(any("journal.timeline.error").exists)
         shot("jt-01-fixture")
+    }
+
+    func testTimelineFixtureReflectionsFilterHidesMeals() {
+        launch(extra: ["-qaJournalTimeline", "fixture"])
+        openTimeline()
+        wait(any("journal.timeline.filter"), 10)
+        wait(row("Oat porridge"), 10)
         app.buttons["Reflections"].tap()
         wait(row("Soup was the best part"), 10)
         XCTAssertFalse(row("Oat porridge").exists, "the reflections filter hides meals")
         shot("jt-02-reflections-filter")
-        app.buttons["All"].tap()
+    }
+
+    func testTimelineFixtureSearchWithNoHitsIsNotAnEmptyJournal() {
+        launch(extra: ["-qaJournalTimeline", "fixture"])
+        openTimeline()
+        wait(row("Oat porridge"), 10)
         let search = app.searchFields.firstMatch
         wait(search, 10)
         search.tap()

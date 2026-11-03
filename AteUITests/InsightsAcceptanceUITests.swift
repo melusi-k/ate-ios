@@ -44,20 +44,15 @@ final class InsightsAcceptanceUITests: XCTestCase {
         button.tap()
     }
 
-    /// The opened browse menu: the collection view containing the menu's own "Collections" section
-    /// header (matched by label via predicate - XCUIT has no containing(_:label:) overload). That header
-    /// is part of the menu definition (LibraryView.swift Section("Collections")) and appears nowhere else
-    /// in the observed hierarchy, so this scopes queries to the open menu.
-    private var browseMenu: XCUIElement {
-        app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch
-    }
-    /// Browse-menu item by exact label, scoped to the opened menu. Observed on the iOS 27 runtime
-    /// (identical source resolves them on iOS 26): SwiftUI Menu item buttons no longer expose their
-    /// accessibility identifiers (library.insights and friends) to XCUIT; the open menu renders them as
-    /// labelled buttons, so identifier queries can never match there. Taps and destination assertions
-    /// are unchanged. Menu-item identifier contract coverage is lost on this runtime.
-    private func browseMenuItem(_ label: String) -> XCUIElement {
-        browseMenu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", label)).firstMatch
+    private func openSecondaryInsights() {
+        let shortcut = app.buttons["library.todayJournalHub"]
+        wait(shortcut); shortcut.tap()
+        wait(app.navigationBars["Journal"])
+        let menu = app.buttons["journal.menu"]
+        wait(menu); menu.tap()
+        let action = app.buttons.matching(NSPredicate(format: "label == %@", "Insights & cooking history")).firstMatch
+        wait(action); action.tap()
+        wait(app.navigationBars["Insights"])
     }
 
     private func addAndCompleteRecipe() {
@@ -87,11 +82,13 @@ final class InsightsAcceptanceUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 8)
 
         // Verify the cooking event is visible in the tracker before testing its downstream insight.
-        tab("Insights")
+        tab("Library")
+        openSecondaryInsights()
         let day = Calendar.current.component(.day, from: Date())
         let today = app.buttons["tracker.day.\(day)"]
         wait(today, 5)
         XCTAssertTrue(today.label.contains("cooked") && today.label.contains("today"), today.label)
+        app.buttons["library.explore.dismiss"].tap()
         tab("Library")
     }
 
@@ -100,10 +97,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
         addAndCompleteRecipe()
 
         tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let insightsEntry = browseMenuItem("Insights & journal")
-        wait(insightsEntry)
-        insightsEntry.tap()
+        openSecondaryInsights()
 
         let resolve = app.buttons["insights.progress.resolve.weekly-cooking"]
         wait(resolve, 15)
@@ -128,10 +122,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
         addAndCompleteRecipe()
 
         tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let insightsEntry = browseMenuItem("Insights & journal")
-        wait(insightsEntry)
-        insightsEntry.tap()
+        openSecondaryInsights()
 
         let action = app.buttons["insights.progress.action.weekly-cooking"]
         wait(action, 15)
@@ -151,5 +142,12 @@ final class InsightsAcceptanceUITests: XCTestCase {
         let today = app.buttons["tracker.day.\(day)"]
         wait(today, 5)
         XCTAssertTrue(today.label.contains("cooked") && today.label.contains("today"), today.label)
+        // This is the pushed calendar, not the Journal root or a second history root.
+        let back = app.navigationBars.buttons["Journal"].firstMatch
+        wait(back, 5); back.tap()
+        wait(app.navigationBars["Journal"])
+        XCTAssertFalse(app.buttons["library.explore.dismiss"].exists)
+        trackerTab.tap()
+        wait(app.navigationBars["Journal"])
     }
 }

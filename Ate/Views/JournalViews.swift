@@ -226,14 +226,23 @@ struct ManualJournalComposer: View {
     @Environment(\.dismiss) private var dismiss
     @State private var draft = ""
     @State private var saveError: String?
+    @State private var showSaveError = false
+    @FocusState private var editorFocused: Bool
     @State private var confirmDiscard = false
     private var isEmpty: Bool { draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
         NavigationStack {
             Form {
+                if let saveError {
+                    Section {
+                        Text(saveError).foregroundStyle(Theme.destructive)
+                            .accessibilityIdentifier("journal.compose.error")
+                    }
+                }
                 Section {
                     TextEditor(text: $draft)
+                        .focused($editorFocused)
                         .frame(minHeight: 180)
                         .accessibilityLabel("Journal entry")
                         .accessibilityIdentifier("journal.compose.text")
@@ -242,10 +251,6 @@ struct ManualJournalComposer: View {
                     Text("Saved only on this iPhone. No Health data is needed. Ate cannot write to Apple's Journal app.")
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                     JournalOpenStateBanner(state: JournalStore.shared.openState)
-                    if let saveError {
-                        Text(saveError).foregroundStyle(Theme.destructive)
-                            .accessibilityIdentifier("journal.compose.error")
-                    }
                 }
             }
             .navigationTitle("New journal entry")
@@ -262,11 +267,21 @@ struct ManualJournalComposer: View {
                             try JournalStore.shared.saveManual(text: draft)
                             onSaved()
                             dismiss()
-                        } catch { saveError = error.localizedDescription }
+                        } catch {
+                            // Keep the draft, but never hide the failed-save feedback behind the keyboard.
+                            saveError = error.localizedDescription
+                            editorFocused = false
+                            showSaveError = true
+                        }
                     }
                     .disabled(isEmpty)
                     .accessibilityIdentifier("journal.compose.save")
                 }
+            }
+            .alert("Journal entry not saved", isPresented: $showSaveError) {
+                Button("Continue writing") { editorFocused = true }
+            } message: {
+                Text(saveError ?? "Your draft is still here. Please try saving again.")
             }
             .confirmationDialog("Discard this draft?", isPresented: $confirmDiscard, titleVisibility: .visible) {
                 Button("Discard draft", role: .destructive) { dismiss() }

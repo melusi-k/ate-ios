@@ -229,12 +229,53 @@ final class CoverageUITests: XCTestCase {
     }
 
     func testExploreJournalPresentsAsSheetAndDismissesToLibrary() {
+        // The retained late timeout sample showed XCTest traversing the nested menu query.
+        // It does not establish the cause of the earlier animation-idle waits.
+        let started = ProcessInfo.processInfo.systemUptime
+        func mark(_ phase: String) {
+            let elapsed = ProcessInfo.processInfo.systemUptime - started
+            let attachment = XCTAttachment(string: "\(phase): \(elapsed) seconds since test start")
+            attachment.name = "explore-journal-time-" + phase
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+
+        mark("launch-start")
         launch()
+        mark("launch-complete")
         tab("Library")
+        mark("library-tab-complete")
         app.buttons["libraryBrowseMenu"].tap()
-        let journal = browseMenuItem("Journal")
+        mark("menu-open-complete")
+        mark("menu-open-screenshot-start")
+        shot("explore-journal-menu-open")
+        mark("menu-open-screenshot-complete")
+
+        // Query change, not instrumentation: discover the same Collections-labelled menu
+        // once, then address it by index for this one presentation. Other callers keep
+        // browseMenuItem unchanged. A unique header and a later recheck guard the index.
+        let collections = app.collectionViews
+        let collectionCount = collections.count
+        var menuIndices: [Int] = []
+        for index in 0..<collectionCount {
+            let header = collections.element(boundBy: index).descendants(matching: .any)
+                .matching(NSPredicate(format: "label == %@", "Collections")).firstMatch
+            if header.exists { menuIndices.append(index) }
+        }
+        mark("menu-discovery-complete")
+        XCTAssertEqual(menuIndices.count, 1, "Expected one open menu containing Collections")
+        guard let menuIndex = menuIndices.first else { return }
+        let menu = collections.element(boundBy: menuIndex)
+        let journal = menu.descendants(matching: .button)
+            .matching(NSPredicate(format: "label == %@", "Journal")).firstMatch
         wait(journal)
+        mark("journal-exists")
+        XCTAssertTrue(menu.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@", "Collections")).firstMatch.exists,
+                      "Captured menu index must still identify the open Collections menu")
+        mark("journal-tap-start")
         journal.tap()
+        mark("journal-tap-complete")
 
         let dismiss = app.buttons["library.explore.dismiss"]
         wait(dismiss)

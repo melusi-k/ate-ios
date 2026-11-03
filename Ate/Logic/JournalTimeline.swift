@@ -12,6 +12,9 @@ struct JournalTimelineItem: Equatable, Identifiable {
     var meal: NutritionMeal?
     var hasRecipeLink: Bool
     var searchText: String
+    /// What a row shows: a reflection's text, or a meal's food name. A meal whose payload is missing shows a placeholder.
+    /// Defaults to empty so existing memberwise callers compile; `item(from:payload:calendar:)` always sets it.
+    var summary: String = ""
 }
 
 /// Filters named in the #245 contract: meal type, recipe-linked entries, reflections.
@@ -54,7 +57,8 @@ enum JournalTimeline {
         return JournalTimelineItem(id: entry.id, kind: entry.kind, createdAt: entry.createdAt, dayKey: day,
                                    meal: isMeal ? payload?.meal : nil,
                                    hasRecipeLink: !entry.recipeIDs.isEmpty || hasSnapshots,
-                                   searchText: parts.joined(separator: " "))
+                                   searchText: parts.joined(separator: " "),
+                                   summary: isMeal ? (payload?.foodName ?? "Meal details unavailable") : entry.text)
     }
 
     static func matches(_ item: JournalTimelineItem, filter: JournalTimelineFilter) -> Bool {

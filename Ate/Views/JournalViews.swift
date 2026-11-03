@@ -3,11 +3,11 @@ import MapKit
 
 /// More › Journal: every Ate journal entry, newest first, with search.
 struct JournalListView: View {
+    @Environment(AppStore.self) private var store
     /// Tests render the banner and empty-state suppression without mutating the shared store.
     var openStateOverride: JournalOpenState? = nil
     @State private var entries: [JournalEntry] = []
     @State private var query = ""
-    @State private var composing = false
     var filtered: [JournalEntry] {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return entries }
@@ -39,13 +39,11 @@ struct JournalListView: View {
         .navigationTitle("Journal")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { composing = true } label: { Label("New journal entry", systemImage: "square.and.pencil") }
+                Button { store.beginManualJournal() } label: { Label("New journal entry", systemImage: "square.and.pencil") }
                     .accessibilityIdentifier("journal.newEntry")
             }
         }
-        .sheet(isPresented: $composing, onDismiss: { entries = JournalStore.shared.entries() }) {
-            ManualJournalComposer { entries = JournalStore.shared.entries() }
-        }
+        .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
         .onAppear { entries = JournalStore.shared.entries() }
     }
 }
@@ -222,9 +220,9 @@ struct JournalOpenStateBanner: View {
 
 /// Explicit local writing. No Health authorization, generated context or background draft upload.
 struct ManualJournalComposer: View {
+    @Binding var draft: String
     var onSaved: () -> Void
     @Environment(\.dismiss) private var dismiss
-    @State private var draft = ""
     @State private var saveError: String?
     @State private var showSaveError = false
     @FocusState private var editorFocused: Bool
@@ -265,6 +263,7 @@ struct ManualJournalComposer: View {
                     Button("Save") {
                         do {
                             try JournalStore.shared.saveManual(text: draft)
+                            draft = ""
                             onSaved()
                             dismiss()
                         } catch {
@@ -283,11 +282,75 @@ struct ManualJournalComposer: View {
             } message: {
                 Text(saveError ?? "Your draft is still here. Please try saving again.")
             }
-            .confirmationDialog("Discard this draft?", isPresented: $confirmDiscard, titleVisibility: .visible) {
-                Button("Discard draft", role: .destructive) { dismiss() }
-                Button("Keep writing", role: .cancel) {}
+            .alert("Discard this draft?", isPresented: $confirmDiscard) {
+                Button("Keep writing", role: .cancel) { editorFocused = true }
+                Button("Discard draft", role: .destructive) { draft = ""; dismiss() }
             } message: { Text("This draft has not been saved.") }
         }
         .interactiveDismissDisabled(!draft.isEmpty)
+    }
+}
+
+// Both task hosts are attached above the replaceable portrait/sidebar trees.
+enum JournalExploreDestination: String, Identifiable {
+    case insights, journal
+    var id: String { rawValue }
+}
+
+enum ManualJournalHost { case root, explore }
+
+struct JournalTaskHost: ViewModifier {
+    @Environment(AppStore.self) private var store
+
+    private var rootComposer: Binding<Bool> {
+        Binding(get: { store.manualJournalHost == .root }, set: { if !$0 && store.manualJournalHost == .root { store.manualJournalHost = nil } })
+    }
+
+    func body(content: Content) -> some View {
+        @Bindable var store = store
+        content
+            .sheet(item: $store.journalExploreDestination) { destination in
+                JournalExploreTask(destination: destination).environment(store)
+            }
+            .sheet(isPresented: rootComposer) {
+                ManualJournalComposer(draft: $store.manualJournalDraft) { store.journalRevision += 1 }
+                    .environment(store)
+            }
+    }
+}
+
+private struct JournalExploreTask: View {
+    let destination: JournalExploreDestination
+    @Environment(AppStore.self) private var store
+
+    private var composer: Binding<Bool> {
+        Binding(get: { store.manualJournalHost == .explore }, set: { if !$0 && store.manualJournalHost == .explore { store.manualJournalHost = nil } })
+    }
+
+    var body: some View {
+        @Bindable var store = store
+        NavigationStack {
+            Group {
+                switch destination {
+                case .insights: InsightsView()
+                case .journal: JournalListView()
+                }
+            }
+            .navigationDestination(for: Route.self) { RouteView(route: $0) }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { store.journalExploreDestination = nil }
+                        .accessibilityIdentifier("library.explore.dismiss")
+                        .disabled(store.manualJournalHost != nil)
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .interactiveDismissDisabled(store.manualJournalHost != nil)
+        .sheet(isPresented: composer) {
+            ManualJournalComposer(draft: $store.manualJournalDraft) { store.journalRevision += 1 }
+                .environment(store)
+        }
     }
 }

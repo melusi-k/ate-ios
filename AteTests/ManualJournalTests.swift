@@ -1,0 +1,121 @@
+import XCTest
+import SwiftData
+@testable import Ate
+
+@MainActor
+final class ManualJournalTests: XCTestCase {
+    private func container(at url: URL? = nil) throws -> ModelContainer {
+        let configuration = url.map { ModelConfiguration(url: $0) }
+            ?? ModelConfiguration(isStoredInMemoryOnly: true)
+        return try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,
+                                  configurations: configuration)
+    }
+
+    func testManualSaveHasNoInventedHealthStateAndRoundTripsOnDisk() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("journal.store")
+        let id: String
+        do {
+            let c = try container(at: url)
+            let store = JournalStore(container: c, openState: .ok)
+            id = try store.saveManual(text: "  Lentil supper\n")
+            let saved = try XCTUnwrap(store.entry(id))
+            XCTAssertEqual(saved.text, "Lentil supper")
+            XCTAssertEqual(saved.stateRaw, "")
+            XCTAssertNil(saved.recordedHealthState)
+            XCTAssertEqual(saved.kind, .reflection)
+            XCTAssertEqual(saved.prompt, "")
+            XCTAssertTrue(saved.recipeIDs.isEmpty)
+        }
+        let reopened = try container(at: url)
+        let row = try XCTUnwrap(reopened.mainContext.fetch(FetchDescriptor<Ate.JournalEntry>()).first)
+        XCTAssertEqual(row.id, id)
+        XCTAssertEqual(row.text, "Lentil supper")
+        XCTAssertEqual(row.stateRaw, "")
+        XCTAssertNil(row.recordedHealthState)
+    }
+
+    func testWhitespaceCannotCreateAnEntry() throws {
+        let c = try container()
+        let store = JournalStore(container: c, openState: .ok)
+        XCTAssertThrowsError(try store.saveManual(text: " \n\t"))
+        XCTAssertTrue(store.entries().isEmpty)
+    }
+
+    func testUnavailableAndTemporaryRefuseButRecoveredPersistentStoreAllowsWriting() throws {
+        let c = try container()
+        let unavailableStates: [JournalOpenState] = [.unavailable(error: nil), .inMemoryFallback(error: nil)]
+        for state in unavailableStates {
+            let store = JournalStore(container: c, openState: state)
+            XCTAssertThrowsError(try store.saveManual(text: "Keep this draft"))
+            XCTAssertFalse(store.save(prompt: "Health prompt", text: "Keep the Health draft", state: .recovery,
+                                      recipeIDs: [], momentTitle: "Generic moment", momentDate: .distantPast))
+            XCTAssertTrue(store.entries().isEmpty)
+        }
+        let recovered = JournalStore(container: c, openState: .recovered(backupName: "kept.store"))
+        XCTAssertNoThrow(try recovered.saveManual(text: "A new reflection"))
+        XCTAssertEqual(recovered.entries().count, 1)
+    }
+
+    func testManualWriteDoesNotCommitUnrelatedPendingMainContextEdits() throws {
+        let c = try container()
+        let unrelated = Ate.JournalEntry(prompt: "", text: "Unsaved unrelated edit", state: .recovery)
+        c.mainContext.insert(unrelated)
+        let store = JournalStore(container: c, openState: .ok)
+        let id = try store.saveManual(text: "Manual reflection")
+        XCTAssertTrue(c.mainContext.hasChanges)
+        let reader = ModelContext(c)
+        let rows = try reader.fetch(FetchDescriptor<Ate.JournalEntry>())
+        XCTAssertEqual(rows.map(\.id), [id])
+        XCTAssertEqual(unrelated.text, "Unsaved unrelated edit")
+    }
+
+    func testWriteFailureLeavesNoOrphanAndDoesNotDiscardPendingMainEdits() throws {
+        enum InjectedFailure: Error { case write }
+        let c = try container()
+        let unrelated = Ate.JournalEntry(prompt: "", text: "Unrelated pending", state: .recovery)
+        c.mainContext.insert(unrelated)
+        let failing = JournalStore(container: c, openState: .ok,
+                                   writeReflectionContext: { _ in throw InjectedFailure.write })
+        XCTAssertThrowsError(try failing.saveManual(text: "Keep this draft"))
+        XCTAssertTrue(c.mainContext.hasChanges)
+        XCTAssertEqual(unrelated.text, "Unrelated pending")
+        let independent = ModelContext(c)
+        XCTAssertTrue(try independent.fetch(FetchDescriptor<Ate.JournalEntry>()).isEmpty)
+        let succeeding = JournalStore(container: c, openState: .ok)
+        let id = try succeeding.saveManual(text: "Retry reflection")
+        XCTAssertEqual(try independent.fetch(FetchDescriptor<Ate.JournalEntry>()).map(\.id), [id])
+    }
+
+    func testHealthReflectionSaveVisibleImmediatelyAndFailureDoesNotLeaveEntry() throws {
+        let c = try container()
+        let store = JournalStore(container: c, openState: .ok)
+        XCTAssertTrue(store.save(prompt: "Health prompt", text: "Health reflection", state: .recovery,
+                                 recipeIDs: ["recipe-fixture"], momentTitle: "Generic dinner", momentDate: .distantPast))
+        let row = try XCTUnwrap(store.entries().first)
+        XCTAssertEqual(row.recordedHealthState, .recovery)
+        XCTAssertEqual(row.journalingSuggestionTitle, "Generic dinner")
+        XCTAssertEqual(row.recipeIDs, ["recipe-fixture"])
+        enum InjectedFailure: Error { case write }
+        let failing = JournalStore(container: c, openState: .ok,
+                                   writeReflectionContext: { _ in throw InjectedFailure.write })
+        XCTAssertFalse(failing.save(prompt: "Keep prompt", text: "Failed reflection", state: .lowEnergy,
+                                   recipeIDs: []))
+        XCTAssertEqual(store.entries().map(\.id), [row.id])
+    }
+
+    func testKnownLegacyAndUnknownRawStatesArePreserved() {
+        let row = Ate.JournalEntry(prompt: "", text: "Existing reflection", state: .performance)
+        XCTAssertEqual(row.recordedHealthState, .performance)
+        XCTAssertTrue(row.datedStateLabel.contains(HealthState.performance.title))
+        row.stateRaw = "future-unknown-state"
+        XCTAssertNil(row.recordedHealthState)
+        XCTAssertEqual(row.stateRaw, "future-unknown-state")
+        XCTAssertEqual(row.state, .balanced, "legacy fallback unchanged for old callers")
+        row.stateRaw = ""
+        XCTAssertNil(row.recordedHealthState)
+        XCTAssertFalse(row.datedStateLabel.contains(HealthState.balanced.title))
+    }
+}

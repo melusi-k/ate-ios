@@ -37,6 +37,12 @@ final class JournalOpenStateUITests: XCTestCase {
                       file: file, line: line)
     }
 
+    private func waitUntilGone(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: element)
+        XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 10), .completed,
+                       "Still presented: \(element)", file: file, line: line)
+    }
+
     private func any(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch
     }
@@ -72,9 +78,18 @@ final class JournalOpenStateUITests: XCTestCase {
         app.tabBars.buttons["Library"].tap()
         wait(app.buttons["libraryBrowseMenu"], 10)
         app.buttons["libraryBrowseMenu"].tap()
-        let menu = app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch
-        let item = menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", "Journal")).firstMatch
+        // At XXXL the scrolled menu no longer retains its Collections header in AX.
+        // Scope by the actual destination button, which the retained failure hierarchy exposes.
+        let journalLabel = NSPredicate(format: "label == %@", "Journal")
+        let menu = app.collectionViews.containing(journalLabel).firstMatch
+        wait(menu, 10)
+        let item = menu.buttons.matching(journalLabel).firstMatch
+        for _ in 0..<8 {
+            if item.exists && item.isHittable { break }
+            menu.swipeUp()
+        }
         wait(item, 10)
+        XCTAssertTrue(item.isHittable)
         item.tap()
         wait(app.navigationBars["Journal"], 10)
     }
@@ -177,24 +192,37 @@ extension JournalOpenStateUITests {
         let editor = app.textViews["journal.compose.text"]
         editor.tap(); editor.typeText("Generic unsaved draft")
         app.buttons["journal.compose.cancel"].tap()
-        wait(app.buttons["Keep writing"])
-        app.buttons["Keep writing"].tap()
+        let discard = app.alerts["Discard this draft?"]
+        wait(discard)
+        XCTAssertTrue(discard.buttons["Keep writing"].isHittable)
+        XCTAssertTrue(discard.buttons["Discard draft"].isHittable)
+        shot("manual-04-discard-choice")
+        discard.buttons["Keep writing"].tap()
         XCTAssertEqual(editor.value as? String, "Generic unsaved draft")
+        wait(app.keyboards.firstMatch)
         shot("manual-04-kept-draft")
         app.buttons["journal.compose.cancel"].tap()
-        app.buttons["Discard draft"].tap()
+        wait(discard)
+        discard.buttons["Discard draft"].tap()
         wait(app.navigationBars["Journal"])
+        waitUntilGone(app.textViews["journal.compose.text"])
         XCTAssertFalse(any("journal.entry").exists)
+        shot("manual-04-discarded-history")
     }
 
     private func verifyFailedSaveIsVisible(extra: [String] = [], landscape: Bool = false,
                                           captureName: String) {
         composeFromHistory(extra: ["-qaJournalOpenState", "unavailable"] + extra)
-        if landscape { XCUIDevice.shared.orientation = .landscapeLeft }
         defer { XCUIDevice.shared.orientation = .portrait }
         let editor = app.textViews["journal.compose.text"]
         editor.tap(); editor.typeText("Generic retained failure draft")
         wait(app.keyboards.firstMatch)
+        if landscape {
+            XCUIDevice.shared.orientation = .landscapeLeft
+            wait(editor)
+            XCTAssertEqual(editor.value as? String, "Generic retained failure draft")
+            shot("\(captureName)-rotated-draft")
+        }
         shot("\(captureName)-keyboard-before-save")
         app.buttons["journal.compose.save"].tap()
         let failure = app.alerts["Journal entry not saved"]
@@ -212,6 +240,27 @@ extension JournalOpenStateUITests {
         wait(failure)
         failure.buttons["Continue writing"].tap()
         XCTAssertEqual(editor.value as? String, "Generic retained failure draft")
+        if landscape {
+            XCUIDevice.shared.orientation = .portrait
+            wait(editor)
+            XCTAssertEqual(editor.value as? String, "Generic retained failure draft")
+            shot("\(captureName)-returned-portrait-draft")
+        }
+        // Both native alerts must coexist without swallowing the explicit cancellation choices.
+        app.buttons["journal.compose.cancel"].tap()
+        let discard = app.alerts["Discard this draft?"]
+        wait(discard)
+        XCTAssertTrue(discard.buttons["Keep writing"].isHittable)
+        XCTAssertTrue(discard.buttons["Discard draft"].isHittable)
+        shot("\(captureName)-cancel-after-failure")
+        discard.buttons["Keep writing"].tap()
+        XCTAssertEqual(editor.value as? String, "Generic retained failure draft")
+        app.buttons["journal.compose.cancel"].tap()
+        wait(discard)
+        discard.buttons["Discard draft"].tap()
+        waitUntilGone(editor)
+        wait(app.navigationBars["Journal"])
+        XCTAssertFalse(any("journal.entry").exists)
     }
 
     func testManualSaveUnavailableRetainsDraftAndShowsError() {
@@ -242,5 +291,21 @@ extension JournalOpenStateUITests {
         wait(app.textViews["journal.compose.text"])
         shot("manual-06-insights-no-health")
         XCTAssertFalse(app.alerts.firstMatch.exists, "Writing must not ask for Health permission")
+        let editor = app.textViews["journal.compose.text"]
+        editor.tap(); editor.typeText("Generic Insights rotation draft")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        wait(editor)
+        XCTAssertEqual(editor.value as? String, "Generic Insights rotation draft")
+        shot("manual-06-insights-landscape-draft")
+        XCUIDevice.shared.orientation = .portrait
+        wait(editor)
+        XCTAssertEqual(editor.value as? String, "Generic Insights rotation draft")
+        shot("manual-06-insights-portrait-draft")
+        app.buttons["journal.compose.cancel"].tap()
+        let discard = app.alerts["Discard this draft?"]
+        wait(discard)
+        discard.buttons["Discard draft"].tap()
+        waitUntilGone(editor)
+        XCTAssertTrue(app.tabBars.firstMatch.exists)
     }
 }

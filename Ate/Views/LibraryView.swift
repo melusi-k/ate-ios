@@ -197,62 +197,42 @@ struct LibraryView: View {
             .contextMenu { menu(r) } preview: { RecipeRowView(recipe: r).frame(width: 340) }
     }
 
-    /// One icon-only "Group & sort" toolbar menu (the two text pills truncated).
-    private var layoutMenu: some View {
-        @Bindable var store = store
-        return Menu {
-            Picker(selection: $store.layout.group) {
-                ForEach(LibraryLayout.GroupBy.allCases) { Label($0.rawValue, systemImage: $0.symbol).tag($0) }
-            } label: { Label("Group by", systemImage: "rectangle.3.group") }
-                .pickerStyle(.menu).accessibilityIdentifier("groupByMenu")
-            Picker(selection: $store.layout.sort) {
-                ForEach(LibraryLayout.SortBy.allCases) { Text($0.rawValue).tag($0) }
-            } label: { Label("Sort", systemImage: "arrow.up.arrow.down") }
-                .pickerStyle(.menu).accessibilityIdentifier("sortMenu")
-        } label: { Label("Group & sort", systemImage: "line.3.horizontal.decrease.circle") }
-            .accessibilityIdentifier("groupSortMenu")
-    }
-
-    /// The landing page owns discovery: collections, ingredient filters and health/journal entry points.
+    /// Recipe-only options; each submenu has one role, without flattening duplicate picker values.
     private var libraryMenu: some View {
         @Bindable var store = store
         return Menu {
-            Section("Collections") {
+            Menu {
                 ForEach([RecipeCollection.quick, .favourites, .recentlyAdded, .recentlyCooked, .cookedMeals], id: \.self) { c in
                     Button { selectCollection(c) } label: {
                         Label(c.title, systemImage: c.symbol)
                     }
                     .accessibilityIdentifier("library.collection.\(c.title)")
                 }
-            }
+            } label: { Label("Collections", systemImage: "square.grid.2x2") }
             let tags = IngredientTags.collections(in: store.recipes)
             if !tags.isEmpty {
-                Section("By ingredient") {
+                Menu {
                     ForEach(tags, id: \.self) { tag in
                         Button { store.filter.tags = [tag] } label: {
                             Label(tag, systemImage: "leaf")
                         }
                         .accessibilityIdentifier("library.ingredient.\(tag)")
                     }
-                }
-            }
-            Section("Explore") {
-                Button { store.journalExploreDestination = .insights } label: {
-                    Label("Insights & journal", systemImage: "heart.text.square")
-                }
-                .accessibilityIdentifier("library.insights")
-                Button { store.journalExploreDestination = .journal } label: {
-                    Label("Journal", systemImage: "book.closed")
-                }
-                .accessibilityIdentifier("library.journal")
+                } label: { Label("Ingredients", systemImage: "leaf") }
             }
             Section("Arrange") {
-                Picker(selection: $store.layout.group) {
-                    ForEach(LibraryLayout.GroupBy.allCases) { Label($0.rawValue, systemImage: $0.symbol).tag($0) }
+                Menu {
+                    Picker("Group by", selection: $store.layout.group) {
+                        ForEach(LibraryLayout.GroupBy.allCases) { Label($0.rawValue, systemImage: $0.symbol).tag($0) }
+                    }
                 } label: { Label("Group by", systemImage: "rectangle.3.group") }
-                Picker(selection: $store.layout.sort) {
-                    ForEach(LibraryLayout.SortBy.allCases) { Text($0.rawValue).tag($0) }
+                .accessibilityIdentifier("groupByMenu")
+                Menu {
+                    Picker("Sort", selection: $store.layout.sort) {
+                        ForEach(LibraryLayout.SortBy.allCases) { Text($0.rawValue).tag($0) }
+                    }
                 } label: { Label("Sort", systemImage: "arrow.up.arrow.down") }
+                .accessibilityIdentifier("sortMenu")
             }
         } label: {
             Label("Browse and arrange", systemImage: "line.3.horizontal.decrease.circle")
@@ -385,7 +365,7 @@ struct LibrarySearch: ViewModifier {
 }
 
 
-/// Always-visible Library shortcut to the combined Insights hub.
+/// Always-visible shortcut to the primary Journal, outside recipe options.
 struct TodayJournalHubCard: View {
     @Environment(AppStore.self) private var store
 
@@ -399,8 +379,8 @@ struct TodayJournalHubCard: View {
                     .font(.title2)
                     .foregroundStyle(Theme.primary)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Insights").font(AteFont.body(15, .semibold))
-                    Text("Cooking history, Health insights, and your entries")
+                    Text("Journal").font(AteFont.body(15, .semibold))
+                    Text("Your entries, Insights, and cooking history")
                         .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
                 }
                 Spacer(minLength: 8)

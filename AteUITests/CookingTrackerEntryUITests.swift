@@ -9,6 +9,10 @@ final class CookingTrackerEntryUITests: XCTestCase {
         XCTAssertTrue(insightsTab.waitForExistence(timeout: 10), "Insights should be a first-class tab")
         insightsTab.tap()
         XCTAssertTrue(app.descendants(matching: .any)["cookingTracker.screen"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 5))
+        app.buttons["journal.menu"].tap()
+        let secondary = app.buttons.matching(NSPredicate(format: "label == %@", "Insights & cooking history")).firstMatch
+        XCTAssertTrue(secondary.waitForExistence(timeout: 5)); secondary.tap()
         return app
     }
 
@@ -17,15 +21,33 @@ final class CookingTrackerEntryUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Insights"].waitForExistence(timeout: 5))
     }
 
-    func testLibraryShortcutOpensInsightsHubRoot() {
+    func testLibraryShortcutOpensJournalRoot() {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
         app.launch()
         let shortcut = app.buttons["library.todayJournalHub"]
-        XCTAssertTrue(shortcut.waitForExistence(timeout: 10), "Library should expose the Insights shortcut")
+        XCTAssertTrue(shortcut.waitForExistence(timeout: 10), "Library should expose the Journal shortcut")
         shortcut.tap()
-        XCTAssertTrue(app.navigationBars["Insights"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["tracker.previousMonth"].exists)
+        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["journal.newEntry"].exists)
+        XCTAssertFalse(app.buttons["tracker.previousMonth"].exists)
+        XCTAssertFalse(app.buttons["library.explore.dismiss"].exists)
+    }
+
+    func testJournalRootAndSecondaryRoundTripKeepExistingTabSet() {
+        let app = launchTracker()
+        XCTAssertFalse(app.tabBars.buttons["Journal"].exists, "Journal belongs behind the existing Insights tab")
+        XCTAssertTrue(app.navigationBars["Insights"].waitForExistence(timeout: 5))
+        app.buttons["library.explore.dismiss"].tap()
+        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Library"].tap()
+        app.tabBars.buttons["Insights"].tap()
+        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["journal.newEntry"].exists)
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "journal-primary-secondary-roundtrip"
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     func testMonthNavigationAndFutureMonthRestriction() {

@@ -204,7 +204,7 @@ struct SettingsView: View {
             NutritionDiaryView()
         }
         .ateRootNavigationChrome(logoID: "settings.logo")
-        .onAppear { store.bottomAddContext = .recipe }
+        .onAppear { store.bottomAddContext = .none }
         .onChange(of: store.timerPrefs.stepAlerts) { _, on in if on { Task { _ = await TimerAlerts.requestPermission() } } }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
             guard case .success(let url) = result else { return }

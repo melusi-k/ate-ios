@@ -239,7 +239,6 @@ struct InsightsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model = InsightsModel.shared
     @State private var draft = ""
-    @State private var composingJournal = false
     @State private var journalSaveError: String?
     @State private var prompt: JournalPrompt?
     @State private var entries: [JournalEntry] = []
@@ -317,9 +316,7 @@ struct InsightsView: View {
         }
         .navigationTitle(screenTitle)
         .ateRootNavigationChrome(logoID: "insights.logo")
-        .sheet(isPresented: $composingJournal, onDismiss: { entries = JournalStore.shared.entries() }) {
-            ManualJournalComposer { entries = JournalStore.shared.entries() }
-        }
+        .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
         .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id).environment(store) }
         .onChange(of: model.context?.insight.state) { _, st in
             if st != nil { BetaQA.shared.pass("A-HEALTH-03", note: "Insights showed \(st!.title) with \(model.context?.suggestions.count ?? 0) meal ideas") }
@@ -693,7 +690,7 @@ struct InsightsView: View {
 
     @ViewBuilder private var journalCard: some View {
         card("Your Ate journal") {
-            Button { composingJournal = true } label: {
+            Button { store.beginManualJournal() } label: {
                 Label("New journal entry", systemImage: "square.and.pencil")
             }.accessibilityIdentifier("insights.newJournalEntry")
             if journalingEnabled && JournalingSuggestionsGate.isAvailable && !AppConfig.isUITesting {

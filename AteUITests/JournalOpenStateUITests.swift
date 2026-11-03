@@ -64,6 +64,14 @@ final class JournalOpenStateUITests: XCTestCase {
         print("SNAPSHOT-END \(name)")
     }
 
+    /// Failure evidence for the browse-menu route: a screenshot (existing attachment + SNAPSHOT-CHUNK log
+    /// mechanism) and a scoped log line with what is actually realized, not the whole app hierarchy.
+    private func menuEvidence(_ name: String, item: XCUIElement) {
+        shot(name)
+        let buttons = app.buttons.allElementsBoundByIndex.prefix(40).map { "\($0.label)@\($0.frame)" }
+        print("MENU-EVIDENCE \(name) collectionViews=\(app.collectionViews.count) collectionsLabel=\(app.staticTexts["Collections"].exists) itemExists=\(item.exists) itemHittable=\(item.exists ? item.isHittable : false) itemFrame=\(item.exists ? "\(item.frame)" : "-") buttons=\(buttons)")
+    }
+
     /// The existing route to the journal timeline: Library tab -> browse menu -> Journal.
     /// Menu items surface as labelled buttons on this runtime (identifiers are not exposed
     /// inside the open menu; see CoverageUITests), so the item is matched by label.
@@ -74,15 +82,25 @@ final class JournalOpenStateUITests: XCTestCase {
         app.buttons["libraryBrowseMenu"].tap()
         let menu = app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch
         let item = menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", "Journal")).firstMatch
-        // At accessibility text sizes the menu rows grow and "Journal" sits below the fold, where the
-        // lazy list has not realized it (CI run 41617917747, XXXL hierarchy: Collections .. Cooked Meals
-        // visible, no Journal button). Scroll the menu until the item is realized and hittable.
-        // Bounded, and the assertion below is unchanged: if it never appears the test still fails.
+        // The menu itself must be realized before anything is scrolled. CI run 41623874568 (XXXL) failed in
+        // menu.swipeUp() with "No matches found" for this query after only a 3s item wait, while run 41617917747's
+        // hierarchy showed the same menu realized (Collections .. Cooked Meals) within the earlier 10s wait.
+        // Wait for the menu with the full timeout; if it never appears, record scoped evidence and fail honestly.
+        let menuAppeared = menu.waitForExistence(timeout: 10)
+        if !menuAppeared { menuEvidence("jos-menu-not-realized", item: item) }
+        XCTAssertTrue(menuAppeared, "Missing \(menu)")
+        // At accessibility text sizes the menu rows grow and "Journal" sits below the fold, where the lazy list
+        // has not realized it (run 41617917747 XXXL hierarchy: no Journal button). Scroll the realized menu
+        // until the item exists and is hittable. Bounded (8); the assertion below is unchanged.
         _ = item.waitForExistence(timeout: 3)
         var swipes = 0
         while !(item.exists && item.isHittable) && swipes < 8 {
+            if !menu.exists { break }   // menu vanished: stop and record evidence below instead of failing blind inside swipeUp
             menu.swipeUp()
             swipes += 1
+        }
+        if !(item.exists && item.isHittable) {
+            menuEvidence("jos-menu-journal-\(item.exists ? "not-hittable" : "not-realized")-after-\(swipes)-swipes", item: item)
         }
         wait(item, 10)
         item.tap()

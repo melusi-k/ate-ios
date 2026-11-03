@@ -136,4 +136,81 @@ final class JournalOpenStateUITests: XCTestCase {
         wait(text("No journal entries yet"), 10)
         shot("jos-04-healthy")
     }
+    // MARK: Food Journal timeline (#245 step 4). Fixture states are injected by `-qaJournalTimeline`;
+    // the real-store and open-state tests use no fixture. The meal-type menu is NOT UI-tested here (unit-tested only).
+
+    /// Timeline rows are single combined accessibility elements, so match them by identifier and label.
+    private func row(_ s: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: "journal.timeline.row")
+            .matching(NSPredicate(format: "label CONTAINS %@", s)).firstMatch
+    }
+
+    private func openTimeline() {
+        openJournal()
+        wait(app.buttons["journal.timelineLink"], 10)
+        app.buttons["journal.timelineLink"].tap()
+        wait(app.navigationBars["Food Journal"], 10)
+    }
+
+    func testTimelineFixtureShowsEveryRecordThenFilterAndSearchNarrow() {
+        launch(extra: ["-qaJournalTimeline", "fixture"])
+        openTimeline()
+        wait(any("journal.timeline.filter"), 10)
+        wait(row("Oat porridge"), 10)
+        wait(row("Meal details unavailable"), 10)   // orphan meal stays visible
+        wait(row("Soup was the best part"), 10)     // legacy reflection stays visible
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "journal.timeline.row").count, 3,
+                       "one row per stored entry, nothing dropped")
+        XCTAssertFalse(any("journal.timeline.empty").exists)
+        XCTAssertFalse(any("journal.timeline.error").exists)
+        shot("jt-01-fixture")
+        app.buttons["Reflections"].tap()
+        wait(row("Soup was the best part"), 10)
+        XCTAssertFalse(row("Oat porridge").exists, "the reflections filter hides meals")
+        shot("jt-02-reflections-filter")
+        app.buttons["All"].tap()
+        let search = app.searchFields.firstMatch
+        wait(search, 10)
+        search.tap()
+        search.typeText("zzzz-no-match")
+        wait(any("journal.timeline.noMatches"), 10)
+        XCTAssertFalse(any("journal.timeline.empty").exists, "no hits is not an empty journal")
+        shot("jt-03-no-matches")
+    }
+
+    func testTimelineReadFailureIsAnErrorNotAnEmptyJournal() {
+        launch(extra: ["-qaJournalTimeline", "failure"])
+        openTimeline()
+        wait(any("journal.timeline.error"), 10)
+        wait(app.buttons["Try again"], 10)
+        XCTAssertFalse(any("journal.timeline.empty").exists, "a read failure must not look like no entries")
+        XCTAssertFalse(text("No journal entries yet").exists)
+        shot("jt-04-read-failure")
+    }
+
+    /// No fixture: the real (in-memory under UI tests) store through FoodJournalStore.timelineItems.
+    func testTimelineRealStoreEmptySaysSo() {
+        launch()
+        openTimeline()
+        wait(any("journal.timeline.empty"), 10)
+        shot("jt-05-real-store-empty")
+    }
+
+    func testTimelineRecoveredOpenStateShowsBannerAndNoEmptyClaim() {
+        launch(extra: ["-qaJournalOpenState", "recovered"])
+        openTimeline()
+        _ = banner()
+        XCTAssertFalse(any("journal.timeline.empty").exists, "a recovered-empty journal must not read as real history")
+        shot("jt-06-recovered-banner")
+    }
+
+    /// Fixture at an accessibility text size: the first row is shown and the filter control stays reachable.
+    func testTimelineFixtureAtLargestTextSizeKeepsRowAndFilterReachable() {
+        launch(extra: ["-qaJournalTimeline", "fixture", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        openTimeline()
+        wait(row("Oat porridge"), 10)
+        XCTAssertTrue(any("journal.timeline.filter").waitForExistence(timeout: 10))
+        XCTAssertTrue(any("journal.timeline.filter").isHittable, "the filter must stay tappable at the largest text size")
+        shot("jt-07-fixture-large-text")
+    }
 }

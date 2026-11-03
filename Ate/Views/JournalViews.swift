@@ -7,11 +7,12 @@ struct JournalListView: View {
     var openStateOverride: JournalOpenState? = nil
     @State private var entries: [JournalEntry] = []
     @State private var query = ""
+    @State private var composing = false
     var filtered: [JournalEntry] {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return entries }
         return entries.filter { $0.text.localizedCaseInsensitiveContains(q) || $0.prompt.localizedCaseInsensitiveContains(q)
-            || ($0.locationName ?? "").localizedCaseInsensitiveContains(q) || $0.state.title.localizedCaseInsensitiveContains(q) }
+            || ($0.locationName ?? "").localizedCaseInsensitiveContains(q) || ($0.recordedHealthState?.title.localizedCaseInsensitiveContains(q) ?? false) }
     }
     var body: some View {
         let openState = openStateOverride ?? JournalStore.shared.openState
@@ -24,7 +25,7 @@ struct JournalListView: View {
                 // empty "no entries yet" here would present a recovered-empty journal as real history.
                 if openState == .ok {
                     ContentUnavailableView("No journal entries yet", systemImage: "book.closed",
-                                           description: Text("Save one from Insights, or ask Siri to save a journal entry in Ate."))
+                                           description: Text("Tap New journal entry to write something, or ask Siri to save a journal entry in Ate."))
                 }
             } else if filtered.isEmpty {
                 ContentUnavailableView.search(text: query)
@@ -36,6 +37,15 @@ struct JournalListView: View {
         }
         .searchable(text: $query, prompt: "Search journal")
         .navigationTitle("Journal")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { composing = true } label: { Label("New journal entry", systemImage: "square.and.pencil") }
+                    .accessibilityIdentifier("journal.newEntry")
+            }
+        }
+        .sheet(isPresented: $composing, onDismiss: { entries = JournalStore.shared.entries() }) {
+            ManualJournalComposer { entries = JournalStore.shared.entries() }
+        }
         .onAppear { entries = JournalStore.shared.entries() }
     }
 }
@@ -44,7 +54,7 @@ struct JournalRow: View {
     let entry: JournalEntry
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(entry.createdAt.formatted(date: .abbreviated, time: .shortened) + " · " + entry.state.title)
+            Text(entry.datedStateLabel)
                 .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
             Text(entry.text).font(AteFont.body(15)).lineLimit(2)
             HStack(spacing: 10) {
@@ -75,7 +85,9 @@ struct JournalEntryDetailView: View {
                 List {
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
-                            Label(e.state.title, systemImage: e.state.symbol).font(AteFont.body(13, .semibold)).foregroundStyle(Theme.primary)
+                            if let state = e.recordedHealthState {
+                                Label(state.title, systemImage: state.symbol).font(AteFont.body(13, .semibold)).foregroundStyle(Theme.primary)
+                            }
                             Text(e.createdAt.formatted(date: .complete, time: .shortened)).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
                                 .accessibilityIdentifier("journal.detail.date")
                             if let t = e.editedAt { Text("Edited " + t.formatted(date: .abbreviated, time: .shortened)).font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground) }
@@ -168,7 +180,9 @@ struct JournalEntryDetailView: View {
     }
 
     func shareText(_ e: JournalEntry) -> String {
-        var s = e.createdAt.formatted(date: .long, time: .shortened) + " · " + e.state.title + "\n\n"
+        var s = e.createdAt.formatted(date: .long, time: .shortened)
+        if let state = e.recordedHealthState { s += " · " + state.title }
+        s += "\n\n"
         if !e.prompt.isEmpty { s += e.prompt + "\n\n" }
         s += e.text
         if let l = e.locationName { s += "\n\n📍 " + l }
@@ -205,3 +219,60 @@ struct JournalOpenStateBanner: View {
     }
 }
 
+
+/// Explicit local writing. No Health authorization, generated context or background draft upload.
+struct ManualJournalComposer: View {
+    var onSaved: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft = ""
+    @State private var saveError: String?
+    @State private var confirmDiscard = false
+    private var isEmpty: Bool { draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextEditor(text: $draft)
+                        .frame(minHeight: 180)
+                        .accessibilityLabel("Journal entry")
+                        .accessibilityIdentifier("journal.compose.text")
+                }
+                Section {
+                    Text("Saved only on this iPhone. No Health data is needed. Ate cannot write to Apple's Journal app.")
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                    JournalOpenStateBanner(state: JournalStore.shared.openState)
+                    if let saveError {
+                        Text(saveError).foregroundStyle(Theme.destructive)
+                            .accessibilityIdentifier("journal.compose.error")
+                    }
+                }
+            }
+            .navigationTitle("New journal entry")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        if draft.isEmpty { dismiss() } else { confirmDiscard = true }
+                    }.accessibilityIdentifier("journal.compose.cancel")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        do {
+                            try JournalStore.shared.saveManual(text: draft)
+                            onSaved()
+                            dismiss()
+                        } catch { saveError = error.localizedDescription }
+                    }
+                    .disabled(isEmpty)
+                    .accessibilityIdentifier("journal.compose.save")
+                }
+            }
+            .confirmationDialog("Discard this draft?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+                Button("Discard draft", role: .destructive) { dismiss() }
+                Button("Keep writing", role: .cancel) {}
+            } message: { Text("This draft has not been saved.") }
+        }
+        .interactiveDismissDisabled(!draft.isEmpty)
+    }
+}

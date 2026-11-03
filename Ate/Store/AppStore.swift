@@ -192,6 +192,17 @@ final class AppStore {
     static weak var current: AppStore?
     /// Set by the Quick add widget / control / intent: opens Add recipe on the matching tab.
     var quickAdd: QuickAddRequest?
+    // Session-only Journal task ownership survives portrait/sidebar tree replacement.
+    var journalExploreDestination: JournalExploreDestination?
+    var manualJournalHost: ManualJournalHost?
+    var manualJournalDraft = ""
+    var journalRevision = 0
+
+    func beginManualJournal() {
+        guard manualJournalHost == nil else { return }
+        manualJournalHost = journalExploreDestination == nil ? .root : .explore
+    }
+
     /// Controls the persistent bottom action for the destination currently in view.
     var bottomAddContext: BottomAddContext = .recipe
     /// Requests handled by the active Food diary and Shopping list screens.

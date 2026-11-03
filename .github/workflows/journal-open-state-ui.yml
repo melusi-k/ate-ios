@@ -68,8 +68,14 @@ jobs:
           mkdir -p ui-screenshots/raw
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/journal-open-state-ui.xcresult" --output-path ui-screenshots/raw || true
           python3 - <<'PY'
-          import json, os, shutil
+          import json, os, re, shutil
           raw = "ui-screenshots/raw"
+          # upload-artifact rejects names containing " : < > | * ? CR LF (and a path separator would break the copy).
+          # Only the readable COPIES are renamed; every raw attachment stays in ui-screenshots/raw under its exported
+          # name, with manifest.json mapping it to its original suggested name.
+          unsafe = re.compile(r'[\\"<>:|*?/\r\n]')
+          def safe(s):
+              return unsafe.sub("_", s)
           try:
               man = json.load(open(os.path.join(raw, "manifest.json")))
           except Exception:
@@ -80,7 +86,12 @@ jobs:
                   n = a.get("suggestedHumanReadableName") or a["exportedFileName"]
                   base = n.split("_0_")[0] if "_0_" in n else os.path.splitext(n)[0]
                   ext = os.path.splitext(a["exportedFileName"])[1] or ".png"
-                  shutil.copy(os.path.join(raw, a["exportedFileName"]), f"ui-screenshots/{tn}__{base}{ext}")
+                  dest = f"ui-screenshots/{safe(tn)}__{safe(base)}{safe(ext)}"
+                  k = 1
+                  while os.path.exists(dest):
+                      k += 1
+                      dest = f"ui-screenshots/{safe(tn)}__{safe(base)}-{k}{safe(ext)}"
+                  shutil.copy(os.path.join(raw, a["exportedFileName"]), dest)
           PY
           ls -la ui-screenshots || true
       - name: Upload diagnostics

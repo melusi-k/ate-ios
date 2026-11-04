@@ -71,6 +71,64 @@ final class HealthInsightTests: XCTestCase {
         XCTAssertFalse(BetaVisibility.isPassed(device: none, ci: CIResult(status: .pass, note: "", build: "58", ts: ""), build: "59"), "CI pass must be for this build")
         XCTAssertFalse(BetaVisibility.isPassed(device: pass, ci: CIResult(status: .fail, note: "", build: "59", ts: ""), build: "59"), "A CI failure resurfaces the check")
     }
+    func testCIAbsenceRequiresSuccessfulRefreshAndNeverMasksFailureOrSignOut() {
+        let at = Date()
+        XCTAssertEqual(BetaCIViewState.resolve(loading: false, error: nil, refreshed: nil, count: 0), .notLoaded)
+        XCTAssertEqual(BetaCIViewState.resolve(loading: true, error: nil, refreshed: nil, count: 0), .loading)
+        XCTAssertEqual(BetaCIViewState.resolve(loading: false, error: "Sign in", refreshed: nil, count: 0), .unknown)
+        XCTAssertEqual(BetaCIViewState.resolve(loading: false, error: "Network failed", refreshed: at, count: 0), .unknown)
+        XCTAssertEqual(BetaCIViewState.resolve(loading: false, error: nil, refreshed: at, count: 0), .noEvidence)
+        XCTAssertEqual(BetaCIViewState.resolve(loading: false, error: nil, refreshed: at, count: 2), .evidence)
+    }
+    @MainActor func testUpgradeRetainsPriorEvidenceAndCurrentResetDoesNotEraseHistory() {
+        let old = BetaQA.Result(status: .pass, note: "old verdict", auto: false, build: "old", catalogueRevision: "c1", commitSHA: "oldsha", runID: "1")
+        let now = BetaQA.Result(status: .fail, note: "new verdict", auto: false, build: "new", catalogueRevision: "c2", commitSHA: "newsha", runID: "2")
+        XCTAssertTrue(BetaQA.shouldArchive(old, build: "new", sha: "newsha", runID: "2", catalogue: "c2"))
+        let remaining = BetaQA.retainingHistoryAfterCurrentReset(["old": old, "new": now], build: "new", sha: "newsha", runID: "2", catalogue: "c2")
+        XCTAssertEqual(remaining, ["old": old])
+        XCTAssertEqual(old.status, .pass)
+    }
+    @MainActor func testSameUnknownIdentityDoesNotGenerateArchiveOnEveryLaunch() {
+        let local = BetaQA.Result(status: .pass, note: "local", build: "local", catalogueRevision: "c", commitSHA: "dev", runID: "")
+        XCTAssertFalse(BetaQA.shouldArchive(local, build: "local", sha: "dev", runID: "", catalogue: "c"))
+    }
+    @MainActor func testLegacyBetaEvidenceDecodesWithoutInventedIdentity() throws {
+        let json = Data(#"{"status":"pass","note":"old device check","auto":false,"ts":0,"build":"0.1.344 (344) TierA"}"#.utf8)
+        let r = try JSONDecoder().decode(BetaQA.Result.self, from: json)
+        XCTAssertEqual(r.status, .pass)
+        XCTAssertEqual(r.build, "0.1.344 (344) TierA")
+        XCTAssertNil(r.commitSHA); XCTAssertNil(r.runID)
+        XCTAssertFalse(BetaQA.isUploadable(r), "Unknown legacy identity must never overwrite cloud provenance")
+        XCTAssertFalse(BetaQA.matches(r, build: "0.1.361 (361) TierA", sha: "abc", runID: "361run"))
+        let fields = BetaQA.evidenceFields(r)
+        XCTAssertEqual(fields["build"] as? String, r.build)
+        XCTAssertTrue(fields["commit_sha"] is NSNull)
+        XCTAssertTrue(fields["run_id"] is NSNull)
+    }
+    @MainActor func testDeviceEvidenceRequiresOriginalExactIdentity() {
+        let r = BetaQA.Result(status: .pass, note: "verified", auto: false, build: "0.1.361 (361) TierA", commitSHA: "abc", runID: "123", runNumber: "361")
+        XCTAssertTrue(BetaQA.matches(r, build: r.build, sha: "abc", runID: "123"))
+        XCTAssertFalse(BetaQA.matches(r, build: "0.1.362 (362) TierA", sha: "abc", runID: "123"))
+        XCTAssertFalse(BetaQA.matches(r, build: r.build, sha: "def", runID: "123"))
+        XCTAssertFalse(BetaQA.matches(r, build: r.build, sha: "abc", runID: "456"))
+        let fields = BetaQA.evidenceFields(r)
+        XCTAssertEqual(fields["commit_sha"] as? String, "abc")
+        XCTAssertEqual(fields["run_id"] as? Int64, 123)
+    }
+    func testHistoricalCIFailureDoesNotOverrideCurrentDevicePass() {
+        var device = BetaQA.Result(); device.status = .pass
+        let old = CIResult(status: .fail, note: "old failure", build: "old", ts: "")
+        XCTAssertTrue(BetaVisibility.isPassed(device: device, ci: old, build: "new"))
+    }
+    func testCIIdentityRejectsOtherBuildsAndUnknownProvenance() {
+        let r = CIResult(status: .pass, note: "real check", build: "0.1.361 (361) TierA", ts: "", commitSHA: "abc", runID: "123")
+        XCTAssertTrue(r.matches(build: r.build, sha: "abc", runID: "123"))
+        XCTAssertFalse(r.matches(build: "361", sha: "abc", runID: "123"))
+        XCTAssertFalse(r.matches(build: r.build, sha: "def", runID: "123"))
+        XCTAssertFalse(r.matches(build: r.build, sha: "abc", runID: "456"))
+        let unknown = CIResult(status: .pass, note: "legacy", build: r.build, ts: "")
+        XCTAssertFalse(unknown.matches(build: r.build, sha: "abc", runID: "123"))
+    }
     func testChecklistIncludesHealthChecksFromSource() {
         let ids = BetaChecklist.tierA.map(\.id)
         XCTAssertTrue(ids.contains("A-HEALTH-01")); XCTAssertTrue(ids.contains("A-HEALTH-08"))
@@ -223,4 +281,3 @@ final class HealthInsightTests: XCTestCase {
     }
 
 }
-

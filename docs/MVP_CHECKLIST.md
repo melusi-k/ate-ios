@@ -1520,11 +1520,18 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
   - *Journey:* As the developer, I can investigate recorded app failures and understand crash-free usage.
   - *Acceptance:* Local diagnostic history is available in Settings, persists across relaunch, is capped at 200 typed events, and can be exported/cleared without recording recipe content or sending events off-device. Separately, crash-free sessions and weekly active testers are measured through an approved distribution/monitoring path; privacy disclosures are updated before any external SDK is added.
   - *Verified by:* `DiagnosticHistoryTests` for local history; TestFlight/Xcode Organizer or approved dashboard for crash-free sessions and retention
-  - *Status evidence:* Local-only history implemented on branch; external crash-free/retention measurement remains incomplete.
-  - *Status evidence:* No crash reporting; privacy policy currently says no analytics SDKs
+  - *Status evidence:* Local diagnostics and the privacy-gated Sentry foundation are on main. Sentry starts only in recognized beta channels with a valid configured DSN, and is disabled under tests and in production/unknown channels. Stored-event/privacy and symbolication proof, release-health sessions, crash-free usage and retention remain unverified or disabled; foundation code is not operational monitoring proof.
   - *Owner:* [#40](https://github.com/melusi-k/ate-ios/issues/40)
   - *Feature area:* Product infrastructure and delivery · *Release gate:* Public launch · *Initial priority:* P1
 
+
+## Build-bound beta catalogue
+
+The generated in-app catalogue is a snapshot of this checkout's acceptance wording, not a test execution report or proof that every requirement is implemented. `scripts/gen-beta-checklist.py` emits content revisions for the Pilot catalogue, the combined Pilot/uncommitted catalogue, and each acceptance item. The installed app displays its source commit alongside this revision. Results recorded after the provenance repair carry their own build, source/run identity and catalogue/item revision; older records remain legacy evidence with unknown missing fields.
+
+Pilot remains a readiness gate, not an inventory of all shipped features. Journal C-JRN-01 through C-JRN-08 and nutrition C-NUT-01 through C-NUT-04 remain separately documented under their existing No committed release gate classification. Their existence is visible in the build catalogue, not silently counted as Pilot checks or claimed implemented. Public-launch B requirements remain in this document/QA matrix, outside the beta Pilot/uncommitted screen. Future feature changes must update the relevant acceptance wording/IDs and matrix together before generation; a matching generated file alone does not prove semantic coverage.
+
+For the audited main baseline 2ff1aa8e, Library/Search (#285), Shopping (#282), Settings (#283), Sentry foundation (#290) and About-link repair (#291) are in the source build. The separate Journal v2 and unmerged nutrition editing/weekly work are not treated as shipped by this catalogue audit. No Pilot thresholds or gate assignments are changed by this provenance repair.
 
 ## Privacy-language audit (docs/legal vs code, 2026-10-10)
 

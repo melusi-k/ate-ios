@@ -320,4 +320,4 @@ schemes:
 packages:
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
-    from: 9.32.0
+    exactVersion: 9.32.0

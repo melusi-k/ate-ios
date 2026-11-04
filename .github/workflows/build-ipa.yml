@@ -14,6 +14,10 @@ on:
         description: "Release channel: Production (default) or TierA/TierB/TierC for tester builds."
         type: string
         default: "Production"
+      sentry_proof:
+        description: "One-off ingestion proof: inject the Sentry DSN and a per-run canary marker for a synthetic scrub-verification event. Never for distributed builds."
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -34,6 +38,13 @@ jobs:
       BUILD_NUMBER: ${{ github.run_number }}
       ATE_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'TierA' }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
+      # Public ingestion endpoint (not a credential); missing/empty secret leaves Sentry disabled.
+      # Opt-in gate: DSN flows only after the one-off proof input OR the explicit repo variable
+      # (set only after the synthetic scrub-verification proof passes). App-side channel gate
+      # additionally blocks Production/unknown channels from starting Sentry at all.
+      SENTRY_DSN: ${{ (vars.SENTRY_BETA_INGESTION == 'enabled' || inputs.sentry_proof == true) && secrets.SENTRY_DSN || '' }}
+      # Canary marker exists only in one-off proof builds; normal builds expand empty.
+      SENTRY_CANARY: ${{ inputs.sentry_proof == true && format('canary-run-{0}', github.run_id) || '' }}
       HAS_SIGNING: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && secrets.BUILD_PROVISION_PROFILE_BASE64 != '' && secrets.P12_PASSWORD != '' && secrets.TEAM_ID != '' }}
       # Main pushes remain artifact-only; manual dispatch defaults to full validation (artifact-only requires an explicit opt-out).
       RUN_TESTS: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
@@ -428,6 +439,16 @@ jobs:
           for X in $A/PlugIns/*.appex; do
             XB=$(plutil -extract CFBundleVersion raw -o - "$X/Info.plist"); [ "$XB" = "$BUILD_NUMBER" ] || { echo "::error::$X CFBundleVersion $XB"; exit 1; }
           done
+          # Sentry ingestion-proof wiring check: the archived Info.plist canary must
+          # EXACTLY match the injected marker; non-proof builds must be empty.
+          # A missing key reads as empty (acceptable for normal builds; fails proof runs).
+          # Values are compared only, never logged.
+          CANARY_PLIST=$(plutil -extract AteSentryCanary raw -o - "$A/Info.plist" 2>/dev/null || true)
+          if [ -n "${SENTRY_CANARY:-}" ]; then
+            [ "$CANARY_PLIST" = "$SENTRY_CANARY" ] || { echo "::error::AteSentryCanary in IPA does not match injected proof marker"; exit 1; }
+          else
+            [ -z "$CANARY_PLIST" ] || { echo "::error::AteSentryCanary unexpectedly set in a non-proof build"; exit 1; }
+          fi
           echo "plist + codesign checks passed" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Release smoke test (A-CI-03) — simulator build, install, launch, alive after 10 s
@@ -447,6 +468,8 @@ jobs:
           }
           profile_sim_start=$(date +%s)
           SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          # Ingestion-proof runs start from a fresh simulator so no prior app state survives.
+          if [ -n "${SENTRY_CANARY:-}" ]; then xcrun simctl shutdown "$SIM_ID" || true; xcrun simctl erase "$SIM_ID"; fi
           profile_sim_end=$(date +%s); echo "::notice::PROFILE step=select_simulator duration_seconds=$((profile_sim_end-profile_sim_start))"
           profile_sim_boot_start=$(date +%s)
           xcrun simctl boot "$SIM_ID" || true
@@ -512,6 +535,7 @@ jobs:
           if-no-files-found: error
 
       - name: Update rolling 'latest-build' prerelease
+        if: ${{ inputs.sentry_proof != true }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -552,6 +576,7 @@ jobs:
           echo "IPA URL: $BASE/build-${BUILD_NUMBER}${CH_SUFFIX}/$IPA_NAME"
 
       - name: Published artifact smoke test (A-CI-06) — download, checksum, contents
+        if: ${{ inputs.sentry_proof != true }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -763,7 +788,7 @@ jobs:
     name: Promote validated beta candidate
     # Never publish a Production IPA as the rolling beta candidate. Push builds use TierA;
     # manually dispatched builds may promote only an explicit tester channel.
-    if: ${{ (inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]')) && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["TierA", "TierB", "TierC"]'), inputs.channel)) }}
+    if: ${{ (inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]')) && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["TierA", "TierB", "TierC"]'), inputs.channel)) && inputs.sentry_proof != true) }}
     needs: [release, ui-suite, backend-e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 10

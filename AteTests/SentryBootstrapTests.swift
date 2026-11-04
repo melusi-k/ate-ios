@@ -18,20 +18,42 @@ final class SentryBootstrapTests: XCTestCase {
     }
 
     func testUITestLaunchDisablesStart() {
-        XCTAssertFalse(SentryBootstrap.shouldStart(dsn: "https://key@o123.ingest.sentry.io/456", isUITesting: true, channel: "TierA"))
+        XCTAssertFalse(SentryBootstrap.shouldStart(dsn: "https://0123456789abcdef0123456789abcdef@o4512371813842944.ingest.us.sentry.io/456", isUITesting: true, channel: "TierA"))
     }
 
     func testProductionAndUnknownChannelsDisableStart() {
-        let dsn = "https://key@o123.ingest.sentry.io/456"
+        let dsn = "https://0123456789abcdef0123456789abcdef@o4512371813842944.ingest.us.sentry.io/456"
         XCTAssertFalse(SentryBootstrap.shouldStart(dsn: dsn, isUITesting: false, channel: ""))
         XCTAssertFalse(SentryBootstrap.shouldStart(dsn: dsn, isUITesting: false, channel: "Production"))
         XCTAssertFalse(SentryBootstrap.shouldStart(dsn: dsn, isUITesting: false, channel: "something-else"))
     }
 
     func testNonProductionChannelWithValidDSNEnablesStart() {
-        let dsn = "https://key@o123.ingest.sentry.io/456"
+        let dsn = "https://0123456789abcdef0123456789abcdef@o4512371813842944.ingest.us.sentry.io/456"
         for channel in ["TierA", "TierB", "TierC", "Beta", "QA", "Internal", "Development"] {
             XCTAssertTrue(SentryBootstrap.shouldStart(dsn: dsn, isUITesting: false, channel: channel), "channel \(channel) should enable")
+        }
+    }
+
+    func testMalformedAndUnexpectedDSNsDisableStart() {
+        let key = "0123456789abcdef0123456789abcdef"
+        let invalid = [
+            "https://",                       // missing host and project
+            "https://\(key)@/456",            // missing host
+            "https://\(key)@o4512371813842944.ingest.us.sentry.io", // missing project
+            "https://o4512371813842944.ingest.us.sentry.io/456", // missing key
+            "https://bad-key@o4512371813842944.ingest.us.sentry.io/456",
+            "https://\(key)@o4512371813842944.ingest.us.sentry.io/not-a-project",
+            "https://\(key)@o4512371813842944.ingest.us.sentry.io/456/extra",
+            "https://\(key)@o4512371813842944.ingest.us.sentry.io.evil.example/456",
+            "https://\(key)@unapproved.example/456",
+            "https://\(key):password@o4512371813842944.ingest.us.sentry.io/456",
+            "https://\(key)@o4512371813842944.ingest.us.sentry.io:8443/456",
+            "https://\(key)@o4512371813842944.ingest.us.sentry.io/456?data=value",
+            "https://\(key)@o4512371813842944.ingest.us.sentry.io/456#fragment"
+        ]
+        for dsn in invalid {
+            XCTAssertFalse(SentryBootstrap.shouldStart(dsn: dsn, isUITesting: false, channel: "TierA"))
         }
     }
 

@@ -121,6 +121,16 @@ jobs:
               missing=1
             fi
           done
+          # Largest-DT capture must be a real PNG, not just a present file: presence alone is
+          # not proof of unclipped text, and a broken export must not count as evidence.
+          shot=$(compgen -G "ui-screenshots/*settings-sync-summary-largest-dt*.png" | head -1 || true)
+          if [ -z "${shot:-}" ]; then
+            echo "::error::Required evidence missing: largest-DT sync summary PNG (settings-sync-summary-largest-dt)"
+            missing=1
+          elif [ "$(head -c 8 "$shot" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
+            echo "::error::Largest-DT capture is not a real PNG: $shot"
+            missing=1
+          fi
           if [ ! -d "$RUNNER_TEMP/ate-test-results/settings-ui-qualification.xcresult" ]; then
             echo "::error::xcresult bundle missing: $RUNNER_TEMP/ate-test-results/settings-ui-qualification.xcresult"
             missing=1
@@ -129,7 +139,7 @@ jobs:
             echo "::error::Tests passed but required retained evidence is incomplete; this run does not qualify."
             exit 1
           fi
-          echo "All required evidence present (3 named screenshots, a11y-audit-settings log, xcresult)."
+          echo "All required evidence present (3 named screenshots, largest-DT PNG, a11y-audit-settings log, xcresult)."
       - name: Upload diagnostics
         if: always()
         uses: actions/upload-artifact@v7

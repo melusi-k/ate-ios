@@ -54,6 +54,38 @@ jobs:
       - name: Journal open state app-launch UI tests
         run: |
           set -o pipefail
+          # Diagnostics only: do not prelaunch, warm, erase or otherwise change the simulator.
+          mkdir -p launch-diagnostics
+          {
+            date -u '+%Y-%m-%dT%H:%M:%SZ'
+            git rev-parse HEAD
+            xcodebuild -version
+            xcrun simctl list devices --json
+            printf 'SIM_ID=%s\n' "$SIM_ID"
+            shasum -a 256 AteUITests/JournalOpenStateUITests.swift
+          } > launch-diagnostics/baseline.txt 2>&1
+          /usr/bin/log stream --style compact --level info \
+            --predicate 'process == "CoreSimulatorService" OR process == "testmanagerd" OR process == "runningboardd" OR process == "installd" OR process == "Ate" OR process == "AteUITests-Runner" OR process == "xcodebuild"' \
+            > launch-diagnostics/host-unified.log 2>&1 &
+          log_pid=$!
+          (
+            while true; do
+              date -u '+%Y-%m-%dT%H:%M:%SZ'
+              ps -axo pid,ppid,etime,state,%cpu,%mem,command | grep -E 'Ate|xcodebuild|CoreSimulator|testmanagerd|installd|launchd_sim' | grep -v grep || true
+              sleep 10
+            done
+          ) > launch-diagnostics/process-timeline.log 2>&1 &
+          sample_pid=$!
+          cleanup() {
+            kill "$log_pid" "$sample_pid" 2>/dev/null || true
+            wait "$log_pid" "$sample_pid" 2>/dev/null || true
+            { date -u '+%Y-%m-%dT%H:%M:%SZ'; xcrun simctl list devices --json; } \
+              > launch-diagnostics/final-state.txt 2>&1 || true
+            xcrun simctl spawn "$SIM_ID" log show --last 15m --style compact \
+              --predicate 'process == "Ate" OR process == "AteUITests-Runner" OR process == "testmanagerd" OR process == "runningboardd" OR process == "installd" OR process == "SpringBoard"' \
+              > launch-diagnostics/simulator-unified.log 2>&1 || true
+          }
+          trap cleanup EXIT
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/JournalOpenStateUITests \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/journal-open-state-ui.xcresult" \
@@ -101,6 +133,7 @@ jobs:
           name: journal-open-state-ui-${{ github.run_number }}
           path: |
             journal-open-state-ui.log
+            launch-diagnostics
             ui-screenshots
             ${{ runner.temp }}/ate-test-results/journal-open-state-ui.xcresult
           if-no-files-found: warn

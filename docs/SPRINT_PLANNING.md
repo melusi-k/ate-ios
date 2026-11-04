@@ -1001,3 +1001,14 @@ No retrospective/close-out is performed on Wednesday. Preserve the W44 close-out
 
 - Appended this Wednesday revalidation to the existing draft documentation branch for PR #267; it is not on main. The branch is 10 ahead / 12 behind main and cannot be safely auto-updated with current repository settings. A maintainer must reconcile it and rerun applicable checks on the resulting exact SHA.
 - No branch update/rebase, merge, issue closure, or repository policy mutation was performed.
+
+
+## W45 Wednesday Guardian exact-run delta — 2026-11-04T09:30:55Z (Africa/Johannesburg 11:30:55)
+
+The open-PR inventory increased from 29 to **30** with [PR #291](https://github.com/melusi-k/ate-ios/pull/291). Its head is 05100f13d1f4407f5f04174ac39f5791315f7c3c, 1 ahead / 0 behind current main e5665234129e047baf56e3c6af5ea0a5f254e59f. Compile is queued; Dogfood and Journal open-state UI are in progress; latest stack validation passed after an earlier failed attempt. No human approval. The author corrected the earlier diagnosis: the observed delay was in Quiet Hours and Library animation waits, not About scrolling. This PR changes the About heading scroll only, so it is not proven to fix the reported timeout. Guardian blocker comment: https://github.com/melusi-k/ate-ios/pull/291#issuecomment-6627645646.
+
+Current governance remains unchanged: main protected=false; main-production-protection enforcement disabled; CODEOWNERS is self-only (* @melusi-k); require_code_owner_review and latest-push approval are false; squash enabled; auto-merge and update-branch disabled. No repository policy was changed.
+
+On exact main SHA e566523: Compile attempt 41785456819 failed at Library Explore native sheet presentation (#83), while later same-SHA attempt 41785456999 passed. Journal open-state UI had both pass 41785456929 and failure 41785457007 on that SHA. Supabase Preview failed (126426620587). Nightly QA 41806727867 had backend E2E pass and qa-gate still in progress at cutoff. Build IPA 41785452856 was artifact-only: unit, 8-flow QA, UI and backend-E2E skipped; QA-results retrieval returned HTTP 400; 1/59 verified, 12 failing, 46 open. No exact-main Dogfood Qualification pass is recorded. Main commit e566523 adds continue-on-error to the Journal open-state Build for testing step; keep build and test outcomes separate.
+
+All 30 open PRs remain unmerged. No qualifying human APPROVED review was found; #181 has five unresolved review threads and #66 has one. GitHub update-branch is disabled, so no safe branch update was available. The W45 committed scope remains #30 and #179 (blocked); #70 remains stretch only. No issue was closed, no commitment/date changed, and no linked stack was double-counted. W45 retrospective remains due Sunday 2026-11-08; metrics without defensible denominators remain unavailable.

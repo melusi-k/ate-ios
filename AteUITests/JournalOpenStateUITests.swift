@@ -280,6 +280,8 @@ extension JournalOpenStateUITests {
         launch(extra: ["-qaMockHealth", "empty"])
         wait(app.tabBars.firstMatch, 15)
         app.tabBars.buttons["Insights"].tap()
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub); hub.tap()
         let action = app.buttons["insights.newJournalEntry"]
         for _ in 0..<12 {
             if action.exists && action.isHittable { break }

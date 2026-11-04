@@ -162,17 +162,28 @@ jobs:
           import json, os, sys
           manifest, shot, outdir = sys.argv[1], sys.argv[2], sys.argv[3]
           try:
-              entries = json.load(open(manifest))
+              top = json.load(open(manifest))
           except Exception:
               sys.exit(2)
-          if not isinstance(entries, list):
+          if not isinstance(top, list):
               sys.exit(2)
-          for e in entries:
+          # Observed manifest shape (run 41775045591): a list of payload groups, each with an
+          # "attachments" list of {exportedFileName, suggestedHumanReadableName, ...}; suggested
+          # names carry an "_0_<uuid>" suffix and extension. Accept a flat list too; anything
+          # else fails closed.
+          atts = []
+          for e in top:
               if not isinstance(e, dict):
                   continue
-              name = e.get("humanReadableName") or e.get("suggestedHumanReadableName") or ""
-              fname = e.get("fileName") or e.get("attachedFileName") or ""
-              if name == shot and fname:
+              inner = e.get("attachments")
+              atts.extend(inner) if isinstance(inner, list) else atts.append(e)
+          for a in atts:
+              if not isinstance(a, dict):
+                  continue
+              name = a.get("suggestedHumanReadableName") or a.get("humanReadableName") or ""
+              fname = a.get("exportedFileName") or a.get("fileName") or a.get("attachedFileName") or ""
+              base = name[:-4] if name.lower().endswith(".png") else name
+              if (base == shot or base.startswith(shot + "_0_")) and fname:
                   print(os.path.join(outdir, fname))
                   sys.exit(0)
           sys.exit(1)

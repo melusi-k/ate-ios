@@ -1097,7 +1097,7 @@ final class AteUITests: XCTestCase {
         // verdict on any frame is pixel inspection, not this code.
         let tipText = "Speed up your typing by sliding your finger"
         var dismissed = false
-        let hosts = [app, XCUIApplication(bundleIdentifier: "com.apple.springboard")]
+        let hosts: [XCUIApplication] = [app, XCUIApplication(bundleIdentifier: "com.apple.springboard")]
         findTip: for host in hosts {
             let tip = host.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", tipText)).firstMatch
             guard tip.waitForExistence(timeout: 1) else { continue }

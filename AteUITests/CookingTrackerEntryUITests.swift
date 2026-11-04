@@ -1,6 +1,12 @@
 import XCTest
 
 final class CookingTrackerEntryUITests: XCTestCase {
+    private func shot(_ name: String) {
+        let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        a.name = name
+        a.lifetime = .keepAlways
+        add(a)
+    }
     private func launchTracker() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
@@ -37,6 +43,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
         let app = launchTracker()
         let month = app.staticTexts["tracker.displayedMonth"]
         XCTAssertTrue(month.waitForExistence(timeout: 5))
+        shot("tracker-month-view")
         let currentMonth = month.label
 
         let previous = app.buttons["tracker.previousMonth"]
@@ -73,5 +80,6 @@ final class CookingTrackerEntryUITests: XCTestCase {
 
         XCTAssertTrue(app.navigationBars["Cooked that day"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Nothing recorded for this day."].waitForExistence(timeout: 5))
+        shot("tracker-day-details")
     }
 }

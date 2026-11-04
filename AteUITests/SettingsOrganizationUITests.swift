@@ -38,6 +38,9 @@ final class SettingsOrganizationUITests: XCTestCase {
         let summary = app.staticTexts["settings.syncSummary"]
         wait(summary, 10)
         XCTAssertTrue(summary.exists, "Sync summary should materialize without any scrolling")
+        // Retained pixel evidence: the top of Settings before any scrolling.
+        let top = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        top.name = "settings-top-hierarchy"; top.lifetime = .keepAlways; add(top)
     }
 
     /// AI availability and device compatibility are explained next to Private mode.
@@ -49,6 +52,8 @@ final class SettingsOrganizationUITests: XCTestCase {
         wait(ai, 5)
         XCTAssertTrue(ai.label.contains("Apple Intelligence"), ai.label)
         XCTAssertTrue(ai.label.contains("Demo"), ai.label)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "settings-ai-availability"; shot.lifetime = .keepAlways; add(shot)
     }
 
     /// Everyday preferences stay reachable: the Timer notifications group (sound,
@@ -60,5 +65,7 @@ final class SettingsOrganizationUITests: XCTestCase {
         let header = app.staticTexts["Timer notifications"]
         scrollTo(header)
         wait(header, 5)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "settings-timer-notifications"; shot.lifetime = .keepAlways; add(shot)
     }
 }

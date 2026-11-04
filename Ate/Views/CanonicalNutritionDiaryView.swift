@@ -412,7 +412,7 @@ private struct NutritionDiaryEntryEditView: View {
                             .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                         Button("Unlink recipe", role: .destructive) {
                             linkError = onDissociate?()
-                            if linkError == nil { association = nil }
+                            if linkError == nil { self.association = nil }
                         }
                         .accessibilityIdentifier("nutritionDiary.unlinkRecipe")
                     } else if recipes.isEmpty {

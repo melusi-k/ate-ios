@@ -557,7 +557,9 @@ extension CoverageUITests {
     @discardableResult
     func runHealthScenario(_ scenario: String, title: String, save: Bool = false) -> [String] {
         openInsights(scenario)
-        let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
+        let connect = app.buttons["insights.connect"]; wait(connect)
+        shot("journal-insights-hub-route")
+        connect.tap()
         wait(text(title))
         let prompt = app.buttons["insights.prompt"].firstMatch; scrollTo(prompt)
         XCTAssertTrue(prompt.exists, "\(scenario): no journal prompt")

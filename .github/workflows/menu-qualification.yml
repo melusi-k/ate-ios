@@ -155,6 +155,7 @@ jobs:
 
       - name: Search results and Library menu UI journeys
         id: search_journeys
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
         run: |
           set -o pipefail
           SIM_ID="${{ steps.select_simulator.outputs.id }}"

@@ -35,6 +35,8 @@ settings:
     ATE_GIT_RUN_ID: ""
     # Empty by default: beta-only UI is fail-closed unless CI explicitly sets a recognized beta channel.
     ATE_CHANNEL: ""
+    # Sentry DSN is injected from the SENTRY_DSN environment variable; empty disables Sentry.
+    ATE_SENTRY_DSN: "${SENTRY_DSN}"
     # Legal pages: source docs/legal/*.md → scripts/build-legal.py → public repo melusi-k/ate-legal (GitHub Pages).
     ATE_PRIVACY_URL: "https://melusi-k.github.io/ate-legal/privacy.html"
     ATE_TERMS_URL: "https://melusi-k.github.io/ate-legal/terms.html"
@@ -55,6 +57,7 @@ targets:
       - target: AteClip
       # Independent watch app, embedded at Ate.app/Watch/AteWatch.app so it can be installed alongside the phone app.
       - target: AteWatch
+      - package: Sentry, product: SentrySPM
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate
@@ -99,6 +102,7 @@ targets:
         AteGitSHAFull: $(ATE_GIT_SHA_FULL)
         AteGitRunID: $(ATE_GIT_RUN_ID)
         AteChannel: $(ATE_CHANNEL)
+        AteSentryDSN: $(ATE_SENTRY_DSN)
         AteTermsURL: $(ATE_TERMS_URL)
         CFBundleURLTypes:
           - CFBundleURLName: com.melusik.ate
@@ -306,3 +310,8 @@ schemes:
       targets:
         AteWatch: all
         AteWatchWidgets: all
+
+packages:
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    from: 9.32.0

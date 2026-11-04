@@ -18,12 +18,14 @@ final class SettingsOrganizationUITests: XCTestCase {
         if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
     }
 
-    private func scrollTo(_ e: XCUIElement, max: Int = 8) {
-        _ = e.waitForExistence(timeout: 5)
+    /// The row may sit below the materialized window: swipe while it is not yet present
+    /// and hittable so the lazy Form realizes it (same semantics as CoverageUITests).
+    private func scrollTo(_ e: XCUIElement, max: Int = 25) {
+        _ = e.waitForExistence(timeout: 2)
         var n = 0
-        while e.exists && !e.isHittable && n < max { app.swipeUp(velocity: .slow); n += 1 }
+        while !(e.exists && e.isHittable) && n < max { app.swipeUp(); n += 1 }
         n = 0
-        while e.exists && !e.isHittable && n < max { app.swipeDown(velocity: .slow); n += 1 }
+        while !(e.exists && e.isHittable) && n < max * 2 { app.swipeDown(); n += 1 }
     }
 
     private func wait(_ e: XCUIElement, _ t: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) {

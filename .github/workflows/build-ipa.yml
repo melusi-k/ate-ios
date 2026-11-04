@@ -446,6 +446,68 @@ jobs:
           fi
           echo "plist + codesign checks passed" | tee -a "$GITHUB_STEP_SUMMARY"
 
+      - name: Validate Sentry token and upload dSYMs
+        # Every DSN-enabled archive must have symbols before any IPA artifact or release is published.
+        if: ${{ env.SENTRY_DSN != '' }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_URL: https://sentry.io
+          SENTRY_ORG: add-colour-agency
+          SENTRY_PROJECT: ate-ios
+        run: |
+          set -euo pipefail
+          [ -n "${SENTRY_AUTH_TOKEN:-}" ] || { echo "::error::SENTRY_AUTH_TOKEN is required for every DSN-enabled build"; exit 1; }
+          brew install getsentry/tools/sentry-cli
+          sentry-cli info >/dev/null || { echo "::error::Sentry auth token rejected"; exit 1; }
+          python3 - <<'PYUUID'
+          from pathlib import Path
+          import plistlib, re, subprocess
+          app = Path('build/Ate.xcarchive/Products/Applications/Ate.app')
+          dsyms = Path('build/Ate.xcarchive/dSYMs')
+          if not app.is_dir() or not dsyms.is_dir():
+              raise SystemExit('Archive app or dSYM directory is missing')
+          def uuids(path):
+              result = subprocess.run(['dwarfdump', '--uuid', str(path)], capture_output=True, text=True, check=True)
+              found = set(re.findall(r'UUID: ([0-9A-Fa-f-]{36}) ', result.stdout))
+              if not found:
+                  raise SystemExit(f'No UUID found: {path}')
+              return {value.lower() for value in found}
+          # Enumerate the actual archive, not an assumed list of enabled targets.
+          # Includes app, App Clip, extensions, watch app/widgets and bundled frameworks.
+          binaries = set()
+          for bundle in [app, *app.rglob('*')]:
+              if bundle.is_dir() and bundle.suffix in {'.app', '.appex', '.framework'}:
+                  plist = bundle / 'Info.plist'
+                  if not plist.is_file():
+                      raise SystemExit(f'Bundle Info.plist missing: {bundle}')
+                  name = plistlib.loads(plist.read_bytes()).get('CFBundleExecutable')
+                  if not name or Path(name).name != name:
+                      raise SystemExit(f'Invalid CFBundleExecutable: {bundle}')
+                  binary = bundle / name
+                  if not binary.is_file():
+                      raise SystemExit(f'Bundle executable missing: {binary}')
+                  binaries.add(binary)
+          # Include standalone distributed dynamic libraries too; never silently ignore one.
+          binaries.update(app.rglob('*.dylib'))
+          required = {}
+          for binary in sorted(binaries):
+              for value in uuids(binary):
+                  required.setdefault(value, []).append(str(binary.relative_to(app)))
+          available = set()
+          for dsym in dsyms.rglob('*.dSYM'):
+              available.update(uuids(dsym))
+          if not required or not available:
+              raise SystemExit('Archive binary or dSYM UUID inventory is empty')
+          missing = set(required) - available
+          for value, paths in sorted(required.items()):
+              print(f'{value}: {", ".join(paths)}: {"MISSING" if value in missing else "covered"}')
+          if missing:
+              raise SystemExit('Distributed binary UUIDs lack matching archive dSYMs')
+          print(f'All {len(binaries)} distributed binaries have UUID-matching archive dSYMs')
+          PYUUID
+          sentry-cli upload-dif --org "$SENTRY_ORG" --project "$SENTRY_PROJECT" build/Ate.xcarchive/dSYMs --wait || { echo "::error::Sentry dSYM upload/processing failed"; exit 1; }
+          echo "Sentry symbol upload server-confirmed for this archive"
+
       - name: Release smoke test (A-CI-03) — simulator build, install, launch, alive after 10 s
         id: simsmoke
         timeout-minutes: 20
@@ -528,34 +590,6 @@ jobs:
           name: ${{ env.IPA_NAME }}
           path: dist/*.ipa
           if-no-files-found: error
-
-      - name: Validate Sentry token and upload dSYMs
-        # Tester-channel manual dispatches only; never Production, never main push.
-        # Runs in the release job where build/Ate.xcarchive already exists (both signed and unsigned paths create it).
-        if: ${{ github.event_name == 'workflow_dispatch' && (inputs.channel == 'TierA' || inputs.channel == 'TierB' || inputs.channel == 'TierC') }}
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: add-colour-agency
-          SENTRY_PROJECT: ate-ios
-        run: |
-          set -e
-          if [ -z "${SENTRY_AUTH_TOKEN:-}" ]; then
-            if [ "${{ env.SENTRY_PROOF == 'true' }}" = "true" ]; then echo "::error::SENTRY_AUTH_TOKEN secret required for the ingestion/symbol proof but is not set"; exit 1; fi
-            echo "::notice::SENTRY_AUTH_TOKEN secret not set; symbol upload skipped (not validated)"; exit 0
-          fi
-          brew install getsentry/tools/sentry-cli
-          sentry-cli info >/dev/null || { echo "::error::Sentry auth token rejected (sentry-cli info failed)"; exit 1; }
-          test -d build/Ate.xcarchive/dSYMs || { echo "::error::archive contains no dSYMs"; exit 1; }
-          APP_UUIDS=$(dwarfdump --uuid build/Ate.xcarchive/Products/Applications/Ate.app/Ate | awk '{print $2}' | tr 'A-F' 'a-f' | sort -u)
-          [ -n "$APP_UUIDS" ] || { echo "::error::no UUIDs read from built app binary"; exit 1; }
-          DSYM_UUIDS=$(dwarfdump --uuid build/Ate.xcarchive/dSYMs/*.dSYM 2>/dev/null | awk '{print $2}' | tr 'A-F' 'a-f' | sort -u)
-          [ -n "$DSYM_UUIDS" ] || { echo "::error::no dSYM UUIDs read from archive"; exit 1; }
-          MISSING=0
-          for U in $APP_UUIDS; do echo "$DSYM_UUIDS" | grep -qix "$U" || { echo "::error::no dSYM for app binary UUID $U"; MISSING=1; }; done
-          [ "$MISSING" = 0 ] || exit 1
-          echo "dSYM UUIDs cover the app binary"
-          sentry-cli upload-dif --org "$SENTRY_ORG" --project "$SENTRY_PROJECT" build/Ate.xcarchive/dSYMs --wait || { echo "::error::Sentry dSYM upload failed (token rights/org/project/slug or processing)"; exit 1; }
-          echo "Sentry symbol upload complete for $SENTRY_ORG/$SENTRY_PROJECT (server-confirmed)"
 
       - name: Update rolling 'latest-build' prerelease
         if: ${{ env.SENTRY_PROOF != 'true' }}

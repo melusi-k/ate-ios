@@ -113,3 +113,192 @@ final class LogicTests: XCTestCase {
         XCTAssertNil(back[1].data)
     }
 }
+
+
+@MainActor final class ShoppingRecoveryTests: XCTestCase {
+    private func store() -> AppStore { AppStore(context: nil, backend: MockBackend()) }
+    private func session(_ userID: String) -> AuthSession {
+        AuthSession(accessToken: "t", refreshToken: "r", expiresAt: 0, userID: userID, email: "t@example.com")
+    }
+
+    func testEditPreservesIdentitySourcesUnitAndCompletion() throws {
+        let store = store()
+        let item = ShoppingItem(id: "item", name: "Milk", quantity: 1, unit: "l", done: true,
+                                from: "Pancakes", sources: ["Pancakes"], notes: "full cream", aisle: .dairy)
+        store.shopping = [item]
+        XCTAssertTrue(store.editShoppingItem(item.id, name: "  Oat milk  ", quantity: 2.5))
+        let edited = try XCTUnwrap(store.shopping.first)
+        XCTAssertEqual(edited.id, item.id); XCTAssertEqual(edited.name, "Oat milk")
+        XCTAssertEqual(edited.quantity, 2.5); XCTAssertEqual(edited.unit, item.unit)
+        XCTAssertEqual(edited.done, item.done); XCTAssertEqual(edited.sources, item.sources)
+        XCTAssertEqual(edited.from, item.from); XCTAssertEqual(edited.notes, item.notes)
+        let restored = try JSONDecoder().decode(ShoppingItem.self, from: JSONEncoder().encode(edited))
+        XCTAssertEqual(restored, edited)
+    }
+
+    func testEditRederivesAisleOnlyWhenNameChanges() throws {
+        let store = store()
+        store.shopping = [ShoppingItem(id: "item", name: "Milk", quantity: 1, unit: "l", aisle: .dairy)]
+        XCTAssertTrue(store.editShoppingItem("item", name: "Milk", quantity: 2))
+        XCTAssertEqual(store.shopping.first?.aisle, .dairy, "quantity-only edit keeps the aisle")
+        XCTAssertTrue(store.editShoppingItem("item", name: "Chicken breast", quantity: 2))
+        XCTAssertEqual(store.shopping.first?.aisle, .meatFish, "rename re-derives the aisle")
+        XCTAssertTrue(store.editShoppingItem("item", name: "zz unmatched", quantity: 2))
+        XCTAssertEqual(store.shopping.first?.aisle, .other)
+
+        // An aisle no rule produced survives while the name is unchanged.
+        store.shopping = [ShoppingItem(id: "m", name: "zz unmatched", quantity: 1, unit: "", aisle: .pantry)]
+        XCTAssertTrue(store.editShoppingItem("m", name: "zz unmatched", quantity: 3))
+        XCTAssertEqual(store.shopping.first?.aisle, .pantry)
+
+        // A nil aisle stays nil until the name changes.
+        store.shopping = [ShoppingItem(id: "n", name: "Milk", quantity: 1, unit: "l")]
+        XCTAssertTrue(store.editShoppingItem("n", name: "Milk", quantity: 2))
+        XCTAssertNil(store.shopping.first?.aisle)
+    }
+
+    func testInvalidOrMissingEditsDoNotMutate() {
+        let store = store()
+        let item = ShoppingItem(id: "item", name: "Milk", quantity: 1, unit: "l")
+        store.shopping = [item]
+        XCTAssertFalse(store.editShoppingItem(item.id, name: " \n", quantity: 1))
+        XCTAssertFalse(store.editShoppingItem(item.id, name: "Milk", quantity: -1))
+        XCTAssertFalse(store.editShoppingItem(item.id, name: "Milk", quantity: .infinity))
+        XCTAssertFalse(store.editShoppingItem(item.id, name: "Milk", quantity: .nan))
+        XCTAssertFalse(store.editShoppingItem("missing", name: "Milk", quantity: 1))
+        XCTAssertEqual(store.shopping, [item])
+        XCTAssertTrue(store.editShoppingItem(item.id, name: "Milk", quantity: 0))
+        XCTAssertEqual(store.shopping.first?.unit, "", "clearing the amount clears the dangling unit")
+    }
+
+    func testQuantityParsingIsDeterministicAcrossLocales() {
+        XCTAssertEqual(ShoppingEdit.parseQuantity(""), 0, "empty means no amount")
+        XCTAssertEqual(ShoppingEdit.parseQuantity("  "), 0)
+        XCTAssertEqual(ShoppingEdit.parseQuantity("0"), 0)
+        // "." and "," both mean decimal, in every locale: de_DE must never read "2.5" as 25.
+        XCTAssertEqual(ShoppingEdit.parseQuantity("2.5"), 2.5)
+        XCTAssertEqual(ShoppingEdit.parseQuantity("2,5"), 2.5)
+        XCTAssertEqual(ShoppingEdit.parseQuantity(" 3 "), 3)
+        XCTAssertEqual(ShoppingEdit.parseQuantity("5."), 5)
+        XCTAssertEqual(ShoppingEdit.parseQuantity(".5"), 0.5)
+        XCTAssertEqual(ShoppingEdit.parseQuantity("1,000"), 1, "grouping is unsupported: a separator is always decimal")
+        XCTAssertNil(ShoppingEdit.parseQuantity("-1"))
+        XCTAssertNil(ShoppingEdit.parseQuantity("abc"))
+        XCTAssertNil(ShoppingEdit.parseQuantity("2.5.3"))
+        XCTAssertNil(ShoppingEdit.parseQuantity("1e3"))
+    }
+
+    func testQuantityTextRoundTripsExactly() {
+        XCTAssertEqual(ShoppingEdit.quantityText(0), "", "no amount shows as an empty field")
+        // Bounded, realistic quantities: plain decimal in, exact value back, every locale.
+        for q in [2.0, 2.5, 2.505, 0.1, 1234567.89] {
+            XCTAssertEqual(ShoppingEdit.parseQuantity(ShoppingEdit.quantityText(q)), q,
+                           "editor initial text must parse back to the stored value: \(q)")
+        }
+        XCTAssertEqual(ShoppingEdit.quantityText(2.0), "2", "whole numbers seed without a trailing .0")
+        let huge = ShoppingEdit.quantityText(1e16)
+        XCTAssertFalse(huge.contains("e"), "extreme values seed as plain decimal, not \(huge)")
+        XCTAssertEqual(ShoppingEdit.parseQuantity(huge), 1e16)
+    }
+
+    func testNameOnlyEditIsNeverTrappedBySeededQuantity() {
+        // Untouched field stores the original, even if its text would not parse (legacy value).
+        let seeded = "1e-12"
+        XCTAssertEqual(ShoppingEdit.effectiveQuantity(original: 1e-12, originalText: seeded, editedText: seeded), 1e-12)
+        XCTAssertNil(ShoppingEdit.parseQuantity(seeded), "seed text itself stays unaccepted once edited")
+        // An untouched ordinary field keeps its exact value.
+        let text = ShoppingEdit.quantityText(2.505)
+        XCTAssertEqual(ShoppingEdit.effectiveQuantity(original: 2.505, originalText: text, editedText: text), 2.505)
+        // Edits go through the parser.
+        XCTAssertEqual(ShoppingEdit.effectiveQuantity(original: 2.505, originalText: text, editedText: "3"), 3)
+        XCTAssertNil(ShoppingEdit.effectiveQuantity(original: 2.505, originalText: text, editedText: "abc"))
+    }
+
+    func testUndoRestoresRemovedItemWithoutOverwritingOtherEdits() throws {
+        let store = store()
+        let a = ShoppingItem(id: "a", name: "Milk", quantity: 1, unit: "l", done: true)
+        let b = ShoppingItem(id: "b", name: "Eggs", quantity: 6, unit: "")
+        store.shopping = [a, b]
+        store.removeShoppingItemWithUndo(a.id)
+        XCTAssertEqual(store.shopping.map(\.id), ["b"])
+        XCTAssertEqual(store.toast?.message, "Removed “Milk”")
+        XCTAssertEqual(store.toast?.actionTitle, "Undo")
+        XCTAssertTrue(store.editShoppingItem(b.id, name: "Eggs", quantity: 12))
+        store.runToastAction()
+        XCTAssertEqual(store.shopping.map(\.id), ["a", "b"])
+        XCTAssertEqual(store.shopping[0], a)
+        XCTAssertEqual(store.shopping[1].quantity, 12)
+        store.runToastAction()
+        XCTAssertEqual(store.shopping.count, 2)
+    }
+
+    func testRapidConsecutiveRemovalsShareOneUndoBatch() {
+        let store = store()
+        let a = ShoppingItem(id: "a", name: "Milk", quantity: 1, unit: "l")
+        let b = ShoppingItem(id: "b", name: "Eggs", quantity: 6, unit: "")
+        let c = ShoppingItem(id: "c", name: "Bread", quantity: 1, unit: "")
+        store.shopping = [a, b, c]
+        store.removeShoppingItemWithUndo(a.id)
+        store.removeShoppingItemWithUndo(b.id)
+        XCTAssertEqual(store.shopping.map(\.id), ["c"])
+        XCTAssertEqual(store.pendingShoppingUndoCount, 2, "the second removal joins the batch instead of discarding the first")
+        XCTAssertEqual(store.toast?.message, "Removed 2 items")
+        store.runToastAction()
+        XCTAssertEqual(store.shopping, [a, b, c], "Undo restores the whole batch in original order")
+        XCTAssertNil(store.toast)
+    }
+
+    func testUndoRestoresItemsRemovedFromDifferentListStates() {
+        let store = store()
+        let a = ShoppingItem(id: "a", name: "Milk", quantity: 1, unit: "l")
+        let b = ShoppingItem(id: "b", name: "Eggs", quantity: 6, unit: "")
+        let c = ShoppingItem(id: "c", name: "Bread", quantity: 1, unit: "")
+        let d = ShoppingItem(id: "d", name: "Butter", quantity: 1, unit: "")
+        store.shopping = [a, b, c, d]
+        store.removeShoppingItemWithUndo(b.id)
+        store.removeShoppingItemWithUndo(d.id)
+        XCTAssertEqual(store.shopping.map(\.id), ["a", "c"])
+        XCTAssertEqual(store.pendingShoppingUndoCount, 2)
+        store.runToastAction()
+        XCTAssertEqual(store.shopping, [a, b, c, d], "Undo restores items removed from different list states at their original positions")
+        XCTAssertNil(store.toast)
+    }
+
+    func testUndoWindowExpiryFinalizesRemovals() {
+        let store = store()
+        let a = ShoppingItem(id: "a", name: "Milk", quantity: 1, unit: "l")
+        store.shopping = [a]
+        store.removeShoppingItemWithUndo(a.id)
+        XCTAssertEqual(store.pendingShoppingUndoCount, 1)
+        store.finalizeShoppingUndo()
+        XCTAssertEqual(store.pendingShoppingUndoCount, 0, "expiry drops the batch")
+        store.runToastAction()
+        XCTAssertTrue(store.shopping.isEmpty, "a late Undo tap must not resurrect a finalized removal")
+    }
+
+    func testUndoDoesNotDuplicateAnItemRestoredBySync() {
+        let store = store()
+        let item = ShoppingItem(id: "a", name: "Milk", quantity: 1, unit: "l")
+        store.shopping = [item]
+        store.removeShoppingItemWithUndo(item.id)
+        store.shopping = [item]
+        store.runToastAction()
+        XCTAssertEqual(store.shopping, [item])
+    }
+
+    func testUndoAfterAccountChangeIsBlockedWithTruthfulCopy() {
+        let store = store()
+        store.session = session("u1")
+        // Guaranteed cleanup, even on a failed assertion: with no session the delayed syncNow
+        // returns before any network work. Unit tests must not talk to Supabase.
+        defer { store.session = nil }
+        let a = ShoppingItem(id: "a", name: "Milk", quantity: 1, unit: "l")
+        store.shopping = [a]
+        store.removeShoppingItemWithUndo(a.id)
+        store.session = session("u2")
+        store.runToastAction()
+        XCTAssertTrue(store.shopping.isEmpty, "items removed under another account are never restored")
+        XCTAssertEqual(store.toast?.isError, true)
+        XCTAssertEqual(store.toast?.message, "Couldn’t restore — your account changed since removal.")
+    }
+}

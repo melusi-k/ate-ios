@@ -1,0 +1,142 @@
+name: Settings UI qualification (#74)
+
+# Exact-head, focused native qualification for the Settings organisation candidate:
+# the new SettingsOrganizationUITests (with retained screenshots), the existing strict
+# accessibility audit over the main screens (Settings tab included), and the existing
+# Settings tools/About journey (export sheet, timer toggles, About). Kept in its own
+# workflow because compile-check.yml's test selection is shared with in-flight stacks;
+# additive coverage must not collide with that file.
+#
+# Trigger is bounded to the #74 qualification branch: a workflow_dispatch-only file on
+# a non-default branch never appears in the Actions list, so the push trigger scoped to
+# the exact branch is what runs this lane pre-merge. workflow_dispatch is kept so the
+# lane stays manually re-runnable once it exists on the default branch.
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - feature/issue-74-settings-organisation
+  workflow_dispatch:
+
+concurrency:
+  group: settings-ui-qualification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  settings-ui-qualification:
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      # Validation must build the exact pushed head, not GitHub's synthetic merge commit.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: xcode-27-homebrew-xcodegen-v1
+          restore-keys: |
+            xcode-27-homebrew-
+      - run: brew install xcodegen && xcodegen generate
+      - name: Build for testing (iOS simulator)
+        run: |
+          set -o pipefail
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+          set +e
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Simulator build failed (xcodebuild exit $status). Matching diagnostics and recent log follow:"
+            grep -n -B 8 -A 12 -E "error:|failed|Fatal error|Testing failed" build.log || true
+            tail -n 100 build.log
+            exit "$status"
+          fi
+          echo "build-for-testing succeeded on $SIM_ID"
+      - name: Settings organisation UI + strict Settings AX audit + tools journey
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/SettingsOrganizationUITests \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditMainScreens \
+            -only-testing:AteUITests/CoverageUITests/test32_MoreCollectionsToolsAbout \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/settings-ui-qualification.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > settings-ui-qualification.log 2>&1 || \
+            { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" settings-ui-qualification.log || true; tail -120 settings-ui-qualification.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" settings-ui-qualification.log | tail -40
+      - name: Export rendered screenshots
+        if: always()
+        run: |
+          mkdir -p ui-screenshots/raw
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/settings-ui-qualification.xcresult" --output-path ui-screenshots/raw
+          python3 - <<'PY'
+          import json, os, re, shutil
+          raw = "ui-screenshots/raw"
+          # upload-artifact rejects names containing " : < > | * ? CR LF (and a path separator would break the copy).
+          # Only the readable COPIES are renamed; every raw attachment stays in ui-screenshots/raw under its exported
+          # name, with manifest.json mapping it to its original suggested name.
+          unsafe = re.compile(r'[\\"<>:|*?/\r\n]')
+          def safe(s):
+              return unsafe.sub("_", s)
+          try:
+              man = json.load(open(os.path.join(raw, "manifest.json")))
+          except Exception:
+              man = []
+          for t in man:
+              tn = t.get("testIdentifier", "t").split("/")[-1].replace("()", "")
+              for a in t.get("attachments", []):
+                  n = a.get("suggestedHumanReadableName") or a["exportedFileName"]
+                  base = n.split("_0_")[0] if "_0_" in n else os.path.splitext(n)[0]
+                  ext = os.path.splitext(a["exportedFileName"])[1] or ".png"
+                  dest = f"ui-screenshots/{safe(tn)}__{safe(base)}{safe(ext)}"
+                  k = 1
+                  while os.path.exists(dest):
+                      k += 1
+                      dest = f"ui-screenshots/{safe(tn)}__{safe(base)}-{k}{safe(ext)}"
+                  shutil.copy(os.path.join(raw, a["exportedFileName"]), dest)
+          PY
+          ls -la ui-screenshots
+      # A green test step without its retained evidence does not qualify: fail the run.
+      - name: Validate required evidence (mandatory)
+        if: success()
+        run: |
+          missing=0
+          for pat in \
+            "ui-screenshots/*settings-top-hierarchy*" \
+            "ui-screenshots/*settings-ai-availability*" \
+            "ui-screenshots/*settings-timer-notifications*" \
+            "ui-screenshots/*a11y-audit-settings*"; do
+            if ! compgen -G "$pat" > /dev/null; then
+              echo "::error::Required evidence missing: $pat"
+              missing=1
+            fi
+          done
+          if [ ! -d "$RUNNER_TEMP/ate-test-results/settings-ui-qualification.xcresult" ]; then
+            echo "::error::xcresult bundle missing: $RUNNER_TEMP/ate-test-results/settings-ui-qualification.xcresult"
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Tests passed but required retained evidence is incomplete; this run does not qualify."
+            exit 1
+          fi
+          echo "All required evidence present (3 named screenshots, a11y-audit-settings log, xcresult)."
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: settings-ui-qualification-${{ github.run_number }}
+          retention-days: 90
+          path: |
+            settings-ui-qualification.log
+            ui-screenshots
+            ${{ runner.temp }}/ate-test-results/settings-ui-qualification.xcresult
+          if-no-files-found: error

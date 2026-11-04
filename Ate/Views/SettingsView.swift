@@ -4,6 +4,8 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @AppStorage(JournalingSuggestionsGate.settingKey) private var journalingEnabled = false
     @Environment(AppStore.self) private var store
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var aiStatus = SettingsAIStatus.current
     @State private var importing = false
     @State private var confirmingImport = false
     @State private var pendingImportData: Data?
@@ -59,7 +61,11 @@ struct SettingsView: View {
                                $store.settings.onDeviceOnly)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("On-device AI").font(AteFont.body(12, .semibold))
-                            Text(OnDeviceBackend.availabilityDescription)
+                            Text(SettingsCopy.aiStatusTitle(privateMode: store.settings.onDeviceOnly,
+                                                            status: aiStatus))
+                                .font(.footnote.weight(.semibold))
+                            Text(SettingsCopy.aiStatusGuidance(privateMode: store.settings.onDeviceOnly,
+                                                               status: aiStatus))
                             Text(SettingsCopy.aiExplanation)
                         }
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
@@ -247,7 +253,13 @@ struct SettingsView: View {
             NutritionDiaryView()
         }
         .ateRootNavigationChrome(logoID: "settings.logo")
-        .onAppear { store.bottomAddContext = .recipe }
+        .onAppear {
+            store.bottomAddContext = .recipe
+            aiStatus = SettingsAIStatus.current
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { aiStatus = SettingsAIStatus.current }
+        }
         .onChange(of: store.timerPrefs.stepAlerts) { _, on in if on { Task { _ = await TimerAlerts.requestPermission() } } }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
             guard case .success(let url) = result else { return }

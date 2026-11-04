@@ -248,6 +248,22 @@ final class LogicTests: XCTestCase {
         XCTAssertNil(store.toast)
     }
 
+    func testUndoRestoresItemsRemovedFromDifferentListStates() {
+        let store = store()
+        let a = ShoppingItem(id: "a", name: "Milk", quantity: 1, unit: "l")
+        let b = ShoppingItem(id: "b", name: "Eggs", quantity: 6, unit: "")
+        let c = ShoppingItem(id: "c", name: "Bread", quantity: 1, unit: "")
+        let d = ShoppingItem(id: "d", name: "Butter", quantity: 1, unit: "")
+        store.shopping = [a, b, c, d]
+        store.removeShoppingItemWithUndo(b.id)
+        store.removeShoppingItemWithUndo(d.id)
+        XCTAssertEqual(store.shopping.map(\.id), ["a", "c"])
+        XCTAssertEqual(store.pendingShoppingUndoCount, 2)
+        store.runToastAction()
+        XCTAssertEqual(store.shopping, [a, b, c, d], "Undo restores items removed from different list states at their original positions")
+        XCTAssertNil(store.toast)
+    }
+
     func testUndoWindowExpiryFinalizesRemovals() {
         let store = store()
         let a = ShoppingItem(id: "a", name: "Milk", quantity: 1, unit: "l")

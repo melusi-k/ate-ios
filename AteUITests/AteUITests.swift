@@ -919,13 +919,13 @@ final class AteUITests: XCTestCase {
         let settingsBack = app.navigationBars.buttons["Settings"].firstMatch
         wait(settingsBack, 5)
         settingsBack.tap()
-        XCTAssertEqual(add.label, "Add recipe", "Returning from Food diary restores the Settings root action")
+        XCTAssertFalse(add.exists, "Settings has no root add action once the Food diary is popped")
 
         // Every root tab must replace the previous destination's context.
         app.tabBars.buttons["Shopping"].tap()
         XCTAssertEqual(add.label, "Add item")
         app.tabBars.buttons["Insights"].tap()
-        XCTAssertEqual(add.label, "Add recipe", "Insights must not inherit the Shopping add action")
+        XCTAssertEqual(add.label, "New journal entry", "Insights root offers New journal entry, not the Shopping or recipe action")
         app.tabBars.buttons["Library"].tap()
         XCTAssertEqual(add.label, "Add recipe")
         app.tabBars.buttons["Search"].firstMatch.tap()
@@ -936,14 +936,13 @@ final class AteUITests: XCTestCase {
         shot("tab-search")
 
         // The Search tab and Library tab use separate NavigationStacks. Confirm SceneStorage
-        // keeps the query when crossing between them, and that the accessory remains available.
+        // keeps the query when crossing between them, and that Search shows no add action.
         app.tabBars.buttons["Library"].tap()
         wait(text("Your Kitchen"), 5)
         app.tabBars.buttons["Search"].tap()
         wait(field, 5)
         XCTAssertEqual(field.value as? String, "soup", "search query should survive Library/Search tab switches")
-        wait(add, 5)
-        XCTAssertTrue(add.isHittable, "Add recipe accessory should remain usable after switching tabs")
+        XCTAssertFalse(add.exists, "Search has no root add action")
     }
 
     func testTab_TimerAccessoryKeepsAddControlClear() {

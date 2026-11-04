@@ -673,7 +673,17 @@ final class AppStore {
     }
     private var pendingShoppingRemovals: [PendingShoppingRemoval] = []
     private var shoppingUndoToken = 0
-    static let shoppingUndoSeconds: Double = 5
+    /// Production window is 5s. UI tests can override via -qaShoppingUndoSeconds <n>: XCTest
+    /// observation + screenshot + event synthesis (observed ~5.5s in the runner) does not fit
+    /// inside 5s, so the batch-undo journey widens the window rather than racing it. The
+    /// expiry journey keeps the default and owns window-expiry behaviour.
+    static var shoppingUndoSeconds: Double {
+        guard AppConfig.isUITesting else { return 5 }
+        let a = ProcessInfo.processInfo.arguments
+        guard let i = a.firstIndex(of: "-qaShoppingUndoSeconds"), i + 1 < a.count,
+              let v = Double(a[i + 1]), v.isFinite, v > 0, v <= 600 else { return 5 }
+        return v
+    }
 
     /// Removals the open Undo batch would restore (test seam).
     var pendingShoppingUndoCount: Int { pendingShoppingRemovals.count }

@@ -112,6 +112,38 @@ final class ShoppingEditUndoUITests: XCTestCase {
         screenshot("batch-undo-restored-order")
     }
 
+
+    /// Timely-restore acceptance journey: a real UI Undo tap landing inside the
+    /// production 5-second window must restore the item. Runs WITHOUT the
+    /// -qaShoppingUndoSeconds seam, so the production window applies. The sequence is
+    /// deliberately lean (no screenshots or assertions between the removal tap and the
+    /// Undo tap) because XCTest observe + synthesize latency is the only thing that can
+    /// push the tap past the window.
+    ///
+    /// Verdict semantics (see workflow gate comments):
+    /// - GREEN proves the production-config restore path works via the UI tap. It says
+    ///   nothing about general human usability or app responsiveness.
+    /// - RED is INCONCLUSIVE by default: xcodebuild "Synthesize event" completion
+    ///   timestamps are only bounds on the real removal/expiry/event-delivery instants,
+    ///   so even a synthetic tap-to-tap interval under 5s does not prove an app defect.
+    ///   Classify from the raw timestamp bounds plus visible toast/item state; call it
+    ///   an app defect only if app-owned timing evidence corroborates that the tap
+    ///   landed before expiry.
+    func testTimelyUndoRestoreWithinProductionWindow() {
+        let app = launchShopping()
+        add(app, "Milk")
+
+        app.buttons["Remove Milk"].tap()
+        let undo = app.buttons["toastAction"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 2),
+                      "the Undo toast should appear promptly after a removal")
+        undo.tap()
+
+        XCTAssertTrue(app.buttons["Edit Milk"].waitForExistence(timeout: 5),
+                      "a tap inside the production window must restore the removed item")
+        screenshot("timely-undo-restored")
+    }
+
     func testUndoWindowExpiryFinalizesRemoval() {
         let app = launchShopping()
         add(app, "Milk")

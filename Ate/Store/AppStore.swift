@@ -174,13 +174,14 @@ struct RecoveryInfo: Identifiable, Equatable {
 struct QuickAddRequest: Identifiable, Equatable { let id = UUID(); let mode: WidgetLinks.AddMode }
 
 enum BottomAddContext {
-    case recipe, food, shopping
+    case recipe, food, shopping, journal
 
     var title: String {
         switch self {
         case .recipe: "Add recipe"
         case .food: "Log food"
         case .shopping: "Add item"
+        case .journal: "New journal entry"
         }
     }
 }
@@ -192,6 +193,11 @@ final class AppStore {
     static weak var current: AppStore?
     /// Set by the Quick add widget / control / intent: opens Add recipe on the matching tab.
     var quickAdd: QuickAddRequest?
+    // Session-only manual Journal draft; survives portrait/sidebar tree replacement.
+    var manualJournalHost: ManualJournalHost?
+    var manualJournalDraft = ""
+    var journalRevision = 0
+    func beginManualJournal() { if manualJournalHost == nil { manualJournalHost = .root } }
     /// Controls the persistent bottom action for the destination currently in view.
     var bottomAddContext: BottomAddContext = .recipe
     /// Requests handled by the active Food diary and Shopping list screens.
@@ -282,6 +288,17 @@ final class AppStore {
     /// iOS 26 search tab (Tab(role: .search)) has its own stack.
     var searchPath: [Route] = []
     /// True when the selected tab shows its root screen (banners that belong to tab roots hide on pushed screens).
+    /// Primary action for the selected tab root. Search and Settings have none.
+    var rootAddContext: BottomAddContext? {
+        switch tab {
+        case .library, .collection: return .recipe
+        case .shopping: return .shopping
+        case .tracker: return .journal
+        case .settings, .more, .search: return nil
+        }
+    }
+    /// The Food diary (pushed from any tab) keeps "Log food"; otherwise the tab root decides.
+    var activeAddContext: BottomAddContext? { bottomAddContext == .food ? .food : rootAddContext }
     var isAtTabRoot: Bool {
         switch tab {
         case .library, .collection: return path.isEmpty

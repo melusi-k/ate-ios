@@ -66,6 +66,7 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/SettingsOrganizationUITests \
             -only-testing:AteUITests/AccessibilityAuditUITests/testAuditMainScreens \
+            -only-testing:AteUITests/SettingsAuditUITests \
             -only-testing:AteUITests/CoverageUITests/test32_MoreCollectionsToolsAbout \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/settings-ui-qualification.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \

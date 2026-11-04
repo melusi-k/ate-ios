@@ -268,6 +268,127 @@ final class AteUITests: XCTestCase {
         wait(recordedRecipe, 5)
     }
 
+    /// Cooks the prompt recipe through Cook mode so today has a recorded cooking day (optionally
+    /// deleting the recipe afterwards), then opens today's "Cooked that day" sheet through
+    /// Insights -> Insights & Cooking History. Returns the day's recipe row.
+    private func openTodayCookedSheet(deleteRecipeFirst: Bool = false, runningTimer: Bool = false) -> XCUIElement {
+        launch()
+        addPromptRecipe()
+        app.buttons["Cook mode"].tap()
+        wait(text("Step 1 of 4"))
+        let finish = app.buttons["cookFinish"]
+        var steps = 0
+        while !finish.exists && steps < 6 {
+            let next = app.buttons["Next step"]
+            wait(next, 5)
+            next.tap()
+            steps += 1
+        }
+        wait(finish, 5)
+        finish.tap()
+        wait(app.buttons["Cook mode"], 5)
+        if runningTimer {
+            // Start the step-3 timer, then leave Cook mode with Exit: the timer keeps running.
+            app.buttons["Cook mode"].tap()
+            wait(text("Step 1 of 4"))
+            app.buttons["Next step"].tap(); app.buttons["Next step"].tap()
+            wait(text("Step 3 of 4"))
+            app.buttons["Start timer"].tap()
+            wait(app.buttons["Pause timer"], 5)
+            app.buttons["Exit"].tap()
+            wait(app.buttons["Cook mode"], 5)
+        }
+        if deleteRecipeFirst {
+            app.buttons["recipeMenu"].tap(); app.buttons["deleteButton"].tap()
+            let confirm = app.buttons["Delete recipe"]
+            wait(confirm)
+            confirm.tap()
+            wait(text("Nothing saved yet"))
+        }
+
+        tab("Insights")
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
+        hub.tap()
+        let day = Calendar.current.component(.day, from: Date())
+        let today = app.buttons["tracker.day.\(day)"]
+        wait(today, 5)
+        today.tap()
+        wait(app.navigationBars["Cooked that day"], 5)
+        let row = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "tracker.recipe.")
+        ).firstMatch
+        wait(row, 5)
+        return row
+    }
+
+    /// Cooking history -> recipe: the recipe cooked on a day opens its own recipe sheet.
+    func testTrackerDayRecipeOpensRecipeSheet() {
+        let row = openTodayCookedSheet()
+        let recipeID = String(row.identifier.dropFirst("tracker.recipe.".count))
+        XCTAssertFalse(recipeID.isEmpty)
+        XCTAssertTrue(app.buttons[row.identifier].exists, "a recipe still in the library is a tappable button")
+        XCTAssertFalse(row.label.isEmpty, "the row is labelled with the recipe title")
+        let title = row.label
+        shot("tracker-day-recipe-row")
+        row.tap()
+        let done = app.buttons["recipeSheet.done"]
+        wait(done, 5)
+        XCTAssertTrue(app.descendants(matching: .any)["recipeSheet.recipe.\(recipeID)"].waitForExistence(timeout: 5),
+                      "the sheet shows exactly the recipe that was cooked that day (id \(recipeID))")
+        XCTAssertTrue(app.staticTexts[title].firstMatch.waitForExistence(timeout: 5),
+                      "the sheet shows the fixture recipe's exact visible title (\(title))")
+        XCTAssertTrue(app.buttons["Cook mode"].exists)
+        shot("tracker-day-recipe-opened")
+        done.tap()
+        // Done returns to the same day the recipe was opened from.
+        wait(app.navigationBars["Cooked that day"], 5)
+        XCTAssertTrue(app.buttons[row.identifier].waitForExistence(timeout: 5), "the same day's recipe row is back")
+    }
+
+    /// Cook mode started from the recipe opened out of the tracker: the root full-screen cover
+    /// must present, and Exit must leave a usable app (not finishing, so no extra cooking day).
+    /// Not covered here: a running timer surviving the handoff (needs a timed fixture recipe).
+    func testTrackerDayRecipeCanStartAndExitCookMode() {
+        let row = openTodayCookedSheet()
+        row.tap()
+        wait(app.buttons["recipeSheet.done"], 5)
+        let cook = app.buttons["Cook mode"]
+        wait(cook, 5)
+        cook.tap()
+        wait(text("Step 1 of 4"), 15)
+        shot("tracker-day-recipe-cook-mode")
+        app.buttons["Exit"].tap()
+        wait(app.tabBars.buttons["Library"], 10)
+        XCTAssertTrue(app.tabBars.buttons["Library"].isHittable, "the app is usable after leaving Cook mode")
+    }
+
+    /// A timer running when Cook mode was exited is still running when Cook mode is reopened
+    /// from the tracker's day recipe (the cook session resumes at the running timer's step).
+    func testTrackerDayRecipeCookModeKeepsRunningTimer() {
+        let row = openTodayCookedSheet(runningTimer: true)
+        row.tap()
+        wait(app.buttons["recipeSheet.done"], 5)
+        app.buttons["Cook mode"].tap()
+        wait(text("Step 3 of 4"), 15)
+        wait(app.buttons["Pause timer"], 5)
+        shot("tracker-day-recipe-timer-retained")
+        app.buttons["Pause timer"].tap()
+        app.buttons["Reset timer"].tap()
+        app.buttons["Exit"].tap()
+        wait(app.tabBars.buttons["Library"], 10)
+    }
+
+    /// A recipe deleted after it was cooked keeps its history row as plain, non-tappable text.
+    func testTrackerDayDeletedRecipeIsNotTappable() {
+        let row = openTodayCookedSheet(deleteRecipeFirst: true)
+        XCTAssertTrue(text("Recipe no longer in your library").waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons[row.identifier].exists, "a deleted recipe's row is not a button")
+        shot("tracker-day-deleted-recipe-fallback")
+        row.tap()
+        XCTAssertFalse(app.buttons["recipeSheet.done"].waitForExistence(timeout: 2), "tapping the fallback opens nothing")
+    }
+
     func test07_ShoppingList() {
         launch()
         wait(text("Your Kitchen"))

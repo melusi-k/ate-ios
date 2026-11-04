@@ -35,7 +35,7 @@ struct ShoppingListView: View {
                         Button(action: addManual) {
                             Image(systemName: "plus").font(.body.weight(.bold)).foregroundStyle(Theme.primaryForeground)
                                 .frame(width: 48, height: 48).background(Theme.primary, in: Circle())
-                        }.accessibilityLabel("Add item")
+                        }.accessibilityLabel("Add item").accessibilityIdentifier("shoppingAddSubmit")
                     }
                     if store.shopping.isEmpty {
                         EmptyStateCard(symbol: "basket", title: "Nothing on the list",

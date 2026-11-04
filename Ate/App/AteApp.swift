@@ -39,13 +39,18 @@ struct AteApp: App {
         _store = State(initialValue: st)
     }
 
+    /// One typed expression keeps the shared modifiers attached across DEBUG compilation.
+    private var rootContent: AnyView {
+#if DEBUG
+        CanonicalNutritionQARoute.rootView(store: store) ?? AnyView(RootView())
+#else
+        AnyView(RootView())
+#endif
+    }
+
     var body: some Scene {
         WindowGroup {
-#if DEBUG
-            (CanonicalNutritionQARoute.rootView(store: store) ?? AnyView(RootView()))
-#else
-            AnyView(RootView())
-#endif
+            rootContent
                 .environment(store)
                 .onOpenURL { store.handle(url: $0) }
                 .task {

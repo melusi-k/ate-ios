@@ -338,6 +338,7 @@ private struct NutritionDiaryEntryEditView: View {
                                 Spacer()
                                 Text("logged \(food.timesLogged)x").foregroundStyle(Theme.mutedForeground)
                             }
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("nutritionDiary.frequent.\(index)")
@@ -431,6 +432,8 @@ private struct NutritionDiaryEntryEditView: View {
                             }
                         } label: {
                             Label("Link a recipe", systemImage: "link")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
                         }
                         .accessibilityIdentifier("nutritionDiary.linkRecipe")
                     }

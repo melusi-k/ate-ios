@@ -15,9 +15,11 @@ struct CanonicalNutritionDiaryView: View {
     init(coordinator: FoodJournalCoordinator,
          goalsRepository: NutritionGoalsRepository = NutritionGoalsRepository(),
          repair: LegacyDiaryRepair,
+         associationStore: NutritionRecipeAssociationStore? = nil,
          calendar: Calendar = .autoupdatingCurrent) {
         _controller = State(initialValue: NutritionDiaryController(
-            coordinator: coordinator, goalsRepository: goalsRepository, repair: repair, calendar: calendar))
+            coordinator: coordinator, goalsRepository: goalsRepository, repair: repair,
+            associationStore: associationStore, calendar: calendar))
     }
 
     private var selectedDateBinding: Binding<Date> {
@@ -39,6 +41,14 @@ struct CanonicalNutritionDiaryView: View {
                 if controller.journalOpenState != .ok {
                     Section { JournalOpenStateBanner(state: controller.journalOpenState) }
                 }
+                if controller.associationsUnreadable {
+                    Section {
+                        Label("Recipe links couldn't be read. Your diary entries are still available; saved links haven't been changed.",
+                              systemImage: "exclamationmark.triangle")
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("nutritionDiary.linksUnavailableSummary")
+                    }
+                }
                 diaryContent
             }
             if let mutationError {
@@ -58,7 +68,8 @@ struct CanonicalNutritionDiaryView: View {
                 NutritionDiaryEntryEditView(
                     draft: NutritionDiaryEntryDraft(dayKey: controller.selectedDayKey),
                     existing: nil,
-                    calendar: controller.calendar
+                    calendar: controller.calendar,
+                    frequentFoods: controller.frequentFoods
                 ) { entry in
                     try controller.add(entry)
                 }
@@ -69,7 +80,19 @@ struct CanonicalNutritionDiaryView: View {
                 NutritionDiaryEntryEditView(
                     draft: NutritionDiaryEntryDraft(entry: entry),
                     existing: entry,
-                    calendar: controller.calendar
+                    calendar: controller.calendar,
+                    association: controller.association(for: entry),
+                    linksUnavailable: controller.associationsUnreadable,
+                    linksAvailable: controller.associationStore != nil,
+                    recipes: store.recipes,
+                    onAssociate: { recipe in
+                        do { try controller.associate(entry: entry, recipe: recipe); return nil }
+                        catch { return "The recipe couldn't be linked: \(error.localizedDescription)" }
+                    },
+                    onDissociate: {
+                        do { try controller.dissociate(entry: entry); return nil }
+                        catch { return "The link couldn't be removed: \(error.localizedDescription)" }
+                    }
                 ) { updated in
                     try controller.update(updated)
                 }
@@ -151,7 +174,7 @@ struct CanonicalNutritionDiaryView: View {
             }
             if goals?.isEmpty == true {
                 NavigationLink {
-                    NutritionGoalsView()
+                    NutritionGoalsView(repository: controller.goalsRepository)
                 } label: {
                     Label("Set optional daily goals", systemImage: "target")
                 }
@@ -162,7 +185,7 @@ struct CanonicalNutritionDiaryView: View {
                     .foregroundStyle(Theme.mutedForeground)
                     .accessibilityIdentifier("nutritionDiary.goalsLoadError")
                 NavigationLink {
-                    NutritionGoalsView()
+                    NutritionGoalsView(repository: controller.goalsRepository)
                 } label: {
                     Label("Retry loading daily goals", systemImage: "arrow.clockwise")
                 }
@@ -233,6 +256,9 @@ struct CanonicalNutritionDiaryView: View {
             if !entry.verificationNote.isEmpty {
                 Text(entry.verificationNote).font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
             }
+            if let link = controller.association(for: entry) {
+                Text("Recipe: \(link.recipeName)").font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+            }
         }
         .accessibilityElement(children: .combine)
     }
@@ -255,15 +281,40 @@ private struct NutritionDiaryEntryEditView: View {
     @State private var draft: NutritionDiaryEntryDraft
     let existing: NutritionDiaryEntry?
     let calendar: Calendar
+    /// The entry's current recipe link (edit only; the name is the link-time snapshot).
+    @State private var association: NutritionRecipeAssociation?
+    /// True when the link store holds undecodable bytes: the section says links are
+    /// unavailable instead of pretending no links exist, and offers no link controls.
+    let linksUnavailable: Bool
+    let linksAvailable: Bool
+    /// Recipes offered for linking (edit only).
+    let recipes: [RecipeCard]
+    /// Foods logged before, offered as one-tap drafts (add only). Returns an error string or nil.
+    let frequentFoods: [NutritionFrequentFood]
+    let onAssociate: ((RecipeCard) -> String?)?
+    let onDissociate: (() -> String?)?
     let onSave: (NutritionDiaryEntry) throws -> Void
     @State private var errorMessage: String?
+    @State private var linkError: String?
     @Environment(\.dismiss) private var dismiss
 
     init(draft: NutritionDiaryEntryDraft, existing: NutritionDiaryEntry?, calendar: Calendar,
+         association: NutritionRecipeAssociation? = nil, linksUnavailable: Bool = false,
+         linksAvailable: Bool = false,
+         recipes: [RecipeCard] = [],
+         frequentFoods: [NutritionFrequentFood] = [],
+         onAssociate: ((RecipeCard) -> String?)? = nil, onDissociate: (() -> String?)? = nil,
          onSave: @escaping (NutritionDiaryEntry) throws -> Void) {
         _draft = State(initialValue: draft)
         self.existing = existing
         self.calendar = calendar
+        _association = State(initialValue: association)
+        self.linksUnavailable = linksUnavailable
+        self.linksAvailable = linksAvailable
+        self.recipes = recipes
+        self.frequentFoods = frequentFoods
+        self.onAssociate = onAssociate
+        self.onDissociate = onDissociate
         self.onSave = onSave
     }
 
@@ -276,6 +327,25 @@ private struct NutritionDiaryEntryEditView: View {
 
     var body: some View {
         Form {
+            if existing == nil && !frequentFoods.isEmpty {
+                Section {
+                    ForEach(Array(frequentFoods.enumerated()), id: \.offset) { index, food in
+                        Button {
+                            draft = NutritionFrequentFoods.draft(from: food, dayKey: draft.dayKey)
+                        } label: {
+                            HStack {
+                                Text(food.foodName)
+                                Spacer()
+                                Text("logged \(food.timesLogged)x").foregroundStyle(Theme.mutedForeground)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("nutritionDiary.frequent.\(index)")
+                    }
+                } header: { Text("Previously logged") } footer: {
+                    Text("From your own past entries. Values copy over as you logged them - check them before saving; they are not verified.")
+                }
+            }
             Section("Food consumed") {
                 TextField("Food or recipe name", text: $draft.foodName)
                     .accessibilityIdentifier("nutritionDiary.foodName")
@@ -322,6 +392,54 @@ private struct NutritionDiaryEntryEditView: View {
                 }
             } header: { Text("Nutrients per serving (optional)") } footer: {
                 Text("Enter only values you can verify from the source. Each logged entry keeps this snapshot if the source changes later.")
+            }
+            if existing != nil && (linksAvailable || linksUnavailable) {
+                Section {
+                    if linksUnavailable {
+                        // The saved links couldn't be decoded. Say so honestly: the links are
+                        // kept exactly as they are (the store refuses to overwrite them), the
+                        // entry is unaffected, and no link control is offered against a store
+                        // that cannot be read.
+                        Label("Recipe links couldn't be read. Your links are kept as they were; this entry is unaffected.",
+                              systemImage: "exclamationmark.triangle")
+                            .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("nutritionDiary.linksUnavailable")
+                    } else if let association {
+                        Label(association.recipeName, systemImage: "link")
+                            .accessibilityIdentifier("nutritionDiary.linkedRecipe")
+                        Text("Linked \(association.linkedAt.formatted(date: .abbreviated, time: .shortened)). The recipe name is kept as it was when linked. Entry nutrients never come from the recipe.")
+                            .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                        Button("Unlink recipe", role: .destructive) {
+                            linkError = onDissociate?()
+                            if linkError == nil { association = nil }
+                        }
+                        .accessibilityIdentifier("nutritionDiary.unlinkRecipe")
+                    } else if recipes.isEmpty {
+                        Text("No recipes saved yet. Save a recipe first, then link it here.")
+                            .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                    } else {
+                        Menu {
+                            ForEach(recipes) { recipe in
+                                Button(recipe.title) {
+                                    linkError = onAssociate?(recipe)
+                                    if linkError == nil, let existing {
+                                        association = NutritionRecipeAssociation(entryID: existing.id.uuidString,
+                                            recipeID: recipe.id, recipeName: recipe.title, linkedAt: .now)
+                                    }
+                                }
+                            }
+                        } label: {
+                            Label("Link a recipe", systemImage: "link")
+                        }
+                        .accessibilityIdentifier("nutritionDiary.linkRecipe")
+                    }
+                    if let linkError {
+                        Text(linkError).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.linkError")
+                    }
+                } header: { Text("Linked recipe") } footer: {
+                    Text("Linking records which recipe this entry came from. It never fills in or changes nutrients.")
+                }
             }
             if let errorMessage { Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.formError") } }
         }

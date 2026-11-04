@@ -2,7 +2,7 @@ import Foundation
 
 /// Why a diary draft cannot be saved yet. Editing keeps the typed draft on every
 /// failure; these only decide which honest message the form shows.
-enum NutritionDiaryDraftError: Equatable {
+enum NutritionDiaryDraftError: Error, Equatable {
     /// Quantity or servings is not a finite number greater than zero.
     case invalidAmounts
     /// A nutrient field holds text that is not a non-negative number.

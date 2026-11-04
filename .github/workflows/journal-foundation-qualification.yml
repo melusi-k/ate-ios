@@ -1,0 +1,54 @@
+name: Journal foundation native qualification
+on:
+  workflow_dispatch:
+  push:
+    branches: [journal-foundation-qualification]
+permissions:
+  contents: read
+concurrency:
+  group: journal-foundation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  journal-foundation:
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Record exact source and toolchain
+        run: |
+          mkdir -p build/journal-foundation
+          git rev-parse HEAD | tee build/journal-foundation/head.txt
+          git status --porcelain > build/journal-foundation/worktree.txt
+          xcodebuild -version | tee build/journal-foundation/xcode.txt
+          find Ate AteTests -name '*.swift' -print0 | xargs -0 shasum -a 256 > build/journal-foundation/source-sha256.txt
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: Build and run 47 boundary coordinator archive repair timeline fixtures with complete concurrency checking
+        run: |
+          set -o pipefail
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          printf '%s\n' "$SIM_ID" > build/journal-foundation/simulator.txt
+          xcodebuild test -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/FoodJournalStoreTests \
+            -only-testing:AteTests/FoodJournalCoordinatorTests \
+            -only-testing:AteTests/JournalArchiveTests \
+            -only-testing:AteTests/LegacyDiaryRepairTests \
+            -only-testing:AteTests/JournalTimelineOrderTests \
+            -resultBundlePath build/journal-foundation/JournalFoundation.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            SWIFT_STRICT_CONCURRENCY=complete CODE_SIGNING_ALLOWED=NO \
+            > build/journal-foundation/native.log 2>&1 || { tail -160 build/journal-foundation/native.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED|warning:.*(concurr|Sendable|actor)" build/journal-foundation/native.log || true
+      - name: Retain native evidence including failed build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: journal-foundation-${{ github.run_number }}-${{ github.run_attempt }}
+          path: build/journal-foundation/
+          if-no-files-found: error
+          retention-days: 14

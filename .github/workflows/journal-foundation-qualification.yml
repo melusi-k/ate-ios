@@ -28,7 +28,7 @@ jobs:
           find Ate AteTests -name '*.swift' -print0 | xargs -0 shasum -a 256 > build/journal-foundation/source-sha256.txt
       - run: brew install xcodegen
       - run: xcodegen generate
-      - name: Build and run boundary coordinator archive repair fixtures with complete concurrency checking
+      - name: Build and run 47 boundary coordinator archive repair timeline fixtures with complete concurrency checking
         run: |
           set -o pipefail
           SIM_ID=$(python3 scripts/select-ios-simulator.py)
@@ -38,6 +38,7 @@ jobs:
             -only-testing:AteTests/FoodJournalCoordinatorTests \
             -only-testing:AteTests/JournalArchiveTests \
             -only-testing:AteTests/LegacyDiaryRepairTests \
+            -only-testing:AteTests/JournalTimelineOrderTests \
             -resultBundlePath build/journal-foundation/JournalFoundation.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             SWIFT_STRICT_CONCURRENCY=complete CODE_SIGNING_ALLOWED=NO \

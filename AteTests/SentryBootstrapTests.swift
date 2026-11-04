@@ -75,6 +75,22 @@ final class SentryBootstrapTests: XCTestCase {
         XCTAssertNil(SentryBootstrap.canaryMarker())
     }
 
+    func testFatalProofDecisionIsFailClosedAndRecoveryWins() {
+        let fatal = ["-SentryFatalProof"]
+        let recovery = ["-SentryFatalRecovery"]
+        let both = fatal + recovery
+        for arguments in [[], fatal, recovery, both] {
+            XCTAssertEqual(SentryBootstrap.fatalProofAction(arguments: arguments, canaryPresent: false, channel: "TierA"), .none)
+            for channel in ["", "Production", "TierB", "Beta", "unknown"] {
+                XCTAssertEqual(SentryBootstrap.fatalProofAction(arguments: arguments, canaryPresent: true, channel: channel), .none)
+            }
+        }
+        XCTAssertEqual(SentryBootstrap.fatalProofAction(arguments: [], canaryPresent: true, channel: "TierA"), .none)
+        XCTAssertEqual(SentryBootstrap.fatalProofAction(arguments: fatal, canaryPresent: true, channel: "TierA"), .crash)
+        XCTAssertEqual(SentryBootstrap.fatalProofAction(arguments: recovery, canaryPresent: true, channel: "TierA"), .recover)
+        XCTAssertEqual(SentryBootstrap.fatalProofAction(arguments: both, canaryPresent: true, channel: "TierA"), .recover)
+    }
+
     // MARK: - Event scrubbing
 
     func testScrubRemovesIdentityFreeTextURLsAndSDKTags() {

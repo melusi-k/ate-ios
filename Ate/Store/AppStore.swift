@@ -641,6 +641,88 @@ final class AppStore {
         guard let i = shopping.firstIndex(where: { $0.id == id }), shopping[i].done != done else { return }
         shopping[i].done = done; persistShopping()
     }
+    /// Update in place so completion, recipe sources, notes, unit and the stable item identity survive.
+    /// The aisle is re-derived only when the name actually changed; a quantity-only edit keeps it.
+    /// Setting the quantity to 0 ("no amount") also clears the unit so no dangling unit renders.
+    @discardableResult func editShoppingItem(_ id: String, name: String, quantity: Double) -> Bool {
+        guard let trimmed = ShoppingEdit.trimmedName(name), quantity.isFinite, quantity >= 0,
+              let index = shopping.firstIndex(where: { $0.id == id }) else { return false }
+        if shopping[index].name != trimmed {
+            shopping[index].name = trimmed
+            shopping[index].aisle = ShoppingLogic.guessAisle(trimmed)
+        }
+        if quantity == 0 {
+            // "No amount" keeps no dangling unit, or the row would render "l Milk".
+            shopping[index].unit = ""
+        }
+        shopping[index].quantity = quantity
+        persistShopping()
+        return true
+    }
+
+    private struct PendingShoppingRemoval {
+        let item: ShoppingItem
+        let index: Int
+        let owner: String?
+    }
+    private var pendingShoppingRemovals: [PendingShoppingRemoval] = []
+    private var shoppingUndoToken = 0
+    static let shoppingUndoSeconds: Double = 5
+
+    /// Removals the open Undo batch would restore (test seam).
+    var pendingShoppingUndoCount: Int { pendingShoppingRemovals.count }
+
+    /// Remove with a 5-second Undo toast. Removals made while the toast is open join the same
+    /// batch: the toast says "Removed N items" and Undo restores all of them, each at its
+    /// original position. When the toast expires the batch is finalized and stays removed.
+    /// Known limitation: the app has a single toast slot, so an unrelated toast (e.g. "Copied
+    /// as text") shown during the window replaces the Undo affordance; the batch still
+    /// finalizes on schedule. Full recovery would need a toast queue - not claimed here.
+    func removeShoppingItemWithUndo(_ id: String) {
+        guard let index = shopping.firstIndex(where: { $0.id == id }) else { return }
+        let item = shopping[index]
+        pendingShoppingRemovals.append(PendingShoppingRemoval(item: item, index: index, owner: insightLifecycleAccountID))
+        removeItem(id)
+        let count = pendingShoppingRemovals.count
+        shoppingUndoToken &+= 1
+        let token = shoppingUndoToken
+        show(count == 1 ? "Removed “\(item.name)”" : "Removed \(count) items",
+             action: "Undo", perform: { [weak self] in self?.undoShoppingRemovals() },
+             seconds: Self.shoppingUndoSeconds)
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.shoppingUndoSeconds * 1_000_000_000))
+            guard let self, self.shoppingUndoToken == token else { return }
+            self.finalizeShoppingUndo()
+        }
+    }
+
+    /// Restores the open batch without touching anything else on the list: an item that came
+    /// back through sync or a re-add is never duplicated, and edits made after a removal survive.
+    /// Items removed under a different account are never restored into the current one.
+    func undoShoppingRemovals() {
+        let batch = pendingShoppingRemovals
+        pendingShoppingRemovals = []
+        shoppingUndoToken &+= 1
+        toast = nil
+        guard !batch.isEmpty else { return }
+        var blockedByAccountChange = false
+        for pending in batch.sorted(by: { $0.index < $1.index }) {
+            guard pending.owner == insightLifecycleAccountID else { blockedByAccountChange = true; continue }
+            guard !shopping.contains(where: { $0.id == pending.item.id }) else { continue }
+            shopping.insert(pending.item, at: min(pending.index, shopping.count))
+        }
+        persistShopping()
+        if blockedByAccountChange {
+            show("Couldn’t restore — your account changed since removal.", error: true)
+        }
+    }
+
+    /// The Undo window closed without Undo (toast timer, or a test): removals become permanent.
+    func finalizeShoppingUndo() {
+        pendingShoppingRemovals = []
+        shoppingUndoToken &+= 1
+    }
+
     func removeItem(_ id: String) { shopping.removeAll { $0.id == id }; persistShopping() }
     func clearTicked() { shopping.removeAll { $0.done }; persistShopping() }
     func clearShopping() {
@@ -975,5 +1057,54 @@ final class AppStore {
         tab = .library
         if let slug { path = [.shared(slug)]; BetaQA.shared.pass("A-SHARE-02", note: "Opened \(url.scheme ?? "")://… shared link \(slug)") }
         else { path = [.notFound] }
+    }
+}
+
+
+/// Field validation for the shopping edit sheet: an empty quantity means "no amount",
+/// otherwise it must be a finite, non-negative number; a name must survive trimming.
+enum ShoppingEdit {
+    /// Locale-independent: "." and "," both mean the decimal separator (the decimal pad offers
+    /// only one of them per locale), grouping and exponents are not accepted. This avoids the
+    /// locale-parser trap where de_DE reads "2.5" as 25 - a silent tenfold data change.
+    static func parseQuantity(_ text: String) -> Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return 0 }
+        let normalized = trimmed.replacingOccurrences(of: ",", with: ".")
+        guard normalized.range(of: #"^(\d+(\.\d*)?|\.\d+)$"#, options: .regularExpression) != nil,
+              let value = Double(normalized), value.isFinite, value >= 0 else { return nil }
+        return value
+    }
+
+    /// Initial text for the quantity field: empty for "no amount", otherwise plain decimal
+    /// (always ".", no grouping, no scientific notation), so parseQuantity(quantityText(q)) == q
+    /// exactly in every locale for ordinary quantities. A locale formatter would re-display
+    /// rounded digits and a re-save would silently change the stored value. Extreme legacy
+    /// values print in plain decimal too, so the field is never seeded with text it rejects.
+    static func quantityText(_ quantity: Double) -> String {
+        if quantity == 0 { return "" }
+        var s = String(quantity)
+        if s.contains("e") || s.contains("E") {
+            // String(Double) switches to scientific notation beyond ordinary magnitudes; the
+            // field accepts plain decimal only.
+            s = String(format: "%.10f", quantity)
+            while s.hasSuffix("0") { s.removeLast() }
+            if s.hasSuffix(".") { s.removeLast() }
+        }
+        if s.hasSuffix(".0") { s = String(s.dropLast(2)) }
+        return s
+    }
+
+    /// The quantity to store from the editor: the original when the field is untouched, so a
+    /// name-only edit is never trapped by an unparseable legacy value; otherwise the parsed
+    /// text (nil while the edited text is invalid, which keeps Save disabled).
+    static func effectiveQuantity(original: Double, originalText: String, editedText: String) -> Double? {
+        if editedText == originalText { return original }
+        return parseQuantity(editedText)
+    }
+
+    static func trimmedName(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

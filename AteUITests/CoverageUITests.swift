@@ -359,7 +359,12 @@ final class CoverageUITests: XCTestCase {
         let reset = app.buttons["Reset this build's results"]
         scrollTo(reset); reset.tap()
         let confirm = app.buttons["Reset this build"].firstMatch
-        wait(confirm, 5); confirm.tap()
+        wait(confirm, 5)
+        XCTAssertTrue(text("Earlier-build history is kept.").exists)
+        shot("beta-reset-current-build-confirmation")
+        app.buttons["Cancel"].firstMatch.tap()
+        XCTAssertFalse(confirm.exists)
+        reset.tap(); wait(confirm, 5); confirm.tap()
         app.swipeDown(); app.swipeDown(); app.swipeDown()
         wait(text("This build: 0/"), 5)
         shot("beta-reset")
@@ -380,6 +385,7 @@ final class CoverageUITests: XCTestCase {
         wait(beta, 5); beta.tap()
         wait(app.staticTexts["betaProgress"], 8)
         XCTAssertTrue(app.navigationBars.staticTexts["Beta testing"].exists)
+        shot("beta-after-library-clear")
     }
 
     /// Regression for the direct user journey: tapping Settings › Beta testing from a
@@ -393,6 +399,37 @@ final class CoverageUITests: XCTestCase {
         wait(app.staticTexts["betaProgress"], 8)
         XCTAssertTrue(app.navigationBars.staticTexts["Beta testing"].exists)
         XCTAssertTrue(app.staticTexts["betaCISummary"].exists)
+        XCTAssertEqual(app.staticTexts["betaCISummary"].label, "CI: no published evidence for this exact build")
+        shot("beta-fresh-settings")
+        shot("beta-ci-no-published-evidence")
+    }
+
+    /// Presentation fixtures do not prove a live network failure or signed-out account race.
+    func test35d_BetaCINotLoadedAndUnknownAreNotNoEvidence() {
+        launch(["-qaBetaCINotLoaded"])
+        tab("Settings"); app.buttons["settings.betaTesting"].tap()
+        let summary = app.staticTexts["betaCISummary"]
+        wait(summary)
+        XCTAssertEqual(summary.label, "CI: not loaded")
+        XCTAssertFalse(summary.label.contains("no published evidence"))
+        shot("beta-ci-not-loaded")
+        app.terminate()
+        launch(["-qaBetaCIRefreshFailure"])
+        tab("Settings"); app.buttons["settings.betaTesting"].tap()
+        wait(app.staticTexts["betaCIError"])
+        XCTAssertEqual(app.staticTexts["betaCISummary"].label, "CI: status unknown")
+        XCTAssertTrue(app.staticTexts["betaCIError"].label.contains("Simulated refresh failure"))
+        shot("beta-ci-refresh-unknown")
+    }
+
+    func test35e_BetaLocalBuildExplainsUnverifiedVerdicts() {
+        launch()
+        tab("Settings"); app.buttons["settings.betaTesting"].tap()
+        let notice = app.staticTexts["betaUnverifiedBuildNotice"]
+        scrollTo(notice); wait(notice)
+        XCTAssertTrue(notice.label.contains("no verifiable release identity"))
+        XCTAssertTrue(notice.label.contains("not counted as current-build verification"))
+        shot("beta-local-build-identity-notice")
     }
 
     func passed() -> Int {

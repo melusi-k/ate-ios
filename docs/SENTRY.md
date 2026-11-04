@@ -4,22 +4,47 @@ Sentry is Ate's crash/error and performance-observability service. It complement
 
 ## Configuration
 
-- The official Sentry Cocoa SDK is pinned through XcodeGen / Swift Package Manager.
-- Supply the project's DSN through the `SENTRY_DSN` environment variable when running `xcodegen generate`; XcodeGen writes it to the app's `AteSentryDSN` Info.plist key.
-- An empty DSN disables Sentry. UI-test launches always disable it.
-- Never commit the Sentry onboarding run code, auth token, or other account credentials. The DSN is an ingestion endpoint, not an authentication secret, but should still be configured per build environment.
-- Set the Sentry project environment through the existing `ATE_CHANNEL` build setting. Empty channel maps to `production`.
+- The official Sentry Cocoa SDK is pinned through XcodeGen / Swift Package Manager (`from: 9.32.0`; commit `Package.resolved` when reproducible pinning is required).
+- Supply the project's DSN through the `SENTRY_DSN` environment variable when running `xcodegen generate`; XcodeGen writes it to the app's `AteSentryDSN` Info.plist key. For distributed beta builds, CI reads it from the `SENTRY_DSN` GitHub Actions secret in the Build IPA workflow; an unset secret expands empty and leaves Sentry disabled. Find the DSN in the Sentry project under Settings > Projects > [project] > Client Keys (DSN) (https://docs.sentry.io/concepts/key-terms/dsn-explainer/).
+- Opt-in ingestion gate: the Build IPA workflow injects the DSN only when the one-off `sentry_proof` dispatch input is set (proof builds) or the `SENTRY_BETA_INGESTION=enabled` repository variable is set (beta builds). Set that variable only after the synthetic scrub-verification proof passes, so real beta capture cannot start by accident. Production-channel builds never start Sentry regardless (app-side channel gate).
+- Ingestion proof procedure: dispatch Build IPA manually with `channel=TierA` AND `sentry_proof=true` (the dispatch default `Production` channel is blocked by the app-side gate). Proof runs erase the simulator before install (fresh synthetic state), and the existing A-CI-03 bare 10-second simulator launch (no `-UITesting`) starts the SDK and captures ONE synthetic error embedding the run's canary marker (`AteSentryCanary` Info.plist key, from the `SENTRY_CANARY` env, empty in every normal build). The stored event must (a) exist, proving ingestion, and (b) contain the canary nowhere, proving scrubbing. Verify by inspecting the stored event JSON in the Sentry project. Never commit a canary value.
+- Proof runs never publish: the per-build prerelease, rolling `latest-build`, A-CI-06 published-artifact check and the `latest-beta` promotion job are all skipped when `sentry_proof` is set. The proof IPA is retained only as a private Actions artifact and is never distributed.
+- A single canary proves only the seeded field paths; it is not blanket proof that no private content can be captured. The payload-verification gate below still governs production ingestion.
+- An empty DSN disables Sentry. UI-test launches always disable it. CI test lanes (compile check, dogfood, UI suites) do not set a DSN, so tests never emit remote events.
+- Channel gate: Sentry starts only in recognized non-production channels (`AppConfig.isBetaChannel`), the same policy the Supabase telemetry contract uses. Production, unknown and empty-channel builds never start Sentry in this slice; enabling production ingestion requires the payload/consent review below.
+- Never commit the Sentry onboarding run code, auth token, or other account credentials. The DSN is an ingestion endpoint, not an authentication secret, but it is still configured per build environment rather than committed.
+- The Sentry environment is derived from the existing `ATE_CHANNEL` build setting (lowercased).
 
-## Initial privacy posture
+## Enabled in this slice (non-production builds with a DSN)
+
+- Crash and unhandled-error capture (SDK default crash handler).
+- App-hang and watchdog-termination detection (SDK defaults).
+- Release identity: version+build in the release name, build in `dist`, Git SHA as a `git_sha` event tag, channel as environment.
+
+## Deliberately off in this slice
 
 - `sendDefaultPii` is disabled.
+- Release-health session tracking is disabled until session payloads are verified against the privacy contract.
+- Network tracking is disabled (it attaches request URLs and trace headers; URLs are on the never-send list).
+- Performance tracing is disabled until explicit, privacy-reviewed spans and sampling are implemented (#289 instrumentation slice).
 - Automatic breadcrumbs are dropped until a reviewed allowlist exists.
-- Event user, message, extras and breadcrumbs are cleared before sending.
-- Performance tracing is disabled until explicit, privacy-reviewed spans and sampling are implemented.
-- Do not add recipe/journal content, prompts, URLs, account identifiers, Health data, precise location, screenshots, access tokens or raw user-provided strings.
-- UI tests must not emit remote events.
+- Event user, message, extras, breadcrumbs, request and SDK tags are cleared before sending (`SentryBootstrap.scrubEvent`, covered by `AteTests/SentryBootstrapTests.swift`).
+- Exception free-text values are replaced with `[Filtered]` (raw error messages can embed interpolated user strings; TELEMETRY.md bars them). Exception type, mechanism, stacktrace and threads are kept for triage.
+- Remaining fields (contexts, mechanism metadata, debug images) are retained for crash triage and are NOT categorically content-free; they are covered by the payload-verification gate below before any production-channel ingestion.
+
+Do not add recipe/journal content, prompts, URLs, account identifiers, Health data, precise location, screenshots, access tokens or raw user-provided strings. UI tests must not emit remote events.
 
 This is an initial guardrail, not the final privacy sign-off. Crash exception payloads, automatic integrations, SDK upgrades and all newly added event fields must be reviewed against the data map before enabling production ingestion.
+
+## Initial data map
+
+Sent (after scrubbing): exception type/mechanism/stacktrace, thread stacks, device model, OS and app context, release name (version+build), `dist` (build number), environment (channel), the `git_sha` tag, and the SDK's per-install pseudonymous installation identifier (device app hash) used for event grouping. That identifier persists per install and is recorded here as a known data element; it carries no account or content data but is pseudonymous.
+
+Never sent: event user, message, extras, breadcrumbs, request data (URLs), SDK tags, raw error/exception messages (filtered to `[Filtered]`), sessions, network requests/headers, performance spans, and everything on the TELEMETRY.md never-send list (recipe/journal content, prompts, screenshots, account identifiers, Health data, precise location, access tokens, raw user-provided strings).
+
+## At-rest crash cache caveat
+
+The scrub guarantee covers the TRANSMITTED payload only, through the verified `beforeSend` SDK path. A fatal crash is written to the SDK's on-device cache UNSCRUBBED (the process is dying; `beforeSend` runs at transmit time on the next launch). Raw crash data - including any interpolated strings in exception payloads - therefore exists at rest on the device until the next launch transmits or discards it. Local `DiagnosticHistory` already documents its own bounds; this cache is additional and is not exported or displayed in-app.
 
 ## Release health and symbolication
 

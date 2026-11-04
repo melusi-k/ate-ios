@@ -1072,12 +1072,15 @@ final class AteUITests: XCTestCase {
         XCTAssertTrue(app.buttons["listCard"].firstMatch.exists, "the matching recipe is listed")
         shot("search-results")
         app.buttons["listCard"].firstMatch.tap()
-        wait(app.staticTexts["recipeQuickLookTitle"])
+        // iOS 27 flattens the quick-look's child identifiers under its root ("recipeQuickLook"),
+        // so assert the presented sheet by its root identifier rather than the title's own id.
+        let quickLook = app.descendants(matching: .any)["recipeQuickLook"]
+        wait(quickLook)
         shot("search-result-quicklook")
         // The quick-look sits at its smallest detent, so a downward drag can only dismiss, never resize.
         let sheetTop = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.73))
         sheetTop.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
-        if app.staticTexts["recipeQuickLookTitle"].waitForExistence(timeout: 1) { app.swipeDown(velocity: .fast) }
+        if quickLook.waitForExistence(timeout: 1) { app.swipeDown(velocity: .fast) }
         wait(field, 5)
         XCTAssertEqual(field.value as? String, "miso", "the query survives opening and closing a result")
         XCTAssertTrue(app.staticTexts["library.searchResults"].exists, "the results survive returning from a result")

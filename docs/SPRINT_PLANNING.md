@@ -927,3 +927,77 @@ The prior exact head `aa15700ecbd5746016cabcd915865ab344a55fbc` now has:
 - Supabase Preview was skipped.
 
 This poll corrects the earlier "no runs visible" note for `aa15700`; it does not establish a green result for the pending/in-progress checks. This append creates another documentation head, so the above results remain evidence for `aa15700` only and all applicable checks must run again on the new SHA. The PR remains draft and the branch remains behind current main; no merge or approval is implied.
+
+
+## Daily Guardian revalidation — 2026-11-04T09:03:13Z (Africa/Johannesburg 2026-11-04 11:03:13)
+
+**Sprint:** 2026-W45, Monday 2026-11-02 through Sunday 2026-11-08. **Run type:** Wednesday status revalidation, not Monday replanning or Sunday retrospective. Original planned dates and commitment classifications are unchanged.
+
+### W45 commitment status
+
+- **Committed:** [issue #30](https://github.com/melusi-k/ate-ios/issues/30), bounded release-readiness evidence refresh — **BLOCKED**.
+- **Committed, at risk / entry-gated:** [issue #179](https://github.com/melusi-k/ate-ios/issues/179), one issue-level nutrition outcome through root #239 → child #240 → child #241 — **BLOCKED**. The three PRs remain distinct lifecycle records and count once as one delivery.
+- **Stretch only:** [issue #70](https://github.com/melusi-k/ate-ios/issues/70), one bounded evidence/ownership discrepancy — not started or promoted. Its existing proposed 2026-11-05 to 2026-11-08 execution window is preserved; it is not a separate sprint boundary.
+- No new W45 dates or commitment status were assigned to the newer #245, #253, #289, #72, #73 or #74 candidate streams. No issue was closed and no scope was changed.
+
+### Current main and release evidence
+
+- Current main: `e5665234129e047baf56e3c6af5ea0a5f254e59f` (2026-11-04T06:25:41Z).
+- Release readiness [Build IPA run 41785452856](https://github.com/melusi-k/ate-ios/actions/runs/41785452856), build 358, is **BLOCKED**: 1/59 verified, 12 failing, 46 open; unit, 8-flow QA, UI and backend-E2E were skipped because this was an artifact-only run; QA-results retrieval returned HTTP 400. Workflow success is not release qualification.
+- Exact-main Compile Check failed [run 41785456819](https://github.com/melusi-k/ate-ios/actions/runs/41785456819) at `Library Explore native sheet presentation (#83)`. Journal open-state UI passed [run 41785456929](https://github.com/melusi-k/ate-ios/actions/runs/41785456929). No Dogfood Qualification pass is recorded on this exact main SHA.
+- Main commit `e566523` adds `continue-on-error: true` to the Journal open-state workflow's Build for testing step. The test-without-building step still runs, but this can hide a build-step failure if the later test step succeeds. Keep the build and test outcomes separately visible; safest remediation is to remove the waiver or gate the test step on successful build while retaining `if: always()` diagnostic upload.
+
+### Open PR inventory — 29 fetched first
+
+No PR was merged. No qualifying human approval was found on any open PR. Codex review attempts on several newer PRs failed because the configured service reported usage limits; this is not a review pass. Draft PRs are included below but remain ineligible for merge.
+
+| PR | Current disposition and evidence |
+|---|---|
+| [#290](https://github.com/melusi-k/ate-ios/pull/290) | Draft Sentry foundation; 27 ahead / 2 behind main. Compile failed; Dogfood and Journal UI passed. Synthetic ingestion/fatal-symbolication proof has not run; payload contexts remain subject to independent privacy inspection. |
+| [#284](https://github.com/melusi-k/ate-ios/pull/284) | Draft Journal coordinator/archive/repair child of #281; 20 ahead / 0 behind current parent. Compile and Journal UI in progress; no Dogfood result yet. |
+| [#274](https://github.com/melusi-k/ate-ios/pull/274) | Reverse-direction sync: current main into #272's feature branch; 4 ahead / 4 behind feature base. Main Compile failed; Journal UI passed. Not a product PR into main. |
+| [#265](https://github.com/melusi-k/ate-ios/pull/265) | Reverse-direction sync: current main into #253's feature branch; 38 ahead / 24 behind feature base. Source-main Compile failed; Journal UI passed. Not a product delivery into main. |
+| [#282](https://github.com/melusi-k/ate-ios/pull/282) | Draft Shopping edit/batch Undo; 14 ahead / 2 behind main. Compile failed at #83; Dogfood passed; Journal UI failed with simulator test-runner early exit. UI timing proof uses a test override and does not by itself prove the production 5-second window. |
+| [#283](https://github.com/melusi-k/ate-ios/pull/283) | Draft Settings organisation; 18 ahead / 2 behind main. Compile failed at #83; Dogfood and Journal UI passed. Copy correctly distinguishes recipe/shopping sync from local-only diary/goals/Journal/preferences; no approval. |
+| [#285](https://github.com/melusi-k/ate-ios/pull/285) | Draft Library search/filter/collections; 14 ahead / 2 behind main. Compile and Dogfood passed; Journal UI failed. |
+| [#286](https://github.com/melusi-k/ate-ios/pull/286) | Draft, unactivated nutrition edit/weekly totals child of #284; 12 ahead / 4 behind parent. Compile passed; Journal UI failed; no Dogfood run. |
+| [#281](https://github.com/melusi-k/ate-ios/pull/281) | Draft canonical Food Journal transaction/migration boundary; 4 ahead / 2 behind main. Compile and Dogfood passed; Journal UI failed; stacked validation passed. |
+| [#279](https://github.com/melusi-k/ate-ios/pull/279) | Non-draft immutable build-publication safety; 7 ahead / 2 behind main. Compile failed at #83; Dogfood, Journal UI and stacked validation passed. Codex review unavailable; no human approval. |
+| [#280](https://github.com/melusi-k/ate-ios/pull/280) | Non-draft source/channel-bound release notes; 3 ahead / 2 behind main. Compile failed at Insights acceptance #195; Dogfood passed; Journal UI failed. Codex review unavailable; no human approval. |
+| [#278](https://github.com/melusi-k/ate-ios/pull/278) | Non-draft Journal primary navigation child of #277; 13 ahead / 0 behind parent. Compile passed; Journal UI failed. Codex review unavailable; no human approval. |
+| [#277](https://github.com/melusi-k/ate-ios/pull/277) | Non-draft manual Journal compose; 14 ahead / 2 behind main. Compile failed; Dogfood passed; Journal UI failed. Codex review unavailable; no human approval. |
+| [#272](https://github.com/melusi-k/ate-ios/pull/272) | Non-draft Journal timeline logic; 10 ahead / 2 behind main. Compile, Dogfood and Journal UI failed. Product decision remains needed on treating undecodable recipe snapshots as recipe-linked. |
+| [#276](https://github.com/melusi-k/ate-ios/pull/276) | Non-draft timeline screen child of #275; 10 ahead / 1 behind parent. Compile passed; Journal UI failed; no Dogfood result. |
+| [#275](https://github.com/melusi-k/ate-ios/pull/275) | Non-draft read-only store snapshot child of #272; 4 ahead / 2 behind parent. Compile and Journal UI passed; no Dogfood result. Add focused read-failure evidence before acceptance. |
+| [#267](https://github.com/melusi-k/ate-ios/pull/267) | Draft W45 documentation proposal; 10 ahead / 12 behind main. Docs validation and stacked validation passed; Compile skipped; Dogfood pending; Journal UI in progress; Supabase Preview skipped. |
+| [#66](https://github.com/melusi-k/ate-ios/pull/66) | Draft journal acceptance coverage; 38 ahead / 765 behind main. No exact-head Compile/Dogfood; one inline thread resolved/outdated. |
+| [#181](https://github.com/melusi-k/ate-ios/pull/181) | Draft older nutrition foundation; 21 ahead / 413 behind main. No exact-head Compile/Dogfood; three unresolved review threads, including corrupt-goals recovery. |
+| [#266](https://github.com/melusi-k/ate-ios/pull/266) | Non-draft CI lifecycle documentation; 3 ahead / 14 behind main. Compile passed; Dogfood and Journal UI failed. |
+| [#263](https://github.com/melusi-k/ate-ios/pull/263) | Draft Build 344 evidence documentation; 1 ahead / 37 behind main. Compile passed; Dogfood and Journal UI cancelled. |
+| [#234](https://github.com/melusi-k/ate-ios/pull/234) | Non-draft QA scope change; 22 ahead / 173 behind main. Compile failed; Dogfood passed. Still proposes a required-regression waiver and acceptance-denominator/status changes without qualifying approval. |
+| [#254](https://github.com/melusi-k/ate-ios/pull/254) | Non-draft generation pipeline; 24 ahead / 40 behind main. Compile failed; Dogfood passed; Journal UI failed. The 11-fixture on-device golden-set evaluation is missing; parent #253 remains open. |
+| [#251](https://github.com/melusi-k/ate-ios/pull/251) | Non-draft Food Journal discovery; 75 ahead / 40 behind main. Compile failed; Dogfood, Journal UI and discovery UI passed. |
+| [#241](https://github.com/melusi-k/ate-ios/pull/241) | W45 committed child 3/3 under #179; 52 ahead / 53 behind current #240 parent. No exact-head Compile/Dogfood; diff removes two named edit pass-evidence guards. Restore/replace them. |
+| [#240](https://github.com/melusi-k/ate-ios/pull/240) | W45 committed child 2/3 under #179; 51 ahead / 154 behind current #239 parent. Compile cancelled; no exact-head Dogfood; base points to old root SHA. |
+| [#239](https://github.com/melusi-k/ate-ios/pull/239) | W45 committed root 1/3 under #179; 76 ahead / 40 behind main. Dogfood passed; Compile and Journal UI failed. |
+| [#270](https://github.com/melusi-k/ate-ios/pull/270) | Non-draft navigation/accessibility audit; 1 ahead / 10 behind main. Compile and Dogfood passed; Journal UI failed. |
+| [#268](https://github.com/melusi-k/ate-ios/pull/268) | Non-draft CI diagnostics artifact path; 1 ahead / 12 behind main. Compile and Dogfood failed; Journal UI passed. |
+
+### Repository merge governance — live audit 2026-11-04
+
+- `main` is not protected: branch API reports `protected=false`, protection `enabled=false`.
+- Ruleset [main-production-protection](https://github.com/melusi-k/ate-ios/rules/26236404) exists but enforcement is **disabled**. It configures one approval, stale-review dismissal, review-thread resolution and strict `compile` / `dogfood-qualification` checks, but none are enforced.
+- `.github/CODEOWNERS` is `* @melusi-k`; the only owner is the repository author. Ruleset `require_code_owner_review=false` and `require_last_push_approval=false`.
+- Squash merge is enabled; auto-merge is disabled; GitHub update-branch is disabled. Main also permits merge commits and rebase merges.
+- Recommended remediation: nominate an independent maintainer/team; enable the reviewed ruleset with required independent approval, latest-push approval, CODEOWNERS review, stale-review dismissal, thread resolution and strict required checks; define docs-only check policy; enable safe update-branch or document a reviewed manual reconciliation path. No repository setting was changed.
+
+### Lifecycle, evidence and metrics
+
+Issue #30, #179 and #70 lifecycle timestamps/confidence labels remain unchanged: created/first-activity events are Verified; #179's earliest linked commit proxy remains Inferred; #30/#70 actual work start remains Unknown. All three issues remain open; actual completion is Unknown. PR lifecycles remain separate from issue timelines. No new human review, approval, merge or issue-close event was evidenced. No lead, implementation, review, approval or cycle duration is newly calculable. W44 commitment accuracy/carryover remains unavailable; W45 accuracy/carryover is due at Sunday 2026-11-08 close-out.
+
+No retrospective/close-out is performed on Wednesday. Preserve the W44 close-out and earlier W45 history; Sunday close-out remains due 2026-11-08. No issue or PR is closed, no dates or commitment statuses are changed, and no PR stack is double-counted.
+
+### Actions and limitations
+
+- Appended this Wednesday revalidation to the existing draft documentation branch for PR #267; it is not on main. The branch is 10 ahead / 12 behind main and cannot be safely auto-updated with current repository settings. A maintainer must reconcile it and rerun applicable checks on the resulting exact SHA.
+- No branch update/rebase, merge, issue closure, or repository policy mutation was performed.

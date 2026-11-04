@@ -103,12 +103,15 @@ final class CanonicalNutritionAssociationUITests: XCTestCase {
         reveal("nutritionDiary.sourceName")
         XCTAssertEqual(element("nutritionDiary.sourceName").value as? String, "You")
         XCTAssertTrue(element("nutritionDiary.source").label.contains("Entered by you") || (element("nutritionDiary.source").value as? String) == "Entered by you")
-        XCTAssertEqual(element("nutritionDiary.sourceIdentifier").value as? String, "Source record ID (optional)")
-        XCTAssertEqual(element("nutritionDiary.verificationNote").value as? String, "Preparation or source-match note (optional)")
+        XCTAssertEqual(element("nutritionDiary.sourceIdentifier").value as? String, "")
+        XCTAssertEqual(element("nutritionDiary.sourceIdentifier").placeholderValue, "Source record ID (optional)")
+        XCTAssertEqual(element("nutritionDiary.verificationNote").value as? String, "")
+        XCTAssertEqual(element("nutritionDiary.verificationNote").placeholderValue, "Preparation or source-match note (optional)")
         reveal("nutritionDiary.nutrient.energy")
         XCTAssertEqual(element("nutritionDiary.nutrient.energy").value as? String, "200")
-        // Blank nutrient fields retain their placeholders; nil was not converted to zero.
-        XCTAssertEqual(element("nutritionDiary.nutrient.carbohydrates").value as? String, "Carbohydrates per serving")
+        // Empty values and their separate placeholders prove nil was not converted to zero.
+        XCTAssertEqual(element("nutritionDiary.nutrient.carbohydrates").value as? String, "")
+        XCTAssertEqual(element("nutritionDiary.nutrient.carbohydrates").placeholderValue, "Carbohydrates per serving")
         shot("nutrition-prefill-reviewed-values")
         // Change a real draft field to an invalid amount, then save through real validation.
         for _ in 0..<10 { if element("nutritionDiary.quantity").isHittable { break }; app.swipeDown() }

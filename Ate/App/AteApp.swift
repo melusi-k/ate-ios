@@ -100,6 +100,10 @@ extension View {
     func ateRootNavigationChrome(logoID: String) -> some View {
         modifier(AteRootNavigationChrome(logoID: logoID))
     }
+    /// Pushed destinations (enabled == false) keep their native inline title and Back button.
+    @ViewBuilder func ateRootNavigationChrome(logoID: String, enabled: Bool) -> some View {
+        if enabled { modifier(AteRootNavigationChrome(logoID: logoID)) } else { navigationBarTitleDisplayMode(.inline) }
+    }
 }
 
 /// Offline strip applied to each screen INSIDE its NavigationStack, so it takes real layout space below the
@@ -394,7 +398,7 @@ struct RouteView: View {
             case .settings: SettingsView()
             case .shared(let slug): SharedRecipeView(slug: slug)
             case .notFound: NotFoundView()
-            case .insights: InsightsView()
+            case .insights: InsightsView(screenTitle: "Insights & Cooking History", isRoot: false).accessibilityIdentifier("cookingTracker.screen")
             case .beta: AppConfig.isBetaBuild ? AnyView(BetaTestingView()) : AnyView(SettingsView())
             case .betaNote: AppConfig.isBetaBuild ? AnyView(BetaExpectationsView()) : AnyView(SettingsView())
             case .journal: JournalListView()

@@ -52,7 +52,7 @@ final class FoodJournalStore {
                   NutritionMeal(rawValue: payload.mealRaw) != nil,
                   NutritionEntrySource(rawValue: payload.sourceRaw) != nil else { throw FoodJournalStoreError.unreadableStore }
             let meal = payload.diaryEntry(id: id, date: entry.createdAt, dayKey: dayKey)
-            guard NutritionDiaryValidation.isValid(meal) else { throw FoodJournalStoreError.invalidEntry }
+            guard FoodJournalStore.validMeal(meal) else { throw FoodJournalStoreError.invalidEntry }
             return meal
         }
         return result.sorted { $0.dayKey == $1.dayKey ? $0.date > $1.date : $0.dayKey > $1.dayKey }
@@ -60,6 +60,25 @@ final class FoodJournalStore {
 
     /// Compatibility helper only. Production integration must never use this lossy boundary.
     func mealEntries() -> [NutritionDiaryEntry] { (try? readMeals()) ?? [] }
+
+    /// Same validity on every write and read. Gregorian day keys are literal calendar dates,
+    /// not permissively normalized DateComponents (for example February 30 must fail).
+    static func validMeal(_ entry: NutritionDiaryEntry) -> Bool {
+        NutritionDiaryValidation.isValid(entry) && validDayKey(entry.dayKey)
+    }
+
+    static func validDayKey(_ key: String) -> Bool {
+        guard key.utf8.count == 10,
+              key.range(of: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", options: .regularExpression) != nil else { return false }
+        let parts = key.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3, parts[0] > 0 else { return false }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let requested = DateComponents(year: parts[0], month: parts[1], day: parts[2])
+        guard let date = calendar.date(from: requested) else { return false }
+        let actual = calendar.dateComponents([.year, .month, .day], from: date)
+        return actual.year == parts[0] && actual.month == parts[1] && actual.day == parts[2]
+    }
 
     private func transaction(_ write: (ModelContext) throws -> Void) throws {
         guard let container else { throw FoodJournalStoreError.saveFailed }
@@ -76,7 +95,7 @@ final class FoodJournalStore {
     /// Inserts a meal entry. Identity is the diary UUID; saving the same identity twice fails
     /// rather than duplicating (timeline contract: a saved meal appears exactly once).
     func saveMeal(_ entry: NutritionDiaryEntry) throws {
-        guard NutritionDiaryValidation.isValid(entry) else { throw FoodJournalStoreError.invalidEntry }
+        guard FoodJournalStore.validMeal(entry) else { throw FoodJournalStoreError.invalidEntry }
         try transaction { ctx in
             let id = entry.id.uuidString
             guard try ctx.fetch(FetchDescriptor<JournalEntry>(predicate: #Predicate { $0.id == id })).isEmpty,
@@ -86,7 +105,7 @@ final class FoodJournalStore {
     }
 
     func updateMeal(_ entry: NutritionDiaryEntry) throws {
-        guard NutritionDiaryValidation.isValid(entry) else { throw FoodJournalStoreError.invalidEntry }
+        guard FoodJournalStore.validMeal(entry) else { throw FoodJournalStoreError.invalidEntry }
         try transaction { ctx in
             let id = entry.id.uuidString
             guard let row = try ctx.fetch(FetchDescriptor<JournalEntry>(predicate: #Predicate { $0.id == id })).first,
@@ -126,7 +145,7 @@ final class FoodJournalStore {
     /// Validate the complete input before making changes. Existing identical IDs are no-ops;
     /// any conflict fails the whole batch rather than silently changing either record.
     func importMeals(_ entries: [NutritionDiaryEntry]) throws {
-        guard entries.allSatisfy(NutritionDiaryValidation.isValid),
+        guard entries.allSatisfy(FoodJournalStore.validMeal),
               Set(entries.map(\.id)).count == entries.count else { throw FoodJournalStoreError.invalidEntry }
         let existing = Dictionary(uniqueKeysWithValues: try readMeals().map { ($0.id, $0) })
         guard entries.allSatisfy({ existing[$0.id] == nil || existing[$0.id] == $0 }) else { throw FoodJournalStoreError.conflictingIdentity }
@@ -200,7 +219,7 @@ enum FoodJournalMigration {
 
         // All-or-nothing validation: a partially imported legacy diary must not stay
         // editable and then conflict with the earlier partial canonical copy.
-        guard entries.allSatisfy(NutritionDiaryValidation.isValid),
+        guard entries.allSatisfy(FoodJournalStore.validMeal),
               Set(entries.map(\.id)).count == entries.count else {
             return .failed("invalid or duplicate legacy records preserved; no meals imported")
         }

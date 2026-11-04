@@ -273,7 +273,7 @@ final class AteUITests: XCTestCase {
         wait(text("5 to buy"))
         let field = app.textFields["shoppingAddField"]
         field.tap(); field.typeText("Lemons")
-        app.buttons["Add item"].tap()
+        app.buttons["shoppingAddSubmit"].tap()
         wait(text("6 to buy"))
         wait(app.staticTexts["aisle.Produce"], 3)
         XCTAssertTrue(app.staticTexts["aisle.Pantry"].exists)

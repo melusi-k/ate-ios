@@ -5,9 +5,9 @@ import XCTest
 /// (save / cancel / invalid quantity), batch Undo restoring original order, and
 /// Undo-window expiry finalizing a removal.
 final class ShoppingEditUndoUITests: XCTestCase {
-    private func launchShopping() -> XCUIApplication {
+    private func launchShopping(extraArgs: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-qaResetShopping"]
+        app.launchArguments = ["-UITesting", "-qaResetShopping"] + extraArgs
         app.launch()
         let tab = app.tabBars.buttons["Shopping"]
         XCTAssertTrue(tab.waitForExistence(timeout: 10), "Shopping should be a first-class tab")
@@ -32,11 +32,15 @@ final class ShoppingEditUndoUITests: XCTestCase {
                       "a row for \(name) should appear after adding")
     }
 
-    private func replaceText(of field: XCUIElement, with text: String, in app: XCUIApplication) {
-        field.doubleTap()
-        let selectAll = app.menuItems["Select All"]
-        XCTAssertTrue(selectAll.waitForExistence(timeout: 3), "Select All should appear for \(field)")
-        selectAll.tap()
+    /// Same field-replacement pattern as KeyFlowsQATests.replace: tap to focus, tap the
+    /// trailing edge to move the caret to the end, delete the current value, then type.
+    /// (The iOS edit menu's "Select All" item is not reliably exposed in UI tests.)
+    private func replaceText(of field: XCUIElement, with text: String) {
+        field.tap()
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        if let current = field.value as? String, !current.isEmpty {
+            field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count + 2))
+        }
         field.typeText(text)
     }
 
@@ -49,9 +53,9 @@ final class ShoppingEditUndoUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Edit item"].waitForExistence(timeout: 5))
         let nameField = app.textFields["shopping.edit.name"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
-        replaceText(of: nameField, with: "Oat milk", in: app)
+        replaceText(of: nameField, with: "Oat milk")
         let quantityField = app.textFields["shopping.edit.quantity"]
-        replaceText(of: quantityField, with: "2", in: app)
+        replaceText(of: quantityField, with: "2")
         app.buttons["shopping.edit.save"].tap()
         XCTAssertTrue(app.buttons["Edit Oat milk"].waitForExistence(timeout: 5),
                       "the renamed row should replace the old one after Save")
@@ -62,7 +66,7 @@ final class ShoppingEditUndoUITests: XCTestCase {
         app.buttons["Edit Oat milk"].tap()
         XCTAssertTrue(app.navigationBars["Edit item"].waitForExistence(timeout: 5))
         let quantity = app.textFields["shopping.edit.quantity"]
-        replaceText(of: quantity, with: "2.5.3", in: app)
+        replaceText(of: quantity, with: "2.5.3")
         XCTAssertTrue(app.staticTexts["Enter a quantity of zero or more."].waitForExistence(timeout: 3),
                       "the editor must say why the quantity is rejected")
         XCTAssertFalse(app.buttons["shopping.edit.save"].isEnabled,
@@ -76,7 +80,11 @@ final class ShoppingEditUndoUITests: XCTestCase {
     }
 
     func testBatchUndoRestoresBothRemovalsInOriginalOrder() {
-        let app = launchShopping()
+        // The production 5s Undo window is too short for XCTest to observe the toast,
+        // capture its screenshot and synthesize the tap (observed ~5.5s in the runner, so
+        // the window expired just before the tap landed). Widen the window for this
+        // journey; window-expiry behaviour itself is covered by testUndoWindowExpiryFinalizesRemoval.
+        let app = launchShopping(extraArgs: ["-qaShoppingUndoSeconds", "30"])
         // Same-aisle fixture (all dairy): aisle grouping lists bakery before dairy, so a
         // mixed-aisle fixture would not reflect list order visually either way grouped.
         add(app, "Milk")

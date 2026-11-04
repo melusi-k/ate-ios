@@ -650,8 +650,7 @@ struct TodayJournalHubCard: View {
 
     var body: some View {
         Button {
-            store.trackerPath = []
-            store.select(.tracker)
+            store.openInsightsHub()
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "calendar.badge.clock")

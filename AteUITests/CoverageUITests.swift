@@ -346,7 +346,7 @@ final class CoverageUITests: XCTestCase {
         shot("beta-item-pass")
         app.navigationBars.buttons.element(boundBy: 0).tap()
         for _ in 0..<6 { app.swipeDown() }
-        wait(text("Pilot gate: \(before + 1)/"), 5)
+        wait(text("This build: \(before + 1)/"), 5)
         let item2 = app.descendants(matching: .any)["beta.A-AUTH-04"].firstMatch
         scrollTo(item2); item2.tap()
         wait(app.buttons["Fail"], 5); app.buttons["Fail"].tap()
@@ -356,12 +356,12 @@ final class CoverageUITests: XCTestCase {
         scrollTo(export); export.tap(); sleep(2)
         shot("beta-export-sheet")
         if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
-        let reset = app.buttons["Reset all results"]
+        let reset = app.buttons["Reset this build's results"]
         scrollTo(reset); reset.tap()
-        let confirm = app.buttons["Reset"].firstMatch
+        let confirm = app.buttons["Reset this build"].firstMatch
         wait(confirm, 5); confirm.tap()
         app.swipeDown(); app.swipeDown(); app.swipeDown()
-        wait(text("Pilot gate: 0/"), 5)
+        wait(text("This build: 0/"), 5)
         shot("beta-reset")
     }
 

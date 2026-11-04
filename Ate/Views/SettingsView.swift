@@ -28,7 +28,24 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var store = store
         Form {
-                    Section { AccountCard().listRowInsets(EdgeInsets()).listRowBackground(Color.clear) }
+                    Section {
+                        // Keep the sync summary in the same content row as the account card.
+                        // Form section footers expose a non-resizable SwiftUI accessibility
+                        // node on iOS 27, which fails the Dynamic Type audit even though the
+                        // underlying Text uses a scalable system style.
+                        VStack(alignment: .leading, spacing: 10) {
+                            AccountCard()
+                            Text(SettingsCopy.syncSummary(accountAvailable: store.accountAvailable,
+                                                          signedIn: store.session != nil))
+                                .font(.footnote)
+                                .foregroundStyle(Theme.mutedForeground)
+                                .padding(.horizontal, 20)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("settings.syncSummary")
+                        }
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                    }
                     Section("Ate Plus") {
                         NavigationLink {
                             AtePlusPaywallView()
@@ -37,12 +54,18 @@ struct SettingsView: View {
                         }
                         .accessibilityIdentifier("settings.atePlus")
                     }
-                    card {
+                    Section {
                         toggle("Private mode", "Keep everything local — no new AI generations, only your saved cards.",
                                $store.settings.onDeviceOnly)
-                        Text(OnDeviceBackend.availabilityDescription).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                    }
-                    card {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("On-device AI").font(AteFont.body(12, .semibold))
+                            Text(OnDeviceBackend.availabilityDescription)
+                            Text(SettingsCopy.aiExplanation)
+                        }
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("settings.aiAvailability")
                         Toggle(isOn: $journalingEnabled) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Journaling Suggestions").font(AteFont.body(16, .medium))
@@ -55,20 +78,38 @@ struct SettingsView: View {
                         }
                         .tint(Theme.primary).disabled(!JournalingSuggestionsGate.isAvailable)
                         .accessibilityIdentifier("toggle.journalingSuggestions")
+                    } header: {
+                        Text("AI on this device")
                     }
-                    Section("Nutrition") {
+                    Section {
                         NavigationLink {
                             NutritionDiaryView()
                         } label: {
-                            Label("Food diary", systemImage: "fork.knife")
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Food diary")
+                                    Text("What you ate, day by day.")
+                                        .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                                }
+                            } icon: { Image(systemName: "fork.knife") }
                         }
                         .accessibilityIdentifier("settings.nutritionDiary")
                         NavigationLink {
                             NutritionGoalsView()
                         } label: {
-                            Label("Nutrition goals", systemImage: "target")
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Nutrition goals")
+                                    Text("Your daily targets.")
+                                        .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                                }
+                            } icon: { Image(systemName: "target") }
                         }
                         .accessibilityIdentifier("settings.nutritionGoals")
+                    } header: {
+                        Text("Nutrition")
+                    } footer: {
+                        Text(SettingsCopy.nutritionFooter)
                     }
                     Section("Units") {
                         Picker("Units", selection: $store.settings.units) {
@@ -93,10 +134,34 @@ struct SettingsView: View {
                     Section {
                         Button("Clear all", role: .destructive) { confirmClear = true }
                     } header: { Text("Your data") } footer: {
-                        Text(store.session == nil
-                             ? "Recipes are stored on this iPhone only. Sign in to sync them to your account."
-                             : "Recipes and your shopping list sync to your ate account (Supabase, EU). Shared recipes are public to anyone with the link.")
+                        Text(SettingsCopy.dataFooter(signedIn: store.session != nil))
                     }
+                    Section {
+                        Button {
+                            do {
+                                let data = try store.exportJSON()
+                                guard let url = writeTemp("ate-data.json", data) else {
+                                    store.show("Your data export couldn’t be created. Please try again.", error: true)
+                                    return
+                                }
+                                activeSheet = .share(ShareItems(items: [url]))
+                            } catch {
+                                store.show("Your data couldn’t be exported. Please try again.", error: true)
+                            }
+                        } label: {
+                            Label("Export data", systemImage: "arrow.down.doc")
+                        }.accessibilityIdentifier("settings.export")
+                        Button { importing = true } label: {
+                            Label("Import data", systemImage: "square.and.arrow.down")
+                        }.accessibilityIdentifier("settings.import")
+                        Button { store.replayOnboarding() } label: {
+                            Label("Replay intro", systemImage: "sparkles")
+                        }.accessibilityIdentifier("settings.replayOnboarding")
+                    } header: { Text("Tools") } footer: {
+                        Text(SettingsCopy.toolsFooter)
+                    }
+                    // Everyday settings end above this point. Developer and beta surfaces
+                    // are grouped together at the bottom, just before About.
                     if AppConfig.isBetaBuild {
                         Section("Beta & diagnostics") {
                             // This is the primary Beta entry on current builds. A direct
@@ -123,28 +188,6 @@ struct SettingsView: View {
                             Label("Diagnostic history", systemImage: "waveform.path")
                         }
                         .accessibilityIdentifier("settings.diagnosticHistory")
-                    }
-                    Section("Tools") {
-                        Button {
-                            do {
-                                let data = try store.exportJSON()
-                                guard let url = writeTemp("ate-data.json", data) else {
-                                    store.show("Your data export couldn’t be created. Please try again.", error: true)
-                                    return
-                                }
-                                activeSheet = .share(ShareItems(items: [url]))
-                            } catch {
-                                store.show("Your data couldn’t be exported. Please try again.", error: true)
-                            }
-                        } label: {
-                            Label("Export data", systemImage: "arrow.down.doc")
-                        }.accessibilityIdentifier("settings.export")
-                        Button { importing = true } label: {
-                            Label("Import data", systemImage: "square.and.arrow.down")
-                        }.accessibilityIdentifier("settings.import")
-                        Button { store.replayOnboarding() } label: {
-                            Label("Replay intro", systemImage: "sparkles")
-                        }.accessibilityIdentifier("settings.replayOnboarding")
                     }
                     Section {
                         Text("Version \(AppConfig.appVersion) (build \(AppConfig.buildNumber))" + (AppConfig.channel.isEmpty ? "" : " · \(AppConfig.channel)"))
@@ -258,8 +301,6 @@ struct SettingsView: View {
             store.show("That file isn’t a supported ate data export.", error: true)
         }
     }
-
-    private func card<C: View>(@ViewBuilder _ c: () -> C) -> some View { Section { c() } }
 
     private func toggle(_ title: String, _ detail: String, _ b: Binding<Bool>) -> some View {
         Toggle(isOn: b) {

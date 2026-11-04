@@ -42,6 +42,16 @@ Sent (after scrubbing): exception type/mechanism/stacktrace, thread stacks, devi
 
 Never sent: event user, message, extras, breadcrumbs, request data (URLs), SDK tags, raw error/exception messages (filtered to `[Filtered]`), sessions, network requests/headers, performance spans, and everything on the TELEMETRY.md never-send list (recipe/journal content, prompts, screenshots, account identifiers, Health data, precise location, access tokens, raw user-provided strings).
 
+## Separate fatal-symbolication proof (phase 2)
+
+The nonfatal proof above is phase 1. Do not arm phase 2 until its stored event JSON has been independently inspected and passed. Neither phase substitutes for ordinary required exact-head checks or release qualification.
+
+For the separately reviewed second manual TierA dispatch on `feature/289-sentry-observability`, set both temporary variables `SENTRY_INGESTION_PROOF=enabled` and `SENTRY_FATAL_PROOF=enabled`. A second switch alone does nothing. Both switches must be removed after the run starts with its captured configuration, or at latest when it finishes, whether it succeeds or fails; arrange cleanup follow-through before arming either switch. Do not set `SENTRY_BETA_INGESTION` yet.
+
+The ordinary fresh-simulator smoke still runs first and emits its phase-1 nonfatal canary again in this second run. Phase 2 builds simulator dSYMs, verifies the simulator app UUIDs, and waits for their server-side upload before intentionally crashing the synthetic simulator app via `-SentryFatalProof`. This path is simulator-only, exact TierA, requires the proof marker, excludes XCTest hosts, and is absent from device builds. It uses the SDK's crash-test API with a named in-app wrapper frame. The app must exit within 30 seconds. The next launch uses `-SentryFatalRecovery` on the same container without erasing it, so the cached crash can be sent; recovery must survive 30 seconds. Fatal/recovery launches do not create extra nonfatal canaries. If both launch arguments are present, recovery wins and the process does not intentionally crash. Source review of this procedure is not execution authorization; dispatch remains held until the exact head is qualified and the separate execution decision is made.
+
+Process exit, recovery survival and upload success are execution evidence only. Independently inspect the stored fatal event for the original project ID, current release/build/Git SHA, fatal mechanism, transmitted payload scrub, matching simulator debug-image UUIDs, and symbolicated in-app frames. Device archive dSYMs do not prove simulator symbolication. Any missing or ambiguous check keeps beta ingestion disabled. Local raw crash-cache privacy is separate and remains subject to the caveat below.
+
 ## At-rest crash cache caveat
 
 The scrub guarantee covers the TRANSMITTED payload only, through the verified `beforeSend` SDK path. A fatal crash is written to the SDK's on-device cache UNSCRUBBED (the process is dying; `beforeSend` runs at transmit time on the next launch). Raw crash data - including any interpolated strings in exception payloads - therefore exists at rest on the device until the next launch transmits or discards it. Local `DiagnosticHistory` already documents its own bounds; this cache is additional and is not exported or displayed in-app.

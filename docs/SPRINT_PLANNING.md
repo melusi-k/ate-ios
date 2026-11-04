@@ -1029,3 +1029,10 @@ Correction to the earlier 09:30 thread-count wording: GitHub's returned thread f
 ### Exact-main Nightly QA completion correction — 2026-11-04T09:51Z
 
 Nightly QA run 41806727867 on main SHA e5665234129e047baf56e3c6af5ea0a5f254e59f has now completed successfully: Unit tests + QA gate (KeyFlowsQATests) passed, and backend E2E passed. This supersedes the 09:30 note that qa-gate was still in progress. It does not make the artifact-only Build IPA run 41785452856 a full release qualification: that workflow skipped unit, 8-flow QA, UI and backend-E2E and reported 1/59 verified, 12 failing, 46 open. On the same main SHA, Compile has one failed attempt (41785456819) and a later pass (41785456999); Journal open-state UI has one pass (41785456929) and a later failure (41785457007); Supabase Preview failed (126426620587); no exact-main Dogfood Qualification pass is recorded. Release remains blocked.
+
+
+### Exact-head poll correction — 2026-11-04T09:52Z
+
+- PR #291 head 05100f13: Dogfood Qualification passed [run 41806818131], Journal open-state UI passed [run 41806818157], latest stack validation passed [41807602051] after an earlier failed attempt; Compile remains in progress [41806818147]. No human approval. It remains blocked.
+- PR #284 head d3dd01e7: Compile failed [run 41804943803] at Library Explore native sheet presentation (#83); Journal open-state UI passed [41804943662]; Journal foundation qualification passed [41804936845]. No Dogfood Qualification result; draft. The Compile failure is shared with current-main #83 evidence, not proof of a Journal-specific regression.
+- PR #267 documentation head 35ba20cf: docs-validation passed [run 41810384045], Compile skipped, stacked validation passed [run 41810391516], Supabase Preview skipped; no Dogfood or Journal UI run is present on this exact SHA. Branch is 15 ahead / 12 behind main and remains draft.

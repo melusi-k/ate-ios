@@ -38,6 +38,7 @@ jobs:
       # One-off proof is enabled only for a manually dispatched TierA build. Remove the
       # temporary repository variable after verification; it is separate from beta opt-in.
       SENTRY_PROOF: ${{ github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled' && github.ref == 'refs/heads/feature/289-sentry-observability' }}
+      SENTRY_FATAL_PROOF: ${{ github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled' && vars.SENTRY_FATAL_PROOF == 'enabled' && github.ref == 'refs/heads/feature/289-sentry-observability' }}
       SENTRY_DSN: ${{ ((github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled' && github.ref == 'refs/heads/feature/289-sentry-observability') || vars.SENTRY_BETA_INGESTION == 'enabled') && secrets.SENTRY_DSN || '' }}
       SENTRY_CANARY: ${{ github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled' && github.ref == 'refs/heads/feature/289-sentry-observability' && format('canary-run-{0}', github.run_id) || '' }}
       HAS_SIGNING: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && secrets.BUILD_PROVISION_PROFILE_BASE64 != '' && secrets.P12_PASSWORD != '' && secrets.TEAM_ID != '' }}
@@ -532,12 +533,16 @@ jobs:
           xcrun simctl boot "$SIM_ID" || true
           profile_sim_boot_end=$(date +%s); echo "::notice::PROFILE step=simulator_boot duration_seconds=$((profile_sim_boot_end-profile_sim_boot_start))"
           profile_build_start=$(date +%s)
+          # Bash 3.2 empty-array expansion is safe here because this smoke step does not enable set -u.
+          SYMBOL_ARGS=()
+          if [ "$SENTRY_FATAL_PROOF" = true ]; then SYMBOL_ARGS+=(DEBUG_INFORMATION_FORMAT=dwarf-with-dsym); fi
           xcodebuild build -project Ate.xcodeproj -scheme "$SCHEME" -configuration Release \
-            -destination "id=$SIM_ID" -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO -quiet 2>&1 | tail -20
+            -destination "id=$SIM_ID" -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO "${SYMBOL_ARGS[@]}" -quiet 2>&1 | tail -20
           profile_build_status=$?
           profile_build_end=$(date +%s); echo "::notice::PROFILE step=simulator_build duration_seconds=$((profile_build_end-profile_build_start)) exit_code=$profile_build_status"
           [ "$profile_build_status" -eq 0 ] || exit "$profile_build_status"
           APP=$(ls -d build/sim/Build/Products/Release-iphonesimulator/Ate.app)
+          echo "SENTRY_PROOF_SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
           [ "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "$BUILD_NUMBER" ] || { echo "::error::sim build number mismatch"; exit 1; }
           profile_bootstatus_start=$(date +%s)
           xcrun simctl bootstatus "$SIM_ID" -b
@@ -563,6 +568,54 @@ jobs:
             xcrun simctl spawn "$SIM_ID" log show --last 1m --predicate 'process == "Ate"' | tail -60 || true
             exit 1
           fi
+
+      - name: Controlled synthetic fatal crash and recovery (phase 2 only)
+        if: ${{ env.SENTRY_FATAL_PROOF == 'true' }}
+        timeout-minutes: 8
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_URL: https://sentry.io
+        run: |
+          set -euo pipefail
+          # The earlier DSN-enabled archive step installs sentry-cli and must have succeeded.
+          command -v sentry-cli >/dev/null || { echo "::error::symbol CLI unavailable"; exit 1; }
+          xcrun simctl help launch
+          python3 - <<'PYFATAL'
+          import os, pathlib, re, signal, subprocess, time
+          sim = os.environ['SENTRY_PROOF_SIM_ID']
+          app = pathlib.Path('build/sim/Build/Products/Release-iphonesimulator/Ate.app')
+          def uuids(path):
+              result = subprocess.run(['dwarfdump', '--uuid', str(path)], check=True, capture_output=True, text=True, timeout=30)
+              ids = set(re.findall(r'UUID: ([0-9A-Fa-f-]{36}) ', result.stdout))
+              if not ids: raise SystemExit(f'No UUIDs: {path}')
+              return {v.lower() for v in ids}
+          required = uuids(app / 'Ate')
+          dsyms = list(app.parent.glob('*.dSYM'))
+          found = set()
+          for dsym in dsyms: found.update(uuids(dsym))
+          if not required.issubset(found): raise SystemExit('Simulator app UUIDs lack matching simulator dSYMs')
+          print('Simulator app UUIDs:', ', '.join(sorted(required)), flush=True)
+          subprocess.run(['sentry-cli', 'upload-dif', '--org', 'add-colour-agency', '--project', 'ate-ios', '--wait', *map(str, dsyms)], check=True, timeout=300)
+          def launch(argument):
+              result = subprocess.run(['xcrun', 'simctl', 'launch', '--terminate-running-process', sim, 'com.melusik.ate', argument], capture_output=True, text=True, check=True, timeout=60)
+              match = re.search(r'com\.melusik\.ate: (\d+)', result.stdout)
+              if not match: raise SystemExit('Could not identify launched proof PID')
+              return int(match.group(1))
+          def alive(pid):
+              try: os.kill(pid, 0); return True
+              except ProcessLookupError: return False
+          pid = launch('-SentryFatalProof')
+          end = time.monotonic() + 30
+          while alive(pid) and time.monotonic() < end: time.sleep(0.5)
+          if alive(pid): raise SystemExit('Explicit fatal proof did not exit within 30 seconds')
+          print('Synthetic fatal process exited; relaunching SAME container without erase', flush=True)
+          pid = launch('-SentryFatalRecovery')
+          end = time.monotonic() + 30
+          while time.monotonic() < end:
+              if not alive(pid): raise SystemExit('Fatal recovery launch exited unexpectedly')
+              time.sleep(0.5)
+          print('Recovery survived 30 seconds; stored fatal event and symbolicated in-app frames still require independent inspection', flush=True)
+          PYFATAL
 
       - name: Upload smoke screenshot
         if: always()

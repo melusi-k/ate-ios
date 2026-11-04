@@ -5,3 +5,6 @@ DerivedData/
 .DS_Store
 xcuserdata/
 supabase/.temp/
+
+# Sentry CLI auth configuration (contains an auth token; never commit)
+.sentryclirc

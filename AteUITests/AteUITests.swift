@@ -858,8 +858,8 @@ final class AteUITests: XCTestCase {
     }
 
     func pick(_ menu: String, _ option: String) {
-        // Group and Sort live inside one icon-only "Group & sort" toolbar menu.
-        if !app.buttons[menu].exists { app.buttons["groupSortMenu"].firstMatch.tap() }
+        // Group and Sort live inside the Library "Browse and arrange" toolbar menu.
+        if !app.buttons[menu].exists { app.buttons["libraryBrowseMenu"].firstMatch.tap() }
         var m = app.buttons[menu].firstMatch
         if !m.waitForExistence(timeout: 2) { m = app.buttons[menu == "sortMenu" ? "Sort" : "Group by"].firstMatch }
         wait(m, 3); m.tap()
@@ -1180,5 +1180,40 @@ final class AteUITests: XCTestCase {
         XCTAssertEqual(field.value as? String, "zzz", "saving from Search keeps the Search tab and its query")
         wait(app.staticTexts["library.searchResults"])
         XCTAssertTrue(text("Zzz").exists, "the new recipe now matches the preserved query")
+    }
+
+    /// The Search tab's results menu carries the existing filters, sort and reset. Reset Filters
+    /// clears only the filters: the query and its results stay. (Menu cleanup increment B.)
+    func testSearchResultsOptionsMenu() throws {
+        guard #available(iOS 26, *) else {
+            throw XCTSkip("The Search tab and its results menu exist only on iOS 26 and later")
+        }
+        launch()
+        addPromptRecipe()
+        tab("Library")
+        app.tabBars.buttons["Search"].firstMatch.tap()
+        let field = app.searchFields.firstMatch
+        wait(field, 5)
+        field.tap()
+        field.typeText("miso")
+        wait(app.staticTexts["library.searchResults"])
+        app.buttons["searchResultsMenu"].tap()
+        let favourites = app.buttons["search.filter.favourites"]
+        wait(favourites, 3)
+        XCTAssertFalse(favourites.isSelected, "no filter is selected before choosing one")
+        shot("search-results-menu")
+        favourites.tap()
+        wait(text("No matches"))
+        XCTAssertTrue(app.buttons["library.empty.clearFilters"].exists, "filter-driven empty state keeps its remove-filters route")
+        app.buttons["searchResultsMenu"].tap()
+        XCTAssertTrue(app.buttons["search.filter.favourites"].isSelected, "the active filter reports its selected state")
+        let reset = app.buttons["search.resetFilters"]
+        wait(reset, 3)
+        XCTAssertTrue(reset.isEnabled, "Reset Filters is available while a filter is active")
+        reset.tap()
+        wait(app.staticTexts["library.searchResults"])
+        XCTAssertEqual(field.value as? String, "miso", "Reset Filters clears filters, not the search query")
+        XCTAssertTrue(app.buttons["listCard"].firstMatch.exists, "the unfiltered result returns")
+        shot("search-results-menu-reset")
     }
 }

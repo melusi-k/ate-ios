@@ -235,6 +235,8 @@ enum RecipeProgressInsightService {
 /// More → Insights: "Your body today", "Suggested meals", "Reflect on your day", "Save to journal".
 struct InsightsView: View {
     var screenTitle: String = "Insights"
+    /// False when pushed from the Journal root; the Library Explore sheet keeps the default.
+    var isRoot: Bool = true
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var model = InsightsModel.shared
@@ -316,7 +318,7 @@ struct InsightsView: View {
             }
         }
         .navigationTitle(screenTitle)
-        .ateRootNavigationChrome(logoID: "insights.logo")
+        .ateRootNavigationChrome(logoID: "insights.logo", enabled: isRoot)
         .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
         .sheet(isPresented: $showJournalComposer) {
             @Bindable var store = store
@@ -608,8 +610,7 @@ struct InsightsView: View {
             store.filter.clear()
             store.select(.library)
         case .cookingHistory:
-            store.trackerPath = []
-            store.select(.tracker)
+            store.openInsightsHub()
         case .shoppingList:
             store.shoppingPath = []
             store.select(.shopping)

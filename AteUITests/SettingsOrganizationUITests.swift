@@ -70,4 +70,21 @@ final class SettingsOrganizationUITests: XCTestCase {
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "settings-timer-notifications"; shot.lifetime = .keepAlways; add(shot)
     }
+
+    /// Largest-Dynamic-Type capture (#74): the sync summary must stay fully rendered - no clipped
+    /// leading/trailing glyphs - at UICTContentSizeCategoryAccessibilityXXXL. Mirrors the repo's
+    /// existing launch-argument convention (AccessibilityAuditUITests.testAuditLargestDynamicType).
+    /// The attached PNG is the review surface: presence alone is not proof of unclipped text.
+    func testSyncSummaryLargestDynamicType() {
+        app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-qaResetCookingHistory", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launch()
+        tab("Settings")
+        let summary = app.staticTexts["settings.syncSummary"]
+        scrollTo(summary)
+        wait(summary, 10)
+        XCTAssertTrue(summary.exists, "Sync summary should exist at the largest accessibility text size")
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "settings-sync-summary-largest-dt"; shot.lifetime = .keepAlways; add(shot)
+    }
 }

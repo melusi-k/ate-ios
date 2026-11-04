@@ -94,32 +94,35 @@ jobs:
                                     monotonic_ns=time.monotonic_ns(), **fields)), flush=True)
           sim = os.environ["SIM_ID"]
           with open("launch-diagnostics/readiness.log", "w", buffering=1) as log:
-              def run(args, limit):
+              def run(args, limit, capture=False):
                   mark("command-start", argv=args, timeout_seconds=limit)
                   try:
-                      result = subprocess.run(args, stdout=log, stderr=subprocess.STDOUT, timeout=limit)
+                      result = subprocess.run(args, stdout=subprocess.PIPE if capture else log,
+                                              stderr=subprocess.STDOUT, text=True, timeout=limit)
+                      if capture:
+                          log.write(result.stdout)
                   except subprocess.TimeoutExpired:
                       mark("command-timeout", argv=args)
                       raise SystemExit(1)
                   mark("command-end", argv=args, returncode=result.returncode)
                   if result.returncode:
                       raise SystemExit(result.returncode)
+                  return result
               mark("simulator-readiness-start", sim_id=sim)
               # Runtime help is retained; unsupported options fail instead of silently skipping readiness.
               run(["xcrun", "simctl", "help", "bootstatus"], 30)
-              run(["xcrun", "simctl", "bootstatus", sim, "-b"], 180)
-              result = subprocess.run(["xcrun", "simctl", "list", "devices", "available", "-j"],
-                                      capture_output=True, text=True, check=True, timeout=30)
-              log.write(result.stdout)
+              # Verify identity before boot; bootstatus is the subsequent readiness authority.
+              result = run(["xcrun", "simctl", "list", "devices", "available", "-j"], 30, capture=True)
               matches = [(runtime, device) for runtime, devices in json.loads(result.stdout)["devices"].items()
                          for device in devices if device["udid"] == sim]
               if len(matches) != 1:
                   raise SystemExit("Selected simulator identity is no longer unique/available")
               runtime, device = matches[0]
-              if (runtime.rsplit(".", 1)[-1] != "iOS-27-0" or device["name"] != "iPhone 18 Pro"
-                      or device["state"] != "Booted"):
-                  raise SystemExit("Selected simulator identity/runtime/readiness mismatch")
-              mark("simulator-readiness-complete", sim_id=sim, runtime=runtime, state=device["state"])
+              if runtime.rsplit(".", 1)[-1] != "iOS-27-0" or device["name"] != "iPhone 18 Pro":
+                  raise SystemExit("Selected simulator identity/runtime mismatch")
+              mark("simulator-identity-verified", sim_id=sim, runtime=runtime, state_before_boot=device["state"])
+              run(["xcrun", "simctl", "bootstatus", sim, "-b"], 180)
+              mark("simulator-readiness-complete", sim_id=sim, runtime=runtime, authority="bootstatus-return-zero")
               mark("unchanged-four-tests-next")
           PYREADINESS
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \

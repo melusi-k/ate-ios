@@ -1019,3 +1019,8 @@ All 30 open PRs remain unmerged. No qualifying human APPROVED review was found; 
 GitHub PR metadata reports mergeable=false for #240, #234, #181 and #66. The other 26 PRs report mergeable=true at this poll. A true mergeable flag only means GitHub currently sees no merge conflict; it does not waive behind-main status, failed/pending/missing checks, draft status, missing independent approvals, unresolved review threads or disabled ruleset enforcement. #291 is currently mergeable=true and up to date with main (1 ahead / 0 behind), but its Compile is in progress, Dogfood is in progress, no human approval exists and main governance is disabled. Branch updates remain unavailable because allow_update_branch=false. Stacked PRs must be compared with their immediate parent, and reverse sync PRs #265/#274 are not feature-to-main delivery PRs.
 
 This note is appended after the 09:30 inventory. The next docs commit changes the documentation PR head; earlier exact-head check results remain historical and must not be reused.
+
+
+### Review-thread count correction — 2026-11-04T09:49Z
+
+Correction to the earlier 09:30 thread-count wording: GitHub's returned thread field is is_resolved (snake case). The earlier compact tally checked a different field name and therefore counted all thread objects as unresolved. The authoritative thread details show #181 has **5 total threads: 3 unresolved (2 outdated Health-connect assertion findings and 1 current corrupt-goals recovery finding), 2 resolved/outdated**. PR #66 has **1 total thread, resolved/outdated; 0 unresolved**. All other open PRs have 0 inline review threads in the current thread listing. This correction is append-only; the earlier tally is superseded.

@@ -874,13 +874,21 @@ final class AteUITests: XCTestCase {
     }
 
     func pick(_ menu: String, _ option: String) {
-        // Group and Sort live inside the Library "Browse and arrange" toolbar menu.
-        if !app.buttons[menu].exists { app.buttons["libraryBrowseMenu"].firstMatch.tap() }
-        var m = app.buttons[menu].firstMatch
-        if !m.waitForExistence(timeout: 2) { m = app.buttons[menu == "sortMenu" ? "Sort" : "Group by"].firstMatch }
-        wait(m, 3); m.tap()
-        let b = app.buttons[option].firstMatch
-        wait(b, 3); b.tap()
+        // iOS 27 realizes these Pickers inline in the native Browse popup.
+        XCTAssertTrue(menu == "sortMenu" || menu == "groupByMenu", "Unknown picker contract")
+        app.buttons["libraryBrowseMenu"].firstMatch.tap()
+        let popups = app.collectionViews.containing(NSPredicate(format: "label == %@", option))
+        wait(popups.firstMatch, 3)
+        XCTAssertEqual(popups.count, 1, "Browse popup must be unique")
+        var choices = popups.firstMatch.descendants(matching: .button)
+            .matching(NSPredicate(format: "label == %@", option))
+        if menu == "groupByMenu" && option == "Recently added" {
+            // Actual hierarchy: calendar is Group by; the collection uses a clock-arrow icon.
+            choices = choices.containing(.image, identifier: "calendar")
+        }
+        wait(choices.firstMatch, 3)
+        XCTAssertEqual(choices.count, 1, "Picker option must be unique in the native popup")
+        choices.firstMatch.tap()
     }
 
     /// C-TAB-01…04: iOS 26 tab chrome — bottom accessory Add, search tab, title visible while searching.
@@ -1214,7 +1222,13 @@ final class AteUITests: XCTestCase {
         field.typeText("miso")
         wait(app.staticTexts["library.searchResults"])
         app.buttons["searchResultsMenu"].tap()
-        let favourites = app.buttons["search.filter.favourites"]
+        // Menu identifiers are absent in the captured native hierarchy; background chips
+        // have the same label, so scope to the popup's own Filters section.
+        let resultsPopups = app.collectionViews.containing(NSPredicate(format: "label == %@", "Filters"))
+        wait(resultsPopups.firstMatch, 3)
+        XCTAssertEqual(resultsPopups.count, 1, "Results popup must be unique")
+        let favourites = resultsPopups.firstMatch.descendants(matching: .button)
+            .matching(NSPredicate(format: "label == %@", "Favourites")).firstMatch
         wait(favourites, 3)
         XCTAssertFalse(favourites.isSelected, "no filter is selected before choosing one")
         shot("search-results-menu")
@@ -1222,9 +1236,14 @@ final class AteUITests: XCTestCase {
         wait(text("No matches"))
         XCTAssertTrue(app.buttons["library.empty.clearFilters"].exists, "filter-driven empty state keeps its remove-filters route")
         app.buttons["searchResultsMenu"].tap()
-        XCTAssertTrue(app.buttons["search.filter.favourites"].isSelected, "the active filter reports its selected state")
+        XCTAssertTrue(favourites.isSelected, "the active filter reports its selected state")
         shot("search-results-menu-selected")
-        let reset = app.buttons["search.resetFilters"]
+        // Anchor on the target itself so native scrolling cannot discard a section header.
+        let resetPopups = app.collectionViews.containing(NSPredicate(format: "label == %@", "Reset Filters"))
+        wait(resetPopups.firstMatch, 3)
+        XCTAssertEqual(resetPopups.count, 1, "Reset Filters popup must be unique")
+        let reset = resetPopups.firstMatch.descendants(matching: .button)
+            .matching(NSPredicate(format: "label == %@", "Reset Filters")).firstMatch
         wait(reset, 3)
         XCTAssertTrue(reset.isEnabled, "Reset Filters is available while a filter is active")
         reset.tap()

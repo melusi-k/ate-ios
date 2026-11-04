@@ -436,6 +436,12 @@ final class AppStore {
         showOnboarding = AppConfig.isUITesting ? ProcessInfo.processInfo.arguments.contains("-showOnboarding")
                                                : !UserDefaults.standard.bool(forKey: Self.onboardedKey)
         load()
+        // UI tests opt into an empty shopping list per test launch so one journey's items
+        // cannot leak into the next test's assertions (same rationale as -qaResetCookingHistory).
+        if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaResetShopping") {
+            shopping = []
+            persistShopping(stamp: false)
+        }
         recipeSnapshot = Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         shopSnapshot = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         timers.prefsProvider = { [weak self] in self?.timerPrefs ?? TimerPrefs() }

@@ -19,8 +19,26 @@ final class CanonicalNutritionAssociationUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 20))
     }
 
+    /// Types verified in the retained Xcode 27 run26 accessibility hierarchy.
+    /// Keep queries scoped to the real control type instead of scanning every descendant.
     private func element(_ identifier: String) -> XCUIElement {
-        app.descendants(matching: .any)[identifier].firstMatch
+        switch identifier {
+        case "nutritionDiary.add", "nutritionDiary.save", "nutritionDiary.source",
+             "nutritionDiary.linkRecipe", "nutritionDiary.unlinkRecipe":
+            return app.buttons[identifier].firstMatch
+        case "nutritionDiary.linksUnavailableSummary", "nutritionDiary.linksUnavailable",
+             "nutritionDiary.linkedRecipe", "nutritionDiary.formError":
+            return app.staticTexts[identifier].firstMatch
+        case "nutritionDiary.foodName", "nutritionDiary.quantity", "nutritionDiary.servings",
+             "nutritionDiary.sourceName", "nutritionDiary.sourceIdentifier",
+             "nutritionDiary.verificationNote", "nutritionDiary.nutrient.energy",
+             "nutritionDiary.nutrient.carbohydrates":
+            return app.textFields[identifier].firstMatch
+        case "nutritionDiary.entry.\(entryID)", "nutritionDiary.frequent.0":
+            return app.buttons[identifier].firstMatch
+        default:
+            preconditionFailure("Add a hierarchy-verified control type for \(identifier)")
+        }
     }
 
     /// Bounded scrolling over the real List/Form. A missing control fails, never silently skips.

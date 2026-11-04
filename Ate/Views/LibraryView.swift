@@ -542,7 +542,10 @@ struct LibrarySearch: ViewModifier {
         case .drawer:
             styled(content.searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: prompt))
         case .tabBar:
-            styled(content.searchable(text: $query, prompt: prompt))
+            // The search-role tab's automatic placement rendered no search field at all on the
+            // iOS 27 simulator (issue-73 qualification lane pixel evidence), so pin the field to an
+            // always-visible drawer like the Library tab: search-first needs a field on arrival.
+            styled(content.searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: prompt))
         }
     }
     @ViewBuilder private func styled<V: View>(_ v: V) -> some View {

@@ -52,10 +52,13 @@ final class JournalMenuCaptureUITests: XCTestCase {
         return t
     }
 
-    /// Browse-menu items surface as labelled buttons inside the Collections
-    /// collection view on this runtime (see JournalOpenStateUITests).
+    /// Native menu items lose identifiers; the target label anchors the popup through scrolling.
     private func browseMenuItem(_ label: String) -> XCUIElement {
-        let menu = app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch
+        // The requested Explore item remains realized when Collections scrolls away.
+        let menus = app.collectionViews.containing(NSPredicate(format: "label == %@", label))
+        wait(menus.firstMatch, 10)
+        XCTAssertEqual(menus.count, 1, "Explore menu must be unique")
+        let menu = menus.firstMatch
         return menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", label)).firstMatch
     }
 

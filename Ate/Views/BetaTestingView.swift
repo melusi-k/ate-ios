@@ -9,7 +9,10 @@ struct BetaTestingView: View {
     @State private var showPassed = false
     @State private var showTierA = false
     @State private var uploadMessage: String?
-    @State private var ci = CIStatus.results
+    @State private var ci: [String: CIResult] = [:]
+    @State private var ciError: String?
+    @State private var ciRefreshed: Date?
+    @State private var ciLoading = false
     @State private var healthScenario = UserDefaults.standard.string(forKey: HealthServiceFactory.debugKey) ?? ""
 
     var body: some View {
@@ -18,17 +21,26 @@ struct BetaTestingView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Build \(AppConfig.buildLabel)").font(AteFont.body(13, .semibold)).accessibilityIdentifier("betaBuildLabel")
                     let p = qa.progress()
-                    Text("\(BetaChecklist.tierName): \(p.passed)/\(p.total) passed").font(AteFont.display(20)).accessibilityIdentifier("betaProgress")
+                    Text("This build: \(p.passed)/\(p.total) \(BetaChecklist.isTierC ? "uncommitted" : "Pilot") device checks passed").font(AteFont.display(20)).accessibilityIdentifier("betaProgress")
                     ProgressView(value: Double(p.passed), total: Double(max(1, p.total))).tint(Theme.primary)
-                    Text("Items marked ‘auto’ tick themselves when the journey really completes on this iPhone, and turn ❌ with the error if it fails. Others need your verdict.")
+                    Text("These are acceptance checks, not the number of tests run. Auto checks record journeys on this iPhone; other checks need your verdict. Earlier-build evidence is kept separately below.")
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                 }
+                Text("Bundled catalogue " + String(BetaChecklist.catalogueRevision.prefix(12)) + " · " + AppConfig.gitSHA)
+                    .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
+                Text("Pilot items are release-readiness requirements, including capabilities still awaiting verification. The total is generated from this build's requirement snapshot, not from the number of executed tests.")
+                    .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                NavigationLink("Catalogue for this build") { BetaCatalogueView() }
                 NavigationLink { BetaExpectationsView() } label: { Label(Transparency.betaTitle, systemImage: "info.circle") }
                     .accessibilityIdentifier("betaExpectationsLink")
                 let ciPass = ci.values.filter { $0.status == .pass }.count
-                Text(ci.isEmpty ? "CI: no simulator/backend results yet" + (store.session == nil ? " (sign in to see them)" : "")
-                                : "CI: \(ciPass)/\(ci.count) automated checks passing")
+                Text(ciSummary(passed: ciPass))
                     .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("betaCISummary")
+                Text("No published evidence does not mean tests passed, failed, or were skipped. See the build run for execution details.")
+                    .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                if let error = ciError { Text("CI refresh failed: " + error).font(AteFont.body(12)).foregroundStyle(Theme.destructive) }
+                if let at = ciRefreshed { Text("CI refreshed " + at.formatted(date: .abbreviated, time: .shortened)).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground) }
+
             }
             Section("Health insights") {
                 Picker("Health data", selection: $healthScenario) {
@@ -61,14 +73,14 @@ struct BetaTestingView: View {
                 Text("Checks A-WIDGET, A-LOCK, A-CONTROL and A-INTENT. If the App Group shows missing, widgets can only show “Open ate”; Siri phrases and Control Center still work.")
                     .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
             }
-            let passedIDs = Set(BetaChecklist.items.filter { BetaVisibility.isPassed(device: qa.result($0.id), ci: ci[$0.id], build: AppConfig.buildNumber) }.map(\.id))
+            let passedIDs = Set(BetaChecklist.items.filter { BetaVisibility.isPassed(device: qa.currentResult($0.id), ci: ci[$0.id], build: AppConfig.buildLabel) }.map(\.id))
             ForEach(BetaChecklist.categories, id: \.self) { c in
                 let open = BetaChecklist.items.filter { $0.category == c && !passedIDs.contains($0.id) }
                 if !open.isEmpty {
                     let p = qa.progress(c)
                     Section("\(c) — \(p.passed)/\(p.total)") {
                         ForEach(open) { item in
-                            NavigationLink { BetaItemView(item: item) } label: { BetaRow(item: item, result: qa.result(item.id), ci: ci[item.id]) }
+                            NavigationLink { BetaItemView(item: item) } label: { BetaRow(item: item, result: qa.currentResult(item.id), ci: ci[item.id]) }
                         }
                     }
                 }
@@ -77,7 +89,7 @@ struct BetaTestingView: View {
                 Section {
                     DisclosureGroup(isExpanded: $showPassed) {
                         ForEach(BetaChecklist.items.filter { passedIDs.contains($0.id) }) { item in
-                            NavigationLink { BetaItemView(item: item) } label: { BetaRow(item: item, result: qa.result(item.id), ci: ci[item.id]) }
+                            NavigationLink { BetaItemView(item: item) } label: { BetaRow(item: item, result: qa.currentResult(item.id), ci: ci[item.id]) }
                         }
                     } label: { Text("Passed (\(passedIDs.count))").font(AteFont.body(15, .semibold)) }
                     .accessibilityIdentifier("beta.passedGroup")
@@ -87,38 +99,101 @@ struct BetaTestingView: View {
                 Section {
                     DisclosureGroup(isExpanded: $showTierA) {
                         ForEach(BetaChecklist.tierA) { item in
-                            NavigationLink { BetaItemView(item: item) } label: { BetaRow(item: item, result: qa.result(item.id), ci: ci[item.id]) }
+                            NavigationLink { BetaItemView(item: item) } label: { BetaRow(item: item, result: qa.currentResult(item.id), ci: ci[item.id]) }
                         }
                     } label: {
-                        let done = BetaChecklist.tierA.filter { qa.result($0.id).status == .pass }.count
+                        let done = BetaChecklist.tierA.filter { qa.currentResult($0.id).status == .pass }.count
                         Text("Pilot gate results (\(done)/\(BetaChecklist.tierA.count) passed)").font(AteFont.body(15, .semibold))
                     }
                     .accessibilityIdentifier("beta.tierAGroup")
                 }
             }
+            let historical = BetaChecklist.all.filter { !qa.previousResults($0.id).isEmpty }
+            if !historical.isEmpty {
+                Section("Earlier-build evidence") {
+                    Text("Preserved for reference, not counted as verification of this build. Legacy records may have no commit/run identity. Only records still stored on this iPhone can be recovered.")
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                    ForEach(historical) { item in
+                        NavigationLink { BetaItemView(item: item) } label: {
+                            Text(item.id + " · " + item.title).font(AteFont.body(13))
+                        }
+                    }
+                }
+            }
             Section("Results") {
+                if let warning = qa.persistenceWarning { Text(warning).foregroundStyle(Theme.destructive) }
+                if !qa.hasVerifiableBuildIdentity {
+                    Text("This local/development build has no verifiable release identity. Verdicts can be recorded, but are not counted as current-build verification or eligible for upload.")
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                }
                 Button("Export results (JSON + Markdown)") {
                     let j = writeTemp("ate-beta-\(AppConfig.buildNumber).json", qa.exportJSON())
                     let m = writeTemp("ate-beta-\(AppConfig.buildNumber).md", Data(qa.exportMarkdown().utf8))
                     share = ShareItems(items: [j, m].compactMap { $0 })
                 }
+                Text("\(qa.legacyNotUploadedCount) legacy/unknown records excluded from upload and preserved in the local export. Only records with captured build, catalogue and source/run identity are eligible; this does not repair existing cloud history.")
+                    .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                 if let s = store.session {
                     Button("Upload results to ate cloud") { Task { uploadMessage = await qa.upload(session: s) ?? "Uploaded ✅" } }
                 }
                 if let m = uploadMessage { Text(m).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground) }
-                Button("Reset all results", role: .destructive) { confirmReset = true }
+                Button("Reset this build's results", role: .destructive) { confirmReset = true }
             }
         }
         .navigationTitle("Beta testing")
         .onAppear { qa.detectTierC() }
-        .task { if let s = store.session { await CIStatus.refresh(session: s); ci = CIStatus.results } }
-        .refreshable { if let s = store.session { await CIStatus.refresh(session: s); ci = CIStatus.results } }
-        .confirmationDialog("Reset every beta result on this iPhone?", isPresented: $confirmReset, titleVisibility: .visible) {
-            Button("Reset", role: .destructive) { qa.reset() }
+        .task(id: store.session?.userID) { await refreshCI() }
+        .refreshable { await refreshCI() }
+        .confirmationDialog("Reset only this build's results? Earlier-build history is kept.", isPresented: $confirmReset, titleVisibility: .visible) {
+            Button("Reset this build", role: .destructive) { qa.resetCurrentBuild() }
         }
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
     }
 
+    private func ciSummary(passed: Int) -> String {
+        switch BetaCIViewState.resolve(loading: ciLoading, error: ciError, refreshed: ciRefreshed, count: ci.count) {
+        case .loading: return "CI: loading this build's evidence"
+        case .unknown: return "CI: status unknown"
+        case .notLoaded: return "CI: not loaded"
+        case .noEvidence: return "CI: no published evidence for this exact build"
+        case .evidence: return "CI for this build: \(passed)/\(ci.count) published checks passing"
+        }
+    }
+    @MainActor private func refreshCI() async {
+        ci = [:]; ciError = nil; ciRefreshed = nil; ciLoading = true
+        defer { ciLoading = false }
+        if AppConfig.isUITesting { ci = CIStatus.results; ciRefreshed = Date(); return }
+        guard let session = store.session else { ciError = "Sign in to fetch this build's evidence."; return }
+        let userID = session.userID
+        await CIStatus.refresh(session: session)
+        guard store.session?.userID == userID else { return }
+        ci = CIStatus.results; ciError = CIStatus.lastError; ciRefreshed = CIStatus.lastRefreshed
+    }
+
+}
+
+struct BetaCatalogueView: View {
+    var body: some View {
+        List {
+            Section {
+                Text(AppConfig.buildLabel)
+                Text("Source commit: " + AppConfig.gitSHAFull).textSelection(.enabled)
+                Text("Catalogue: " + BetaChecklist.catalogueRevision).textSelection(.enabled)
+                Text("This is the documented acceptance inventory bundled with this source build. Inclusion is not a claim of implementation or a pass. Historical catalogue snapshots are retained from this repair onward; old catalogues are not reconstructed from today's wording.")
+            }
+            Section("Pilot requirements (\(BetaChecklist.tierA.count))") {
+                ForEach(BetaChecklist.tierA) { item in
+                    NavigationLink { BetaItemView(item: item) } label: { Text(item.id + " · " + item.title) }
+                }
+            }
+            Section("Other documented requirements (\(BetaChecklist.tierC.count))") {
+                Text("No committed release gate. Not added to the Pilot denominator, and not necessarily implemented in this build.")
+                ForEach(BetaChecklist.tierC) { item in
+                    NavigationLink { BetaItemView(item: item) } label: { Text(item.id + " · " + item.title) }
+                }
+            }
+        }.navigationTitle("Build catalogue")
+    }
 }
 
 struct BetaRow: View {
@@ -158,12 +233,24 @@ struct BetaItemView: View {
                 Text(item.title).font(AteFont.display(18))
                 Text(item.how).font(AteFont.body(13))
             }
-            let r = qa.result(item.id)
+            let r = qa.currentResult(item.id)
             Section("Status") {
                 Text("\(r.status.symbol) \(r.status.rawValue)\(r.auto ? " (auto)" : "")" + (r.status == .untested ? "" : " · \(r.ts.formatted(date: .abbreviated, time: .shortened)) · \(r.build)"))
                 if !r.note.isEmpty { Text(r.note).font(AteFont.body(12)).textSelection(.enabled) }
             }
-            Section("Your verdict") {
+            if !qa.previousResults(item.id).isEmpty {
+                Section("Earlier-build evidence") {
+                    ForEach(Array(qa.previousResults(item.id).enumerated()), id: \.offset) { _, old in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(old.status.symbol + " " + old.status.rawValue + " · " + old.build)
+                            Text(old.ts.formatted(date: .abbreviated, time: .shortened))
+                            Text("Commit: " + (old.commitSHA ?? "Unknown (legacy)") + " · Run: " + (old.runID ?? "Unknown (legacy)"))
+                            if !old.note.isEmpty { Text(old.note) }
+                        }.font(AteFont.body(12))
+                    }
+                }
+            }
+            Section("Your verdict for this build") {
                 TextField("Note (what happened)", text: $note, axis: .vertical)
                 HStack {
                     Button("Pass") { qa.set(item.id, .pass, note: note, auto: false) }.tint(.green)
@@ -173,7 +260,7 @@ struct BetaItemView: View {
             }
         }
         .navigationTitle(item.id)
-        .onAppear { note = qa.result(item.id).note }
+        .onAppear { note = qa.currentResult(item.id).note }
     }
 }
 

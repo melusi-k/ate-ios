@@ -93,12 +93,42 @@
         }
       }
     },
-    "%lld recipe%@ saved on this device." : {
+    "%lld saved recipe%@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "%1$lld recipe%2$@ saved on this device."
+            "value" : "%1$lld saved recipe%2$@"
+          }
+        }
+      }
+    },
+    "%lld showing · %lld active filter%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld showing · %2$lld active filter%3$@"
+          }
+        }
+      }
+    },
+    "%lld recipe%@ for “%@”" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld recipe%2$@ for “%3$@”"
+          }
+        }
+      }
+    },
+    "See all (%lld)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "See all (%1$lld)"
           }
         }
       }
@@ -233,7 +263,7 @@
     "Ate repaired its library on this iPhone" : {
 
     },
-    "ate turns a link, a screenshot or an idea into a clean recipe card." : {
+    "Import an existing recipe from a link or screenshot. Describe an idea to generate a new recipe." : {
 
     },
     "Back" : {
@@ -568,7 +598,7 @@
     "Generate cover" : {
 
     },
-    "Generate recipe card" : {
+    "Generate recipe" : {
 
     },
     "Go to step %lld, %@ left" : {
@@ -1513,6 +1543,57 @@
 
     },
     "Your verdict" : {
+
+    },
+    "Save an existing recipe or create a new one from your idea." : {
+
+    },
+    "Import a recipe" : {
+
+    },
+    "Paste a link to a recipe you already found." : {
+
+    },
+    "Photograph a recipe" : {
+
+    },
+    "Read a recipe screenshot, or estimate a dish from a food photo." : {
+
+    },
+    "Describe a recipe" : {
+
+    },
+    "Generate a new recipe, for example: miso salmon for two." : {
+
+    },
+    "No recipes match these filters. Remove them to keep looking." : {
+
+    },
+    "Remove all filters" : {
+
+    },
+    "Clear search" : {
+
+    },
+    "Describe it as a new recipe" : {
+
+    },
+    "Search your recipes" : {
+
+    },
+    "Find a saved recipe by name, ingredient or tag. Filters and collections still apply." : {
+
+    },
+    "Import an existing recipe. We'll read the source, not invent a new dish." : {
+
+    },
+    "Generate a new recipe from your idea. Review and edit the result before saving." : {
+
+    },
+    "Import recipe" : {
+
+    },
+    "Read image" : {
 
     }
   },

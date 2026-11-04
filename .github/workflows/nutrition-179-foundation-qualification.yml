@@ -51,75 +51,12 @@ jobs:
       - name: Require every named pure fixture pass
         run: |
           set -euo pipefail
-          ! grep -Eq "Executed 0 tests|Test Case .* failed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testMealRoundTripsEveryFieldVerbatim' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testSavedMealIsOneJournalEntryWithMealKind' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testExistingReflectionDefaultsToReflectionKind' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testDayKeyPreservedVerbatimNotRecomputed' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testTotalsAreIdenticalToLegacyCalculation' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testSaveRejectsInvalidEntry' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testSaveRejectsDuplicateIdentity' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testUpdateKeepsIdentityAndOriginalDay' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testDeleteRemovesEntryAndPayloadTogether' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testMigrationImportsPopulatedLegacyStoreVerbatim' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testMigrationBacksUpPayloadBeforeRetiringLegacyKey' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testMigrationIsIdempotentAcrossRunsAndRecovery' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testMigrationLeavesUnreadableLegacyUntouched' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testMigrationPreservesMalformedRecordsAndReportsHonestly' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testMigrationFailsWithoutRetiringWhenBackupCannotBeWritten' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testMigrationWithNoLegacyDiary' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testJournalStorePersistsMealsAcrossReopen' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testCorruptJournalStoreIsMovedAsideAndReplacesItself' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testThrowingReadRejectsUnavailableInsteadOfReportingEmpty' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testConflictingIdentityPreservesLegacyAndUnifiedPayload' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testBatchInvalidInputDoesNotLeavePendingRows' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testIsolatedSaveFailureLeavesUnrelatedMainContextEditPending' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testMigrationThenCreateUpdateDeletePreservesIdentityAndHistoricalDay' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testOrphanPayloadIsUnreadableAndCannotTriggerLegacyRetirement' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testFallbackCannotImportOrRetireDurableLegacy' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testDuplicateLegacyIdentityDoesNotImportEitherCopy' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testEveryCanonicalWriterRejectsInvalidDayBeforeAnyMutation' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalStoreTests.testMigrationRejectsMalformedDayBeforeCopyAndKeepsLegacyBytes' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalCoordinatorTests.testMigrateThenReadSaveEditDeleteWithoutRecreatingLegacyKey' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalCoordinatorTests.testInvalidLegacyFailsAllCanonicalActionsAndPreservesOriginalBytes' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "FoodJournalCoordinatorTests.testDecodableInvalidLegacyHasTypedFailureThenRepairRetriesWithoutCachedFailure' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "JournalArchiveTests.testRawFieldsAndActualMediaBytesRoundTripWithoutNormalization' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "JournalArchiveTests.testMissingMediaAndUnsafeBasenamesFailValidation' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "JournalArchiveTests.testDuplicateIdentityAndMediaLimitFailBeforeRestore' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "JournalArchiveTests.testMealKindCannotOmitStructuredPayload' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "JournalArchiveTests.testCoordinatesAndFutureArchiveVersionAreRejected' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "JournalArchiveTests.testCaptureRejectsEveryIncompleteOpenState' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "JournalArchiveTests.testCaptureReadsMediaAndRawReflectionFromIsolatedStore' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "JournalArchiveTests.testMediaHashMismatchFailsValidation' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "JournalArchiveTests.testCaptureRefusesOrphanMealPayload' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "JournalArchiveTests.testCaptureOrdersOutOfOrderEntriesByCreatedAtAscending' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "JournalTimelineOrderTests.testEntriesRemainNewestFirstWhenInsertedOutOfOrder' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "LegacyDiaryRepairTests.testRepairPreservesBackupAndUntouchedRowsAndRejectsStaleSnapshot' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "LegacyDiaryRepairTests.testDuplicateIdentityCanBeRemovedByRowIndexWithoutDroppingBoth' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "LegacyDiaryRepairTests.testInvalidDayReplacementDoesNotWriteOrMigratePoisonedRow' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "LegacyDiaryRepairTests.testUndecodableAndBackupFailurePreserveSourceBytes' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "LegacyDiaryRepairTests.testExplicitUndecodableRecoveryBacksUpExactBytesBeforeResetAndRefusesReadableData' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "CanonicalNutritionDiaryTests.testAddUpdateDeleteReloadsFromCanonicalStore' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "CanonicalNutritionDiaryTests.testEditPreservesIdentityInstantAndUnknownNutrients' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "CanonicalNutritionDiaryTests.testDeliberateDayMoveChangesOnlyDayKey' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "CanonicalNutritionDiaryTests.testDraftValidationFailuresAreTypedAndKeepTheDraftIntact' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "CanonicalNutritionDiaryTests.testBlockedInvalidLegacyRoutesToRepairThenRepairAndRetryRecovers' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "CanonicalNutritionDiaryTests.testUndecodableLegacyRoutesToRepairResetThenRetryRecovers' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "CanonicalNutritionDiaryTests.testClassificationMatchesActualLegacyContent' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "CanonicalNutritionDiaryTests.testValidLegacyEnvironmentalBackupFailureRoutesToRetryAndRecoversIdempotently' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "CanonicalNutritionDiaryTests.testJournalOpenStateIsExposedForHonestPresentation' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "CanonicalNutritionDiaryTests.testWeekScopingIsHalfOpenAndKeepsUnknownTotalsUnavailable' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "CanonicalNutritionDiaryTests.testBlockedLegacyLeavesCanonicalStoreUnwrittenAcrossAllMutations' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "NutritionRecipeAssociationTests.testLinkRoundTripsAcrossStoreInstances' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "NutritionRecipeAssociationTests.testLinkKeepsRecipeNameSnapshotIndependentOfLaterRecipeChanges' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "NutritionRecipeAssociationTests.testRelinkReplacesPreviousLinkForSameEntryOnly' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "NutritionRecipeAssociationTests.testDissociateRemovesOnlyThatEntryLink' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "NutritionRecipeAssociationTests.testCorruptLinkStoreReportsUnavailableAndRefusesOverwrite' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "NutritionRecipeAssociationTests.testPruneOrphansKeepsOnlyLiveEntries' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "NutritionRecipeAssociationTests.testFrequentFoodsCountsLocalEntriesAndPrefersMostRecentValues' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "NutritionRecipeAssociationTests.testFrequentDraftNeverCarriesVerificationOrExternalProvenance' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "NutritionRecipeAssociationTests.testControllerLinksEntryAndDeleteDropsLinkWhileDiaryKeepsWorking' passed" build/nutrition-179-foundation/native.log
-          grep -F -- "NutritionRecipeAssociationTests.testControllerReloadNeverPrunesLinksAgainstPossiblyPartialEntrySet' passed" build/nutrition-179-foundation/native.log
+          if grep -Eq "Executed 0 tests|Test Case .* failed" build/nutrition-179-foundation/native.log; then
+            echo "::error::Native log contains a zero-test or failed-test result"
+            exit 1
+          fi
+          xcrun xcresulttool get test-results tests --path build/nutrition-179-foundation/Nutrition179Foundation.xcresult > build/nutrition-179-foundation/native-tests.json
+          python3 scripts/validate-nutrition-179-tests.py build/nutrition-179-foundation/native-tests.json scripts/nutrition-179-native-required.txt
       - name: Run real canonical nutrition UI journeys (DEBUG hermetic route only)
         run: |
           set -euo pipefail
@@ -131,9 +68,8 @@ jobs:
             -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
             SWIFT_STRICT_CONCURRENCY=complete CODE_SIGNING_ALLOWED=NO \
             > build/nutrition-179-foundation/ui.log 2>&1 || { tail -160 build/nutrition-179-foundation/ui.log; exit 1; }
-          grep -F -- "CanonicalNutritionAssociationUITests.testLinkSnapshotThenUnlinkKeepsEntryValues' passed" build/nutrition-179-foundation/ui.log
-          grep -F -- "CanonicalNutritionAssociationUITests.testCorruptLinksAreUnavailableWhileEntryRemainsReadable' passed" build/nutrition-179-foundation/ui.log
-          grep -F -- "CanonicalNutritionAssociationUITests.testFrequentPrefillValidationFailureRetainsDraftAndPriorProvenance' passed" build/nutrition-179-foundation/ui.log
+          xcrun xcresulttool get test-results tests --path build/nutrition-179-foundation/Nutrition179UI.xcresult > build/nutrition-179-foundation/ui-tests.json
+          python3 scripts/validate-nutrition-179-tests.py build/nutrition-179-foundation/ui-tests.json scripts/nutrition-179-ui-required.txt
           python3 scripts/validate-nutrition-179-captures.py build/nutrition-179-foundation/ui.log build/nutrition-179-foundation/captures
       - name: Retain native evidence including failed build diagnostics
         if: always()

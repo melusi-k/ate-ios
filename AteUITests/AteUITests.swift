@@ -94,7 +94,7 @@ final class AteUITests: XCTestCase {
         launch()
         wait(text("Your Kitchen"))
         XCTAssertTrue(text("Nothing saved yet").exists)
-        XCTAssertTrue(text("0 recipes saved on this device.").exists)
+        XCTAssertTrue(text("0 saved recipes").exists)
         shot("library-empty")
         app.buttons["Add recipe"].tap()
         app.buttons["generateButton"].tap()
@@ -123,7 +123,7 @@ final class AteUITests: XCTestCase {
         launch()
         addPromptRecipe()
         tab("Library")
-        wait(text("1 recipe saved on this device."))
+        wait(text("1 saved recipe"))
         shot("library-one-recipe")
         // iOS 26: Library search lives in the tab bar's search tab (Tab(role: .search)).
         if !app.searchFields.firstMatch.waitForExistence(timeout: 2) { app.tabBars.buttons["Search"].firstMatch.tap() }
@@ -334,7 +334,7 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["Cook mode"])
         shot("shared-saved-detail")
         tab("Library")
-        wait(text("1 recipe saved on this device."))
+        wait(text("1 saved recipe"))
     }
 
     func test11_TimerBar() {
@@ -1038,5 +1038,87 @@ final class AteUITests: XCTestCase {
         text("First dish").press(forDuration: 1.0, thenDragTo: text("Second dish"))
         sleep(1)
         shot("library-reorder-drag")
+    }
+
+    func testFirstLibraryRecipeActionsChooseTheCorrectInput() {
+        launch()
+        wait(text("Nothing saved yet"))
+        let modes = [("link", "linkField"), ("photo", "takePhoto"), ("prompt", "promptEditor")]
+        for (mode, target) in modes {
+            let button = app.buttons["library.firstRecipe.\(mode)"]
+            scrollTo(button); wait(button); button.tap()
+            wait(app.descendants(matching: .any)[target])
+            app.buttons["addCancel"].tap()
+        }
+        shot("library-first-recipe-actions")
+    }
+
+    /// #73: the iOS 26 Search tab starts search-first, labels recipe results, offers clear and
+    /// describe routes on no results, and keeps the query when a result is opened and closed.
+    func testSearchTabStartsSearchFirstAndKeepsContext() {
+        guard #available(iOS 26, *) else { return }
+        launch()
+        addPromptRecipe()
+        tab("Library")
+        app.tabBars.buttons["Search"].firstMatch.tap()
+        wait(app.staticTexts["library.searchStart"])
+        XCTAssertFalse(app.buttons["listCard"].firstMatch.exists, "Search start shows suggestions, not the whole library")
+        shot("search-start")
+        let field = app.searchFields.firstMatch
+        wait(field, 5)
+        field.tap()
+        field.typeText("miso")
+        wait(app.staticTexts["library.searchResults"])
+        XCTAssertTrue(app.buttons["listCard"].firstMatch.exists, "the matching recipe is listed")
+        shot("search-results")
+        app.buttons["listCard"].firstMatch.tap()
+        wait(app.staticTexts["recipeQuickLookTitle"])
+        shot("search-result-quicklook")
+        // The quick-look sits at its smallest detent, so a downward drag can only dismiss, never resize.
+        let sheetTop = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.73))
+        sheetTop.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
+        if app.staticTexts["recipeQuickLookTitle"].waitForExistence(timeout: 1) { app.swipeDown(velocity: .fast) }
+        wait(field, 5)
+        XCTAssertEqual(field.value as? String, "miso", "the query survives opening and closing a result")
+        XCTAssertTrue(app.staticTexts["library.searchResults"].exists, "the results survive returning from a result")
+        field.tap()
+        field.typeText("zzz")
+        wait(text("No matches"))
+        wait(app.buttons["library.empty.clearSearch"])
+        XCTAssertTrue(app.buttons["library.empty.describe"].exists, "no results offers describing the idea as a new recipe")
+        shot("search-no-results")
+        app.buttons["library.empty.clearSearch"].tap()
+        wait(app.staticTexts["library.searchStart"])
+        XCTAssertFalse(app.buttons["listCard"].firstMatch.exists)
+    }
+
+    /// #73: saving a recipe created from a failed Search-tab search pushes detail on the Search
+    /// tab's own stack, so Back returns to the preserved query and its (now matching) results.
+    func testSearchDescribeSaveStaysOnSearchStack() {
+        guard #available(iOS 26, *) else { return }
+        launch()
+        addPromptRecipe()
+        tab("Library")
+        app.tabBars.buttons["Search"].firstMatch.tap()
+        let field = app.searchFields.firstMatch
+        wait(field, 5)
+        field.tap()
+        field.typeText("zzz")
+        wait(text("No matches"))
+        wait(app.buttons["library.empty.describe"])
+        app.buttons["library.empty.describe"].tap()
+        let editor = app.textViews["promptEditor"]
+        wait(editor, 5)
+        XCTAssertEqual(editor.value as? String, "zzz", "the failed search becomes the new recipe's idea")
+        app.buttons["generateButton"].tap()
+        wait(text("Review your card"), 15)
+        app.buttons["saveRecipe"].tap()
+        wait(app.buttons["Cook mode"], 10)
+        shot("search-describe-saved-detail")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        wait(field, 5)
+        XCTAssertEqual(field.value as? String, "zzz", "saving from Search keeps the Search tab and its query")
+        wait(app.staticTexts["library.searchResults"])
+        XCTAssertTrue(text("Zzz").exists, "the new recipe now matches the preserved query")
     }
 }

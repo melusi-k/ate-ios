@@ -12,12 +12,14 @@ name: Journal Menu Qualification (primary actions and manual Journal entry)
 on:
   pull_request:
     branches: ["menu-shopping-list-options", "menu-journal-primary-actions"]
+  push:
+    branches: ["menu-journal-primary-actions", "menu-journal-root-insights"]
 
 permissions:
   contents: read
 
 concurrency:
-  group: journal-menu-qualification-${{ github.event.pull_request.number }}
+  group: journal-menu-qualification-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -56,7 +58,11 @@ jobs:
           xcodegen generate
           mkdir -p build
           xcodebuild -version
-          echo "Synthetic merge commit: $GITHUB_SHA; PR head: ${{ github.event.pull_request.head.sha }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            echo "Synthetic merge commit: $GITHUB_SHA; PR head: ${{ github.event.pull_request.head.sha }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Actual-head execution (push): $GITHUB_SHA on $GITHUB_REF_NAME" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Select iPhone 18 Pro simulator (iOS 27.0)
         id: select_simulator
@@ -271,10 +277,12 @@ jobs:
         if: always()
         run: |
           {
-            echo "pr_head_sha=${{ github.event.pull_request.head.sha }}"
-            echo "synthetic_merge_sha=$GITHUB_SHA"
-            echo "pr_number=${{ github.event.pull_request.number }}"
-            echo "base_ref=${{ github.event.pull_request.base.ref }}"
+            echo "event_name=$GITHUB_EVENT_NAME"
+            echo "pr_head_sha=${{ github.event.pull_request.head.sha || '' }}"
+            echo "executed_sha=$GITHUB_SHA"
+            echo "execution_target=${{ github.event_name == 'pull_request' && 'synthetic-merge' || 'actual-head' }}"
+            echo "pr_number=${{ github.event.pull_request.number || '' }}"
+            echo "base_ref=${{ github.event.pull_request.base.ref || github.ref_name }}"
             echo "ref=$GITHUB_REF"
             echo "run_id=$GITHUB_RUN_ID"
             echo "run_attempt=$GITHUB_RUN_ATTEMPT"

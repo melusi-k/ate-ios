@@ -56,7 +56,7 @@ enum JournalArchiveCapture {
             throw JournalArchiveError.unavailable
         }
         let context = ModelContext(container)
-        let rows = try context.fetch(FetchDescriptor<JournalEntry>(sortBy: [SortDescriptor(\.createdAt)]))
+        let rows = try context.fetch(FetchDescriptor<JournalEntry>())
         let meals = try FoodJournalStore(container: container).readMeals()
         let mealByID = Dictionary(uniqueKeysWithValues: meals.map { ($0.id.uuidString, $0) })
         var result = JournalArchive(entries: [], media: [:])
@@ -70,6 +70,9 @@ enum JournalArchiveCapture {
                 editedAt: row.editedAt, kindRaw: row.kindRaw, dayKey: row.dayKey,
                 recipeSnapshotsRaw: row.recipeSnapshotsRaw, meal: mealByID[row.id]))
         }
+        // Sort immutable values after copying managed rows. SortDescriptor key paths
+        // are not Sendable under complete concurrency checking in this toolchain.
+        result.entries.sort { $0.createdAt < $1.createdAt }
         return result
     }
 

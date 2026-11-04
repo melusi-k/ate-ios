@@ -39,6 +39,7 @@ struct SettingsView: View {
                                                           signedIn: store.session != nil))
                                 .font(.footnote)
                                 .foregroundStyle(Theme.mutedForeground)
+                                .padding(.horizontal, 20)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .accessibilityIdentifier("settings.syncSummary")
                         }

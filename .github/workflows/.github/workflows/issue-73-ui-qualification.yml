@@ -1,0 +1,132 @@
+name: Issue 73 UI journey qualification (Library/Search)
+
+# Bounded, focused qualification lane for the three NEW issue-#73 UI journeys.
+# Manual dispatch + pushes restricted to the qualification branch only.
+# Produces screenshot + xcresult artifacts for human review; a green badge
+# alone is NOT journey proof - review the retained screenshots.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["issue-73-library-search-v3"]
+    paths:
+      - "Ate/Views/LibraryView.swift"
+      - "Ate/Views/AddRecipeSheet.swift"
+      - "Ate/Resources/Localizable.xcstrings"
+      - "AteUITests/AteUITests.swift"
+      - ".github/workflows/issue-73-ui-qualification.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: issue-73-ui-qualification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ui-journeys:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    env:
+      SCHEME: Ate
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode 27.1
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: xcode-27-issue73-ui-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-27-issue73-ui-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            xcode-27-xcode-deriveddata-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: |
+          xcodegen generate
+          mkdir -p build
+          echo "Qualification commit: $GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Select iPhone 18 Pro simulator (iOS 27.0)
+        id: select_simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > /tmp/available-simulators.json
+          xcodebuild -project Ate.xcodeproj -scheme "$SCHEME" -showdestinations > /tmp/xcode-destinations.txt 2>&1 || {
+            cat /tmp/xcode-destinations.txt
+            exit 1
+          }
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          if ! grep -Fq "id:$SIM_ID" /tmp/xcode-destinations.txt; then
+            echo "ERROR: selected iPhone 18 Pro is not listed as an Ate scheme destination."
+            cat /tmp/xcode-destinations.txt
+            exit 1
+          fi
+          echo "id=$SIM_ID" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+
+      - name: Issue 73 UI journeys (search-first, describe-save stack, first-use actions)
+        id: ui_journeys
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/AteUITests/testSearchTabStartsSearchFirstAndKeepsContext \
+            -only-testing:AteUITests/AteUITests/testSearchDescribeSaveStaysOnSearchStack \
+            -only-testing:AteUITests/AteUITests/testFirstLibraryRecipeActionsChooseTheCorrectInput \
+            -resultBundlePath build/Issue73UIJourneys.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > issue-73-ui-journeys.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" issue-73-ui-journeys.log || true; tail -100 issue-73-ui-journeys.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" issue-73-ui-journeys.log | tail -30
+
+      - name: Export screenshots from result bundle
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p build/screenshots
+          xcresulttool get --legacy --path build/Issue73UIJourneys.xcresult --format json > build/result.json || true
+          # Export all attachments (screenshots captured during the journeys)
+          xcresulttool export attachments --legacy --path build/Issue73UIJourneys.xcresult --output-path build/screenshots || true
+          ls -la build/screenshots | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Summarize journey qualification honestly
+        if: always()
+        env:
+          UI_OUTCOME: ${{ steps.ui_journeys.outcome }}
+        run: |
+          {
+            echo '### Issue 73 UI journey qualification'
+            echo
+            echo "- Commit: \`$GITHUB_SHA\`."
+            printf '%s\n' "- Journeys: ${UI_OUTCOME:-unknown}."
+            echo '- Journeys exercised: search-first start + context preservation; describe-save stays on Search stack; first-use actions route to correct input.'
+            echo '- A green badge is NOT journey proof: review the retained screenshots in the artifact.'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload journey diagnostics and screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: issue-73-ui-qualification-${{ github.run_number }}
+          path: |
+            issue-73-ui-journeys.log
+            build/Issue73UIJourneys.xcresult
+            build/screenshots
+          if-no-files-found: warn
+          retention-days: 30

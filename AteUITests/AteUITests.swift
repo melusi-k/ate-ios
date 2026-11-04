@@ -1089,7 +1089,44 @@ final class AteUITests: XCTestCase {
         wait(text("No matches"))
         wait(app.buttons["library.empty.clearSearch"])
         XCTAssertTrue(app.buttons["library.empty.describe"].exists, "no results offers describing the idea as a new recipe")
-        shot("search-no-results")
+        // iOS's one-time slide-to-type onboarding tip covered the lower half of this frame in
+        // run 41778216734 (the earlier search-results frame is unobscured, so it appears only
+        // after the first sustained keyboard use). Dismiss it when found so the retained
+        // evidence shows the actual empty view; the clean name is used only after the tip is
+        // confirmed absent, and even that is host-absence in the probed hosts - the final
+        // verdict on any frame is pixel inspection, not this code.
+        let tipText = "Speed up your typing by sliding your finger"
+        var dismissed = false
+        let hosts = [app, XCUIApplication(bundleIdentifier: "com.apple.springboard")]
+        findTip: for host in hosts {
+            let tip = host.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", tipText)).firstMatch
+            guard tip.waitForExistence(timeout: 1) else { continue }
+            // The tip's text and its button can live in different hosts, and "Continue" is a
+            // generic label: tap only a button verified to exist and be hittable directly
+            // beneath the tip text. Residual race: if the overlay vanishes between these
+            // probes and the tap, XCUITest fails loudly rather than tapping an unknown target.
+            for btnHost in hosts {
+                let candidates = btnHost.buttons.matching(NSPredicate(format: "label ==[c] 'Continue'"))
+                for i in 0..<candidates.count {
+                    let b = candidates.element(boundBy: i)
+                    if b.exists, b.isHittable, b.frame.minY >= tip.frame.maxY - 1, b.frame.minY <= tip.frame.maxY + 160 {
+                        b.tap()
+                        let absent = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: tip)
+                        dismissed = XCTWaiter.wait(for: [absent], timeout: 3) == .completed
+                        break findTip
+                    }
+                }
+            }
+        }
+        if dismissed {
+            wait(text("No matches"))
+            shot("search-no-results")
+        } else {
+            // UNCLEARED: the onboarding tip is still presented (or was never located, or its
+            // dismissal could not be confirmed); this frame is not clean-view evidence for
+            // the empty state.
+            shot("search-no-results-obscured")
+        }
         app.buttons["library.empty.clearSearch"].tap()
         wait(app.staticTexts["library.searchStart"])
         XCTAssertFalse(app.buttons["listCard"].firstMatch.exists)

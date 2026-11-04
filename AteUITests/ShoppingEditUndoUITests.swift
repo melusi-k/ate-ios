@@ -113,6 +113,35 @@ final class ShoppingEditUndoUITests: XCTestCase {
     }
 
 
+    /// Completion feedback: the progress row reflects bought items and one tap moves them
+    /// all back to the to-buy list (the toast offers Undo).
+    func testProgressShowsBoughtAndMoveAllBackReturnsThemToList() {
+        let app = launchShopping(extraArgs: ["-qaShoppingUndoSeconds", "30"])
+        add(app, "Milk")
+        add(app, "Eggs")
+        let progress = app.descendants(matching: .any)["shopping.progress"]
+        XCTAssertTrue(progress.waitForExistence(timeout: 5), "a progress indicator should show once the list has items")
+        XCTAssertFalse(app.buttons["shopping.moveBoughtBack"].exists, "nothing bought: no move-back action")
+        app.buttons["Mark Milk as bought"].tap()
+        XCTAssertTrue(NSPredicate(format: "value == %@", "1 of 2 bought").evaluate(with: progress) ||
+                      XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "1 of 2 bought"), object: progress)], timeout: 5) == .completed,
+                      "progress reads 1 of 2 bought, got \(String(describing: progress.value))")
+        let back = app.buttons["shopping.moveBoughtBack"]
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        screenshot("shopping-progress-one-bought")
+        back.tap()
+        XCTAssertTrue(app.buttons["Mark Milk as bought"].waitForExistence(timeout: 5),
+                      "Milk is back on the to-buy list")
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "0 of 2 bought"), object: progress)], timeout: 5), .completed,
+                       "progress reads 0 of 2 bought, got \(String(describing: progress.value))")
+        XCTAssertFalse(back.exists)
+        XCTAssertTrue(app.staticTexts["1 item back on the list"].waitForExistence(timeout: 3))
+        screenshot("shopping-moved-back-toast")
+        app.buttons["toastAction"].tap()
+        XCTAssertTrue(app.buttons["Mark Milk as not bought"].waitForExistence(timeout: 5),
+                      "Undo re-marks Milk as bought")
+    }
+
     /// Timely-restore acceptance journey: a real UI Undo tap landing inside the
     /// production 5-second window must restore the item. Runs WITHOUT the
     /// -qaShoppingUndoSeconds seam, so the production window applies. The sequence is

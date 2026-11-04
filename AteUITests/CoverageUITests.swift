@@ -190,15 +190,15 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(settingsStepAlerts.isHittable, "Step-by-step alerts toggle should be reachable in Timer notifications")
         let about = app.staticTexts["aboutVersion"]; scrollTo(about); wait(about, 3)
         XCTAssertTrue(about.label.contains("(build "))
-        let buildNotes = app.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
-        scrollTo(buildNotes); wait(buildNotes, 3)
-        // SwiftUI may expose the combined container differently across iOS simulator versions.
-        // Assert the visible heading and populated notes container independently instead of
-        // depending on the parent's synthesized accessibility label.
+        // The SwiftUI combined container is not consistently hittable across simulator
+        // runtimes, even when its child heading is visible. Scroll to the stable visible
+        // heading so this journey cannot spend minutes swiping toward a non-hittable parent.
         let buildNotesHeading = app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "Changes in this build")
         ).firstMatch
-        wait(buildNotesHeading, 3)
+        scrollTo(buildNotesHeading); wait(buildNotesHeading, 3)
+        let buildNotes = app.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
+        wait(buildNotes, 3)
         XCTAssertFalse(buildNotes.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                        "About should show generated build notes or an explicit fallback")
         let diagnostics = app.descendants(matching: .any)["aiDiagnostics"].firstMatch

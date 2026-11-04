@@ -2,7 +2,7 @@ import XCTest
 @testable import Ate
 
 @MainActor
-final class CanonicalNutritionDiaryTests: XCTestCase, Sendable {
+final class CanonicalNutritionDiaryTests: XCTestCase {
     private var suite: String!
     private var defaults: UserDefaults!
     private var backup: URL!

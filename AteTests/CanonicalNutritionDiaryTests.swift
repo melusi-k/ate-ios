@@ -2,7 +2,7 @@ import XCTest
 @testable import Ate
 
 @MainActor
-final class CanonicalNutritionDiaryTests: XCTestCase {
+final class CanonicalNutritionDiaryTests: XCTestCase, Sendable {
     private var suite: String!
     private var defaults: UserDefaults!
     private var backup: URL!
@@ -10,7 +10,8 @@ final class CanonicalNutritionDiaryTests: XCTestCase {
     private var repair: LegacyDiaryRepair!
     private var coordinator: FoodJournalCoordinator!
 
-    override func setUpWithError() throws {
+    override func setUp() async throws {
+        try await super.setUp()
         suite = "CanonicalNutritionDiaryTests-\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suite)!
         backup = FileManager.default.temporaryDirectory.appendingPathComponent(suite)
@@ -22,14 +23,14 @@ final class CanonicalNutritionDiaryTests: XCTestCase {
                                              backupDirectory: backup)
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         defaults.removePersistentDomain(forName: suite)
         try? FileManager.default.removeItem(at: backup)
         defaults = nil
         repository = nil
         repair = nil
         coordinator = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     private var testCalendar: Calendar {

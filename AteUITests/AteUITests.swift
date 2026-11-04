@@ -279,6 +279,12 @@ final class AteUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["aisle.Pantry"].exists)
         XCTAssertTrue(app.staticTexts["aisle.Meat & Fish"].exists)
         shot("shopping-by-aisle")
+        openShoppingOptions()
+        wait(app.buttons["Clear all items"], 3)
+        XCTAssertFalse(app.buttons["Clear bought items"].isEnabled, "nothing bought yet: Clear bought items is disabled")
+        XCTAssertTrue(app.buttons["Clear all items"].isEnabled, "items on the list: Clear all items is enabled")
+        shot("shopping-options-disabled")
+        app.buttons["shoppingOptionsMenu"].tap()
         let honey = app.buttons["Mark honey as bought"]
         var n = 0
         while !honey.isHittable && n < 4 { app.swipeUp(velocity: .slow); n += 1 }
@@ -286,6 +292,7 @@ final class AteUITests: XCTestCase {
         wait(text("1 in the basket"))
         shot("shopping-ticked")
         openShoppingOptions()
+        shot("shopping-options-menu")
         app.buttons["toggle.Group by aisle"].tap()
         XCTAssertTrue(app.staticTexts["aisle.Produce"].waitForNonExistence(timeout: 3))
         openShoppingOptions()
@@ -304,18 +311,22 @@ final class AteUITests: XCTestCase {
         openShoppingOptions()
         app.buttons["Clear bought items"].tap()
         wait(app.buttons["Cancel"], 3)
+        shot("shopping-clear-bought-cancel")
         app.buttons["Cancel"].tap()
         XCTAssertTrue(text("1 in the basket").exists)
         openShoppingOptions()
         app.buttons["Clear bought items"].tap()
         wait(app.buttons["Cancel"], 3)
+        shot("shopping-clear-bought-confirm")
         app.buttons["Clear bought items"].tap()
         wait(text("5 to buy"), 5)
         openShoppingOptions()
         app.buttons["Clear all items"].tap()
         wait(app.buttons["Cancel"], 3)
+        shot("shopping-clear-all-confirm")
         app.buttons["Clear all items"].tap()
         wait(text("Nothing on the list"))
+        shot("shopping-after-clear-all")
     }
 
     func test08_Settings() {
@@ -1207,6 +1218,7 @@ final class AteUITests: XCTestCase {
         XCTAssertTrue(app.buttons["library.empty.clearFilters"].exists, "filter-driven empty state keeps its remove-filters route")
         app.buttons["searchResultsMenu"].tap()
         XCTAssertTrue(app.buttons["search.filter.favourites"].isSelected, "the active filter reports its selected state")
+        shot("search-results-menu-selected")
         let reset = app.buttons["search.resetFilters"]
         wait(reset, 3)
         XCTAssertTrue(reset.isEnabled, "Reset Filters is available while a filter is active")

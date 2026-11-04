@@ -7,7 +7,14 @@ struct ShoppingListView: View {
     @State private var share: ShareItems?
     @State private var editingItem: ShoppingItem?
     @State private var editOwner: String?
-    @State private var confirmClearAll = false
+    @State private var pendingClear: PendingClear?
+
+    /// Which list clear is awaiting confirmation; one Menu-anchored dialog serves both.
+    private enum PendingClear: String, Identifiable {
+        case bought, all
+        var id: String { rawValue }
+        var title: String { self == .bought ? "Clear the bought items?" : "Clear the whole shopping list?" }
+    }
     @AppStorage("ate.shopping.byAisle") private var byAisle = true
 
     var body: some View {
@@ -34,8 +41,6 @@ struct ShoppingListView: View {
                         EmptyStateCard(symbol: "basket", title: "Nothing on the list",
                                        message: "Open a recipe and tap “Add to shopping list” — quantities merge automatically.")
                     } else {
-                        Toggle(isOn: $byAisle) { Label("Group by aisle", systemImage: "square.grid.2x2") }
-                            .font(AteFont.body(15, .medium)).tint(Theme.primary).accessibilityIdentifier("toggle.Group by aisle")
                         if byAisle {
                             ForEach(ShoppingLogic.grouped(pending), id: \.aisle) { g in
                                 VStack(alignment: .leading, spacing: 8) {
@@ -53,7 +58,6 @@ struct ShoppingListView: View {
                         } else {
                             VStack(spacing: 8) { ForEach(pending + done) { row($0) } }
                         }
-                        exportCard(done: !done.isEmpty)
                     }
                 }
                 .foregroundStyle(Theme.foreground)
@@ -63,6 +67,7 @@ struct ShoppingListView: View {
         }
         .navigationTitle("Shopping list")
         .ateRootNavigationChrome(logoID: "shopping.logo")
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { shoppingOptionsMenu } }
         .onAppear { store.bottomAddContext = .shopping }
         .onChange(of: store.requestShoppingAdd) { _, requested in
             guard requested else { return }
@@ -114,37 +119,55 @@ struct ShoppingListView: View {
         }
     }
 
-    private func exportCard(done: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Export").font(AteFont.display(18))
-            WrapLayout(spacing: 8) {
+    /// One top-bar menu for every list-level action: the per-item context menu and its
+    /// remove-Undo stay on each row. Export and clear actions stay disabled when they
+    /// would have nothing to act on; both clears ask for confirmation first.
+    private var shoppingOptionsMenu: some View {
+        let hasItems = !store.shopping.isEmpty
+        let hasBought = store.shopping.contains { $0.done }
+        return Menu {
+            Button { addFieldFocused = true } label: { Label("Add item", systemImage: "plus") }
+                .accessibilityIdentifier("shopping.menu.add")
+            Toggle(isOn: $byAisle) { Label("Group by aisle", systemImage: "square.grid.2x2") }
+                .accessibilityIdentifier("toggle.Group by aisle")
+            Section("Export") {
                 Button { share = ShareItems(items: [ShoppingLogic.exportText(store.shopping)]) } label: {
-                    Label("Share / copy", systemImage: "square.and.arrow.up")
-                }.buttonStyle(.ate(.primary, height: 40))
+                    Label("Share List", systemImage: "square.and.arrow.up")
+                }
                 Button {
                     UIPasteboard.general.string = ShoppingLogic.exportText(store.shopping)
                     store.show("Copied as text")
-                } label: { Label("Copy text", systemImage: "doc.on.doc") }.buttonStyle(.ate(.secondary, height: 40))
+                } label: { Label("Copy Text", systemImage: "doc.on.doc") }
                 Button { shareFile("ate-shopping-list.txt", ShoppingLogic.exportText(store.shopping)) } label: {
-                    Label(".txt", systemImage: "arrow.down.doc")
-                }.buttonStyle(.ate(.secondary, height: 40))
+                    Label("Export as .txt", systemImage: "arrow.down.doc")
+                }
                 Button { shareFile("ate-shopping-list.csv", ShoppingLogic.exportCSV(store.shopping)) } label: {
-                    Label(".csv", systemImage: "arrow.down.doc")
-                }.buttonStyle(.ate(.secondary, height: 40))
+                    Label("Export as .csv", systemImage: "arrow.down.doc")
+                }
             }
-            HStack {
-                Button { store.clearTicked() } label: { Label("Clear ticked", systemImage: "checkmark") }
-                    .buttonStyle(.ate(.ghost, height: 40)).disabled(!done)
-                Button("Clear all") { confirmClearAll = true }
-                    .buttonStyle(.ate(.destructiveGhost, height: 40))
-                    // Anchored to the button that triggered it (popover source on iPad).
-                    .confirmationDialog("Clear the whole shopping list?", isPresented: $confirmClearAll, titleVisibility: .visible) {
-                        Button("Clear all items", role: .destructive) { store.clearShopping(); store.show("List cleared") }
-                        Button("Cancel", role: .cancel) {}
-                    }
+            .disabled(!hasItems)
+            Section("Clear") {
+                Button(role: .destructive) { pendingClear = .bought } label: { Label("Clear bought items", systemImage: "checkmark") }
+                    .disabled(!hasBought)
+                Button(role: .destructive) { pendingClear = .all } label: { Label("Clear all items", systemImage: "trash") }
+                    .disabled(!hasItems)
             }
+        } label: {
+            Label("Shopping list options", systemImage: "ellipsis.circle")
         }
-        .cardSurface(padding: 20)
+        .accessibilityIdentifier("shoppingOptionsMenu")
+        // Anchored to the menu that triggers it (popover source on iPad); attached to the
+        // always-present Menu, not the transient menu content, so presentation survives dismissal.
+        .confirmationDialog(pendingClear?.title ?? "", isPresented: Binding(
+            get: { pendingClear != nil }, set: { if !$0 { pendingClear = nil } }),
+            titleVisibility: .visible) {
+            if pendingClear == .bought {
+                Button("Clear bought items", role: .destructive) { store.clearTicked(); store.show("Bought items cleared") }
+            } else {
+                Button("Clear all items", role: .destructive) { store.clearShopping(); store.show("List cleared") }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 
     private func shareFile(_ name: String, _ text: String) {

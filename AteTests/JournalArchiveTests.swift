@@ -104,4 +104,19 @@ final class JournalArchiveTests: XCTestCase {
         catch { XCTAssertEqual(error as? FoodJournalStoreError, .unreadableStore) }
     }
 
+    @MainActor
+    func testCaptureOrdersOutOfOrderEntriesByCreatedAtAscending() async throws {
+        let journal = JournalStore(inMemory: true)
+        let context = try XCTUnwrap(journal.container?.mainContext)
+        for (id, instant) in [("latest", 300.0), ("earliest", 100.0), ("middle", 200.0)] {
+            context.insert(Ate.JournalEntry(id: id, createdAt: Date(timeIntervalSince1970: instant),
+                prompt: "Context", text: id, state: .balanced))
+        }
+        try context.save()
+        let archive = try await JournalArchiveCapture.captureWithMedia(journal: journal)
+        XCTAssertEqual(archive.entries.map(\.id), ["earliest", "middle", "latest"])
+        XCTAssertEqual(archive.entries.map(\.createdAt), [100.0, 200.0, 300.0].map { Date(timeIntervalSince1970: $0) })
+        XCTAssertEqual(archive.entries.map(\.text), ["earliest", "middle", "latest"])
+    }
+
 }

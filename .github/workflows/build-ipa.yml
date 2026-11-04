@@ -14,10 +14,6 @@ on:
         description: "Release channel: Production (default) or TierA/TierB/TierC for tester builds."
         type: string
         default: "Production"
-      sentry_proof:
-        description: "One-off ingestion proof: inject the Sentry DSN and a per-run canary marker for a synthetic scrub-verification event. Never for distributed builds."
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -39,12 +35,11 @@ jobs:
       ATE_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'TierA' }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
       # Public ingestion endpoint (not a credential); missing/empty secret leaves Sentry disabled.
-      # Opt-in gate: DSN flows only after the one-off proof input OR the explicit repo variable
-      # (set only after the synthetic scrub-verification proof passes). App-side channel gate
-      # additionally blocks Production/unknown channels from starting Sentry at all.
-      SENTRY_DSN: ${{ (vars.SENTRY_BETA_INGESTION == 'enabled' || inputs.sentry_proof == true) && secrets.SENTRY_DSN || '' }}
-      # Canary marker exists only in one-off proof builds; normal builds expand empty.
-      SENTRY_CANARY: ${{ inputs.sentry_proof == true && format('canary-run-{0}', github.run_id) || '' }}
+      # One-off proof is enabled only for a manually dispatched TierA build. Remove the
+      # temporary repository variable after verification; it is separate from beta opt-in.
+      SENTRY_PROOF: ${{ github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled' }}
+      SENTRY_DSN: ${{ ((github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled') || vars.SENTRY_BETA_INGESTION == 'enabled') && secrets.SENTRY_DSN || '' }}
+      SENTRY_CANARY: ${{ github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled' && format('canary-run-{0}', github.run_id) || '' }}
       HAS_SIGNING: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && secrets.BUILD_PROVISION_PROFILE_BASE64 != '' && secrets.P12_PASSWORD != '' && secrets.TEAM_ID != '' }}
       # Main pushes remain artifact-only; manual dispatch defaults to full validation (artifact-only requires an explicit opt-out).
       RUN_TESTS: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
@@ -545,7 +540,7 @@ jobs:
         run: |
           set -e
           if [ -z "${SENTRY_AUTH_TOKEN:-}" ]; then
-            if [ "${{ inputs.sentry_proof == true }}" = "true" ]; then echo "::error::SENTRY_AUTH_TOKEN secret required for the ingestion/symbol proof but is not set"; exit 1; fi
+            if [ "${{ env.SENTRY_PROOF == 'true' }}" = "true" ]; then echo "::error::SENTRY_AUTH_TOKEN secret required for the ingestion/symbol proof but is not set"; exit 1; fi
             echo "::notice::SENTRY_AUTH_TOKEN secret not set; symbol upload skipped (not validated)"; exit 0
           fi
           brew install getsentry/tools/sentry-cli
@@ -563,7 +558,7 @@ jobs:
           echo "Sentry symbol upload complete for $SENTRY_ORG/$SENTRY_PROJECT (server-confirmed)"
 
       - name: Update rolling 'latest-build' prerelease
-        if: ${{ inputs.sentry_proof != true }}
+        if: ${{ env.SENTRY_PROOF != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -604,7 +599,7 @@ jobs:
           echo "IPA URL: $BASE/build-${BUILD_NUMBER}${CH_SUFFIX}/$IPA_NAME"
 
       - name: Published artifact smoke test (A-CI-06) — download, checksum, contents
-        if: ${{ inputs.sentry_proof != true }}
+        if: ${{ env.SENTRY_PROOF != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -816,7 +811,7 @@ jobs:
     name: Promote validated beta candidate
     # Never publish a Production IPA as the rolling beta candidate. Push builds use TierA;
     # manually dispatched builds may promote only an explicit tester channel.
-    if: ${{ (inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]')) && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["TierA", "TierB", "TierC"]'), inputs.channel)) && inputs.sentry_proof != true }}
+    if: ${{ (inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]')) && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["TierA", "TierB", "TierC"]'), inputs.channel)) && !(github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled') }}
     needs: [release, ui-suite, backend-e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 10

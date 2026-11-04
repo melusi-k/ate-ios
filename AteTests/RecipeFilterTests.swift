@@ -162,4 +162,14 @@ final class RecipeProgressInsightServiceTests: XCTestCase {
         let insight = RecipeProgressInsightService.fallback(for: input)
         XCTAssertEqual(insight?.title, "Your cooking rhythm")
     }
+
+    func testClearRemovesEveryActiveFilterAndKeepsRecipesAvailable() {
+        var filter = RecipeFilter(maxMinutes: 15, origins: [.photo], servings: [.many], tags: ["fish"], favouritesOnly: true, collection: .recentlyCooked)
+        XCTAssertEqual(filter.activeCount, 6)
+        filter.clear()
+        XCTAssertFalse(filter.isActive)
+        let recipe = RecipeCard(id: "saved", title: "Saved recipe")
+        XCTAssertEqual(filter.apply([recipe]).map(\.id), ["saved"])
+        XCTAssertTrue(filter.apply([recipe], query: "missing").isEmpty, "Clearing filters does not silently clear a caller's search")
+    }
 }

@@ -94,7 +94,7 @@ final class AteUITests: XCTestCase {
         launch()
         wait(text("Your Kitchen"))
         XCTAssertTrue(text("Nothing saved yet").exists)
-        XCTAssertTrue(text("0 recipes saved on this device.").exists)
+        XCTAssertTrue(text("0 saved recipes").exists)
         shot("library-empty")
         app.buttons["Add recipe"].tap()
         app.buttons["generateButton"].tap()
@@ -123,7 +123,7 @@ final class AteUITests: XCTestCase {
         launch()
         addPromptRecipe()
         tab("Library")
-        wait(text("1 recipe saved on this device."))
+        wait(text("1 saved recipe"))
         shot("library-one-recipe")
         // iOS 26: Library search lives in the tab bar's search tab (Tab(role: .search)).
         if !app.searchFields.firstMatch.waitForExistence(timeout: 2) { app.tabBars.buttons["Search"].firstMatch.tap() }
@@ -334,7 +334,7 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["Cook mode"])
         shot("shared-saved-detail")
         tab("Library")
-        wait(text("1 recipe saved on this device."))
+        wait(text("1 saved recipe"))
     }
 
     func test11_TimerBar() {
@@ -1038,5 +1038,127 @@ final class AteUITests: XCTestCase {
         text("First dish").press(forDuration: 1.0, thenDragTo: text("Second dish"))
         sleep(1)
         shot("library-reorder-drag")
+    }
+
+    func testFirstLibraryRecipeActionsChooseTheCorrectInput() {
+        launch()
+        wait(text("Nothing saved yet"))
+        let modes = [("link", "linkField"), ("photo", "takePhoto"), ("prompt", "promptEditor")]
+        for (mode, target) in modes {
+            let button = app.buttons["library.firstRecipe.\(mode)"]
+            scrollTo(button); wait(button); button.tap()
+            wait(app.descendants(matching: .any)[target])
+            app.buttons["addCancel"].tap()
+        }
+        shot("library-first-recipe-actions")
+    }
+
+    /// #73: the iOS 26 Search tab starts search-first, labels recipe results, offers clear and
+    /// describe routes on no results, and keeps the query when a result is opened and closed.
+    func testSearchTabStartsSearchFirstAndKeepsContext() {
+        guard #available(iOS 26, *) else { return }
+        launch()
+        addPromptRecipe()
+        tab("Library")
+        app.tabBars.buttons["Search"].firstMatch.tap()
+        wait(app.staticTexts["library.searchStart"])
+        XCTAssertFalse(app.buttons["listCard"].firstMatch.exists, "Search start shows suggestions, not the whole library")
+        shot("search-start")
+        let field = app.searchFields.firstMatch
+        wait(field, 5)
+        field.tap()
+        field.typeText("miso")
+        wait(app.staticTexts["library.searchResults"])
+        XCTAssertTrue(app.buttons["listCard"].firstMatch.exists, "the matching recipe is listed")
+        shot("search-results")
+        app.buttons["listCard"].firstMatch.tap()
+        // iOS 27 flattens the quick-look's child identifiers under its root ("recipeQuickLook"),
+        // so assert the presented sheet by its root identifier rather than the title's own id.
+        let quickLook = app.descendants(matching: .any)["recipeQuickLook"]
+        wait(quickLook)
+        shot("search-result-quicklook")
+        // The quick-look sits at its smallest detent, so a downward drag can only dismiss, never resize.
+        let sheetTop = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.73))
+        sheetTop.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
+        if quickLook.waitForExistence(timeout: 1) { app.swipeDown(velocity: .fast) }
+        wait(field, 5)
+        XCTAssertEqual(field.value as? String, "miso", "the query survives opening and closing a result")
+        XCTAssertTrue(app.staticTexts["library.searchResults"].exists, "the results survive returning from a result")
+        field.tap()
+        field.typeText("zzz")
+        wait(text("No matches"))
+        wait(app.buttons["library.empty.clearSearch"])
+        XCTAssertTrue(app.buttons["library.empty.describe"].exists, "no results offers describing the idea as a new recipe")
+        // iOS's one-time slide-to-type onboarding tip covered the lower half of this frame in
+        // run 41778216734 (the earlier search-results frame is unobscured, so it appears only
+        // after the first sustained keyboard use). Dismiss it when found so the retained
+        // evidence shows the actual empty view; the clean name is used only after the tip is
+        // confirmed absent, and even that is host-absence in the probed hosts - the final
+        // verdict on any frame is pixel inspection, not this code.
+        let tipText = "Speed up your typing by sliding your finger"
+        var dismissed = false
+        let hosts: [XCUIApplication] = [app, XCUIApplication(bundleIdentifier: "com.apple.springboard")]
+        findTip: for host in hosts {
+            let tip = host.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", tipText)).firstMatch
+            guard tip.waitForExistence(timeout: 1) else { continue }
+            // The tip's text and its button can live in different hosts, and "Continue" is a
+            // generic label: tap only a button verified to exist and be hittable directly
+            // beneath the tip text. Residual race: if the overlay vanishes between these
+            // probes and the tap, XCUITest fails loudly rather than tapping an unknown target.
+            for btnHost in hosts {
+                let candidates = btnHost.buttons.matching(NSPredicate(format: "label ==[c] 'Continue'"))
+                for i in 0..<candidates.count {
+                    let b = candidates.element(boundBy: i)
+                    if b.exists, b.isHittable, b.frame.minY >= tip.frame.maxY - 1, b.frame.minY <= tip.frame.maxY + 160 {
+                        b.tap()
+                        let absent = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: tip)
+                        dismissed = XCTWaiter.wait(for: [absent], timeout: 3) == .completed
+                        break findTip
+                    }
+                }
+            }
+        }
+        if dismissed {
+            wait(text("No matches"))
+            shot("search-no-results")
+        } else {
+            // UNCLEARED: the onboarding tip is still presented (or was never located, or its
+            // dismissal could not be confirmed); this frame is not clean-view evidence for
+            // the empty state.
+            shot("search-no-results-obscured")
+        }
+        app.buttons["library.empty.clearSearch"].tap()
+        wait(app.staticTexts["library.searchStart"])
+        XCTAssertFalse(app.buttons["listCard"].firstMatch.exists)
+    }
+
+    /// #73: saving a recipe created from a failed Search-tab search pushes detail on the Search
+    /// tab's own stack, so Back returns to the preserved query and its (now matching) results.
+    func testSearchDescribeSaveStaysOnSearchStack() {
+        guard #available(iOS 26, *) else { return }
+        launch()
+        addPromptRecipe()
+        tab("Library")
+        app.tabBars.buttons["Search"].firstMatch.tap()
+        let field = app.searchFields.firstMatch
+        wait(field, 5)
+        field.tap()
+        field.typeText("zzz")
+        wait(text("No matches"))
+        wait(app.buttons["library.empty.describe"])
+        app.buttons["library.empty.describe"].tap()
+        let editor = app.textViews["promptEditor"]
+        wait(editor, 5)
+        XCTAssertEqual(editor.value as? String, "zzz", "the failed search becomes the new recipe's idea")
+        app.buttons["generateButton"].tap()
+        wait(text("Review your card"), 15)
+        app.buttons["saveRecipe"].tap()
+        wait(app.buttons["Cook mode"], 10)
+        shot("search-describe-saved-detail")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        wait(field, 5)
+        XCTAssertEqual(field.value as? String, "zzz", "saving from Search keeps the Search tab and its query")
+        wait(app.staticTexts["library.searchResults"])
+        XCTAssertTrue(text("Zzz").exists, "the new recipe now matches the preserved query")
     }
 }

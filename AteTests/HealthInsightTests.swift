@@ -281,3 +281,4 @@ final class HealthInsightTests: XCTestCase {
     }
 
 }
+

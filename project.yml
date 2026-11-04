@@ -37,6 +37,8 @@ settings:
     ATE_CHANNEL: ""
     # Sentry DSN is injected from the SENTRY_DSN environment variable; empty disables Sentry.
     ATE_SENTRY_DSN: "${SENTRY_DSN}"
+    # Ingestion-proof canary: only ever set by the one-off proof build; empty in every normal build.
+    ATE_SENTRY_CANARY: "${SENTRY_CANARY}"
     # Legal pages: source docs/legal/*.md → scripts/build-legal.py → public repo melusi-k/ate-legal (GitHub Pages).
     ATE_PRIVACY_URL: "https://melusi-k.github.io/ate-legal/privacy.html"
     ATE_TERMS_URL: "https://melusi-k.github.io/ate-legal/terms.html"
@@ -57,7 +59,8 @@ targets:
       - target: AteClip
       # Independent watch app, embedded at Ate.app/Watch/AteWatch.app so it can be installed alongside the phone app.
       - target: AteWatch
-      - package: Sentry, product: SentrySPM
+      - package: Sentry
+        product: SentrySPM
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate
@@ -103,6 +106,7 @@ targets:
         AteGitRunID: $(ATE_GIT_RUN_ID)
         AteChannel: $(ATE_CHANNEL)
         AteSentryDSN: $(ATE_SENTRY_DSN)
+        AteSentryCanary: $(ATE_SENTRY_CANARY)
         AteTermsURL: $(ATE_TERMS_URL)
         CFBundleURLTypes:
           - CFBundleURLName: com.melusik.ate
@@ -259,6 +263,8 @@ targets:
     sources: [AteTests]
     dependencies:
       - target: Ate
+      - package: Sentry
+        product: SentrySPM
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

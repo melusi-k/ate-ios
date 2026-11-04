@@ -33,20 +33,32 @@ final class NutritionDiaryController {
     /// The explicit pre-migration repair adapter, injected by composition. Production wiring must
     /// point it at Documents/NutritionDiaryCorruptBackups, the existing diary recovery location.
     let repairAdapter: LegacyDiaryRepair
+    /// The recipe-link sidecar store (#179). Optional so the diary keeps working where
+    /// composition has not wired links yet; every link UI reads through here and simply
+    /// stays hidden when the store is absent.
+    let associationStore: NutritionRecipeAssociationStore?
     let calendar: Calendar
 
     private(set) var entries: [NutritionDiaryEntry] = []
     private(set) var issue: NutritionDiaryIssue?
+    /// Links cached on the last successful reload. Lookups hit this cache, never the store
+    /// per row.
+    private(set) var associations: [NutritionRecipeAssociation] = []
+    /// True when the link store holds undecodable bytes. The diary then says links are
+    /// unavailable instead of pretending no links exist; entry data is unaffected.
+    private(set) var associationsUnreadable = false
     var selectedDayKey: String
 
     init(coordinator: FoodJournalCoordinator,
          goalsRepository: NutritionGoalsRepository = NutritionGoalsRepository(),
          repair: LegacyDiaryRepair,
+         associationStore: NutritionRecipeAssociationStore? = nil,
          selectedDayKey: String? = nil,
          calendar: Calendar = .autoupdatingCurrent) {
         self.coordinator = coordinator
         self.goalsRepository = goalsRepository
         self.repairAdapter = repair
+        self.associationStore = associationStore
         self.calendar = calendar
         self.selectedDayKey = selectedDayKey ?? NutritionDiaryDayKey.make(.now, calendar: calendar)
     }
@@ -84,6 +96,58 @@ final class NutritionDiaryController {
             entries = []
             issue = classify(error)
         }
+        reloadAssociations()
+    }
+
+    /// Refreshes the link cache after any diary read. Orphan links (their entry is gone) are
+    /// deliberately NOT pruned here: this cache can hold a partial or empty entry set (after a
+    /// failed read), and the store key is device-global, so pruning against the current set
+    /// could destroy links belonging to entries that are simply not loaded. Orphans are
+    /// harmless - lookups only run for listed entries - and entry deletion removes its own link.
+    private func reloadAssociations() {
+        guard let store = associationStore else {
+            associations = []
+            associationsUnreadable = false
+            return
+        }
+        switch store.loadState() {
+        case .absent:
+            associations = []
+            associationsUnreadable = false
+        case .loaded(let links):
+            associations = links
+            associationsUnreadable = false
+        case .corrupt:
+            associations = []
+            associationsUnreadable = true
+        }
+    }
+
+    /// The recipe linked to an entry, if any. The name is the snapshot from link time.
+    func association(for entry: NutritionDiaryEntry) -> NutritionRecipeAssociation? {
+        associations.first { $0.entryID == entry.id.uuidString }
+    }
+
+    /// Links an existing entry to a recipe. Only the identity and a name snapshot are stored;
+    /// entry nutrients are never read from or replaced by recipe data. Throws `.storeNotWired`
+    /// when composition provided no link store and `.storeUnreadable` when the saved links are
+    /// undecodable - either way the link is simply not made and the entry is untouched.
+    func associate(entry: NutritionDiaryEntry, recipe: RecipeCard) throws {
+        guard let store = associationStore else { throw NutritionRecipeAssociationError.storeNotWired }
+        try store.associate(entryID: entry.id, recipeID: recipe.id, recipeName: recipe.title)
+        reloadAssociations()
+    }
+
+    func dissociate(entry: NutritionDiaryEntry) throws {
+        guard let store = associationStore else { throw NutritionRecipeAssociationError.storeNotWired }
+        try store.dissociate(entryID: entry.id)
+        reloadAssociations()
+    }
+
+    /// Foods the person logs most often, from the diary's own entries only (#179 easier
+    /// selection). Empty while the diary is blocked or unreadable - never fabricated.
+    var frequentFoods: [NutritionFrequentFood] {
+        NutritionFrequentFoods.topFoods(in: entries)
     }
 
     /// Mutations throw so the caller keeps its draft and shows the reason. The coordinator
@@ -100,6 +164,10 @@ final class NutritionDiaryController {
 
     func delete(id: UUID) throws {
         try coordinator.deleteMeal(id: id)
+        // The entry is durably gone at this point; dropping its link is cleanup of our own
+        // sidecar row and must never fail the completed delete. reload() deliberately never
+        // prunes other orphans - see reloadAssociations.
+        try? associationStore?.dissociate(entryID: id)
         reload()
     }
 

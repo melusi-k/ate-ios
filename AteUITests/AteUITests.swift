@@ -284,7 +284,12 @@ final class AteUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Clear bought items"].isEnabled, "nothing bought yet: Clear bought items is disabled")
         XCTAssertTrue(app.buttons["Clear all items"].isEnabled, "items on the list: Clear all items is enabled")
         shot("shopping-options-disabled")
-        app.buttons["shoppingOptionsMenu"].tap()
+        // iOS 26+ removes the toolbar anchor from the accessibility tree while its own
+        // menu is presented (run 41865135962 failure evidence), so re-tapping the anchor
+        // to dismiss can never match. Dismiss via the inert screen title instead and
+        // prove the menu is gone before scrolling the list.
+        app.staticTexts["Shopping list"].tap()
+        XCTAssertTrue(app.buttons["Clear all items"].waitForNonExistence(timeout: 5), "options menu must dismiss before the list scrolls")
         let honey = app.buttons["Mark honey as bought"]
         var n = 0
         while !honey.isHittable && n < 4 { app.swipeUp(velocity: .slow); n += 1 }

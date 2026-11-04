@@ -1036,3 +1036,71 @@ Nightly QA run 41806727867 on main SHA e5665234129e047baf56e3c6af5ea0a5f254e59f 
 - PR #291 head 05100f13: Dogfood Qualification passed [run 41806818131], Journal open-state UI passed [run 41806818157], latest stack validation passed [41807602051] after an earlier failed attempt; Compile remains in progress [41806818147]. No human approval. It remains blocked.
 - PR #284 head d3dd01e7: Compile failed [run 41804943803] at Library Explore native sheet presentation (#83); Journal open-state UI passed [41804943662]; Journal foundation qualification passed [41804936845]. No Dogfood Qualification result; draft. The Compile failure is shared with current-main #83 evidence, not proof of a Journal-specific regression.
 - PR #267 documentation head 35ba20cf: docs-validation passed [run 41810384045], Compile skipped, stacked validation passed [run 41810391516], Supabase Preview skipped; no Dogfood or Journal UI run is present on this exact SHA. Branch is 15 ahead / 12 behind main and remains draft.
+
+
+
+## W45 Wednesday Guardian revalidation — 2026-11-04T10:00:34Z (SAST 2026-11-04 12:00:34)
+
+**Evidence cutoff:** 2026-11-04T10:00:34Z / 2026-11-04 12:00:34 Africa/Johannesburg (UTC+02:00). This is a Wednesday delivery/status revalidation, not a new planning decision or Sunday retrospective. Earlier sprint dates, commitments and historical records are preserved.
+
+### W45 scope and commitment status
+
+- **Sprint:** 2026-W45, Monday 2026-11-02 through Sunday 2026-11-08.
+- **Committed issue #30:** release-readiness evidence refresh remains open and blocked. Current-main exact-SHA gate evidence and an independent human go/no-go are still required.
+- **Committed issue #179:** bounded nutrition follow-up remains at risk/entry-gated. The #239 root → #240 edit child → #241 weekly-totals child remains one issue-level outcome, not three deliveries.
+- **Stretch issue #70:** remains stretch only, with its existing 2026-11-05 to 2026-11-08 proposed window. No work is promoted or marked started while the committed outcomes remain blocked.
+- No planned dates, commitment statuses or acceptance denominators changed. #245 Food Journal and #253 Generation remain uncommitted; no W45 dates are assigned to them.
+
+### Current main and release evidence
+
+Current `main` is `e5665234129e047baf56e3c6af5ea0a5f254e59f` (commit message: “Allow simulator build failures to continue”).
+
+- Compile has a failed attempt [41785456819](https://github.com/melusi-k/ate-ios/actions/runs/41785456819) and later successful attempt [41785456999](https://github.com/melusi-k/ate-ios/actions/runs/41785456999).
+- Journal open-state UI has a pass [41785456929](https://github.com/melusi-k/ate-ios/actions/runs/41785456929) and a later failure [41785457007](https://github.com/melusi-k/ate-ios/actions/runs/41785457007).
+- Nightly QA [41806727867](https://github.com/melusi-k/ate-ios/actions/runs/41806727867) completed with Unit + KeyFlows QA and backend E2E passed. This does not substitute for the separate Dogfood Qualification context; no exact-main Dogfood pass is recorded.
+- Supabase Preview failed [126426620587](https://github.com/melusi-k/ate-ios/runs/126426620587).
+- Build IPA [41785452856](https://github.com/melusi-k/ate-ios/actions/runs/41785452856) is artifact-only: unit, 8-flow QA, UI and backend E2E were skipped; QA-results retrieval returned HTTP 400; the artifact snapshot was 1/59 verified, 12 failing, 46 open. It is not release qualification.
+- Release remains **BLOCKED** pending complete same-SHA evidence and independent signoff.
+
+### CI gate-integrity finding on current main
+
+The current workflows need a policy review before treating the `compile` status as proof that every focused regression passed:
+
+- [`journal-open-state-ui.yml`](https://github.com/melusi-k/ate-ios/blob/main/.github/workflows/journal-open-state-ui.yml) marks its simulator `build-for-testing` step `continue-on-error: true`; the later `test-without-building` step must still fail closed if usable exact-head test products are absent.
+- [`ai-model-lane.yml`](https://github.com/melusi-k/ate-ios/blob/main/.github/workflows/ai-model-lane.yml) also continues after `build-for-testing` failure while using a lookup-only DerivedData cache. Do not accept a preflight result unless the build is independently proven to have succeeded on the same exact SHA and simulator.
+- [`compile-check.yml`](https://github.com/melusi-k/ate-ios/blob/main/.github/workflows/compile-check.yml) contains several `continue-on-error` focused suites (including Insights #195, recipe-generation #89, Library layout #73, Settings/account sync #76, Cooking Tracker, shared navigation and Cook Mode). The workflow records some as quarantined/NOT PASSED and links failures to issues, but those failures do not all fail the required `compile` status. The QA policy says quarantined tests are never passes; the merge ruleset currently does not require separate status contexts for these suites. Preserve every failure as NOT PASSED and make the approved quarantine boundary explicit; do not silently count a green aggregate as proof that these suites passed.
+
+### Repository merge governance — critical gap
+
+Live repository metadata at the evidence cutoff:
+
+- `main` reports `protected=false`; the branch-protection endpoint itself returned 403 to the integration, but the branch object reports protection disabled.
+- `main-production-protection` ruleset #26236404 exists with enforcement **disabled**.
+- Configured rules: one approving review, stale-approval dismissal, thread resolution, strict `compile` and `dogfood-qualification`; none are enforced while the ruleset is disabled.
+- CODEOWNERS remains self-only: `* @melusi-k`; `require_code_owner_review=false`, `require_last_push_approval=false`.
+- Squash, merge-commit and rebase are enabled; auto-merge is disabled; GitHub update-branch is disabled.
+- No repository settings, branch protection, rulesets, CODEOWNERS or merge policies were changed.
+
+Recommended remediation remains: nominate an independent maintainer/team in CODEOWNERS; enable the ruleset; enforce independent/latest-push approval, CODEOWNERS review, thread resolution and strict required checks; define explicit docs-only check policy; and enable a supported safe update-branch operation.
+
+### Open PR inventory — 30 open, none merged
+
+No application PR was merged or branch-updated. Current exact-head checks and branch comparisons were inspected. Reverse-direction synchronization PRs #265 and #274 are not product PRs into main.
+
+- **Non-draft but blocked:** #291 (1 ahead/0 behind; Compile in progress, Dogfood/UI passed, no human approval; prior diagnostic correction says the earlier delay was Quiet Hours/Library animation, not the About scroll this PR changes); #280 (3/2, Compile and Journal UI failed, Dogfood passed); #279 (7/2, Compile failed, Dogfood/UI passed; publication-alias fail-closed defect recorded in its PR comment); #278 (stack child, Compile passed/UI failed); #277 (14/2, Compile/UI failed, Dogfood passed); #276 (stack child, Compile passed/UI failed, no Dogfood); #275 (4 ahead/2 behind its #272 parent, Compile/UI passed, no Dogfood); #272 (4/4, Compile/Dogfood/UI failed); #270 (1/10, Compile/Dogfood passed, UI failed); #268 (1/12, Compile and Dogfood failed, UI passed); #266 (3/14, Compile passed, Dogfood/UI failed); #254 (24/40, Compile/UI failed, Dogfood passed; device golden-set evaluation missing); #251 (75/40, Compile failed, Dogfood/UI/discovery passed); #241 (child 3/3, Compile cancelled, no Dogfood, removed edit pass-evidence guards); #240 (child 2/3, stale base/non-mergeable, Compile cancelled, no Dogfood); #239 (W45 committed root 1/3, 76/40, Compile/UI failed, Dogfood passed); #234 (22/173, non-mergeable, Compile failed, Dogfood passed; proposed gate waiver/scope changes remain unacceptable); and reverse sync #265/#274 (not feature-to-main deliveries; source-main checks do not qualify the integrated feature tree).
+- **Drafts, not eligible for merge:** #290 (Sentry: Compile failed, Dogfood/UI passed; privacy ingestion/fatal-symbolication proof not run); #286 (Compile passed/UI failed, no Dogfood, dependent on #284); #285 (Compile/Dogfood passed, UI failed); #284 (Compile failed, UI passed, no Dogfood, child of #281); #283 (Compile failed, Dogfood/UI passed); #282 (Compile/UI failed, Dogfood passed; production five-second Undo window still needs evidence); #281 (Compile/Dogfood passed, UI failed); #267 (this documentation PR: Compile passed, Dogfood in progress, UI failed); #263 (Compile passed, Dogfood/UI cancelled); #181 (no exact-head Compile/Dogfood, three unresolved review threads); #66 (no exact-head Compile/Dogfood; its one thread is resolved/outdated).
+- No qualifying human approvals were found. COMMENTED reviews and Codex/bot comments are not approvals. #181 has 5 threads (3 unresolved: 2 outdated, 1 current corrupt-goals recovery); #66 has 1 resolved/outdated thread; the other open PRs have no inline review threads in the current listing.
+
+### Issue/PR lifecycle and metrics
+
+No PR merged, no issue closed and no qualifying human approval or newly evidenced actual-completion event was found in this revalidation. Existing issue and PR timelines remain separate. Do not infer actual work start from ticket creation, sprint dates or PR creation. No new actual-start, approval, merge, issue-close or actual-completion timestamp is asserted here.
+
+W44 commitment accuracy/carryover denominator remains unavailable. W45 commitment accuracy and carryover rate are not due until the Sunday 2026-11-08 close-out. Lead time, implementation time, review time, approval time and cycle time remain unavailable for the open work where required endpoints are missing.
+
+### Actions and next steps
+
+- Existing Guardian blocker comments were refreshed on the PRs whose exact-head status or branch relationship changed; the #279 comment now includes the publication-alias defect.
+- The #239 → #240 → #241 order remains unchanged. Reconcile/fix #239 first; only then retarget and validate #240; only then validate #241 with the removed acceptance evidence restored.
+- Fix the current-main UI/CI reliability issues and review the non-blocking regression policy without weakening tests.
+- Keep all 30 PRs open until exact-head checks, independent approval, ownership review, resolved threads, current base and effective repository governance are all satisfied.
+- Sunday close-out remains due 2026-11-08; this Wednesday note does not close W45 or change commitments.

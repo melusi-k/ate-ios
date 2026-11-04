@@ -239,6 +239,8 @@ struct InsightsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model = InsightsModel.shared
     @State private var draft = ""
+    @State private var journalSaveError: String?
+    @State private var showJournalComposer = false
     @State private var prompt: JournalPrompt?
     @State private var entries: [JournalEntry] = []
     @State private var recipeProgressCandidates: [RankedRecipeInsightCandidate] = []
@@ -315,6 +317,11 @@ struct InsightsView: View {
         }
         .navigationTitle(screenTitle)
         .ateRootNavigationChrome(logoID: "insights.logo")
+        .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
+        .sheet(isPresented: $showJournalComposer) {
+            @Bindable var store = store
+            ManualJournalComposer(draft: $store.manualJournalDraft) { store.journalRevision += 1 }.environment(store)
+        }
         .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id).environment(store) }
         .onChange(of: model.context?.insight.state) { _, st in
             if st != nil { BetaQA.shared.pass("A-HEALTH-03", note: "Insights showed \(st!.title) with \(model.context?.suggestions.count ?? 0) meal ideas") }
@@ -443,6 +450,10 @@ struct InsightsView: View {
                     .buttonStyle(.ate(.primary, full: true))
                     .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityIdentifier("insights.save")
+                if let journalSaveError {
+                    Text(journalSaveError).font(AteFont.body(13)).foregroundStyle(Theme.destructive)
+                        .accessibilityIdentifier("insights.journalSaveError")
+                }
                 Text("Saved only on this iPhone. Ate can't write to Apple's Journal app.")
                     .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
             }
@@ -684,6 +695,9 @@ struct InsightsView: View {
 
     @ViewBuilder private var journalCard: some View {
         card("Your Ate journal") {
+            Button { showJournalComposer = true } label: {
+                Label("New journal entry", systemImage: "square.and.pencil")
+            }.accessibilityIdentifier("insights.newJournalEntry")
             if journalingEnabled && JournalingSuggestionsGate.isAvailable && !AppConfig.isUITesting {
                 JournalingSuggestionsButton { m in handle(moment: m) }
             }
@@ -693,7 +707,7 @@ struct InsightsView: View {
             ForEach(entries.prefix(5), id: \.id) { e in
                 NavigationLink { JournalEntryDetailView(entryID: e.id) } label: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(e.createdAt.formatted(date: .abbreviated, time: .shortened) + " · " + e.state.title)
+                    Text(e.datedStateLabel)
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                     if let line = JournalingMomentMapper.contextLine(title: e.journalingSuggestionTitle, date: e.momentDate) {
                         Label(line, systemImage: "book.pages").font(AteFont.body(12)).foregroundStyle(Theme.primary)
@@ -742,12 +756,12 @@ struct InsightsView: View {
 
     private func save(_ c: HealthContext) {
         let p = prompt ?? c.prompts.first
-        let moment = pendingMoment; pendingMoment = nil
+        let moment = pendingMoment
         if JournalStore.shared.save(prompt: p?.text ?? "", text: draft, state: c.insight.state, recipeIDs: c.suggestions.map(\.recipeID),
                                     momentTitle: moment?.title, momentDate: moment?.date) {
-            draft = ""; entries = JournalStore.shared.entries(); store.show("Saved to your Ate journal")
+            draft = ""; pendingMoment = nil; journalSaveError = nil; entries = JournalStore.shared.entries(); store.show("Saved to your Ate journal")
             BetaQA.shared.pass("A-HEALTH-04", note: "Saved a local journal entry")
-        }
+        } else { journalSaveError = "Your entry could not be saved. Your draft is still here. Try again." }
     }
 
     private func card<C: View>(_ title: String, @ViewBuilder _ c: () -> C) -> some View {

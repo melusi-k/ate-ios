@@ -43,6 +43,7 @@ final class AteUITests: XCTestCase {
         add(a)
     }
 
+    func any(_ id: String) -> XCUIElement { app.descendants(matching: .any)[id] }
     func text(_ s: String) -> XCUIElement {
         app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", s)).firstMatch
     }

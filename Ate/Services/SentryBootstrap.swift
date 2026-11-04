@@ -15,8 +15,25 @@ enum SentryBootstrap {
     /// Pure gating decision, deterministic and unit-testable without starting the SDK.
     static func shouldStart(dsn: String, isUITesting: Bool, channel: String) -> Bool {
         guard !isUITesting else { return false }
-        guard !dsn.isEmpty, URL(string: dsn)?.scheme == "https" else { return false }
+        guard isValidDSN(dsn) else { return false }
         guard AppConfig.isBetaChannel(channel) else { return false }
+        return true
+    }
+
+    /// This slice uses the user-confirmed US Sentry SaaS endpoint only.
+    /// A self-hosted migration needs an explicit host policy and matching CI URL first.
+    static func isValidDSN(_ dsn: String) -> Bool {
+        guard let parts = URLComponents(string: dsn),
+              parts.scheme == "https",
+              let host = parts.host?.lowercased(),
+              host == "o4512371813842944.ingest.us.sentry.io",
+              parts.port == nil,
+              let key = parts.user,
+              key.range(of: "^[0-9a-fA-F]{32}$", options: .regularExpression) != nil,
+              parts.password == nil,
+              parts.query == nil,
+              parts.fragment == nil,
+              parts.path.range(of: "^/[0-9]+$", options: .regularExpression) != nil else { return false }
         return true
     }
 

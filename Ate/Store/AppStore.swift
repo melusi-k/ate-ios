@@ -699,6 +699,10 @@ final class AppStore {
     /// Restores the open batch without touching anything else on the list: an item that came
     /// back through sync or a re-add is never duplicated, and edits made after a removal survive.
     /// Items removed under a different account are never restored into the current one.
+    /// Each recorded index is the item's position at the moment it was removed, so the batch is
+    /// restored in reverse removal order, undoing the removals one at a time to rebuild the
+    /// original positions exactly. (Ascending-index insertion misplaces items whose index had
+    /// already shifted under earlier removals in the same batch.)
     func undoShoppingRemovals() {
         let batch = pendingShoppingRemovals
         pendingShoppingRemovals = []
@@ -706,7 +710,7 @@ final class AppStore {
         toast = nil
         guard !batch.isEmpty else { return }
         var blockedByAccountChange = false
-        for pending in batch.sorted(by: { $0.index < $1.index }) {
+        for pending in batch.reversed() {
             guard pending.owner == insightLifecycleAccountID else { blockedByAccountChange = true; continue }
             guard !shopping.contains(where: { $0.id == pending.item.id }) else { continue }
             shopping.insert(pending.item, at: min(pending.index, shopping.count))

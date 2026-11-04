@@ -534,6 +534,34 @@ jobs:
           path: dist/*.ipa
           if-no-files-found: error
 
+      - name: Validate Sentry token and upload dSYMs
+        # Tester-channel manual dispatches only; never Production, never main push.
+        # Runs in the release job where build/Ate.xcarchive already exists (both signed and unsigned paths create it).
+        if: ${{ github.event_name == 'workflow_dispatch' && (inputs.channel == 'TierA' || inputs.channel == 'TierB' || inputs.channel == 'TierC') }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: add-colour-agency
+          SENTRY_PROJECT: ate-ios
+        run: |
+          set -e
+          if [ -z "${SENTRY_AUTH_TOKEN:-}" ]; then
+            if [ "${{ inputs.sentry_proof == true }}" = "true" ]; then echo "::error::SENTRY_AUTH_TOKEN secret required for the ingestion/symbol proof but is not set"; exit 1; fi
+            echo "::notice::SENTRY_AUTH_TOKEN secret not set; symbol upload skipped (not validated)"; exit 0
+          fi
+          brew install getsentry/tools/sentry-cli
+          sentry-cli info >/dev/null || { echo "::error::Sentry auth token rejected (sentry-cli info failed)"; exit 1; }
+          test -d build/Ate.xcarchive/dSYMs || { echo "::error::archive contains no dSYMs"; exit 1; }
+          APP_UUIDS=$(dwarfdump --uuid build/Ate.xcarchive/Products/Applications/Ate.app/Ate | awk '{print $2}' | tr 'A-F' 'a-f' | sort -u)
+          [ -n "$APP_UUIDS" ] || { echo "::error::no UUIDs read from built app binary"; exit 1; }
+          DSYM_UUIDS=$(dwarfdump --uuid build/Ate.xcarchive/dSYMs/*.dSYM 2>/dev/null | awk '{print $2}' | tr 'A-F' 'a-f' | sort -u)
+          [ -n "$DSYM_UUIDS" ] || { echo "::error::no dSYM UUIDs read from archive"; exit 1; }
+          MISSING=0
+          for U in $APP_UUIDS; do echo "$DSYM_UUIDS" | grep -qix "$U" || { echo "::error::no dSYM for app binary UUID $U"; MISSING=1; }; done
+          [ "$MISSING" = 0 ] || exit 1
+          echo "dSYM UUIDs cover the app binary"
+          sentry-cli upload-dif --org "$SENTRY_ORG" --project "$SENTRY_PROJECT" build/Ate.xcarchive/dSYMs --wait || { echo "::error::Sentry dSYM upload failed (token rights/org/project/slug or processing)"; exit 1; }
+          echo "Sentry symbol upload complete for $SENTRY_ORG/$SENTRY_PROJECT (server-confirmed)"
+
       - name: Update rolling 'latest-build' prerelease
         if: ${{ inputs.sentry_proof != true }}
         env:

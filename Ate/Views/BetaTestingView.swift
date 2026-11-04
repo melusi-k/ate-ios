@@ -38,7 +38,7 @@ struct BetaTestingView: View {
                     .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("betaCISummary")
                 Text("No published evidence does not mean tests passed, failed, or were skipped. See the build run for execution details.")
                     .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                if let error = ciError { Text("CI refresh failed: " + error).font(AteFont.body(12)).foregroundStyle(Theme.destructive) }
+                if let error = ciError { Text("CI refresh failed: " + error).font(AteFont.body(12)).foregroundStyle(Theme.destructive).accessibilityIdentifier("betaCIError") }
                 if let at = ciRefreshed { Text("CI refreshed " + at.formatted(date: .abbreviated, time: .shortened)).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground) }
 
             }
@@ -124,7 +124,7 @@ struct BetaTestingView: View {
                 if let warning = qa.persistenceWarning { Text(warning).foregroundStyle(Theme.destructive) }
                 if !qa.hasVerifiableBuildIdentity {
                     Text("This local/development build has no verifiable release identity. Verdicts can be recorded, but are not counted as current-build verification or eligible for upload.")
-                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("betaUnverifiedBuildNotice")
                 }
                 Button("Export results (JSON + Markdown)") {
                     let j = writeTemp("ate-beta-\(AppConfig.buildNumber).json", qa.exportJSON())
@@ -162,7 +162,16 @@ struct BetaTestingView: View {
     @MainActor private func refreshCI() async {
         ci = [:]; ciError = nil; ciRefreshed = nil; ciLoading = true
         defer { ciLoading = false }
-        if AppConfig.isUITesting { ci = CIStatus.results; ciRefreshed = Date(); return }
+        if AppConfig.isUITesting {
+            // Deterministic presentation fixtures only. They never write release identity,
+            // hit the live backend or qualify a real refresh/upgrade.
+            let args = ProcessInfo.processInfo.arguments
+            if args.contains("-qaBetaCINotLoaded") { return }
+            if args.contains("-qaBetaCIRefreshFailure") {
+                ciError = "Simulated refresh failure (UI test fixture)"; return
+            }
+            ci = CIStatus.results; ciRefreshed = Date(); return
+        }
         guard let session = store.session else { ciError = "Sign in to fetch this build's evidence."; return }
         let userID = session.userID
         await CIStatus.refresh(session: session)

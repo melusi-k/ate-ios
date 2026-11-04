@@ -788,7 +788,7 @@ jobs:
     name: Promote validated beta candidate
     # Never publish a Production IPA as the rolling beta candidate. Push builds use TierA;
     # manually dispatched builds may promote only an explicit tester channel.
-    if: ${{ (inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]')) && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["TierA", "TierB", "TierC"]'), inputs.channel)) && inputs.sentry_proof != true) }}
+    if: ${{ (inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]')) && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["TierA", "TierB", "TierC"]'), inputs.channel)) && inputs.sentry_proof != true }}
     needs: [release, ui-suite, backend-e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 10

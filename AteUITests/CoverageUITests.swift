@@ -220,7 +220,12 @@ final class CoverageUITests: XCTestCase {
 
     func testExploreInsightsPresentsAsSheetAndDismissesToLibrary() {
         launch()
-        tab("Library")
+        // launch() starts at the Library root. Re-selecting the already-selected tab makes
+        // XCTest wait for a redundant TabView transition on iOS 27 and can never reach
+        // quiescence in this focused shard; this test only needs to exercise Explore.
+        wait(app.tabBars.buttons["Library"])
+        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected,
+                      "Explore should start from the Library tab root")
         app.buttons["libraryBrowseMenu"].tap()
         let insights = browseMenuItem("Insights & journal")
         wait(insights)

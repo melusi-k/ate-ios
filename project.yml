@@ -60,7 +60,7 @@ targets:
       # Independent watch app, embedded at Ate.app/Watch/AteWatch.app so it can be installed alongside the phone app.
       - target: AteWatch
       - package: Sentry
-        product: SentrySPM
+        product: Sentry
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate
@@ -264,7 +264,7 @@ targets:
     dependencies:
       - target: Ate
       - package: Sentry
-        product: SentrySPM
+        product: Sentry
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

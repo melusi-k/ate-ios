@@ -5,6 +5,8 @@ struct ShoppingListView: View {
     @State private var newItem = ""
     @FocusState private var addFieldFocused: Bool
     @State private var share: ShareItems?
+    @State private var editingItem: ShoppingItem?
+    @State private var editOwner: String?
     @State private var confirmClearAll = false
     @AppStorage("ate.shopping.byAisle") private var byAisle = true
 
@@ -67,6 +69,11 @@ struct ShoppingListView: View {
             addFieldFocused = true
             store.requestShoppingAdd = false
         }
+        .sheet(item: $editingItem) { item in
+            ShoppingItemEditor(item: item, editOwner: editOwner) { name, quantity in
+                store.editShoppingItem(item.id, name: name, quantity: quantity)
+            }
+        }
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
     }
 
@@ -81,22 +88,29 @@ struct ShoppingListView: View {
                 Image(systemName: it.done ? "checkmark.square.fill" : "square").font(.title2)
                     .foregroundStyle(it.done ? Theme.primary : Theme.mutedForeground).frame(width: 44, height: 44)
             }.accessibilityLabel(it.done ? "Mark \(it.name) as not bought" : "Mark \(it.name) as bought")
-            VStack(alignment: .leading, spacing: 2) {
-                Text(ShoppingLogic.label(it)).font(AteFont.body(15)).lineLimit(1)
-                    .strikethrough(it.done).foregroundStyle(it.done ? Theme.mutedForeground : Theme.foreground)
-                if let src = (it.sources?.joined(separator: ", ") ?? it.from), !src.isEmpty {
-                    Text(src).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).lineLimit(1)
+            Button { editOwner = store.insightLifecycleAccountID; editingItem = it } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(ShoppingLogic.label(it)).font(AteFont.body(15)).lineLimit(1)
+                        .strikethrough(it.done).foregroundStyle(it.done ? Theme.mutedForeground : Theme.foreground)
+                    if let src = (it.sources?.joined(separator: ", ") ?? it.from), !src.isEmpty {
+                        Text(src).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).lineLimit(1)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            Spacer()
-            IconButton(symbol: "trash", label: "Remove \(it.name)", tint: Theme.mutedForeground) { store.removeItem(it.id) }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Edit \(it.name)")
+            .accessibilityIdentifier("shopping.edit.\(it.id)")
+            IconButton(symbol: "trash", label: "Remove \(it.name)", tint: Theme.mutedForeground) { store.removeShoppingItemWithUndo(it.id) }
         }
         .padding(.horizontal, 16).padding(.vertical, 4)
         .cardSurface()
         .contextMenu {
+            Button { editOwner = store.insightLifecycleAccountID; editingItem = it } label: { Label("Edit item", systemImage: "pencil") }
             Button { store.toggle(it.id) } label: { Label(it.done ? "Mark as not bought" : "Mark as bought", systemImage: "checkmark.square") }
             Button { UIPasteboard.general.string = ShoppingLogic.label(it) } label: { Label("Copy", systemImage: "doc.on.doc") }
-            Button(role: .destructive) { store.removeItem(it.id) } label: { Label("Remove", systemImage: "trash") }
+            Button(role: .destructive) { store.removeShoppingItemWithUndo(it.id) } label: { Label("Remove", systemImage: "trash") }
         }
     }
 
@@ -135,5 +149,77 @@ struct ShoppingListView: View {
 
     private func shareFile(_ name: String, _ text: String) {
         if let url = writeTemp(name, Data(text.utf8)) { share = ShareItems(items: [url]) }
+    }
+}
+
+
+/// Edit name/quantity only: unit, recipe sources, notes and completion are preserved by
+/// `AppStore.editShoppingItem`. Cancel always discards; Save is disabled until the fields
+/// are valid, and a failed save explains why instead of dismissing.
+private struct ShoppingItemEditor: View {
+    let item: ShoppingItem
+    let editOwner: String?
+    let save: (String, Double) -> Bool
+    @Environment(AppStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String
+    @State private var quantity: String
+    @State private var saveFailed = false
+
+    private let originalQuantityText: String
+
+    init(item: ShoppingItem, editOwner: String?, save: @escaping (String, Double) -> Bool) {
+        self.item = item
+        self.editOwner = editOwner
+        self.save = save
+        let seeded = ShoppingEdit.quantityText(item.quantity)
+        originalQuantityText = seeded
+        _name = State(initialValue: item.name)
+        _quantity = State(initialValue: seeded)
+    }
+
+    private var accountChanged: Bool { store.insightLifecycleAccountID != editOwner }
+    /// The stored quantity when the field is untouched, the parsed text once it is edited:
+    /// a name-only edit is never trapped by an unparseable seeded value.
+    private var effectiveQuantity: Double? {
+        ShoppingEdit.effectiveQuantity(original: item.quantity, originalText: originalQuantityText, editedText: quantity)
+    }
+    private var valid: Bool {
+        ShoppingEdit.trimmedName(name) != nil && effectiveQuantity != nil && !accountChanged
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("Item name", text: $name).accessibilityIdentifier("shopping.edit.name")
+                TextField("Quantity (optional)", text: $quantity)
+                    .keyboardType(.decimalPad).accessibilityIdentifier("shopping.edit.quantity")
+                if !item.unit.isEmpty { Text("Unit: \(item.unit)") }
+                Text("Leave quantity empty if you don't need an amount. Unit, recipe sources and completion stay unchanged.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                if effectiveQuantity == nil {
+                    Text("Enter a quantity of zero or more.").foregroundStyle(.red)
+                }
+                if accountChanged {
+                    Text("Your account changed while you were editing. Cancel and check the current list.")
+                        .foregroundStyle(.red)
+                } else if saveFailed {
+                    Text("This item is no longer on your list. Cancel and check the current list.")
+                        .foregroundStyle(.red)
+                }
+            }
+            .navigationTitle("Edit item")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        guard let value = effectiveQuantity else { return }
+                        if save(name, value) { dismiss() } else { saveFailed = true }
+                    }
+                    .disabled(!valid)
+                    .accessibilityIdentifier("shopping.edit.save")
+                }
+            }
+        }
     }
 }

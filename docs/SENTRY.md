@@ -50,7 +50,7 @@ The scrub guarantee covers the TRANSMITTED payload only, through the verified `b
 
 Production readiness requires:
 1. Configure the Sentry project DSN independently for development, CI, beta and production.
-2. Upload the matching app dSYM files for every distributed archive and verify symbolication against a controlled crash.
+2. Configure CI symbol upload using the Sentry CLI and `SENTRY_AUTH_TOKEN`; upload matching app dSYM files for every distributed archive and verify symbolication against a controlled crash.
 3. Associate each event with app version, build number, Git SHA and environment.
 4. Configure actionable crash-free-session / new-issue alerts with an owner and response path.
 5. Confirm retention, access control, data residency/subprocessor disclosures and privacy-policy wording before production rollout.

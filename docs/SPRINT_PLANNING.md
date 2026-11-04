@@ -1024,3 +1024,8 @@ This note is appended after the 09:30 inventory. The next docs commit changes th
 ### Review-thread count correction — 2026-11-04T09:49Z
 
 Correction to the earlier 09:30 thread-count wording: GitHub's returned thread field is is_resolved (snake case). The earlier compact tally checked a different field name and therefore counted all thread objects as unresolved. The authoritative thread details show #181 has **5 total threads: 3 unresolved (2 outdated Health-connect assertion findings and 1 current corrupt-goals recovery finding), 2 resolved/outdated**. PR #66 has **1 total thread, resolved/outdated; 0 unresolved**. All other open PRs have 0 inline review threads in the current thread listing. This correction is append-only; the earlier tally is superseded.
+
+
+### Exact-main Nightly QA completion correction — 2026-11-04T09:51Z
+
+Nightly QA run 41806727867 on main SHA e5665234129e047baf56e3c6af5ea0a5f254e59f has now completed successfully: Unit tests + QA gate (KeyFlowsQATests) passed, and backend E2E passed. This supersedes the 09:30 note that qa-gate was still in progress. It does not make the artifact-only Build IPA run 41785452856 a full release qualification: that workflow skipped unit, 8-flow QA, UI and backend-E2E and reported 1/59 verified, 12 failing, 46 open. On the same main SHA, Compile has one failed attempt (41785456819) and a later pass (41785456999); Journal open-state UI has one pass (41785456929) and a later failure (41785457007); Supabase Preview failed (126426620587); no exact-main Dogfood Qualification pass is recorded. Release remains blocked.

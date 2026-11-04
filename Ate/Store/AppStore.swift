@@ -762,6 +762,33 @@ final class AppStore {
 
     func removeItem(_ id: String) { shopping.removeAll { $0.id == id }; persistShopping() }
     func clearTicked() { shopping.removeAll { $0.done }; persistShopping() }
+    /// One tap puts every bought item back on the to-buy list. The toast offers Undo, which
+    /// re-marks exactly the items that were moved and leaves anything added, edited or removed
+    /// since untouched. Item ids can match across synced accounts, so Undo only acts for the
+    /// account that moved them (same rule as the removal Undo). Returns how many items moved.
+    @discardableResult func moveBoughtBackToList() -> Int {
+        let ids = shopping.filter(\.done).map(\.id)
+        guard !ids.isEmpty else { return 0 }
+        let owner = insightLifecycleAccountID
+        for i in shopping.indices where shopping[i].done { shopping[i].done = false }
+        persistShopping()
+        show(ids.count == 1 ? "1 item back on the list" : "\(ids.count) items back on the list",
+             action: "Undo", perform: { [weak self] in self?.markBought(ids, owner: owner) },
+             seconds: Self.shoppingUndoSeconds)
+        return ids.count
+    }
+    private func markBought(_ ids: [String], owner: String?) {
+        guard owner == insightLifecycleAccountID else {
+            show("Couldn't undo - your account changed since the items were moved back.", error: true)
+            return
+        }
+        let wanted = Set(ids)
+        var changed = false
+        for i in shopping.indices where wanted.contains(shopping[i].id) && !shopping[i].done {
+            shopping[i].done = true; changed = true
+        }
+        if changed { persistShopping() }
+    }
     func clearShopping() {
         // Clearing shopping data must not reset navigation in unrelated tabs.
         shopping = []

@@ -111,10 +111,18 @@ jobs:
           fi
           # Hard gate: a green selection that ran nothing is a failure, and every named
           # journey must appear with its own pass line in the log.
+          # testTimelyUndoRestoreWithinProductionWindow verdict semantics: GREEN proves
+          # the production-config (5s window) restore path via a real UI tap - not human
+          # usability/responsiveness. A RED journey is INCONCLUSIVE by default: runner
+          # "Synthesize event" completion timestamps bound but do not equal the real
+          # removal/expiry/delivery instants, so read the raw t= bounds plus visible
+          # toast/item state before classifying; an app defect needs app-owned timing
+          # corroboration that the tap landed before expiry.
           if grep -q "Executed 0 tests" shopping-edit-undo-ui.log; then echo "::error::shopping edit/undo selection executed 0 tests"; exit 1; fi
           for evidence in \
             "ShoppingEditUndoUITests testEditSaveCancelAndInvalidQuantityJourneys]' passed" \
             "ShoppingEditUndoUITests testBatchUndoRestoresBothRemovalsInOriginalOrder]' passed" \
+            "ShoppingEditUndoUITests testTimelyUndoRestoreWithinProductionWindow]' passed" \
             "ShoppingEditUndoUITests testUndoWindowExpiryFinalizesRemoval]' passed"; do
             grep -qF "$evidence" shopping-edit-undo-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 shopping-edit-undo-ui.log; exit 1; }
           done
@@ -134,7 +142,7 @@ jobs:
       - name: Verify journey screenshot evidence
         if: always() && steps.ui_journeys.outcome == 'success'
         run: |
-          # Hard gate: each of the five named journey screenshots must resolve to a real
+          # Hard gate: each of the six named journey screenshots must resolve to a real
           # nonempty PNG on disk. Association: name-matched exported file first, then the
           # xcresult export manifest (humanReadableName -> fileName). Unknown manifest
           # structure, a missing file, or a zero-byte/non-PNG match all fail the run.
@@ -194,6 +202,7 @@ jobs:
             edit-invalid-quantity-save-disabled \
             batch-undo-toast-two-items \
             batch-undo-restored-order \
+            timely-undo-restored \
             undo-expired-removal-final; do
             set +e
             file=$(resolve_shot "$shot")

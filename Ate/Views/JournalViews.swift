@@ -6,6 +6,8 @@ struct JournalListView: View {
     @Environment(AppStore.self) private var store
     /// Tests render the banner and empty-state suppression without mutating the shared store.
     var openStateOverride: JournalOpenState? = nil
+    /// True as the Insights tab root: shows the one named route to Insights & Cooking History.
+    var isTabRoot = false
     @State private var entries: [JournalEntry] = []
     @State private var showComposer = false
     @State private var query = ""
@@ -18,6 +20,13 @@ struct JournalListView: View {
     var body: some View {
         let openState = openStateOverride ?? JournalStore.shared.openState
         List {
+            if isTabRoot {
+                Section {
+                    NavigationLink(value: Route.insights) {
+                        Label("Insights & Cooking History", systemImage: "heart.text.square")
+                    }.accessibilityIdentifier("journal.insightsHistory")
+                }
+            }
             if openState != .ok {
                 Section { JournalOpenStateBanner(state: openState) }
             }
@@ -38,6 +47,7 @@ struct JournalListView: View {
         }
         .searchable(text: $query, prompt: "Search journal")
         .navigationTitle("Journal")
+        .ateRootNavigationChrome(logoID: "journal.logo", enabled: isTabRoot)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showComposer = true } label: { Label("New journal entry", systemImage: "square.and.pencil") }

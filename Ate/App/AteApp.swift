@@ -8,6 +8,7 @@ struct AteApp: App {
     @State private var store: AppStore
 
     init() {
+        SentryBootstrap.start()
         TabBarStyle.apply()
         if AppConfig.isUITesting {
             for k in ["ate.settings.v1", "ate.timerprefs.v1", "ate.cookSession.v1"] { UserDefaults.standard.removeObject(forKey: k) }

@@ -68,6 +68,15 @@ final class AteUITests: XCTestCase {
         }
     }
 
+    /// List-level shopping actions live behind the top-bar "Shopping list options" menu. A menu
+    /// can stay open after toggling an item, so only open it when its content is not already showing.
+    func openShoppingOptions() {
+        if !app.buttons["toggle.Group by aisle"].waitForExistence(timeout: 1) {
+            app.buttons["shoppingOptionsMenu"].tap()
+            _ = app.buttons["toggle.Group by aisle"].waitForExistence(timeout: 3)
+        }
+    }
+
     /// Opens Add sheet, picks a tab, generates via mock and saves; ends on Recipe detail.
     func addRecipe(tab: String, input: ((XCUIApplication) -> Void)?, shotPrefix: String) {
         app.buttons["Add recipe"].tap()
@@ -276,24 +285,35 @@ final class AteUITests: XCTestCase {
         honey.tap()
         wait(text("1 in the basket"))
         shot("shopping-ticked")
-        tapSwitch("toggle.Group by aisle")
+        openShoppingOptions()
+        app.buttons["toggle.Group by aisle"].tap()
         XCTAssertTrue(app.staticTexts["aisle.Produce"].waitForNonExistence(timeout: 3))
-        tapSwitch("toggle.Group by aisle")
-        app.buttons["Copy text"].tap()
+        openShoppingOptions()
+        app.buttons["toggle.Group by aisle"].tap()
+        XCTAssertTrue(app.staticTexts["aisle.Produce"].waitForExistence(timeout: 3))
+        openShoppingOptions()
+        app.buttons["Copy Text"].tap()
         wait(text("Copied as text"), 5)
-        app.swipeUp()
+        openShoppingOptions()
         shot("shopping-export")
-        app.buttons["Share / copy"].tap()
+        app.buttons["Share List"].tap()
         sleep(2)
         shot("shopping-share-sheet")
         if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
         sleep(1)
-        let clear = app.buttons["Clear ticked"].firstMatch
-        scrollTo(clear)
-        if clear.isHittable { clear.tap() } else { clear.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap() }
-        wait(text("5 to buy"))
-        app.buttons["Clear all"].tap()
-        wait(app.buttons["Clear all items"], 3)
+        openShoppingOptions()
+        app.buttons["Clear bought items"].tap()
+        wait(app.buttons["Cancel"], 3)
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(text("1 in the basket").exists)
+        openShoppingOptions()
+        app.buttons["Clear bought items"].tap()
+        wait(app.buttons["Cancel"], 3)
+        app.buttons["Clear bought items"].tap()
+        wait(text("5 to buy"), 5)
+        openShoppingOptions()
+        app.buttons["Clear all items"].tap()
+        wait(app.buttons["Cancel"], 3)
         app.buttons["Clear all items"].tap()
         wait(text("Nothing on the list"))
     }

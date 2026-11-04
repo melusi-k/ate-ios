@@ -29,13 +29,21 @@ struct SettingsView: View {
         @Bindable var store = store
         Form {
                     Section {
-                        AccountCard().listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
-                    } footer: {
-                        // Prominence: what syncs and what stays local is stated at the top,
-                        // directly under the account card, instead of mid-list.
-                        Text(SettingsCopy.syncSummary(accountAvailable: store.accountAvailable,
-                                                      signedIn: store.session != nil))
-                            .accessibilityIdentifier("settings.syncSummary")
+                        // Keep the sync summary in the same content row as the account card.
+                        // Form section footers expose a non-resizable SwiftUI accessibility
+                        // node on iOS 27, which fails the Dynamic Type audit even though the
+                        // underlying Text uses a scalable system style.
+                        VStack(alignment: .leading, spacing: 10) {
+                            AccountCard()
+                            Text(SettingsCopy.syncSummary(accountAvailable: store.accountAvailable,
+                                                          signedIn: store.session != nil))
+                                .font(.footnote)
+                                .foregroundStyle(Theme.mutedForeground)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("settings.syncSummary")
+                        }
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                     }
                     Section("Ate Plus") {
                         NavigationLink {

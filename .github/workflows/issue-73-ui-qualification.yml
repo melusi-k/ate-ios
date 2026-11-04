@@ -100,10 +100,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build/screenshots
-          xcresulttool get --legacy --path build/Issue73UIJourneys.xcresult --format json > build/result.json || true
+          # xcrun wrapper is required (bare xcresulttool is not on PATH); failures are
+          # mandatory-evidence failures, never masked.
+          xcrun xcresulttool get --legacy --path build/Issue73UIJourneys.xcresult --format json > build/result.json
           # Export all attachments (screenshots captured during the journeys)
-          xcresulttool export attachments --legacy --path build/Issue73UIJourneys.xcresult --output-path build/screenshots || true
+          xcrun xcresulttool export attachments --legacy --path build/Issue73UIJourneys.xcresult --output-path build/screenshots
           ls -la build/screenshots | tee -a "$GITHUB_STEP_SUMMARY"
+          # Journey screenshots are mandatory review evidence: fail loudly if none exported.
+          if [ -z "$(ls -A build/screenshots)" ]; then echo "screenshot export produced nothing"; exit 1; fi
 
       - name: Summarize journey qualification honestly
         if: always()
@@ -128,5 +132,5 @@ jobs:
             issue-73-ui-journeys.log
             build/Issue73UIJourneys.xcresult
             build/screenshots
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30

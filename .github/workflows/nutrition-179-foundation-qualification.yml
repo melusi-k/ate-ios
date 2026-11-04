@@ -30,7 +30,7 @@ jobs:
           find Ate AteTests -name '*.swift' -print0 | xargs -0 shasum -a 256 > build/nutrition-179-foundation/source-sha256.txt
       - run: brew install xcodegen
       - run: xcodegen generate
-      - name: Build and run 45 foundation + 11 nutrition diary fixtures with complete concurrency checking
+      - name: Build and run 47 foundation + 11 nutrition diary fixtures with complete concurrency checking
         run: |
           set -o pipefail
           SIM_ID=$(python3 scripts/select-ios-simulator.py)
@@ -39,6 +39,7 @@ jobs:
             -only-testing:AteTests/FoodJournalStoreTests \
             -only-testing:AteTests/FoodJournalCoordinatorTests \
             -only-testing:AteTests/JournalArchiveTests \
+            -only-testing:AteTests/JournalTimelineOrderTests \
             -only-testing:AteTests/LegacyDiaryRepairTests \
             -only-testing:AteTests/CanonicalNutritionDiaryTests \
             -resultBundlePath build/nutrition-179-foundation/Nutrition179Foundation.xcresult \

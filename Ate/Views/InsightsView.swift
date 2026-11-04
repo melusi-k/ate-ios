@@ -851,26 +851,39 @@ struct RecipeSheetTarget: Identifiable, Hashable { let id: String }
 /// first so the root full-screen cover can present.
 struct RecipeSheet: View {
     let recipeID: String
+    /// Only recipes opened from a Health suggestion count as the A-HEALTH-08 beta evidence;
+    /// other hosts (e.g. the cooking tracker) pass false so it is never recorded for them.
+    var recordsHealthSuggestionEvidence = true
+    /// Called when the sheet closes to take the user somewhere else (Cook mode or a pushed
+    /// route) rather than because they dismissed it, so a host can skip restoring its own context.
+    var onLeaveForElsewhere: (() -> Void)? = nil
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
             RecipeDetailView(recipeID: recipeID)
+                // Identity on the real detail container (children stay individually reachable) so
+                // journeys can assert exactly WHICH recipe the sheet shows.
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("recipeSheet.recipe.\(recipeID)")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Done") { dismiss() }.accessibilityIdentifier("recipeSheet.done")
                     }
                 }
         }
-        .onDisappear { BetaQA.shared.pass("A-HEALTH-08", note: "Opened and closed a suggested recipe") }
+        .onDisappear {
+            if recordsHealthSuggestionEvidence { BetaQA.shared.pass("A-HEALTH-08", note: "Opened and closed a suggested recipe") }
+        }
         .onChange(of: store.cookTarget) { _, t in
             // Root presents cook mode full-screen; hand off after the sheet is gone.
             guard let t else { return }
             store.cookTarget = nil
+            onLeaveForElsewhere?()
             dismiss()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { store.cookTarget = t }
         }
-        .onChange(of: store.path) { _, p in if !p.isEmpty { dismiss() } }
+        .onChange(of: store.path) { _, p in if !p.isEmpty { onLeaveForElsewhere?(); dismiss() } }
     }
 }
 

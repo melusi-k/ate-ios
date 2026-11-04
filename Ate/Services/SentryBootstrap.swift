@@ -83,6 +83,23 @@ enum SentryBootstrap {
             options.beforeSend = scrubEvent
         }
 
+        #if targetEnvironment(simulator)
+        switch fatalProofAction(arguments: ProcessInfo.processInfo.arguments,
+                                canaryPresent: canaryMarker() != nil,
+                                channel: AppConfig.channel) {
+        case .crash:
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                captureSyntheticFatalProof()
+            }
+            return
+        case .recover:
+            // Preserve the container so the prior cached crash can be delivered.
+            return
+        case .none:
+            break
+        }
+        #endif
+
         if let marker = canaryMarker() {
             let error = NSError(
                 domain: "ate.sentry.ingestion-proof",
@@ -92,6 +109,26 @@ enum SentryBootstrap {
             SentrySDK.capture(error: error)
         }
     }
+
+    enum FatalProofAction: Equatable { case none, crash, recover }
+
+    /// Pure decision only. Calling this never starts the SDK or crashes a process.
+    /// Recovery wins if conflicting arguments are supplied.
+    static func fatalProofAction(arguments: [String], canaryPresent: Bool,
+                                 channel: String) -> FatalProofAction {
+        guard canaryPresent, channel == "TierA" else { return .none }
+        if arguments.contains("-SentryFatalRecovery") { return .recover }
+        if arguments.contains("-SentryFatalProof") { return .crash }
+        return .none
+    }
+
+    #if targetEnvironment(simulator)
+    /// A named in-app frame for the separately reviewed fatal-symbolication proof.
+    @inline(never)
+    private static func captureSyntheticFatalProof() {
+        SentrySDK.crash()
+    }
+    #endif
 
     /// Event scrubber, deterministic and unit-testable without starting the SDK.
     /// Drops identity, free text, URLs and SDK-set tags; keeps exception type,

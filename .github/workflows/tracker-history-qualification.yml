@@ -3,7 +3,7 @@ name: Tracker History Recipe Qualification
 # Branch-owned qualification lane for the Tracker history -> recipe slice (recipe rows in the
 # "Cooked that day" sheet open the recipe) stacked on menu-journal-root-insights. Runs on
 # pull_request events whose BASE is menu-journal-root-insights (synthetic merge) and on pushes to the
-# slice branch (actual head). Hard named-pass gates fail closed; five named captures are verified as
+# slice branch (actual head). Hard named-pass gates fail closed; seven named captures are verified as
 # decodable PNGs inside their own scope directory. Existing cook-mode and tracker-entry regressions
 # stay gated. No workflow_dispatch trigger.
 
@@ -296,7 +296,9 @@ jobs:
             tracker-day-recipe-opened \
             tracker-day-recipe-cook-mode \
             tracker-day-recipe-timer-retained \
-            tracker-day-deleted-recipe-fallback
+            tracker-day-deleted-recipe-fallback \
+            tracker-month-view \
+            tracker-day-details
 
       - name: Record qualification metadata
         if: always()

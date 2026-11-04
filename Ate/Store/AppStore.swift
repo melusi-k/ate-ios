@@ -1039,7 +1039,13 @@ final class AppStore {
     func openJournalEntry(_ id: String) {
         // More is not a shipped tab. Keep journal deep links inside the visible Tracker navigation stack.
         select(.tracker)
-        trackerPath = [.journal, .journalEntry(id)]
+        trackerPath = [.journalEntry(id)]   // Journal is the Insights tab root
+    }
+
+    /// The named "Insights & Cooking History" route, pushed above the Journal root of the Insights tab.
+    func openInsightsHub() {
+        select(.tracker)
+        trackerPath = [.insights]
     }
 
     func handle(url: URL) {

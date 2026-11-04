@@ -1,6 +1,8 @@
 name: Journal foundation native qualification
 on:
   workflow_dispatch:
+  push:
+    branches: [journal-foundation-qualification]
 permissions:
   contents: read
 concurrency:

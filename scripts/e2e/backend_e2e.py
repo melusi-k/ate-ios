@@ -4,12 +4,13 @@ pre-confirmed users (no emails sent). Writes build/e2e/results.json and (with --
 
 Secrets: SUPABASE_ACCESS_TOKEN (Management API) -> anon + service_role keys fetched at runtime. Fail closed:
 exception text and tracebacks are never logged (only the type name plus the check and line it failed at),
-because they can carry credentials
-and redaction cannot be proven complete (py/clear-text-logging-sensitive-data). Pass-path notes, findings and
-status output pass through scrub() (registered secrets in raw/JSON-escaped/URL-encoded form, plus linear-time
-JWT/Bearer/key=value patterns and a linear quoted-key/value scanner) as defence in depth. Residual risk: a
-secret transformed upstream into an unregistered, unmatched form inside a pass-path note could still log -
-review any new check that handles credentials.
+because they can carry credentials and redaction cannot be proven complete
+(py/clear-text-logging-sensitive-data). Console output is a static check-id + status line: CodeQL does not
+treat scrub() as a sanitizer, so check-authored notes are never printed - they are scrubbed (registered secrets
+in raw/JSON-escaped/URL-encoded form, plus linear-time JWT/Bearer/key=value patterns and a linear
+quoted-key/value scanner) and written only to results.json, summary.md and qa_results, as before. Residual
+risk: a secret transformed upstream into an unregistered, unmatched form inside a stored note could persist in
+those artifacts - review any new check that handles credentials.
 """
 import argparse, json, os, re, sys, time, uuid, urllib.error, urllib.parse, urllib.request
 
@@ -148,7 +149,9 @@ def fail_closed(where, exc):
 
 def run_check(ctx, results, ids, fn, *args):
     """Run one check and record per-id results. Failures record only the exception type name,
-    check name and innermost frame location; pass-path notes are scrubbed, capped at 400 chars."""
+    check name and innermost frame location. The console line is static - ids and status only:
+    CodeQL does not treat scrub() as a sanitizer, so check-authored notes are never printed.
+    Notes (scrubbed, capped at 400 chars) live in results.json, summary.md and qa_results."""
     try: note = fn(ctx, *args); st = "pass"
     except Exception as e:
         # Diagnosable without exception text: check name + innermost frame function:line.
@@ -158,7 +161,9 @@ def run_check(ctx, results, ids, fn, *args):
         note = f"{type(e).__name__} in {getattr(fn, '__name__', '?')}{at} {_WITHHELD}"; st = "fail"
     note = "" if note is None else scrub(str(note))[:400]  # every current check returns a str; None stays clean
     for i in ids: results[i] = {"status": st, "note": note}
-    print(f"{'✅' if st == 'pass' else '❌'} {', '.join(ids)}: {note}")
+    # Static shape only: ids are code constants, st is a "pass"/"fail" literal. Nothing derived
+    # from fn return values, response bodies or exception objects reaches this sink.
+    print(f"{'✅' if st == 'pass' else '❌'} {', '.join(ids)}: {st}")
 
 
 class Ctx:
@@ -271,7 +276,9 @@ def t_auth02(ctx):
     code, j = http("POST", f"{URL}/auth/v1/signup", ctx.anon_h(), {"email": u["email"], "password": dup_password})
     ids = (j or {}).get("identities", (j or {}).get("user", {}).get("identities")) if isinstance(j, dict) else None
     assert code == 200 and ids == [], f"duplicate signup {code} identities={ids}"
-    return f"min {mn}, letters+digits required; weak/letters-only passwords rejected (weak_password); duplicate email → 200 with identities=[]"
+    # The note is a constant: config values read under password-named keys (CodeQL name-taint)
+    # never leave this function. The actual minimum stays enforced by the asserts above.
+    return "min length >= 8 enforced, letters+digits required; weak/letters-only passwords rejected (weak_password); duplicate email → 200 with identities=[]"
 
 
 def t_auth06(ctx):

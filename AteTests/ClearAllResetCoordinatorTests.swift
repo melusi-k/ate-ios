@@ -110,7 +110,7 @@ import XCTest
     func testMalformedSnapshotRowsAreUnverifiedNotFabricatedEmpty() async {
         let rpc = AccountDataResetService(baseURL: URL(string: "https://example.test")!, key: "anon",
                                           perform: { _ in self.http(200, #"{"generation":0,"rows":[{"broken":true}]}"#) })
-        await assertThrows(Outcome { try await rpc.snapshot(session: session) }) {
+        await assertThrows(Outcome { try await rpc.snapshot(session: self.session) }) {
             guard case .outcomeUnverified = $0 as? ResetRPCError else { return XCTFail("malformed rows must not decode as []") }
         }
     }
@@ -119,7 +119,7 @@ import XCTest
         for body in [#"{"generation":true,"rows":[]}"#, #"{"generation":1.5,"rows":[]}"#] {
             let rpc = AccountDataResetService(baseURL: URL(string: "https://example.test")!, key: "anon",
                                               perform: { _ in self.http(200, body) })
-            await assertThrows(Outcome { try await rpc.snapshot(session: session) }) {
+            await assertThrows(Outcome { try await rpc.snapshot(session: self.session) }) {
                 guard case .outcomeUnverified = $0 as? ResetRPCError else { return XCTFail("non-integer generation accepted") }
             }
         }
@@ -130,7 +130,7 @@ import XCTest
         let rpc = AccountDataResetService(baseURL: URL(string: "https://example.test")!, key: "anon",
                                           perform: { _ in sent += 1; return self.http(200, "null") })
         await assertThrows(Outcome {
-            try await rpc.putRecipe(session: session, callerGeneration: 0, kind: "recipe",
+            try await rpc.putRecipe(session: self.session, callerGeneration: 0, kind: "recipe",
                                     id: "x", data: Data("not json".utf8), updatedAt: 1, deleted: false)
         }) {
             guard case .invalidRequest = $0 as? ResetRPCError else { return XCTFail("invalid payload must be refused") }
@@ -143,7 +143,7 @@ import XCTest
             let rpc = AccountDataResetService(baseURL: URL(string: "https://example.test")!, key: "anon",
                                               perform: { _ in self.http(200, receipt) })
             await assertThrows(Outcome {
-                try await rpc.clearAccount(session: session, requestID: UUID(), expectedGeneration: 0)
+                try await rpc.clearAccount(session: self.session, requestID: UUID(), expectedGeneration: 0)
             }) {
                 guard case .outcomeUnverified = $0 as? ResetRPCError else { return XCTFail("receipt \(receipt) accepted") }
             }
@@ -154,7 +154,7 @@ import XCTest
         let rpc = AccountDataResetService(baseURL: URL(string: "https://example.test")!, key: "anon",
                                           perform: { _ in throw URLError(.networkConnectionLost) })
         await assertThrows(Outcome {
-            try await rpc.clearAccount(session: session, requestID: UUID(), expectedGeneration: 0)
+            try await rpc.clearAccount(session: self.session, requestID: UUID(), expectedGeneration: 0)
         }) {
             guard case .outcomeUnverified = $0 as? ResetRPCError else { return XCTFail("lost response misclassified") }
         }
@@ -213,7 +213,7 @@ import XCTest
         for body in badRows {
             let rpc = AccountDataResetService(baseURL: URL(string: "https://example.test")!, key: "anon",
                                               perform: { _ in self.http(200, body) })
-            await assertThrows(Outcome { try await rpc.snapshot(session: session) }) {
+            await assertThrows(Outcome { try await rpc.snapshot(session: self.session) }) {
                 guard case .outcomeUnverified = $0 as? ResetRPCError else { return XCTFail("repaired row accepted: \(body)") }
             }
         }
@@ -372,7 +372,7 @@ import XCTest
             let rpc = AccountDataResetService(baseURL: URL(string: "https://example.test")!, key: "anon",
                                               perform: { _ in sent += 1; return self.http(200, "1") })
             await assertThrows(Outcome {
-                try await rpc.clearAccount(session: session, requestID: UUID(), expectedGeneration: bad)
+                try await rpc.clearAccount(session: self.session, requestID: UUID(), expectedGeneration: bad)
             }) {
                 guard case .invalidRequest = $0 as? ResetRPCError else { return XCTFail("expectedGeneration \(bad) accepted") }
             }

@@ -33,7 +33,17 @@ enum SettingsCopy {
     static let nutritionFooter = "Your food diary and nutrition goals are stored on this iPhone only. They're included in your data export."
 
     /// Footer for Tools: what a data export currently contains.
-    static let toolsFooter = "A data export includes your recipes, shopping list, food diary, nutrition goals and app preferences."
+    static let toolsFooter = "A data export includes your recipes, shopping list, food diary, nutrition goals and app preferences. Journal entries and their photos and locations are not included yet. Journal history stays on this iPhone and does not sync to your account."
+
+    static func aiStatusTitle(privateMode: Bool, status: SettingsAIStatus) -> String {
+        privateMode ? "Private mode is blocking new AI recipes" : status.title
+    }
+
+    static func aiStatusGuidance(privateMode: Bool, status: SettingsAIStatus) -> String {
+        privateMode
+            ? "Turn off Private mode above to use recipe generation, including demo recipes. Your saved recipes remain available."
+            : status.guidance
+    }
 
     /// Shown under AI on this device: availability and device compatibility in plain
     /// terms. Matches `OnDeviceBackend`: Apple Foundation Models on iOS 26+ when the

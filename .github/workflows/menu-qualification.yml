@@ -155,6 +155,7 @@ jobs:
 
       - name: Search results and Library menu UI journeys
         id: search_journeys
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
         run: |
           set -o pipefail
           SIM_ID="${{ steps.select_simulator.outputs.id }}"
@@ -189,6 +190,71 @@ jobs:
           done
           grep -E "Test Case .* (passed|failed)|Executed" menu-search-ui.log | tail -20
 
+      - name: Journal action menu captures
+        id: journal_menus
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/JournalMenuCaptureUITests \
+            -resultBundlePath build/MenuJournalUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > menu-journal-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Journal menu captures failed (xcodebuild exit $status). Exact diagnostics follow; log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" menu-journal-ui.log || true
+            tail -n 100 menu-journal-ui.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" menu-journal-ui.log; then echo "::error::journal menu selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "JournalMenuCaptureUITests testJournalDetailMoreMenuOpens]' passed" \
+            "JournalMenuCaptureUITests testInsightsEntryContextMenuOpens]' passed"; do
+            grep -qF "$evidence" menu-journal-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 menu-journal-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" menu-journal-ui.log | tail -20
+
+      - name: Nutrition production controls capture
+        id: nutrition_controls
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/NutritionProductionControlsUITests \
+            -resultBundlePath build/MenuNutritionUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > menu-nutrition-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Nutrition production controls capture failed (xcodebuild exit $status). Exact diagnostics follow; log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" menu-nutrition-ui.log || true
+            tail -n 100 menu-nutrition-ui.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" menu-nutrition-ui.log; then echo "::error::nutrition controls selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "NutritionProductionControlsUITests testExistingFoodDiaryControlsAndSourceMenu]' passed"; do
+            grep -qF "$evidence" menu-nutrition-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 menu-nutrition-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" menu-nutrition-ui.log | tail -20
+
       - name: Export journey screenshots
         if: always()
         run: |
@@ -196,17 +262,23 @@ jobs:
           # failure diagnostics and the raw xcresults are always retained alongside.
           # Each result bundle exports into its OWN directory so a screenshot can only
           # satisfy a gate from the test group that was supposed to capture it.
-          mkdir -p build/MenuUIAttachments/shopping build/MenuUIAttachments/search
+          mkdir -p build/MenuUIAttachments/shopping build/MenuUIAttachments/search build/MenuUIAttachments/journalmenus build/MenuUIAttachments/nutrition
           if [ -d build/MenuShoppingUITests.xcresult ]; then
             xcrun xcresulttool export attachments --path build/MenuShoppingUITests.xcresult --output-path build/MenuUIAttachments/shopping
           fi
           if [ -d build/MenuSearchUITests.xcresult ]; then
             xcrun xcresulttool export attachments --path build/MenuSearchUITests.xcresult --output-path build/MenuUIAttachments/search
           fi
+          if [ -d build/MenuJournalUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/MenuJournalUITests.xcresult --output-path build/MenuUIAttachments/journalmenus
+          fi
+          if [ -d build/MenuNutritionUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/MenuNutritionUITests.xcresult --output-path build/MenuUIAttachments/nutrition
+          fi
           find build/MenuUIAttachments -type f | sort | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Verify journey screenshot evidence
-        if: always() && steps.shopping_journeys.outcome == 'success' && steps.search_journeys.outcome == 'success'
+        if: always() && steps.shopping_journeys.outcome == 'success' && steps.search_journeys.outcome == 'success' && steps.journal_menus.outcome == 'success' && steps.nutrition_controls.outcome == 'success'
         run: |
           # Hard gate: every named journey screenshot must resolve, INSIDE ITS OWN
           # SCOPE DIRECTORY, to a real decodable PNG with nonzero dimensions.
@@ -327,6 +399,13 @@ jobs:
             search-results-menu \
             search-results-menu-selected \
             search-results-menu-reset
+          verify_scope journalmenus \
+            journal-detail-menu-open \
+            insights-entry-context-menu
+          verify_scope nutrition \
+            production-food-diary-controls \
+            production-food-diary-log-form \
+            production-food-diary-source-menu
 
       - name: Record qualification metadata
         if: always()
@@ -341,6 +420,8 @@ jobs:
             echo "build_outcome=${{ steps.build.outcome }}"
             echo "shopping_journeys_outcome=${{ steps.shopping_journeys.outcome }}"
             echo "search_journeys_outcome=${{ steps.search_journeys.outcome }}"
+            echo "journal_menus_outcome=${{ steps.journal_menus.outcome }}"
+            echo "nutrition_controls_outcome=${{ steps.nutrition_controls.outcome }}"
             echo "collected_at=$(date -u +%FT%TZ)"
           } | tee qualification-metadata.txt
           mkdir -p build/MenuUIAttachments
@@ -355,7 +436,11 @@ jobs:
             build-for-testing.log
             menu-shopping-ui.log
             menu-search-ui.log
+            menu-journal-ui.log
+            menu-nutrition-ui.log
             build/MenuShoppingUITests.xcresult
             build/MenuSearchUITests.xcresult
+            build/MenuJournalUITests.xcresult
+            build/MenuNutritionUITests.xcresult
             build/MenuUIAttachments
           if-no-files-found: warn

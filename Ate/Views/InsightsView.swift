@@ -263,6 +263,9 @@ struct InsightsView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
                         Text("Your insights").font(AteFont.display(18))
+                            // UITesting-only diagnostics on an existing element: no geometry change,
+                            // state categories only (never raw error text), lands in failure hierarchies.
+                            .accessibilityValue(AppConfig.isUITesting ? "qa access=\(String(describing: model.access)) context=\(model.context == nil ? "nil" : "loaded") sample=\(model.isSample) errPresent=\(model.requestError == nil ? "no" : "yes")" : "")
                         Spacer()
                         Button { Task { await refreshAllInsights() } } label: {
                             Label("Refresh", systemImage: "arrow.clockwise")
@@ -317,6 +320,9 @@ struct InsightsView: View {
                 .pageWidth()
             }
         }
+        // The tab bar's floating bottom accessory can overlap trailing scroll content;
+        // match SettingsView and leave room for it.
+        .contentMargins(.bottom, 96, for: .scrollContent)
         .navigationTitle(screenTitle)
         .ateRootNavigationChrome(logoID: "insights.logo", enabled: isRoot)
         .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }

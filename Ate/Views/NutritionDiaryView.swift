@@ -148,6 +148,8 @@ struct NutritionDiaryView: View {
                 Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.error") }
             }
         }
+        // Let the empty state and last rows scroll fully clear of the floating tab bar instead of sitting under it (same pattern as SettingsView).
+        .contentMargins(.bottom, 96, for: .scrollContent)
         .navigationTitle("Food diary")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -245,12 +247,23 @@ private struct NutritionDiaryEntryForm: View {
                     ForEach(NutritionMeal.allCases) { Text($0.title).tag($0) }
                 }
                 .accessibilityIdentifier("nutritionDiary.meal")
-                TextField("Quantity", text: $quantity).keyboardType(.decimalPad)
-                    .accessibilityIdentifier("nutritionDiary.quantity")
-                TextField("Quantity unit", text: $quantityUnit)
-                    .accessibilityIdentifier("nutritionDiary.quantityUnit")
-                TextField("Servings consumed", text: $servings).keyboardType(.decimalPad)
-                    .accessibilityIdentifier("nutritionDiary.servings")
+                LabeledContent("Quantity") {
+                    TextField("Quantity", text: $quantity)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .accessibilityIdentifier("nutritionDiary.quantity")
+                }
+                LabeledContent("Quantity unit") {
+                    TextField("Quantity unit", text: $quantityUnit)
+                        .multilineTextAlignment(.trailing)
+                        .accessibilityIdentifier("nutritionDiary.quantityUnit")
+                }
+                LabeledContent("Servings consumed") {
+                    TextField("Servings consumed", text: $servings)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .accessibilityIdentifier("nutritionDiary.servings")
+                }
                 LabeledContent("Date", value: date.formatted(date: .abbreviated, time: .omitted))
             }
             Section {
@@ -258,9 +271,12 @@ private struct NutritionDiaryEntryForm: View {
                     ForEach(NutritionEntrySource.allCases) { Text($0.title).tag($0) }
                 }
                 .accessibilityIdentifier("nutritionDiary.source")
-                TextField("Source name", text: $sourceName)
-                    .textInputAutocapitalization(.words)
-                    .accessibilityIdentifier("nutritionDiary.sourceName")
+                LabeledContent("Source name") {
+                    TextField("Source name", text: $sourceName)
+                        .textInputAutocapitalization(.words)
+                        .multilineTextAlignment(.trailing)
+                        .accessibilityIdentifier("nutritionDiary.sourceName")
+                }
                 TextField("Source record ID (optional)", text: $sourceIdentifier)
                     .accessibilityIdentifier("nutritionDiary.sourceIdentifier")
                 TextField("Preparation or source-match note (optional)", text: $verificationNote, axis: .vertical)

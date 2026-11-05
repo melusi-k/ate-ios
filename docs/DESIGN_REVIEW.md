@@ -8,6 +8,8 @@ This process adds design checks to the Plan/Build boundary in [PRODUCT_LIFECYCLE
 
 Use a design document before substantial cross-domain work, persistence/migration changes, new model/context access, system actions, privacy/security boundaries or irreversible operations. Apply a focused review to a local change when its risk warrants one.
 
+The size rule in [AI_POLICY.md](../AI_POLICY.md), once adopted, sets a minimum for qualifying new features; the risk-based scope here can require review below that threshold.
+
 Do not require the full process for typos, a small isolated fix, routine dependency bumps or formatting. Their existing review/tests still apply. An apparently small dependency change that changes a security or data boundary is not exempt merely because its diff is short.
 
 ## Adopted practices and limits

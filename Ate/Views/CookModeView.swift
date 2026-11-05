@@ -47,7 +47,6 @@ struct CookModeView: View {
         // A pushed cook is full-screen work too. The tab bar otherwise overlays
         // Finish and can receive its tap (native navigation-host evidence).
         .toolbar(.hidden, for: .tabBar)
-        .toolbar(.visible, for: .bottomBar)
         .onAppear {
             guard finishState.allowsSessionWrites else { return }
             UIApplication.shared.isIdleTimerDisabled = true
@@ -245,9 +244,11 @@ struct CookModeView: View {
         .sheet(isPresented: $showIngredients) {
             CookIngredientsSheet(recipe: recipe).environment(store)
         }
-        .toolbar {
-            // Back / Next live in the system bottom toolbar (bottom-bar semantics, glass on iOS 26).
-            ToolbarItemGroup(placement: .bottomBar) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Keep controls in the layout's real safe area. In the pushed route the
+            // system toolbar exposed Finish under a zero-sized AX ancestor and
+            // returned hit point (-1,-1), even though the button was drawn onscreen.
+            HStack {
                 Button("Back") { index -= 1 }.disabled(index == 0).frame(minHeight: 44)
                 Spacer()
                 if index < n - 1 {
@@ -260,6 +261,8 @@ struct CookModeView: View {
                     .accessibilityIdentifier("cookFinish")
                 }
             }
+            .padding(.horizontal, 20).padding(.vertical, 12)
+            .background(Theme.warm)
         }
     }
 

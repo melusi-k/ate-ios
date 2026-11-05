@@ -30,16 +30,18 @@ jobs:
       - name: Scan GitHub configuration (advisory)
         id: scan
         continue-on-error: true
-        uses: zizmorcore/zizmor-action@f9597c869b2e67095f9b527070297a13a6efe928 # v0.7.0
-        with:
-          inputs: .github
-          collect: all
-          version: 1.31.0
-          online-audits: false
-          token: ''
-          advanced-security: false
-          annotations: false
-          color: false
+        run: |
+          # Fixed Linux x86_64 wheel, verified before extraction/execution.
+          wheel="$RUNNER_TEMP/zizmor-1.31.0-py3-none-manylinux_2_28_x86_64.whl"
+          curl --fail --silent --show-error --location \
+            https://files.pythonhosted.org/packages/28/08/94cf5753930aa91ffff7ddb45e99f9cdab8c3d22e07ff7ba726dff9e8662/zizmor-1.31.0-py3-none-manylinux_2_28_x86_64.whl \
+            --output "$wheel"
+          echo "bb4203c790f8d33e110dbeee2ac6d70911e233b93574ffc770aaa21ecd850302  $wheel" | sha256sum --check --strict
+          python3 -m zipfile --extract "$wheel" "$RUNNER_TEMP/zizmor-unpacked"
+          scanner="$RUNNER_TEMP/zizmor-unpacked/zizmor-1.31.0.data/scripts/zizmor"
+          chmod +x "$scanner"
+          env -u GH_TOKEN -u GITHUB_TOKEN -u ZIZMOR_GITHUB_TOKEN \
+            "$scanner" --offline --collect=all --color=never .github
       - name: Explain advisory scan result
         if: always()
         env:

@@ -9,7 +9,6 @@ struct JournalListView: View {
     /// True as the Insights tab root: shows the one named route to Insights & Cooking History.
     var isTabRoot = false
     @State private var entries: [JournalEntry] = []
-    @State private var showComposer = false
     @State private var query = ""
     var filtered: [JournalEntry] {
         let q = query.trimmingCharacters(in: .whitespaces)
@@ -50,15 +49,11 @@ struct JournalListView: View {
         .ateRootNavigationChrome(logoID: "journal.logo", enabled: isTabRoot)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showComposer = true } label: { Label("New journal entry", systemImage: "square.and.pencil") }
+                Button { store.beginManualJournal() } label: { Label("New journal entry", systemImage: "square.and.pencil") }
                     .accessibilityIdentifier("journal.newEntry")
             }
         }
         .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
-        .sheet(isPresented: $showComposer) {
-            @Bindable var store = store
-            ManualJournalComposer(draft: $store.manualJournalDraft) { store.journalRevision += 1 }.environment(store)
-        }
         .onAppear { entries = JournalStore.shared.entries() }
     }
 }
@@ -308,8 +303,8 @@ struct ManualJournalComposer: View {
 
 enum ManualJournalHost { case root }
 
-/// Root-level host for the bottom "New journal entry" action. Screens that are themselves
-/// presented in a sheet (Library's Explore destinations) present the composer locally instead.
+/// Session-level composer host above the replaceable portrait/sidebar trees.
+/// Journal, Insights and the bottom action all use this same presentation owner.
 struct JournalTaskHost: ViewModifier {
     @Environment(AppStore.self) private var store
 

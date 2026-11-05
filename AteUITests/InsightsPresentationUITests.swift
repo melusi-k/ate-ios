@@ -58,7 +58,19 @@ final class InsightsPresentationUITests: XCTestCase {
         wait(app.tabBars.firstMatch, 15)
         let button = app.tabBars.buttons[name]
         wait(button, 8)
-        button.tap()
+        // iOS 26: a tab tap that lands while the bar is mid-transition (route push or
+        // minimize/expand animation) can be swallowed without an error, leaving the previous
+        // tab selected. Re-tap as a user would until the tab's own selected state confirms the
+        // switch (precedent: the AteUITests tab asserts read the same isSelected state). The
+        // settle pause keeps a slow state update from causing a second tap on the now-current
+        // tab, which would pop its stack.
+        var attempts = 0
+        while !button.isSelected && attempts < 3 {
+            button.tap()
+            attempts += 1
+            sleep(1)
+        }
+        XCTAssertTrue(button.isSelected, "the \(name) tab must become selected when tapped")
     }
 
     /// The Insights tab root is the Journal; Insights & Cooking History is its one named route.
@@ -277,12 +289,20 @@ final class InsightsPresentationUITests: XCTestCase {
         XCTAssertTrue(connect.isHittable, "the quiet Connect action must stay tappable at normal text")
 
         XCUIDevice.shared.orientation = .landscapeLeft
+        // Landscape replaces the TabView with the sidebar split (verticalSizeClass .compact);
+        // swipes fired while that rebuild is still animating are eaten by the transition. The
+        // sidebar exists only in the settled landscape layout, so gate on it before resetting
+        // and scrolling. The short landscape viewport needs the full bounded scroll budget;
+        // the loop still stops as soon as the row is hittable.
+        wait(any("sidebar"))
         resetHubScrollPosition()
-        _ = scrollTo(connect, 4)
+        _ = scrollTo(connect)
         shot("ipp-10-landscape-quiet-connect")
         XCTAssertTrue(connect.exists && connect.isHittable,
                       "the quiet Connect action must survive compact landscape")
         XCUIDevice.shared.orientation = .portrait
+        // Symmetric gate: the tab bar exists only in the settled portrait TabView layout.
+        wait(app.tabBars.firstMatch)
         resetHubScrollPosition()
         let connectAfterRotation = app.buttons["insights.connect"]
         // The connect row sits below the tall tracker and progress tiles; after the reset its
@@ -302,6 +322,7 @@ final class InsightsPresentationUITests: XCTestCase {
         shot("ipp-10-sample-badge")
         XCTAssertTrue(badge.exists && badge.isHittable, "the sample marker must be reachable at normal text")
         XCUIDevice.shared.orientation = .landscapeLeft
+        wait(any("sidebar"))
         resetHubScrollPosition()
         _ = scrollTo(badge)
         shot("ipp-10-landscape-sample-badge")

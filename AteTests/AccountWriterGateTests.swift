@@ -4,8 +4,13 @@ import XCTest
 @MainActor
 final class AccountWriterGateTests: XCTestCase {
     private func fixture(_ run: (URL) throws -> Void) throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        // The stores under test REQUIRE a canonical directory: standardizedFileURL
+        // identity, no symlink components. NSTemporaryDirectory may traverse a
+        // symlinked ancestor (/var -> /private/var on Apple hosts), so resolve the
+        // fixture root AFTER creating it. Production guards stay unchanged.
+        let requested = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: requested, withIntermediateDirectories: false)
+        let directory = requested.resolvingSymlinksInPath().standardizedFileURL
         defer { try? FileManager.default.removeItem(at: directory) }
         try run(directory)
     }

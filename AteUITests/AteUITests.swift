@@ -1208,6 +1208,43 @@ final class AteUITests: XCTestCase {
 
     /// The Search tab's results menu carries the existing filters, sort and reset. Reset Filters
     /// clears only the filters: the query and its results stay. (Menu cleanup increment B.)
+
+    /// Visual evidence only. Does not replace Search results acceptance qualification.
+    func testSearchMenuVisualCapture() throws {
+        guard #available(iOS 26, *) else {
+            throw XCTSkip("The Search tab exists only on iOS 26 and later")
+        }
+        launch()
+        addPromptRecipe()
+        tab("Library")
+        app.tabBars.buttons["Search"].firstMatch.tap()
+        let field = app.searchFields.firstMatch
+        wait(field, 5)
+        wait(app.staticTexts["library.searchStart"], 5)
+        XCTAssertFalse(app.keyboards.firstMatch.exists, "Pre-search capture must not hide content behind a keyboard")
+        shot("search-visual-pre-search")
+        field.tap()
+        field.typeText("miso\n")
+        wait(app.staticTexts["library.searchResults"], 5)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), "Submitting search must dismiss the keyboard before menu capture")
+        app.buttons["searchResultsMenu"].tap()
+        let popups = app.collectionViews.containing(NSPredicate(format: "label IN %@", ["Filters", "Reset Filters"]))
+        wait(popups.firstMatch, 3)
+        XCTAssertEqual(popups.count, 1, "Capture must address the unique Search popup, not background chips")
+        let popup = popups.firstMatch
+        shot("search-visual-menu-top")
+        let bottom = popup.descendants(matching: .button)
+            .matching(NSPredicate(format: "label == %@", "Reset Filters")).firstMatch
+        var swipes = 0
+        while !(bottom.exists && bottom.isHittable) && swipes < 3 {
+            popup.swipeUp(velocity: .slow)
+            swipes += 1
+            shot("search-visual-menu-scroll-\(swipes)")
+        }
+        XCTAssertTrue(bottom.exists && bottom.isHittable, "The bottom of the Search menu must be visible; partial captures are not completion")
+        shot("search-visual-menu-bottom")
+    }
+
     func testSearchResultsOptionsMenu() throws {
         guard #available(iOS 26, *) else {
             throw XCTSkip("The Search tab and its results menu exist only on iOS 26 and later")

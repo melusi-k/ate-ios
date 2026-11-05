@@ -311,12 +311,18 @@ struct LibraryView: View {
                 }
             }
             Section("Arrange") {
-                Picker(selection: $store.layout.group) {
-                    ForEach(LibraryLayout.GroupBy.allCases) { Label($0.rawValue, systemImage: $0.symbol).tag($0) }
+                Menu {
+                    Picker("Group by", selection: $store.layout.group) {
+                        ForEach(LibraryLayout.GroupBy.allCases) { Label($0.rawValue, systemImage: $0.symbol).tag($0) }
+                    }
+                    .pickerStyle(.inline)
                 } label: { Label("Group by", systemImage: "rectangle.3.group") }
                 .accessibilityIdentifier("groupByMenu")
-                Picker(selection: $store.layout.sort) {
-                    ForEach(LibraryLayout.SortBy.allCases) { Text($0.rawValue).tag($0) }
+                Menu {
+                    Picker("Sort", selection: $store.layout.sort) {
+                        ForEach(LibraryLayout.SortBy.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.inline)
                 } label: { Label("Sort", systemImage: "arrow.up.arrow.down") }
                 .accessibilityIdentifier("sortMenu")
             }

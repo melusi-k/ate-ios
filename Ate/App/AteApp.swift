@@ -33,12 +33,25 @@ struct AteApp: App {
         if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaHealthRecipes") && st.recipes.isEmpty {
             st.recipes = HealthFixtures.library
         }
+#if DEBUG
+        // Hermetic canonical-nutrition route (#179 qualification): no-op unless flagged.
+        CanonicalNutritionQARoute.prepareIfRequested(store: st)
+#endif
         _store = State(initialValue: st)
+    }
+
+    /// One typed expression keeps the shared modifiers attached across DEBUG compilation.
+    private var rootContent: AnyView {
+#if DEBUG
+        CanonicalNutritionQARoute.rootView(store: store) ?? AnyView(RootView())
+#else
+        AnyView(RootView())
+#endif
     }
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            rootContent
                 .environment(store)
                 .onOpenURL { store.handle(url: $0) }
                 .task {

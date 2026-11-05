@@ -2,9 +2,13 @@
 """ate backend-e2e: automates Tier A items against the real Supabase project with temporary, admin-created,
 pre-confirmed users (no emails sent). Writes build/e2e/results.json and (with --upload) qa_results rows (source='ci').
 
-Secrets: SUPABASE_ACCESS_TOKEN (Management API) -> anon + service_role keys fetched at runtime. Never printed.
+Secrets: SUPABASE_ACCESS_TOKEN (Management API) -> anon + service_role keys fetched at runtime. Every secret
+is registered with register_secret(); all check output (notes, tracebacks, setup/cleanup errors, uploads) passes
+through scrub() before it is printed, stored or uploaded (py/clear-text-logging-sensitive-data). Residual risk:
+a secret transformed upstream into a form that is neither registered (raw, JSON-escaped or URL-encoded) nor
+matched by the built-in secret patterns could still be logged - review any new check that handles credentials.
 """
-import argparse, json, os, sys, time, traceback, uuid, urllib.request, urllib.error
+import argparse, json, os, re, sys, time, traceback, uuid, urllib.error, urllib.parse, urllib.request
 
 REF = os.environ.get("SUPABASE_PROJECT_REF", "ploncuhexmwydjxljuhe")
 URL = f"https://{REF}.supabase.co"
@@ -30,14 +34,91 @@ def http(method, url, headers=None, body=None, timeout=30):
     return code, j
 
 
+REDACTED = "[redacted]"
+_SENSITIVE_VALUES = set()
+
+
+def register_secret(value, known_vector=False):
+    """Register a runtime secret so scrub() strips it from every logged output.
+
+    Values shorter than 6 chars are ignored so common substrings are never blanked out,
+    unless known_vector=True marks an intentional short test vector (its exact form is
+    then scrubbed wherever it appears - deliberately fail-safe, may mangle lookalikes).
+    """
+    if isinstance(value, str) and value and (len(value) >= 6 or known_vector):
+        _SENSITIVE_VALUES.add(value)
+
+
+# Secret shapes redacted even when the exact value was never registered
+# (e.g. a token echoed inside an upstream error body or a traceback source line).
+_SCRUB_PATTERNS = [
+    # JWTs (Supabase access/refresh/anon/service tokens): header.payload.signature
+    (re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}"), REDACTED),
+    # Authorization: Bearer <token>
+    (re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]{8,}"), r"\1" + REDACTED),
+    # "password": "..." / {'access_token': '...'} and friends, JSON or dict-repr quoting
+    (re.compile(r"(?i)(['\"](?:password|passwd|pwd|secret|api[-_]?key|apikey|access[-_]?token|refresh[-_]?token|authorization)['\"]\s*:\s*(['\"]))(?:\\.|(?!\\|\2).)*(\2)"), r"\1" + REDACTED + r"\3"),
+    # key=value forms in URLs and error text: password=..., refresh_token=..., ...
+    (re.compile(r"(?i)\b((?:password|passwd|pwd|secret|api[-_]?key|apikey|access[-_]?token|refresh[-_]?token)=)[^\s&]{3,}"), r"\1" + REDACTED),
+]
+
+
+def _variants(value):
+    """Exact forms a registered secret can take in log text: raw, JSON-escaped, URL-encoded."""
+    forms = {value, json.dumps(value)[1:-1], urllib.parse.quote(value, safe=""), urllib.parse.quote_plus(value)}
+    return sorted(forms, key=len, reverse=True)
+
+
+def scrub(text):
+    """Return text with every registered secret (raw, JSON-escaped and URL-encoded forms)
+    and every secret-shaped value redacted."""
+    if not isinstance(text, str):
+        text = str(text)
+    for pattern, repl in _SCRUB_PATTERNS:
+        text = pattern.sub(repl, text)
+    for v in sorted(_SENSITIVE_VALUES, key=len, reverse=True):
+        for form in _variants(v):
+            text = text.replace(form, REDACTED)
+    return text
+
+
+_MAX_TRACEBACK = 4000  # even scrubbed tracebacks are bounded - fail closed, never dump unbounded text
+
+
+def fail_closed(where, exc):
+    """Fail closed for setup/cleanup errors (these run outside run_check): a scrubbed,
+    bounded type+note on stderr, no traceback. Request-URL errors land here too; the URLs
+    carry no secrets, and scrub() strips registered values and token shapes regardless."""
+    sys.stderr.write(scrub(f"{where}: {type(exc).__name__}: {exc}")[:400] + "\n")
+    raise SystemExit(1)
+
+
+def run_check(ctx, results, ids, fn, *args):
+    """Run one check and record per-id results. Everything recorded, printed or
+    traceback-dumped here is scrubbed first; notes are capped at 400 chars and the
+    scrubbed traceback at _MAX_TRACEBACK chars, both after scrubbing."""
+    try: note = fn(ctx, *args); st = "pass"
+    except Exception as e:
+        note = f"{type(e).__name__}: {e}"; st = "fail"
+        tb = scrub(traceback.format_exc())
+        sys.stderr.write(("[traceback truncated]\n" if len(tb) > _MAX_TRACEBACK else "") + tb[-_MAX_TRACEBACK:])
+    note = "" if note is None else scrub(str(note))[:400]  # every current check returns a str; None stays clean
+    for i in ids: results[i] = {"status": st, "note": note}
+    print(f"{'✅' if st == 'pass' else '❌'} {', '.join(ids)}: {note}")
+
+
 class Ctx:
     def __init__(self):
         tok = os.environ["SUPABASE_ACCESS_TOKEN"]
+        register_secret(tok)
         self.mgmt = {"Authorization": f"Bearer {tok}"}
         code, keys = http("GET", f"https://api.supabase.com/v1/projects/{REF}/api-keys?reveal=true", self.mgmt)
         assert code == 200, f"api-keys {code}"
         k = {x["name"]: x["api_key"] for x in keys if x.get("type") == "legacy"}
         self.anon, self.service = k["anon"], k["service_role"]
+        register_secret(self.anon); register_secret(self.service)
+        # Intentional, CI-only: echoing each key as ::add-mask:: is GitHub's masking mechanism -
+        # the runner then masks the value in all log output. Runs only under GITHUB_ACTIONS.
         for v in (self.anon, self.service):
             if os.environ.get("GITHUB_ACTIONS"): print(f"::add-mask::{v}")
         self.users = []; self.slugs = []
@@ -49,6 +130,7 @@ class Ctx:
         return {"apikey": self.anon, "Authorization": f"Bearer {bearer or self.anon}"}
 
     def new_user(self, password="Ate-e2e-" + uuid.uuid4().hex[:10] + "1"):
+        register_secret(password)
         email = f"ate-e2e+{uuid.uuid4().hex[:12]}@example.com"
         code, j = http("POST", f"{URL}/auth/v1/admin/users", self.svc(),
                        {"email": email, "password": password, "email_confirm": True,
@@ -61,6 +143,7 @@ class Ctx:
         code, j = http("POST", f"{URL}/auth/v1/token?grant_type=password", self.anon_h(),
                        {"email": u["email"], "password": u["password"]})
         assert code == 200, f"password grant {code} {j}"
+        register_secret(j.get("access_token")); register_secret(j.get("refresh_token"))
         return j
 
     def cleanup(self):
@@ -120,14 +203,18 @@ def t_auth02(ctx):
     mn, chars = cfg.get("password_min_length"), cfg.get("password_required_characters") or ""
     assert mn and mn >= 8, f"password_min_length={mn}"
     assert "abcdefghijklmnopqrstuvwxyz" in chars.lower() and "0123456789" in chars, f"required chars={chars!r}"
-    # Weak password is rejected before any email is sent.
+    # Weak password is rejected before any email is sent. The intentional weak vectors are
+    # registered (short allowed for known vectors) so an upstream echo can never log them.
+    register_secret("abc", known_vector=True); register_secret("onlyletters", known_vector=True)
     code, j = http("POST", f"{URL}/auth/v1/signup", ctx.anon_h(), {"email": f"ate-e2e+weak{uuid.uuid4().hex[:8]}@example.com", "password": "abc"})
     assert code in (400, 422) and "weak" in json.dumps(j).lower(), f"weak signup {code} {j}"
     code, j2 = http("POST", f"{URL}/auth/v1/signup", ctx.anon_h(), {"email": f"ate-e2e+weak{uuid.uuid4().hex[:8]}@example.com", "password": "onlyletters"})
     assert code in (400, 422), f"letters-only signup {code} {j2}"
     # Duplicate (already confirmed) email: Supabase fakes success with an empty identities array; the app keys off that.
     u = ctx.new_user()
-    code, j = http("POST", f"{URL}/auth/v1/signup", ctx.anon_h(), {"email": u["email"], "password": "Another-pass-123"})
+    dup_password = "Another-pass-123"  # synthetic e2e vector, registered so it can never reach logs
+    register_secret(dup_password)
+    code, j = http("POST", f"{URL}/auth/v1/signup", ctx.anon_h(), {"email": u["email"], "password": dup_password})
     ids = (j or {}).get("identities", (j or {}).get("user", {}).get("identities")) if isinstance(j, dict) else None
     assert code == 200 and ids == [], f"duplicate signup {code} identities={ids}"
     return f"min {mn}, letters+digits required; weak/letters-only passwords rejected (weak_password); duplicate email → 200 with identities=[]"
@@ -137,6 +224,7 @@ def t_auth06(ctx):
     u = ctx.new_user(); s = ctx.sign_in(u)
     code, j = http("POST", f"{URL}/auth/v1/token?grant_type=refresh_token", ctx.anon_h(), {"refresh_token": s["refresh_token"]})
     assert code == 200 and j.get("access_token") and j["refresh_token"] != s["refresh_token"], f"refresh {code}"
+    register_secret(j.get("access_token")); register_secret(j.get("refresh_token"))
     upsert(ctx, j["access_token"], [{"user_id": u["id"], "kind": "recipe", "id": "after-refresh", "data": {"t": 1}, "updated_at": 1, "deleted": False}])
     assert any(r["id"] == "after-refresh" for r in pull(ctx, j["access_token"], u["id"])), "refreshed token can't sync"
     code, _ = http("GET", f"{URL}/rest/v1/user_recipes?select=id", ctx.anon_h("not-a-jwt"))
@@ -316,7 +404,7 @@ def upload(ctx, results, build, run_url):
              "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())} for i, r in results.items()]
     h = {**ctx.svc(), "Prefer": "resolution=merge-duplicates,return=minimal"}
     code, j = http("POST", f"{URL}/rest/v1/qa_results?on_conflict=user_id,build,item_id,source", h, rows)
-    print(f"qa_results upload: {code} ({len(rows)} rows)" + ("" if code < 300 else f" {j}"))
+    print(f"qa_results upload: {code} ({len(rows)} rows)" + ("" if code < 300 else f" {scrub(j)}"))
 
 
 def main():
@@ -325,12 +413,11 @@ def main():
     ap.add_argument("--no-checks", action="store_true", help="only upload --extra (simulator/release jobs)")
     ap.add_argument("--out", default="build/e2e"); ap.add_argument("--build", default=os.environ.get("ATE_BUILD_LABEL", "ci"))
     a = ap.parse_args()
-    ctx = Ctx(); results = {}
+    try: ctx = Ctx()
+    except Exception as e: fail_closed("e2e setup failed", e)
+    results = {}
     def run(ids, fn, *args):
-        try: note = fn(ctx, *args); st = "pass"
-        except Exception as e: note = f"{type(e).__name__}: {e}"[:400]; st = "fail"; traceback.print_exc()
-        for i in ids: results[i] = {"status": st, "note": note}
-        print(f"{'✅' if st == 'pass' else '❌'} {', '.join(ids)}: {note}")
+        run_check(ctx, results, ids, fn, *args)
     try:
         if a.no_checks: raise StopIteration
         run(["A-AUTH-02"], t_auth02)
@@ -344,7 +431,9 @@ def main():
     except StopIteration:
         pass
     finally:
-        if not a.no_checks: ctx.cleanup()
+        if not a.no_checks:
+            try: ctx.cleanup()
+            except Exception as e: fail_closed("e2e cleanup failed", e)
     if a.extra and os.path.exists(a.extra): results.update(json.load(open(a.extra)))
     os.makedirs(a.out, exist_ok=True)
     json.dump(results, open(os.path.join(a.out, "results.json"), "w"), indent=2)
@@ -352,7 +441,7 @@ def main():
         f.write("### backend-e2e\n\n| Item | Result | Note |\n|---|---|---|\n")
         for i, r in sorted(results.items()): f.write(f"| {i} | {'✅' if r['status']=='pass' else '❌'} {r['status']} | {r['note'].replace('|','/')} |\n")
         if getattr(ctx, "findings", None):
-            f.write("\n#### Security review: open findings\n\n" + "".join(f"- {x}\n" for x in ctx.findings))
+            f.write("\n#### Security review: open findings\n\n" + "".join(f"- {scrub(x)}\n" for x in ctx.findings))
     if a.upload:
         run_url = os.environ.get("GITHUB_SERVER_URL", "") and f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
         upload(ctx, results, a.build, run_url or None)

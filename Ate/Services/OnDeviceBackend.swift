@@ -391,21 +391,89 @@ final class OnDeviceBackend: BackendService {
         return s.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
     }
 
+    /// Shared by real image generation, demo fallback and the model's readPhotoText tool.
+    static let ocrDeadlineSeconds: TimeInterval = 10
+
     static func ocr(dataURL: String) async throws -> String {
         let b64 = dataURL.components(separatedBy: ",").last ?? ""
         guard let data = Data(base64Encoded: b64), let cg = UIImage(data: data)?.cgImage else { return "" }
-        return try await withCheckedThrowingContinuation { cont in
+        let cancellation = OCRRequestCancellation()
+        return try await OCRTerminalResult.run(timeout: ocrDeadlineSeconds, cancel: { cancellation.cancel() }) { finish in
             DispatchQueue.global(qos: .userInitiated).async {
-                // Keep the request confined to the worker that performs it.
-                let req = VNRecognizeTextRequest { req, err in
-                    if let err { cont.resume(throwing: err); return }
-                    let lines = (req.results as? [VNRecognizedTextObservation] ?? []).compactMap { $0.topCandidates(1).first?.string }
-                    cont.resume(returning: lines.joined(separator: "\n"))
-                }
+                // Read synchronous perform's result on this worker. Completion must not
+                // depend on Vision calling a request callback, and must happen only once
+                // even when a slow worker finishes after the deadline.
+                let req = VNRecognizeTextRequest()
                 req.recognitionLevel = .accurate
                 req.usesLanguageCorrection = true
-                do { try VNImageRequestHandler(cgImage: cg).perform([req]) } catch { cont.resume(throwing: error) }
+                cancellation.install { req.cancel() }
+                do {
+                    try VNImageRequestHandler(cgImage: cg).perform([req])
+                    let lines = (req.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+                    finish(.success(lines.joined(separator: "\n")))
+                } catch { finish(.failure(error)) }
             }
+        }
+    }
+}
+
+/// Bridges a deadline to Vision cancellation even if the worker starts after it fires.
+final class OCRRequestCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    private var action: (() -> Void)?
+
+    func install(_ action: @escaping () -> Void) {
+        lock.lock()
+        self.action = action
+        let shouldCancel = cancelled
+        lock.unlock()
+        if shouldCancel { action() }
+    }
+
+    func cancel() {
+        lock.lock()
+        cancelled = true
+        let action = action
+        lock.unlock()
+        action?()
+    }
+}
+
+/// A non-cooperative Vision worker cannot hold a recipe attempt open indefinitely.
+/// The deadline releases the awaiting attempt; a late worker result is ignored.
+/// The caller asks Vision to cancel; prompt release of synchronous work is not guaranteed.
+final class OCRTerminalResult: @unchecked Sendable {
+    struct DeadlineExceeded: LocalizedError {
+        var errorDescription: String? {
+            "Reading that image took too long. Try again, choose a clearer screenshot, or describe the recipe."
+        }
+    }
+
+    private let lock = NSLock()
+    private var completion: (@Sendable (Result<String, Error>) -> Void)?
+
+    init(completion: @escaping @Sendable (Result<String, Error>) -> Void) {
+        self.completion = completion
+    }
+
+    func finish(_ result: Result<String, Error>) {
+        lock.lock()
+        let callback = completion
+        completion = nil
+        lock.unlock()
+        callback?(result)
+    }
+
+    static func run(timeout: TimeInterval, cancel: @escaping @Sendable () -> Void = {},
+                    start: (@escaping @Sendable (Result<String, Error>) -> Void) -> Void) async throws -> String {
+        try await withCheckedThrowingContinuation { continuation in
+            let terminal = OCRTerminalResult { continuation.resume(with: $0) }
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + timeout) {
+                terminal.finish(.failure(DeadlineExceeded()))
+                cancel()
+            }
+            start { terminal.finish($0) }
         }
     }
 }

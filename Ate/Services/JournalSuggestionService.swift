@@ -129,9 +129,25 @@ final class JournalStore {
         for e in entries() where e.source != .journalMoment && JournalTextGuard.looksLikeImagePrompt(e.text) { ctx.delete(e) }
         try? ctx.save(); UserDefaults.standard.set(true, forKey: k)
     }
+    /// Throwing single-entry read for the detail screen: nil means the entry is genuinely gone,
+    /// while a store or fetch failure throws, so the detail shows an error instead of a false
+    /// "It may have been deleted".
+    func readEntry(_ id: String) throws -> JournalEntry? {
+        try readEntries().first { $0.id == id }
+    }
+    /// Non-throwing read kept for Siri/Shortcuts queries, which have no error surface: a failed
+    /// read answers as little as possible rather than throwing through an intent. User-facing
+    /// lists use `readEntries()` so a read failure is never shown as an empty journal.
     func entries() -> [JournalEntry] {
-        guard let context = container?.mainContext else { return [] }
-        let rows = (try? context.fetch(FetchDescriptor<JournalEntry>())) ?? []
+        (try? readEntries()) ?? []
+    }
+    /// Throwing read for user-facing lists. An unopened store or a failed fetch throws, so the
+    /// Journal screens show an explicit error with retry instead of "No journal entries yet".
+    func readEntries() throws -> [JournalEntry] {
+        guard let context = container?.mainContext else { throw JournalReadError.storeUnavailable }
+        let rows: [JournalEntry]
+        do { rows = try context.fetch(FetchDescriptor<JournalEntry>()) }
+        catch { throw JournalReadError.readFailed }
         // MainActor-local comparison avoids a non-Sendable SortDescriptor key path.
         return rows.sorted { $0.createdAt > $1.createdAt }
     }
@@ -192,7 +208,9 @@ final class JournalStore {
             ctx.delete(e); try? ctx.save()
         }
     }
-    func entry(_ id: String) -> JournalEntry? { entries().first { $0.id == id } }
+    /// Non-throwing single lookup kept for intents and internal maintenance; user-facing detail
+    /// uses `readEntry(_:)` so a read failure cannot look like a deleted entry.
+    func entry(_ id: String) -> JournalEntry? { try? readEntry(id) }
     func update(_ e: JournalEntry, text: String) {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines); guard !t.isEmpty else { return }
         e.text = t; e.editedAt = .now; try? container?.mainContext.save()

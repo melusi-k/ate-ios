@@ -446,6 +446,7 @@ enum SidebarModel {
 /// (NavigationSplitView collapses to a single stack at compact width on non-Max iPhones, so this is hand-built.)
 struct LandscapeSplitView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @AppStorage("ate.sidebar.visible") private var showSidebar = true
 
     var body: some View {
@@ -466,7 +467,8 @@ struct LandscapeSplitView: View {
                 .listStyle(.sidebar)
                 .scrollContentBackground(.hidden)
                 .background(Theme.muted.opacity(0.35))
-                .frame(width: 240)
+                .frame(width: dynamicTypeSize.isAccessibilitySize ? 320 : 240)
+                .contentMargins(.bottom, 68, for: .scrollContent)
                 .accessibilityIdentifier("sidebar")
                 .transition(.move(edge: .leading))
                 Divider()
@@ -512,8 +514,16 @@ struct LandscapeSplitView: View {
     private func row(_ t: AppTab, _ title: String, _ symbol: String, badge: Int = 0) -> some View {
         Button { store.select(t) } label: {
             HStack {
-                Label(title, systemImage: symbol)
-                Spacer()
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Image(systemName: symbol).accessibilityHidden(true)
+                        Text(title).fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Label(title, systemImage: symbol)
+                    Spacer()
+                }
                 if badge > 0 { Text("\(badge)").font(AteFont.body(12, .semibold)).monospacedDigit().foregroundStyle(Theme.mutedForeground) }
             }
         }

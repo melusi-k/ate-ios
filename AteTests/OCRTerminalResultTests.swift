@@ -113,7 +113,7 @@ final class OCRTerminalResultTests: XCTestCase {
         add(evidence)
         // Only bundled synthetic recipe fixtures reach this test, never user images.
         let recognized = XCTAttachment(string: text)
-        recognized.name = evidence.name + "-recognized-text"
+        recognized.name = "OCR_TIMING-sample-recognized-text"
         recognized.lifetime = .keepAlways
         add(recognized)
         XCTAssertLessThan(elapsed, OnDeviceBackend.ocrDeadlineSeconds * 0.8,
@@ -151,7 +151,7 @@ final class OCRTerminalResultTests: XCTestCase {
         add(evidence)
         // Only bundled synthetic recipe fixtures reach this test, never user images.
         let recognized = XCTAttachment(string: text)
-        recognized.name = evidence.name + "-recognized-text"
+        recognized.name = "OCR_TIMING-tall-recognized-text"
         recognized.lifetime = .keepAlways
         add(recognized)
         XCTAssertLessThan(elapsed, OnDeviceBackend.ocrDeadlineSeconds * 0.8,

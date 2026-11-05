@@ -71,8 +71,8 @@ final class InsightsAcceptanceUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 8)
 
         // Verify the cooking event is visible in the tracker before testing its downstream insight.
-        tab("Insights")
-        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        tab("Journal")
+        // Journal tab root is the Journal; Insights & Cooking History is its one named route.
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
         hub.tap()
@@ -96,7 +96,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
     /// Switching tabs preserves the pushed hub. Return to Journal explicitly instead of
     /// assuming a second tab selection pops a stack that was not currently selected.
     private func reopenInsightsFromJournal() {
-        tab("Insights")
+        tab("Journal")
         let title = app.navigationBars["Insights & Cooking History"]
         wait(title)
         let back = title.buttons["Journal"]
@@ -150,7 +150,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
         action.tap()
 
         // The Insights Explore sheet must close before the app switches to the tracker tab.
-        let trackerTab = app.tabBars.buttons["Insights"]
+        let trackerTab = app.tabBars.buttons["Journal"]
         wait(trackerTab, 8)
         XCTAssertTrue(trackerTab.isSelected, "The contextual action should select the tracker tab.")
         let day = Calendar.current.component(.day, from: Date())

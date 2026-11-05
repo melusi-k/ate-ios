@@ -37,12 +37,16 @@ final class ArchiveRecipeShoppingParticipant {
         self.container = container; self.checkpoint = checkpoint; self.save = save
         self.validate = validate
         let read = ModelContext(container); read.autosaveEnabled = false
-        let recipes = try read.fetch(FetchDescriptor<RecipeEntity>())
-            .map { RawRecipe(id: $0.id, createdAt: $0.createdAt, position: $0.position, json: $0.json) }
-            .sorted { $0.position == $1.position ? $0.id < $1.id : $0.position < $1.position }
-        let shopping = try read.fetch(FetchDescriptor<ShoppingEntity>())
-            .map { RawShopping(id: $0.id, position: $0.position, json: $0.json) }
-            .sorted { $0.position == $1.position ? $0.id < $1.id : $0.position < $1.position }
+        let recipeRows: [RecipeEntity] = try read.fetch(FetchDescriptor<RecipeEntity>())
+        let recipeCopies: [RawRecipe] = recipeRows.map { row in
+            RawRecipe(id: row.id, createdAt: row.createdAt, position: row.position, json: row.json)
+        }
+        let recipes: [RawRecipe] = recipeCopies.sorted(by: Self.recipeOrder)
+        let shoppingRows: [ShoppingEntity] = try read.fetch(FetchDescriptor<ShoppingEntity>())
+        let shoppingCopies: [RawShopping] = shoppingRows.map { row in
+            RawShopping(id: row.id, position: row.position, json: row.json)
+        }
+        let shopping: [RawShopping] = shoppingCopies.sorted(by: Self.shoppingOrder)
         before = (recipes, shopping)
 
         // Merge rules mirror importJSON at the store layer: existing id wins and is
@@ -75,14 +79,27 @@ final class ArchiveRecipeShoppingParticipant {
                                   rollback: { try self.rollback() })
     }
 
+    private static func recipeOrder(_ lhs: RawRecipe, _ rhs: RawRecipe) -> Bool {
+        if lhs.position == rhs.position { return lhs.id < rhs.id }
+        return lhs.position < rhs.position
+    }
+    private static func shoppingOrder(_ lhs: RawShopping, _ rhs: RawShopping) -> Bool {
+        if lhs.position == rhs.position { return lhs.id < rhs.id }
+        return lhs.position < rhs.position
+    }
+
     private func snapshot() throws -> (recipes: [RawRecipe], shopping: [RawShopping]) {
         let read = ModelContext(container); read.autosaveEnabled = false
-        let r = try read.fetch(FetchDescriptor<RecipeEntity>())
-            .map { RawRecipe(id: $0.id, createdAt: $0.createdAt, position: $0.position, json: $0.json) }
-            .sorted { $0.position == $1.position ? $0.id < $1.id : $0.position < $1.position }
-        let s = try read.fetch(FetchDescriptor<ShoppingEntity>())
-            .map { RawShopping(id: $0.id, position: $0.position, json: $0.json) }
-            .sorted { $0.position == $1.position ? $0.id < $1.id : $0.position < $1.position }
+        let recipeRows: [RecipeEntity] = try read.fetch(FetchDescriptor<RecipeEntity>())
+        let recipeCopies: [RawRecipe] = recipeRows.map { row in
+            RawRecipe(id: row.id, createdAt: row.createdAt, position: row.position, json: row.json)
+        }
+        let r: [RawRecipe] = recipeCopies.sorted(by: Self.recipeOrder)
+        let shoppingRows: [ShoppingEntity] = try read.fetch(FetchDescriptor<ShoppingEntity>())
+        let shoppingCopies: [RawShopping] = shoppingRows.map { row in
+            RawShopping(id: row.id, position: row.position, json: row.json)
+        }
+        let s: [RawShopping] = shoppingCopies.sorted(by: Self.shoppingOrder)
         return (r, s)
     }
 

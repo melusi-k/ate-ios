@@ -90,6 +90,8 @@ jobs:
         run: python3 scripts/check-ids.py
       - name: Test release-readiness evidence logic
         run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
+      - name: Validate Siri app skill bundle
+        run: python3 scripts/validate-siri-skills.py
       - name: Cache Homebrew downloads
         uses: actions/cache@v6
         with:

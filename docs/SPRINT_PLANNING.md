@@ -1227,3 +1227,76 @@ Two PRs were created after the 23-PR inventory above; the inventory remains an a
 - [#335](https://github.com/melusi-k/ate-ios/pull/335) created 2026-11-05T10:00:22Z / 12:00:22 SAST. Draft standalone documentation PR for this Thursday record. Compile passed; standalone Stack metadata was added after the first stacked-validation failure and the latest stacked validation passed; Dogfood and Journal UI remain queued; no human review. Not a product delivery.
 
 The current open-PR count after these creations is 25. No dates or commitment statuses were assigned to #334 or #335.
+
+
+## W45 Thursday Guardian exact-head revalidation — 2026-11-05T10:14:12Z (Africa/Johannesburg 2026-11-05 12:14:12, UTC+02:00)
+
+**Run type:** Thursday delivery/status revalidation. This is not Monday planning and not the Sunday retrospective. Preserve the original W45 scope, Monday–Sunday dates, commitment labels and historical records.
+
+### Current main and release evidence
+
+Current `main`: `351c7f18170272112dfaf1a609b8519c31205008`, merged through PR #328.
+
+- Compile check [run 41989830301](https://github.com/melusi-k/ate-ios/actions/runs/41989830301): **cancelled**.
+- Journal open-state UI [run 41989830321](https://github.com/melusi-k/ate-ios/actions/runs/41989830321): **passed**.
+- Stacked PR validation [run 41989830292](https://github.com/melusi-k/ate-ios/actions/runs/41989830292): **passed**.
+- No exact-main Dogfood Qualification or full Build IPA qualification run was present. This SHA is not release-qualified.
+
+### Open PR inventory — 25 open at fetch time
+
+No PR was merged or branch-updated by this Guardian run. No qualifying human APPROVED review was found among the 25 open PRs; COMMENTED reviews and bot/Codex comments are not approvals. Drafts are not eligible for merge.
+
+| PR | Current position / state | Exact-head evidence and blocker |
+|---|---|---|
+| [#335](https://github.com/melusi-k/ate-ios/pull/335) | Draft docs; 2/0 vs main | Compile and stacked validation passed; Dogfood in progress; Journal UI pending. No human review. |
+| [#334](https://github.com/melusi-k/ate-ios/pull/334) | Draft child #329; 7/0 vs parent | Stacked validation passed; Compile in progress; Journal UI queued. No human review. |
+| [#333](https://github.com/melusi-k/ate-ios/pull/333) | Draft child #332; 8/0 vs parent | Stacked validation failed; Compile and Journal UI in progress; no Dogfood result. |
+| [#332](https://github.com/melusi-k/ate-ios/pull/332) | Draft; 13/0 vs main | Journal UI and Dogfood passed; Compile in progress; latest stacked validation passed. Canonical runtime remains deliberately unactivated; migration/owner-path acceptance remains incomplete. |
+| [#331](https://github.com/melusi-k/ate-ios/pull/331) | Draft child #318; 21/0 vs parent | Compile and Journal UI failed; Xcode 27.2 Tool Intent macro reports missing `schema:` and no `AppSchemaIntent.tool`; no Dogfood. Physical-device Siri evaluation remains required. |
+| [#330](https://github.com/melusi-k/ate-ios/pull/330) | Draft; 14/0 vs main | Compile, Dogfood, Journal UI and stacked validation failed. Compiler type-check/key-path errors in `ArchiveRecipeShoppingParticipant.swift`; invalid `flock` API usage in `ArchiveRecoveryJournal.swift`. Preparation-only; no production callers. |
+| [#329](https://github.com/melusi-k/ate-ios/pull/329) | Non-draft; 6/0 vs main | Journal UI failed: `testJournalRootAddAtMaximumAccessibilitySizeAndSidebarRoundTrip` could not find `sidebar.Shopping list`; Compile queued, Dogfood pending. No human review; Codex review unavailable due usage limits. |
+| [#318](https://github.com/melusi-k/ate-ios/pull/318) | Draft child #317; 2/0 vs parent | Compile, Journal UI and stacked validation passed; no exact-head Dogfood result; no human review. |
+| [#317](https://github.com/melusi-k/ate-ios/pull/317) | Draft; 8/245 vs main | Compile, Dogfood, Journal UI and stacked validation passed; still draft, substantially behind main and unapproved. |
+| [#280](https://github.com/melusi-k/ate-ios/pull/280) | Non-draft; 3/328 vs main | Compile and Journal UI failed; Dogfood passed. No human approval. |
+| [#279](https://github.com/melusi-k/ate-ios/pull/279) | Non-draft; 7/328 vs main; non-mergeable | Compile failed; Dogfood/UI passed. Code-review blocker: missing release object can be mistaken for an empty latest-build alias while a dangling tag exists; update path can delete it. Existing release flags and exact asset inventory are not validated before deletion. |
+| [#278](https://github.com/melusi-k/ate-ios/pull/278) | Non-draft child of closed #277; 13/0 vs parent | Compile/Dogfood passed; Journal UI failed. Parent branch has no accepted main delivery path; re-establish a valid base. |
+| [#270](https://github.com/melusi-k/ate-ios/pull/270) | Non-draft; 1/336 vs main | Compile/Dogfood passed; Journal UI failed. |
+| [#268](https://github.com/melusi-k/ate-ios/pull/268) | Non-draft; 1/338 vs main | Compile and Dogfood failed; Journal UI passed. |
+| [#266](https://github.com/melusi-k/ate-ios/pull/266) | Non-draft; 3/340 vs main | Compile passed; Dogfood and Journal UI failed. |
+| [#265](https://github.com/melusi-k/ate-ios/pull/265) | Reverse sync main → generation feature; 366/24 vs feature base | Compile cancelled; Journal UI passed; no Dogfood. This is branch synchronization, not product delivery into main. |
+| [#263](https://github.com/melusi-k/ate-ios/pull/263) | Draft; 1/363 vs main | Compile passed; Dogfood and Journal UI cancelled. Evidence-only and unapproved. |
+| [#254](https://github.com/melusi-k/ate-ios/pull/254) | Non-draft; 24/366 vs main | Compile and Journal UI failed; Dogfood passed. Eleven-fixture on-device golden-set evaluation remains missing. |
+| [#251](https://github.com/melusi-k/ate-ios/pull/251) | Non-draft; 75/366 vs main; non-mergeable | Compile failed; Dogfood, Journal UI and discovery UI passed. |
+| [#241](https://github.com/melusi-k/ate-ios/pull/241) | W45 committed child 3/3; 52/53 vs #240 | Dogfood passed; Compile cancelled. Diff removes three explicit diary-edit acceptance guards; restore or replace them. |
+| [#240](https://github.com/melusi-k/ate-ios/pull/240) | W45 committed child 2/3; 51/154 vs #239; non-mergeable | Base points to an old #239 SHA; Compile cancelled; no exact-head Dogfood. |
+| [#239](https://github.com/melusi-k/ate-ios/pull/239) | W45 committed root 1/3; 76/366 vs main; non-mergeable | Compile and Journal UI failed; Dogfood passed. Reconcile and accept root first. |
+| [#234](https://github.com/melusi-k/ate-ios/pull/234) | Non-draft; 22/499 vs main; non-mergeable | Compile failed; Dogfood passed. QA scope/denominator change and A-SHARE-05 N/A provenance still require traceable product approval. |
+| [#181](https://github.com/melusi-k/ate-ios/pull/181) | Draft; 21/739 vs main; non-mergeable | No exact-head Compile/Dogfood; 3 unresolved of 5 review threads; curated nutrition catalogue remains empty. |
+| [#66](https://github.com/melusi-k/ate-ios/pull/66) | Draft; 38/1091 vs main; non-mergeable | No exact-head Compile/Dogfood; 1 thread resolved/outdated; no human approval. |
+
+### Repository merge governance — critical gap
+
+- `main` reports `protected=false` and branch-protection `enabled=false`.
+- Ruleset [main-production-protection #26236404](https://github.com/melusi-k/ate-ios/rules/26236404) has enforcement **disabled**. It is configured for one approving review, stale-approval dismissal, resolved review threads, strict `compile` and `dogfood-qualification` checks, but those rules are not enforced.
+- `.github/CODEOWNERS` is `* @melusi-k`; `require_code_owner_review=false` and `require_last_push_approval=false`. The file's comment says owner review should be required, but the only listed owner is the repository author.
+- Squash, merge-commit and rebase are enabled; auto-merge is disabled; `allow_update_branch=false`.
+- Recommended: nominate an independent maintainer/team, add them to CODEOWNERS, enable the reviewed ruleset with independent/latest-push and CODEOWNERS approval plus required checks/thread resolution, define docs-only check policy, and enable a supported safe branch-update route. No repository settings, branch protection, rulesets, CODEOWNERS or merge policies were changed.
+
+### W45 sprint, issue/PR lifecycle and metrics
+
+- Sprint remains **2026-W45**, Monday 2026-11-02 through Sunday 2026-11-08.
+- Committed issue #30 remains blocked on same-SHA release qualification and independent go/no-go. Committed issue #179 remains blocked; stack order is #239 → #240 → #241, one issue-level delivery. Stretch #70 remains stretch only; no promotion, date or commitment change.
+- New PR #329's UI failure is exact evidence above. PR #334 remains a draft child of #329. PRs #330–#333 are separate preparation/feature candidates and are not promoted into W45 committed scope.
+- No issue closure, new qualifying human review/approval, actual-work-start or actual-completion event was evidenced in this run. PR #328's main merge and earlier #267/#281 merge events remain recorded in the preceding append-only entry; no merge was performed by this Guardian run.
+- Actual work start is not inferred from issue/PR creation or sprint dates. Issue and PR timelines remain distinct. Lead time, implementation time, review time, approval time and cycle time remain unavailable for open work; W45 commitment accuracy and carryover rate are due at Sunday close-out.
+- No safe branch update, force-push, speculative merge commit, issue closure or scope/commitment change was performed.
+
+### Actions and next steps
+
+1. Fix #329's missing sidebar accessibility destination and finish Compile/Dogfood; then validate child #334 on its own exact head.
+2. Fix #330 compiler errors and all failed tests before any archive/recovery activation.
+3. Resolve #331's Xcode/Tool Intent macro mismatch and complete supported-device Siri evaluation.
+4. Keep #332 draft until Compile completes and all migration/consumer ownership gates are evidenced; resolve #333's failed stacked validation and prove complete consumer ownership.
+5. Fix #279's fail-closed tag/release identity and asset-inventory validation before any publication automation merge.
+6. Reconcile #239 → #240 → #241 in order and restore the three removed edit acceptance guards.
+7. Preserve W45 commitments; perform retrospective only on Sunday 2026-11-08.

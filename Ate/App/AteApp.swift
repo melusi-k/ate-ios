@@ -321,7 +321,6 @@ extension RootView {
         // iOS 26.0 renders the capsule even for empty accessory content; iOS 26.1 adds
         // isEnabled (Bool), which removes the capsule entirely. 26.0 keeps old behavior.
         let showBottomAccessory = store.cookTarget == nil && store.isAtTabRoot
-            && (store.activeAddContext != nil || store.cookSession != nil || !store.timers.timers.isEmpty)
         if #available(iOS 26.1, *) {
             base.tabViewBottomAccessory(isEnabled: showBottomAccessory) {
                 // Pushed screens reserve their own timer-bar inset. Keeping the accessory

@@ -70,10 +70,12 @@ final class JournalOpenStateUITests: XCTestCase {
         print("SNAPSHOT-END \(name)")
     }
 
-    /// The journal timeline is the Insights tab root: one tab tap, no menu.
+    /// Journal is the named tab root: one tab tap, no menu.
     private func openJournal() {
         wait(app.tabBars.firstMatch, 15)
-        app.tabBars.buttons["Insights"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Journal"].exists, "The tab and its primary screen must both be named Journal")
+        XCTAssertFalse(app.tabBars.buttons["Insights"].exists, "Insights is secondary, not a mismatched duplicate tab")
+        app.tabBars.buttons["Journal"].tap()
         wait(app.navigationBars["Journal"], 10)
     }
 
@@ -314,7 +316,7 @@ extension JournalOpenStateUITests {
         XCUIDevice.shared.orientation = .landscapeLeft
         let sidebar = any("sidebar")
         wait(sidebar)
-        for name in ["Library", "Shopping list", "Insights", "Settings"] {
+        for name in ["Library", "Shopping list", "Journal", "Settings"] {
             let row = sidebar.buttons["sidebar." + name]
             var swipes = 0
             let toggle = app.buttons["sidebarToggle"]
@@ -366,7 +368,7 @@ extension JournalOpenStateUITests {
     func testManualActionFromInsightsDoesNotRequireHealth() {
         launch(extra: ["-qaMockHealth", "empty"])
         wait(app.tabBars.firstMatch, 15)
-        app.tabBars.buttons["Insights"].tap()
+        app.tabBars.buttons["Journal"].tap()
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         wait(hub); hub.tap()
         let action = app.buttons["insights.newJournalEntry"]

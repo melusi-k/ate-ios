@@ -115,19 +115,25 @@ final class InsightsPresentationUITests: XCTestCase {
         wait(text("Recovery day"))
         wait(any("insights.sampleBadge"))
         wait(text("Not your personal Health data."))
-        XCTAssertTrue(scrollTo(any("insights.sampleBadge.suggestedMeals")),
-                      "the Suggested meals tile must carry the sample marker")
-        XCTAssertTrue(scrollTo(any("insights.sampleBadge.dailyReflection")),
-                      "the Reflect on your day tile must carry the sample marker")
-        shot("ipp-01-sample-marks-insights")
+        // Library first: scrolling the hub minimizes the iOS 26+ tab bar (.onScrollDown), and a
+        // minimized bar exposes no sibling tab buttons. Check the Library route before any hub
+        // scroll. First Library visit of this launch opens at the top, where the Today card
+        // lives; a miss fails here explicitly instead of scrolling blind in one direction.
         tab("Library")
-        // First Library visit of this launch opens at the top, where the Today card lives; a miss
-        // fails here explicitly instead of scrolling blind in one direction.
         let card = any("library.todayCard")
         wait(card)
         XCTAssertTrue(card.isHittable, "the Library Today card must be present once Health is connected")
         wait(any("library.todayCard.sampleBadge"))
         shot("ipp-01-sample-marks-library-today")
+        // The Insights stack keeps the pushed hub at its top position; the two remaining badge
+        // checks scroll in the known-downward direction from there.
+        tab("Insights")
+        wait(app.navigationBars["Insights & Cooking History"])
+        XCTAssertTrue(scrollTo(any("insights.sampleBadge.suggestedMeals")),
+                      "the Suggested meals tile must carry the sample marker")
+        XCTAssertTrue(scrollTo(any("insights.sampleBadge.dailyReflection")),
+                      "the Reflect on your day tile must carry the sample marker")
+        shot("ipp-01-sample-marks-insights")
     }
 
     // MARK: Quiet optional Health
@@ -137,8 +143,12 @@ final class InsightsPresentationUITests: XCTestCase {
         openInsightsHub()
         wait(text("Apple Health (optional)"))
         let connect = app.buttons["insights.connect"]
-        wait(connect)
-        XCTAssertTrue(connect.isHittable, "the quiet Connect action must stay tappable")
+        // At normal text the quiet Connect row sits below the tall tracker and progress tiles;
+        // tap() auto-scrolls ("Scroll element to visible") but a bare isHittable read does not,
+        // so reach the row the way a user would first. scrollTo swipes up (max 8) until the row
+        // exists && isHittable and returns exactly that predicate, so this is the old isHittable
+        // assertion after a bounded, known-direction scroll rather than a weaker check.
+        XCTAssertTrue(scrollTo(connect), "the quiet Connect action must stay tappable")
         shot("ipp-02-quiet-connect-row")
         connect.tap()
         wait(text("Recovery day"))
@@ -251,50 +261,50 @@ final class InsightsPresentationUITests: XCTestCase {
         shot("ipp-09-forced-unavailable-tile")
     }
 
-    // MARK: Maximum accessibility text and compact landscape
+    // MARK: Compact landscape rotation
 
-    /// The quiet Connect row and the sample markers must survive the maximum accessibility text
-    /// size and a landscape round trip. Shots are captured before assertions for visual inspection.
-    func testQuietConnectAndSampleMarksAtMaximumAccessibilitySizeAndLandscape() {
-        launch(["-qaMockHealth", "recovery", "-qaHealthRecipes",
-                "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+    /// The quiet Connect row and the sample markers must survive a landscape round trip at the
+    /// normal text size. (Maximum-accessibility-size acceptance was removed from scope by the
+    /// owner's call on 2026-11-05; normal-text acceptance remains.) Shots before assertions.
+    func testQuietConnectAndSampleMarksSurviveLandscapeRotation() {
+        launch(["-qaMockHealth", "recovery", "-qaHealthRecipes"])
         defer { XCUIDevice.shared.orientation = .portrait }
         openInsightsHub()
         let connect = app.buttons["insights.connect"]
         _ = scrollTo(connect)
-        shot("ipp-10-maxax-quiet-connect")
-        XCTAssertTrue(connect.exists, "the quiet Connect action must exist at the largest text size")
-        XCTAssertTrue(connect.isHittable, "the quiet Connect action must stay tappable at the largest text size")
+        shot("ipp-10-quiet-connect")
+        XCTAssertTrue(connect.exists, "the quiet Connect action must exist at normal text")
+        XCTAssertTrue(connect.isHittable, "the quiet Connect action must stay tappable at normal text")
 
         XCUIDevice.shared.orientation = .landscapeLeft
         resetHubScrollPosition()
         _ = scrollTo(connect, 4)
-        shot("ipp-10-maxax-landscape-quiet-connect")
+        shot("ipp-10-landscape-quiet-connect")
         XCTAssertTrue(connect.exists && connect.isHittable,
                       "the quiet Connect action must survive compact landscape")
         XCUIDevice.shared.orientation = .portrait
         resetHubScrollPosition()
         let connectAfterRotation = app.buttons["insights.connect"]
-        // At AccessibilityXXXL the connect row sits below the tall tracker and progress tiles;
-        // after the reset its direction is known, so one bounded scroll brings it on screen.
+        // The connect row sits below the tall tracker and progress tiles; after the reset its
+        // direction is known, so one bounded scroll brings it on screen.
         _ = scrollTo(connectAfterRotation)
         XCTAssertTrue(connectAfterRotation.exists && connectAfterRotation.isHittable,
                       "the quiet Connect action must survive the rotation cycle")
         connectAfterRotation.tap()
         wait(text("Recovery day"), 15)
 
-        // The badge sits at the top of the body-today tile, below two tall tiles at this text
-        // size; reset so the rotation checks' deep position can never hide it, then one bounded
-        // scroll in the known-downward direction.
+        // The badge sits at the top of the body-today tile, below two tall tiles; reset so the
+        // rotation checks' deep position can never hide it, then one bounded scroll in the
+        // known-downward direction.
         resetHubScrollPosition()
         let badge = any("insights.sampleBadge")
         _ = scrollTo(badge)
-        shot("ipp-10-maxax-sample-badge")
-        XCTAssertTrue(badge.exists && badge.isHittable, "the sample marker must be reachable at the largest text size")
+        shot("ipp-10-sample-badge")
+        XCTAssertTrue(badge.exists && badge.isHittable, "the sample marker must be reachable at normal text")
         XCUIDevice.shared.orientation = .landscapeLeft
         resetHubScrollPosition()
         _ = scrollTo(badge)
-        shot("ipp-10-maxax-landscape-sample-badge")
+        shot("ipp-10-landscape-sample-badge")
         XCTAssertTrue(badge.exists && badge.isHittable, "the sample marker must survive compact landscape")
     }
 
@@ -333,6 +343,17 @@ final class InsightsPresentationUITests: XCTestCase {
             notNow.tap()
         }
         wait(app.buttons["Cook mode"], 8)
+
+        // RecipeDetailView hides the tab bar (full-height detail with Cook mode pinned at the
+        // bottom). Pop back to the Library root before any tab switch, exactly as a user would.
+        // The back button carries the previous screen's title, LibraryView's "Your Kitchen"
+        // (L10n libraryTitle; en localization confirmed), the same named-back pattern
+        // reopenInsightsFromJournal uses with "Journal".
+        let detailBack = app.navigationBars.buttons["Your Kitchen"]
+        wait(detailBack)
+        detailBack.tap()
+        wait(app.navigationBars["Your Kitchen"])
+        wait(app.tabBars.firstMatch)
 
         // Verify the cooking event is visible in the tracker before testing its downstream insight.
         tab("Insights")

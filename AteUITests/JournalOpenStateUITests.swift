@@ -70,10 +70,10 @@ final class JournalOpenStateUITests: XCTestCase {
         print("SNAPSHOT-END \(name)")
     }
 
-    /// The journal timeline is the Insights tab root: one tab tap, no menu.
+    /// The journal timeline is the Journal tab root: one tab tap, no menu.
     private func openJournal() {
         wait(app.tabBars.firstMatch, 15)
-        app.tabBars.buttons["Insights"].tap()
+        app.tabBars.buttons["Journal"].tap()
         wait(app.navigationBars["Journal"], 10)
     }
 
@@ -317,7 +317,7 @@ extension JournalOpenStateUITests {
     func testManualActionFromInsightsDoesNotRequireHealth() {
         launch(extra: ["-qaMockHealth", "empty"])
         wait(app.tabBars.firstMatch, 15)
-        app.tabBars.buttons["Insights"].tap()
+        app.tabBars.buttons["Journal"].tap()
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         wait(hub); hub.tap()
         let action = app.buttons["insights.newJournalEntry"]

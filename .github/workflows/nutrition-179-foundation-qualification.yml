@@ -1,0 +1,81 @@
+name: Nutrition 179 diary + journal foundation native qualification
+
+on:
+  push:
+    branches: [feat/issue-179-diary-edit-weekly]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: nutrition-179-foundation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  nutrition-179-foundation:
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Record exact source and toolchain
+        run: |
+          mkdir -p build/nutrition-179-foundation
+          git rev-parse HEAD | tee build/nutrition-179-foundation/head.txt
+          git status --porcelain > build/nutrition-179-foundation/worktree.txt
+          xcodebuild -version | tee build/nutrition-179-foundation/xcode.txt
+          find Ate AteTests -name '*.swift' -print0 | xargs -0 shasum -a 256 > build/nutrition-179-foundation/source-sha256.txt
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: Build and run 47 foundation + 21 nutrition diary fixtures with complete concurrency checking
+        run: |
+          set -o pipefail
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          printf '%s\n' "$SIM_ID" > build/nutrition-179-foundation/simulator.txt
+          xcodebuild test -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/FoodJournalStoreTests \
+            -only-testing:AteTests/FoodJournalCoordinatorTests \
+            -only-testing:AteTests/JournalArchiveTests \
+            -only-testing:AteTests/JournalTimelineOrderTests \
+            -only-testing:AteTests/LegacyDiaryRepairTests \
+            -only-testing:AteTests/CanonicalNutritionDiaryTests \
+            -only-testing:AteTests/NutritionRecipeAssociationTests \
+            -resultBundlePath build/nutrition-179-foundation/Nutrition179Foundation.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            SWIFT_STRICT_CONCURRENCY=complete CODE_SIGNING_ALLOWED=NO \
+            > build/nutrition-179-foundation/native.log 2>&1 || { tail -160 build/nutrition-179-foundation/native.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED|warning:.*(concurr|Sendable|actor)" build/nutrition-179-foundation/native.log || true
+      - name: Require every named pure fixture pass
+        run: |
+          set -euo pipefail
+          if grep -Eq "Executed 0 tests|Test Case .* failed" build/nutrition-179-foundation/native.log; then
+            echo "::error::Native log contains a zero-test or failed-test result"
+            exit 1
+          fi
+          xcrun xcresulttool get test-results tests --path build/nutrition-179-foundation/Nutrition179Foundation.xcresult > build/nutrition-179-foundation/native-tests.json
+          python3 scripts/validate-nutrition-179-tests.py build/nutrition-179-foundation/native-tests.json scripts/nutrition-179-native-required.txt
+      - name: Run real canonical nutrition UI journeys (DEBUG hermetic route only)
+        run: |
+          set -euo pipefail
+          SIM_ID=$(cat build/nutrition-179-foundation/simulator.txt)
+          xcodebuild test -project Ate.xcodeproj -scheme Ate -configuration Debug -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CanonicalNutritionAssociationUITests \
+            -resultBundlePath build/nutrition-179-foundation/Nutrition179UI.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            SWIFT_STRICT_CONCURRENCY=complete CODE_SIGNING_ALLOWED=NO \
+            > build/nutrition-179-foundation/ui.log 2>&1 || { tail -160 build/nutrition-179-foundation/ui.log; exit 1; }
+          xcrun xcresulttool get test-results tests --path build/nutrition-179-foundation/Nutrition179UI.xcresult > build/nutrition-179-foundation/ui-tests.json
+          python3 scripts/validate-nutrition-179-tests.py build/nutrition-179-foundation/ui-tests.json scripts/nutrition-179-ui-required.txt
+          python3 scripts/validate-nutrition-179-captures.py build/nutrition-179-foundation/ui.log build/nutrition-179-foundation/captures
+      - name: Retain native evidence including failed build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nutrition-179-foundation-${{ github.run_number }}-${{ github.run_attempt }}
+          path: build/nutrition-179-foundation/
+          if-no-files-found: error
+          retention-days: 14

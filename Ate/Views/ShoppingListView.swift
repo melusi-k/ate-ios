@@ -26,6 +26,7 @@ struct ShoppingListView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("\(pending.count) to buy" + (done.isEmpty ? "" : " · \(done.count) in the basket"))
                         .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
+                    if !store.shopping.isEmpty { progressRow(bought: done.count, total: store.shopping.count) }
                     HStack(spacing: 8) {
                         TextField("Add something else…", text: $newItem).font(AteFont.body(15))
                             .padding(.horizontal, 18).frame(height: 48)
@@ -80,6 +81,32 @@ struct ShoppingListView: View {
             }
         }
         .sheet(item: $share) { ActivityView(items: $0.items).presentationDetents([.medium, .large]) }
+    }
+
+    /// Completion progress plus the one-tap way to undo a shop: bought items go back to the
+    /// to-buy list together (Undo is offered in the toast).
+    private func progressRow(bought: Int, total: Int) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ProgressView(value: Double(bought), total: Double(max(total, 1)))
+                .tint(Theme.primary)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Shopping progress")
+                .accessibilityValue("\(bought) of \(total) bought")
+                .accessibilityIdentifier("shopping.progress")
+            HStack {
+                Text("\(bought) of \(total) bought").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                    // The progress element above already speaks "x of y bought".
+                    .accessibilityHidden(true)
+                Spacer()
+                if bought > 0 {
+                    Button { _ = store.moveBoughtBackToList(); Haptics.toggle() } label: {
+                        Text("Move all back to list").font(AteFont.body(13, .semibold))
+                            .frame(minHeight: 44)
+                    }
+                    .accessibilityIdentifier("shopping.moveBoughtBack")
+                }
+            }
+        }
     }
 
     private func addManual() {

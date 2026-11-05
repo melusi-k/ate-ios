@@ -232,6 +232,52 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(store.shopping.count, 2)
     }
 
+    func testMoveBoughtBackToListMovesOnlyBoughtItemsAndUndoRestoresThem() {
+        let store = store()
+        let a = ShoppingItem(id: "a", name: "Milk", quantity: 1, unit: "l", done: true)
+        let b = ShoppingItem(id: "b", name: "Eggs", quantity: 6, unit: "")
+        let c = ShoppingItem(id: "c", name: "Bread", quantity: 1, unit: "", done: true)
+        store.shopping = [a, b, c]
+        XCTAssertEqual(store.moveBoughtBackToList(), 2)
+        XCTAssertEqual(store.shopping.map(\.done), [false, false, false])
+        XCTAssertEqual(store.shopping.map(\.id), ["a", "b", "c"], "order and identity are preserved")
+        XCTAssertEqual(store.toast?.message, "2 items back on the list")
+        XCTAssertEqual(store.toast?.actionTitle, "Undo")
+        // An edit and a new bought item made inside the window survive Undo untouched.
+        XCTAssertTrue(store.editShoppingItem(b.id, name: "Eggs", quantity: 12))
+        store.toggle(b.id)
+        store.runToastAction()
+        XCTAssertEqual(store.shopping.map(\.done), [true, true, true],
+                       "Undo re-marks the moved items; b was bought by the user afterwards and stays bought")
+        XCTAssertEqual(store.shopping[1].quantity, 12)
+        store.runToastAction()
+        XCTAssertEqual(store.shopping.map(\.done), [true, true, true], "Undo is idempotent")
+    }
+
+    func testMoveBoughtBackUndoIsBlockedAfterAccountChangeEvenWithSameItemID() {
+        let store = store()
+        store.session = session("u1")
+        defer { store.session = nil }
+        store.shopping = [ShoppingItem(id: "same-id", name: "Milk", quantity: 1, unit: "l", done: true)]
+        XCTAssertEqual(store.moveBoughtBackToList(), 1)
+        // A different account's list happens to hold an item with the same synced id.
+        store.session = session("u2")
+        store.shopping = [ShoppingItem(id: "same-id", name: "Oat milk", quantity: 1, unit: "l")]
+        store.runToastAction()
+        XCTAssertEqual(store.shopping.map(\.done), [false], "another account's item is never re-marked")
+        XCTAssertEqual(store.shopping.map(\.name), ["Oat milk"], "the other account's list is unchanged")
+        XCTAssertEqual(store.toast?.isError, true)
+        XCTAssertEqual(store.toast?.message, "Couldn't undo - your account changed since the items were moved back.")
+    }
+
+    func testMoveBoughtBackWithNothingBoughtIsANoOp() {
+        let store = store()
+        store.shopping = [ShoppingItem(id: "a", name: "Milk", quantity: 1, unit: "l")]
+        XCTAssertEqual(store.moveBoughtBackToList(), 0)
+        XCTAssertNil(store.toast)
+        XCTAssertEqual(store.shopping.map(\.done), [false])
+    }
+
     func testRapidConsecutiveRemovalsShareOneUndoBatch() {
         let store = store()
         let a = ShoppingItem(id: "a", name: "Milk", quantity: 1, unit: "l")

@@ -43,6 +43,7 @@ final class AteUITests: XCTestCase {
         add(a)
     }
 
+    func any(_ id: String) -> XCUIElement { app.descendants(matching: .any)[id] }
     func text(_ s: String) -> XCUIElement {
         app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", s)).firstMatch
     }
@@ -217,6 +218,10 @@ final class AteUITests: XCTestCase {
 
         // Leaving Cook Mode is not completion. Inspect the calendar's accessible day label.
         tab("Insights")
+        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
+        hub.tap()
         let todayWithoutCooking = app.buttons.matching(
             NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@", "no cooking recorded", "today")
         ).firstMatch
@@ -244,6 +249,10 @@ final class AteUITests: XCTestCase {
 
         // Completion must update the persistent Tracker, not merely dismiss Cook Mode.
         tab("Insights")
+        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
+        hub.tap()
         let day = Calendar.current.component(.day, from: Date())
         let today = app.buttons["tracker.day.\(day)"]
         wait(today, 5)
@@ -889,6 +898,38 @@ final class AteUITests: XCTestCase {
         wait(choices.firstMatch, 3)
         XCTAssertEqual(choices.count, 1, "Picker option must be unique in the native popup")
         choices.firstMatch.tap()
+    }
+
+    /// Journal menu journey: the Insights tab root is the Journal with "New journal entry" as its primary
+    /// action, and "Insights & Cooking History" is the one named route to the tracker. Named captures:
+    /// journal-root-new-entry-action, journal-root-insights-route, insights-cooking-history-route.
+    func testJournalRootPrimaryActionAndInsightsRoute() {
+        launch(["-qaMockHealth", "empty"])
+        guard #available(iOS 26, *) else { return }
+        tab("Insights")
+        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 10), "Insights tab root is the Journal")
+        let add = app.buttons["accessoryAdd"].firstMatch
+        wait(add, 8)
+        XCTAssertEqual(add.label, "New journal entry")
+        shot("journal-root-new-entry-action")
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub)
+        shot("journal-root-insights-route")
+        hub.tap()
+        XCTAssertTrue(app.navigationBars["Insights & Cooking History"].waitForExistence(timeout: 10))
+        wait(any("tracker.displayedMonth"))
+        shot("insights-cooking-history-route")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        wait(app.navigationBars["Journal"])
+        add.tap()
+        wait(app.textViews["journal.compose.text"])
+        XCTAssertFalse(app.alerts.firstMatch.exists, "Writing must not ask for Health permission")
+        app.buttons["journal.compose.cancel"].tap()
+        // Search and Settings carry no add action.
+        app.tabBars.buttons["Search"].firstMatch.tap()
+        XCTAssertFalse(add.exists)
+        tab("Settings")
+        XCTAssertFalse(add.exists)
     }
 
     /// C-TAB-01…04: iOS 26 tab chrome — bottom accessory Add, search tab, title visible while searching.

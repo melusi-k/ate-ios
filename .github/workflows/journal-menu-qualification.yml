@@ -1,12 +1,11 @@
-name: Journal Menu Qualification (primary actions and manual Journal entry)
+name: Journal Menu Qualification (primary actions and Insights route)
 
 # Branch-owned qualification lane for the Journal menu children of #292 (PR 299 primary actions and
-# manual Journal entry; PR 300 Journal as Insights tab root extends this file with its own selector and
-# three captures). This version holds ONLY selectors that exist at the PR 299 head. It runs on pull_request events whose BASE
+# manual Journal entry, PR 300 Journal as Insights tab root). It runs on pull_request events whose BASE
 # is one of the two child bases, so it executes on the synthetic merge of the PR head into its base.
 # Each run records BOTH the PR head SHA and the synthetic merge SHA (GITHUB_SHA); they are different.
 # Hard named-pass gates: a selector that matches nothing produces no pass line and fails closed.
-# One named capture gate (tab-accessory) covers the root accessory. Existing shared gates are not replaced.
+# Three named capture gates cover the Journal root journey. Existing shared gates are not replaced.
 # No workflow_dispatch trigger by design.
 
 on:
@@ -107,6 +106,7 @@ jobs:
             -only-testing:AteTests/ManualJournalTests \
             -only-testing:AteUITests/AteUITests/testTab_AccessoryAndSearchTab \
             -only-testing:AteUITests/AteUITests/testTab_TimerAccessoryKeepsAddControlClear \
+            -only-testing:AteUITests/AteUITests/testJournalRootPrimaryActionAndInsightsRoute \
             -only-testing:AteUITests/CookingTrackerEntryUITests/testInsightsHasDedicatedTabEntryPoint \
             -only-testing:AteUITests/CookingTrackerEntryUITests/testLibraryShortcutOpensInsightsHubRoot \
             -only-testing:AteUITests/CookingTrackerEntryUITests/testMonthNavigationAndFutureMonthRestriction \
@@ -139,6 +139,7 @@ jobs:
             "ManualJournalTests testKnownLegacyAndUnknownRawStatesArePreserved]' passed" \
             "AteUITests testTab_AccessoryAndSearchTab]' passed" \
             "AteUITests testTab_TimerAccessoryKeepsAddControlClear]' passed" \
+            "AteUITests testJournalRootPrimaryActionAndInsightsRoute]' passed" \
             "CookingTrackerEntryUITests testInsightsHasDedicatedTabEntryPoint]' passed" \
             "CookingTrackerEntryUITests testLibraryShortcutOpensInsightsHubRoot]' passed" \
             "CookingTrackerEntryUITests testMonthNavigationAndFutureMonthRestriction]' passed" \
@@ -271,7 +272,10 @@ jobs:
             done
           }
           verify_scope journal \
-            tab-accessory
+            tab-accessory \
+            journal-root-new-entry-action \
+            journal-root-insights-route \
+            insights-cooking-history-route
 
       - name: Record qualification metadata
         if: always()

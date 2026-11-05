@@ -86,6 +86,10 @@ final class InsightsAcceptanceUITests: XCTestCase {
 
         // Verify the cooking event is visible in the tracker before testing its downstream insight.
         tab("Insights")
+        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
+        hub.tap()
         let day = Calendar.current.component(.day, from: Date())
         let today = app.buttons["tracker.day.\(day)"]
         wait(today, 5)

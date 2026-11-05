@@ -111,10 +111,15 @@ final class OCRTerminalResultTests: XCTestCase {
         evidence.name = "OCR_TIMING-sample"
         evidence.lifetime = .keepAlways
         add(evidence)
+        // Only bundled synthetic recipe fixtures reach this test, never user images.
+        let recognized = XCTAttachment(string: text)
+        recognized.name = evidence.name + "-recognized-text"
+        recognized.lifetime = .keepAlways
+        add(recognized)
         XCTAssertLessThan(elapsed, OnDeviceBackend.ocrDeadlineSeconds * 0.8,
                           "Sample OCR must finish well inside the terminal deadline")
         XCTAssertTrue(text.localizedCaseInsensitiveContains("Pancakes"))
-        XCTAssertTrue(text.localizedCaseInsensitiveContains("200 g flour"))
+        XCTAssertTrue(text.localizedCaseInsensitiveContains("200 g flour"), "Recognized fixture text: \(text)")
         XCTAssertTrue(text.localizedCaseInsensitiveContains("2 eggs"))
     }
 
@@ -144,10 +149,15 @@ final class OCRTerminalResultTests: XCTestCase {
         evidence.name = "OCR_TIMING-tall"
         evidence.lifetime = .keepAlways
         add(evidence)
+        // Only bundled synthetic recipe fixtures reach this test, never user images.
+        let recognized = XCTAttachment(string: text)
+        recognized.name = evidence.name + "-recognized-text"
+        recognized.lifetime = .keepAlways
+        add(recognized)
         XCTAssertLessThan(elapsed, OnDeviceBackend.ocrDeadlineSeconds * 0.8,
                           "Tall screenshot OCR must finish well inside the terminal deadline")
         XCTAssertTrue(text.localizedCaseInsensitiveContains("Pancakes"))
-        XCTAssertTrue(text.localizedCaseInsensitiveContains("200 g flour"))
+        XCTAssertTrue(text.localizedCaseInsensitiveContains("200 g flour"), "Recognized fixture text: \(text)")
         XCTAssertTrue(text.localizedCaseInsensitiveContains("2 eggs"))
         XCTAssertTrue(text.localizedCaseInsensitiveContains("Cook for 2 minutes"))
     }

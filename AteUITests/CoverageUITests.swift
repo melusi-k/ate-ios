@@ -50,13 +50,19 @@ final class CoverageUITests: XCTestCase {
     func wait(_ e: XCUIElement, _ t: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(e.waitForExistence(timeout: t), "Missing \(e)", file: file, line: line)
     }
-    /// Lists load rows lazily, so the target may be above or below: search down, then back up.
-    func scrollTo(_ e: XCUIElement, max: Int = 25) {
+    /// Search both directions for lazy rows. Callers with a known section order can choose the first direction.
+    func scrollTo(_ e: XCUIElement, max: Int = 25, searchDownFirst: Bool = true) {
         _ = e.waitForExistence(timeout: 2)
         var n = 0
-        while !(e.exists && e.isHittable) && n < max { app.swipeUp(); n += 1 }
+        while !(e.exists && e.isHittable) && n < max {
+            if searchDownFirst { app.swipeUp() } else { app.swipeDown() }
+            n += 1
+        }
         n = 0
-        while !(e.exists && e.isHittable) && n < max * 2 { app.swipeDown(); n += 1 }
+        while !(e.exists && e.isHittable) && n < max * 2 {
+            if searchDownFirst { app.swipeDown() } else { app.swipeUp() }
+            n += 1
+        }
     }
     func tab(_ name: String) {
         var n = 0
@@ -194,7 +200,9 @@ final class CoverageUITests: XCTestCase {
         let settingsQuietHours = app.descendants(matching: .any)["toggle.Quiet hours"].firstMatch
 
         // Settings uses lazily materialized rows: scroll to each toggle before asserting it exists.
-        scrollTo(settingsQuietHours); wait(settingsQuietHours, 3)
+        // Export is in Tools, below Timer notifications. Search toward the earlier section first,
+        // retaining the opposite-direction fallback if the restored viewport differs.
+        scrollTo(settingsQuietHours, searchDownFirst: false); wait(settingsQuietHours, 3)
         XCTAssertTrue(settingsQuietHours.isHittable, "Quiet hours toggle should be reachable in Timer notifications")
         scrollTo(settingsStepAlerts); wait(settingsStepAlerts, 3)
         XCTAssertTrue(settingsStepAlerts.isHittable, "Step-by-step alerts toggle should be reachable in Timer notifications")
@@ -222,7 +230,12 @@ final class CoverageUITests: XCTestCase {
 
     func testExploreInsightsPresentsAsSheetAndDismissesToLibrary() {
         launch()
-        tab("Library")
+        // launch() starts at the Library root. Re-selecting the already-selected tab makes
+        // XCTest wait for a redundant TabView transition on iOS 27 and can never reach
+        // quiescence in this focused shard; this test only needs to exercise Explore.
+        wait(app.tabBars.buttons["Library"])
+        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected,
+                      "Explore should start from the Library tab root")
         app.buttons["libraryBrowseMenu"].tap()
         let insights = browseMenuItem("Insights & journal")
         wait(insights)

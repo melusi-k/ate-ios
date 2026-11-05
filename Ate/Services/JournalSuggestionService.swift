@@ -130,7 +130,10 @@ final class JournalStore {
         try? ctx.save(); UserDefaults.standard.set(true, forKey: k)
     }
     func entries() -> [JournalEntry] {
-        (try? container?.mainContext.fetch(FetchDescriptor<JournalEntry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []
+        guard let context = container?.mainContext else { return [] }
+        let rows = (try? context.fetch(FetchDescriptor<JournalEntry>())) ?? []
+        // MainActor-local comparison avoids a non-Sendable SortDescriptor key path.
+        return rows.sorted { $0.createdAt > $1.createdAt }
     }
     @discardableResult
     func save(prompt: String, text: String, state: HealthState, recipeIDs: [String], momentTitle: String? = nil, momentDate: Date? = nil) -> Bool {

@@ -78,12 +78,12 @@ final class JournalOpenStateUITests: XCTestCase {
         app.tabBars.buttons["Library"].tap()
         wait(app.buttons["libraryBrowseMenu"], 10)
         app.buttons["libraryBrowseMenu"].tap()
-        // At XXXL the scrolled menu no longer retains its Collections header in AX.
-        // Scope by the actual destination button, which the retained failure hierarchy exposes.
-        let journalLabel = NSPredicate(format: "label == %@", "Journal")
-        let menu = app.collectionViews.containing(journalLabel).firstMatch
-        wait(menu, 10)
-        let item = menu.buttons.matching(journalLabel).firstMatch
+        // Collections scrolls out of the realized hierarchy during the native item tap.
+        let menus = app.collectionViews.containing(NSPredicate(format: "label == %@", "Journal"))
+        wait(menus.firstMatch, 10)
+        XCTAssertEqual(menus.count, 1, "Journal menu must be unique")
+        let menu = menus.firstMatch
+        let item = menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", "Journal")).firstMatch
         for _ in 0..<8 {
             if item.exists && item.isHittable { break }
             menu.swipeUp()

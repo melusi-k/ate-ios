@@ -1,0 +1,54 @@
+name: Workflow security
+
+on:
+  pull_request:
+    paths:
+      - '.github/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      # Parse PR YAML as data only. No PR scripts, online audits, credentials,
+      # SARIF uploads, issue writes, OIDC or external reporting service.
+      - name: Scan GitHub configuration (advisory)
+        id: scan
+        continue-on-error: true
+        uses: zizmorcore/zizmor-action@f9597c869b2e67095f9b527070297a13a6efe928 # v0.7.0
+        with:
+          inputs: .github
+          collect: all
+          version: 1.31.0
+          online-audits: false
+          token: ''
+          advanced-security: false
+          annotations: false
+          color: false
+      - name: Explain advisory scan result
+        if: always()
+        env:
+          SCAN_OUTCOME: ${{ steps.scan.outcome }}
+        run: |
+          {
+            echo '## Workflow security advisory'
+            echo "Scanner step outcome: $SCAN_OUTCOME. See the scan step log for findings or tool errors."
+            echo 'Advisory adoption: existing findings do not block this job. A green job is not a clean security scan.'
+            echo 'Offline audits only: online repository/advisory checks are disabled and coverage is reduced.'
+            echo 'A baseline and gating of new findings require a separate reviewed change; no findings are suppressed here.'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -19,7 +19,10 @@ final class AteUITests: XCTestCase {
             sleep(1); n += 1
         }
         let b = app.tabBars.buttons[name]
-        if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
+        if name == "Journal" {
+            XCTAssertTrue(b.waitForExistence(timeout: 5), "Journal must be selected through its tab, not a pushed-screen back button")
+            b.tap()
+        } else if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
     }
     func scrollTo(_ e: XCUIElement, max: Int = 8) {
         _ = e.waitForExistence(timeout: 5)
@@ -217,8 +220,8 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 5)
 
         // Leaving Cook Mode is not completion. Inspect the calendar's accessible day label.
-        tab("Insights")
-        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        tab("Journal")
+        // Journal tab root is the Journal; Insights & Cooking History is its one named route.
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
         hub.tap()
@@ -248,8 +251,8 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 5)
 
         // Completion must update the persistent Tracker, not merely dismiss Cook Mode.
-        tab("Insights")
-        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        tab("Journal")
+        // Journal tab root is the Journal; Insights & Cooking History is its one named route.
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
         hub.tap()
@@ -270,7 +273,7 @@ final class AteUITests: XCTestCase {
 
     /// Cooks the prompt recipe through Cook mode so today has a recorded cooking day (optionally
     /// deleting the recipe afterwards), then opens today's "Cooked that day" sheet through
-    /// Insights -> Insights & Cooking History. Returns the day's recipe row.
+    /// Journal -> Insights & Cooking History. Returns the day's recipe row.
     private func openTodayCookedSheet(deleteRecipeFirst: Bool = false, runningTimer: Bool = false) -> XCUIElement {
         launch()
         addPromptRecipe()
@@ -306,7 +309,7 @@ final class AteUITests: XCTestCase {
             wait(text("Nothing saved yet"))
         }
 
-        tab("Insights")
+        tab("Journal")
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
         hub.tap()
@@ -1021,14 +1024,14 @@ final class AteUITests: XCTestCase {
         choices.firstMatch.tap()
     }
 
-    /// Journal menu journey: the Insights tab root is the Journal with "New journal entry" as its primary
+    /// Journal menu journey: the Journal tab root is the Journal with "New journal entry" as its primary
     /// action, and "Insights & Cooking History" is the one named route to the tracker. Named captures:
     /// journal-root-new-entry-action, journal-root-insights-route, insights-cooking-history-route.
     func testJournalRootPrimaryActionAndInsightsRoute() {
         launch(["-qaMockHealth", "empty"])
         guard #available(iOS 26, *) else { return }
-        tab("Insights")
-        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 10), "Insights tab root is the Journal")
+        tab("Journal")
+        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 10), "Journal tab root is the Journal")
         let add = app.buttons["accessoryAdd"].firstMatch
         wait(add, 8)
         XCTAssertEqual(add.label, "New journal entry")
@@ -1099,8 +1102,8 @@ final class AteUITests: XCTestCase {
         // Every root tab must replace the previous destination's context.
         app.tabBars.buttons["Shopping"].tap()
         XCTAssertEqual(add.label, "Add item")
-        app.tabBars.buttons["Insights"].tap()
-        XCTAssertEqual(add.label, "New journal entry", "Insights root offers New journal entry, not the Shopping or recipe action")
+        app.tabBars.buttons["Journal"].tap()
+        XCTAssertEqual(add.label, "New journal entry", "Journal root offers New journal entry, not the Shopping or recipe action")
         app.tabBars.buttons["Library"].tap()
         XCTAssertEqual(add.label, "Add recipe")
         app.tabBars.buttons["Search"].firstMatch.tap()

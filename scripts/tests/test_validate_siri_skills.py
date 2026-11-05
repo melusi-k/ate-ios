@@ -1,8 +1,13 @@
+import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
 
-from validate_siri_skills import parse_skill, validate_bundle
+SCRIPT = Path(__file__).resolve().parents[1] / "validate-siri-skills.py"
+SPEC = importlib.util.spec_from_file_location("validate_siri_skills", SCRIPT)
+MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
+validate_bundle = MODULE.validate_bundle
 
 
 class SiriSkillValidationTests(unittest.TestCase):

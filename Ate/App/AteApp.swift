@@ -130,6 +130,7 @@ struct RootView: View {
                 if #available(iOS 26, *) { tabs26 } else { tabs }   // portrait iPhone: bottom tab bar; iPad: adaptable sidebar
             }
         }
+        .modifier(JournalTaskHost())
         .onChange(of: vSize) { _, v in
             // Collections are sidebar-only; back in portrait keep the filter but show the Library tab.
             if v != .compact, case .collection = store.tab { store.tab = .library }
@@ -238,29 +239,31 @@ struct AteBottomAccessory: View {
     @Environment(AppStore.self) private var store
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
     var body: some View {
+        let context = store.activeAddContext
+        let title = context?.title ?? ""
         let compact = placement == .inline
         HStack(spacing: 8) {
             if let session = store.cookSession {
                 CookSessionMiniPlayer(session: session)
-                Button { add() } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
-                    .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")
+                if let context { Button { add(context) } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
+                    .accessibilityLabel(title).accessibilityIdentifier("accessoryAdd") }
             } else if !store.timers.timers.isEmpty {
                 TimerBar().padding(.bottom, -4).padding(.horizontal, -12)
-                Button { add() } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
-                    .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")
-            } else {
-                Button { add() } label: {
-                    Label(compact ? "Add" : store.bottomAddContext.title, systemImage: "plus").font(AteFont.body(15, .semibold))
+                if let context { Button { add(context) } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
+                    .accessibilityLabel(title).accessibilityIdentifier("accessoryAdd") }
+            } else if let context {
+                Button { add(context) } label: {
+                    Label(compact ? "Add" : title, systemImage: "plus").font(AteFont.body(15, .semibold))
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")
+                .accessibilityLabel(title).accessibilityIdentifier("accessoryAdd")
             }
         }
         .padding(.horizontal, compact ? 4 : 12)
         .accessibilityElement(children: .contain).accessibilityIdentifier("bottomAccessory")
     }
-    private func add() {
-        switch store.bottomAddContext {
+    private func add(_ context: BottomAddContext) {
+        switch context {
         case .recipe:
             if store.tab != .library { store.select(.library) }
             store.quickAdd = QuickAddRequest(mode: .link)
@@ -268,6 +271,8 @@ struct AteBottomAccessory: View {
             store.showNutritionDiaryEntry = true
         case .shopping:
             store.requestShoppingAdd = true
+        case .journal:
+            store.beginManualJournal()
         }
     }
 }
@@ -308,7 +313,7 @@ extension RootView {
         .onChange(of: store.tab) { _, selectedTab in
             // Food diary is a pushed screen rather than a root tab. Root destinations only
             // use Shopping's add context; all other tabs return to the recipe action.
-            store.bottomAddContext = selectedTab == .shopping ? .shopping : .recipe
+            store.bottomAddContext = store.rootAddContext ?? .recipe
         }
         .tabViewStyle(.tabBarOnly)
         .tabBarMinimizeBehavior(.onScrollDown)
@@ -316,6 +321,7 @@ extension RootView {
         // iOS 26.0 renders the capsule even for empty accessory content; iOS 26.1 adds
         // isEnabled (Bool), which removes the capsule entirely. 26.0 keeps old behavior.
         let showBottomAccessory = store.cookTarget == nil && store.isAtTabRoot
+            && (store.activeAddContext != nil || store.cookSession != nil || !store.timers.timers.isEmpty)
         if #available(iOS 26.1, *) {
             base.tabViewBottomAccessory(isEnabled: showBottomAccessory) {
                 // Pushed screens reserve their own timer-bar inset. Keeping the accessory

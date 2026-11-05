@@ -70,10 +70,27 @@ final class JournalOpenStateUITests: XCTestCase {
         print("SNAPSHOT-END \(name)")
     }
 
-    /// The journal timeline is the Insights tab root: one tab tap, no menu.
+    /// The existing route to the journal timeline: Library tab -> browse menu -> Journal.
+    /// Menu items surface as labelled buttons on this runtime (identifiers are not exposed
+    /// inside the open menu; see CoverageUITests), so the item is matched by label.
     private func openJournal() {
         wait(app.tabBars.firstMatch, 15)
-        app.tabBars.buttons["Insights"].tap()
+        app.tabBars.buttons["Library"].tap()
+        wait(app.buttons["libraryBrowseMenu"], 10)
+        app.buttons["libraryBrowseMenu"].tap()
+        // Collections scrolls out of the realized hierarchy during the native item tap.
+        let menus = app.collectionViews.containing(NSPredicate(format: "label == %@", "Journal"))
+        wait(menus.firstMatch, 10)
+        XCTAssertEqual(menus.count, 1, "Journal menu must be unique")
+        let menu = menus.firstMatch
+        let item = menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", "Journal")).firstMatch
+        for _ in 0..<8 {
+            if item.exists && item.isHittable { break }
+            menu.swipeUp()
+        }
+        wait(item, 10)
+        XCTAssertTrue(item.isHittable)
+        item.tap()
         wait(app.navigationBars["Journal"], 10)
     }
 
@@ -122,12 +139,8 @@ final class JournalOpenStateUITests: XCTestCase {
         XCTAssertFalse(text("No journal entries yet").exists,
                        "an unavailable journal must not be presented as an empty healthy one")
         // The screen stays navigable: the user is never trapped on a broken journal.
+        wait(app.buttons["library.explore.dismiss"], 10)
         shot("jos-03-unavailable")
-        let libraryTab = app.tabBars.buttons["Library"]
-        XCTAssertTrue(libraryTab.waitForExistence(timeout: 10) && libraryTab.isHittable,
-                      "the tab bar must remain selectable from a broken journal")
-        libraryTab.tap()
-        wait(app.buttons["libraryBrowseMenu"], 10)
     }
 
     func testHealthyOpenShowsNoBanner() {

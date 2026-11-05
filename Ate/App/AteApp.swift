@@ -299,6 +299,13 @@ private struct BottomChromeMeasure: ViewModifier {
 extension View { func bottomChromeMeasured() -> some View { modifier(BottomChromeMeasure()) } }
 
 /// Bottom accessory above the tab bar: a destination-aware add action, or timer summary plus a contextual +.
+private extension View {
+    /// Branches a modifier chain on OS availability without splitting the view expression.
+    @ViewBuilder func modify<Content: View>(@ViewBuilder _ transform: (Self) -> Content) -> some View {
+        transform(self)
+    }
+}
+
 @available(iOS 26, *)
 struct AteBottomAccessory: View {
     @Environment(AppStore.self) private var store
@@ -396,20 +403,20 @@ extension RootView {
         }
         .tabViewStyle(.tabBarOnly)
         .tabBarMinimizeBehavior(.onScrollDown)
-        // Show the accessory only where it carries a real action or live status.
-        // iOS 26.0 renders the capsule even for empty accessory content; iOS 26.1 adds
-        // isEnabled (Bool), which removes the capsule entirely. 26.0 keeps old behavior.
+        // Keep the accessory only where it has a real action or live status.
         let showBottomAccessory = store.cookTarget == nil && store.isAtTabRoot
             && (store.activeAddContext != nil || store.cookSession != nil || !store.timers.timers.isEmpty)
-        if #available(iOS 26.1, *) {
-            base.tabViewBottomAccessory(isEnabled: showBottomAccessory) {
-                // Pushed screens reserve their own timer-bar inset. Keeping the accessory
-                // at tab roots avoids a second timer bar beneath RecipeDetailView's Cook mode.
-                AteBottomAccessory()
+        .modify { view in
+            if #available(iOS 26.2, *) {
+                view.tabViewBottomAccessory(isEnabled: showBottomAccessory) {
+                    AteBottomAccessory()
+                }
+            } else {
+                view.tabViewBottomAccessory {
+                    if showBottomAccessory { AteBottomAccessory() }
+                }
             }
-        } else {
-            base.tabViewBottomAccessory {
-                if showBottomAccessory { AteBottomAccessory() }
+        }
             }
         }
     }

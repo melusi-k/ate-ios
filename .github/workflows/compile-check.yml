@@ -162,7 +162,9 @@ jobs:
             "CatalogueIntegrityTests testAliasesPreserveAllMaterialQualifiers]' passed" \
             "CatalogueIntegrityTests testCalculatorMatchesStateQualifiedAlias]' passed" \
             "CatalogueIntegrityTests testCalculatorSurfacesUnmappedSADishNameAsIncomplete]' passed" \
-            "NutritionDiaryTests testDiaryRoundTripsEntryDateMealQuantityServingsAndProvenance]' passed"; do
+            "NutritionDiaryTests testDiaryRoundTripsEntryDateMealQuantityServingsAndProvenance]' passed" \
+            "NutritionDiaryTests testEditingEntryReplacesByIdentityKeepsDayAndLeavesOthersUntouched]' passed" \
+            "NutritionDiaryTests testDayTotalsReflectEditedEntrySnapshot]' passed"; do
             grep -qF "$evidence" nutrition-foundation-unit-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-foundation-unit-tests.log; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
@@ -190,9 +192,8 @@ jobs:
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > nutrition-ui-tests.log 2>&1 || status=$?
-          # Export screenshots, hierarchy snapshots and audit attachments on every outcome, so
-          # the diagnostics artifact also carries merge-gate pixel evidence for green runs
-          # (keepAlways success screenshots) rather than only failure evidence.
+          # Export screenshots, hierarchy snapshots and audit attachments on every outcome,
+          # including successful runs, so merge-gate pixel evidence is retained.
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/nutrition-ui-attachments" 2>/dev/null || true
           if [ "${status:-0}" -ne 0 ]; then
             grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-ui-tests.log || true
@@ -210,6 +211,7 @@ jobs:
             "NutritionDiaryUITests testCorruptDiaryShowsErrorAndRecoversAfterBackupReset]' passed" \
             "NutritionDiaryUITests testCorruptGoalsShowLoadErrorWithRetry]' passed" \
             "NutritionDiaryUITests testRecipeNutritionShowsIncompleteStateForUnmappedIngredient]' passed" \
+            "NutritionDiaryUITests testLoggedEntryCanBeEditedAndShowsUpdatedValues]' passed" \
             "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
             "AccessibilityAuditUITests testAuditNutritionScreens]' passed"; do
             grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }

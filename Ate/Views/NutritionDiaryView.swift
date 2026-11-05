@@ -16,6 +16,7 @@ struct NutritionDiaryView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.bottomChromeMinY) private var bottomChromeMinY
     @State private var listBottomY: CGFloat?
+    @State private var editingEntry: NutritionDiaryEntry?
 
     /// Layout-derived bottom reserve (#179): the measured band from the floating chrome's
     /// top edge to the bottom of this view's list frame, plus settle margin. The capsule's
@@ -401,14 +402,9 @@ private struct NutritionDiaryEntryForm: View {
                 Text("Enter only values you can verify from the source. Each logged entry keeps this snapshot if the source changes later.")
             }
         }
-        // The decimal-pad fields have no return key; let a scroll dismiss the keyboard so
-        // it cannot trap itself over the lower form. Dismiss on scroll touch-down rather
-        // than tracking the drag interactively: the interactive keyboard-tracking
-        // transition is the leading suspect for the app never reporting idle when the
-        // keyboard is up across a navigation push/pop (Log food source picker, #179) -
-        // the original keyboard-up UI gate is the judge of this candidate mechanism.
+        // The decimal-pad fields have no return key; dismiss the keyboard on scroll.
         .scrollDismissesKeyboard(.immediately)
-        .navigationTitle("Log food")
+        .navigationTitle(existing == nil ? "Log food" : "Edit food")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: source) { _, newSource in
             sourceName = newSource.suggestedSourceName

@@ -4,19 +4,19 @@ Status: Proposed, pending human policy decisions below. No existing gate is weak
 
 Adapted from [EGM's policy](https://github.com/google/elephant-goldfish-model/blob/main/AI_POLICY.md), inspected at revision `0dfb5bf3eebd551d1e805c3ab16cbaa9b1c2c42a`. Modified for Ate on 2026-11-05: added Ate governance, data-protection and evidence rules, local document routes and explicit unresolved differences. The upstream material is under the [Apache 2.0 licence](docs/licenses/EGM-LICENSE.txt); this attribution does not change Ate's repository licence.
 
-## Upstream guidelines retained for review
+## Contribution guidelines proposed for Ate
 
-EGM encourages AI tools but does not accept purely autonomous contributions: human contributors review, understand and explain every submitted change. Its operational rules are retained here, with the Ate-specific decisions still open below.
+Ate permits development tools but contributions need human accountability: contributors review, understand and explain every submitted change. The following rules are proposed, with the decisions below still open.
 
 1. **Human accountability:** every PR must have a human author who has personally reviewed, tested and verified every line of changed code.
 2. **Interactive review:** contributors must directly defend changes in review. Copying maintainer review comments into an LLM and pasting unverified model responses into the review is prohibited.
-3. **Design before implementation:** features or large changes (`> 100` non-test lines or `>= 3` core files in upstream's `skills/` or `agents/`) should follow this sequence:
-   - Start with a feature inquiry and obtain maintainer design approval.
-   - Submit and merge a full EGM design-document PR, referencing its issue, so maintainers can mark that issue approved for implementation.
+3. **Design before implementation:** features or large changes (`> 100` non-test lines; the proposed three-core-file mapping is still awaiting approval) should follow this sequence:
+   - Start with an Ate owning issue and obtain the owner's design approval.
+   - Submit and merge a full Ate design-document PR, referencing its issue, so the owner can mark that issue approved for implementation.
    - Submit and merge the implementation of the approved design. Close the issue only when the owning acceptance contract is complete.
 4. **No artificial splitting:** do not split a single logical feature/refactoring into smaller PRs to evade the scope threshold.
 
-The upstream inquiry template and labels are not installed by this document. Ate's existing owning issue, [design process](docs/DESIGN_REVIEW.md) and [design template](docs/architecture/DESIGN_TEMPLATE.md) are the proposed local routes, subject to the decisions below. No label, workflow or repository setting is changed here.
+New inquiry templates or approval labels are not installed by this document. Ate's existing owning issue, [design process](docs/DESIGN_REVIEW.md) and [design template](docs/architecture/DESIGN_TEMPLATE.md) are the proposed local routes, subject to the decisions below. No label, workflow or repository setting is changed here.
 
 ## Ate guidelines
 
@@ -35,9 +35,9 @@ The upstream inquiry template and labels are not installed by this document. Ate
 
 These differences are visible rather than silently resolved:
 
-1. Upstream requires a human author to personally review/test/verify every changed code line. Ate's existing process records independent review plus exact-candidate tests and human lifecycle decisions. Confirm whether the stricter personal every-line requirement is to become an additional rule, and who fulfills it. Do not claim it is already satisfied.
-2. Upstream uses `> 100` non-test lines or `>= 3` core files in `skills/`/`agents/`. Those directories do not describe Ate's production Swift modules. Confirm whether/how the three-file threshold maps to Ate's core app files; do not silently substitute a different numeric rule.
-3. Upstream requires a merged design PR and design/implementation approval-label sequence. Ate currently uses risk-proportionate design and lifecycle approvals. Confirm whether to add the strict merge/label prerequisite or retain the existing human-approved design path. No merge of a design is authorized to satisfy this sequence while the draft hold applies.
+1. The proposed every-line rule requires a human author to personally review/test/verify every changed code line. Ate's existing process records independent review plus exact-candidate tests and human lifecycle decisions. Confirm whether the stricter personal every-line requirement is to become an additional rule, and who fulfills it. Do not claim it is already satisfied.
+2. The proposed size rule uses `> 100` non-test lines or a three-core-file threshold. Confirm whether core files should mean Ate app target sources plus Supabase migrations. This mapping is not yet approved.
+3. The proposed design gate requires a merged design PR and design/implementation approval-label sequence. Ate currently uses risk-proportionate design and lifecycle approvals. Confirm whether to add the strict merge/label prerequisite or retain the existing human-approved design path. No merge of a design is authorized to satisfy this sequence while the draft hold applies.
 
 Proposed options for the owner, not selected: make the every-line personal requirement a forward requirement fulfilled by Melusi alongside independent review; apply the merged-design gate to new features only; map core files to app target sources and Supabase migrations. These options need his answer and are not current rules.
 

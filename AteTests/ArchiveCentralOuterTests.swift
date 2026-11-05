@@ -98,6 +98,49 @@ final class ArchiveCentralOuterTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(RecipeCard.self, from: XCTUnwrap(r.first?.json)).id, "r-c")
     }
 
+    /// A changed existing row keeps its store row under the same @Attribute(.unique)
+    /// id through apply and rollback: apply reindexes its position in place (planned
+    /// content differs from the stored row), rollback restores the before-image, and
+    /// the json bytes stay verbatim throughout.
+    func testChangedExistingRowRevertsInPlaceUnderSameUniqueID() throws {
+        let c = try container(); let seeded = try seed(c)
+        let p = try ArchiveRecipeShoppingParticipant(container: c,
+            incomingRecipes: [card("r-new")], incomingShopping: [])
+        let w = p.participant(); try w.apply(); try w.verify()
+        let during = try raw(c)
+        XCTAssertEqual(during.0.map(\.id), ["r-new", "r-old"])
+        XCTAssertEqual(during.0.map(\.position), [0, 1])          // r-old reindexed in place
+        XCTAssertEqual(during.0.last?.json, seeded.0)              // existing bytes verbatim
+        XCTAssertEqual(during.0.last?.createdAt, 111)
+        try w.rollback()
+        let (r, s) = try raw(c)
+        XCTAssertEqual(r.map(\.id), ["r-old"])
+        XCTAssertEqual(r.first?.position, 0)                       // before-image restored
+        XCTAssertEqual(r.first?.json, seeded.0)
+        XCTAssertEqual(r.first?.createdAt, 111)
+        XCTAssertEqual(s.map(\.json), [seeded.1])
+    }
+
+    /// Existing shopping rows keep their store row under the same @Attribute(.unique)
+    /// id: apply updates them in place (never delete+reinsert) and rollback removes
+    /// only what it added, leaving existing bytes and positions verbatim.
+    func testShoppingExistingRowSurvivesApplyAndRollbackUnderSameUniqueID() throws {
+        let c = try container(); let seeded = try seed(c)
+        let p = try ArchiveRecipeShoppingParticipant(container: c, incomingRecipes: [],
+                                                     incomingShopping: [item("s-new")])
+        let w = p.participant(); try w.apply(); try w.verify()
+        let during = try raw(c)
+        XCTAssertEqual(during.1.map(\.id), ["s-old", "s-new"])
+        XCTAssertEqual(during.1.map(\.position), [0, 1])
+        XCTAssertEqual(during.1.first?.json, seeded.1) // existing bytes verbatim
+        try w.rollback()
+        let (r, s) = try raw(c)
+        XCTAssertEqual(r.map(\.json), [seeded.0])
+        XCTAssertEqual(s.map(\.id), ["s-old"])
+        XCTAssertEqual(s.first?.position, 0)
+        XCTAssertEqual(s.first?.json, seeded.1)
+    }
+
     func testConcurrentMutationBetweenApplyAndRollbackIsPreservedAndSurfaced() throws {
         let c = try container(); let seeded = try seed(c)
         let p = try ArchiveRecipeShoppingParticipant(container: c, incomingRecipes: [card("r-new")], incomingShopping: [])

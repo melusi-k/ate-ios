@@ -44,6 +44,9 @@ struct CookModeView: View {
         }
         .foregroundStyle(Theme.warmForeground)
         .toolbar(.hidden, for: .navigationBar)
+        // A pushed cook is full-screen work too. The tab bar otherwise overlays
+        // Finish and can receive its tap (native navigation-host evidence).
+        .toolbar(.hidden, for: .tabBar)
         .toolbar(.visible, for: .bottomBar)
         .onAppear {
             guard finishState.allowsSessionWrites else { return }

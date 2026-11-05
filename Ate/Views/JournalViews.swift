@@ -38,7 +38,8 @@ struct JournalListView: View {
                 // empty "no entries yet" here would present a recovered-empty journal as real history.
                 if openState == .ok {
                     ContentUnavailableView("No journal entries yet", systemImage: "book.closed",
-                                           description: Text("Tap New journal entry to write something, or ask Siri to save a journal entry in Ate."))
+                                           description: Text("Tap New journal entry to write something, or ask Siri to save a journal entry in Ate.")
+                                            .accessibilityIdentifier("journal.root.empty.description"))
                 }
             } else if filtered.isEmpty {
                 ContentUnavailableView.search(text: query)
@@ -48,6 +49,9 @@ struct JournalListView: View {
                     .accessibilityIdentifier("journal.entry")
             }
         }
+        // The floating tab accessory does not reserve scroll-content clearance on this runtime.
+        // Match Settings/Insights so the final row or empty-state text can scroll above it.
+        .contentMargins(.bottom, isTabRoot ? 96 : 0, for: .scrollContent)
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search journal")
         .navigationTitle("Journal")
         .ateRootNavigationChrome(logoID: "journal.logo", enabled: isTabRoot)

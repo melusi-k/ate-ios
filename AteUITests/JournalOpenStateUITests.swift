@@ -297,4 +297,119 @@ extension JournalOpenStateUITests {
         waitUntilGone(editor)
         XCTAssertTrue(app.tabBars.firstMatch.exists)
     }
+    // MARK: Food Journal timeline (#245 step 4). Fixture states are injected by `-qaJournalTimeline`;
+    // the real-store and open-state tests use no fixture. The meal-type menu is NOT UI-tested here (unit-tested only).
+
+    /// Timeline rows are single combined accessibility elements, so match them by identifier and label.
+    private func row(_ s: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: "journal.timeline.row")
+            .matching(NSPredicate(format: "label CONTAINS %@", s)).firstMatch
+    }
+
+    private func openTimeline() {
+        openJournal()
+        wait(app.buttons["journal.timelineLink"], 10)
+        app.buttons["journal.timelineLink"].tap()
+        wait(app.navigationBars["Food Journal"], 10)
+    }
+
+    func testTimelineFixtureShowsEveryRecordAcrossDays() {
+        launch(extra: ["-qaJournalTimeline", "fixture"])
+        openTimeline()
+        wait(any("journal.timeline.filter"), 10)
+        wait(row("Oat porridge"), 10)
+        wait(row("Meal details unavailable"), 10)   // orphan meal stays visible
+        wait(row("Soup was the best part"), 10)     // legacy reflection stays visible
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "journal.timeline.row").count, 3,
+                       "one row per stored entry, nothing dropped")
+        XCTAssertFalse(any("journal.timeline.empty").exists)
+        XCTAssertFalse(any("journal.timeline.error").exists)
+        shot("jt-01-fixture")
+    }
+
+    func testTimelineFixtureReflectionsFilterHidesMeals() {
+        launch(extra: ["-qaJournalTimeline", "fixture"])
+        openTimeline()
+        wait(any("journal.timeline.filter"), 10)
+        wait(row("Oat porridge"), 10)
+        app.buttons["Reflections"].tap()
+        wait(row("Soup was the best part"), 10)
+        XCTAssertFalse(row("Oat porridge").exists, "the reflections filter hides meals")
+        shot("jt-02-reflections-filter")
+    }
+
+    func testTimelineFixtureSearchWithNoHitsIsNotAnEmptyJournal() {
+        launch(extra: ["-qaJournalTimeline", "fixture"])
+        openTimeline()
+        wait(row("Oat porridge"), 10)
+        let search = app.searchFields.firstMatch
+        wait(search, 10)
+        search.tap()
+        search.typeText("zzzz-no-match")
+        wait(any("journal.timeline.noMatches"), 10)
+        XCTAssertFalse(any("journal.timeline.empty").exists, "no hits is not an empty journal")
+        shot("jt-03-no-matches")
+    }
+
+    func testTimelineReadFailureIsAnErrorNotAnEmptyJournal() {
+        launch(extra: ["-qaJournalTimeline", "failure"])
+        openTimeline()
+        wait(any("journal.timeline.error"), 10)
+        wait(app.buttons["Try again"], 10)
+        XCTAssertFalse(any("journal.timeline.empty").exists, "a read failure must not look like no entries")
+        XCTAssertFalse(text("No journal entries yet").exists)
+        shot("jt-04-read-failure")
+    }
+
+    /// No fixture: the real (in-memory under UI tests) store through FoodJournalStore.timelineItems.
+    func testTimelineRealStoreEmptySaysSo() {
+        launch()
+        openTimeline()
+        wait(any("journal.timeline.empty"), 10)
+        shot("jt-05-real-store-empty")
+    }
+
+    func testTimelineRecoveredOpenStateShowsBannerAndNoEmptyClaim() {
+        launch(extra: ["-qaJournalOpenState", "recovered"])
+        openTimeline()
+        _ = banner()
+        XCTAssertFalse(any("journal.timeline.empty").exists, "a recovered-empty journal must not read as real history")
+        shot("jt-06-recovered-banner")
+    }
+
+    /// Fixture at an accessibility text size: the first row is shown and the filter control stays reachable.
+    func testTimelineFixtureAtLargestTextSizeKeepsRowAndFilterReachable() {
+        launch(extra: ["-qaJournalTimeline", "fixture", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        openTimeline()
+        wait(row("Oat porridge"), 10)
+        XCTAssertTrue(any("journal.timeline.filter").waitForExistence(timeout: 10))
+        XCTAssertTrue(any("journal.timeline.filter").isHittable, "the filter must stay tappable at the largest text size")
+        shot("jt-07-fixture-large-text")
+    }
+
+    /// The last fixture entry must scroll fully clear of the floating search bar at the largest text size.
+    /// Geometry cannot prove readable text under a translucent bar, so jt-08 is captured BEFORE any assertion for
+    /// visual inspection. A missing row, a missing search bar, no clearance after the bounded scroll, or a timeout is
+    /// reported as what it is; none of them is assumed to be an app defect.
+    func testTimelineFixtureAtLargestTextSizeLastRowClearsSearchBar() {
+        launch(extra: ["-qaJournalTimeline", "fixture", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        openTimeline()
+        let nav = app.navigationBars["Food Journal"]   // the same bar openTimeline() waits for
+        let searchBar = app.searchFields.firstMatch    // the same query the existing search test uses
+        let last = row("Soup was the best part")
+        _ = searchBar.waitForExistence(timeout: 10)    // non-asserting; existence is asserted after the screenshot
+        // The last row is lazily realized, so it is not waited for before scrolling: the bounded loop brings it in.
+        func clear() -> Bool {
+            last.exists && last.isHittable && nav.exists && searchBar.exists
+                && last.frame.minY >= nav.frame.maxY && last.frame.maxY <= searchBar.frame.minY
+        }
+        var swipes = 0
+        while !clear() && swipes < 6 { app.swipeUp(); swipes += 1 }
+        shot("jt-08-fixture-large-text-last-row")
+        XCTAssertTrue(nav.exists, "the Food Journal navigation bar must exist (swipes: \(swipes))")
+        XCTAssertTrue(searchBar.exists, "the search field must exist (swipes: \(swipes))")
+        XCTAssertTrue(last.exists, "the last row was never realized after \(swipes) swipes")
+        XCTAssertTrue(clear(),
+                      "the last row must lie between the navigation bar and the search bar (swipes: \(swipes), row: \(last.frame), nav: \(nav.frame), bar: \(searchBar.frame), hittable: \(last.isHittable))")
+    }
 }

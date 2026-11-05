@@ -87,7 +87,14 @@ final class CookReflectionUITests: XCTestCase {
     }
 
     func finishAndChooseNote() {
-        app.buttons["cookFinish"].tap()
+        let finish = app.buttons["cookFinish"]
+        wait(finish)
+        let trace = XCTAttachment(string: "Finish frame=\(finish.frame); matches=\(app.buttons.matching(identifier: "cookFinish").count); tabBarVisible=\(app.tabBars.firstMatch.isHittable)")
+        trace.name = "cook-finish-before-tap"
+        trace.lifetime = .keepAlways
+        add(trace)
+        XCTAssertTrue(finish.isHittable, "Finish must be a tappable control in its host safe area")
+        finish.tap()
         wait(app.buttons["cookReflection.write"], 10)
         shot("cook-journal-offer")
         app.buttons["cookReflection.write"].tap()

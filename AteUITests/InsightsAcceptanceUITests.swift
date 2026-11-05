@@ -83,18 +83,40 @@ final class InsightsAcceptanceUITests: XCTestCase {
         tab("Library")
     }
 
+    private func reveal(_ element: XCUIElement) {
+        var swipes = 0
+        while !(element.exists && element.isHittable) && swipes < 6 {
+            app.swipeUp()
+            swipes += 1
+        }
+        wait(element, 15)
+        XCTAssertTrue(element.isHittable, "The insight action must be reachable after \(swipes) swipes.")
+    }
+
+    /// Switching tabs preserves the pushed hub. Return to Journal explicitly instead of
+    /// assuming a second tab selection pops a stack that was not currently selected.
+    private func reopenInsightsFromJournal() {
+        tab("Insights")
+        let title = app.navigationBars["Insights & Cooking History"]
+        wait(title)
+        let back = title.buttons["Journal"]
+        wait(back)
+        back.tap()
+        wait(app.navigationBars["Journal"])
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub)
+        hub.tap()
+        wait(title)
+    }
+
     func testInsightCanBeResolvedAndStaysSuppressedAfterRefresh() {
         launch()
         addAndCompleteRecipe()
 
-        tab("Insights")
-        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
-        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
-        wait(hub)
-        hub.tap()
+        reopenInsightsFromJournal()
 
         let resolve = app.buttons["insights.progress.resolve.weekly-cooking"]
-        wait(resolve, 15)
+        reveal(resolve)
         resolve.tap()
 
         let weeklyAction = app.buttons["insights.progress.action.weekly-cooking"]
@@ -115,14 +137,10 @@ final class InsightsAcceptanceUITests: XCTestCase {
         launch()
         addAndCompleteRecipe()
 
-        tab("Insights")
-        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
-        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
-        wait(hub)
-        hub.tap()
+        reopenInsightsFromJournal()
 
         let action = app.buttons["insights.progress.action.weekly-cooking"]
-        wait(action, 15)
+        reveal(action)
         let evidence = app.staticTexts["insights.progress.evidence.weekly-cooking"]
         wait(evidence, 5)
         XCTAssertTrue(evidence.label.contains("Cooking history"), evidence.label)

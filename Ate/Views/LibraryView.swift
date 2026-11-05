@@ -118,7 +118,7 @@ struct LibraryView: View {
         .navigationTitle(store.filter.collection?.title ?? L10n.libraryTitle)
         .onAppear { store.bottomAddContext = .recipe }
         .ateRootNavigationChrome(logoID: "libraryLogo")
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { libraryMenu } }
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { trailingMenu } }
         .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd, initialMode: addMode, initialPrompt: addPrompt, pushesToSearchStack: searchPlacement == .tabBar, global: searchPlacement != .tabBar))
         .onChange(of: store.pendingSearch) { _, _ in adoptPendingSearch() }
         .onAppear { adoptPendingSearch() }
@@ -350,14 +350,101 @@ struct LibraryView: View {
                 Picker(selection: $store.layout.group) {
                     ForEach(LibraryLayout.GroupBy.allCases) { Label($0.rawValue, systemImage: $0.symbol).tag($0) }
                 } label: { Label("Group by", systemImage: "rectangle.3.group") }
+                .accessibilityIdentifier("groupByMenu")
                 Picker(selection: $store.layout.sort) {
                     ForEach(LibraryLayout.SortBy.allCases) { Text($0.rawValue).tag($0) }
                 } label: { Label("Sort", systemImage: "arrow.up.arrow.down") }
+                .accessibilityIdentifier("sortMenu")
             }
         } label: {
             Label("Browse and arrange", systemImage: "line.3.horizontal.decrease.circle")
         }
         .accessibilityIdentifier("libraryBrowseMenu")
+    }
+
+    /// Placement-dependent trailing menu: the Search tab offers results options; the Library
+    /// surface keeps its browse & arrange menu. The Explore entries stay in the Library menu
+    /// until Journal and Insights have their own entry points.
+    @ViewBuilder private var trailingMenu: some View {
+        if searchPlacement == .tabBar { resultsMenu } else { libraryMenu }
+    }
+
+    /// The Search tab's results options: the existing recipe filters, the existing six sort
+    /// choices, and Reset Filters. Clear Search stays in the search field and the no-results
+    /// empty state, separate from Reset Filters, so resetting filters never silently erases the
+    /// query. No Insights/Journal jump and no Add Recipe item in this menu; the global root
+    /// Add accessory is unchanged and is not part of this increment.
+    private var resultsMenu: some View {
+        @Bindable var store = store
+        return Menu {
+            Section("Filters") {
+                Button { store.filter.favouritesOnly.toggle() } label: {
+                    Label("Favourites", systemImage: store.filter.favouritesOnly ? "checkmark" : "star")
+                }
+                .accessibilityIdentifier("search.filter.favourites")
+                .accessibilityAddTraits(store.filter.favouritesOnly ? .isSelected : [])
+                .accessibilityHint(store.filter.favouritesOnly ? "Removes this filter" : "Filters your library")
+                Menu {
+                    ForEach(RecipeFilter.timeOptions, id: \.self) { m in
+                        Button { store.filter.maxMinutes = store.filter.maxMinutes == m ? nil : m } label: {
+                            Label("\(m) min or less", systemImage: store.filter.maxMinutes == m ? "checkmark" : "clock")
+                        }
+                        .accessibilityAddTraits(store.filter.maxMinutes == m ? .isSelected : [])
+                        .accessibilityHint(store.filter.maxMinutes == m ? "Removes this filter" : "Filters your library")
+                    }
+                } label: { Label("Cook time", systemImage: "clock") }
+                Menu {
+                    ForEach(RecipeOrigin.allCases, id: \.self) { o in
+                        Button {
+                            if store.filter.origins.contains(o) { store.filter.origins.remove(o) } else { store.filter.origins.insert(o) }
+                        } label: {
+                            Label(FilterChips.label(o), systemImage: store.filter.origins.contains(o) ? "checkmark" : FilterChips.symbol(o))
+                        }
+                        .accessibilityAddTraits(store.filter.origins.contains(o) ? .isSelected : [])
+                        .accessibilityHint(store.filter.origins.contains(o) ? "Removes this filter" : "Filters your library")
+                    }
+                } label: { Label("From", systemImage: "tray.full") }
+                Menu {
+                    ForEach(RecipeFilter.Servings.allCases, id: \.self) { sv in
+                        Button {
+                            if store.filter.servings.contains(sv) { store.filter.servings.remove(sv) } else { store.filter.servings.insert(sv) }
+                        } label: {
+                            Label("\(sv.rawValue) servings", systemImage: store.filter.servings.contains(sv) ? "checkmark" : "person.2")
+                        }
+                        .accessibilityAddTraits(store.filter.servings.contains(sv) ? .isSelected : [])
+                        .accessibilityHint(store.filter.servings.contains(sv) ? "Removes this filter" : "Filters your library")
+                    }
+                } label: { Label("Servings", systemImage: "person.2") }
+                let tags = IngredientTags.available(in: store.recipes)
+                if !tags.isEmpty {
+                    Menu {
+                        ForEach(tags, id: \.self) { t in
+                            Button {
+                                if store.filter.tags.contains(t) { store.filter.tags.remove(t) } else { store.filter.tags.insert(t) }
+                            } label: {
+                                Label(t, systemImage: store.filter.tags.contains(t) ? "checkmark" : "leaf")
+                            }
+                            .accessibilityAddTraits(store.filter.tags.contains(t) ? .isSelected : [])
+                            .accessibilityHint(store.filter.tags.contains(t) ? "Removes this filter" : "Filters your library")
+                        }
+                    } label: { Label("Ingredient", systemImage: "leaf") }
+                }
+            }
+            Section("Sort") {
+                Picker(selection: $store.layout.sort) {
+                    ForEach(LibraryLayout.SortBy.allCases) { Text($0.rawValue).tag($0) }
+                } label: { Label("Sort", systemImage: "arrow.up.arrow.down") }
+                .accessibilityIdentifier("sortMenu")
+            }
+            Section {
+                Button { store.filter.clear() } label: { Label("Reset Filters", systemImage: "arrow.uturn.backward") }
+                    .disabled(!store.filter.isActive)
+                    .accessibilityIdentifier("search.resetFilters")
+            }
+        } label: {
+            Label("Results options", systemImage: "ellipsis.circle")
+        }
+        .accessibilityIdentifier("searchResultsMenu")
     }
 
     private func selectCollection(_ c: RecipeCollection) {

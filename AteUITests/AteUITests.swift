@@ -68,6 +68,15 @@ final class AteUITests: XCTestCase {
         }
     }
 
+    /// List-level shopping actions live behind the top-bar "Shopping list options" menu. A menu
+    /// can stay open after toggling an item, so only open it when its content is not already showing.
+    func openShoppingOptions() {
+        if !app.buttons["toggle.Group by aisle"].waitForExistence(timeout: 1) {
+            app.buttons["shoppingOptionsMenu"].tap()
+            _ = app.buttons["toggle.Group by aisle"].waitForExistence(timeout: 3)
+        }
+    }
+
     /// Opens Add sheet, picks a tab, generates via mock and saves; ends on Recipe detail.
     func addRecipe(tab: String, input: ((XCUIApplication) -> Void)?, shotPrefix: String) {
         app.buttons["Add recipe"].tap()
@@ -264,38 +273,65 @@ final class AteUITests: XCTestCase {
         wait(text("5 to buy"))
         let field = app.textFields["shoppingAddField"]
         field.tap(); field.typeText("Lemons")
-        app.buttons["Add item"].tap()
+        app.buttons["shoppingAddSubmit"].tap()
         wait(text("6 to buy"))
         wait(app.staticTexts["aisle.Produce"], 3)
         XCTAssertTrue(app.staticTexts["aisle.Pantry"].exists)
         XCTAssertTrue(app.staticTexts["aisle.Meat & Fish"].exists)
         shot("shopping-by-aisle")
+        openShoppingOptions()
+        wait(app.buttons["Clear all items"], 3)
+        XCTAssertFalse(app.buttons["Clear bought items"].isEnabled, "nothing bought yet: Clear bought items is disabled")
+        XCTAssertTrue(app.buttons["Clear all items"].isEnabled, "items on the list: Clear all items is enabled")
+        shot("shopping-options-disabled")
+        // iOS 26+ removes the toolbar anchor from the accessibility tree while its own
+        // menu is presented (run 41865135962 failure evidence), so re-tapping the anchor
+        // to dismiss can never match. Dismiss via the inert screen title instead and
+        // prove the menu is gone before scrolling the list.
+        app.staticTexts["Shopping list"].tap()
+        XCTAssertTrue(app.buttons["Clear all items"].waitForNonExistence(timeout: 5), "options menu must dismiss before the list scrolls")
         let honey = app.buttons["Mark honey as bought"]
         var n = 0
         while !honey.isHittable && n < 4 { app.swipeUp(velocity: .slow); n += 1 }
         honey.tap()
         wait(text("1 in the basket"))
         shot("shopping-ticked")
-        tapSwitch("toggle.Group by aisle")
+        openShoppingOptions()
+        shot("shopping-options-menu")
+        app.buttons["toggle.Group by aisle"].tap()
         XCTAssertTrue(app.staticTexts["aisle.Produce"].waitForNonExistence(timeout: 3))
-        tapSwitch("toggle.Group by aisle")
-        app.buttons["Copy text"].tap()
+        openShoppingOptions()
+        app.buttons["toggle.Group by aisle"].tap()
+        XCTAssertTrue(app.staticTexts["aisle.Produce"].waitForExistence(timeout: 3))
+        openShoppingOptions()
+        app.buttons["Copy Text"].tap()
         wait(text("Copied as text"), 5)
-        app.swipeUp()
+        openShoppingOptions()
         shot("shopping-export")
-        app.buttons["Share / copy"].tap()
+        app.buttons["Share List"].tap()
         sleep(2)
         shot("shopping-share-sheet")
         if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
         sleep(1)
-        let clear = app.buttons["Clear ticked"].firstMatch
-        scrollTo(clear)
-        if clear.isHittable { clear.tap() } else { clear.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap() }
-        wait(text("5 to buy"))
-        app.buttons["Clear all"].tap()
-        wait(app.buttons["Clear all items"], 3)
+        openShoppingOptions()
+        app.buttons["Clear bought items"].tap()
+        wait(app.buttons["Cancel"], 3)
+        shot("shopping-clear-bought-cancel")
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(text("1 in the basket").exists)
+        openShoppingOptions()
+        app.buttons["Clear bought items"].tap()
+        wait(app.buttons["Cancel"], 3)
+        shot("shopping-clear-bought-confirm")
+        app.buttons["Clear bought items"].tap()
+        wait(text("5 to buy"), 5)
+        openShoppingOptions()
+        app.buttons["Clear all items"].tap()
+        wait(app.buttons["Cancel"], 3)
+        shot("shopping-clear-all-confirm")
         app.buttons["Clear all items"].tap()
         wait(text("Nothing on the list"))
+        shot("shopping-after-clear-all")
     }
 
     func test08_Settings() {
@@ -838,13 +874,21 @@ final class AteUITests: XCTestCase {
     }
 
     func pick(_ menu: String, _ option: String) {
-        // Group and Sort live inside one icon-only "Group & sort" toolbar menu.
-        if !app.buttons[menu].exists { app.buttons["groupSortMenu"].firstMatch.tap() }
-        var m = app.buttons[menu].firstMatch
-        if !m.waitForExistence(timeout: 2) { m = app.buttons[menu == "sortMenu" ? "Sort" : "Group by"].firstMatch }
-        wait(m, 3); m.tap()
-        let b = app.buttons[option].firstMatch
-        wait(b, 3); b.tap()
+        // iOS 27 realizes these Pickers inline in the native Browse popup.
+        XCTAssertTrue(menu == "sortMenu" || menu == "groupByMenu", "Unknown picker contract")
+        app.buttons["libraryBrowseMenu"].firstMatch.tap()
+        let popups = app.collectionViews.containing(NSPredicate(format: "label == %@", option))
+        wait(popups.firstMatch, 3)
+        XCTAssertEqual(popups.count, 1, "Browse popup must be unique")
+        var choices = popups.firstMatch.descendants(matching: .button)
+            .matching(NSPredicate(format: "label == %@", option))
+        if menu == "groupByMenu" && option == "Recently added" {
+            // Actual hierarchy: calendar is Group by; the collection uses a clock-arrow icon.
+            choices = choices.containing(.image, identifier: "calendar")
+        }
+        wait(choices.firstMatch, 3)
+        XCTAssertEqual(choices.count, 1, "Picker option must be unique in the native popup")
+        choices.firstMatch.tap()
     }
 
     /// C-TAB-01…04: iOS 26 tab chrome — bottom accessory Add, search tab, title visible while searching.
@@ -1160,5 +1204,52 @@ final class AteUITests: XCTestCase {
         XCTAssertEqual(field.value as? String, "zzz", "saving from Search keeps the Search tab and its query")
         wait(app.staticTexts["library.searchResults"])
         XCTAssertTrue(text("Zzz").exists, "the new recipe now matches the preserved query")
+    }
+
+    /// The Search tab's results menu carries the existing filters, sort and reset. Reset Filters
+    /// clears only the filters: the query and its results stay. (Menu cleanup increment B.)
+    func testSearchResultsOptionsMenu() throws {
+        guard #available(iOS 26, *) else {
+            throw XCTSkip("The Search tab and its results menu exist only on iOS 26 and later")
+        }
+        launch()
+        addPromptRecipe()
+        tab("Library")
+        app.tabBars.buttons["Search"].firstMatch.tap()
+        let field = app.searchFields.firstMatch
+        wait(field, 5)
+        field.tap()
+        field.typeText("miso")
+        wait(app.staticTexts["library.searchResults"])
+        app.buttons["searchResultsMenu"].tap()
+        // Menu identifiers are absent in the captured native hierarchy; background chips
+        // have the same label, so scope to the popup's own Filters section.
+        let resultsPopups = app.collectionViews.containing(NSPredicate(format: "label == %@", "Filters"))
+        wait(resultsPopups.firstMatch, 3)
+        XCTAssertEqual(resultsPopups.count, 1, "Results popup must be unique")
+        let favourites = resultsPopups.firstMatch.descendants(matching: .button)
+            .matching(NSPredicate(format: "label == %@", "Favourites")).firstMatch
+        wait(favourites, 3)
+        XCTAssertFalse(favourites.isSelected, "no filter is selected before choosing one")
+        shot("search-results-menu")
+        favourites.tap()
+        wait(text("No matches"))
+        XCTAssertTrue(app.buttons["library.empty.clearFilters"].exists, "filter-driven empty state keeps its remove-filters route")
+        app.buttons["searchResultsMenu"].tap()
+        XCTAssertTrue(favourites.isSelected, "the active filter reports its selected state")
+        shot("search-results-menu-selected")
+        // Anchor on the target itself so native scrolling cannot discard a section header.
+        let resetPopups = app.collectionViews.containing(NSPredicate(format: "label == %@", "Reset Filters"))
+        wait(resetPopups.firstMatch, 3)
+        XCTAssertEqual(resetPopups.count, 1, "Reset Filters popup must be unique")
+        let reset = resetPopups.firstMatch.descendants(matching: .button)
+            .matching(NSPredicate(format: "label == %@", "Reset Filters")).firstMatch
+        wait(reset, 3)
+        XCTAssertTrue(reset.isEnabled, "Reset Filters is available while a filter is active")
+        reset.tap()
+        wait(app.staticTexts["library.searchResults"])
+        XCTAssertEqual(field.value as? String, "miso", "Reset Filters clears filters, not the search query")
+        XCTAssertTrue(app.buttons["listCard"].firstMatch.exists, "the unfiltered result returns")
+        shot("search-results-menu-reset")
     }
 }

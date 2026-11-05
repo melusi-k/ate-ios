@@ -72,7 +72,11 @@ final class JournalOpenStateUITests: XCTestCase {
         app.tabBars.buttons["Library"].tap()
         wait(app.buttons["libraryBrowseMenu"], 10)
         app.buttons["libraryBrowseMenu"].tap()
-        let menu = app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch
+        // Collections scrolls out of the realized hierarchy during the native item tap.
+        let menus = app.collectionViews.containing(NSPredicate(format: "label == %@", "Journal"))
+        wait(menus.firstMatch, 10)
+        XCTAssertEqual(menus.count, 1, "Journal menu must be unique")
+        let menu = menus.firstMatch
         let item = menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", "Journal")).firstMatch
         wait(item, 10)
         item.tap()

@@ -33,7 +33,17 @@ final class CoverageUITests: XCTestCase {
     /// and a Group by option (icon calendar), and the SF-symbol image identifiers still surface inside
     /// each button in the observed hierarchy.
     func browseMenuItem(_ label: String, icon: String? = nil) -> XCUIElement {
-        var q = browseMenu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", label))
+        let menu: XCUIElement
+        if label == "Journal" || label == "Insights & journal" {
+            // Target anchoring survives the native popup scrolling Collections away.
+            let menus = app.collectionViews.containing(NSPredicate(format: "label == %@", label))
+            wait(menus.firstMatch)
+            XCTAssertEqual(menus.count, 1, "Explore menu must be unique")
+            menu = menus.firstMatch
+        } else {
+            menu = browseMenu
+        }
+        var q = menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", label))
         if let icon = icon { q = q.containing(.image, identifier: icon) }
         return q.firstMatch
     }

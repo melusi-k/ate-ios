@@ -422,6 +422,7 @@ final class NutritionDiaryUITests: XCTestCase {
         app.launch()
         openDiary(app)
         openLogForm(app)
+        captureNutritionState(app, name: "nutrition-add-entry")
         let foodName = app.textFields["nutritionDiary.foodName"]
         foodName.tap()
         foodName.typeText("My lunch")
@@ -431,12 +432,14 @@ final class NutritionDiaryUITests: XCTestCase {
 
         let row = diaryRows(app, containing: "My lunch").firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
+        captureNutritionState(app, name: "nutrition-diary-list")
         row.swipeLeft()
         app.buttons["Edit"].tap()
         // Edit mode: seeded values, Edit title.
         XCTAssertTrue(app.navigationBars["Edit food"].waitForExistence(timeout: 5))
         let quantity = app.textFields["nutritionDiary.quantity"]
         XCTAssertTrue(quantity.waitForExistence(timeout: 5))
+        captureNutritionState(app, name: "nutrition-edit-entry")
         quantity.tap()
         if let existing = quantity.value as? String {
             quantity.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
@@ -486,6 +489,16 @@ final class NutritionDiaryUITests: XCTestCase {
         }
         XCTAssertTrue(weeklyEnergy.waitForExistence(timeout: 5), "This week section should list an energy total")
         XCTAssertEqual(weeklyEnergy.label, "200 kcal")
+        captureNutritionState(app, name: "nutrition-weekly-totals")
         XCTAssertFalse(app.staticTexts["Nothing logged this week yet."].exists)
     }
+
+    /// Retain real passing-run evidence for the repaired diary journeys.
+    private func captureNutritionState(_ app: XCUIApplication, name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
 }

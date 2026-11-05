@@ -1,6 +1,12 @@
 import XCTest
 
 final class CookingTrackerEntryUITests: XCTestCase {
+    private func shot(_ name: String) {
+        let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        a.name = name
+        a.lifetime = .keepAlways
+        add(a)
+    }
     private func launchTracker() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
@@ -8,13 +14,17 @@ final class CookingTrackerEntryUITests: XCTestCase {
         let insightsTab = app.tabBars.buttons["Insights"]
         XCTAssertTrue(insightsTab.waitForExistence(timeout: 10), "Insights should be a first-class tab")
         insightsTab.tap()
+        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 10), "Insights tab root is the Journal")
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        XCTAssertTrue(hub.waitForExistence(timeout: 10))
+        hub.tap()
         XCTAssertTrue(app.descendants(matching: .any)["cookingTracker.screen"].waitForExistence(timeout: 10))
         return app
     }
 
     func testInsightsHasDedicatedTabEntryPoint() {
         let app = launchTracker()
-        XCTAssertTrue(app.navigationBars["Insights"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Insights & Cooking History"].waitForExistence(timeout: 5))
     }
 
     func testLibraryShortcutOpensInsightsHubRoot() {
@@ -24,7 +34,8 @@ final class CookingTrackerEntryUITests: XCTestCase {
         let shortcut = app.buttons["library.todayJournalHub"]
         XCTAssertTrue(shortcut.waitForExistence(timeout: 10), "Library should expose the Insights shortcut")
         shortcut.tap()
-        XCTAssertTrue(app.navigationBars["Insights"].waitForExistence(timeout: 10))
+        // The shortcut opens the Insights & Cooking History hub directly above the Journal root.
+        XCTAssertTrue(app.navigationBars["Insights & Cooking History"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["tracker.previousMonth"].exists)
     }
 
@@ -32,6 +43,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
         let app = launchTracker()
         let month = app.staticTexts["tracker.displayedMonth"]
         XCTAssertTrue(month.waitForExistence(timeout: 5))
+        shot("tracker-month-view")
         let currentMonth = month.label
 
         let previous = app.buttons["tracker.previousMonth"]
@@ -68,5 +80,6 @@ final class CookingTrackerEntryUITests: XCTestCase {
 
         XCTAssertTrue(app.navigationBars["Cooked that day"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Nothing recorded for this day."].waitForExistence(timeout: 5))
+        shot("tracker-day-details")
     }
 }

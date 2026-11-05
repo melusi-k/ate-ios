@@ -8,6 +8,7 @@ struct AteApp: App {
     @State private var store: AppStore
 
     init() {
+        SentryBootstrap.start()
         TabBarStyle.apply()
         if AppConfig.isUITesting {
             for k in ["ate.settings.v1", "ate.timerprefs.v1", "ate.cookSession.v1"] { UserDefaults.standard.removeObject(forKey: k) }
@@ -99,6 +100,10 @@ extension View {
     func ateRootNavigationChrome(logoID: String) -> some View {
         modifier(AteRootNavigationChrome(logoID: logoID))
     }
+    /// Pushed destinations (enabled == false) keep their native inline title and Back button.
+    @ViewBuilder func ateRootNavigationChrome(logoID: String, enabled: Bool) -> some View {
+        if enabled { modifier(AteRootNavigationChrome(logoID: logoID)) } else { navigationBarTitleDisplayMode(.inline) }
+    }
 }
 
 /// Offline strip applied to each screen INSIDE its NavigationStack, so it takes real layout space below the
@@ -129,6 +134,7 @@ struct RootView: View {
                 if #available(iOS 26, *) { tabs26 } else { tabs }   // portrait iPhone: bottom tab bar; iPad: adaptable sidebar
             }
         }
+        .modifier(JournalTaskHost())
         .onChange(of: vSize) { _, v in
             // Collections are sidebar-only; back in portrait keep the filter but show the Library tab.
             if v != .compact, case .collection = store.tab { store.tab = .library }
@@ -237,29 +243,31 @@ struct AteBottomAccessory: View {
     @Environment(AppStore.self) private var store
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
     var body: some View {
+        let context = store.activeAddContext
+        let title = context?.title ?? ""
         let compact = placement == .inline
         HStack(spacing: 8) {
             if let session = store.cookSession {
                 CookSessionMiniPlayer(session: session)
-                Button { add() } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
-                    .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")
+                if let context { Button { add(context) } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
+                    .accessibilityLabel(title).accessibilityIdentifier("accessoryAdd") }
             } else if !store.timers.timers.isEmpty {
                 TimerBar().padding(.bottom, -4).padding(.horizontal, -12)
-                Button { add() } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
-                    .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")
-            } else {
-                Button { add() } label: {
-                    Label(compact ? "Add" : store.bottomAddContext.title, systemImage: "plus").font(AteFont.body(15, .semibold))
+                if let context { Button { add(context) } label: { Image(systemName: "plus").font(.body.weight(.semibold)).frame(width: 44, height: 44) }
+                    .accessibilityLabel(title).accessibilityIdentifier("accessoryAdd") }
+            } else if let context {
+                Button { add(context) } label: {
+                    Label(compact ? "Add" : title, systemImage: "plus").font(AteFont.body(15, .semibold))
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .accessibilityLabel(store.bottomAddContext.title).accessibilityIdentifier("accessoryAdd")
+                .accessibilityLabel(title).accessibilityIdentifier("accessoryAdd")
             }
         }
         .padding(.horizontal, compact ? 4 : 12)
         .accessibilityElement(children: .contain).accessibilityIdentifier("bottomAccessory")
     }
-    private func add() {
-        switch store.bottomAddContext {
+    private func add(_ context: BottomAddContext) {
+        switch context {
         case .recipe:
             if store.tab != .library { store.select(.library) }
             store.quickAdd = QuickAddRequest(mode: .link)
@@ -267,6 +275,8 @@ struct AteBottomAccessory: View {
             store.showNutritionDiaryEntry = true
         case .shopping:
             store.requestShoppingAdd = true
+        case .journal:
+            store.beginManualJournal()
         }
     }
 }
@@ -276,7 +286,7 @@ extension RootView {
     @available(iOS 26, *)
     @ViewBuilder var tabs26: some View {
         @Bindable var store = store
-        TabView(selection: tabSelection) {
+        let base = TabView(selection: tabSelection) {
             Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
                 NavigationStack(path: $store.path) {
                     LibraryView(searchPlacement: .none).offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
@@ -307,14 +317,25 @@ extension RootView {
         .onChange(of: store.tab) { _, selectedTab in
             // Food diary is a pushed screen rather than a root tab. Root destinations only
             // use Shopping's add context; all other tabs return to the recipe action.
-            store.bottomAddContext = selectedTab == .shopping ? .shopping : .recipe
+            store.bottomAddContext = store.rootAddContext ?? .recipe
         }
         .tabViewStyle(.tabBarOnly)
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory {
-            // Pushed screens reserve their own timer-bar inset. Keeping the accessory
-            // at tab roots avoids a second timer bar beneath RecipeDetailView's Cook mode.
-            if store.cookTarget == nil && store.isAtTabRoot { AteBottomAccessory() }
+        // Show the accessory only where it carries a real action or live status.
+        // iOS 26.0 renders the capsule even for empty accessory content; iOS 26.1 adds
+        // isEnabled (Bool), which removes the capsule entirely. 26.0 keeps old behavior.
+        let showBottomAccessory = store.cookTarget == nil && store.isAtTabRoot
+            && (store.activeAddContext != nil || store.cookSession != nil || !store.timers.timers.isEmpty)
+        if #available(iOS 26.1, *) {
+            base.tabViewBottomAccessory(isEnabled: showBottomAccessory) {
+                // Pushed screens reserve their own timer-bar inset. Keeping the accessory
+                // at tab roots avoids a second timer bar beneath RecipeDetailView's Cook mode.
+                AteBottomAccessory()
+            }
+        } else {
+            base.tabViewBottomAccessory {
+                if showBottomAccessory { AteBottomAccessory() }
+            }
         }
     }
 
@@ -377,7 +398,7 @@ struct RouteView: View {
             case .settings: SettingsView()
             case .shared(let slug): SharedRecipeView(slug: slug)
             case .notFound: NotFoundView()
-            case .insights: InsightsView()
+            case .insights: InsightsView(screenTitle: "Insights & Cooking History", isRoot: false).accessibilityIdentifier("cookingTracker.screen")
             case .beta: AppConfig.isBetaBuild ? AnyView(BetaTestingView()) : AnyView(SettingsView())
             case .betaNote: AppConfig.isBetaBuild ? AnyView(BetaExpectationsView()) : AnyView(SettingsView())
             case .journal: JournalListView()

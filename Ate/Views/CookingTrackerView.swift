@@ -4,6 +4,19 @@ struct CookingTrackerView: View {
     @Environment(AppStore.self) private var store
     @State private var history = CookingHistory.shared
     @State private var selectedDate: Date?
+    /// Recipe chosen in the day sheet. The day sheet is dismissed first and the recipe sheet is
+    /// presented from its onDismiss, so only one sheet is ever up: RecipeSheet's Cook mode
+    /// handoff to the root full-screen cover then works exactly as it does from Insights.
+    @State private var pendingRecipeID: String?
+    @State private var openRecipe: RecipeSheetTarget?
+    /// The day the recipe was opened from. Done or a swipe-down returns to that day's sheet;
+    /// leaving for Cook mode or another route (RecipeSheet reports it) does not reopen it.
+    @State private var returnDate: Date?
+    @State private var leftRecipeForElsewhere = false
+    private func invalidateDayReturn() {
+        returnDate = nil
+        pendingRecipeID = nil
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
@@ -26,9 +39,35 @@ struct CookingTrackerView: View {
             }
         }
         .cardSurface(padding: 16)
-        .sheet(item: Binding(get: { selectedDate.map { TrackerDate(date: $0) } }, set: { selectedDate = $0?.date })) { item in
-            CookingDaySheet(date: item.date, recipeIDs: history.recipeIDs(on: item.date), recipes: store.recipes)
-                .presentationDetents([.medium])
+        .sheet(item: Binding(get: { selectedDate.map { TrackerDate(date: $0) } }, set: { selectedDate = $0?.date }),
+               onDismiss: {
+                   guard let id = pendingRecipeID else { return }
+                   pendingRecipeID = nil
+                   openRecipe = RecipeSheetTarget(id: id)
+               }) { item in
+            CookingDaySheet(date: item.date, recipeIDs: history.recipeIDs(on: item.date), recipes: store.recipes) { id in
+                pendingRecipeID = id
+                returnDate = item.date
+                selectedDate = nil
+            }
+            .presentationDetents([.medium])
+        }
+        // Leaving the tracker context (tab, pushed route, or the host going away) cancels any
+        // pending return to the day sheet, so a later dismissal never requeues an old day.
+        .onChange(of: store.tab) { _, _ in invalidateDayReturn() }
+        .onChange(of: store.path) { _, _ in invalidateDayReturn() }
+        .onChange(of: store.trackerPath) { _, _ in invalidateDayReturn() }
+        .onDisappear { invalidateDayReturn() }
+        .sheet(item: $openRecipe, onDismiss: {
+            let leaving = leftRecipeForElsewhere
+            leftRecipeForElsewhere = false
+            let day = returnDate
+            returnDate = nil
+            if !leaving, let day { selectedDate = day }
+        }) { t in
+            RecipeSheet(recipeID: t.id, recordsHealthSuggestionEvidence: false,
+                        onLeaveForElsewhere: { leftRecipeForElsewhere = true })
+                .environment(store)
         }
     }
 }
@@ -38,6 +77,11 @@ private struct TrackerDate: Identifiable { let date: Date; var id: Date { date }
 enum CookingTrackerPresentation {
     static func recipeTitle(for id: String, recipes: [RecipeCard]) -> String {
         recipes.first(where: { $0.id == id })?.title ?? "Recipe no longer in your library"
+    }
+    /// Only recipes still in the library can be opened; a deleted recipe keeps the plain,
+    /// non-tappable fallback row (its cooking history is never touched).
+    static func isInLibrary(_ id: String, recipes: [RecipeCard]) -> Bool {
+        recipes.contains(where: { $0.id == id })
     }
 }
 
@@ -170,14 +214,30 @@ private struct CookingDaySheet: View {
     let date: Date
     let recipeIDs: Set<String>
     let recipes: [RecipeCard]
+    let openRecipe: (String) -> Void
     var body: some View {
         NavigationStack {
             List {
                 Section(date.formatted(date: .complete, time: .omitted)) {
                     if recipeIDs.isEmpty { Text("Nothing recorded for this day.").foregroundStyle(.secondary) }
                     ForEach(Array(recipeIDs).sorted(), id: \.self) { id in
-                        Label(CookingTrackerPresentation.recipeTitle(for: id, recipes: recipes), systemImage: "fork.knife")
+                        let title = CookingTrackerPresentation.recipeTitle(for: id, recipes: recipes)
+                        if CookingTrackerPresentation.isInLibrary(id, recipes: recipes) {
+                            Button { openRecipe(id) } label: {
+                                HStack {
+                                    Label(title, systemImage: "fork.knife")
+                                    Spacer()
+                                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .accessibilityLabel(title)
+                            .accessibilityHint("Opens the recipe")
                             .accessibilityIdentifier("tracker.recipe." + id)
+                        } else {
+                            Label(title, systemImage: "fork.knife")
+                                .accessibilityIdentifier("tracker.recipe." + id)
+                        }
                     }
                 }
             }.navigationTitle("Cooked that day").navigationBarTitleDisplayMode(.inline)
@@ -186,10 +246,10 @@ private struct CookingDaySheet: View {
 }
 
 
-/// Insights tab hub: cooking history, Health insights, and the local Ate journal in one scroll view.
+/// Insights tab root: the Journal, with one named route to Insights & Cooking History (calendar, Health
+/// insights and the journal card keep their existing behaviour there).
 struct CookingTrackerScreen: View {
     var body: some View {
-        InsightsView(screenTitle: "Insights")
-            .accessibilityIdentifier("cookingTracker.screen")
+        JournalListView(isTabRoot: true)
     }
 }

@@ -37,6 +37,12 @@ final class JournalOpenStateUITests: XCTestCase {
                       file: file, line: line)
     }
 
+    private func waitUntilGone(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: element)
+        XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 10), .completed,
+                       "Still presented: \(element)", file: file, line: line)
+    }
+
     private func any(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch
     }
@@ -72,9 +78,18 @@ final class JournalOpenStateUITests: XCTestCase {
         app.tabBars.buttons["Library"].tap()
         wait(app.buttons["libraryBrowseMenu"], 10)
         app.buttons["libraryBrowseMenu"].tap()
-        let menu = app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch
+        // Collections scrolls out of the realized hierarchy during the native item tap.
+        let menus = app.collectionViews.containing(NSPredicate(format: "label == %@", "Journal"))
+        wait(menus.firstMatch, 10)
+        XCTAssertEqual(menus.count, 1, "Journal menu must be unique")
+        let menu = menus.firstMatch
         let item = menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", "Journal")).firstMatch
+        for _ in 0..<8 {
+            if item.exists && item.isHittable { break }
+            menu.swipeUp()
+        }
         wait(item, 10)
+        XCTAssertTrue(item.isHittable)
         item.tap()
         wait(app.navigationBars["Journal"], 10)
     }
@@ -135,5 +150,164 @@ final class JournalOpenStateUITests: XCTestCase {
                        "a clean open must not show a recovery banner")
         wait(text("No journal entries yet"), 10)
         shot("jos-04-healthy")
+    }
+}
+
+// Manual creation regression: the actual history sheet and Insights routes must both expose writing.
+// Generic fixtures only. Never copy private journal text into tests or retained screenshots.
+extension JournalOpenStateUITests {
+    private func composeFromHistory(extra: [String] = []) {
+        launch(extra: ["-qaMockHealth", "empty"] + extra)
+        openJournal()
+        wait(app.buttons["journal.newEntry"])
+        shot("manual-01-history-create-action")
+        app.buttons["journal.newEntry"].tap()
+        wait(app.textViews["journal.compose.text"])
+    }
+
+    func testManualCreateWithoutHealthThenReadDetailAndPreserveExistingEditActions() {
+        composeFromHistory()
+        XCTAssertFalse(app.buttons["journal.compose.save"].isEnabled)
+        let editor = app.textViews["journal.compose.text"]
+        editor.tap(); editor.typeText("Generic lentil supper reflection")
+        app.buttons["journal.compose.save"].tap()
+        wait(app.navigationBars["Journal"])
+        let row = any("journal.entry")
+        wait(row)
+        XCTAssertTrue(row.label.contains("Generic lentil supper reflection"))
+        XCTAssertFalse(row.label.contains("Balanced day"))
+        shot("manual-02-saved-history")
+        row.tap()
+        wait(any("journal.detail.text"))
+        XCTAssertTrue(any("journal.detail.text").label.contains("Generic lentil supper reflection"))
+        XCTAssertFalse(app.staticTexts["Balanced day"].exists)
+        app.buttons["journal.detail.menu"].tap()
+        wait(app.buttons["Edit"])
+        XCTAssertTrue(app.buttons["Delete"].exists)
+        shot("manual-03-detail-actions")
+    }
+
+    func testManualCancelKeepsDraftUntilExplicitDiscard() {
+        composeFromHistory()
+        let editor = app.textViews["journal.compose.text"]
+        editor.tap(); editor.typeText("Generic unsaved draft")
+        app.buttons["journal.compose.cancel"].tap()
+        let discard = app.alerts["Discard this draft?"]
+        wait(discard)
+        XCTAssertTrue(discard.buttons["Keep writing"].isHittable)
+        XCTAssertTrue(discard.buttons["Discard draft"].isHittable)
+        shot("manual-04-discard-choice")
+        discard.buttons["Keep writing"].tap()
+        XCTAssertEqual(editor.value as? String, "Generic unsaved draft")
+        wait(app.keyboards.firstMatch)
+        shot("manual-04-kept-draft")
+        app.buttons["journal.compose.cancel"].tap()
+        wait(discard)
+        discard.buttons["Discard draft"].tap()
+        wait(app.navigationBars["Journal"])
+        waitUntilGone(app.textViews["journal.compose.text"])
+        XCTAssertFalse(any("journal.entry").exists)
+        shot("manual-04-discarded-history")
+    }
+
+    private func verifyFailedSaveIsVisible(extra: [String] = [], landscape: Bool = false,
+                                          captureName: String) {
+        composeFromHistory(extra: ["-qaJournalOpenState", "unavailable"] + extra)
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let editor = app.textViews["journal.compose.text"]
+        editor.tap(); editor.typeText("Generic retained failure draft")
+        wait(app.keyboards.firstMatch)
+        if landscape {
+            XCUIDevice.shared.orientation = .landscapeLeft
+            wait(editor)
+            XCTAssertEqual(editor.value as? String, "Generic retained failure draft")
+            shot("\(captureName)-rotated-draft")
+        }
+        shot("\(captureName)-keyboard-before-save")
+        app.buttons["journal.compose.save"].tap()
+        let failure = app.alerts["Journal entry not saved"]
+        wait(failure)
+        XCTAssertTrue(failure.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "cannot save")).firstMatch.exists)
+        XCTAssertTrue(failure.buttons["Continue writing"].isHittable)
+        shot("\(captureName)-failure-alert")
+        failure.buttons["Continue writing"].tap()
+        XCTAssertEqual(editor.value as? String, "Generic retained failure draft")
+        wait(app.keyboards.firstMatch)
+        wait(any("journal.compose.error"))
+        shot("\(captureName)-keyboard-retained-draft")
+        // A second explicit save must present the error again without losing or duplicating the draft.
+        app.buttons["journal.compose.save"].tap()
+        wait(failure)
+        failure.buttons["Continue writing"].tap()
+        XCTAssertEqual(editor.value as? String, "Generic retained failure draft")
+        if landscape {
+            XCUIDevice.shared.orientation = .portrait
+            wait(editor)
+            XCTAssertEqual(editor.value as? String, "Generic retained failure draft")
+            shot("\(captureName)-returned-portrait-draft")
+        }
+        // Both native alerts must coexist without swallowing the explicit cancellation choices.
+        app.buttons["journal.compose.cancel"].tap()
+        let discard = app.alerts["Discard this draft?"]
+        wait(discard)
+        XCTAssertTrue(discard.buttons["Keep writing"].isHittable)
+        XCTAssertTrue(discard.buttons["Discard draft"].isHittable)
+        shot("\(captureName)-cancel-after-failure")
+        discard.buttons["Keep writing"].tap()
+        XCTAssertEqual(editor.value as? String, "Generic retained failure draft")
+        app.buttons["journal.compose.cancel"].tap()
+        wait(discard)
+        discard.buttons["Discard draft"].tap()
+        waitUntilGone(editor)
+        wait(app.navigationBars["Journal"])
+        XCTAssertFalse(any("journal.entry").exists)
+    }
+
+    func testManualSaveUnavailableRetainsDraftAndShowsError() {
+        verifyFailedSaveIsVisible(captureName: "manual-05-unavailable")
+    }
+
+    func testManualSaveFailureVisibleInCompactLandscape() {
+        verifyFailedSaveIsVisible(landscape: true, captureName: "manual-07-compact")
+    }
+
+    func testManualSaveFailureVisibleAtXXXL() {
+        verifyFailedSaveIsVisible(extra: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryXXXL"],
+                                 captureName: "manual-08-xxxl")
+    }
+
+    func testManualActionFromInsightsDoesNotRequireHealth() {
+        launch(extra: ["-qaMockHealth", "empty"])
+        wait(app.tabBars.firstMatch, 15)
+        app.tabBars.buttons["Insights"].tap()
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub); hub.tap()
+        let action = app.buttons["insights.newJournalEntry"]
+        for _ in 0..<12 {
+            if action.exists && action.isHittable { break }
+            app.swipeUp()
+        }
+        wait(action)
+        XCTAssertTrue(action.isHittable)
+        action.tap()
+        wait(app.textViews["journal.compose.text"])
+        shot("manual-06-insights-no-health")
+        XCTAssertFalse(app.alerts.firstMatch.exists, "Writing must not ask for Health permission")
+        let editor = app.textViews["journal.compose.text"]
+        editor.tap(); editor.typeText("Generic Insights rotation draft")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        wait(editor)
+        XCTAssertEqual(editor.value as? String, "Generic Insights rotation draft")
+        shot("manual-06-insights-landscape-draft")
+        XCUIDevice.shared.orientation = .portrait
+        wait(editor)
+        XCTAssertEqual(editor.value as? String, "Generic Insights rotation draft")
+        shot("manual-06-insights-portrait-draft")
+        app.buttons["journal.compose.cancel"].tap()
+        let discard = app.alerts["Discard this draft?"]
+        wait(discard)
+        discard.buttons["Discard draft"].tap()
+        waitUntilGone(editor)
+        XCTAssertTrue(app.tabBars.firstMatch.exists)
     }
 }

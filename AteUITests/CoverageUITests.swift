@@ -33,7 +33,17 @@ final class CoverageUITests: XCTestCase {
     /// and a Group by option (icon calendar), and the SF-symbol image identifiers still surface inside
     /// each button in the observed hierarchy.
     func browseMenuItem(_ label: String, icon: String? = nil) -> XCUIElement {
-        var q = browseMenu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", label))
+        let menu: XCUIElement
+        if label == "Journal" || label == "Insights & journal" {
+            // Target anchoring survives the native popup scrolling Collections away.
+            let menus = app.collectionViews.containing(NSPredicate(format: "label == %@", label))
+            wait(menus.firstMatch)
+            XCTAssertEqual(menus.count, 1, "Explore menu must be unique")
+            menu = menus.firstMatch
+        } else {
+            menu = browseMenu
+        }
+        var q = menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", label))
         if let icon = icon { q = q.containing(.image, identifier: icon) }
         return q.firstMatch
     }
@@ -198,15 +208,15 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(settingsStepAlerts.isHittable, "Step-by-step alerts toggle should be reachable in Timer notifications")
         let about = app.staticTexts["aboutVersion"]; scrollTo(about); wait(about, 3)
         XCTAssertTrue(about.label.contains("(build "))
-        let buildNotes = app.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
-        scrollTo(buildNotes); wait(buildNotes, 3)
-        // SwiftUI may expose the combined container differently across iOS simulator versions.
-        // Assert the visible heading and populated notes container independently instead of
-        // depending on the parent's synthesized accessibility label.
+        // The SwiftUI combined container is not consistently hittable across simulator
+        // runtimes, even when its child heading is visible. Scroll to the stable visible
+        // heading so this journey cannot spend minutes swiping toward a non-hittable parent.
         let buildNotesHeading = app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "Changes in this build")
         ).firstMatch
-        wait(buildNotesHeading, 3)
+        scrollTo(buildNotesHeading); wait(buildNotesHeading, 3)
+        let buildNotes = app.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
+        wait(buildNotes, 3)
         XCTAssertFalse(buildNotes.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                        "About should show generated build notes or an explicit fallback")
         let diagnostics = app.descendants(matching: .any)["aiDiagnostics"].firstMatch

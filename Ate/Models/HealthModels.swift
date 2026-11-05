@@ -121,12 +121,19 @@ final class JournalEntry {
     // Additive (#245 phase 5): durable recipe snapshots (JournalRecipeSnapshotCodec JSON). nil on every row written
     // before this field and on rows with no snapshot; reading never rewrites it. recipeIDs stays the source of links.
     var recipeSnapshotsRaw: String? = nil
-    init(id: String = UUID().uuidString, createdAt: Date = .now, prompt: String, text: String, state: HealthState, recipeIDs: [String] = [],
+    init(id: String = UUID().uuidString, createdAt: Date = .now, prompt: String, text: String, state: HealthState?, recipeIDs: [String] = [],
          journalingSuggestionTitle: String? = nil, momentDate: Date? = nil, source: JournalEntrySource = .ate) {
-        self.id = id; self.createdAt = createdAt; self.prompt = prompt; self.text = text; self.stateRaw = state.rawValue; self.recipeIDs = recipeIDs
+        self.id = id; self.createdAt = createdAt; self.prompt = prompt; self.text = text; self.stateRaw = state?.rawValue ?? ""; self.recipeIDs = recipeIDs
         self.journalingSuggestionTitle = journalingSuggestionTitle; self.momentDate = momentDate; self.sourceRaw = source.rawValue
     }
     var source: JournalEntrySource { JournalEntrySource(rawValue: sourceRaw) ?? .ate }
+    /// Empty means no Health reading was recorded. Unknown future raw values remain untouched.
+    /// Use this accessor for presentation; `state` retains its legacy fallback for old callers.
+    var recordedHealthState: HealthState? { HealthState(rawValue: stateRaw) }
+    var datedStateLabel: String {
+        let date = createdAt.formatted(date: .abbreviated, time: .shortened)
+        return recordedHealthState.map { date + " · " + $0.title } ?? date
+    }
     var state: HealthState { HealthState(rawValue: stateRaw) ?? .balanced }
     var kind: JournalEntryKind { JournalEntryKind(rawValue: kindRaw) ?? .reflection }
     /// Decoded view of `recipeSnapshotsRaw`; `.undecodable` leaves the raw value as stored.

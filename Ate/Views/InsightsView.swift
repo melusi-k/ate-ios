@@ -235,10 +235,14 @@ enum RecipeProgressInsightService {
 /// More → Insights: "Your body today", "Suggested meals", "Reflect on your day", "Save to journal".
 struct InsightsView: View {
     var screenTitle: String = "Insights"
+    /// False when pushed from the Journal root; the Library Explore sheet keeps the default.
+    var isRoot: Bool = true
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var model = InsightsModel.shared
     @State private var draft = ""
+    @State private var journalSaveError: String?
+    @State private var showJournalComposer = false
     @State private var prompt: JournalPrompt?
     @State private var entries: [JournalEntry] = []
     @State private var recipeProgressCandidates: [RankedRecipeInsightCandidate] = []
@@ -259,6 +263,9 @@ struct InsightsView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
                         Text("Your insights").font(AteFont.display(18))
+                            // UITesting-only diagnostics on an existing element: no geometry change,
+                            // state categories only (never raw error text), lands in failure hierarchies.
+                            .accessibilityValue(AppConfig.isUITesting ? "qa access=\(String(describing: model.access)) context=\(model.context == nil ? "nil" : "loaded") sample=\(model.isSample) errPresent=\(model.requestError == nil ? "no" : "yes")" : "")
                         Spacer()
                         Button { Task { await refreshAllInsights() } } label: {
                             Label("Refresh", systemImage: "arrow.clockwise")
@@ -313,8 +320,16 @@ struct InsightsView: View {
                 .pageWidth()
             }
         }
+        // The tab bar's floating bottom accessory can overlap trailing scroll content;
+        // match SettingsView and leave room for it.
+        .contentMargins(.bottom, 96, for: .scrollContent)
         .navigationTitle(screenTitle)
-        .ateRootNavigationChrome(logoID: "insights.logo")
+        .ateRootNavigationChrome(logoID: "insights.logo", enabled: isRoot)
+        .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
+        .sheet(isPresented: $showJournalComposer) {
+            @Bindable var store = store
+            ManualJournalComposer(draft: $store.manualJournalDraft) { store.journalRevision += 1 }.environment(store)
+        }
         .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id).environment(store) }
         .onChange(of: model.context?.insight.state) { _, st in
             if st != nil { BetaQA.shared.pass("A-HEALTH-03", note: "Insights showed \(st!.title) with \(model.context?.suggestions.count ?? 0) meal ideas") }
@@ -443,6 +458,10 @@ struct InsightsView: View {
                     .buttonStyle(.ate(.primary, full: true))
                     .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityIdentifier("insights.save")
+                if let journalSaveError {
+                    Text(journalSaveError).font(AteFont.body(13)).foregroundStyle(Theme.destructive)
+                        .accessibilityIdentifier("insights.journalSaveError")
+                }
                 Text("Saved only on this iPhone. Ate can't write to Apple's Journal app.")
                     .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
             }
@@ -597,8 +616,7 @@ struct InsightsView: View {
             store.filter.clear()
             store.select(.library)
         case .cookingHistory:
-            store.trackerPath = []
-            store.select(.tracker)
+            store.openInsightsHub()
         case .shoppingList:
             store.shoppingPath = []
             store.select(.shopping)
@@ -684,6 +702,9 @@ struct InsightsView: View {
 
     @ViewBuilder private var journalCard: some View {
         card("Your Ate journal") {
+            Button { showJournalComposer = true } label: {
+                Label("New journal entry", systemImage: "square.and.pencil")
+            }.accessibilityIdentifier("insights.newJournalEntry")
             if journalingEnabled && JournalingSuggestionsGate.isAvailable && !AppConfig.isUITesting {
                 JournalingSuggestionsButton { m in handle(moment: m) }
             }
@@ -693,7 +714,7 @@ struct InsightsView: View {
             ForEach(entries.prefix(5), id: \.id) { e in
                 NavigationLink { JournalEntryDetailView(entryID: e.id) } label: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(e.createdAt.formatted(date: .abbreviated, time: .shortened) + " · " + e.state.title)
+                    Text(e.datedStateLabel)
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                     if let line = JournalingMomentMapper.contextLine(title: e.journalingSuggestionTitle, date: e.momentDate) {
                         Label(line, systemImage: "book.pages").font(AteFont.body(12)).foregroundStyle(Theme.primary)
@@ -742,12 +763,12 @@ struct InsightsView: View {
 
     private func save(_ c: HealthContext) {
         let p = prompt ?? c.prompts.first
-        let moment = pendingMoment; pendingMoment = nil
+        let moment = pendingMoment
         if JournalStore.shared.save(prompt: p?.text ?? "", text: draft, state: c.insight.state, recipeIDs: c.suggestions.map(\.recipeID),
                                     momentTitle: moment?.title, momentDate: moment?.date) {
-            draft = ""; entries = JournalStore.shared.entries(); store.show("Saved to your Ate journal")
+            draft = ""; pendingMoment = nil; journalSaveError = nil; entries = JournalStore.shared.entries(); store.show("Saved to your Ate journal")
             BetaQA.shared.pass("A-HEALTH-04", note: "Saved a local journal entry")
-        }
+        } else { journalSaveError = "Your entry could not be saved. Your draft is still here. Try again." }
     }
 
     private func card<C: View>(_ title: String, @ViewBuilder _ c: () -> C) -> some View {
@@ -830,26 +851,39 @@ struct RecipeSheetTarget: Identifiable, Hashable { let id: String }
 /// first so the root full-screen cover can present.
 struct RecipeSheet: View {
     let recipeID: String
+    /// Only recipes opened from a Health suggestion count as the A-HEALTH-08 beta evidence;
+    /// other hosts (e.g. the cooking tracker) pass false so it is never recorded for them.
+    var recordsHealthSuggestionEvidence = true
+    /// Called when the sheet closes to take the user somewhere else (Cook mode or a pushed
+    /// route) rather than because they dismissed it, so a host can skip restoring its own context.
+    var onLeaveForElsewhere: (() -> Void)? = nil
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
             RecipeDetailView(recipeID: recipeID)
+                // Identity on the real detail container (children stay individually reachable) so
+                // journeys can assert exactly WHICH recipe the sheet shows.
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("recipeSheet.recipe.\(recipeID)")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Done") { dismiss() }.accessibilityIdentifier("recipeSheet.done")
                     }
                 }
         }
-        .onDisappear { BetaQA.shared.pass("A-HEALTH-08", note: "Opened and closed a suggested recipe") }
+        .onDisappear {
+            if recordsHealthSuggestionEvidence { BetaQA.shared.pass("A-HEALTH-08", note: "Opened and closed a suggested recipe") }
+        }
         .onChange(of: store.cookTarget) { _, t in
             // Root presents cook mode full-screen; hand off after the sheet is gone.
             guard let t else { return }
             store.cookTarget = nil
+            onLeaveForElsewhere?()
             dismiss()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { store.cookTarget = t }
         }
-        .onChange(of: store.path) { _, p in if !p.isEmpty { dismiss() } }
+        .onChange(of: store.path) { _, p in if !p.isEmpty { onLeaveForElsewhere?(); dismiss() } }
     }
 }
 

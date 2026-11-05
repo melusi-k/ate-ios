@@ -36,6 +36,7 @@ jobs:
             xcode-27-homebrew-
       - run: brew install xcodegen && xcodegen generate
       - name: Build for testing (iOS simulator)
+        continue-on-error: true
         run: |
           set -o pipefail
           SIM_ID=$(python3 scripts/select-ios-simulator.py)

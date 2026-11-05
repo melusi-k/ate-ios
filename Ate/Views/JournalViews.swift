@@ -37,12 +37,19 @@ struct JournalListView: View {
                 // With anything but a clean open the banner above carries the honest state; an
                 // empty "no entries yet" here would present a recovered-empty journal as real history.
                 if openState == .ok {
-                    ContentUnavailableView {
+                    VStack(alignment: .leading, spacing: 12) {
                         Label("No journal entries yet", systemImage: "book.closed")
-                    } description: {
-                        Text("Tap New journal entry to write something, or ask Siri to save a journal entry in Ate.")
+                            .font(.headline)
+                            .accessibilityAddTraits(.isHeader)
+                            .accessibilityIdentifier("journal.root.empty.title")
+                        Text("Tap New entry to write a note, or ask Siri.")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                             .accessibilityIdentifier("journal.root.empty.description")
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 12)
                 }
             } else if filtered.isEmpty {
                 ContentUnavailableView.search(text: query)

@@ -2,13 +2,16 @@
 """ate backend-e2e: automates Tier A items against the real Supabase project with temporary, admin-created,
 pre-confirmed users (no emails sent). Writes build/e2e/results.json and (with --upload) qa_results rows (source='ci').
 
-Secrets: SUPABASE_ACCESS_TOKEN (Management API) -> anon + service_role keys fetched at runtime. Every secret
-is registered with register_secret(); all check output (notes, tracebacks, setup/cleanup errors, uploads) passes
-through scrub() before it is printed, stored or uploaded (py/clear-text-logging-sensitive-data). Residual risk:
-a secret transformed upstream into a form that is neither registered (raw, JSON-escaped or URL-encoded) nor
-matched by the built-in secret patterns could still be logged - review any new check that handles credentials.
+Secrets: SUPABASE_ACCESS_TOKEN (Management API) -> anon + service_role keys fetched at runtime. Fail closed:
+exception text and tracebacks are never logged (only the type name plus the check and line it failed at),
+because they can carry credentials
+and redaction cannot be proven complete (py/clear-text-logging-sensitive-data). Pass-path notes, findings and
+status output pass through scrub() (registered secrets in raw/JSON-escaped/URL-encoded form, plus linear-time
+JWT/Bearer/key=value patterns and a linear quoted-key/value scanner) as defence in depth. Residual risk: a
+secret transformed upstream into an unregistered, unmatched form inside a pass-path note could still log -
+review any new check that handles credentials.
 """
-import argparse, json, os, re, sys, time, traceback, uuid, urllib.error, urllib.parse, urllib.request
+import argparse, json, os, re, sys, time, uuid, urllib.error, urllib.parse, urllib.request
 
 REF = os.environ.get("SUPABASE_PROJECT_REF", "ploncuhexmwydjxljuhe")
 URL = f"https://{REF}.supabase.co"
@@ -49,18 +52,63 @@ def register_secret(value, known_vector=False):
         _SENSITIVE_VALUES.add(value)
 
 
-# Secret shapes redacted even when the exact value was never registered
-# (e.g. a token echoed inside an upstream error body or a traceback source line).
+# Secret shapes redacted even when the exact value was never registered (e.g. a token echoed
+# inside an upstream response body). Regex safety (py/redos): repeats are either bounded (JWT
+# segments capped at 4096 chars, far beyond real tokens, which caps backtracking on adversarial
+# "eyJeyJ..." runs) or a single unanchored repeat with no following required pattern (Bearer,
+# key=value). No nested quantifiers, no ambiguous alternation.
 _SCRUB_PATTERNS = [
     # JWTs (Supabase access/refresh/anon/service tokens): header.payload.signature
-    (re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}"), REDACTED),
+    (re.compile(r"eyJ[A-Za-z0-9_-]{8,4096}\.[A-Za-z0-9_-]{8,4096}\.[A-Za-z0-9_-]{4,4096}"), REDACTED),
     # Authorization: Bearer <token>
     (re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]{8,}"), r"\1" + REDACTED),
-    # "password": "..." / {'access_token': '...'} and friends, JSON or dict-repr quoting
-    (re.compile(r"(?i)(['\"](?:password|passwd|pwd|secret|api[-_]?key|apikey|access[-_]?token|refresh[-_]?token|authorization)['\"]\s*:\s*(['\"]))(?:\\.|(?!\\|\2).)*(\2)"), r"\1" + REDACTED + r"\3"),
     # key=value forms in URLs and error text: password=..., refresh_token=..., ...
     (re.compile(r"(?i)\b((?:password|passwd|pwd|secret|api[-_]?key|apikey|access[-_]?token|refresh[-_]?token)=)[^\s&]{3,}"), r"\1" + REDACTED),
 ]
+
+# Quoted "key": "value" pairs (JSON or dict-repr) are redacted by a hand-written linear
+# scanner, not a regex: quote-aware value matching with escapes cannot be expressed without
+# ambiguous alternation or backreference lookaheads.
+_SENSITIVE_KEYS = ("password", "passwd", "pwd", "secret", "api_key", "api-key", "apikey",
+                   "access_token", "access-token", "refresh_token", "refresh-token", "authorization")
+
+
+def _match_quoted_kv(text, i):
+    """If text[i] starts a quoted sensitive 'key': "value" pair, return (end, redacted text) with
+    end just past the redacted region; else None. Keys are compared by lowercasing only the
+    fixed-length candidate slice - never a lowercased copy of the whole text, whose length can
+    differ (e.g. "İ".lower() is two chars) and misalign every later index, missing real keys.
+    The value walk is linear: a backslash skips the next char, the opening quote char closes
+    the value. Unterminated values redact to end (fail closed)."""
+    n = len(text); c = text[i]
+    for key in _SENSITIVE_KEYS:
+        if i + 1 + len(key) >= n or text[i + 1:i + 1 + len(key)].lower() != key or text[i + 1 + len(key)] != c:
+            continue
+        k = i + 2 + len(key)
+        while k < n and text[k] in " \t": k += 1
+        if k >= n or text[k] != ":": continue
+        k += 1
+        while k < n and text[k] in " \t": k += 1
+        if k >= n or text[k] not in "'\"": continue
+        q = text[k]; v = k + 1
+        while v < n:
+            if text[v] == "\\": v += 2; continue
+            if text[v] == q: break
+            v += 1
+        closed = v < n
+        return (v + 1 if closed else n), text[i:k + 1] + REDACTED + (q if closed else "")
+    return None
+
+
+def _redact_quoted_kv(text):
+    out = []; i = 0; n = len(text)  # per-char O(1): key probes compare fixed-length slices only
+    while i < n:
+        m = _match_quoted_kv(text, i) if text[i] in "'\"" else None
+        if m:
+            end, red = m; out.append(red); i = end
+        else:
+            out.append(text[i]); i += 1
+    return "".join(out)
 
 
 def _variants(value):
@@ -70,38 +118,44 @@ def _variants(value):
 
 
 def scrub(text):
-    """Return text with every registered secret (raw, JSON-escaped and URL-encoded forms)
-    and every secret-shaped value redacted."""
+    """Return text with every secret-shaped value and every registered secret (raw, JSON-escaped
+    and URL-encoded forms) redacted. Shape patterns run BEFORE registered-value replacement: a
+    short registered vector (e.g. "abc") could otherwise split a JWT and leave its tail logged."""
     if not isinstance(text, str):
         text = str(text)
     for pattern, repl in _SCRUB_PATTERNS:
         text = pattern.sub(repl, text)
+    text = _redact_quoted_kv(text)
     for v in sorted(_SENSITIVE_VALUES, key=len, reverse=True):
         for form in _variants(v):
             text = text.replace(form, REDACTED)
     return text
 
 
-_MAX_TRACEBACK = 4000  # even scrubbed tracebacks are bounded - fail closed, never dump unbounded text
+# Fail closed on the exception path: only the exception type name plus a fixed message is ever
+# logged. Raw exception text and tracebacks can carry response bodies, echoed URLs or source-line
+# literals containing credentials, and CodeQL does not treat scrub() as a sanitizer - so neither
+# is emitted. scrub() stays as defence in depth on the pass path (check-authored return notes).
+_WITHHELD = "(details withheld: exception text may contain credentials)"
 
 
 def fail_closed(where, exc):
-    """Fail closed for setup/cleanup errors (these run outside run_check): a scrubbed,
-    bounded type+note on stderr, no traceback. Request-URL errors land here too; the URLs
-    carry no secrets, and scrub() strips registered values and token shapes regardless."""
-    sys.stderr.write(scrub(f"{where}: {type(exc).__name__}: {exc}")[:400] + "\n")
+    """Fail closed for setup/cleanup errors (these run outside run_check): exception type name
+    plus a fixed message on stderr, no exception text, no traceback. Request-URL errors land here."""
+    sys.stderr.write(f"{where}: {type(exc).__name__} {_WITHHELD}\n")
     raise SystemExit(1)
 
 
 def run_check(ctx, results, ids, fn, *args):
-    """Run one check and record per-id results. Everything recorded, printed or
-    traceback-dumped here is scrubbed first; notes are capped at 400 chars and the
-    scrubbed traceback at _MAX_TRACEBACK chars, both after scrubbing."""
+    """Run one check and record per-id results. Failures record only the exception type name,
+    check name and innermost frame location; pass-path notes are scrubbed, capped at 400 chars."""
     try: note = fn(ctx, *args); st = "pass"
     except Exception as e:
-        note = f"{type(e).__name__}: {e}"; st = "fail"
-        tb = scrub(traceback.format_exc())
-        sys.stderr.write(("[traceback truncated]\n" if len(tb) > _MAX_TRACEBACK else "") + tb[-_MAX_TRACEBACK:])
+        # Diagnosable without exception text: check name + innermost frame function:line.
+        tb = e.__traceback__
+        while tb and tb.tb_next: tb = tb.tb_next
+        at = f" at {tb.tb_frame.f_code.co_name}:{tb.tb_lineno}" if tb else ""
+        note = f"{type(e).__name__} in {getattr(fn, '__name__', '?')}{at} {_WITHHELD}"; st = "fail"
     note = "" if note is None else scrub(str(note))[:400]  # every current check returns a str; None stays clean
     for i in ids: results[i] = {"status": st, "note": note}
     print(f"{'✅' if st == 'pass' else '❌'} {', '.join(ids)}: {note}")
@@ -404,7 +458,7 @@ def upload(ctx, results, build, run_url):
              "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())} for i, r in results.items()]
     h = {**ctx.svc(), "Prefer": "resolution=merge-duplicates,return=minimal"}
     code, j = http("POST", f"{URL}/rest/v1/qa_results?on_conflict=user_id,build,item_id,source", h, rows)
-    print(f"qa_results upload: {code} ({len(rows)} rows)" + ("" if code < 300 else f" {scrub(j)}"))
+    print(f"qa_results upload: {code} ({len(rows)} rows)")  # response body never logged: it can echo row content
 
 
 def main():

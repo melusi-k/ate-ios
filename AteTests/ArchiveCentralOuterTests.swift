@@ -30,12 +30,18 @@ final class ArchiveCentralOuterTests: XCTestCase {
     private func raw(_ c: ModelContainer) throws -> ([ArchiveRecipeShoppingParticipant.RawRecipe],
                                                      [ArchiveRecipeShoppingParticipant.RawShopping]) {
         let ctx = ModelContext(c); ctx.autosaveEnabled = false
-        let r = try ctx.fetch(FetchDescriptor<RecipeEntity>()).map {
+        let recipeEntities: [RecipeEntity] = try ctx.fetch(FetchDescriptor<RecipeEntity>())
+        let mappedRecipes: [ArchiveRecipeShoppingParticipant.RawRecipe] = recipeEntities.map {
             ArchiveRecipeShoppingParticipant.RawRecipe(id: $0.id, createdAt: $0.createdAt, position: $0.position, json: $0.json) }
-            .sorted { $0.position == $1.position ? $0.id < $1.id : $0.position < $1.position }
-        let s = try ctx.fetch(FetchDescriptor<ShoppingEntity>()).map {
+        let r = mappedRecipes.sorted { (lhs: ArchiveRecipeShoppingParticipant.RawRecipe, rhs: ArchiveRecipeShoppingParticipant.RawRecipe) in
+            lhs.position == rhs.position ? lhs.id < rhs.id : lhs.position < rhs.position
+        }
+        let shoppingEntities: [ShoppingEntity] = try ctx.fetch(FetchDescriptor<ShoppingEntity>())
+        let mappedShopping: [ArchiveRecipeShoppingParticipant.RawShopping] = shoppingEntities.map {
             ArchiveRecipeShoppingParticipant.RawShopping(id: $0.id, position: $0.position, json: $0.json) }
-            .sorted { $0.position == $1.position ? $0.id < $1.id : $0.position < $1.position }
+        let s = mappedShopping.sorted { (lhs: ArchiveRecipeShoppingParticipant.RawShopping, rhs: ArchiveRecipeShoppingParticipant.RawShopping) in
+            lhs.position == rhs.position ? lhs.id < rhs.id : lhs.position < rhs.position
+        }
         return (r, s)
     }
 

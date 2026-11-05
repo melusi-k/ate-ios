@@ -177,7 +177,9 @@ final class MockBackend: BackendService {
             if Self.args.contains("-qaFoodPhotoAfterFirstImage"), Self.imageParses > 1 {
                 throw BackendError(message: "Couldn't recognise a dish in that photo. Try a closer shot, a screenshot of the recipe, or describe it in Prompt.")
             }
-            let text = (try? await OnDeviceBackend.ocr(dataURL: request.imageDataUrl ?? "")) ?? ""
+            // OCR failure/deadline is an actionable terminal error, not evidence of a
+            // text-free food photo. Do not hide it behind a second Vision operation.
+            let text = try await OnDeviceBackend.ocr(dataURL: request.imageDataUrl ?? "")
             if !PhotoGuess.isScreenshotText(text) {
                 let labels = (try? await OnDeviceBackend.classify(dataURL: request.imageDataUrl ?? "")) ?? []
                 guard let dish = PhotoGuess.dishes(from: labels).first, PhotoGuess.prompt(labels: labels, ocrText: text) != nil else {

@@ -6,7 +6,9 @@ import Foundation
 enum RecipeToolSearch {
     static func matchingTitles(in recipes: [RecipeCard], query: String, limit: Int = 5) -> [String] {
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
-        return RecipeMatcher.rank(recipes, query: query).prefix(limit).map { $0.recipe.title }
+        let hits = RecipeMatcher.rank(recipes, query: query)
+        let candidates = RecipeMatcher.isConfident(hits) ? Array(hits.prefix(1)) : Array(RecipeMatcher.nearTop(hits).prefix(limit))
+        return candidates.map { $0.recipe.title }
     }
 
     static func confidentMatch(in recipes: [RecipeCard], query: String) -> RecipeCard? {

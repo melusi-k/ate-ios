@@ -134,6 +134,30 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > journal-open-state-ui.log 2>&1 || \
             { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" journal-open-state-ui.log || true; tail -120 journal-open-state-ui.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" journal-open-state-ui.log | tail -40
+      - name: Qualify dormant reset composition on its exact candidate branch
+        if: github.head_ref == 'prep/account-reset-composition'
+        run: |
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/ClearAllLocalDataTests \
+            -only-testing:AteTests/ClearAllResetCoordinatorTests \
+            -only-testing:AteTests/AccountGenerationPolicyTests \
+            -only-testing:AteTests/AccountGenerationReceiptStoreTests \
+            -only-testing:AteTests/AccountWriterGateTests \
+            -only-testing:AteTests/ResetAwareStartupTests \
+            -only-testing:AteTests/GenerationFencedSyncTests \
+            -only-testing:AteTests/FileResetControlPersistenceTests \
+            -only-testing:AteTests/AccountResetCompositionTests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/reset-composition.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > reset-composition.log 2>&1 || \
+            { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Testing failed" reset-composition.log || true; tail -120 reset-composition.log; exit 1; }
+          python3 scripts/verify-reset-composition-results.py reset-composition.log
+      - name: Export reset composition attachments
+        if: always() && github.head_ref == 'prep/account-reset-composition'
+        run: |
+          mkdir -p reset-attachments
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/reset-composition.xcresult" --output-path reset-attachments || true
       - name: Export rendered screenshots
         if: always()
         run: |
@@ -173,6 +197,9 @@ jobs:
           name: journal-open-state-ui-${{ github.run_number }}
           path: |
             journal-open-state-ui.log
+            reset-composition.log
+            reset-attachments
+            ${{ runner.temp }}/ate-test-results/reset-composition.xcresult
             launch-diagnostics
             ui-screenshots
             ${{ runner.temp }}/ate-test-results/journal-open-state-ui.xcresult

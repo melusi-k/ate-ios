@@ -33,20 +33,36 @@ final class CoverageUITests: XCTestCase {
     /// and a Group by option (icon calendar), and the SF-symbol image identifiers still surface inside
     /// each button in the observed hierarchy.
     func browseMenuItem(_ label: String, icon: String? = nil) -> XCUIElement {
-        var q = browseMenu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", label))
+        let menu: XCUIElement
+        if label == "Journal" || label == "Insights & journal" {
+            // Target anchoring survives the native popup scrolling Collections away.
+            let menus = app.collectionViews.containing(NSPredicate(format: "label == %@", label))
+            wait(menus.firstMatch)
+            XCTAssertEqual(menus.count, 1, "Explore menu must be unique")
+            menu = menus.firstMatch
+        } else {
+            menu = browseMenu
+        }
+        var q = menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", label))
         if let icon = icon { q = q.containing(.image, identifier: icon) }
         return q.firstMatch
     }
     func wait(_ e: XCUIElement, _ t: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(e.waitForExistence(timeout: t), "Missing \(e)", file: file, line: line)
     }
-    /// Lists load rows lazily, so the target may be above or below: search down, then back up.
-    func scrollTo(_ e: XCUIElement, max: Int = 25) {
+    /// Search both directions for lazy rows. Callers with a known section order can choose the first direction.
+    func scrollTo(_ e: XCUIElement, max: Int = 25, searchDownFirst: Bool = true) {
         _ = e.waitForExistence(timeout: 2)
         var n = 0
-        while !(e.exists && e.isHittable) && n < max { app.swipeUp(); n += 1 }
+        while !(e.exists && e.isHittable) && n < max {
+            if searchDownFirst { app.swipeUp() } else { app.swipeDown() }
+            n += 1
+        }
         n = 0
-        while !(e.exists && e.isHittable) && n < max * 2 { app.swipeDown(); n += 1 }
+        while !(e.exists && e.isHittable) && n < max * 2 {
+            if searchDownFirst { app.swipeDown() } else { app.swipeUp() }
+            n += 1
+        }
     }
     func tab(_ name: String) {
         var n = 0
@@ -184,7 +200,9 @@ final class CoverageUITests: XCTestCase {
         let settingsQuietHours = app.descendants(matching: .any)["toggle.Quiet hours"].firstMatch
 
         // Settings uses lazily materialized rows: scroll to each toggle before asserting it exists.
-        scrollTo(settingsQuietHours); wait(settingsQuietHours, 3)
+        // Export is in Tools, below Timer notifications. Search toward the earlier section first,
+        // retaining the opposite-direction fallback if the restored viewport differs.
+        scrollTo(settingsQuietHours, searchDownFirst: false); wait(settingsQuietHours, 3)
         XCTAssertTrue(settingsQuietHours.isHittable, "Quiet hours toggle should be reachable in Timer notifications")
         scrollTo(settingsStepAlerts); wait(settingsStepAlerts, 3)
         XCTAssertTrue(settingsStepAlerts.isHittable, "Step-by-step alerts toggle should be reachable in Timer notifications")
@@ -308,7 +326,7 @@ final class CoverageUITests: XCTestCase {
         shot("beta-item-pass")
         app.navigationBars.buttons.element(boundBy: 0).tap()
         for _ in 0..<6 { app.swipeDown() }
-        wait(text("Pilot gate: \(before + 1)/"), 5)
+        wait(text("This build: \(before + 1)/"), 5)
         let item2 = app.descendants(matching: .any)["beta.A-AUTH-04"].firstMatch
         scrollTo(item2); item2.tap()
         wait(app.buttons["Fail"], 5); app.buttons["Fail"].tap()
@@ -318,12 +336,17 @@ final class CoverageUITests: XCTestCase {
         scrollTo(export); export.tap(); sleep(2)
         shot("beta-export-sheet")
         if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
-        let reset = app.buttons["Reset all results"]
+        let reset = app.buttons["Reset this build's results"]
         scrollTo(reset); reset.tap()
-        let confirm = app.buttons["Reset"].firstMatch
-        wait(confirm, 5); confirm.tap()
+        let confirm = app.buttons["Reset this build"].firstMatch
+        wait(confirm, 5)
+        XCTAssertTrue(text("Earlier-build history is kept.").exists)
+        shot("beta-reset-current-build-confirmation")
+        app.buttons["Cancel"].firstMatch.tap()
+        XCTAssertFalse(confirm.exists)
+        reset.tap(); wait(confirm, 5); confirm.tap()
         app.swipeDown(); app.swipeDown(); app.swipeDown()
-        wait(text("Pilot gate: 0/"), 5)
+        wait(text("This build: 0/"), 5)
         shot("beta-reset")
     }
 
@@ -342,6 +365,7 @@ final class CoverageUITests: XCTestCase {
         wait(beta, 5); beta.tap()
         wait(app.staticTexts["betaProgress"], 8)
         XCTAssertTrue(app.navigationBars.staticTexts["Beta testing"].exists)
+        shot("beta-after-library-clear")
     }
 
     /// Regression for the direct user journey: tapping Settings › Beta testing from a
@@ -355,6 +379,37 @@ final class CoverageUITests: XCTestCase {
         wait(app.staticTexts["betaProgress"], 8)
         XCTAssertTrue(app.navigationBars.staticTexts["Beta testing"].exists)
         XCTAssertTrue(app.staticTexts["betaCISummary"].exists)
+        XCTAssertEqual(app.staticTexts["betaCISummary"].label, "CI: no published evidence for this exact build")
+        shot("beta-fresh-settings")
+        shot("beta-ci-no-published-evidence")
+    }
+
+    /// Presentation fixtures do not prove a live network failure or signed-out account race.
+    func test35d_BetaCINotLoadedAndUnknownAreNotNoEvidence() {
+        launch(["-qaBetaCINotLoaded"])
+        tab("Settings"); app.buttons["settings.betaTesting"].tap()
+        let summary = app.staticTexts["betaCISummary"]
+        wait(summary)
+        XCTAssertEqual(summary.label, "CI: not loaded")
+        XCTAssertFalse(summary.label.contains("no published evidence"))
+        shot("beta-ci-not-loaded")
+        app.terminate()
+        launch(["-qaBetaCIRefreshFailure"])
+        tab("Settings"); app.buttons["settings.betaTesting"].tap()
+        wait(app.staticTexts["betaCIError"])
+        XCTAssertEqual(app.staticTexts["betaCISummary"].label, "CI: status unknown")
+        XCTAssertTrue(app.staticTexts["betaCIError"].label.contains("Simulated refresh failure"))
+        shot("beta-ci-refresh-unknown")
+    }
+
+    func test35e_BetaLocalBuildExplainsUnverifiedVerdicts() {
+        launch()
+        tab("Settings"); app.buttons["settings.betaTesting"].tap()
+        let notice = app.staticTexts["betaUnverifiedBuildNotice"]
+        scrollTo(notice); wait(notice)
+        XCTAssertTrue(notice.label.contains("no verifiable release identity"))
+        XCTAssertTrue(notice.label.contains("not counted as current-build verification"))
+        shot("beta-local-build-identity-notice")
     }
 
     func passed() -> Int {

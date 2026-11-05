@@ -1,6 +1,9 @@
 import Foundation
 import Darwin
 
+@_silgen_name("flock")
+private func reset_flock(_ descriptor: Int32, _ operation: Int32) -> Int32
+
 /// Candidate shared-file gate, NOT installed. All processes must use the SAME existing,
 /// immutable app-group control directory and the SAME strict durable control reader.
 /// No app-group-to-standard fallback. Every writer effect must use withWriterEffect;
@@ -23,7 +26,7 @@ final class AccountWriterGate: ClearAllWriterGating {
     deinit {
         // Deinitialization performs only nonisolated OS fd cleanup. It must not leave
         // a reset lock owned until process exit when an active attempt is abandoned.
-        if let fd = resetFD { _ = flock(fd, LOCK_UN); close(fd) }
+        if let fd = resetFD { _ = reset_flock(fd, LOCK_UN); close(fd) }
     }
     private var epochFile: URL { directory.appendingPathComponent("writer-epoch-v1") }
     private func validateDirectory() throws {
@@ -40,10 +43,10 @@ final class AccountWriterGate: ClearAllWriterGating {
         guard fstat(fd, &metadata) == 0, (metadata.st_mode & S_IFMT) == S_IFREG else {
             close(fd); throw Error.unsafePath
         }
-        guard flock(fd, LOCK_EX | LOCK_NB) == 0 else { close(fd); throw Error.busy }
+        guard reset_flock(fd, LOCK_EX | LOCK_NB) == 0 else { close(fd); throw Error.busy }
         return fd
     }
-    private func unlock(_ fd: Int32) { _ = flock(fd, LOCK_UN); close(fd) }
+    private func unlock(_ fd: Int32) { _ = reset_flock(fd, LOCK_UN); close(fd) }
     private func readEpoch() throws -> UUID? {
         var metadata = stat()
         guard lstat(epochFile.path, &metadata) == 0 else {

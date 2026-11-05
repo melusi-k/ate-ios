@@ -779,7 +779,10 @@ extension CoverageUITests {
 
         let insightsTitle = app.navigationBars["Insights & Cooking History"]
         wait(insightsTitle)
-        wait(app.images["insights.logo"])
+        // The hub is pushed above Journal, so its native Back button replaces root logo chrome.
+        let journalBack = insightsTitle.buttons["Journal"]
+        wait(journalBack)
+        XCTAssertTrue(journalBack.isHittable, "The pushed tracker must retain its route back to Journal")
         let month = any("tracker.displayedMonth")
         scrollTo(month)
         wait(month)

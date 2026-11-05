@@ -99,7 +99,7 @@ struct JournalTimelineView: View {
                 }
             }
         }
-        .searchable(text: $query, prompt: "Search journal")
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search journal")
         .navigationTitle("Food Journal")
         .onAppear { if stateOverride == nil, Self.qaState() == nil { reload() } }
     }

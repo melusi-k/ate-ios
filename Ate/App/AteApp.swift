@@ -270,8 +270,21 @@ struct AteBottomAccessory: View {
                     .accessibilityLabel(title).accessibilityIdentifier("accessoryAdd") }
             } else if let context {
                 Button { add(context) } label: {
-                    Label(compact ? "Add" : title, systemImage: "plus").font(AteFont.body(15, .semibold))
-                        .frame(maxWidth: .infinity, minHeight: 44)
+                    Group {
+                        if case .journal = context, !compact {
+                            // The system accessory has a fixed height. Keep the full text for
+                            // VoiceOver, but fit a complete visible label at accessibility sizes.
+                            ViewThatFits(in: .horizontal) {
+                                Label(title, systemImage: "plus").fixedSize()
+                                Label("New entry", systemImage: "plus").fixedSize()
+                                Image(systemName: "plus").fixedSize()
+                            }
+                        } else {
+                            Label(compact ? "Add" : title, systemImage: "plus")
+                        }
+                    }
+                    .font(AteFont.body(15, .semibold))
+                    .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .accessibilityLabel(title).accessibilityIdentifier("accessoryAdd")
             }

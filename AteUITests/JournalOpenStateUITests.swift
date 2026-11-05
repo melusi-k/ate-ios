@@ -279,9 +279,48 @@ extension JournalOpenStateUITests {
         XCTAssertEqual(add.label, "New journal entry", "VoiceOver must retain the full action name")
         XCTAssertGreaterThanOrEqual(add.frame.height, 44)
         XCTAssertTrue(accessory.frame.contains(add.frame), "The action must fit inside the system accessory")
+        let empty = app.staticTexts["journal.root.empty.description"]
+        let rootSearch = app.searchFields.firstMatch
+        var emptySwipes = 0
+        func emptyClearsChrome() -> Bool {
+            empty.exists && rootSearch.exists && rootSearch.isHittable
+                && empty.frame.minY >= max(app.navigationBars["Journal"].frame.maxY, rootSearch.frame.maxY)
+                && empty.frame.maxY <= accessory.frame.minY
+        }
+        while !emptyClearsChrome() && emptySwipes < 6 {
+            app.swipeUp()
+            emptySwipes += 1
+        }
+        shot("manual-09-maxax-root-empty-clearance")
+        wait(empty)
+        XCTAssertTrue(empty.isHittable)
+        wait(rootSearch)
+        XCTAssertTrue(rootSearch.isHittable)
+        XCTAssertGreaterThanOrEqual(empty.frame.minY,
+                                    max(app.navigationBars["Journal"].frame.maxY, rootSearch.frame.maxY))
+        XCTAssertLessThanOrEqual(empty.frame.maxY, accessory.frame.minY,
+                                 "The final empty-state description must scroll clear of bottom controls")
 
         XCUIDevice.shared.orientation = .landscapeLeft
-        wait(any("sidebar"))
+        let sidebar = any("sidebar")
+        wait(sidebar)
+        for name in ["Library", "Shopping list", "Insights", "Settings"] {
+            let row = sidebar.buttons["sidebar." + name]
+            var swipes = 0
+            let toggle = app.buttons["sidebarToggle"]
+            func rowClearsSidebar() -> Bool {
+                row.exists && row.isHittable && sidebar.frame.contains(row.frame)
+                    && (!toggle.exists || !row.frame.intersects(toggle.frame))
+            }
+            while !rowClearsSidebar() && swipes < 8 {
+                sidebar.swipeUp()
+                swipes += 1
+            }
+            shot("manual-09-maxax-sidebar-" + name.replacingOccurrences(of: " ", with: "-"))
+            wait(row)
+            XCTAssertTrue(row.isHittable, "The sidebar destination must remain reachable: \(name)")
+            XCTAssertTrue(rowClearsSidebar(), "The full destination row must clear sidebar edges and toggle: \(name)")
+        }
         wait(app.navigationBars["Journal"])
         let toolbarAdd = app.buttons["journal.newEntry"]
         shot("manual-09-maxax-sidebar-root")

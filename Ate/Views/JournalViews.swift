@@ -19,6 +19,10 @@ struct JournalListView: View {
     var body: some View {
         let openState = openStateOverride ?? JournalStore.shared.openState
         List {
+            Section {
+                NavigationLink { JournalTimelineView() } label: { Label("Timeline", systemImage: "calendar.day.timeline.left") }
+                    .accessibilityIdentifier("journal.timelineLink")
+            }
             if isTabRoot {
                 Section {
                     NavigationLink(value: Route.insights) {

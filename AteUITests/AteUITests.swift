@@ -1004,89 +1004,32 @@ final class AteUITests: XCTestCase {
     }
 
     func pick(_ menu: String, _ option: String) {
-        // iOS 27 realizes these Pickers inline in the native Browse popup.
         XCTAssertTrue(menu == "sortMenu" || menu == "groupByMenu", "Unknown picker contract")
         app.buttons["libraryBrowseMenu"].firstMatch.tap()
-        // The native popup only realizes visible rows. My order can be below the fold,
-        // so finding the popup by that option prevents us from ever scrolling to it.
-        shot("library-browse-opening-\(menu)-\(option)")
-        let popups = app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections"))
-        wait(popups.firstMatch, 3)
         shot("library-browse-opened-\(menu)-\(option)")
-        if popups.count != 1 {
+        let submenu = app.buttons.matching(identifier: menu)
+        wait(submenu.firstMatch, 3)
+        XCTAssertEqual(submenu.count, 1, "Browse must expose one named arrange submenu")
+        XCTAssertTrue(submenu.firstMatch.isHittable, "Arrange submenu must be visible without scrolling")
+        guard submenu.count == 1 && submenu.firstMatch.isHittable else { return }
+        submenu.firstMatch.tap()
+        shot("library-browse-choice-\(menu)-\(option)")
+        // The explicit submenu contains only its own choices; shared labels such as
+        // Recently added cannot accidentally select a collection in the parent popup.
+        var choices = app.buttons.matching(NSPredicate(format: "label == %@", option))
+        if menu == "groupByMenu" && option == "Recently added" {
+            choices = choices.containing(.image, identifier: "calendar")
+        }
+        wait(choices.firstMatch, 3)
+        if choices.count != 1 || !choices.firstMatch.isHittable {
             let evidence = XCTAttachment(string: app.debugDescription)
-            evidence.name = "library-browse-initial-identity-failure"
+            evidence.name = "library-browse-choice-failure-\(menu)-\(option)"
             evidence.lifetime = .keepAlways
             add(evidence)
         }
-        XCTAssertEqual(popups.count, 1, "Browse popup must be unique")
-        guard popups.count == 1 else { return }
-        // Use Collections only for first acquisition: scrolling can unrealize its header.
-        let initialEvidence = XCTAttachment(string: app.debugDescription)
-        initialEvidence.name = "library-browse-initial-acquisition"
-        initialEvidence.lifetime = .keepAlways
-        add(initialEvidence)
-        let popupFrame = popups.firstMatch.frame
-        func currentPopup() -> XCUIElement? {
-            let all = app.collectionViews.allElementsBoundByIndex.filter { $0.exists }
-            let matches = all.filter { $0.frame == popupFrame }
-            print("Browse pinned frame: \(popupFrame); collection frames: \(all.map(\.frame))")
-            if matches.count != 1 {
-                let evidence = XCTAttachment(string: app.debugDescription)
-                evidence.name = "library-browse-popup-identity-failure"
-                evidence.lifetime = .keepAlways
-                add(evidence)
-            }
-            XCTAssertEqual(matches.count, 1, "Pinned geometry must identify one open Browse popup")
-            guard matches.count == 1 else { return nil }
-            return matches[0]
-        }
-        func makeChoices(in popup: XCUIElement) -> XCUIElementQuery {
-            let query = popup.descendants(matching: .button)
-                .matching(NSPredicate(format: "label == %@", option))
-            if menu == "groupByMenu" && option == "Recently added" {
-                // Actual hierarchy: calendar is Group by; the collection uses a clock-arrow icon.
-                return query.containing(.image, identifier: "calendar")
-            }
-            return query
-        }
-        guard var popup = currentPopup() else { return }
-        var choices = makeChoices(in: popup)
-        // Use the native scrolling gesture, not a press-drag that can select a row.
-        for iteration in 0..<8 {
-            if choices.firstMatch.exists && choices.firstMatch.isHittable { break }
-            guard let beforeSwipe = currentPopup() else { return }
-            popup = beforeSwipe
-            choices = makeChoices(in: popup)
-            XCTAssertEqual(popup.frame, popupFrame, "Pinned geometry must still identify the Browse popup")
-            guard popup.exists && popup.frame == popupFrame else { return }
-            let visibleCells = popup.cells.allElementsBoundByIndex.filter { $0.exists && $0.isHittable }
-            guard let swipeCell = visibleCells.last else {
-                XCTFail("Browse popup must expose a hittable visible cell for scrolling")
-                return
-            }
-            let startPoint = CGPoint(x: swipeCell.frame.midX, y: swipeCell.frame.midY)
-            XCTAssertTrue(app.frame.contains(startPoint), "Browse swipe start must be inside the app viewport")
-            guard app.frame.contains(startPoint) else { return }
-            let labelsBeforeScroll = Set(popup.buttons.allElementsBoundByIndex.map(\.label))
-            let selectedLabels = Set(popup.buttons.allElementsBoundByIndex.filter(\.isSelected).map(\.label))
-            shot("library-browse-\(menu)-\(option)-\(iteration)-before-scroll")
-            swipeCell.swipeUp()
-            shot("library-browse-\(menu)-\(option)-\(iteration)-after-scroll")
-            guard let afterSwipe = currentPopup() else { return }
-            popup = afterSwipe
-            choices = makeChoices(in: popup)
-            XCTAssertTrue(popup.exists, "Scrolling must not select a row and dismiss the Browse popup")
-            XCTAssertEqual(popup.frame, popupFrame, "Scrolling must keep the same Browse popup")
-            let labelsAfterScroll = Set(popup.buttons.allElementsBoundByIndex.map(\.label))
-            let selectedAfterScroll = Set(popup.buttons.allElementsBoundByIndex.filter(\.isSelected).map(\.label))
-            let sharedLabels = labelsBeforeScroll.intersection(labelsAfterScroll)
-            XCTAssertEqual(selectedLabels.intersection(sharedLabels), selectedAfterScroll.intersection(sharedLabels),
-                           "Scrolling must not change selection among rows realized before and after the swipe")
-        }
-        wait(choices.firstMatch, 3)
-        XCTAssertEqual(choices.count, 1, "Picker option must be unique in the native popup")
-        XCTAssertTrue(choices.firstMatch.isHittable, "Picker option must be visible after scrolling the Browse popup")
+        XCTAssertEqual(choices.count, 1, "Picker option must be unique in its submenu")
+        XCTAssertTrue(choices.firstMatch.isHittable, "Picker option must be visible without scrolling")
+        guard choices.count == 1 && choices.firstMatch.isHittable else { return }
         choices.firstMatch.tap()
     }
 

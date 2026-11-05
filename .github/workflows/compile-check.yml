@@ -148,24 +148,6 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > nutrition-foundation-unit-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-foundation-unit-tests.log || true; tail -120 nutrition-foundation-unit-tests.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
 
-      - name: Library Explore native sheet presentation (#83)
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: |
-          set -o pipefail
-          # A failed XCTest launch can leave the app process suspended on the simulator.
-          # Reboot this isolated shard's device so the two Explore tests start cleanly.
-          xcrun simctl shutdown "$SIM_ID" >/dev/null 2>&1 || true
-          xcrun simctl boot "$SIM_ID" >/dev/null 2>&1 || true
-          xcrun simctl bootstatus "$SIM_ID" -b
-          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteUITests/CoverageUITests/testExploreInsightsPresentsAsSheetAndDismissesToLibrary \
-            -only-testing:AteUITests/CoverageUITests/testExploreJournalPresentsAsSheetAndDismissesToLibrary \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/library-explore-sheets.xcresult" \
-            -parallel-testing-enabled NO -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
-            CODE_SIGNING_ALLOWED=NO > library-explore-sheets.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" library-explore-sheets.log || true; tail -100 library-explore-sheets.log; exit 1; }
-          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" library-explore-sheets.log | tail -40
 
       - name: Insights evidence and contextual navigation acceptance (issue #195)
         id: insights_acceptance

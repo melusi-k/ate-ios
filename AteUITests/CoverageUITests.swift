@@ -25,7 +25,7 @@ final class CoverageUITests: XCTestCase {
     }
     /// Browse-menu item by exact label, scoped to the opened menu. Observed on the iOS 27 runtime
     /// (identical source resolves them on iOS 26): SwiftUI Menu item buttons no longer expose their
-    /// accessibility identifiers (library.insights / library.journal / library.collection.*) to XCUIT;
+    /// accessibility identifiers (library.collection.* and friends) to XCUIT;
     /// the open menu renders them as labelled buttons, so identifier queries can never match there.
     /// Taps and destination assertions are unchanged. Menu-item identifier contract coverage is lost
     /// on this runtime. `icon` anchors duplicates structurally, not by element order: "Recently added"
@@ -224,49 +224,6 @@ final class CoverageUITests: XCTestCase {
         let transparency = app.descendants(matching: .any)["aiTransparency"].firstMatch
         scrollTo(transparency); wait(transparency, 3)
         shot("settings-about")
-    }
-
-    // MARK: Library Explore sheets (#83)
-
-    func testExploreInsightsPresentsAsSheetAndDismissesToLibrary() {
-        launch()
-        // launch() starts at the Library root. Re-selecting the already-selected tab makes
-        // XCTest wait for a redundant TabView transition on iOS 27 and can never reach
-        // quiescence in this focused shard; this test only needs to exercise Explore.
-        wait(app.tabBars.buttons["Library"])
-        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected,
-                      "Explore should start from the Library tab root")
-        app.buttons["libraryBrowseMenu"].tap()
-        let insights = browseMenuItem("Insights & journal")
-        wait(insights)
-        insights.tap()
-
-        let dismiss = app.buttons["library.explore.dismiss"]
-        wait(dismiss)
-        XCTAssertTrue(app.navigationBars["Insights"].waitForExistence(timeout: 5),
-                      "Insights should open in its own sheet navigation stack")
-        dismiss.tap()
-        wait(app.buttons["libraryBrowseMenu"])
-        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected,
-                      "Dismissing Explore should return to the same Library tab")
-    }
-
-    func testExploreJournalPresentsAsSheetAndDismissesToLibrary() {
-        launch()
-        tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let journal = browseMenuItem("Journal")
-        wait(journal)
-        journal.tap()
-
-        let dismiss = app.buttons["library.explore.dismiss"]
-        wait(dismiss)
-        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 5),
-                      "Journal should open in its own sheet navigation stack")
-        dismiss.tap()
-        wait(app.buttons["libraryBrowseMenu"])
-        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected,
-                      "Dismissing Explore should return to the same Library tab")
     }
 
     // MARK: photo dish step
@@ -645,17 +602,19 @@ final class CoverageUITests: XCTestCase {
 extension CoverageUITests {
     func openInsights(_ scenario: String) {
         launch(["-qaMockHealth", scenario, "-qaHealthRecipes"])
-        tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let row = browseMenuItem("Insights & journal")
-        wait(row); row.tap()
+        tab("Insights")
+        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub); hub.tap()
     }
     func any(_ id: String) -> XCUIElement { app.descendants(matching: .any)[id] }
     /// Connects, checks title + prompts, returns suggestion titles, saves a journal entry.
     @discardableResult
     func runHealthScenario(_ scenario: String, title: String, save: Bool = false) -> [String] {
         openInsights(scenario)
-        let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
+        let connect = app.buttons["insights.connect"]; wait(connect)
+        shot("journal-insights-hub-route")
+        connect.tap()
         wait(text(title))
         let prompt = app.buttons["insights.prompt"].firstMatch; scrollTo(prompt)
         XCTAssertTrue(prompt.exists, "\(scenario): no journal prompt")
@@ -783,7 +742,8 @@ extension CoverageUITests {
     /// Regression guard (StepTrackerTCA lesson): Connect must still ask for Health when access is undecided.
     func testHealthPermissionPromptAppearsWhenUndecided() {
         launch(["-qaMockHealth", "recovery", "-qaHealthRecipes", "-qaHealthPrompt"])
-        tab("Library"); app.buttons["libraryBrowseMenu"].tap(); let row = browseMenuItem("Insights & journal"); wait(row); row.tap()
+        tab("Insights")
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch; wait(hub); hub.tap()
         let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
         let alert = app.alerts.firstMatch; wait(alert, 5)
         XCTAssertTrue(alert.label.contains("Health"), alert.label)
@@ -800,7 +760,8 @@ extension CoverageUITests {
     /// Journaling Suggestions picker is never presented under UI tests; check the context row instead.
     func testJournalMomentContextRow() {
         launch(["-qaMockHealth", "recovery", "-qaJournalMomentEntry"])
-        tab("Library"); app.buttons["libraryBrowseMenu"].tap(); let row = browseMenuItem("Insights & journal"); wait(row); row.tap()
+        tab("Insights")
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch; wait(hub); hub.tap()
         let ctx = any("insights.entryMomentContext"); scrollTo(ctx); wait(ctx)
         XCTAssertTrue(ctx.label.contains("Dinner at Mama"), ctx.label)
         XCTAssertFalse(any("insights.journalingPicker").exists)
@@ -811,12 +772,12 @@ extension CoverageUITests {
 extension CoverageUITests {
     func testCookingTrackerMonthNavigationAndSelectedDay() {
         launch(["-qaMockHealth", "empty", "-qaHealthRecipes"])
-        tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let insights = browseMenuItem("Insights & journal")
-        wait(insights); insights.tap()
+        tab("Insights")
+        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub); hub.tap()
 
-        let insightsTitle = app.navigationBars["Insights"]
+        let insightsTitle = app.navigationBars["Insights & Cooking History"]
         wait(insightsTitle)
         wait(app.images["insights.logo"])
         let month = any("tracker.displayedMonth")

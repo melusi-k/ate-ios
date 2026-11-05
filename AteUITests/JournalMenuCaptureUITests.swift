@@ -7,9 +7,8 @@ import XCTest
 /// and the delete only runs after the open detail is verified to be the
 /// seed entry itself. Nothing pre-existing is selected or removed.
 ///
-/// Modal discipline: "Insights & journal" and "Journal" open as Explore
-/// sheets (library.explore.dismiss). The tab bar is never tapped while a
-/// sheet or menu is open; every dismissal is asserted gone first.
+/// Navigation discipline: Journal is the Insights tab root and the Insights hub is pushed.
+/// Every menu dismissal is asserted gone before back or tab navigation.
 final class JournalMenuCaptureUITests: XCTestCase {
     private var app: XCUIApplication!
     private var seed = ""
@@ -52,34 +51,25 @@ final class JournalMenuCaptureUITests: XCTestCase {
         return t
     }
 
-    /// Native menu items lose identifiers; the target label anchors the popup through scrolling.
-    private func browseMenuItem(_ label: String) -> XCUIElement {
-        // The requested Explore item remains realized when Collections scrolls away.
-        let menus = app.collectionViews.containing(NSPredicate(format: "label == %@", label))
-        wait(menus.firstMatch, 10)
-        XCTAssertEqual(menus.count, 1, "Explore menu must be unique")
-        let menu = menus.firstMatch
-        return menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", label)).firstMatch
+    /// Return from the pushed Insights hub to the Journal tab root before another journey.
+    private func returnToJournalRoot(_ file: StaticString = #filePath, line: UInt = #line) {
+        let hub = any("journal.insightsHistory")
+        if !hub.exists {
+            let back = app.navigationBars.buttons.element(boundBy: 0)
+            wait(back, 10, file: file, line: line)
+            back.tap()
+        }
+        wait(app.navigationBars["Journal"], 10, file: file, line: line)
+        wait(hub, 10, file: file, line: line)
     }
 
-    /// Dismisses the open Explore sheet and proves it is gone before any
-    /// further navigation (tab bar stays behind a modal otherwise).
-    private func dismissExploreSheet(_ file: StaticString = #filePath, line: UInt = #line) {
-        let dismiss = app.buttons["library.explore.dismiss"]
-        wait(dismiss, 10, file: file, line: line)
-        dismiss.tap()
-        gone(dismiss, 5, file: file, line: line)
-        wait(app.buttons["libraryBrowseMenu"], 10, file: file, line: line)
-    }
-
-    /// Insights sheet: connect mock Health, save one uniquely-texted seed
-    /// entry, then leave the sheet fully dismissed.
+    /// Pushed Insights hub: connect mock Health and save one uniquely-texted seed entry.
     private func seedEntryViaInsights() {
-        app.tabBars.buttons["Library"].tap()
-        wait(app.buttons["libraryBrowseMenu"])
-        app.buttons["libraryBrowseMenu"].tap()
-        let row = browseMenuItem("Insights & journal")
-        wait(row); row.tap()
+        app.tabBars.buttons["Insights"].tap()
+        wait(app.navigationBars["Journal"])
+        let hub = any("journal.insightsHistory")
+        wait(hub); hub.tap()
+        wait(app.navigationBars["Insights & Cooking History"])
         let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
         let field = any("insights.journalText")
         wait(field); field.tap(); field.typeText(seed)
@@ -87,14 +77,10 @@ final class JournalMenuCaptureUITests: XCTestCase {
         _ = seedText()
     }
 
-    /// Library -> browse menu -> Journal sheet; asserts the sheet is open.
+    /// Journal is the Insights tab root, not an Explore sheet.
     private func openJournalTimeline() {
-        app.tabBars.buttons["Library"].tap()
-        wait(app.buttons["libraryBrowseMenu"])
-        app.buttons["libraryBrowseMenu"].tap()
-        let item = browseMenuItem("Journal")
-        wait(item, 10); item.tap()
-        wait(app.navigationBars["Journal"], 10)
+        app.tabBars.buttons["Insights"].tap()
+        returnToJournalRoot()
     }
 
     /// Opens the seed entry's detail and PROVES the open detail is the seed
@@ -125,7 +111,7 @@ final class JournalMenuCaptureUITests: XCTestCase {
 
     func testJournalDetailMoreMenuOpens() {
         seedEntryViaInsights()
-        dismissExploreSheet()
+        returnToJournalRoot()
         openJournalTimeline()
         openVerifiedSeedDetail()
         let more = app.buttons["journal.detail.menu"].firstMatch
@@ -149,7 +135,7 @@ final class JournalMenuCaptureUITests: XCTestCase {
         // Dismiss WITHOUT deleting and prove the menu is gone before navigating.
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)).tap()
         gone(del, 5)
-        dismissExploreSheet()
+        returnToJournalRoot()
         openJournalTimeline()
         openVerifiedSeedDetail()
         deleteVerifiedSeedFromOpenDetail()

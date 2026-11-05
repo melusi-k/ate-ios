@@ -27,6 +27,16 @@ struct SettingsView: View {
     }
     @State private var qa = BetaQA.shared
 
+    @ViewBuilder private var diaryDestination: some View {
+        if let runtime = store.foodJournalRuntime {
+            CanonicalNutritionDiaryView(coordinator: runtime.coordinator,
+                                       goalsRepository: runtime.goalsRepository, repair: runtime.repair,
+                                       associationStore: nil)
+        } else {
+            NutritionDiaryView()
+        }
+    }
+
     var body: some View {
         @Bindable var store = store
         Form {
@@ -89,7 +99,7 @@ struct SettingsView: View {
                     }
                     Section {
                         NavigationLink {
-                            NutritionDiaryView()
+                            diaryDestination
                         } label: {
                             Label {
                                 VStack(alignment: .leading, spacing: 2) {
@@ -250,7 +260,7 @@ struct SettingsView: View {
         .foregroundStyle(Theme.foreground)
         .navigationTitle("Settings")
         .navigationDestination(isPresented: $store.showNutritionDiary) {
-            NutritionDiaryView()
+            diaryDestination
         }
         .ateRootNavigationChrome(logoID: "settings.logo")
         .onAppear {

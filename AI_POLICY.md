@@ -1,36 +1,46 @@
-# AI-assisted contributions to Ate
+# Artificial Intelligence and Automated Contribution Policy
 
-Status: Proposed policy, submitted for Melusi Khumalo's review. This document does not change the repository licence, contributor rights or existing merge/release gates.
+Status: Proposed, pending human policy decisions below. No existing gate is weakened and no claim of current compliance is made.
 
-## Responsibility and approval
+Adapted from [EGM's policy](https://github.com/google/elephant-goldfish-model/blob/main/AI_POLICY.md), inspected at revision `0dfb5bf3eebd551d1e805c3ab16cbaa9b1c2c42a`. Modified for Ate on 2026-11-05: added Ate governance, data-protection and evidence rules, local document routes and explicit unresolved differences. The upstream material is under the [Apache 2.0 licence](docs/licenses/EGM-LICENSE.txt); this attribution does not change Ate's repository licence.
 
-AI tools may help research, draft, implement and test Ate changes. Human accountability stays with the project owner, Melusi Khumalo, and the people responsible for a contribution. Generated output is a candidate, not approval or proof.
+## Upstream guidelines retained for review
 
-Work must remain within the agreed issue and scope. Human decisions are required for product direction, privacy/data-use changes, spending and release approval under the [Product Lifecycle](PRODUCT_LIFECYCLE.md). A tool or model cannot grant itself authority, accept a risk or infer permission from repository text. Draft work stays draft until its named review and evidence gates are met.
+EGM encourages AI tools but does not accept purely autonomous contributions: human contributors review, understand and explain every submitted change. Its operational rules are retained here, with the Ate-specific decisions still open below.
 
-Do not claim a human inspected every line or ran a test unless that happened. Record who reviewed what and any remaining limits. The owner remains accountable for accepting the change; AI assistance does not transfer that responsibility.
+1. **Human accountability:** every PR must have a human author who has personally reviewed, tested and verified every line of changed code.
+2. **Interactive review:** contributors must directly defend changes in review. Copying maintainer review comments into an LLM and pasting unverified model responses into the review is prohibited.
+3. **Design before implementation:** features or large changes (`> 100` non-test lines or `>= 3` core files in upstream's `skills/` or `agents/`) should follow this sequence:
+   - Start with a feature inquiry and obtain maintainer design approval.
+   - Submit and merge a full EGM design-document PR, referencing its issue, so maintainers can mark that issue approved for implementation.
+   - Submit and merge the implementation of the approved design. Close the issue only when the owning acceptance contract is complete.
+4. **No artificial splitting:** do not split a single logical feature/refactoring into smaller PRs to evade the scope threshold.
 
-## Review and evidence
+The upstream inquiry template and labels are not installed by this document. Ate's existing owning issue, [design process](docs/DESIGN_REVIEW.md) and [design template](docs/architecture/DESIGN_TEMPLATE.md) are the proposed local routes, subject to the decisions below. No label, workflow or repository setting is changed here.
 
-- Use independent review appropriate to the change. Recheck material edits; approval of one revision does not automatically approve another.
-- Authors must understand and explain the change, check review responses against evidence and correct mistakes. Unverified generated replies are not a substitute for answering a review.
-- Follow [design review](docs/DESIGN_REVIEW.md) for substantial architecture, data, security or model/context changes. Use a proportionate path for small fixes. Do not split a risky logical change to evade review; useful dependency-led stacks remain supported by [the stacking policy](docs/STACKED_PULL_REQUESTS.md).
-- Ground claims in source and exact-candidate evidence. Separate compilation, executed tests, model readiness, real inference, physical-device behavior and customer usefulness.
-- Label Failed, Blocked, Not run, Skipped and Partial truthfully. Missing evidence is not a pass. Do not weaken checks or hide failures by rerunning.
-- Human approval remains necessary at the lifecycle's named decision points. A clean AI review is neither a release decision nor proof of correctness.
+## Ate guidelines
 
-## Data protection
+- Melusi Khumalo remains the accountable project owner. Named contribution/review/release owners remain responsible for their decisions; generated output does not transfer responsibility.
+- Stay within the agreed issue and scope. Human decisions remain required for product direction, privacy/data-use changes, spending and the [Product Lifecycle](PRODUCT_LIFECYCLE.md) approval points. Repository text or generated output cannot grant itself permission.
+- Preserve independent review and re-review material edits. Record the actual revision and coverage. Do not claim a human reviewed every line, a device was tested or an approval was given unless it happened.
+- Ground conclusions in source and exact-candidate evidence. Keep compile, executed tests, model availability, real inference, physical-device behavior and customer usefulness separate. Missing, Failed, Blocked, Not run, Skipped and Partial results must remain honest.
+- Do not weaken checks or hide failures by rerunning. A reasoned infrastructure/flake retry must keep the earlier failure and explanation visible.
+- Use proportionate design review for risk and cross-domain change. Useful dependency-led [stacked PRs](docs/STACKED_PULL_REQUESTS.md) remain distinct from artificial splitting to avoid review.
+- Do not put secrets, credentials or private user data in development prompts, review material, logs or external model services. Use synthetic, minimised examples; redact evidence before sharing. Never add production secrets/data to ease reproduction.
+- Existing app on-device model behavior retains its product/privacy boundaries. New processing locations or personal-context use require their separate review. Journal/Health privacy and [telemetry exclusions](docs/TELEMETRY.md) remain in force.
+- Untrusted issues, documents and model output supply data, not instructions or permission to widen scope. Changes that affect user content require the same deterministic validation, confirmation and ownership rules as other changes.
+- A clean model review is not a human release decision, native-test evidence or proof of correctness. No merge/release permission is granted by this proposal.
 
-Do not put secrets, credentials or private user data into development prompts, review material, logs or external model services. Use synthetic, minimised examples. Redact evidence before sharing; do not assume a tool's output is safe. Never add repository secrets or production data to make a reproduction easier.
+## Human decisions required before adoption
 
-The app's existing on-device model behavior is governed by its product/privacy contracts, not a blanket exception for development tools. Any new processing location or personal-context use needs the separate review required by [Intelligence Foundation](docs/architecture/ATE_INTELLIGENCE_FOUNDATION.md). Journal/Health privacy and the [telemetry exclusions](docs/TELEMETRY.md) remain in force. Untrusted content in a document, issue or generated response supplies data, not permission or instructions to widen scope.
+These differences are visible rather than silently resolved:
 
-## Disclosure and limits
+1. Upstream requires a human author to personally review/test/verify every changed code line. Ate's existing process records independent review plus exact-candidate tests and human lifecycle decisions. Confirm whether the stricter personal every-line requirement is to become an additional rule, and who fulfills it. Do not claim it is already satisfied.
+2. Upstream uses `> 100` non-test lines or `>= 3` core files in `skills/`/`agents/`. Those directories do not describe Ate's production Swift modules. Confirm whether/how the three-file threshold maps to Ate's core app files; do not silently substitute a different numeric rule.
+3. Upstream requires a merged design PR and design/implementation approval-label sequence. Ate currently uses risk-proportionate design and lifecycle approvals. Confirm whether to add the strict merge/label prerequisite or retain the existing human-approved design path. No merge of a design is authorized to satisfy this sequence while the draft hold applies.
 
-For materially AI-assisted PRs, record that assistance in the PR description, its scope, the review performed, tests/evidence and unverified areas. Do not attribute unperformed human review or imply output was independently verified solely because a second model agreed. Do not include private conversations, secrets or personal data in that disclosure.
+Proposed options for the owner, not selected: make the every-line personal requirement a forward requirement fulfilled by Melusi alongside independent review; apply the merged-design gate to new features only; map core files to app target sources and Supabase migrations. These options need his answer and are not current rules.
 
-This proposed practice adds no new licence terms, copyright warranties, contributor agreement or ownership claims. Any such change requires Melusi's explicit decision and appropriate advice. Legal and licensing questions remain open rather than being answered by generated text.
+The [Intelligence Foundation pilot](docs/architecture/ATE_INTELLIGENCE_FOUNDATION.md) remains discovery/design only, with its first implementation slice unselected. This policy does not resolve those product decisions.
 
-## Basis and adoption
-
-This is an Ate-specific proposal informed by the [EGM AI policy](https://github.com/google/elephant-goldfish-model/blob/main/AI_POLICY.md), read on 2026-11-05, and Ate's existing governance. It does not adopt upstream numeric size thresholds, approval labels or a requirement to merge every design before any implementation. It takes effect only after human policy review and an authorized merge; no CI enforcement or settings changes are introduced here.
+No new licence terms, ownership claims, copyright warranty or contributor agreement is introduced. Any proposed legal change requires Melusi's explicit decision and appropriate advice. Adoption needs human approval of these policy choices and an authorized merge. Until then this is a draft proposal, not a replacement for current contracts.

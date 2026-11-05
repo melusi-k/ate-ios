@@ -14,7 +14,7 @@ EXPECTED = {
     'testCookingHistoryInsightLinksGeneratingRecipe',
     'testFoodJournalTileRoutesToUnifiedTimeline',
     'testJournalTileNeverPresentsForcedBadOpenAsHealthyEmpty',
-    'testQuietConnectAndSampleMarksAtMaximumAccessibilitySizeAndLandscape',
+    'testQuietConnectAndSampleMarksSurviveLandscapeRotation',
 }
 UNIT_EXPECTED = {
     'testNotDeterminedOffersSingleQuietConnect',

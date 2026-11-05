@@ -217,8 +217,8 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 5)
 
         // Leaving Cook Mode is not completion. Inspect the calendar's accessible day label.
-        tab("Insights")
-        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        tab("Journal")
+        // Journal tab root is the Journal; Insights & Cooking History is its one named route.
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
         hub.tap()
@@ -248,8 +248,8 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 5)
 
         // Completion must update the persistent Tracker, not merely dismiss Cook Mode.
-        tab("Insights")
-        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        tab("Journal")
+        // Journal tab root is the Journal; Insights & Cooking History is its one named route.
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
         hub.tap()
@@ -306,7 +306,7 @@ final class AteUITests: XCTestCase {
             wait(text("Nothing saved yet"))
         }
 
-        tab("Insights")
+        tab("Journal")
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
         hub.tap()
@@ -1021,14 +1021,14 @@ final class AteUITests: XCTestCase {
         choices.firstMatch.tap()
     }
 
-    /// Journal menu journey: the Insights tab root is the Journal with "New journal entry" as its primary
+    /// Journal menu journey: the Journal tab root is the Journal with "New journal entry" as its primary
     /// action, and "Insights & Cooking History" is the one named route to the tracker. Named captures:
     /// journal-root-new-entry-action, journal-root-insights-route, insights-cooking-history-route.
     func testJournalRootPrimaryActionAndInsightsRoute() {
         launch(["-qaMockHealth", "empty"])
         guard #available(iOS 26, *) else { return }
-        tab("Insights")
-        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 10), "Insights tab root is the Journal")
+        tab("Journal")
+        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 10), "Journal tab root is the Journal")
         let add = app.buttons["accessoryAdd"].firstMatch
         wait(add, 8)
         XCTAssertEqual(add.label, "New journal entry")
@@ -1099,7 +1099,7 @@ final class AteUITests: XCTestCase {
         // Every root tab must replace the previous destination's context.
         app.tabBars.buttons["Shopping"].tap()
         XCTAssertEqual(add.label, "Add item")
-        app.tabBars.buttons["Insights"].tap()
+        app.tabBars.buttons["Journal"].tap()
         XCTAssertEqual(add.label, "New journal entry", "Insights root offers New journal entry, not the Shopping or recipe action")
         app.tabBars.buttons["Library"].tap()
         XCTAssertEqual(add.label, "Add recipe")

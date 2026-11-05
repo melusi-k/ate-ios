@@ -94,9 +94,14 @@ final class KeyFlowsQATests: XCTestCase {
         wait(app.staticTexts["accountEmail"], 8)
     }
 
-    // MARK: 1 — add from URL (JSON-LD page + social caption)
+    // MARK: 1 — add from URL (JSON-LD page + social caption + hidden-caption fallback)
 
-    func testQA1_AddFromURL() {
+    // QA1 runs as three independent cases, each with its own fresh launch and the same real
+    // Add › Link input path, so one slow stage cannot burn the per-case execution-time
+    // allowance for the others. The flow passes only when all three cases pass; the
+    // validators (scripts/qa-summary.py, scripts/release/readiness.py) require all three.
+
+    func testQA1_AddFromURL_JSONLD() {
         launch()
         openAdd("Link")
         let f = app.textFields["linkField"]; f.tap(); f.typeText("https://fixtures.ate.test/jsonld-shakshuka")
@@ -105,15 +110,23 @@ final class KeyFlowsQATests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["sourceBadge"].firstMatch.label.contains("Imported from page data"))
         shot("1-url-jsonld-review")
         save()
+    }
+
+    func testQA1_AddFromURL_InstagramCaption() {
+        launch()
         openAdd("Link")
-        let f2 = app.textFields["linkField"]; f2.tap(); f2.typeText("https://www.instagram.com/reel/qafixture/?igsh=TRACK")
+        let f = app.textFields["linkField"]; f.tap(); f.typeText("https://www.instagram.com/reel/qafixture/?igsh=TRACK")
         generate(); review()
         wait(text("Creamy chakalaka pasta"))
         shot("1-url-instagram-caption-review")
         save()
-        // friendly fallback when the caption is hidden
+    }
+
+    // friendly fallback when the caption is hidden
+    func testQA1_AddFromURL_HiddenCaptionFallback() {
+        launch()
         openAdd("Link")
-        let f3 = app.textFields["linkField"]; f3.tap(); f3.typeText("https://www.instagram.com/reel/nocaption/")
+        let f = app.textFields["linkField"]; f.tap(); f.typeText("https://www.instagram.com/reel/nocaption/")
         generate()
         wait(text("Instagram didn't share the caption"), 10)
         wait(app.buttons["switchToPrompt"])

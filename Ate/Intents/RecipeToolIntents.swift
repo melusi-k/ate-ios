@@ -30,7 +30,7 @@ struct FindSavedRecipesToolIntent: AppIntent {
     static let title: LocalizedStringResource = "Find saved recipes"
     static let description = IntentDescription("Searches the recipes saved in Ate and returns matching recipe titles for the person to choose from.")
     static let openAppWhenRun = true
-    static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
+    static var authenticationPolicy: IntentAuthenticationPolicy = .requiresLocalDeviceAuthentication
 
     @Parameter(
         title: "Search terms",
@@ -72,7 +72,7 @@ struct StartCookModeForRecipeToolIntent: AppIntent {
     static let title: LocalizedStringResource = "Start cook mode for a saved recipe"
     static let description = IntentDescription("Starts Ate cook mode for one specific saved recipe selected by the person.")
     static let openAppWhenRun = true
-    static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
+    static var authenticationPolicy: IntentAuthenticationPolicy = .requiresLocalDeviceAuthentication
 
     @Parameter(
         title: "Recipe",

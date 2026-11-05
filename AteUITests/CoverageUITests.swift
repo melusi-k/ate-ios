@@ -211,18 +211,47 @@ final class CoverageUITests: XCTestCase {
         // The SwiftUI combined container is not consistently hittable across simulator
         // runtimes, even when its child heading is visible. Scroll to the stable visible
         // heading so this journey cannot spend minutes swiping toward a non-hittable parent.
+        // Read-only combined text does not need to accept taps. XCUITest can report
+        // isHittable=false for these visible, selectable SwiftUI rows. Prove actual
+        // viewport clearance instead of spending the existing swipe budget seeking
+        // a tappable parent. Keep the same directional bounds and content assertions.
+        func revealReadOnlySettingsRow(_ heading: XCUIElement) {
+            func fullyVisible() -> Bool {
+                guard heading.exists else { return false }
+                let row = heading.frame
+                let screen = app.frame
+                let navigation = app.navigationBars.firstMatch
+                let tabs = app.tabBars.firstMatch
+                let top = navigation.exists ? navigation.frame.maxY : screen.minY
+                let bottom = tabs.exists ? tabs.frame.minY : screen.maxY
+                return !row.isEmpty && !row.isInfinite && !row.isNull
+                    && row.minX >= screen.minX && row.maxX <= screen.maxX
+                    && row.minY >= top && row.maxY <= bottom
+            }
+            var swipes = 0
+            while !fullyVisible() && swipes < 25 { app.swipeUp(); swipes += 1 }
+            swipes = 0
+            while !fullyVisible() && swipes < 50 { app.swipeDown(); swipes += 1 }
+            XCTAssertTrue(fullyVisible(), "Settings read-only row must be fully visible above the tab bar")
+        }
         let buildNotesHeading = app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "Changes in this build")
         ).firstMatch
-        scrollTo(buildNotesHeading); wait(buildNotesHeading, 3)
+        revealReadOnlySettingsRow(buildNotesHeading); wait(buildNotesHeading, 3)
         let buildNotes = app.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
         wait(buildNotes, 3)
         XCTAssertFalse(buildNotes.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                        "About should show generated build notes or an explicit fallback")
+        let diagnosticsHeading = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "AI diagnostics")
+        ).firstMatch
+        revealReadOnlySettingsRow(diagnosticsHeading); wait(diagnosticsHeading, 3)
         let diagnostics = app.descendants(matching: .any)["aiDiagnostics"].firstMatch
-        scrollTo(diagnostics); wait(diagnostics, 3)
+        wait(diagnostics, 3)
+        XCTAssertFalse(diagnostics.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                       "About must retain its AI diagnostics content")
         let transparency = app.descendants(matching: .any)["aiTransparency"].firstMatch
-        scrollTo(transparency); wait(transparency, 3)
+        revealReadOnlySettingsRow(transparency); wait(transparency, 3)
         shot("settings-about")
     }
 

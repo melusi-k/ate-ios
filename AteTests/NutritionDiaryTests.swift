@@ -270,4 +270,62 @@ final class NutritionDiaryTests: XCTestCase {
         let totals = NutritionDayTotals.calculate(entries: repository.load())
         XCTAssertEqual(totals.value(for: .energy), 300)
     }
+
+    private func weekTestCalendar() -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "en_US_POSIX")
+        calendar.timeZone = TimeZone(identifier: "Africa/Johannesburg")!
+        calendar.firstWeekday = 2 // Monday, matching the diary's local week.
+        return calendar
+    }
+
+    private func weekEntry(dayKey: String, energy: Double, at date: Date) -> NutritionDiaryEntry {
+        NutritionDiaryEntry(foodName: "Meal \(dayKey)", date: date, meal: .lunch, quantity: 1,
+                            quantityUnit: "serving", servings: 1, source: .userProvided, sourceName: "You",
+                            nutrientsPerServing: NutritionSnapshot(energyKcal: energy, proteinGrams: 10,
+                                                                   carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil),
+                            dayKey: dayKey)
+    }
+
+    func testWeekIntervalUsesTheCalendarWeekContainingTheGivenDate() {
+        let calendar = weekTestCalendar()
+        let now = calendar.date(from: DateComponents(year: 2026, month: 10, day: 28, hour: 12))!
+        let week = NutritionWeekTotals.weekInterval(containing: now, calendar: calendar)
+        XCTAssertEqual(week?.start, calendar.date(from: DateComponents(year: 2026, month: 10, day: 26))!)
+        XCTAssertEqual(week?.end, calendar.date(from: DateComponents(year: 2026, month: 11, day: 2))!)
+    }
+
+    func testWeekTotalsIncludeOnlyCurrentCalendarWeekEntries() {
+        let calendar = weekTestCalendar()
+        let now = calendar.date(from: DateComponents(year: 2026, month: 10, day: 28, hour: 12))!
+        let inside = [weekEntry(dayKey: "2026-10-26", energy: 100, at: now),   // Monday, week start
+                      weekEntry(dayKey: "2026-11-01", energy: 200, at: now)]   // Sunday, week end
+        let outside = [weekEntry(dayKey: "2026-10-25", energy: 1000, at: now), // Sunday before
+                       weekEntry(dayKey: "2026-11-02", energy: 2000, at: now)] // Monday after
+        let totals = NutritionWeekTotals.calculate(entries: inside + outside, inWeekOf: now, calendar: calendar)
+        XCTAssertEqual(totals.value(for: .energy), 300)
+        XCTAssertEqual(totals.value(for: .protein), 20)
+        XCTAssertNil(totals.value(for: .carbohydrates))
+    }
+
+    func testWeekTotalsExcludeEntriesWithoutParseableDay() {
+        let calendar = weekTestCalendar()
+        let now = calendar.date(from: DateComponents(year: 2026, month: 10, day: 28, hour: 12))!
+        let entries = [weekEntry(dayKey: "2026-10-27", energy: 120, at: now),
+                       weekEntry(dayKey: "not-a-day", energy: 500, at: now)]
+        let totals = NutritionWeekTotals.calculate(entries: entries, inWeekOf: now, calendar: calendar)
+        XCTAssertEqual(totals.value(for: .energy), 120)
+        XCTAssertEqual(NutritionWeekTotals.entries(entries, inWeekOf: now, calendar: calendar).count, 1)
+    }
+
+    func testWeekTotalsEmptyWeekReportsNoValues() {
+        let calendar = weekTestCalendar()
+        let now = calendar.date(from: DateComponents(year: 2026, month: 10, day: 28, hour: 12))!
+        let entries = [weekEntry(dayKey: "2026-10-19", energy: 400, at: now)]
+        let totals = NutritionWeekTotals.calculate(entries: entries, inWeekOf: now, calendar: calendar)
+        XCTAssertTrue(NutritionWeekTotals.entries(entries, inWeekOf: now, calendar: calendar).isEmpty)
+        for field in NutritionGoalField.allCases {
+            XCTAssertNil(totals.value(for: field))
+        }
+    }
 }

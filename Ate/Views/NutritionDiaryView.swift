@@ -135,6 +135,31 @@ struct NutritionDiaryView: View {
                     .accessibilityIdentifier("nutritionDiary.retryGoals")
                 }
             }
+            Section("This week") {
+                let weekEntries = NutritionWeekTotals.entries(entries, inWeekOf: .now)
+                if weekEntries.isEmpty {
+                    Text("Nothing logged this week yet.")
+                        .foregroundStyle(Theme.mutedForeground)
+                        .accessibilityIdentifier("nutritionDiary.weeklyEmpty")
+                } else {
+                    let weekTotals = NutritionDayTotals.calculate(entries: weekEntries)
+                    ForEach(NutritionGoalField.allCases) { field in
+                        HStack {
+                            Text(field.title)
+                            Spacer()
+                            if let amount = weekTotals.value(for: field) {
+                                Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) \(field.unit)")
+                                    .monospacedDigit()
+                                    .accessibilityIdentifier("nutritionDiary.weeklyTotal.\(field.rawValue).value")
+                            } else {
+                                Text("Unavailable").foregroundStyle(Theme.mutedForeground)
+                                    .accessibilityIdentifier("nutritionDiary.weeklyTotal.\(field.rawValue).value")
+                            }
+                        }
+                        .accessibilityIdentifier("nutritionDiary.weeklyTotal.\(field.rawValue)")
+                    }
+                }
+            }
             if dayEntries.isEmpty {
                 // Custom empty content replaces the system ContentUnavailableView: its
                 // single-line title clipped at the trailing screen edge at AX5 (v8 pixel

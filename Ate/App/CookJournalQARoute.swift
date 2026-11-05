@@ -72,7 +72,7 @@ struct CookJournalQAInspector: ViewModifier {
     @State private var inspection: Inspection?
     func body(content: Content) -> some View {
         content.overlay(alignment: .topTrailing) {
-            if CookJournalQARoute.requested && store.cookTarget == nil && !store.cookJournalViewVisible && store.cookedReflectionPresentedID == nil {
+            if CookJournalQARoute.requested && inspection == nil && store.cookTarget == nil && !store.cookJournalViewVisible && store.cookedReflectionPresentedID == nil {
                 VStack {
                     Button("Inspect saved cook note") {
                         let detail: String

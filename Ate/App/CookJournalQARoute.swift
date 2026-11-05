@@ -65,16 +65,20 @@ enum CookJournalQARoute {
 /// Explicit QA evidence route, not a replacement for ordinary Journal detail integration.
 struct CookJournalQAInspector: ViewModifier {
     @Environment(AppStore.self) private var store
-    @State private var inspecting = false
-    @State private var detail = ""
+    private struct Inspection: Identifiable {
+        let id = UUID()
+        let detail: String
+    }
+    @State private var inspection: Inspection?
     func body(content: Content) -> some View {
         content.overlay(alignment: .topTrailing) {
             if CookJournalQARoute.requested && store.cookTarget == nil && !store.cookJournalViewVisible && store.cookedReflectionPresentedID == nil {
                 VStack {
                     Button("Inspect saved cook note") {
+                        let detail: String
                         do {
                             guard let runtime = store.foodJournalRuntime, let container = runtime.journal.container else {
-                                detail = "UNAVAILABLE"; inspecting = true; return
+                                inspection = Inspection(detail: "UNAVAILABLE"); return
                             }
                             let context = ModelContext(container)
                             let rows = try context.fetch(FetchDescriptor<JournalEntry>())
@@ -83,17 +87,22 @@ struct CookJournalQAInspector: ViewModifier {
                                 "\(row.text)\n\(row.dayKey)\n\(row.recipeSnapshotsRaw)\nkind=\(row.kindRaw);health-empty=\(row.stateRaw.isEmpty ? "yes" : "NO")"
                             }.joined(separator: "\n")
                         } catch { detail = "READ FAILED" }
-                        inspecting = true
+                        inspection = Inspection(detail: detail)
                     }.accessibilityIdentifier("cookJournal.qa.inspect")
                     Button("Finish cook QA") { CookJournalQARoute.cleanup() }
                         .accessibilityIdentifier("cookJournal.qa.cleanup")
                 }.font(.caption).padding(8).background(.regularMaterial)
             }
         }
-        .sheet(isPresented: $inspecting) {
+        .sheet(item: $inspection) { snapshot in
             VStack {
-                ScrollView { Text(detail).accessibilityIdentifier("cookJournal.qa.detail").padding() }
-                Button("Finish cook QA") { CookJournalQARoute.cleanup(); inspecting = false }
+                ScrollView {
+                    Text(snapshot.detail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("cookJournal.qa.detail").padding()
+                }
+                .frame(maxWidth: .infinity)
+                Button("Finish cook QA") { CookJournalQARoute.cleanup(); inspection = nil }
                     .accessibilityIdentifier("cookJournal.qa.cleanup")
             }
                 .presentationDetents([.large])

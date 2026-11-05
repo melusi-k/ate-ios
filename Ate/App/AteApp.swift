@@ -25,7 +25,12 @@ struct AteApp: App {
         }
         let c = outcome.container
         container = c
+#if DEBUG
+        let st = AppStore(context: c?.mainContext, foodJournalRuntime: CookJournalQARoute.runtime())
+        CookJournalQARoute.prepare(st)
+#else
         let st = AppStore(context: c?.mainContext)
+#endif
         if outcome.recovered || outcome.inMemoryFallback || (c == nil && !AppConfig.isUITesting) {
             st.recovery = RecoveryInfo(backupPath: outcome.backupURL?.lastPathComponent, inMemory: outcome.inMemoryFallback || c == nil, error: outcome.error)
         }
@@ -43,7 +48,7 @@ struct AteApp: App {
     /// One typed expression keeps the shared modifiers attached across DEBUG compilation.
     private var rootContent: AnyView {
 #if DEBUG
-        CanonicalNutritionQARoute.rootView(store: store) ?? AnyView(RootView())
+        CanonicalNutritionQARoute.rootView(store: store) ?? AnyView(RootView().modifier(CookJournalQAInspector()))
 #else
         AnyView(RootView())
 #endif
@@ -148,12 +153,13 @@ struct RootView: View {
             }
         }
         .modifier(JournalTaskHost())
+        .modifier(CookedJournalReflectionHost())
         .onChange(of: vSize) { _, v in
             // Collections are sidebar-only; back in portrait keep the filter but show the Library tab.
             if v != .compact, case .collection = store.tab { store.tab = .library }
         }
-        .fullScreenCover(item: $store.cookTarget) { target in
-            NavigationStack { CookModeView(recipeID: target.id, onExit: { store.cookTarget = nil }) }.environment(store)
+        .fullScreenCover(item: $store.cookTarget, onDismiss: { store.cookJournalModalDismissing = false; store.presentPendingCookedReflection() }) { target in
+            NavigationStack { JournalBoundCookMode(recipeID: target.id, onExit: { store.cookJournalModalDismissing = true; store.cookTarget = nil }) }.environment(store)
         }
         .fullScreenCover(isPresented: $store.showOnboarding) { OnboardingView().environment(store) }
         .sheet(item: $store.authSheet) { m in AuthSheet(mode: m).environment(store) }
@@ -419,7 +425,7 @@ struct RouteView: View {
         Group {
             switch route {
             case .recipe(let id): RecipeDetailView(recipeID: id)
-            case .cook(let id): CookModeView(recipeID: id)
+            case .cook(let id): JournalBoundCookMode(recipeID: id)
             case .shopping: ShoppingListView()
             case .settings: SettingsView()
             case .shared(let slug): SharedRecipeView(slug: slug)

@@ -143,6 +143,9 @@ final class CookedJournalReflectionSessionTests: XCTestCase {
             })
         XCTAssertFalse(session.save())
         let store = AppStore(context: nil, backend: MockBackend(), foodJournalRuntime: runtime)
+        // This fixture exercises modal admission after onboarding has finished.
+        // Do not inherit a hosted unit-test process's real onboarding preference.
+        store.showOnboarding = false
         store.cookedReflectionSessions[captured.id] = session
         XCTAssertEqual(store.availableCookedReflections(queued: try runtime.pendingCookReflections()), [captured])
         store.cookJournalModalDismissing = true

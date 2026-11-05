@@ -15,7 +15,7 @@ import XCTest
     }
 
     private let session = AuthSession(accessToken: "t", refreshToken: "r",
-                                      expiresAt: .distantFuture.timeIntervalSince1970,
+                                      expiresAt: Date.distantFuture.timeIntervalSince1970,
                                       userID: "owner-a", email: "a@example.com")
 
     // MARK: Fakes

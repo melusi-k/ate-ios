@@ -14,7 +14,7 @@ enum LegacyDiaryRepairError: Error, Equatable {
 struct LegacyDiaryRepairSnapshot {
     let originalBytes: Data
     let entries: [NutritionDiaryEntry]
-    var invalidIndices: [Int] { entries.indices.filter { !NutritionDiaryValidation.isValid(entries[$0]) } }
+    @MainActor var invalidIndices: [Int] { entries.indices.filter { !FoodJournalStore.validMeal(entries[$0]) } }
     var duplicateIndices: [Int] {
         var seen = Set<UUID>()
         return entries.indices.filter { !seen.insert(entries[$0].id).inserted }

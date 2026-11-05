@@ -3,8 +3,13 @@ import XCTest
 
 final class AccountGenerationReceiptStoreTests: XCTestCase {
     private func fixture(_ run: (AccountGenerationReceiptStore, URL) throws -> Void) throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        // The stores under test REQUIRE a canonical directory: standardizedFileURL
+        // identity, no symlink components. NSTemporaryDirectory may traverse a
+        // symlinked ancestor (/var -> /private/var on Apple hosts), so resolve the
+        // fixture root AFTER creating it. Production guards stay unchanged.
+        let requested = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: requested, withIntermediateDirectories: false)
+        let directory = requested.resolvingSymlinksInPath().standardizedFileURL
         defer { try? FileManager.default.removeItem(at: directory) }
         try run(try AccountGenerationReceiptStore(directory: directory), directory)
     }
@@ -50,7 +55,9 @@ final class AccountGenerationReceiptStoreTests: XCTestCase {
     }
 
     func testMissingParentCannotMeanAbsentReceipt() throws {
-        let missing = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let missing = FileManager.default.temporaryDirectory
+            .resolvingSymlinksInPath().standardizedFileURL
+            .appendingPathComponent(UUID().uuidString)
         XCTAssertThrowsError(try AccountGenerationReceiptStore(directory: missing).read())
     }
     func testSymbolicParentCannotMeanAbsentReceipt() throws {

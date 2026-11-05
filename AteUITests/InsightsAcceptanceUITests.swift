@@ -44,20 +44,6 @@ final class InsightsAcceptanceUITests: XCTestCase {
         button.tap()
     }
 
-    /// Browse-menu item by exact label, scoped to the opened menu. Observed on the iOS 27 runtime
-    /// (identical source resolves them on iOS 26): SwiftUI Menu item buttons no longer expose their
-    /// accessibility identifiers (library.insights and friends) to XCUIT; the open menu renders them as
-    /// labelled buttons, so identifier queries can never match there. Taps and destination assertions
-    /// are unchanged. Menu-item identifier contract coverage is lost on this runtime.
-    private func browseMenuItem(_ label: String) -> XCUIElement {
-        // Target anchoring survives the native popup scrolling Collections away.
-        let menus = app.collectionViews.containing(NSPredicate(format: "label == %@", label))
-        wait(menus.firstMatch)
-        XCTAssertEqual(menus.count, 1, "Explore menu must be unique")
-        return menus.firstMatch.descendants(matching: .button)
-            .matching(NSPredicate(format: "label == %@", label)).firstMatch
-    }
-
     private func addAndCompleteRecipe() {
         app.buttons["Add recipe"].tap()
         wait(app.staticTexts["Add a recipe"])
@@ -101,11 +87,11 @@ final class InsightsAcceptanceUITests: XCTestCase {
         launch()
         addAndCompleteRecipe()
 
-        tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let insightsEntry = browseMenuItem("Insights & journal")
-        wait(insightsEntry)
-        insightsEntry.tap()
+        tab("Insights")
+        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub)
+        hub.tap()
 
         let resolve = app.buttons["insights.progress.resolve.weekly-cooking"]
         wait(resolve, 15)
@@ -129,11 +115,11 @@ final class InsightsAcceptanceUITests: XCTestCase {
         launch()
         addAndCompleteRecipe()
 
-        tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let insightsEntry = browseMenuItem("Insights & journal")
-        wait(insightsEntry)
-        insightsEntry.tap()
+        tab("Insights")
+        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub)
+        hub.tap()
 
         let action = app.buttons["insights.progress.action.weekly-cooking"]
         wait(action, 15)

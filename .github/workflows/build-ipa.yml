@@ -52,6 +52,8 @@ jobs:
 
       - name: Docs ID drift + client secret scan (A-CI-05)
         run: python3 scripts/check-ids.py
+      - name: Validate Siri app skill bundle
+        run: python3 scripts/validate-siri-skills.py
 
       - name: Select Xcode 27.1
         uses: maxim-lobanov/setup-xcode@v1

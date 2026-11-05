@@ -6,7 +6,7 @@ struct JournalListView: View {
     @Environment(AppStore.self) private var store
     /// Tests render the banner and empty-state suppression without mutating the shared store.
     var openStateOverride: JournalOpenState? = nil
-    /// True as the Insights tab root: shows the one named route to Insights & Cooking History.
+    /// True as the Journal tab root: shows the one named route to Insights & Cooking History.
     var isTabRoot = false
     @State private var entries: [JournalEntry] = []
     @State private var query = ""

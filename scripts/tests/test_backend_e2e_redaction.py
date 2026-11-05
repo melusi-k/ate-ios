@@ -5,6 +5,7 @@ exception type name only) and py/redos (quoted-key/value redaction is a hand-wri
 linear scanner). scrub() is defence in depth on the pass path only.
 Every secret in this file is a synthetic canary.
 """
+import ast
 import importlib.util
 import io
 import re
@@ -59,11 +60,13 @@ class FailClosedTests(CanaryTestCase):
 
         result, out, err = self.run_check(boom)
         self.assertEqual(result["status"], "fail")
-        # Type name + check name + innermost frame location, never exception text.
+        # Stored note: type name + check name + innermost frame location, never exception text.
         self.assertRegex(result["note"],
                          r"^AssertionError in boom at boom:\d+ " + re.escape(e2e._WITHHELD) + "$")
+        # Console output is a static ids+status line - no flow from any source into the print sink.
+        self.assertEqual(out, "❌ A-TEST-00: fail\n")
         self.assert_no_canaries(result["note"], out, err)
-        self.assertNotIn("invalid_grant", out)  # no exception text anywhere
+        self.assertNotIn("invalid_grant", out + err)  # no exception text anywhere
         self.assertEqual(err, "")  # no traceback on the failure path
 
     def test_source_line_secret_literal_never_logged(self):
@@ -73,6 +76,7 @@ class FailClosedTests(CanaryTestCase):
 
         result, out, err = self.run_check(boom)
         self.assert_no_canaries(result["note"], out, err)
+        self.assertEqual(out, "❌ A-TEST-00: fail\n")
         self.assertEqual(err, "")
 
     def test_fail_closed_boundary_logs_type_name_only(self):
@@ -96,6 +100,7 @@ class PassPathScrubTests(CanaryTestCase):
         self.assertEqual(result["status"], "pass")
         self.assert_no_canaries(result["note"], out)
         self.assertIn("[redacted]", result["note"])
+        self.assertEqual(out, "✅ A-TEST-00: pass\n")  # notes are stored/uploaded, never printed
         self.assertEqual(err, "")
 
     def test_note_is_capped_at_400_chars_after_redaction(self):
@@ -104,6 +109,7 @@ class PassPathScrubTests(CanaryTestCase):
 
         result, out, _ = self.run_check(ok)
         self.assertLessEqual(len(result["note"]), 400)
+        self.assertEqual(out, "✅ A-TEST-00: pass\n")
         self.assert_no_canaries(result["note"], out)
         # Redact-then-truncate: no partial canary may survive at the cut point.
         self.assertNotIn(CANARY_PASSWORD[:10], result["note"])
@@ -114,7 +120,7 @@ class PassPathScrubTests(CanaryTestCase):
 
         result, out, _ = self.run_check(ok)
         self.assertEqual(result["note"], "")
-        self.assertNotIn("None", out)
+        self.assertEqual(out, "✅ A-TEST-00: pass\n")
 
 
 class ScrubUnitTests(unittest.TestCase):
@@ -254,6 +260,34 @@ def _time(text):
     start = time.monotonic()
     e2e.scrub(text)
     return time.monotonic() - start
+
+
+class PassNoteTaintTests(unittest.TestCase):
+    """CodeQL taints values read under password-named keys (e.g. cfg.get("password_min_length")).
+    Check-authored return notes must be constant text (comparison-derived constants allowed)."""
+
+    @staticmethod
+    def _returns(path, func_name):
+        tree = ast.parse(Path(path).read_text())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name == func_name:
+                return [n for n in ast.walk(node) if isinstance(n, ast.Return)]
+        raise AssertionError(f"{func_name} not found in {path}")
+
+    def test_auth02_note_is_constant(self):
+        returns = self._returns(SCRIPT, "t_auth02")
+        self.assertTrue(returns, "t_auth02 has no return statements")
+        for ret in returns:
+            self.assertIsInstance(ret.value, ast.Constant,
+                                  "t_auth02's note must be a constant string (CodeQL name-taint)")
+
+    def test_auth_settings_note_uses_no_config_names(self):
+        returns = self._returns(SCRIPT.parent / "security_checks.py", "t_auth_settings")
+        self.assertTrue(returns, "t_auth_settings has no return statements")
+        for ret in returns:
+            names = {n.id for n in ast.walk(ret) if isinstance(n, ast.Name)}
+            self.assertFalse(names & {"cfg", "mn", "chars", "otp"},
+                             f"t_auth_settings' note must not reference config reads: {names & {'cfg', 'mn', 'chars', 'otp'}}")
 
 
 class CollectionTests(unittest.TestCase):

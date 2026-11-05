@@ -2,6 +2,11 @@ import Foundation
 import Darwin
 import CryptoKit
 
+// Swift's Darwin module also exposes struct flock. Bind the C symbol explicitly
+// with its exact int/int -> int ABI rather than resolving the struct initializer.
+@_silgen_name("flock")
+private func archive_flock(_ descriptor: Int32, _ operation: Int32) -> Int32
+
 /// Apple-platform prep candidate. Shared directory must be the SAME trusted container
 /// for app and every extension. Caller must not substitute an account-selected path.
 /// All functions are synchronous; no lease is to be held across an unbounded await.
@@ -29,14 +34,14 @@ final class POSIXArchiveWriterLease {
             guard Darwin.fstat(fd, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_nlink == 1 else {
                 Darwin.close(fd); throw Failure.unsafeFile
             }
-            guard Darwin.flock(fd, LOCK_EX | LOCK_NB) == 0 else {
+            guard archive_flock(fd, LOCK_EX | LOCK_NB) == 0 else {
                 let code = errno; Darwin.close(fd)
                 if code == EWOULDBLOCK || code == EAGAIN { throw Failure.busy }
                 throw Failure.syscall("lock", code)
             }
             directoryDescriptor = dir; lockDescriptor = fd
             do { generation = try readGeneration() }
-            catch { Darwin.flock(fd, LOCK_UN); Darwin.close(fd); throw error }
+            catch { archive_flock(fd, LOCK_UN); Darwin.close(fd); throw error }
         } catch { Darwin.close(dir); throw error }
     }
 
@@ -97,7 +102,7 @@ final class POSIXArchiveWriterLease {
     func release() {
         guard active else { return }
         active = false
-        _ = Darwin.flock(lockDescriptor, LOCK_UN)
+        _ = archive_flock(lockDescriptor, LOCK_UN)
         Darwin.close(lockDescriptor); Darwin.close(directoryDescriptor)
     }
     deinit { release() }

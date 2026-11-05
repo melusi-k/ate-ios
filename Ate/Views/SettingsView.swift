@@ -87,29 +87,22 @@ struct SettingsView: View {
                     } header: {
                         Text("AI on this device")
                     }
-                    Section {
-                        NavigationLink {
-                            NutritionDiaryView()
-                        } label: {
-                            Label {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Food diary")
-                                    Text("What you ate, day by day.")
-                                        .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-                                }
-                            } icon: { Image(systemName: "fork.knife") }
+                    Section("Nutrition") {
+                        // Typed Route pushes keep the settings path accurate, preventing the
+                        // root-only bottom accessory from rendering over pushed screens.
+                        NavigationLink(value: Route.nutritionDiary) {
+                            Label("Food diary", systemImage: "fork.knife")
                         }
                         .accessibilityIdentifier("settings.nutritionDiary")
-                        NavigationLink {
-                            NutritionGoalsView()
-                        } label: {
-                            Label {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Nutrition goals")
-                                    Text("Your daily targets.")
-                                        .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-                                }
-                            } icon: { Image(systemName: "target") }
+                        NavigationLink(value: Route.nutritionGoals) {
+                            Label("Nutrition goals", systemImage: "target")
+                        }
+                        .accessibilityIdentifier("settings.nutritionGoals")
+                    } header: {
+                        Text("Nutrition")
+                    } footer: {
+                        Text(SettingsCopy.nutritionFooter)
+                    }
                         }
                         .accessibilityIdentifier("settings.nutritionGoals")
                     } header: {
@@ -249,8 +242,10 @@ struct SettingsView: View {
         .background(Theme.background)
         .foregroundStyle(Theme.foreground)
         .navigationTitle("Settings")
-        .navigationDestination(isPresented: $store.showNutritionDiary) {
-            NutritionDiaryView()
+        // Bridge the Insights shortcut onto the typed path so the push is recorded in
+        // settingsPath (isAtTabRoot -> false, root-only bottom accessory stays off, #179).
+        .onChange(of: store.showNutritionDiary) { _, show in
+            if show { store.settingsPath.append(Route.nutritionDiary); store.showNutritionDiary = false }
         }
         .ateRootNavigationChrome(logoID: "settings.logo")
         .onAppear {

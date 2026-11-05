@@ -54,28 +54,37 @@ final class InsightsPresentationUITests: XCTestCase {
         print("SNAPSHOT-END \(name)")
     }
 
-    private func tab(_ name: String) {
+    private func tab(_ name: String, from: XCUIElement, arrival: XCUIElement) {
         wait(app.tabBars.firstMatch, 15)
         let button = app.tabBars.buttons[name]
         wait(button, 8)
-        // iOS 26: a tab tap that lands while the bar is mid-transition (route push or
-        // minimize/expand animation) can be swallowed without an error, leaving the previous
-        // tab selected. Re-tap as a user would until the tab's own selected state confirms the
-        // switch (precedent: the AteUITests tab asserts read the same isSelected state). The
-        // settle pause keeps a slow state update from causing a second tap on the now-current
-        // tab, which would pop its stack.
+        // Confirm arrival by destination content, not the button's selected state: on this
+        // iOS 26 tab bar a tap can be swallowed while the bar is minimized or mid-transition
+        // (run-431 evidence: the tap synthesized cleanly and isSelected even read true while
+        // the previous tab stayed on screen). A re-tap happens only while the ORIGIN content
+        // is still present: a vanished origin means the previous tap did switch and the
+        // destination is still rendering, so another tap would hit the now-current tab and
+        // pop its stack. Already on the destination means no tap at all. Worst case per
+        // call: 3 attempts x (3s arrival wait + 1s settle) + 10s final wait, bounded.
         var attempts = 0
-        while !button.isSelected && attempts < 3 {
+        while !(arrival.exists && arrival.isHittable) && attempts < 3 {
+            if attempts > 0 && !from.exists { break }
             button.tap()
             attempts += 1
+            _ = arrival.waitForExistence(timeout: 3)
             sleep(1)
         }
-        XCTAssertTrue(button.isSelected, "the \(name) tab must become selected when tapped")
+        _ = arrival.waitForExistence(timeout: 10)
+        XCTAssertTrue(arrival.exists && arrival.isHittable,
+                      "the \(name) tab must show its content after tapping it")
     }
 
     /// The Insights tab root is the Journal; Insights & Cooking History is its one named route.
     private func openInsightsHub() {
-        tab("Insights")
+        // Destination is the tab ROOT (the Journal tile): a redundant re-tap on the already
+        // current tab only pops to that root, so the always-present tab bar is the origin
+        // marker and up to 3 taps are safe here.
+        tab("Insights", from: app.tabBars.firstMatch, arrival: any("journal.insightsHistory"))
         let hub = any("journal.insightsHistory")
         wait(hub)
         hub.tap()
@@ -92,6 +101,26 @@ final class InsightsPresentationUITests: XCTestCase {
         while !(element.exists && element.isHittable) && swipes < maxSwipes {
             app.swipeUp()
             swipes += 1
+        }
+        return element.exists && element.isHittable
+    }
+
+    /// Scrolling inside the landscape split (LandscapeSplitView): app-level swipeUp lands in
+    /// the sidebar List and scrolls it while the hub stays put (run-431 evidence: after 8
+    /// swipes the sidebar sat at its bottom and the hub had not moved). Drag FIXED coordinates
+    /// inside the hub (right) pane instead - app-normalized (0.75, 0.7) -> (0.75, 0.25), a
+    /// ~45% screen-height drag per step - so no content anchor has to stay on screen between
+    /// iterations. The sidebar occupies the left ~240pt (x < 0.28 normalized), so x = 0.75
+    /// sits safely inside the detail pane in either landscape orientation. Bounded, stops as
+    /// soon as the target is hittable.
+    @discardableResult
+    private func scrollHubDownInLandscape(_ element: XCUIElement, _ maxDrags: Int = 12) -> Bool {
+        var drags = 0
+        while !(element.exists && element.isHittable) && drags < maxDrags {
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.7))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.25))
+            start.press(forDuration: 0.01, thenDragTo: end)
+            drags += 1
         }
         return element.exists && element.isHittable
     }
@@ -127,19 +156,24 @@ final class InsightsPresentationUITests: XCTestCase {
         wait(text("Recovery day"))
         wait(any("insights.sampleBadge"))
         wait(text("Not your personal Health data."))
-        // Library first: scrolling the hub minimizes the iOS 26+ tab bar (.onScrollDown), and a
-        // minimized bar exposes no sibling tab buttons. Check the Library route before any hub
-        // scroll. First Library visit of this launch opens at the top, where the Today card
-        // lives; a miss fails here explicitly instead of scrolling blind in one direction.
-        tab("Library")
+        // connectHealth()'s tap auto-scrolls the hub to reach the quiet Connect row ("Scroll
+        // element to visible" in the run log), which minimizes the iOS 26+ tab bar; a tab tap
+        // then lands on the minimized bar instead of switching (run-431 evidence: the tap
+        // synthesized cleanly and the hub stayed on screen). Reset to the hub top first so
+        // the bar is expanded and settled. First Library visit of this launch opens at the
+        // top, where the Today card lives; a miss fails explicitly, no blind scrolling.
+        resetHubScrollPosition()
+        tab("Library", from: app.navigationBars["Insights & Cooking History"],
+            arrival: app.navigationBars["Your Kitchen"])
         let card = any("library.todayCard")
         wait(card)
         XCTAssertTrue(card.isHittable, "the Library Today card must be present once Health is connected")
         wait(any("library.todayCard.sampleBadge"))
         shot("ipp-01-sample-marks-library-today")
-        // The Insights stack keeps the pushed hub at its top position; the two remaining badge
-        // checks scroll in the known-downward direction from there.
-        tab("Insights")
+        // The reset above leaves the Insights stack with the hub pushed at its top position;
+        // the two remaining badge checks scroll in the known-downward direction from there.
+        tab("Insights", from: app.navigationBars["Your Kitchen"],
+            arrival: app.navigationBars["Insights & Cooking History"])
         wait(app.navigationBars["Insights & Cooking History"])
         XCTAssertTrue(scrollTo(any("insights.sampleBadge.suggestedMeals")),
                       "the Suggested meals tile must carry the sample marker")
@@ -296,7 +330,7 @@ final class InsightsPresentationUITests: XCTestCase {
         // the loop still stops as soon as the row is hittable.
         wait(any("sidebar"))
         resetHubScrollPosition()
-        _ = scrollTo(connect)
+        _ = scrollHubDownInLandscape(connect)
         shot("ipp-10-landscape-quiet-connect")
         XCTAssertTrue(connect.exists && connect.isHittable,
                       "the quiet Connect action must survive compact landscape")
@@ -324,7 +358,7 @@ final class InsightsPresentationUITests: XCTestCase {
         XCUIDevice.shared.orientation = .landscapeLeft
         wait(any("sidebar"))
         resetHubScrollPosition()
-        _ = scrollTo(badge)
+        _ = scrollHubDownInLandscape(badge)
         shot("ipp-10-landscape-sample-badge")
         XCTAssertTrue(badge.exists && badge.isHittable, "the sample marker must survive compact landscape")
     }
@@ -377,7 +411,11 @@ final class InsightsPresentationUITests: XCTestCase {
         wait(app.tabBars.firstMatch)
 
         // Verify the cooking event is visible in the tracker before testing its downstream insight.
-        tab("Insights")
+        // Destination is the tab ROOT (the Journal tile), so the origin marker is the
+        // always-present tab bar, as in openInsightsHub: a redundant re-tap only pops to the
+        // tab root, which IS the destination. A screen-specific origin marker here would
+        // silently disable the retry whenever the cook flow's exit screen changes.
+        tab("Insights", from: app.tabBars.firstMatch, arrival: any("journal.insightsHistory"))
         let hub = any("journal.insightsHistory")
         wait(hub)
         hub.tap()
@@ -385,13 +423,15 @@ final class InsightsPresentationUITests: XCTestCase {
         let today = app.buttons["tracker.day.\(day)"]
         wait(today, 5)
         XCTAssertTrue(today.label.contains("cooked") && today.label.contains("today"), today.label)
-        tab("Library")
+        tab("Library", from: app.navigationBars["Insights & Cooking History"],
+            arrival: app.navigationBars["Your Kitchen"])
     }
 
     /// Switching tabs preserves the pushed hub. Return to Journal explicitly instead of
     /// assuming a second tab selection pops a stack that was not currently selected.
     private func reopenInsightsFromJournal() {
-        tab("Insights")
+        tab("Insights", from: app.navigationBars["Your Kitchen"],
+            arrival: app.navigationBars["Insights & Cooking History"])
         let title = app.navigationBars["Insights & Cooking History"]
         wait(title)
         let back = title.buttons["Journal"]

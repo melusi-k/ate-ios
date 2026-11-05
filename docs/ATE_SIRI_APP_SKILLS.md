@@ -95,7 +95,7 @@ The validator is exercised by Python unit tests and runs in both PR compile vali
 ## Safety and privacy requirements
 
 - Every Tool Intent validates its own parameters, current app state and authorization. Skill instructions are not a permission boundary.
-- Recipe-library reads require device authentication; do not expose saved recipe titles on a locked device.
+- Recipe-library reads require local-device authentication; do not expose saved recipe titles on a locked device.
 - The first workflow does not access HealthKit context, write to Journal, modify recipes or change shopping-list contents.
 - Never infer permission to use HealthKit-derived context from a general recipe search or cooking request.
 - Do not treat fuzzy matches as a selection when more than one plausible recipe remains.

@@ -55,10 +55,10 @@ jobs:
       - name: Validate Siri app skill bundle
         run: python3 scripts/validate-siri-skills.py
 
-      - name: Select Xcode 27.3
+      - name: Select Xcode 27.2.0
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "27.3"
+          xcode-version: "27.2.0"
 
       - name: Cache Xcode DerivedData
         uses: actions/cache@v6
@@ -758,10 +758,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Select Xcode 27.3
+      - name: Select Xcode 27.2.0
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "27.3"
+          xcode-version: "27.2.0"
 
       - name: Cache Xcode DerivedData
         uses: actions/cache@v6

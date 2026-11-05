@@ -279,11 +279,14 @@ extension JournalOpenStateUITests {
         XCTAssertEqual(add.label, "New journal entry", "VoiceOver must retain the full action name")
         XCTAssertGreaterThanOrEqual(add.frame.height, 44)
         XCTAssertTrue(accessory.frame.contains(add.frame), "The action must fit inside the system accessory")
+        let emptyTitle = app.staticTexts["journal.root.empty.title"]
         let empty = app.staticTexts["journal.root.empty.description"]
         let rootSearch = app.searchFields.firstMatch
         var emptySwipes = 0
         func emptyClearsChrome() -> Bool {
-            empty.exists && rootSearch.exists && rootSearch.isHittable
+            emptyTitle.exists && empty.exists && rootSearch.exists && rootSearch.isHittable
+                && emptyTitle.frame.minY >= max(app.navigationBars["Journal"].frame.maxY, rootSearch.frame.maxY)
+                && emptyTitle.frame.maxY <= accessory.frame.minY
                 && empty.frame.minY >= max(app.navigationBars["Journal"].frame.maxY, rootSearch.frame.maxY)
                 && empty.frame.maxY <= accessory.frame.minY
         }
@@ -292,10 +295,17 @@ extension JournalOpenStateUITests {
             emptySwipes += 1
         }
         shot("manual-09-maxax-root-empty-clearance")
+        wait(emptyTitle)
+        XCTAssertTrue(emptyTitle.isHittable)
         wait(empty)
         XCTAssertTrue(empty.isHittable)
         wait(rootSearch)
         XCTAssertTrue(rootSearch.isHittable)
+        XCTAssertGreaterThanOrEqual(emptyTitle.frame.minY,
+                                    max(app.navigationBars["Journal"].frame.maxY, rootSearch.frame.maxY),
+                                    "The empty-state heading must clear the search and navigation chrome")
+        XCTAssertLessThanOrEqual(emptyTitle.frame.maxY, accessory.frame.minY,
+                                 "The empty-state heading must clear bottom controls")
         XCTAssertGreaterThanOrEqual(empty.frame.minY,
                                     max(app.navigationBars["Journal"].frame.maxY, rootSearch.frame.maxY))
         XCTAssertLessThanOrEqual(empty.frame.maxY, accessory.frame.minY,

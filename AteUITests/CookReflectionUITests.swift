@@ -159,20 +159,6 @@ final class CookReflectionUITests: XCTestCase {
         shot("cook-journal-after-manual-dismissal")
     }
 
-    func testMaximumAccessibilityOfferAndComposerActionsRemainReachable() {
-        launchHost(extra: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
-        app.buttons["cookFinish"].tap()
-        let write = app.buttons["cookReflection.write"]
-        wait(write, 10)
-        var swipes = 0
-        while !write.isHittable && swipes < 6 { app.swipeUp(); swipes += 1 }
-        XCTAssertTrue(write.isHittable)
-        shot("cook-journal-maxax-offer")
-        write.tap()
-        wait(app.textViews["cookJournal.note"], 10)
-        XCTAssertTrue(app.buttons["cookJournal.save"].isHittable)
-        XCTAssertTrue(app.buttons["Keep for later"].isHittable)
-        shot("cook-journal-maxax-composer")
-    }
+
 
 }

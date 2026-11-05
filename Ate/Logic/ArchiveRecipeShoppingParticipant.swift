@@ -111,20 +111,47 @@ final class ArchiveRecipeShoppingParticipant {
         attempted = true
         try checkpoint(.beforeCommit)
         let ctx = ModelContext(container); ctx.autosaveEnabled = false
-        try validate()
-        try ctx.delete(model: RecipeEntity.self)
-        try validate()
-        try ctx.delete(model: ShoppingEntity.self)
-        for r in planned.recipes {
+        // Context-tracked per-row rewrites, NOT delete(model:): the batch form deletes
+        // directly against the store immediately, escaping this one guarded save, and
+        // delete+reinsert of the same @Attribute(.unique) id in one save races the
+        // upsert against a pending deletion. Existing rows update in place; only new
+        // ids insert; only removed ids delete; everything persists in the save below.
+        // Validation points keep the pre-fix count and first/before-save positions:
+        // 1 + planned-recipe writes + 1 + planned-shopping writes + 1 = 3 + P_r + P_s.
+        // Every throw before the durable save discards pending context writes.
+        do {
             try validate()
-            ctx.insert(RecipeEntity(id: r.id, createdAt: r.createdAt, position: r.position, json: r.json))
-        }
-        for s in planned.shopping {
+            let existingRecipes = try ctx.fetch(FetchDescriptor<RecipeEntity>())
+            let existingRecipeByID = Dictionary(uniqueKeysWithValues: existingRecipes.map { ($0.id, $0) })
+            let plannedRecipeIDs = Set(planned.recipes.map(\.id))
+            for r in planned.recipes {
+                try validate()
+                if let row = existingRecipeByID[r.id] {
+                    row.createdAt = r.createdAt; row.position = r.position; row.json = r.json
+                } else {
+                    ctx.insert(RecipeEntity(id: r.id, createdAt: r.createdAt, position: r.position, json: r.json))
+                }
+            }
+            for row in existingRecipes where !plannedRecipeIDs.contains(row.id) { ctx.delete(row) }
             try validate()
-            ctx.insert(ShoppingEntity(id: s.id, position: s.position, json: s.json))
+            let existingShopping = try ctx.fetch(FetchDescriptor<ShoppingEntity>())
+            let existingShoppingByID = Dictionary(uniqueKeysWithValues: existingShopping.map { ($0.id, $0) })
+            let plannedShoppingIDs = Set(planned.shopping.map(\.id))
+            for s in planned.shopping {
+                try validate()
+                if let row = existingShoppingByID[s.id] {
+                    row.position = s.position; row.json = s.json
+                } else {
+                    ctx.insert(ShoppingEntity(id: s.id, position: s.position, json: s.json))
+                }
+            }
+            for row in existingShopping where !plannedShoppingIDs.contains(row.id) { ctx.delete(row) }
+            try validate()
+            try save(ctx)
+        } catch {
+            ctx.rollback() // discard every write the durable save never committed
+            throw error
         }
-        try validate()
-        try save(ctx)
         try checkpoint(.afterCommit)
     }
 
@@ -149,29 +176,58 @@ final class ArchiveRecipeShoppingParticipant {
         let current = try snapshot()
         let ctx = ModelContext(container); ctx.autosaveEnabled = false
         var failures: [String] = []
-        let rOutcome = try reconcile(current: current.recipes, before: before.recipes, planned: planned.recipes,
-            kind: "recipe", failures: &failures,
-            delete: { id in try ctx.delete(model: RecipeEntity.self, where: #Predicate { $0.id == id }) },
-            insert: { r in ctx.insert(RecipeEntity(id: r.id, createdAt: r.createdAt, position: r.position, json: r.json)) })
-        let sOutcome = try reconcile(current: current.shopping, before: before.shopping, planned: planned.shopping,
-            kind: "shopping", failures: &failures,
-            delete: { id in try ctx.delete(model: ShoppingEntity.self, where: #Predicate { $0.id == id }) },
-            insert: { s in ctx.insert(ShoppingEntity(id: s.id, position: s.position, json: s.json)) })
-        do { try validate() }
-        catch {
-            failures.append("compensating save: lease validation failed: \(error)")
-            throw ArchiveRestoreFailure.recoveryRequired(original: "recipe/shopping rollback interrupted",
-                                                         compensationFailures: failures)
-        }
-        try save(ctx)
-        let restored = try snapshot()
-        verify(reverted: rOutcome.reverted, removed: rOutcome.removed, preserved: rOutcome.preserved,
-               restored: restored.recipes, kind: "recipe", failures: &failures)
-        verify(reverted: sOutcome.reverted, removed: sOutcome.removed, preserved: sOutcome.preserved,
-               restored: restored.shopping, kind: "shopping", failures: &failures)
-        if !failures.isEmpty {
-            throw ArchiveRestoreFailure.recoveryRequired(original: "recipe/shopping rollback",
-                                                         compensationFailures: failures)
+        // Every throw before the durable save discards pending context writes, so a
+        // stopped compensation never leaves unsaved state behind.
+        do {
+            let rOutcome = try reconcile(current: current.recipes, before: before.recipes, planned: planned.recipes,
+                kind: "recipe", failures: &failures,
+                delete: { id in
+                    // Context-tracked instance delete, NOT delete(model:where:): the batch
+                    // form deletes directly against the store immediately, escaping the
+                    // guarded save below - a validation stop would lose the before-image.
+                    for row in try ctx.fetch(FetchDescriptor<RecipeEntity>(predicate: #Predicate { $0.id == id })) { ctx.delete(row) }
+                },
+                insert: { r in ctx.insert(RecipeEntity(id: r.id, createdAt: r.createdAt, position: r.position, json: r.json)) },
+                update: { r in
+                    let id = r.id
+                    for row in try ctx.fetch(FetchDescriptor<RecipeEntity>(predicate: #Predicate { $0.id == id })) {
+                        row.createdAt = r.createdAt; row.position = r.position; row.json = r.json
+                    }
+                })
+            let sOutcome = try reconcile(current: current.shopping, before: before.shopping, planned: planned.shopping,
+                kind: "shopping", failures: &failures,
+                delete: { id in
+                    // Context-tracked instance delete, NOT delete(model:where:): the batch
+                    // form deletes directly against the store immediately, escaping the
+                    // guarded save below - a validation stop would lose the before-image.
+                    for row in try ctx.fetch(FetchDescriptor<ShoppingEntity>(predicate: #Predicate { $0.id == id })) { ctx.delete(row) }
+                },
+                insert: { s in ctx.insert(ShoppingEntity(id: s.id, position: s.position, json: s.json)) },
+                update: { s in
+                    let id = s.id
+                    for row in try ctx.fetch(FetchDescriptor<ShoppingEntity>(predicate: #Predicate { $0.id == id })) {
+                        row.position = s.position; row.json = s.json
+                    }
+                })
+            do { try validate() }
+            catch {
+                failures.append("compensating save: lease validation failed: \(error)")
+                throw ArchiveRestoreFailure.recoveryRequired(original: "recipe/shopping rollback interrupted",
+                                                             compensationFailures: failures)
+            }
+            try save(ctx)
+            let restored = try snapshot()
+            verify(reverted: rOutcome.reverted, removed: rOutcome.removed, preserved: rOutcome.preserved,
+                   restored: restored.recipes, kind: "recipe", failures: &failures)
+            verify(reverted: sOutcome.reverted, removed: sOutcome.removed, preserved: sOutcome.preserved,
+                   restored: restored.shopping, kind: "shopping", failures: &failures)
+            if !failures.isEmpty {
+                throw ArchiveRestoreFailure.recoveryRequired(original: "recipe/shopping rollback",
+                                                             compensationFailures: failures)
+            }
+        } catch {
+            ctx.rollback() // discard every compensation write the durable save never committed
+            throw error
         }
     }
 
@@ -180,7 +236,8 @@ final class ArchiveRecipeShoppingParticipant {
     private func reconcile<E: Equatable>(current: [E], before: [E], planned: [E], kind: String,
                                          failures: inout [String],
                                          delete: (String) throws -> Void,
-                                         insert: (E) -> Void) throws -> Outcome<E> where E: HasStringID {
+                                         insert: (E) -> Void,
+                                         update: (E) throws -> Void) throws -> Outcome<E> where E: HasStringID {
         var outcome = Outcome<E>()
         let beforeByID = Dictionary(uniqueKeysWithValues: before.map { ($0.id, $0) })
         let plannedByID = Dictionary(uniqueKeysWithValues: planned.map { ($0.id, $0) })
@@ -198,15 +255,17 @@ final class ArchiveRecipeShoppingParticipant {
             do {
                 switch (b, p, c) {
                 case let (_, _, c?) where c == b: break                 // already before-image
-                case let (b?, _, c?) where c == p:                      // our write: revert
-                    try delete(id)
+                case let (b?, _, c?) where c == p:                      // our write: revert in place
+                    // In-place update of the same row: delete+reinsert of the same
+                    // @Attribute(.unique) id in one save races the upsert against a
+                    // pending deletion.
                     do { try validate() }
                     catch {
-                        failures.append("\(kind) \(id): lease validation failed before insert: \(error)")
+                        failures.append("\(kind) \(id): lease validation failed before revert: \(error)")
                         throw ArchiveRestoreFailure.recoveryRequired(original: "\(kind) rollback interrupted",
                                                                      compensationFailures: failures)
                     }
-                    insert(b); outcome.reverted[id] = b
+                    try update(b); outcome.reverted[id] = b
                 case let (nil, _, c?) where c == p:                     // our addition: remove
                     try delete(id); outcome.removed.insert(id)
                 case let (b?, _, nil) where p != nil:                   // partial save / missing: restore

@@ -119,7 +119,7 @@ final class OCRTerminalResultTests: XCTestCase {
         XCTAssertLessThan(elapsed, OnDeviceBackend.ocrDeadlineSeconds * 0.8,
                           "Sample OCR must finish well inside the terminal deadline")
         XCTAssertTrue(text.localizedCaseInsensitiveContains("Pancakes"))
-        XCTAssertTrue(text.localizedCaseInsensitiveContains("200 g flour"), "Recognized fixture text: \(text)")
+        XCTAssertTrue(text.range(of: #"(?<![0-9])200[ \t]*g[ \t]*flour"#, options: [.regularExpression, .caseInsensitive]) != nil, "Recognized fixture text: \(text)")
         XCTAssertTrue(text.localizedCaseInsensitiveContains("2 eggs"))
     }
 
@@ -157,7 +157,7 @@ final class OCRTerminalResultTests: XCTestCase {
         XCTAssertLessThan(elapsed, OnDeviceBackend.ocrDeadlineSeconds * 0.8,
                           "Tall screenshot OCR must finish well inside the terminal deadline")
         XCTAssertTrue(text.localizedCaseInsensitiveContains("Pancakes"))
-        XCTAssertTrue(text.localizedCaseInsensitiveContains("200 g flour"), "Recognized fixture text: \(text)")
+        XCTAssertTrue(text.range(of: #"(?<![0-9])200[ \t]*g[ \t]*flour"#, options: [.regularExpression, .caseInsensitive]) != nil, "Recognized fixture text: \(text)")
         XCTAssertTrue(text.localizedCaseInsensitiveContains("2 eggs"))
         XCTAssertTrue(text.localizedCaseInsensitiveContains("Cook for 2 minutes"))
     }

@@ -602,8 +602,8 @@ final class CoverageUITests: XCTestCase {
 extension CoverageUITests {
     func openInsights(_ scenario: String) {
         launch(["-qaMockHealth", scenario, "-qaHealthRecipes"])
-        tab("Insights")
-        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        tab("Journal")
+        // Journal is the tab root; Insights & Cooking History is its one named route.
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         wait(hub); hub.tap()
     }
@@ -742,7 +742,7 @@ extension CoverageUITests {
     /// Regression guard (StepTrackerTCA lesson): Connect must still ask for Health when access is undecided.
     func testHealthPermissionPromptAppearsWhenUndecided() {
         launch(["-qaMockHealth", "recovery", "-qaHealthRecipes", "-qaHealthPrompt"])
-        tab("Insights")
+        tab("Journal")
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch; wait(hub); hub.tap()
         let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
         let alert = app.alerts.firstMatch; wait(alert, 5)
@@ -760,7 +760,7 @@ extension CoverageUITests {
     /// Journaling Suggestions picker is never presented under UI tests; check the context row instead.
     func testJournalMomentContextRow() {
         launch(["-qaMockHealth", "recovery", "-qaJournalMomentEntry"])
-        tab("Insights")
+        tab("Journal")
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch; wait(hub); hub.tap()
         let ctx = any("insights.entryMomentContext"); scrollTo(ctx); wait(ctx)
         XCTAssertTrue(ctx.label.contains("Dinner at Mama"), ctx.label)
@@ -772,8 +772,8 @@ extension CoverageUITests {
 extension CoverageUITests {
     func testCookingTrackerMonthNavigationAndSelectedDay() {
         launch(["-qaMockHealth", "empty", "-qaHealthRecipes"])
-        tab("Insights")
-        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        tab("Journal")
+        // Journal is the tab root; Insights & Cooking History is its one named route.
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         wait(hub); hub.tap()
 

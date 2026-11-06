@@ -243,7 +243,7 @@ enum JournalCardReadState {
 /// More → Insights: "Your body today", "Suggested meals", "Reflect on your day", "Save to journal".
 struct InsightsView: View {
     var screenTitle: String = "Insights"
-    /// False when pushed from the Journal root; the Library Explore sheet keeps the default.
+    /// False for the named Journal hub route; true retains the generic presentation behavior.
     var isRoot: Bool = true
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -260,6 +260,7 @@ struct InsightsView: View {
     @State private var recipeProgressLoading = false
     @State private var recipeProgressEvidenceFingerprint: String?
     @State private var recipeProgressRefreshGeneration = 0
+    @State private var cookingHistoryScrollRequest = 0
     @State private var isEditingInsightOrder = false
     @AppStorage("insights.tileOrder") private var savedInsightTileOrder = ""
     @State private var openRecipe: RecipeSheetTarget?
@@ -269,6 +270,7 @@ struct InsightsView: View {
     var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
+            ScrollViewReader { scrollProxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
@@ -323,11 +325,18 @@ struct InsightsView: View {
                         }
                         .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("insights.tile.\(tileID)")
+                        .id(tileID)
                     }
                 }
                 .foregroundStyle(Theme.foreground)
                 .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
                 .pageWidth()
+            }
+            .onChange(of: cookingHistoryScrollRequest) { _, _ in
+                // This action can originate below the calendar in the same pushed hub.
+                // Reveal the real tracker tile instead of dismissing the current route.
+                withAnimation(Motion.anim(.snappy)) { scrollProxy.scrollTo("tracker", anchor: .top) }
+            }
             }
         }
         // The tab bar's floating bottom accessory can overlap trailing scroll content;
@@ -614,8 +623,13 @@ struct InsightsView: View {
     }
 
     @MainActor private func openInsightDestination(for candidate: RankedRecipeInsightCandidate) {
-        // Insights is presented from Library's Explore sheet. Dismiss that presentation before
-        // switching tabs so the requested destination is actually visible to the user.
+        // A pushed hub already owns the requested cooking-history destination. Dismissing
+        // here would pop to Journal and race the subsequent path assignment.
+        if candidate.action == .cookingHistory, !isRoot {
+            cookingHistoryScrollRequest += 1
+            return
+        }
+        // Other presentation contexts still dismiss before switching destinations.
         dismiss()
         switch candidate.action {
         case .recipes:

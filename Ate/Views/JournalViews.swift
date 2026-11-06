@@ -48,6 +48,8 @@ struct JournalListView: View {
                     .accessibilityIdentifier("journal.entry")
             }
         }
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search journal")
+        .journalSearchChrome()
         .navigationTitle("Journal")
         .ateRootNavigationChrome(logoID: "journal.logo", enabled: isTabRoot)
         .toolbar {
@@ -58,6 +60,16 @@ struct JournalListView: View {
         }
         .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
         .onAppear { entries = JournalStore.shared.entries() }
+    }
+}
+
+private extension View {
+    @ViewBuilder func journalSearchChrome() -> some View {
+        if #available(iOS 26, *) {
+            searchPresentationToolbarBehavior(.avoidHidingContent).softTopEdge()
+        } else {
+            self
+        }
     }
 }
 

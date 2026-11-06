@@ -326,6 +326,23 @@ jobs:
       # Removed obsolete Library Explore sheet selectors: the tests and UI no longer
       # exist and v9 executed zero tests. Current Journal hub navigation is asserted
       # by InsightsAcceptanceUITests below, not represented as sheet coverage.
+      # One attempt only, on the same target and selected simulator. Failure remains
+      # blocking even if later diagnostic acceptance invocations happen to pass.
+      - name: UI runner readiness before regression acceptance
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/UIRunnerReadinessUITests/testRunnerCanQueryLaunchedApp \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/ui-runner-readiness.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > ui-runner-readiness.log 2>&1 || \
+            { tail -120 ui-runner-readiness.log; exit 1; }
+          grep -F "testRunnerCanQueryLaunchedApp]' passed" ui-runner-readiness.log
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" ui-runner-readiness.log | tail -40
+
       - name: Insights evidence and contextual navigation acceptance (issue #195)
         id: insights_acceptance
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}

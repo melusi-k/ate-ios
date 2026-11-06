@@ -450,6 +450,8 @@ private struct NutritionDiaryEntryForm: View {
                 Picker("Nutrition source", selection: $source) {
                     ForEach(NutritionEntrySource.allCases) { Text($0.title).tag($0) }
                 }
+                // Keep source choices on a navigation page rather than a menu over the form keyboard.
+                .pickerStyle(.navigationLink)
                 .accessibilityIdentifier("nutritionDiary.source")
                 LabeledContent("Source name") {
                     TextField("Source name", text: $sourceName)

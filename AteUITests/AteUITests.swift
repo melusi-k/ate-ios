@@ -784,6 +784,25 @@ final class AteUITests: XCTestCase {
         shot("shared-after-retry")
     }
 
+    func test20_CameraOptionAndLargeText() {
+        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityL"])
+        wait(text("Your Kitchen"))
+        shot("a11y-large-text-library")
+        app.buttons["Add recipe"].tap()
+        app.buttons["Image"].tap()
+        wait(app.buttons["takePhoto"])
+        shot("add-image-camera-option")
+        app.buttons["takePhoto"].tap()
+        wait(text("used a sample photo"), 5)
+        let gen = app.buttons["generateButton"]
+        var n = 0
+        while !gen.isHittable && n < 5 { app.swipeUp(velocity: .slow); n += 1 }
+        gen.tap()
+        wait(text("Review your card"), 15)
+        shot("a11y-large-text-review")
+    }
+
+
     func test20_CameraOptionAndNormalText() {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
         wait(text("Your Kitchen"))

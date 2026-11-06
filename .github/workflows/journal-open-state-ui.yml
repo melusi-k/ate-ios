@@ -127,7 +127,10 @@ jobs:
               mark("unchanged-four-tests-next")
           PYREADINESS
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteUITests/JournalOpenStateUITests \
+            -only-testing:AteUITests/JournalOpenStateUITests/testDiagnosticT1LandscapeComposer \
+            -only-testing:AteUITests/JournalOpenStateUITests/testDiagnosticT2PortraitComposerThenLandscape \
+            -only-testing:AteUITests/JournalOpenStateUITests/testDiagnosticT3LandscapePlainNavigation \
+            -only-testing:AteUITests/JournalOpenStateUITests/testDiagnosticT4RotateBeforeJournal \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/journal-open-state-ui.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \

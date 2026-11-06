@@ -63,7 +63,7 @@ struct JournalListView: View {
     }
 }
 
-private extension View {
+extension View {
     @ViewBuilder func journalSearchChrome() -> some View {
         if #available(iOS 26, *) {
             searchPresentationToolbarBehavior(.avoidHidingContent).softTopEdge()

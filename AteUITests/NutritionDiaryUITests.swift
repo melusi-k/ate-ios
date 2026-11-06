@@ -57,7 +57,9 @@ final class NutritionDiaryUITests: XCTestCase {
         var dismissedKeyboardForOcclusion = false
         while attempts < max {
             attempts += 1
-            guard element.exists, !element.frame.isEmpty else {
+            // A bounded wait allows a just-inserted SwiftUI row to materialise before
+            // choosing a scroll direction. The outer attempt count remains the bound.
+            guard element.waitForExistence(timeout: 0.5), !element.frame.isEmpty else {
                 // Unmaterialised targets in these flows have always been below the fold.
                 app.swipeUp(velocity: .slow)
                 continue
@@ -194,6 +196,7 @@ final class NutritionDiaryUITests: XCTestCase {
         }
         XCTAssertTrue(diaryEntry.waitForExistence(timeout: 10))
         diaryEntry.tap()
+        XCTAssertTrue(scrollToHittable(app.staticTexts["Nothing logged"], in: app), "Empty diary state should be reachable below totals")
         XCTAssertTrue(app.staticTexts["Nothing logged"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Unavailable"].firstMatch.exists)
 
@@ -221,8 +224,12 @@ final class NutritionDiaryUITests: XCTestCase {
         typeAfterKeyboard(sourceName, in: app, "Test food database")
         tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
 
-        XCTAssertTrue(diaryRows(app, containing: "My lunch").firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Unavailable"].firstMatch.exists)
+        let savedRow = diaryRows(app, containing: "My lunch").firstMatch
+        // Daily and weekly totals precede meal rows; a successful save can leave the
+        // new row below the viewport. Reveal the actual entry rather than matching totals.
+        XCTAssertTrue(scrollToHittable(savedRow, in: app), "Saved meal should be reachable below totals")
+        XCTAssertTrue(savedRow.waitForExistence(timeout: 5))
     }
 
     /// DIAGNOSTIC variant only (#179): mirrors the source-picker segment of the required
@@ -255,7 +262,9 @@ final class NutritionDiaryUITests: XCTestCase {
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
         settings.tap()
         let diaryEntry = app.buttons["settings.nutritionDiary"]
-        XCTAssertTrue(diaryEntry.waitForExistence(timeout: 10), "Settings should expose Food diary")
+        // SwiftUI does not materialise this below-fold cell until Settings is scrolled.
+        // Reveal it before asserting presence, then keep the actual screen assertion below.
+        XCTAssertTrue(scrollToHittable(diaryEntry, in: app), "Settings should expose Food diary inside the clear band")
         tapWhenHittable(diaryEntry, in: app)
         XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10), "Food diary screen should open")
     }
@@ -285,6 +294,7 @@ final class NutritionDiaryUITests: XCTestCase {
         openDiary(app)
         // Goal-unconfigured and empty states are both visible without any setup.
         XCTAssertTrue(app.descendants(matching: .any)["nutritionDiary.configureGoals"].waitForExistence(timeout: 5))
+        XCTAssertTrue(scrollToHittable(app.staticTexts["Nothing logged"], in: app), "Empty diary state should be reachable below totals")
         XCTAssertTrue(app.staticTexts["Nothing logged"].exists)
     }
 
@@ -323,7 +333,9 @@ final class NutritionDiaryUITests: XCTestCase {
         tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
         // Save-failure state: the diary-level error is shown. The entry exists only in memory,
         // so after a relaunch without the fault argument the diary is empty again.
-        XCTAssertTrue(app.descendants(matching: .any)["nutritionDiary.error"].waitForExistence(timeout: 5))
+        let saveError = app.descendants(matching: .any)["nutritionDiary.error"]
+        XCTAssertTrue(scrollToHittable(saveError, in: app), "Failed save should show the diary error")
+        XCTAssertTrue(saveError.waitForExistence(timeout: 5))
         app.terminate()
         let relaunched = XCUIApplication()
         relaunched.launchArguments = ["-UITesting"]
@@ -331,6 +343,7 @@ final class NutritionDiaryUITests: XCTestCase {
         openDiary(relaunched)
         XCTAssertTrue(diaryRows(relaunched, containing: "My lunch").allElementsBoundByIndex.isEmpty,
                       "a failed save must not persist the entry")
+        XCTAssertTrue(scrollToHittable(relaunched.staticTexts["Nothing logged"], in: relaunched), "Failed save should leave the relaunched diary empty")
         XCTAssertTrue(relaunched.staticTexts["Nothing logged"].exists)
     }
 
@@ -340,11 +353,12 @@ final class NutritionDiaryUITests: XCTestCase {
         app.launch()
         openDiary(app)
         XCTAssertTrue(app.descendants(matching: .any)["nutritionDiary.corruptDataError"].waitForExistence(timeout: 5))
-        app.buttons["nutritionDiary.recoverCorruptData"].tap()
+        tapWhenHittable(app.buttons["nutritionDiary.recoverCorruptData"], in: app)
         let confirm = app.buttons["Back up and reset"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
         confirm.tap()
         XCTAssertTrue(app.descendants(matching: .any)["nutritionDiary.recoveryNotice"].waitForExistence(timeout: 5))
+        XCTAssertTrue(scrollToHittable(app.staticTexts["Nothing logged"], in: app), "Empty diary state should be reachable below totals")
         XCTAssertTrue(app.staticTexts["Nothing logged"].waitForExistence(timeout: 5))
     }
 
@@ -424,13 +438,12 @@ final class NutritionDiaryUITests: XCTestCase {
         openLogForm(app)
         captureNutritionState(app, name: "nutrition-add-entry")
         let foodName = app.textFields["nutritionDiary.foodName"]
-        foodName.tap()
-        foodName.typeText("My lunch")
-        app.textFields["nutritionDiary.quantityUnit"].tap()
-        app.textFields["nutritionDiary.quantityUnit"].typeText("bowl")
-        app.buttons["nutritionDiary.save"].tap()
+        typeAfterKeyboard(foodName, in: app, "My lunch")
+        typeAfterKeyboard(app.textFields["nutritionDiary.quantityUnit"], in: app, "bowl")
+        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
 
         let row = diaryRows(app, containing: "My lunch").firstMatch
+        XCTAssertTrue(scrollToHittable(row, in: app), "Saved meal should be reachable below totals")
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         captureNutritionState(app, name: "nutrition-diary-list")
         row.swipeLeft()
@@ -440,13 +453,17 @@ final class NutritionDiaryUITests: XCTestCase {
         let quantity = app.textFields["nutritionDiary.quantity"]
         XCTAssertTrue(quantity.waitForExistence(timeout: 5))
         captureNutritionState(app, name: "nutrition-edit-entry")
-        quantity.tap()
+        tapWhenHittable(quantity, in: app)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the quantity field")
         if let existing = quantity.value as? String {
             quantity.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
         }
         quantity.typeText("2")
-        app.buttons["nutritionDiary.save"].tap()
-        XCTAssertTrue(diaryRows(app, containing: "2 bowl").firstMatch.waitForExistence(timeout: 5))
+        XCTAssertEqual(quantity.value as? String, "2", "Edit must replace the seeded quantity, not append to it")
+        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
+        let editedRow = diaryRows(app, containing: "2 bowl").firstMatch
+        XCTAssertTrue(scrollToHittable(editedRow, in: app), "Edited meal should remain reachable below totals")
+        XCTAssertTrue(editedRow.waitForExistence(timeout: 5))
         XCTAssertEqual(diaryRows(app, containing: "My lunch").allElementsBoundByIndex.count, 1,
                        "edit must keep one row with the same identity")
     }
@@ -468,8 +485,7 @@ final class NutritionDiaryUITests: XCTestCase {
         openLogForm(app)
         let foodName = app.textFields["nutritionDiary.foodName"]
         XCTAssertTrue(foodName.waitForExistence(timeout: 5))
-        foodName.tap()
-        foodName.typeText("Week lunch")
+        typeAfterKeyboard(foodName, in: app, "Week lunch")
         let energy = app.textFields["nutritionDiary.nutrient.energy"]
         scrolls = 0
         while !energy.exists && scrolls < 8 {
@@ -477,9 +493,8 @@ final class NutritionDiaryUITests: XCTestCase {
             scrolls += 1
         }
         XCTAssertTrue(energy.waitForExistence(timeout: 5))
-        energy.tap()
-        energy.typeText("200")
-        app.buttons["nutritionDiary.save"].tap()
+        typeAfterKeyboard(energy, in: app, "200")
+        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
 
         let weeklyEnergy = app.staticTexts["nutritionDiary.weeklyTotal.energy.value"]
         scrolls = 0

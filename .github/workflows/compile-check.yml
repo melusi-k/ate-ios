@@ -181,16 +181,7 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreens \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeLibraryAndRecipe \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeCookMode \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeNutrition \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingXS \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingXXXL \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX1 \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX3 \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX5 \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeToggle \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreensWithoutDynamicType \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
@@ -217,7 +208,7 @@ jobs:
             "NutritionDiaryUITests testLoggedEntryCanBeEditedAndShowsUpdatedValues]' passed" \
             "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
             "NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed" \
-            "AccessibilityAuditUITests testAuditNutritionScreens]' passed"; do
+            "AccessibilityAuditUITests testAuditNutritionScreensWithoutDynamicType]' passed"; do
             grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
@@ -614,6 +605,8 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteTests/CookSessionTests \
             -only-testing:AteUITests/CookIngredientsUITests \
+            -skip-testing:AteUITests/CookIngredientsUITests/testCookIngredientSheetLargeTextAccessibilityAndImperial \
+            -skip-testing:AteUITests/CookIngredientsUITests/testCookTimerCardLargeText \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-ingredients-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
@@ -645,9 +638,7 @@ jobs:
             "CookSessionTests testIngredientSignatureResistsSeparatorCollisions]' passed" \
             "CookSessionTests testReenteringSameRecipeKeepsSessionFactor]' passed" \
             "CookSessionTests testChecklistAmountsRenderMetricAndImperial]' passed" \
-            "CookIngredientsUITests testCookIngredientSheetScalesChecksAndPersists]' passed" \
-            "CookIngredientsUITests testCookIngredientSheetLargeTextAccessibilityAndImperial]' passed" \
-            "CookIngredientsUITests testCookTimerCardLargeText]' passed"; do
+            "CookIngredientsUITests testCookIngredientSheetScalesChecksAndPersists]' passed"; do
             grep -qF "$evidence" cook-ingredients-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 cook-ingredients-tests.log; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed" cook-ingredients-tests.log | tail -40

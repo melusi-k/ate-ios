@@ -314,6 +314,17 @@ struct NutritionDiaryView: View {
                 }
             }
         }
+        .sheet(item: $editingEntry) { entry in
+            NavigationStack {
+                NutritionDiaryEntryForm(date: entry.date, dayKey: entry.dayKey, existing: entry) { updated in
+                    if let index = entries.firstIndex(where: { $0.id == updated.id }) {
+                        entries[index] = updated
+                    }
+                    persist()
+                    editingEntry = nil
+                }
+            }
+        }
         .onAppear {
             store.bottomAddContext = .food
             if ProcessInfo.processInfo.arguments.contains("-resetNutritionDiary") {
@@ -635,6 +646,25 @@ private struct NutritionDiaryEntryForm: View {
             // The save failed: the sheet stays open with the draft intact and says why.
             errorMessage = message
         }
+    }
+}
+
+
+/// #179: publishes the global bottom edge of the list/form frame so the bottom chrome
+/// reserve is layout-derived rather than a fixed constant.
+private struct ListBottomYKey: PreferenceKey {
+    static var defaultValue: CGFloat? { nil }
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) { if let n = nextValue() { value = n } }
+}
+
+private struct ListBottomMeasure: ViewModifier {
+    @Binding var listBottomY: CGFloat?
+    func body(content: Content) -> some View {
+        content
+            .background(GeometryReader { g in
+                Color.clear.preference(key: ListBottomYKey.self, value: g.frame(in: .global).maxY)
+            })
+            .onPreferenceChange(ListBottomYKey.self) { listBottomY = $0 }
     }
 }
 

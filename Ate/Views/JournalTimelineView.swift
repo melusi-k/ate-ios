@@ -54,6 +54,14 @@ struct JournalTimelineView: View {
 
     private var state: JournalTimelineScreenState { stateOverride ?? Self.qaState() ?? loaded }
 
+    /// Filter and search only operate on a journal that was actually read: in the loading and
+    /// read-failure states they are hidden, so a read error cannot be filtered or searched into
+    /// looking like an empty journal.
+    static func controlsVisible(for state: JournalTimelineScreenState) -> Bool {
+        if case .loaded = state { return true }
+        return false
+    }
+
     var body: some View {
         let openState = openStateOverride ?? JournalStore.shared.openState
         let content = JournalTimelineContent.make(state: state, filter: filter, query: query)
@@ -61,7 +69,7 @@ struct JournalTimelineView: View {
             if openState != .ok {
                 Section { JournalOpenStateBanner(state: openState) }
             }
-            filterBar
+            if Self.controlsVisible(for: state) { filterBar }
             switch content {
             case .loading:
                 ProgressView("Loading journal").accessibilityIdentifier("journal.timeline.loading")
@@ -99,8 +107,12 @@ struct JournalTimelineView: View {
                 }
             }
         }
-        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search journal")
+        .searchableWhenReadable(Self.controlsVisible(for: state), text: $query)
         .navigationTitle("Food Journal")
+        .onChange(of: Self.controlsVisible(for: state)) { _, readable in
+            // A failed or superseded read carries no query into the next successful one.
+            if !readable { query = "" }
+        }
         .onAppear { if stateOverride == nil, Self.qaState() == nil { reload() } }
     }
 

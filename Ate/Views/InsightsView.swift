@@ -232,10 +232,18 @@ enum RecipeProgressInsightService {
     }
 }
 
+/// Read state of the Insights journal card: nothing is claimed before the first read completes,
+/// so a slow or failed first read never shows a premature "No entries yet".
+enum JournalCardReadState {
+    case unknown
+    case readable
+    case failed
+}
+
 /// More → Insights: "Your body today", "Suggested meals", "Reflect on your day", "Save to journal".
 struct InsightsView: View {
     var screenTitle: String = "Insights"
-    /// False when pushed from the Journal root; the Library Explore sheet keeps the default.
+    /// False for the named Journal hub route; true retains the generic presentation behavior.
     var isRoot: Bool = true
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -244,11 +252,15 @@ struct InsightsView: View {
     @State private var journalSaveError: String?
     @State private var prompt: JournalPrompt?
     @State private var entries: [JournalEntry] = []
+    /// The card claims nothing before the first read completes: a slow or failed first read
+    /// must not flash a premature "No entries yet".
+    @State private var journalReadState: JournalCardReadState = .unknown
     @State private var recipeProgressCandidates: [RankedRecipeInsightCandidate] = []
     @State private var recipeProgressSuppressed = false
     @State private var recipeProgressLoading = false
     @State private var recipeProgressEvidenceFingerprint: String?
     @State private var recipeProgressRefreshGeneration = 0
+    @State private var cookingHistoryScrollRequest = 0
     @State private var isEditingInsightOrder = false
     @AppStorage("insights.tileOrder") private var savedInsightTileOrder = ""
     @State private var openRecipe: RecipeSheetTarget?
@@ -258,6 +270,7 @@ struct InsightsView: View {
     var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
+            ScrollViewReader { scrollProxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
@@ -312,11 +325,18 @@ struct InsightsView: View {
                         }
                         .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("insights.tile.\(tileID)")
+                        .id(tileID)
                     }
                 }
                 .foregroundStyle(Theme.foreground)
                 .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
                 .pageWidth()
+            }
+            .onChange(of: cookingHistoryScrollRequest) { _, _ in
+                // This action can originate below the calendar in the same pushed hub.
+                // Reveal the real tracker tile instead of dismissing the current route.
+                withAnimation(Motion.anim(.snappy)) { scrollProxy.scrollTo("tracker", anchor: .top) }
+            }
             }
         }
         // The tab bar's floating bottom accessory can overlap trailing scroll content;
@@ -324,7 +344,7 @@ struct InsightsView: View {
         .contentMargins(.bottom, 96, for: .scrollContent)
         .navigationTitle(screenTitle)
         .ateRootNavigationChrome(logoID: "insights.logo", enabled: isRoot)
-        .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
+        .onChange(of: store.journalRevision) { _, _ in reloadJournalEntries() }
         .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id).environment(store) }
         .onChange(of: model.context?.insight.state) { _, st in
             if st != nil { BetaQA.shared.pass("A-HEALTH-03", note: "Insights showed \(st!.title) with \(model.context?.suggestions.count ?? 0) meal ideas") }
@@ -336,12 +356,12 @@ struct InsightsView: View {
         .task {
             // Local cooking-history insights must not wait for unrelated HealthKit queries.
             async let healthLoad: Void = model.loadIfNeeded(recipes: store.recipes)
-            entries = JournalStore.shared.entries()
+            reloadJournalEntries()
             await refreshRecipeProgressInsight()
             await healthLoad
             prompt = prompt ?? model.context?.prompts.first
         }
-        .onAppear { entries = JournalStore.shared.entries() }
+        .onAppear { reloadJournalEntries() }
         .alert("“ate” would like to access your Health data", isPresented: $model.mockPromptShown) {
             Button("Don't Allow", role: .cancel) {}
             Button("Allow") { Task { await model.connect(recipes: store.recipes); prompt = model.context?.prompts.first } }
@@ -603,8 +623,13 @@ struct InsightsView: View {
     }
 
     @MainActor private func openInsightDestination(for candidate: RankedRecipeInsightCandidate) {
-        // Insights is presented from Library's Explore sheet. Dismiss that presentation before
-        // switching tabs so the requested destination is actually visible to the user.
+        // A pushed hub already owns the requested cooking-history destination. Dismissing
+        // here would pop to Journal and race the subsequent path assignment.
+        if candidate.action == .cookingHistory, !isRoot {
+            cookingHistoryScrollRequest += 1
+            return
+        }
+        // Other presentation contexts still dismiss before switching destinations.
         dismiss()
         switch candidate.action {
         case .recipes:
@@ -703,28 +728,47 @@ struct InsightsView: View {
             if journalingEnabled && JournalingSuggestionsGate.isAvailable && !AppConfig.isUITesting {
                 JournalingSuggestionsButton { m in handle(moment: m) }
             }
-            if entries.isEmpty {
-                Text("No entries yet.").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-            }
-            ForEach(entries.prefix(5), id: \.id) { e in
-                NavigationLink { JournalEntryDetailView(entryID: e.id) } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(e.datedStateLabel)
-                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                    if let line = JournalingMomentMapper.contextLine(title: e.journalingSuggestionTitle, date: e.momentDate) {
-                        Label(line, systemImage: "book.pages").font(AteFont.body(12)).foregroundStyle(Theme.primary)
-                            .accessibilityIdentifier("insights.entryMomentContext")
-                    }
-                    Text(e.text).font(AteFont.body(14)).lineLimit(3).multilineTextAlignment(.leading)
-                }.frame(maxWidth: .infinity, alignment: .leading)
-                }.buttonStyle(.plain)
-                .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
-                .accessibilityIdentifier("insights.entry")
-                .contextMenu { Button("Delete", role: .destructive) { JournalStore.shared.delete(e); entries = JournalStore.shared.entries() } }
-            }
-            if entries.count > 5 {
-                NavigationLink(value: Route.journal) { Text("See all \(entries.count) entries").font(AteFont.body(14, .semibold)) }
-                    .accessibilityIdentifier("insights.allEntries")
+            switch journalReadState {
+            case .unknown:
+                // The first read completes in .task/.onAppear; no empty claim and no error before it does.
+                EmptyView()
+            case .failed:
+                // A failed read is an explicit error with retry on this surface too. The last-read
+                // rows are hidden, so nothing can be opened, edited or deleted from data the store
+                // could not re-read.
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Your journal couldn't be read just now. This is a read problem, not an empty journal.",
+                          systemImage: "exclamationmark.triangle")
+                        .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                    Button("Try again") { reloadJournalEntries() }
+                        .font(AteFont.body(13, .semibold))
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("insights.journalReadError")
+            case .readable:
+                if entries.isEmpty {
+                    Text("No entries yet.").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                }
+                ForEach(entries.prefix(5), id: \.id) { e in
+                    NavigationLink { JournalEntryDetailView(entryID: e.id) } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(e.datedStateLabel)
+                            .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                        if let line = JournalingMomentMapper.contextLine(title: e.journalingSuggestionTitle, date: e.momentDate) {
+                            Label(line, systemImage: "book.pages").font(AteFont.body(12)).foregroundStyle(Theme.primary)
+                                .accessibilityIdentifier("insights.entryMomentContext")
+                        }
+                        Text(e.text).font(AteFont.body(14)).lineLimit(3).multilineTextAlignment(.leading)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                    }.buttonStyle(.plain)
+                    .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
+                    .accessibilityIdentifier("insights.entry")
+                    .contextMenu { Button("Delete", role: .destructive) { JournalStore.shared.delete(e); reloadJournalEntries() } }
+                }
+                if entries.count > 5 {
+                    NavigationLink(value: Route.journal) { Text("See all \(entries.count) entries").font(AteFont.body(14, .semibold)) }
+                        .accessibilityIdentifier("insights.allEntries")
+                }
             }
         }
     }
@@ -746,6 +790,17 @@ struct InsightsView: View {
         .accessibilityElement(children: .contain).accessibilityIdentifier(id)
     }
 
+    /// The journal card only claims "No entries yet" after a successful read. A read failure
+    /// shows an explicit error with retry and hides the last-read rows until a re-read succeeds.
+    private func reloadJournalEntries() {
+        do {
+            entries = try JournalStore.shared.readEntries()
+            journalReadState = .readable
+        } catch {
+            journalReadState = .failed
+        }
+    }
+
     private func handle(moment m: PickedMoment) {
         switch JournalingMomentMapper.map(title: m.title, date: m.date.map { DateInterval(start: $0, duration: 0) }, hasPhotos: !m.photoURLs.isEmpty, isWorkout: m.isWorkout) {
         case .recipeDraft(let title, let date):
@@ -761,7 +816,7 @@ struct InsightsView: View {
         let moment = pendingMoment
         if JournalStore.shared.save(prompt: p?.text ?? "", text: draft, state: c.insight.state, recipeIDs: c.suggestions.map(\.recipeID),
                                     momentTitle: moment?.title, momentDate: moment?.date) {
-            draft = ""; pendingMoment = nil; journalSaveError = nil; entries = JournalStore.shared.entries(); store.show("Saved to your Ate journal")
+            draft = ""; pendingMoment = nil; journalSaveError = nil; reloadJournalEntries(); store.show("Saved to your Ate journal")
             BetaQA.shared.pass("A-HEALTH-04", note: "Saved a local journal entry")
         } else { journalSaveError = "Your entry could not be saved. Your draft is still here. Try again." }
     }

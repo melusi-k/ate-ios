@@ -45,7 +45,7 @@ jobs:
             xcode-27-homebrew-
       - run: brew install xcodegen && xcodegen generate
       - name: Build for testing (iOS simulator)
-        continue-on-error: true
+        id: build
         run: |
           set -o pipefail
           SIM_ID=$(python3 scripts/select-ios-simulator.py)
@@ -62,6 +62,7 @@ jobs:
           fi
           echo "build-for-testing succeeded on $SIM_ID"
       - name: Journal open state app-launch UI tests
+        if: ${{ success() && steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
           # Diagnostics only: do not prelaunch, warm, erase or otherwise change the simulator.

@@ -129,7 +129,7 @@ final class CookIngredientsUITests: XCTestCase {
 
     /// Accessibility evidence at normal text size, with imperial units: rows keep
     /// name + quantity + gathered state, stay tappable without clipping, and the sheet scrolls.
-    func testCookIngredientSheetLargeTextAccessibilityAndImperial() {
+    func testCookIngredientSheetNormalTextAccessibilityAndImperial() {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL", "-qaImperialUnits"])
         addPromptRecipe()
 
@@ -213,7 +213,7 @@ final class CookIngredientsUITests: XCTestCase {
     /// Timer pixel evidence at normal text size: step 3 of the mock card carries a
     /// 600 s timer, so Cook Mode shows its timer card there. Captures the card before start
     /// and while running, with the ingredient sheet dismissed.
-    func testCookTimerCardLargeText() {
+    func testCookTimerCardNormalText() {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
         addPromptRecipe()
 

@@ -612,9 +612,14 @@ struct InsightsView: View {
         // When Insights is already pushed from the Journal root, keep that route intact and
         // reveal the tracker tile in place. The Library Explore presentation still dismisses
         // before routing to the tracker tab.
-        if candidate.action == .cookingHistory && !isRoot {
-            cookingHistoryScrollRequest += 1
-            return
+        if !isRoot {
+            switch candidate.action {
+            case .cookingHistory:
+                cookingHistoryScrollRequest += 1
+                return
+            default:
+                break
+            }
         }
         dismiss()
         switch candidate.action {

@@ -368,6 +368,9 @@ extension RootView {
     @available(iOS 26, *)
     @ViewBuilder var tabs26: some View {
         @Bindable var store = store
+        // Keep the accessory only where it has a real action or live status.
+        let showBottomAccessory = store.cookTarget == nil && store.isAtTabRoot
+            && (store.activeAddContext != nil || store.cookSession != nil || !store.timers.timers.isEmpty)
         let base = TabView(selection: tabSelection) {
             Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
                 NavigationStack(path: $store.path) {
@@ -403,10 +406,7 @@ extension RootView {
         }
         .tabViewStyle(.tabBarOnly)
         .tabBarMinimizeBehavior(.onScrollDown)
-        // Keep the accessory only where it has a real action or live status.
-        let showBottomAccessory = store.cookTarget == nil && store.isAtTabRoot
-            && (store.activeAddContext != nil || store.cookSession != nil || !store.timers.timers.isEmpty)
-        .modify { view in
+        base.modify { view in
             if #available(iOS 26.2, *) {
                 view.tabViewBottomAccessory(isEnabled: showBottomAccessory) {
                     AteBottomAccessory()
@@ -415,8 +415,6 @@ extension RootView {
                 view.tabViewBottomAccessory {
                     if showBottomAccessory { AteBottomAccessory() }
                 }
-            }
-        }
             }
         }
     }

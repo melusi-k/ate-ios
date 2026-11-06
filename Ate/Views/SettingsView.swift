@@ -87,7 +87,7 @@ struct SettingsView: View {
                     } header: {
                         Text("AI on this device")
                     }
-                    Section("Nutrition") {
+                    Section {
                         // Typed Route pushes keep the settings path accurate and prevent the
                         // root-only bottom accessory from rendering over pushed screens.
                         NavigationLink(value: Route.nutritionDiary) {
@@ -96,13 +96,6 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settings.nutritionDiary")
                         NavigationLink(value: Route.nutritionGoals) {
                             Label("Nutrition goals", systemImage: "target")
-                        }
-                        .accessibilityIdentifier("settings.nutritionGoals")
-                    } header: {
-                        Text("Nutrition")
-                    } footer: {
-                        Text(SettingsCopy.nutritionFooter)
-                    }
                         }
                         .accessibilityIdentifier("settings.nutritionGoals")
                     } header: {

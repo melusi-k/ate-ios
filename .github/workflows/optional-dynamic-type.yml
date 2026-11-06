@@ -51,6 +51,18 @@ jobs:
           set -o pipefail
           mkdir -p "$RUNNER_TEMP/ate-test-results"
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreens \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeLibraryAndRecipe \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeCookMode \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeNutrition \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingXS \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingXXXL \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX1 \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX3 \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX5 \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeToggle \
+            -only-testing:AteUITests/CookIngredientsUITests/testCookIngredientSheetLargeTextAccessibilityAndImperial \
+            -only-testing:AteUITests/CookIngredientsUITests/testCookTimerCardLargeText \
             -only-testing:AteUITests/JournalOpenStateUITests/testManualSaveFailureVisibleAtXXXL \
             -only-testing:AteUITests/JournalOpenStateUITests/testJournalRootAddAtMaximumAccessibilitySizeAndSidebarRoundTrip \
             -only-testing:AteUITests/JournalOpenStateUITests/testTimelineFixtureAtLargestTextSizeKeepsRowAndFilterReachable \
@@ -60,6 +72,18 @@ jobs:
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > optional-dynamic-type.log 2>&1
           if grep -q "Executed 0 tests" optional-dynamic-type.log; then echo "::error::optional coverage executed 0 tests"; exit 1; fi
+          grep -qF "AccessibilityAuditUITests testAuditNutritionScreens]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: AccessibilityAuditUITests/testAuditNutritionScreens"; exit 1; }
+          grep -qF "AccessibilityAuditUITests testAuditLargestDynamicTypeLibraryAndRecipe]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: AccessibilityAuditUITests/testAuditLargestDynamicTypeLibraryAndRecipe"; exit 1; }
+          grep -qF "AccessibilityAuditUITests testAuditLargestDynamicTypeCookMode]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: AccessibilityAuditUITests/testAuditLargestDynamicTypeCookMode"; exit 1; }
+          grep -qF "AccessibilityAuditUITests testAuditLargestDynamicTypeNutrition]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: AccessibilityAuditUITests/testAuditLargestDynamicTypeNutrition"; exit 1; }
+          grep -qF "AccessibilityAuditUITests testNutritionFontScalingXS]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: AccessibilityAuditUITests/testNutritionFontScalingXS"; exit 1; }
+          grep -qF "AccessibilityAuditUITests testNutritionFontScalingXXXL]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: AccessibilityAuditUITests/testNutritionFontScalingXXXL"; exit 1; }
+          grep -qF "AccessibilityAuditUITests testNutritionFontScalingAX1]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: AccessibilityAuditUITests/testNutritionFontScalingAX1"; exit 1; }
+          grep -qF "AccessibilityAuditUITests testNutritionFontScalingAX3]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: AccessibilityAuditUITests/testNutritionFontScalingAX3"; exit 1; }
+          grep -qF "AccessibilityAuditUITests testNutritionFontScalingAX5]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: AccessibilityAuditUITests/testNutritionFontScalingAX5"; exit 1; }
+          grep -qF "AccessibilityAuditUITests testLiveDynamicTypeToggle]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: AccessibilityAuditUITests/testLiveDynamicTypeToggle"; exit 1; }
+          grep -qF "CookIngredientsUITests testCookIngredientSheetLargeTextAccessibilityAndImperial]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: CookIngredientsUITests/testCookIngredientSheetLargeTextAccessibilityAndImperial"; exit 1; }
+          grep -qF "CookIngredientsUITests testCookTimerCardLargeText]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: CookIngredientsUITests/testCookTimerCardLargeText"; exit 1; }
           grep -qF "JournalOpenStateUITests testManualSaveFailureVisibleAtXXXL]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: JournalOpenStateUITests/testManualSaveFailureVisibleAtXXXL"; exit 1; }
           grep -qF "JournalOpenStateUITests testJournalRootAddAtMaximumAccessibilitySizeAndSidebarRoundTrip]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: JournalOpenStateUITests/testJournalRootAddAtMaximumAccessibilitySizeAndSidebarRoundTrip"; exit 1; }
           grep -qF "JournalOpenStateUITests testTimelineFixtureAtLargestTextSizeKeepsRowAndFilterReachable]' passed" optional-dynamic-type.log || { echo "::error::missing optional case pass: JournalOpenStateUITests/testTimelineFixtureAtLargestTextSizeKeepsRowAndFilterReachable"; exit 1; }

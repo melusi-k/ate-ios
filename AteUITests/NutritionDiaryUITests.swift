@@ -23,9 +23,15 @@ final class NutritionDiaryUITests: XCTestCase {
         var bound = app.windows.firstMatch.frame.maxY - 4
         if let keyboard { bound = min(bound, keyboard.frame.minY - 8) }
         let tabBar = app.tabBars.firstMatch
-        if tabBar.exists && !tabBar.frame.isEmpty && tabBar.isHittable { bound = min(bound, tabBar.frame.minY - 4) }
+        if tabBar.exists {
+            let frame = tabBar.frame
+            if !frame.isEmpty && tabBar.isHittable { bound = min(bound, frame.minY - 4) }
+        }
         let accessory = app.buttons["accessoryAdd"]
-        if accessory.exists && !accessory.frame.isEmpty && accessory.isHittable { bound = min(bound, accessory.frame.minY - 4) }
+        if accessory.exists {
+            let frame = accessory.frame
+            if !frame.isEmpty && accessory.isHittable { bound = min(bound, frame.minY - 4) }
+        }
         return bound
     }
 
@@ -50,7 +56,8 @@ final class NutritionDiaryUITests: XCTestCase {
         // Clear band top: measured from the on-screen navigation bar when one is present;
         // the 120pt fallback matches the pinned CI simulator (402x874) inline-bar sheets.
         let navBar = app.navigationBars.firstMatch
-        let topBound: CGFloat = (navBar.exists && !navBar.frame.isEmpty) ? navBar.frame.maxY + 4 : 120
+        let navFrame = navBar.exists ? navBar.frame : .zero
+        let topBound: CGFloat = !navFrame.isEmpty ? navFrame.maxY + 4 : 120
         var attempts = 0
         var blockedUps = 0
         var blockedInBand = 0
@@ -75,7 +82,8 @@ final class NutritionDiaryUITests: XCTestCase {
             // REAL chrome membership by identifier - a frame-overlap guess can falsely
             // pass scroll content clipped under a bar - then trust settled + isHittable:
             // XCTest reports false for chrome genuinely covered by an alert or keyboard.
-            if !element.identifier.isEmpty,
+            // A future non-button toolbar control queried via .any must take the band path.
+            if element.elementType == .button, !element.identifier.isEmpty,
                app.navigationBars.buttons[element.identifier].exists || app.toolbars.buttons[element.identifier].exists {
                 return element.isHittable
             }

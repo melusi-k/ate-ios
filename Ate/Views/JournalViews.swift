@@ -41,6 +41,7 @@ extension View {
     func searchableWhenReadable(_ readable: Bool, text: Binding<String>) -> some View {
         if readable {
             searchable(text: text, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search journal")
+                .journalSearchChrome()
         } else {
             self
         }
@@ -54,7 +55,7 @@ struct JournalListView: View {
     var openStateOverride: JournalOpenState? = nil
     /// Tests inject a read state; nil reads the shared store on appear.
     var stateOverride: JournalListScreenState? = nil
-    /// True as the Insights tab root: shows the one named route to Insights & Cooking History.
+    /// True as the Journal tab root: shows the one named route to Insights & Cooking History.
     var isTabRoot = false
     @State private var readState: JournalListScreenState = .loading
     @State private var query = ""

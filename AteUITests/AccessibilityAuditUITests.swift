@@ -12,9 +12,9 @@ final class AccessibilityAuditUITests: XCTestCase {
     }
     func text(_ s: String) -> XCUIElement { app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", s)).firstMatch }
 
-    func audit(_ screen: String, strict: Bool = true) throws {
+    func audit(_ screen: String, strict: Bool = true, types: XCUIAccessibilityAuditType = .all) throws {
         var log: [String] = []
-        try app.performAccessibilityAudit(for: .all) { issue in
+        try app.performAccessibilityAudit(for: types) { issue in
             let who = issue.element.map { "\($0.elementType.rawValue) '\($0.label)' [\($0.identifier)]" } ?? "system element"
             log.append("\(issue.auditType.rawValue) · \(issue.compactDescription) · \(who)")
             if issue.element == nil { return true }                   // system chrome (status bar, keyboard) is not ours
@@ -341,6 +341,16 @@ final class AccessibilityAuditUITests: XCTestCase {
     }
 
     func testAuditNutritionScreens() throws {
+        try auditNutritionScreens(types: .all)
+    }
+
+    // Required normal-size coverage excludes only the owner-descoped Dynamic Type category.
+    // The original strict audit stays intact in the optional coverage workflow.
+    func testAuditNutritionScreensWithoutDynamicType() throws {
+        try auditNutritionScreens(types: XCUIAccessibilityAuditType.all.subtracting(.dynamicType))
+    }
+
+    private func auditNutritionScreens(types: XCUIAccessibilityAuditType) throws {
         launch(["-resetNutritionDiary", "-resetNutritionGoals"])
         XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
         app.tabBars.buttons["Settings"].tap()
@@ -353,14 +363,14 @@ final class AccessibilityAuditUITests: XCTestCase {
         XCTAssertTrue(revealSettingsEntry(diaryEntry), "Settings must expose the Food diary entry inside the visible band")
         diaryEntry.tap()
         XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10), "Food diary screen must open before auditing")
-        try audit("nutrition-diary")
+        try audit("nutrition-diary", types: types)
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
         let goalsEntry = app.buttons["settings.nutritionGoals"]
         XCTAssertTrue(revealSettingsEntry(goalsEntry), "Settings must expose the Nutrition goals entry inside the visible band")
         goalsEntry.tap()
         XCTAssertTrue(app.navigationBars["Nutrition goals"].waitForExistence(timeout: 10), "Nutrition goals screen must open before auditing")
-        try audit("nutrition-goals")
+        try audit("nutrition-goals", types: types)
     }
 
     /// Bounded scrolling captures of an element taller than the clear band. Every capture

@@ -374,6 +374,8 @@ private struct NutritionDiaryEntryForm: View {
     @State private var quantityUnit = "serving"
     @State private var servings = "1"
     @State private var source: NutritionEntrySource = .userProvided
+    @State private var showingSourceChoices = false
+    @FocusState private var focusedField: String?
     @State private var sourceName = "You"
     @State private var sourceIdentifier = ""
     @State private var verificationNote = ""
@@ -422,6 +424,7 @@ private struct NutritionDiaryEntryForm: View {
             if let errorMessage { Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.formError") } }
             Section("Food consumed") {
                 TextField("Food or recipe name", text: $foodName)
+                    .focused($focusedField, equals: "foodName")
                     .accessibilityIdentifier("nutritionDiary.foodName")
                 Picker("Meal", selection: $meal) {
                     ForEach(NutritionMeal.allCases) { Text($0.title).tag($0) }
@@ -431,37 +434,53 @@ private struct NutritionDiaryEntryForm: View {
                     TextField("Quantity", text: $quantity)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
+                        .focused($focusedField, equals: "quantity")
                         .accessibilityIdentifier("nutritionDiary.quantity")
                 }
                 LabeledContent("Quantity unit") {
                     TextField("Quantity unit", text: $quantityUnit)
                         .multilineTextAlignment(.trailing)
+                        .focused($focusedField, equals: "quantityUnit")
                         .accessibilityIdentifier("nutritionDiary.quantityUnit")
                 }
                 LabeledContent("Servings consumed") {
                     TextField("Servings consumed", text: $servings)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
+                        .focused($focusedField, equals: "servings")
                         .accessibilityIdentifier("nutritionDiary.servings")
                 }
                 LabeledContent("Date", value: date.formatted(date: .abbreviated, time: .omitted))
             }
             Section {
-                Picker("Nutrition source", selection: $source) {
-                    ForEach(NutritionEntrySource.allCases) { Text($0.title).tag($0) }
+                Button {
+                    // The choice sheet owns focus while open; do not leave the form keyboard underneath it.
+                    focusedField = nil
+                    showingSourceChoices = true
+                } label: {
+                    HStack {
+                        Text("Nutrition source")
+                        Spacer()
+                        Text(source.title).foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
                 }
-                // Keep source choices on a navigation page rather than a menu over the form keyboard.
-                .pickerStyle(.navigationLink)
+                .buttonStyle(.plain)
+                .accessibilityLabel("Nutrition source")
+                .accessibilityValue(source.title)
                 .accessibilityIdentifier("nutritionDiary.source")
                 LabeledContent("Source name") {
                     TextField("Source name", text: $sourceName)
                         .textInputAutocapitalization(.words)
                         .multilineTextAlignment(.trailing)
+                        .focused($focusedField, equals: "sourceName")
                         .accessibilityIdentifier("nutritionDiary.sourceName")
                 }
                 TextField("Source record ID (optional)", text: $sourceIdentifier)
+                    .focused($focusedField, equals: "sourceIdentifier")
                     .accessibilityIdentifier("nutritionDiary.sourceIdentifier")
                 TextField("Preparation or source-match note (optional)", text: $verificationNote, axis: .vertical)
+                    .focused($focusedField, equals: "verificationNote")
                     .accessibilityIdentifier("nutritionDiary.verificationNote")
             } header: { Text("Source and provenance") } footer: {
                 Text("Record where these values came from. Ate does not independently verify external values. Blank nutrients stay unavailable; Ate does not estimate them.")
@@ -471,6 +490,7 @@ private struct NutritionDiaryEntryForm: View {
                     HStack {
                         TextField("\(field.title) per serving", text: valueBinding(field))
                             .keyboardType(.decimalPad)
+                            .focused($focusedField, equals: "nutrient.\(field.rawValue)")
                             .accessibilityIdentifier("nutritionDiary.nutrient.\(field.rawValue)")
                         Text(field.unit).foregroundStyle(Theme.mutedForeground)
                     }
@@ -481,6 +501,39 @@ private struct NutritionDiaryEntryForm: View {
         }
         // The decimal-pad fields have no return key; dismiss the keyboard on scroll.
         .scrollDismissesKeyboard(.immediately)
+        .sheet(isPresented: $showingSourceChoices) {
+            NavigationStack {
+                List {
+                    ForEach(NutritionEntrySource.allCases) { choice in
+                        Button {
+                            source = choice
+                            showingSourceChoices = false
+                        } label: {
+                            HStack {
+                                Text(choice.title)
+                                Spacer()
+                                if choice == source {
+                                    Image(systemName: "checkmark").foregroundStyle(.tint)
+                                        .accessibilityHidden(true)
+                                }
+                            }
+                        }
+                        .foregroundStyle(.primary)
+                        .accessibilityLabel(choice.title)
+                        .accessibilityAddTraits(choice == source ? .isSelected : [])
+                    }
+                }
+                .navigationTitle("Nutrition source")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { showingSourceChoices = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
         .navigationTitle(existing == nil ? "Log food" : "Edit food")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: source) { _, newSource in

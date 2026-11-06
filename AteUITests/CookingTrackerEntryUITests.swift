@@ -11,7 +11,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
         app.launch()
-        let insightsTab = app.tabBars.buttons["Insights"]
+        let insightsTab = app.tabBars.buttons["Journal"]
         XCTAssertTrue(insightsTab.waitForExistence(timeout: 10), "Insights should be a first-class tab")
         insightsTab.tap()
         XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 10), "Insights tab root is the Journal")

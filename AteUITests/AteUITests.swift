@@ -1099,7 +1099,7 @@ final class AteUITests: XCTestCase {
         // Every root tab must replace the previous destination's context.
         app.tabBars.buttons["Shopping"].tap()
         XCTAssertEqual(add.label, "Add item")
-        app.tabBars.buttons["Insights"].tap()
+        app.tabBars.buttons["Journal"].tap()
         XCTAssertEqual(add.label, "New journal entry", "Insights root offers New journal entry, not the Shopping or recipe action")
         app.tabBars.buttons["Library"].tap()
         XCTAssertEqual(add.label, "Add recipe")

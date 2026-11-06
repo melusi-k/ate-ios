@@ -156,7 +156,8 @@ struct NutritionDiaryView: View {
                                     .accessibilityIdentifier("nutritionDiary.weeklyTotal.\(field.rawValue).value")
                             }
                         }
-                        .accessibilityIdentifier("nutritionDiary.weeklyTotal.\(field.rawValue)")
+                        // Keep the value's explicit identifier: applying one to the row
+                        // overwrites both child identifiers in SwiftUI's accessibility tree.
                     }
                 }
             }

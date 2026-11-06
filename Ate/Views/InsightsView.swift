@@ -250,6 +250,7 @@ struct InsightsView: View {
     @State private var recipeProgressEvidenceFingerprint: String?
     @State private var recipeProgressRefreshGeneration = 0
     @State private var isEditingInsightOrder = false
+    @State private var cookingHistoryScrollRequest = 0
     @AppStorage("insights.tileOrder") private var savedInsightTileOrder = ""
     @State private var openRecipe: RecipeSheetTarget?
     @State private var pendingMoment: (title: String, date: Date?)?
@@ -258,8 +259,9 @@ struct InsightsView: View {
     var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+            ScrollViewReader { scrollProxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
                     HStack {
                         Text("Your insights").font(AteFont.display(18))
                             // UITesting-only diagnostics on an existing element: no geometry change,
@@ -312,11 +314,15 @@ struct InsightsView: View {
                         }
                         .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("insights.tile.\(tileID)")
+                        .id(tileID)
                     }
+                    .foregroundStyle(Theme.foreground)
+                    .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
+                    .pageWidth()
                 }
-                .foregroundStyle(Theme.foreground)
-                .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
-                .pageWidth()
+                .onChange(of: cookingHistoryScrollRequest) { _, _ in
+                    withAnimation(.smooth) { scrollProxy.scrollTo("tracker", anchor: .top) }
+                }
             }
         }
         // The tab bar's floating bottom accessory can overlap trailing scroll content;
@@ -603,8 +609,13 @@ struct InsightsView: View {
     }
 
     @MainActor private func openInsightDestination(for candidate: RankedRecipeInsightCandidate) {
-        // Insights is presented from Library's Explore sheet. Dismiss that presentation before
-        // switching tabs so the requested destination is actually visible to the user.
+        // When Insights is already pushed from the Journal root, keep that route intact and
+        // reveal the tracker tile in place. The Library Explore presentation still dismisses
+        // before routing to the tracker tab.
+        if candidate.action == .cookingHistory && !isRoot {
+            cookingHistoryScrollRequest += 1
+            return
+        }
         dismiss()
         switch candidate.action {
         case .recipes:

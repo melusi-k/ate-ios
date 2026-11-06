@@ -32,6 +32,13 @@ jobs:
       BUILD_NUMBER: ${{ github.run_number }}
       ATE_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'TierA' }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
+      # Public ingestion endpoint (not a credential); missing/empty secret leaves Sentry disabled.
+      # One-off proof is enabled only for a manually dispatched TierA build. Remove the
+      # temporary repository variable after verification; it is separate from beta opt-in.
+      SENTRY_PROOF: ${{ github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled' && github.ref == 'refs/heads/feature/289-sentry-observability' }}
+      SENTRY_FATAL_PROOF: ${{ github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled' && vars.SENTRY_FATAL_PROOF == 'enabled' && github.ref == 'refs/heads/feature/289-sentry-observability' }}
+      SENTRY_DSN: ${{ ((github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled' && github.ref == 'refs/heads/feature/289-sentry-observability') || vars.SENTRY_BETA_INGESTION == 'enabled') && secrets.SENTRY_DSN || '' }}
+      SENTRY_CANARY: ${{ github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled' && github.ref == 'refs/heads/feature/289-sentry-observability' && format('canary-run-{0}', github.run_id) || '' }}
       HAS_SIGNING: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && secrets.BUILD_PROVISION_PROFILE_BASE64 != '' && secrets.P12_PASSWORD != '' && secrets.TEAM_ID != '' }}
       # Main pushes remain artifact-only; manual dispatch defaults to full validation (artifact-only requires an explicit opt-out).
       RUN_TESTS: ${{ inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]') }}
@@ -426,7 +433,79 @@ jobs:
           for X in $A/PlugIns/*.appex; do
             XB=$(plutil -extract CFBundleVersion raw -o - "$X/Info.plist"); [ "$XB" = "$BUILD_NUMBER" ] || { echo "::error::$X CFBundleVersion $XB"; exit 1; }
           done
+          # Sentry ingestion-proof wiring check: the archived Info.plist canary must
+          # EXACTLY match the injected marker; non-proof builds must be empty.
+          # A missing key reads as empty (acceptable for normal builds; fails proof runs).
+          # Values are compared only, never logged.
+          CANARY_PLIST=$(plutil -extract AteSentryCanary raw -o - "$A/Info.plist" 2>/dev/null || true)
+          if [ -n "${SENTRY_CANARY:-}" ]; then
+            [ "$CANARY_PLIST" = "$SENTRY_CANARY" ] || { echo "::error::AteSentryCanary in IPA does not match injected proof marker"; exit 1; }
+          else
+            [ -z "$CANARY_PLIST" ] || { echo "::error::AteSentryCanary unexpectedly set in a non-proof build"; exit 1; }
+          fi
           echo "plist + codesign checks passed" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate Sentry token and upload dSYMs
+        # Every DSN-enabled archive must have symbols before any IPA artifact or release is published.
+        if: ${{ env.SENTRY_DSN != '' }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_URL: https://sentry.io
+          SENTRY_ORG: add-colour-agency
+          SENTRY_PROJECT: ate-ios
+        run: |
+          set -euo pipefail
+          [ -n "${SENTRY_AUTH_TOKEN:-}" ] || { echo "::error::SENTRY_AUTH_TOKEN is required for every DSN-enabled build"; exit 1; }
+          brew install getsentry/tools/sentry-cli
+          sentry-cli info >/dev/null || { echo "::error::Sentry auth token rejected"; exit 1; }
+          python3 - <<'PYUUID'
+          from pathlib import Path
+          import plistlib, re, subprocess
+          app = Path('build/Ate.xcarchive/Products/Applications/Ate.app')
+          dsyms = Path('build/Ate.xcarchive/dSYMs')
+          if not app.is_dir() or not dsyms.is_dir():
+              raise SystemExit('Archive app or dSYM directory is missing')
+          def uuids(path):
+              result = subprocess.run(['dwarfdump', '--uuid', str(path)], capture_output=True, text=True, check=True)
+              found = set(re.findall(r'UUID: ([0-9A-Fa-f-]{36}) ', result.stdout))
+              if not found:
+                  raise SystemExit(f'No UUID found: {path}')
+              return {value.lower() for value in found}
+          # Enumerate the actual archive, not an assumed list of enabled targets.
+          # Includes app, App Clip, extensions, watch app/widgets and bundled frameworks.
+          binaries = set()
+          for bundle in [app, *app.rglob('*')]:
+              if bundle.is_dir() and bundle.suffix in {'.app', '.appex', '.framework'}:
+                  plist = bundle / 'Info.plist'
+                  if not plist.is_file():
+                      raise SystemExit(f'Bundle Info.plist missing: {bundle}')
+                  name = plistlib.loads(plist.read_bytes()).get('CFBundleExecutable')
+                  if not name or Path(name).name != name:
+                      raise SystemExit(f'Invalid CFBundleExecutable: {bundle}')
+                  binary = bundle / name
+                  if not binary.is_file():
+                      raise SystemExit(f'Bundle executable missing: {binary}')
+                  binaries.add(binary)
+          # Include standalone distributed dynamic libraries too; never silently ignore one.
+          binaries.update(app.rglob('*.dylib'))
+          required = {}
+          for binary in sorted(binaries):
+              for value in uuids(binary):
+                  required.setdefault(value, []).append(str(binary.relative_to(app)))
+          available = set()
+          for dsym in dsyms.rglob('*.dSYM'):
+              available.update(uuids(dsym))
+          if not required or not available:
+              raise SystemExit('Archive binary or dSYM UUID inventory is empty')
+          missing = set(required) - available
+          for value, paths in sorted(required.items()):
+              print(f'{value}: {", ".join(paths)}: {"MISSING" if value in missing else "covered"}')
+          if missing:
+              raise SystemExit('Distributed binary UUIDs lack matching archive dSYMs')
+          print(f'All {len(binaries)} distributed binaries have UUID-matching archive dSYMs')
+          PYUUID
+          sentry-cli upload-dif --org "$SENTRY_ORG" --project "$SENTRY_PROJECT" build/Ate.xcarchive/dSYMs --wait || { echo "::error::Sentry dSYM upload/processing failed"; exit 1; }
+          echo "Sentry symbol upload server-confirmed for this archive"
 
       - name: Release smoke test (A-CI-03) — simulator build, install, launch, alive after 10 s
         id: simsmoke
@@ -445,17 +524,23 @@ jobs:
           }
           profile_sim_start=$(date +%s)
           SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          # Ingestion-proof runs start from a fresh simulator so no prior app state survives.
+          if [ -n "${SENTRY_CANARY:-}" ]; then xcrun simctl shutdown "$SIM_ID" || true; xcrun simctl erase "$SIM_ID"; fi
           profile_sim_end=$(date +%s); echo "::notice::PROFILE step=select_simulator duration_seconds=$((profile_sim_end-profile_sim_start))"
           profile_sim_boot_start=$(date +%s)
           xcrun simctl boot "$SIM_ID" || true
           profile_sim_boot_end=$(date +%s); echo "::notice::PROFILE step=simulator_boot duration_seconds=$((profile_sim_boot_end-profile_sim_boot_start))"
           profile_build_start=$(date +%s)
+          # Bash 3.2 empty-array expansion is safe here because this smoke step does not enable set -u.
+          SYMBOL_ARGS=()
+          if [ "$SENTRY_FATAL_PROOF" = true ]; then SYMBOL_ARGS+=(DEBUG_INFORMATION_FORMAT=dwarf-with-dsym); fi
           xcodebuild build -project Ate.xcodeproj -scheme "$SCHEME" -configuration Release \
-            -destination "id=$SIM_ID" -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO -quiet 2>&1 | tail -20
+            -destination "id=$SIM_ID" -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO "${SYMBOL_ARGS[@]}" -quiet 2>&1 | tail -20
           profile_build_status=$?
           profile_build_end=$(date +%s); echo "::notice::PROFILE step=simulator_build duration_seconds=$((profile_build_end-profile_build_start)) exit_code=$profile_build_status"
           [ "$profile_build_status" -eq 0 ] || exit "$profile_build_status"
           APP=$(ls -d build/sim/Build/Products/Release-iphonesimulator/Ate.app)
+          echo "SENTRY_PROOF_SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
           [ "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "$BUILD_NUMBER" ] || { echo "::error::sim build number mismatch"; exit 1; }
           profile_bootstatus_start=$(date +%s)
           xcrun simctl bootstatus "$SIM_ID" -b
@@ -481,6 +566,54 @@ jobs:
             xcrun simctl spawn "$SIM_ID" log show --last 1m --predicate 'process == "Ate"' | tail -60 || true
             exit 1
           fi
+
+      - name: Controlled synthetic fatal crash and recovery (phase 2 only)
+        if: ${{ env.SENTRY_FATAL_PROOF == 'true' }}
+        timeout-minutes: 8
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_URL: https://sentry.io
+        run: |
+          set -euo pipefail
+          # The earlier DSN-enabled archive step installs sentry-cli and must have succeeded.
+          command -v sentry-cli >/dev/null || { echo "::error::symbol CLI unavailable"; exit 1; }
+          xcrun simctl help launch
+          python3 - <<'PYFATAL'
+          import os, pathlib, re, signal, subprocess, time
+          sim = os.environ['SENTRY_PROOF_SIM_ID']
+          app = pathlib.Path('build/sim/Build/Products/Release-iphonesimulator/Ate.app')
+          def uuids(path):
+              result = subprocess.run(['dwarfdump', '--uuid', str(path)], check=True, capture_output=True, text=True, timeout=30)
+              ids = set(re.findall(r'UUID: ([0-9A-Fa-f-]{36}) ', result.stdout))
+              if not ids: raise SystemExit(f'No UUIDs: {path}')
+              return {v.lower() for v in ids}
+          required = uuids(app / 'Ate')
+          dsyms = list(app.parent.glob('*.dSYM'))
+          found = set()
+          for dsym in dsyms: found.update(uuids(dsym))
+          if not required.issubset(found): raise SystemExit('Simulator app UUIDs lack matching simulator dSYMs')
+          print('Simulator app UUIDs:', ', '.join(sorted(required)), flush=True)
+          subprocess.run(['sentry-cli', 'upload-dif', '--org', 'add-colour-agency', '--project', 'ate-ios', '--wait', *map(str, dsyms)], check=True, timeout=300)
+          def launch(argument):
+              result = subprocess.run(['xcrun', 'simctl', 'launch', '--terminate-running-process', sim, 'com.melusik.ate', argument], capture_output=True, text=True, check=True, timeout=60)
+              match = re.search(r'com\.melusik\.ate: (\d+)', result.stdout)
+              if not match: raise SystemExit('Could not identify launched proof PID')
+              return int(match.group(1))
+          def alive(pid):
+              try: os.kill(pid, 0); return True
+              except ProcessLookupError: return False
+          pid = launch('-SentryFatalProof')
+          end = time.monotonic() + 30
+          while alive(pid) and time.monotonic() < end: time.sleep(0.5)
+          if alive(pid): raise SystemExit('Explicit fatal proof did not exit within 30 seconds')
+          print('Synthetic fatal process exited; relaunching SAME container without erase', flush=True)
+          pid = launch('-SentryFatalRecovery')
+          end = time.monotonic() + 30
+          while time.monotonic() < end:
+              if not alive(pid): raise SystemExit('Fatal recovery launch exited unexpectedly')
+              time.sleep(0.5)
+          print('Recovery survived 30 seconds; stored fatal event and symbolicated in-app frames still require independent inspection', flush=True)
+          PYFATAL
 
       - name: Upload smoke screenshot
         if: always()
@@ -511,6 +644,7 @@ jobs:
 
       - name: Prepare exact engineering publication handoff
         id: publication_prepare
+        if: ${{ env.SENTRY_PROOF != 'true' }}
         run: |
           set -euo pipefail
           scripts/release-notes.sh "$APP_VERSION" "$BUILD_NUMBER" "$GITHUB_SHA" \
@@ -528,6 +662,7 @@ jobs:
 
       - name: Upload exact engineering publication handoff
         id: publication_upload
+        if: ${{ env.SENTRY_PROOF != 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: publication-${{ github.run_id }}-${{ github.run_attempt }}
@@ -569,7 +704,7 @@ jobs:
     needs: [release]
     # Only a successfully uploaded prepared artifact authorizes this independent
     # engineering path. A later focused-gate failure still blocks beta, not history.
-    if: ${{ always() && !cancelled() && needs.release.outputs.publication_artifact_id != '' && needs.release.outputs.publication_manifest_sha256 != '' }}
+    if: ${{ always() && !cancelled() && needs.release.outputs.publication_artifact_id != '' && needs.release.outputs.publication_manifest_sha256 != '' && !(github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled' && github.ref == 'refs/heads/feature/289-sentry-observability') }}
     runs-on: xcode-27
     timeout-minutes: 15
     concurrency:
@@ -764,7 +899,7 @@ jobs:
     name: Promote validated beta candidate
     # Never publish a Production IPA as the rolling beta candidate. Push builds use TierA;
     # manually dispatched builds may promote only an explicit tester channel.
-    if: ${{ (inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]')) && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["TierA", "TierB", "TierC"]'), inputs.channel)) }}
+    if: ${{ (inputs.run_tests == true || contains(github.event.head_commit.message, '[run tests]')) && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["TierA", "TierB", "TierC"]'), inputs.channel)) && !(github.event_name == 'workflow_dispatch' && inputs.channel == 'TierA' && vars.SENTRY_INGESTION_PROOF == 'enabled' && github.ref == 'refs/heads/feature/289-sentry-observability') }}
     needs: [release, publish-engineering, ui-suite, backend-e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -150,7 +150,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
         action.tap()
 
         // The Insights Explore sheet must close before the app switches to the tracker tab.
-        let trackerTab = app.tabBars.buttons["Insights"]
+        let trackerTab = app.tabBars.buttons["Journal"]
         wait(trackerTab, 8)
         XCTAssertTrue(trackerTab.isSelected, "The contextual action should select the tracker tab.")
         let day = Calendar.current.component(.day, from: Date())

@@ -90,8 +90,11 @@ def t_auth_settings(ctx):
     if not cfg.get("password_hibp_enabled"): finding(ctx, "leaked-password protection (HaveIBeenPwned) is OFF; needs Pro plan / dashboard toggle")
     if (cfg.get("rate_limit_email_sent") or 0) > 30: finding(ctx, f"rate_limit_email_sent={cfg.get('rate_limit_email_sent')}/h")
     if cfg.get("security_refresh_token_reuse_interval") is None: finding(ctx, "refresh-token reuse interval not set")
-    return (f"min length {cfg.get('password_min_length')}, email confirm on, OTP {otp}s, HIBP {'on' if cfg.get('password_hibp_enabled') else 'OFF'}, "
-            f"email rate {cfg.get('rate_limit_email_sent')}/h, otp rate {cfg.get('rate_limit_otp')}")
+    # The note carries only constants derived by comparison: config values read under
+    # password-named keys (CodeQL name-taint) never flow into it. Values stay in the asserts.
+    hibp = "on" if cfg.get("password_hibp_enabled") else "OFF"
+    return ("password policy, email confirmation, OTP expiry and mailer rate limits reviewed; "
+            f"HIBP {hibp}")
 
 def t_storage_and_functions_sql(ctx):
     b = sql(ctx, "select id, public, file_size_limit, allowed_mime_types from storage.buckets")

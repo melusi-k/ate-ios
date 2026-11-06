@@ -16,7 +16,7 @@ This phase establishes a safe, reviewable token contract without changing the ap
 2. `design-tokens/tokens.json` is the version-controlled export/snapshot reviewed in GitHub.
 3. Generated Swift token definitions will be derived from the reviewed JSON; generated files must be marked and never hand-edited.
 4. SwiftUI components own behaviour, accessibility, interaction and layout composition. They consume semantic tokens rather than inventing new brand values.
-5. CI validates the snapshot and generated output. CI must not require a live Figma session or network access.
+5. CI will validate the snapshot and generated output after the export contract and generation are implemented. CI must not require a live Figma session or network access.
 
 The new Figma file is the design workspace, but its initial values were transcribed from the existing SwiftUI implementation. Neither the Figma variables nor this JSON are approved design decisions yet; both remain provisional until reviewed. The JSON remains the version-controlled contract candidate.
 
@@ -56,7 +56,8 @@ All 36 app colour specimens on the foundations page are bound to Figma variables
 - `AteWidgets/HomeWidgets.swift` defines an independent `WTheme` palette (including primary `#C95028`) which differs from the app's accessible primary colour (`#B9481F`). Treat this as a platform exception requiring explicit design/contrast review, not silently overwrite it.
 - `Ate/Views/Components.swift` contains reusable components but is not yet a separately governed component package/module.
 - Spacing values are used inline across views; observed values are recorded in JSON for audit only. They are not yet a canonical spacing scale.
-- Radius values vary by component and some are hard-coded at call sites.
+- Radius values vary by component and some are hard-coded at call sites. The recorded 14pt button radius is an observed non-capsule variant, not the default shape: `AteButtonStyle` defaults to `capsule=true`, height 48pt and a minimum rendered height of 44pt. The 12pt field radius is also an observed component literal, not a named Swift token.
+- JSON entries identify the existing Swift member where one exists; `swiftMember: null` means an observed literal or semantic description, not an exported member. Widget palette mappings use `swiftMembers`. `Theme.brown` is deliberately excluded: it is a fixed shadow colour (#311F16), not the adaptive foreground token.
 - The PRD contains intended visual specifications; reconcile those with the live Figma library and current implementation before declaring a token canonical.
 
 ## Token conventions
@@ -92,4 +93,4 @@ All 36 app colour specimens on the foundations page are bound to Figma variables
 
 ## Next decision
 
-Connect the Figma integration and identify the canonical Ate design file/library. Then compare its Variables and component conventions against this provisional baseline and produce a reviewed mapping before code generation is enabled.
+Confirm ownership of the created Ate Figma workspace and review its provisional Variables, collection conventions and mapping against this implementation baseline. Agree the export format and schema before enabling code generation. Workspace creation is complete; design approval and an automated export are not.

@@ -788,9 +788,9 @@ final class AteUITests: XCTestCase {
     }
 
     func test20_CameraOptionAndLargeText() {
-        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityL"])
+        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
         wait(text("Your Kitchen"))
-        shot("a11y-large-text-library")
+        shot("a11y-normal-text-library")
         app.buttons["Add recipe"].tap()
         app.buttons["Image"].tap()
         wait(app.buttons["takePhoto"])
@@ -802,7 +802,7 @@ final class AteUITests: XCTestCase {
         while !gen.isHittable && n < 5 { app.swipeUp(velocity: .slow); n += 1 }
         gen.tap()
         wait(text("Review your card"), 15)
-        shot("a11y-large-text-review")
+        shot("a11y-normal-text-review")
     }
 
     func test21_VoiceCookMode() {

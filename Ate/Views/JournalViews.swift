@@ -49,6 +49,7 @@ struct JournalListView: View {
             }
         }
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search journal")
+        .journalSearchChrome()
         .navigationTitle("Journal")
         .ateRootNavigationChrome(logoID: "journal.logo", enabled: isTabRoot)
         .toolbar {

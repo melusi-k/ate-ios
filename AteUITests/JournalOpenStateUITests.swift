@@ -476,3 +476,87 @@ extension JournalOpenStateUITests {
                       "the last row must clear the navigation/search drawer and bottom chrome (swipes: \(swipes), row: \(last.frame), nav: \(nav.frame), bar: \(searchBar.frame), hittable: \(last.isHittable))")
     }
 }
+
+// Temporary diagnostic cases. Not acceptance replacements; do not merge this branch.
+extension JournalOpenStateUITests {
+    private func diagnosticMark(_ phase: String) {
+        print("QA_JOURNAL phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime)")
+    }
+
+    private func diagnosticLaunch() {
+        diagnosticMark("launch-before")
+        launch(extra: ["-qaMockHealth", "empty", "-UIPreferredContentSizeCategoryName",
+                       "UICTContentSizeCategoryL"])
+        diagnosticMark("launch-after")
+    }
+
+    private func diagnosticTap(_ element: XCUIElement, _ name: String) {
+        wait(element)
+        XCTAssertTrue(element.isHittable)
+        diagnosticMark("\(name)-tap-before")
+        element.tap()
+        diagnosticMark("\(name)-tap-after")
+    }
+
+    private func diagnosticLandscape() {
+        diagnosticMark("rotate-landscape-before")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        diagnosticMark("rotate-landscape-after")
+        wait(any("sidebar"))
+        diagnosticMark("sidebar-exists")
+    }
+
+    func testDiagnosticT1LandscapeComposer() {
+        diagnosticLaunch()
+        defer { XCUIDevice.shared.orientation = .portrait }
+        openJournal()
+        diagnosticLandscape()
+        wait(app.navigationBars["Journal"])
+        diagnosticTap(app.buttons["journal.newEntry"], "landscape-composer")
+        wait(app.textViews["journal.compose.text"])
+        diagnosticMark("editor-exists")
+        shot("diagnostic-t1-landscape-editor")
+    }
+
+    func testDiagnosticT2PortraitComposerThenLandscape() {
+        diagnosticLaunch()
+        defer { XCUIDevice.shared.orientation = .portrait }
+        openJournal()
+        diagnosticTap(app.buttons["journal.newEntry"], "portrait-composer")
+        wait(app.textViews["journal.compose.text"])
+        diagnosticTap(app.buttons["journal.compose.cancel"], "portrait-cancel")
+        waitUntilGone(app.textViews["journal.compose.text"])
+        diagnosticLandscape()
+        wait(app.navigationBars["Journal"])
+        diagnosticTap(app.buttons["journal.newEntry"], "landscape-composer")
+        wait(app.textViews["journal.compose.text"])
+        diagnosticMark("editor-exists")
+        shot("diagnostic-t2-landscape-editor")
+    }
+
+    func testDiagnosticT3LandscapePlainNavigation() {
+        diagnosticLaunch()
+        defer { XCUIDevice.shared.orientation = .portrait }
+        openJournal()
+        diagnosticLandscape()
+        diagnosticTap(app.buttons["sidebar.Library"], "sidebar-library")
+        diagnosticTap(app.buttons["sidebar.Insights"], "sidebar-journal")
+        wait(app.navigationBars["Journal"])
+        diagnosticTap(any("journal.timelineLink"), "timeline-navigation")
+        wait(app.navigationBars["Food Journal"])
+        diagnosticMark("timeline-exists")
+        shot("diagnostic-t3-landscape-timeline")
+    }
+
+    func testDiagnosticT4RotateBeforeJournal() {
+        diagnosticLaunch()
+        defer { XCUIDevice.shared.orientation = .portrait }
+        diagnosticLandscape()
+        diagnosticTap(app.buttons["sidebar.Insights"], "sidebar-journal")
+        wait(app.navigationBars["Journal"])
+        diagnosticTap(app.buttons["journal.newEntry"], "landscape-composer")
+        wait(app.textViews["journal.compose.text"])
+        diagnosticMark("editor-exists")
+        shot("diagnostic-t4-landscape-editor")
+    }
+}

@@ -149,13 +149,19 @@ final class InsightsAcceptanceUITests: XCTestCase {
 
         action.tap()
 
-        // The Insights Explore sheet must close before the app switches to the tracker tab.
+        // A pushed hub must stay on screen and reveal its cooking calendar, not pop to Journal.
+        wait(app.navigationBars["Insights & Cooking History"], 8)
         let trackerTab = app.tabBars.buttons["Insights"]
         wait(trackerTab, 8)
         XCTAssertTrue(trackerTab.isSelected, "The contextual action should select the tracker tab.")
         let day = Calendar.current.component(.day, from: Date())
         let today = app.buttons["tracker.day.\(day)"]
         wait(today, 5)
+        XCTAssertTrue(today.isHittable, "The cooking-history action must reveal today's calendar button.")
         XCTAssertTrue(today.label.contains("cooked") && today.label.contains("today"), today.label)
+        let afterAction = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        afterAction.name = "insights-cooking-history-action-reveals-today"
+        afterAction.lifetime = .keepAlways
+        add(afterAction)
     }
 }

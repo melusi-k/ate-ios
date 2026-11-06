@@ -5,7 +5,8 @@
 **Phase:** 1 — Token foundation  
 **Status:** Provisional baseline; not yet approved as the canonical design system  
 **Source baseline:** Existing SwiftUI implementation on `main`  
-**Figma reconciliation:** Pending access to the canonical Figma file/library and Variables.
+**Figma workspace:** Created — [Ate — Design System](https://www.figma.com/design/rnBsUzukcZYENdHahlj3zO) (Add Colour Agency team).  
+**Figma status:** Provisional variables and foundation reference pages created; pending design/product review.
 
 This phase establishes a safe, reviewable token contract without changing the app's appearance or mass-refactoring consumers. The current repository is the evidence baseline, not a substitute for the design source of truth.
 
@@ -17,7 +18,27 @@ This phase establishes a safe, reviewable token contract without changing the ap
 4. SwiftUI components own behaviour, accessibility, interaction and layout composition. They consume semantic tokens rather than inventing new brand values.
 5. CI validates the snapshot and generated output. CI must not require a live Figma session or network access.
 
-Until the Figma connection and export contract are verified, the JSON is explicitly a **provisional implementation baseline**.
+The new Figma file is the design workspace, but its initial values were transcribed from the existing SwiftUI implementation. Neither the Figma variables nor this JSON are approved design decisions yet; both remain provisional until reviewed. The JSON remains the version-controlled contract candidate.
+
+## Figma workspace initialized
+
+The initial Figma Design file is [Ate — Design System](https://www.figma.com/design/rnBsUzukcZYENdHahlj3zO).
+
+Pages created:
+- `00 — Overview`: ownership, governance and current scope.
+- `01 — Foundations`: bound colour specimens, typography notes, geometry, layout and platform exceptions.
+
+Provisional variable collections:
+- `Color / App / Light`: 18 semantic colour variables.
+- `Color / App / Dark`: 18 semantic colour variables.
+- `Foundation / Core`: 7 variables covering font families, radii and content width.
+- `Platform / Widgets (Legacy)`: 3 isolated widget palette variables.
+
+All 36 app colour specimens on the foundations page are bound to Figma variables. iOS code syntax is recorded against the existing `Theme` and `WTheme` members where a direct mapping exists.
+
+**Figma plan limitation:** this workspace currently permits one mode per variable collection. Light and Dark therefore live in separate collections instead of one collection with two modes. If multi-mode support becomes available, consolidate these collections deliberately and verify all bindings.
+
+**Intentionally not created:** a canonical spacing scale, fixed semantic type ramp, or production component library. The codebase does not yet define enough approved information to create those without inventing design decisions. The observed spacing values remain documentation only.
 
 ## Current implementation findings
 

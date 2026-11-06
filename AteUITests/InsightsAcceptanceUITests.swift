@@ -151,7 +151,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
 
         // A pushed hub must stay on screen and reveal its cooking calendar, not pop to Journal.
         wait(app.navigationBars["Insights & Cooking History"], 8)
-        let trackerTab = app.tabBars.buttons["Insights"]
+        let trackerTab = app.tabBars.buttons["Journal"]
         wait(trackerTab, 8)
         XCTAssertTrue(trackerTab.isSelected, "The contextual action should select the tracker tab.")
         let day = Calendar.current.component(.day, from: Date())

@@ -65,7 +65,7 @@ final class JournalMenuCaptureUITests: XCTestCase {
 
     /// Pushed Insights hub: connect mock Health and save one uniquely-texted seed entry.
     private func seedEntryViaInsights() {
-        app.tabBars.buttons["Insights"].tap()
+        app.tabBars.buttons["Journal"].tap()
         wait(app.navigationBars["Journal"])
         let hub = any("journal.insightsHistory")
         wait(hub); hub.tap()
@@ -79,7 +79,7 @@ final class JournalMenuCaptureUITests: XCTestCase {
 
     /// Journal is the Insights tab root, not an Explore sheet.
     private func openJournalTimeline() {
-        app.tabBars.buttons["Insights"].tap()
+        app.tabBars.buttons["Journal"].tap()
         returnToJournalRoot()
     }
 

@@ -316,6 +316,7 @@ final class NutritionDiaryUITests: XCTestCase {
         XCTAssertTrue(scrollToHittable(formError, in: app) || formError.waitForExistence(timeout: 3), "Save error should be visible")
         XCTAssertTrue(app.staticTexts["Enter a quantity and servings greater than zero."].exists)
         XCTAssertTrue(app.buttons["nutritionDiary.save"].exists)
+        captureNutritionState(app, name: "nutrition-invalid-quantity-visible-error")
     }
 
     func testLogFoodSurfacesSaveFailure() throws {
@@ -332,6 +333,7 @@ final class NutritionDiaryUITests: XCTestCase {
         let saveError = app.descendants(matching: .any)["nutritionDiary.error"]
         XCTAssertTrue(scrollToHittable(saveError, in: app), "Failed save should show the diary error")
         XCTAssertTrue(saveError.waitForExistence(timeout: 5))
+        captureNutritionState(app, name: "nutrition-disk-save-error")
         app.terminate()
         let relaunched = XCUIApplication()
         relaunched.launchArguments = ["-UITesting"]
@@ -464,6 +466,7 @@ final class NutritionDiaryUITests: XCTestCase {
         XCTAssertTrue(editedRow.waitForExistence(timeout: 5))
         XCTAssertEqual(diaryRows(app, containing: "My lunch").allElementsBoundByIndex.count, 1,
                        "edit must keep one row with the same identity")
+        captureNutritionState(app, name: "nutrition-saved-edit-single-two-bowl-row")
     }
 
     func testThisWeekSectionShowsTotalsForLoggedEntries() throws {

@@ -307,12 +307,8 @@ final class NutritionDiaryUITests: XCTestCase {
         let foodName = app.textFields["nutritionDiary.foodName"]
         typeAfterKeyboard(foodName, in: app, "Bad entry")
         let quantity = app.textFields["nutritionDiary.quantity"]
-        tapWhenHittable(quantity, in: app)
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the quantity field")
-        if let existing = quantity.value as? String {
-            quantity.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
-        }
-        quantity.typeText("0")
+        typeAfterKeyboard(quantity, in: app, "0")
+        XCTAssertEqual(quantity.value as? String, "0", "Validation must submit zero, not a positive value with zero inserted before it")
         tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
         // Error state: visible message, and the form stays open for correction. If the error
         // section renders outside the materialised cells, scroll it into the hierarchy.
@@ -455,9 +451,11 @@ final class NutritionDiaryUITests: XCTestCase {
         captureNutritionState(app, name: "nutrition-edit-entry")
         tapWhenHittable(quantity, in: app)
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the quantity field")
-        if let existing = quantity.value as? String {
-            quantity.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
-        }
+        // The centre tap places the caret before the seeded decimal on native iOS.
+        // Tap past its trailing glyph, then clear with slack before replacing it.
+        quantity.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
+        let existingQuantity = quantity.value as? String ?? ""
+        quantity.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existingQuantity.count + 2))
         quantity.typeText("2")
         XCTAssertEqual(quantity.value as? String, "2", "Edit must replace the seeded quantity, not append to it")
         tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)

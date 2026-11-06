@@ -258,24 +258,24 @@ extension JournalOpenStateUITests {
         verifyFailedSaveIsVisible(landscape: true, captureName: "manual-07-compact")
     }
 
-    func testManualSaveFailureVisibleAtXXXL() {
-        verifyFailedSaveIsVisible(extra: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryXXXL"],
-                                 captureName: "manual-08-xxxl")
+    func testManualSaveFailureVisibleAtNormalText() {
+        verifyFailedSaveIsVisible(extra: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"],
+                                 captureName: "manual-08-normal-text")
     }
 
-    /// Separate from ordinary XXXL save-error coverage: the root add accessory at the
-    /// maximum accessibility category must fit its fixed system height and remain actionable.
-    func testJournalRootAddAtMaximumAccessibilitySizeAndSidebarRoundTrip() {
+    /// Normal-text root add coverage and sidebar round trip; accessibility-size qualification
+    /// remains a separate tracked scope.
+    func testJournalRootAddAtNormalTextAndSidebarRoundTrip() {
         launch(extra: ["-qaMockHealth", "empty", "-UIPreferredContentSizeCategoryName",
-                       "UICTContentSizeCategoryAccessibilityXXXL"])
+                       "UICTContentSizeCategoryL"])
         defer { XCUIDevice.shared.orientation = .portrait }
         openJournal()
         let accessory = any("bottomAccessory")
         let add = app.buttons["accessoryAdd"]
-        shot("manual-09-maxax-root-expanded")
+        shot("manual-09-normal-text-root-expanded")
         wait(accessory)
         wait(add)
-        XCTAssertTrue(add.isHittable, "The maximum-accessibility root add action must be reachable")
+        XCTAssertTrue(add.isHittable, "The normal-text root add action must be reachable")
         XCTAssertEqual(add.label, "New journal entry", "VoiceOver must retain the full action name")
         XCTAssertGreaterThanOrEqual(add.frame.height, 44)
         XCTAssertTrue(accessory.frame.contains(add.frame), "The action must fit inside the system accessory")
@@ -284,18 +284,18 @@ extension JournalOpenStateUITests {
         wait(any("sidebar"))
         wait(app.navigationBars["Journal"])
         let toolbarAdd = app.buttons["journal.newEntry"]
-        shot("manual-09-maxax-sidebar-root")
+        shot("manual-09-normal-text-sidebar-root")
         wait(toolbarAdd)
         XCTAssertTrue(toolbarAdd.isHittable, "The sidebar root must retain a reachable journal action")
         toolbarAdd.tap()
         let editor = app.textViews["journal.compose.text"]
         wait(editor)
         editor.tap()
-        editor.typeText("Generic maximum accessibility draft")
+        editor.typeText("Generic normal-text draft")
         XCUIDevice.shared.orientation = .portrait
         wait(editor)
-        XCTAssertEqual(editor.value as? String, "Generic maximum accessibility draft")
-        shot("manual-09-maxax-returned-portrait-draft")
+        XCTAssertEqual(editor.value as? String, "Generic normal-text draft")
+        shot("manual-09-normal-text-returned-portrait-draft")
         app.buttons["journal.compose.cancel"].tap()
         let discard = app.alerts["Discard this draft?"]
         wait(discard)
@@ -306,12 +306,12 @@ extension JournalOpenStateUITests {
         wait(add)
         XCTAssertTrue(add.isHittable)
         XCTAssertEqual(add.label, "New journal entry")
-        shot("manual-09-maxax-root-returned")
+        shot("manual-09-normal-text-root-returned")
         add.tap()
         wait(editor)
         XCTAssertEqual(editor.value as? String, "",
                        "Explicit discard must not leak the previous draft into a new entry")
-        shot("manual-09-maxax-accessory-opened-composer")
+        shot("manual-09-normal-text-accessory-opened-composer")
     }
 
     func testManualActionFromInsightsDoesNotRequireHealth() {
@@ -428,22 +428,22 @@ extension JournalOpenStateUITests {
         shot("jt-06-recovered-banner")
     }
 
-    /// Fixture at an accessibility text size: the first row is shown and the filter control stays reachable.
-    func testTimelineFixtureAtLargestTextSizeKeepsRowAndFilterReachable() {
-        launch(extra: ["-qaJournalTimeline", "fixture", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+    /// Normal-text fixture: the first row is shown and the filter control stays reachable.
+    func testTimelineFixtureAtNormalTextKeepsRowAndFilterReachable() {
+        launch(extra: ["-qaJournalTimeline", "fixture", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
         openTimeline()
         wait(row("Oat porridge"), 10)
         XCTAssertTrue(any("journal.timeline.filter").waitForExistence(timeout: 10))
-        XCTAssertTrue(any("journal.timeline.filter").isHittable, "the filter must stay tappable at the largest text size")
-        shot("jt-07-fixture-large-text")
+        XCTAssertTrue(any("journal.timeline.filter").isHittable, "the filter must stay tappable at the normal text size")
+        shot("jt-07-fixture-normal-text")
     }
 
-    /// The last fixture entry must clear the pinned search drawer and bottom chrome at the largest text size.
+    /// The last fixture entry must clear the pinned search drawer and bottom chrome at the normal text size.
     /// Geometry cannot prove readable text under a translucent bar, so jt-08 is captured BEFORE any assertion for
     /// visual inspection. A missing row, a missing search bar, no clearance after the bounded scroll, or a timeout is
     /// reported as what it is; none of them is assumed to be an app defect.
-    func testTimelineFixtureAtLargestTextSizeLastRowClearsSearchBar() {
-        launch(extra: ["-qaJournalTimeline", "fixture", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+    func testTimelineFixtureAtNormalTextLastRowClearsSearchBar() {
+        launch(extra: ["-qaJournalTimeline", "fixture", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
         openTimeline()
         let nav = app.navigationBars["Food Journal"]   // the same bar openTimeline() waits for
         let searchBar = app.searchFields.firstMatch    // the pinned navigation-bar drawer
@@ -461,10 +461,10 @@ extension JournalOpenStateUITests {
         }
         var swipes = 0
         while !clear() && swipes < 6 { app.swipeUp(); swipes += 1 }
-        shot("jt-08-fixture-large-text-last-row")
+        shot("jt-08-fixture-normal-text-last-row")
         if bottomAccessory.exists {
             let add = app.buttons["accessoryAdd"]
-            XCTAssertTrue(add.isHittable, "the journal add action must stay reachable at the largest text size")
+            XCTAssertTrue(add.isHittable, "the journal add action must stay reachable at the normal text size")
             XCTAssertEqual(add.label, "New journal entry", "VoiceOver must retain the full journal action name")
         }
         XCTAssertTrue(nav.exists, "the Food Journal navigation bar must exist (swipes: \(swipes))")

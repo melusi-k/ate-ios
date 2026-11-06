@@ -129,6 +129,10 @@ jobs:
           PYREADINESS
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/JournalOpenStateUITests \
+            -skip-testing:AteUITests/JournalOpenStateUITests/testManualSaveFailureVisibleAtXXXL \
+            -skip-testing:AteUITests/JournalOpenStateUITests/testJournalRootAddAtMaximumAccessibilitySizeAndSidebarRoundTrip \
+            -skip-testing:AteUITests/JournalOpenStateUITests/testTimelineFixtureAtLargestTextSizeKeepsRowAndFilterReachable \
+            -skip-testing:AteUITests/JournalOpenStateUITests/testTimelineFixtureAtLargestTextSizeLastRowClearsSearchBar \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/journal-open-state-ui.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \

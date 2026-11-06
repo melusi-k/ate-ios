@@ -227,7 +227,7 @@ final class NutritionDiaryUITests: XCTestCase {
         let externalSource = app.buttons["External record (not verified by Ate)"]
         XCTAssertTrue(externalSource.waitForExistence(timeout: 5))
         let sourcePageCapture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        sourcePageCapture.name = "nutrition-source-choice-page-keyboard-up-flow"
+        sourcePageCapture.name = "nutrition-source-choice-sheet"
         sourcePageCapture.lifetime = .keepAlways
         add(sourcePageCapture)
         externalSource.tap()

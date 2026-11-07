@@ -171,6 +171,20 @@ final class NutritionDiaryController {
         reload()
     }
 
+
+    /// Called only after the selected original backup has been reviewed and confirmed.
+    /// Failure stays visible; do not retry an uncertain commit automatically.
+    func restoreReviewedMealBackup(_ backup: ReviewedMealBackup) throws -> Int {
+        do {
+            let added = try coordinator.restoreReviewedLegacyBackup(backup.originalBytes,
+                preservedCopyDirectory: repairAdapter.backupDirectory.appendingPathComponent("ReviewedImports", isDirectory: true))
+            reload()
+            return added
+        } catch {
+            throw ReviewedMealBackupError.restoreFailed(classify(error).reason)
+        }
+    }
+
     /// Retries reading (which re-runs migration) after repair or a transient failure.
     /// Returns true when the diary is readable again.
     @discardableResult

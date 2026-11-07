@@ -49,10 +49,42 @@ final class AccessibilityAuditUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars.buttons.element(boundBy: 0).waitForExistence(timeout: 5))
         app.navigationBars.buttons.element(boundBy: 0).tap()
         try audit("library")
-        for tab in ["Shopping", "More", "Settings"] {
-            app.tabBars.buttons[tab].tap(); sleep(1)
-            try audit(tab.lowercased())
-        }
+        // Portrait no longer has a More tab; beta pages are reached through Settings.
+        // Each destination is identified before it is audited. A missing tab or screen throws and ends the test,
+        // so the audit never re-audits whatever screen happens to be showing.
+        try openTab("Shopping", expecting: app.navigationBars["Shopping list"])
+        try audit("shopping")
+        try openTab("Settings", expecting: app.navigationBars["Settings"])
+        try audit("settings")
+        // Beta pages formerly linked from More (beta channel is the UI-testing default).
+        try open(app.buttons["settings.betaTesting"], expecting: app.staticTexts["betaProgress"], named: "Beta testing")
+        try audit("beta-testing")
+        try open(app.buttons["betaExpectationsLink"], expecting: app.navigationBars["What to expect in this beta"], named: "Beta expectations")
+        try audit("beta-expectations")
+    }
+
+    struct NavigationFailure: Error, CustomStringConvertible { let description: String }
+
+    /// Selects a tab-bar tab and requires its destination to be on screen; throws instead of falling through.
+    private func openTab(_ name: String, expecting destination: XCUIElement) throws {
+        let button = app.tabBars.buttons[name]
+        guard button.waitForExistence(timeout: 5) else { throw fail("Tab bar has no '\(name)' tab") }
+        button.tap()
+        guard destination.waitForExistence(timeout: 5) else { throw fail("'\(name)' tab did not show its destination") }
+    }
+
+    /// Scrolls the control into view, taps it, and requires the destination to appear.
+    private func open(_ control: XCUIElement, expecting destination: XCUIElement, named name: String) throws {
+        var swipes = 0
+        while !(control.exists && control.isHittable) && swipes < 6 { app.swipeUp(); swipes += 1 }
+        guard control.exists, control.isHittable else { throw fail("\(name): entry point is missing or not hittable") }
+        control.tap()
+        guard destination.waitForExistence(timeout: 10) else { throw fail("\(name) screen did not open") }
+    }
+
+    private func fail(_ message: String) -> NavigationFailure {
+        XCTFail(message)
+        return NavigationFailure(description: message)
     }
 
     func testAuditOnboarding() throws {

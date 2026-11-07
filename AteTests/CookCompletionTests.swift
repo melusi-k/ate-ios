@@ -27,6 +27,30 @@ final class CookCompletionTests: XCTestCase {
         return CookCompletionEvent(recipeID: recipe, recipeTitle: "Soup", completedAt: t, dayKey: "2027-01-15")
     }
 
+    func testVerifiedHistoryReadsBackExactCookAndPreservesPriorDays() throws {
+        let history = CookingHistory(calendar: cal, defaults: defaults)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let prior = now.addingTimeInterval(-86400)
+        try history.recordVerified(recipeID: "before", date: prior, dayKey: history.key(for: prior))
+        try history.recordVerified(recipeID: "r1", date: now, dayKey: history.key(for: now))
+        try history.recordVerified(recipeID: "r1", date: now, dayKey: history.key(for: now))
+        let fresh = CookingHistory(calendar: cal, defaults: defaults)
+        XCTAssertEqual(fresh.recipeIDs(on: now), ["r1"])
+        XCTAssertEqual(fresh.recipeIDs(on: prior), ["before"])
+    }
+
+    func testVerifiedHistoryNeverOverwritesUnreadableBytesOrAcceptsWrongDay() throws {
+        let raw = Data("broken history".utf8)
+        defaults.set(raw, forKey: "ate.cooking.history.v1")
+        let history = CookingHistory(calendar: cal, defaults: defaults)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        XCTAssertThrowsError(try history.recordVerified(recipeID: "r1", date: now, dayKey: history.key(for: now)))
+        XCTAssertEqual(defaults.data(forKey: "ate.cooking.history.v1"), raw)
+        defaults.removeObject(forKey: "ate.cooking.history.v1")
+        XCTAssertThrowsError(try history.recordVerified(recipeID: "r1", date: now, dayKey: "1900-01-01"))
+        XCTAssertNil(defaults.object(forKey: "ate.cooking.history.v1"))
+    }
+
     // MARK: Event
 
     func testEventsBuiltWithoutAnIdGetDistinctIds() {

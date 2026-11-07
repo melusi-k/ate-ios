@@ -88,16 +88,23 @@ enum CanonicalUpgradeQARoute {
 private struct CanonicalUpgradeRootView: View {
     @Environment(AppStore.self) private var store
     @State private var reviewedBackup: ReviewedMealBackup?
-    @State private var controller: NutritionDiaryController?
+    @State private var reviewError: String?
     @State private var refresh = UUID()
     var body: some View {
         NavigationStack {
             JournalTimelineView().id(refresh)
-                .toolbar {
-                    ToolbarItem(placement: .bottomBar) {
-                        Button("Review sample backup") { reviewedBackup = try? CanonicalUpgradeQARoute.sampleBackup() }
-                            .accessibilityIdentifier("upgradeQA.backupReview")
+                .safeAreaInset(edge: .bottom) {
+                    Button("Review sample backup") {
+                        do { reviewedBackup = try CanonicalUpgradeQARoute.sampleBackup() }
+                        catch { reviewError = error.localizedDescription }
                     }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("upgradeQA.backupReview")
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(.regularMaterial)
+                }
+                .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         NavigationLink(value: Route.nutritionGoals) { Text("Goals") }
                             .accessibilityIdentifier("upgradeQA.goals")
@@ -109,17 +116,34 @@ private struct CanonicalUpgradeRootView: View {
                 }
                 .navigationDestination(for: Route.self) { RouteView(route: $0) }
         }
-        .onAppear {
-            if controller == nil, let runtime = store.foodJournalRuntime {
-                controller = NutritionDiaryController(coordinator: runtime.coordinator,
-                    goalsRepository: runtime.goalsRepository, repair: runtime.repair)
-            }
-        }
+        .alert("Sample backup unavailable", isPresented: Binding(
+            get: { reviewError != nil }, set: { if !$0 { reviewError = nil } })) {
+            Button("OK", role: .cancel) { reviewError = nil }
+        } message: { Text(reviewError ?? "") }
         .sheet(item: $reviewedBackup, onDismiss: { refresh = UUID() }) { backup in
-            if let controller {
-                ReviewedMealBackupSheet(backup: backup) { try controller.restoreReviewedMealBackup(backup) }
+            if let runtime = store.foodJournalRuntime {
+                CanonicalUpgradeBackupReviewHost(backup: backup, runtime: runtime)
+            } else {
+                ContentUnavailableView("Journal unavailable", systemImage: "exclamationmark.triangle",
+                    description: Text("The isolated upgrade runtime is unavailable. Nothing was imported."))
             }
         }
+    }
+}
+
+/// Initialize the sheet's controller from its required runtime before rendering content.
+/// No optional onAppear state or stale first-presentation capture can produce a blank sheet.
+@MainActor
+private struct CanonicalUpgradeBackupReviewHost: View {
+    let backup: ReviewedMealBackup
+    @State private var controller: NutritionDiaryController
+    init(backup: ReviewedMealBackup, runtime: FoodJournalRuntime) {
+        self.backup = backup
+        _controller = State(initialValue: NutritionDiaryController(coordinator: runtime.coordinator,
+            goalsRepository: runtime.goalsRepository, repair: runtime.repair))
+    }
+    var body: some View {
+        ReviewedMealBackupSheet(backup: backup) { try controller.restoreReviewedMealBackup(backup) }
     }
 }
 #endif

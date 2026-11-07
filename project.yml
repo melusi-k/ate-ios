@@ -50,10 +50,6 @@ targets:
       - path: Ate
       - path: Shared
       - path: SharedWidgets
-      # Preserve the Skills.skillsbundle as a folder resource in Ate.app.
-      - path: Skills.skillsbundle
-        type: folder
-        buildPhase: resources
     resources:
       - path: Ate/Resources/BuildNotes.md
     dependencies:

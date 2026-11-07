@@ -21,36 +21,14 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
-    outputs:
-      app: ${{ steps.filter.outputs.app }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: Classify changed files
-        id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          filters: |
-            app:
-              - 'Ate/**'
-              - 'AteClip/**'
-              - 'AteTests/**'
-              - 'AteUITests/**'
-              - 'AteWidgets/**'
-              - 'AteWatch/**'
-              - 'Ate.xcodeproj/**'
-              - 'project.yml'
-              - 'Package.swift'
-              - 'Package.resolved'
-              - 'scripts/**'
-              - 'supabase/**'
-              - '.github/workflows/**'
+    uses: ./.github/workflows/classify-native-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
 
   docs-validation:
     needs: changes
-    if: needs.changes.outputs.app != 'true'
+    if: needs.changes.outputs.app == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -260,7 +238,7 @@ jobs:
 
   regressions:
     # Independent exact-head lane: a nutrition diagnostic failure must not skip
-    # required regression evidence. Both jobs retain the existing 120-minute cap.
+    # required regression evidence. Keep main's lower 110-minute budget.
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
@@ -758,4 +736,30 @@ jobs:
           if [ "$BUILD_NUTRITION_RESULT" != success ] || [ "$REGRESSIONS_RESULT" != success ]; then
             echo "::error::Native qualification incomplete: build-nutrition=$BUILD_NUTRITION_RESULT regressions=$REGRESSIONS_RESULT"
             exit 1
+          fi
+
+  qualification-result:
+    name: Compile qualification result
+    if: always()
+    needs: [changes, compile, docs-validation]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Report actual qualification route
+        env:
+          CLASSIFIER: ${{ needs.changes.result }}
+          NATIVE: ${{ needs.changes.outputs.app }}
+          NATIVE_RESULT: ${{ needs.compile.result }}
+          DOCS_RESULT: ${{ needs.docs-validation.result }}
+        run: |
+          if [[ "$CLASSIFIER" != success ]]; then
+            echo 'Scope classifier failed; qualification is NOT established.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [[ "$NATIVE" == false ]]; then
+            echo 'Documentation-only diff. Mac compile/tests NOT RUN; this is NOT native qualification.' >> "$GITHUB_STEP_SUMMARY"
+            [[ "$NATIVE_RESULT" == skipped && "$DOCS_RESULT" == success ]]
+          else
+            echo "Native qualification required. Mac job result: $NATIVE_RESULT." >> "$GITHUB_STEP_SUMMARY"
+            [[ "$NATIVE" == true && "$NATIVE_RESULT" == success ]]
           fi

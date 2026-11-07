@@ -1,0 +1,56 @@
+name: Workflow security
+
+on:
+  pull_request:
+    paths:
+      - '.github/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      # Parse PR YAML as data only. No PR scripts, online audits, credentials,
+      # SARIF uploads, issue writes, OIDC or external reporting service.
+      - name: Scan GitHub configuration (advisory)
+        id: scan
+        continue-on-error: true
+        run: |
+          # Fixed Linux x86_64 wheel, verified before extraction/execution.
+          wheel="$RUNNER_TEMP/zizmor-1.31.0-py3-none-manylinux_2_28_x86_64.whl"
+          curl --fail --silent --show-error --location \
+            https://files.pythonhosted.org/packages/28/08/94cf5753930aa91ffff7ddb45e99f9cdab8c3d22e07ff7ba726dff9e8662/zizmor-1.31.0-py3-none-manylinux_2_28_x86_64.whl \
+            --output "$wheel"
+          echo "bb4203c790f8d33e110dbeee2ac6d70911e233b93574ffc770aaa21ecd850302  $wheel" | sha256sum --check --strict
+          python3 -m zipfile --extract "$wheel" "$RUNNER_TEMP/zizmor-unpacked"
+          scanner="$RUNNER_TEMP/zizmor-unpacked/zizmor-1.31.0.data/scripts/zizmor"
+          chmod +x "$scanner"
+          env -u GH_TOKEN -u GITHUB_TOKEN -u ZIZMOR_GITHUB_TOKEN \
+            "$scanner" --offline --collect=all --color=never .github
+      - name: Explain advisory scan result
+        if: always()
+        env:
+          SCAN_OUTCOME: ${{ steps.scan.outcome }}
+        run: |
+          {
+            echo '## Workflow security advisory'
+            echo "Scanner step outcome: $SCAN_OUTCOME. See the scan step log for findings or tool errors."
+            echo 'Advisory adoption: existing findings do not block this job. A green job is not a clean security scan.'
+            echo 'Offline audits only: online repository/advisory checks are disabled and coverage is reduced.'
+            echo 'A baseline and gating of new findings require a separate reviewed change; no findings are suppressed here.'
+          } >> "$GITHUB_STEP_SUMMARY"

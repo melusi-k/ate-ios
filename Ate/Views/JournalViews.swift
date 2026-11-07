@@ -29,6 +29,7 @@ struct JournalListView: View {
                         Label("Insights & Cooking History", systemImage: "heart.text.square")
                     }.accessibilityIdentifier("journal.insightsHistory")
                 }
+                Section { JournalReflectionCard() }
             }
             if openState != .ok {
                 Section { JournalOpenStateBanner(state: openState) }
@@ -48,6 +49,7 @@ struct JournalListView: View {
                     .accessibilityIdentifier("journal.entry")
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search journal")
         .journalSearchChrome()
         .navigationTitle("Journal")
@@ -324,5 +326,113 @@ struct JournalTaskHost: ViewModifier {
                 ManualJournalComposer(draft: $store.manualJournalDraft) { store.journalRevision += 1 }
                     .environment(store)
             }
+    }
+}
+
+/// One session draft, owned outside the navigation tree. No Health reading is invented.
+@MainActor @Observable
+final class JournalReflectionDraft {
+    var text = ""
+    var prompt: JournalPrompt?
+    var pendingMoment: (title: String, date: Date?)?
+    var saveError: String?
+
+    @discardableResult
+    func save(context: HealthContext?, journal: JournalStore = .shared) -> Bool {
+        let selected = prompt ?? context?.prompts.first
+        guard journal.save(prompt: selected?.text ?? "", text: text,
+                           state: context?.insight.state, recipeIDs: context?.suggestions.map(\.recipeID) ?? [],
+                           momentTitle: pendingMoment?.title, momentDate: pendingMoment?.date) else {
+            saveError = "Your entry could not be saved. Your draft is still here. Try again."
+            return false
+        }
+        text = ""; prompt = nil; pendingMoment = nil; saveError = nil
+        return true
+    }
+}
+
+struct JournalReflectionCard: View {
+    @Environment(AppStore.self) private var store
+    @State private var model = InsightsModel.shared
+    @AppStorage(JournalingSuggestionsGate.settingKey) private var journalingEnabled = false
+    @State private var openRecipe: RecipeSheetTarget?
+
+    var body: some View {
+        @Bindable var reflection = store.journalReflection
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Reflect on your day", systemImage: "quote.bubble").font(AteFont.display(18))
+            if model.context != nil && model.isSample {
+                Label("Sample data", systemImage: "testtube.2")
+                    .font(AteFont.body(12, .semibold)).foregroundStyle(Theme.primary)
+                    .accessibilityIdentifier("journal.reflection.sampleBadge")
+                Text("These prompts use sample Health data, not your Health readings.")
+                    .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+            }
+            if let context = model.context {
+                ForEach(context.prompts) { p in
+                    Button { reflection.prompt = p } label: {
+                        HStack(alignment: .top) {
+                            Image(systemName: (reflection.prompt ?? context.prompts.first) == p ? "largecircle.fill.circle" : "circle")
+                                .foregroundStyle(Theme.primary)
+                            Text(p.text).font(AteFont.body(15)).multilineTextAlignment(.leading)
+                        }
+                    }.buttonStyle(.plain).accessibilityIdentifier("insights.prompt")
+                }
+            } else {
+                Text("What would you like to remember about today?").font(AteFont.body(15))
+                    .accessibilityIdentifier("journal.reflection.manualPrompt")
+            }
+            // A selected Journaling Moment or earlier Health prompt stays visible even if
+            // a refresh changes the offered prompts or Health becomes unavailable.
+            if let selected = reflection.prompt, !(model.context?.prompts.contains(selected) ?? false) {
+                Text(selected.text).font(AteFont.body(15)).accessibilityIdentifier("journal.reflection.selectedPrompt")
+            }
+            if let moment = reflection.pendingMoment {
+                Label(moment.title, systemImage: "book.pages").font(AteFont.body(13))
+                    .accessibilityIdentifier("journal.reflection.moment")
+            }
+            TextField("Write a few lines…", text: $reflection.text, axis: .vertical).lineLimit(3...8)
+                .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
+                .accessibilityIdentifier("insights.journalText")
+            Button("Save to journal") { save() }
+                .buttonStyle(.ate(.primary, full: true))
+                .disabled(reflection.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityIdentifier("insights.save")
+            if let error = reflection.saveError {
+                Text(error).font(AteFont.body(13)).foregroundStyle(Theme.destructive)
+                    .accessibilityIdentifier("insights.journalSaveError")
+            }
+            if journalingEnabled && JournalingSuggestionsGate.isAvailable && !AppConfig.isUITesting {
+                JournalingSuggestionsButton { handle(moment: $0) }
+            }
+            Text("Saved only on this iPhone. Ate can't write to Apple's Journal app.")
+                .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+        }
+        .accessibilityIdentifier("journal.reflection")
+        .task { await model.loadIfNeeded(recipes: store.recipes) }
+        .sheet(item: $openRecipe) { target in RecipeSheet(recipeID: target.id).environment(store) }
+    }
+
+    private func save() {
+        let reflection = store.journalReflection
+        if reflection.save(context: model.context) {
+            store.journalRevision += 1
+            store.show("Saved to your Ate journal")
+            BetaQA.shared.pass("A-HEALTH-04", note: "Saved a local journal entry")
+        }
+    }
+
+    private func handle(moment: PickedMoment) {
+        switch JournalingMomentMapper.map(title: moment.title,
+                                          date: moment.date.map { DateInterval(start: $0, duration: 0) },
+                                          hasPhotos: !moment.photoURLs.isEmpty, isWorkout: moment.isWorkout) {
+        case .recipeDraft(let title, let date):
+            let recipe = JournalingMomentMapper.draft(title: title, date: date)
+            store.add(recipe); openRecipe = RecipeSheetTarget(id: recipe.id)
+            store.show("Recipe draft from your Journal moment")
+        case .journalEntry(let prompt, let title, let date, let state):
+            store.journalReflection.prompt = JournalPrompt(text: prompt, state: state)
+            store.journalReflection.pendingMoment = (title, date)
+        }
     }
 }

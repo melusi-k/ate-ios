@@ -92,6 +92,13 @@ final class FoodJournalCoordinator {
         // Reject conflicts against BOTH canonical and still-legacy values before prepare()
         // can migrate/retire anything. Decode without historical-day normalization writes.
         let canonical = try meals.readMeals()
+        guard let container = journal.container else { throw FoodJournalStoreError.unreadableStore }
+        let allRows = try ModelContext(container).fetch(FetchDescriptor<JournalEntry>())
+        let rowIDs = Set(allRows.map(\.id))
+        let mealIDs = Set(canonical.map { $0.id.uuidString })
+        guard incoming.allSatisfy({ !rowIDs.contains($0.id.uuidString) || mealIDs.contains($0.id.uuidString) }) else {
+            throw FoodJournalStoreError.conflictingIdentity
+        }
         var known = Dictionary(uniqueKeysWithValues: canonical.map { ($0.id, $0) })
         switch legacy.loadState(persistHistoricalDayKeys: false) {
         case .corrupt: throw AccessError.legacyCorrupt

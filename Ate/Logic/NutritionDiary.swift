@@ -235,7 +235,7 @@ struct NutritionDiaryRepository {
 
     /// Distinguishes an absent diary from an unreadable one. A corrupt payload is
     /// never silently reported as an empty diary and never overwritten implicitly.
-    func loadState() -> NutritionDiaryLoadState {
+    func loadState(persistHistoricalDayKeys: Bool = true) -> NutritionDiaryLoadState {
         guard let data = defaults.data(forKey: Self.storageKey) else { return .absent }
         guard let entries = try? JSONDecoder().decode([NutritionDiaryEntry].self, from: data) else { return .corrupt }
         let legacyRecords = ((try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]])?
@@ -245,7 +245,7 @@ struct NutritionDiaryRepository {
         }
         // Persist migrated keys immediately so a later time-zone change cannot
         // reinterpret legacy entries a second time.
-        if legacyRecords, let migrated = try? prepare(sorted) { savePrepared(migrated) }
+        if persistHistoricalDayKeys, legacyRecords, let migrated = try? prepare(sorted) { savePrepared(migrated) }
         return .loaded(sorted)
     }
 

@@ -44,6 +44,11 @@ final class FoodJournalCoordinator {
         return try meals.readMeals()
     }
 
+    func timelineItems(calendar: Calendar = .autoupdatingCurrent) throws -> [JournalTimelineItem] {
+        try prepare()
+        return try meals.timelineItems(calendar: calendar)
+    }
+
     func saveMeal(_ entry: NutritionDiaryEntry) throws {
         try prepare()
         try meals.saveMeal(entry)

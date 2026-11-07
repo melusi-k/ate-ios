@@ -8,13 +8,13 @@ final class InsightLifecycleTests: XCTestCase {
         return (InsightLifecycleStore(defaults: defaults), defaults, suite)
     }
 
-    func testNewEvidenceIsEligibleAndUnchangedEvidenceIsNotReactivatedAfterSeen() {
+    func testSeenEvidenceRemainsEligibleWithoutReactivatingOrLosingSeenState() {
         let (store, defaults, suite) = makeStore()
         defer { defaults.removePersistentDomain(forName: suite) }
 
         XCTAssertTrue(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: "abc"))
         store.markSeen("recipe-progress")
-        XCTAssertFalse(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: "abc"))
+        XCTAssertTrue(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: "abc"))
         XCTAssertEqual(store.record(for: "recipe-progress")?.status, .seen)
     }
 
@@ -98,7 +98,9 @@ final class InsightLifecycleTests: XCTestCase {
 
         XCTAssertTrue(accountA.shouldPresent(id: "recipe-progress", evidenceFingerprint: "same"))
         XCTAssertTrue(accountA.markSeen(id: "recipe-progress", evidenceFingerprint: "same"))
-        XCTAssertFalse(accountA.shouldPresent(id: "recipe-progress", evidenceFingerprint: "same"))
+        XCTAssertTrue(accountA.shouldPresent(id: "recipe-progress", evidenceFingerprint: "same"))
+        XCTAssertEqual(accountA.record(for: "recipe-progress")?.status, .seen)
+        XCTAssertNil(accountB.record(for: "recipe-progress"))
         XCTAssertTrue(accountB.shouldPresent(id: "recipe-progress", evidenceFingerprint: "same"))
     }
 
@@ -108,6 +110,8 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertTrue(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: "current"))
         XCTAssertFalse(store.markSeen(id: "recipe-progress", evidenceFingerprint: "stale"))
         XCTAssertTrue(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: "current"))
+        XCTAssertEqual(store.record(for: "recipe-progress")?.status, .active)
+        XCTAssertEqual(store.record(for: "recipe-progress")?.evidenceFingerprint, "current")
     }
 
     func testClearAllRemovesAccountScopedLifecycleMetadata() {
@@ -121,7 +125,7 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertTrue(reloaded.shouldPresent(id: "recipe-progress", evidenceFingerprint: "same"))
     }
 
-    func testRecipeProgressServiceSuppressesAnInsightAfterItHasBeenActedOn() async {
+    func testRecipeProgressServiceRetainsAnInsightAfterItHasBeenOpened() async {
         let (store, defaults, suite) = makeStore()
         defer { defaults.removePersistentDomain(forName: suite) }
         let input = RecipeProgressInsightInput(
@@ -134,7 +138,7 @@ final class InsightLifecycleTests: XCTestCase {
         XCTAssertNotNil(first)
         XCTAssertTrue(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: fingerprint))
         XCTAssertTrue(store.markSeen(id: "recipe-progress", evidenceFingerprint: fingerprint))
-        XCTAssertFalse(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: fingerprint))
+        XCTAssertTrue(store.shouldPresent(id: "recipe-progress", evidenceFingerprint: fingerprint))
     }
 
     func testCandidateEngineRanksDuplicateDataAheadOfBehaviouralInsights() {
@@ -449,4 +453,36 @@ final class InsightLifecycleTests: XCTestCase {
         let candidates = InsightCandidateEngine.candidates(for: input, nutritionEntries: nil, now: now, calendar: calendar)
         XCTAssertFalse(candidates.contains { $0.id == "nutrition-diary-coverage" })
     }
+    func testSeenPersistsAndRemainsPresentableAfterStoreReload() {
+        let (store, defaults, suite) = makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertTrue(store.shouldPresent(id: "weekly-cooking", evidenceFingerprint: "same"))
+        XCTAssertTrue(store.markSeen(id: "weekly-cooking", evidenceFingerprint: "same"))
+        let reloaded = InsightLifecycleStore(defaults: defaults)
+        XCTAssertTrue(reloaded.shouldPresent(id: "weekly-cooking", evidenceFingerprint: "same"))
+        XCTAssertEqual(reloaded.record(for: "weekly-cooking")?.status, .seen)
+        XCTAssertTrue(reloaded.dismiss(id: "weekly-cooking", evidenceFingerprint: "same"))
+        XCTAssertFalse(reloaded.shouldPresent(id: "weekly-cooking", evidenceFingerprint: "same"))
+    }
+
+    func testDelayedOpenCannotUndoAnExplicitUserChoice() {
+        let (store, defaults, suite) = makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        for status in [InsightLifecycleStatus.dismissed, .resolved, .snoozed] {
+            let id = status.rawValue
+            XCTAssertTrue(store.shouldPresent(id: id, evidenceFingerprint: "same"))
+            switch status {
+            case .dismissed: store.dismiss(id)
+            case .resolved: store.resolve(id)
+            case .snoozed: store.snooze(id, until: Date().addingTimeInterval(3600))
+            default: XCTFail("Unexpected test state")
+            }
+            XCTAssertFalse(store.markSeen(id: id, evidenceFingerprint: "stale"))
+            XCTAssertFalse(store.markSeen(id: id, evidenceFingerprint: "same"))
+            store.markSeen(id)
+            XCTAssertEqual(store.record(for: id)?.status, status)
+            XCTAssertFalse(store.shouldPresent(id: id, evidenceFingerprint: "same"))
+        }
+    }
+
 }

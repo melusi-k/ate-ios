@@ -197,6 +197,88 @@ final class CookIngredientsUITests: XCTestCase {
         shot("cook-ingredients-sheet-large-text-imperial")
     }
 
+    /// Normal-size coverage, separate from the retained original cross-size case.
+    func testCookIngredientSheetNormalTextAccessibilityAndImperial() {
+        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL", "-qaImperialUnits"])
+        addPromptRecipe()
+
+        let detailPicker = app.segmentedControls["servingsPicker"]
+        wait(detailPicker, 5)
+        detailPicker.buttons["2\u{00D7}"].tap()
+
+        app.buttons["Cook mode"].tap()
+        wait(text("Step 1 of 4"))
+        let open = app.buttons["cookIngredientsButton"]
+        wait(open, 5)
+        open.tap()
+        wait(app.buttons["cookIngredientsDone"], 5)
+        shot("cook-ingredients-sheet-normal-text")
+
+        // The pinned current-step header is readable at this size and shows imperial units.
+        let stepHeader = app.descendants(matching: .any)["cookIngredientsCurrentStep"]
+        wait(stepHeader, 5)
+        XCTAssertTrue(stepHeader.label.contains("Step 1 of 4"), stepHeader.label)
+        XCTAssertTrue(stepHeader.label.contains("390"), stepHeader.label)
+        shot("cook-ingredients-sheet-with-instruction-normal-text")
+
+        // Preserve resting-state evidence before expanding the normal-size medium detent.
+        let restingFirst = app.buttons["cookIngredient.0"]
+        let restingScroll = app.scrollViews["cookIngredientsScroll"]
+        wait(restingFirst, 5)
+        wait(restingScroll, 5)
+        shot("cook-ingredients-sheet-normal-medium-resting")
+        XCTAssertTrue(restingFirst.isHittable, "first ingredient must be reachable at the medium detent")
+        XCTAssertGreaterThanOrEqual(restingScroll.frame.intersection(restingFirst.frame).height,
+                                    restingFirst.frame.height * 0.5,
+                                    "the resting medium detent must not show under half the first row")
+
+        // At normal text size the sheet offers medium/large detents. Expand through the
+        // ordinary drag gesture before checking the same three-row visibility contract.
+        app.navigationBars["Ingredients"].swipeUp()
+        // Several full rows must sit inside the visible scroll frame without list scrolling.
+        // (Regression guard: with the header pinned at the medium detent, under half of the
+        // first row was visible at rest.) Poll briefly while the sheet settles after opening.
+        let scroll = app.scrollViews["cookIngredientsScroll"]
+        let visibleFrame = { scroll.frame.insetBy(dx: 0, dy: -2) }
+        var restedRows = 0
+        for _ in 0..<12 {
+            restedRows = (0..<3).filter { rowIndex in
+                let row = app.buttons["cookIngredient.\(rowIndex)"]
+                return row.exists && visibleFrame().contains(row.frame)
+            }.count
+            if restedRows == 3 { break }
+            usleep(250_000)
+        }
+        XCTAssertEqual(restedRows, 3, "expected the first 3 rows fully visible at rest; scroll frame \(scroll.frame)")
+
+        // First row: full VoiceOver content and a usable tap target at normal text size.
+        let first = app.buttons["cookIngredient.0"]
+        wait(first, 5)
+        XCTAssertGreaterThanOrEqual(first.frame.height, 44, "row tap target too small at normal text size")
+        XCTAssertEqual(first.value as? String, "Not gathered")
+        first.tap()
+        wait(text("1 of 5 gathered"), 5)
+        XCTAssertEqual(first.value as? String, "Gathered")
+
+        // Imperial conversion in the checklist: rice 150 g x 2 renders in ounces.
+        // At this text size the last row can be offscreen; scroll the sheet to reach it if so.
+        let riceQuery = NSPredicate(format: "identifier == %@ AND label CONTAINS %@", "cookIngredient.4", "oz")
+        var rice = app.buttons.matching(riceQuery).firstMatch
+        // A row can exist in the hierarchy while still clipped at the scroll edge, and
+        // isHittable alone has proven unreliable; keep scrolling until the row is fully
+        // inside the sheet's visible frame and tappable, as a user would.
+        for _ in 0..<8 where !(rice.exists && rice.isHittable && visibleFrame().contains(rice.frame)) {
+            scroll.swipeUp()
+            rice = app.buttons.matching(riceQuery).firstMatch
+        }
+        wait(rice, 5)
+        XCTAssertTrue(rice.label.contains("11 oz"), rice.label)
+        XCTAssertTrue(rice.label.contains("rice"), rice.label)
+        XCTAssertTrue(rice.isHittable, "rice row not tappable at normal text size")
+        XCTAssertTrue(visibleFrame().contains(rice.frame), "rice row not fully within the sheet's visible frame: \(rice.frame) vs \(scroll.frame)")
+        shot("cook-ingredients-sheet-normal-text-imperial")
+    }
+
     /// Timer pixel evidence at an accessibility text size: step 3 of the mock card carries a
     /// 600 s timer, so Cook Mode shows its timer card there. Captures the card before start
     /// and while running, with the ingredient sheet dismissed.
@@ -223,5 +305,31 @@ final class CookIngredientsUITests: XCTestCase {
         start.tap()
         wait(app.buttons["Pause timer"], 5)
         shot("cook-timer-running-step3-large-text")
+    }
+
+    /// Normal-size coverage, separate from the retained original cross-size case.
+    func testCookTimerCardNormalText() {
+        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
+        addPromptRecipe()
+
+        app.buttons["Cook mode"].tap()
+        wait(text("Step 1 of 4"))
+        app.buttons["cookNextStep"].tap()
+        wait(text("Step 2 of 4"))
+        app.buttons["cookNextStep"].tap()
+        wait(text("Step 3 of 4"))
+
+        // Timer card before start: 10:00 for the step's 600 s, start control present.
+        let value = app.staticTexts["cookTimerValue"]
+        wait(value, 5)
+        XCTAssertTrue(value.label.contains("10:00"), value.label)
+        let start = app.buttons["Start timer"]
+        wait(start, 5)
+        shot("cook-timer-card-step3-normal-text")
+
+        // Running state: control flips to Pause and the value leaves 10:00.
+        start.tap()
+        wait(app.buttons["Pause timer"], 5)
+        shot("cook-timer-running-step3-normal-text")
     }
 }

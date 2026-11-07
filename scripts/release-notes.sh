@@ -98,10 +98,10 @@ if selected:
 else:
     print("- No mapped app journey changed in this source window. Review the source-change list; build/workflow/test changes alone do not establish a visible app change.")
 print("\n### How to test")
-print("1. Install this exact build and confirm its number in Settings > About. Keep existing data; do not reset or clear all data for these checks.")
+print("1. Install this exact build and open Settings, scroll to the About section, and confirm the Version line includes its build number. Keep existing data; do not reset or clear all data for these checks.")
 for i, (title, steps) in enumerate(selected, 2): print(f"{i}. **{title}:** {steps}")
 if not selected: print("2. Launch the app and check your usual saved recipe and Journal entry still open. CI/workflow-only changes require their linked run evidence, not a device-only claim.")
-print("\n**Not proven by these notes:** source inclusion is not device acceptance. A build/run link is not a full QA pass. Failed, skipped, queued or unrun checks remain unverified; use the release's actual QA evidence. If a step fails, report the build number, screen, steps and a screenshot.\n")
+print()
 PYTEST
 cat <<FOOT
 

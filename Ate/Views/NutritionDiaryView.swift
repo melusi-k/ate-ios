@@ -1,5 +1,33 @@
 import SwiftUI
 
+/// Add/remove against the visible diary list with explicit failed-save semantics, as plain
+/// values so the behaviour is unit-testable without SwiftUI. The persist closure reports
+/// whether the candidate list actually reached the store.
+enum NutritionDiaryMutation {
+    /// Adds the entry only when the save succeeds. A failed save hands the original list back:
+    /// the form keeps the typed draft, so the person keeps what they entered without a row that
+    /// only pretends to be saved. That also keeps a retry safe - the form rebuilds the entry
+    /// from the draft, and a visible pretend-row would be persisted a second time alongside it.
+    static func appending(_ entry: NutritionDiaryEntry, to entries: [NutritionDiaryEntry],
+                          persist: ([NutritionDiaryEntry]) -> Bool) -> (entries: [NutritionDiaryEntry], saved: Bool) {
+        let updated = entries + [entry]
+        guard persist(updated) else { return (entries, false) }
+        return (updated, true)
+    }
+
+    /// Removes the entry only when the save succeeds. A failed save hands the original list back,
+    /// so a delete that never reached the store restores the row at its original position instead
+    /// of looking successful. An unknown id changes nothing and does not persist.
+    static func removing(id: UUID, from entries: [NutritionDiaryEntry],
+                         persist: ([NutritionDiaryEntry]) -> Bool) -> (entries: [NutritionDiaryEntry], saved: Bool) {
+        guard let index = entries.firstIndex(where: { $0.id == id }) else { return (entries, false) }
+        var updated = entries
+        updated.remove(at: index)
+        guard persist(updated) else { return (entries, false) }
+        return (updated, true)
+    }
+}
+
 struct NutritionDiaryView: View {
     @Environment(AppStore.self) private var store
     @State private var entries: [NutritionDiaryEntry] = []
@@ -257,20 +285,32 @@ struct NutritionDiaryView: View {
         .sheet(isPresented: $store.showNutritionDiaryEntry) {
             NavigationStack {
                 NutritionDiaryEntryForm(date: selectedDate, dayKey: selectedDayKey) { entry in
-                    entries.append(entry)
-                    persist()
+                    let outcome = NutritionDiaryMutation.appending(entry, to: entries, persist: persist)
+                    entries = outcome.entries
+                    // Only a fully saved entry dismisses the sheet or appears in the list. On failure
+                    // the form stays open with the typed draft (nothing is added, so a retry cannot
+                    // duplicate it) and the save error goes back to the form so the person sees it
+                    // where they are.
+                    guard outcome.saved else { return errorMessage ?? "Your diary couldn’t be saved. Please try again." }
                     store.showNutritionDiaryEntry = false
+                    return nil
                 }
             }
         }
         .sheet(item: $editingEntry) { entry in
             NavigationStack {
                 NutritionDiaryEntryForm(date: entry.date, dayKey: entry.dayKey, existing: entry) { updated in
-                    if let index = entries.firstIndex(where: { $0.id == updated.id }) {
-                        entries[index] = updated
+                    guard let index = entries.firstIndex(where: { $0.id == updated.id }) else {
+                        return "This food entry could not be found. Your changes have not been saved."
                     }
-                    persist()
+                    var candidate = entries
+                    candidate[index] = updated
+                    guard persist(candidate) else {
+                        return errorMessage ?? "Your diary couldn’t be saved. Please try again."
+                    }
+                    entries = candidate
                     editingEntry = nil
+                    return nil
                 }
             }
         }
@@ -343,22 +383,25 @@ struct NutritionDiaryView: View {
     }
 
     private func delete(_ entry: NutritionDiaryEntry) {
-        entries.removeAll { $0.id == entry.id }
-        persist()
+        // A failed save restores the entry: the removal reaches visible state only once the
+        // store has accepted it.
+        entries = NutritionDiaryMutation.removing(id: entry.id, from: entries, persist: persist).entries
     }
 
-    private func persist() {
+    @discardableResult
+    private func persist(_ newEntries: [NutritionDiaryEntry]) -> Bool {
         // UI-test-only fault injection (#179 save-failure state); gated on -UITesting.
         // Every save fails while the argument is present; remove the argument to recover.
         if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-failDiarySaves") {
             errorMessage = "Your diary couldn’t be saved. Please try again."
-            return
+            return false
         }
-        do { try repository.save(entries); errorMessage = nil }
+        do { try repository.save(newEntries); errorMessage = nil; return true }
         catch let error as NutritionDiaryLoadError {
             diaryDataCorrupt = true
             errorMessage = error.errorDescription
         } catch { errorMessage = "Your diary couldn’t be saved. Please try again." }
+        return false
     }
 }
 
@@ -366,7 +409,9 @@ private struct NutritionDiaryEntryForm: View {
     let date: Date
     let dayKey: String
     let existing: NutritionDiaryEntry?
-    let onSave: (NutritionDiaryEntry) -> Void
+    /// nil means the entry reached the store and the sheet can close; a message means the save
+    /// failed and the form shows it while keeping the draft.
+    let onSave: (NutritionDiaryEntry) -> String?
     @Environment(\.dismiss) private var dismiss
     @State private var foodName = ""
     @State private var meal: NutritionMeal = .lunch
@@ -384,7 +429,7 @@ private struct NutritionDiaryEntryForm: View {
 
     /// Seeds a new form, or every field from an entry being edited (#179 edit behaviour).
     init(date: Date, dayKey: String, existing: NutritionDiaryEntry? = nil,
-         onSave: @escaping (NutritionDiaryEntry) -> Void) {
+         onSave: @escaping (NutritionDiaryEntry) -> String?) {
         self.date = existing?.date ?? date
         self.dayKey = existing?.dayKey ?? dayKey
         self.existing = existing
@@ -586,7 +631,10 @@ private struct NutritionDiaryEntryForm: View {
                 : "Enter a source name that matches the selected nutrition source."
             return
         }
-        onSave(entry)
+        if let message = onSave(entry) {
+            // The save failed: the sheet stays open with the draft intact and says why.
+            errorMessage = message
+        }
     }
 }
 

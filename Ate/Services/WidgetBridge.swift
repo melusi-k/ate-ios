@@ -9,7 +9,7 @@ import AppIntents
 enum WidgetBridge {
     static let healthKey = "ate.widgets.healthState"
     private static var publishTask: Task<Void, Never>?
-    private static var lastPublished: WidgetSnapshot?
+    private static var publisher = WidgetSnapshotPublisher()
     private(set) static var lastIndexed: Int = 0
 
     static var lastHealthState: HealthState? {
@@ -27,23 +27,9 @@ enum WidgetBridge {
         }
     }
 
-    static func publishNow(_ store: AppStore) {
-        var snap = WidgetSnapshotBuilder.build(recipes: store.recipes, shopping: store.shopping, health: lastHealthState)
-        let changed: [String]
-        if let old = lastPublished {
-            var kinds: [String] = []
-            if old.favourites != snap.favourites { kinds.append(WidgetKinds.favourites) }
-            if old.shopping != snap.shopping { kinds += [WidgetKinds.shopping, WidgetKinds.shoppingInline] }
-            if old.pick != snap.pick { kinds.append(WidgetKinds.pick) }
-            if old.cookingStreak != snap.cookingStreak || old.cookedToday != snap.cookedToday { kinds.append(WidgetKinds.cooking) }
-            changed = kinds
-        } else {
-            changed = [WidgetKinds.favourites, WidgetKinds.shopping, WidgetKinds.shoppingInline, WidgetKinds.pick, WidgetKinds.cooking]
-        }
-        if let old = lastPublished, changed.isEmpty { snap.updatedAt = old.updatedAt; return }
-        snap.save()
-        lastPublished = snap
-        WidgetKinds.reload(changed)
+    static func publishNow(_ store: AppStore, force: Bool = false) {
+        let snap = WidgetSnapshotBuilder.build(recipes: store.recipes, shopping: store.shopping, health: lastHealthState)
+        guard publisher.publish(snap, force: force, reload: WidgetKinds.reload) else { return }
         if AppConfig.isUITesting { QAProbe.shared.widgetPublishes += 1 }
         index(store.recipes)
     }
@@ -91,6 +77,7 @@ enum WidgetBridge {
         parts += LiveActivityDiagnostics.widgetSigningIssues.map { "⚠︎ " + $0 }
         let hb = heartbeats
         parts.append(hb.isEmpty ? "no widget has loaded yet" : "\(hb.count) widget kind(s) loaded, last \(hb.values.max()!.formatted(date: .omitted, time: .shortened))")
+        parts.append(WidgetSnapshot.load() == nil ? "widget snapshot missing or unreadable" : "widget snapshot readable in app")
         parts.append("Spotlight: \(lastIndexed) recipes")
         return parts.joined(separator: " · ")
     }

@@ -13,11 +13,13 @@ enum WTheme {
 
 /// Placeholder shown when the extension can't read the App Group (common on free-Apple-ID sideloads).
 struct NoDataView: View {
-    var text = "Open ate to set up this widget"
+    var text: String
+    var foreground: Color = .secondary
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: "fork.knife").font(.title3).foregroundStyle(WTheme.primary)
-            Text(text).font(.caption).multilineTextAlignment(.center).foregroundStyle(.secondary)
+            Text(text).font(.caption).multilineTextAlignment(.center).foregroundStyle(foreground)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .widgetURL(URL(string: "ate://open"))
     }
@@ -118,11 +120,11 @@ private struct CookingWidgetView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Label("Cooking tracker", systemImage: "flame.fill").font(.caption.weight(.semibold)).foregroundStyle(WTheme.primary)
                 Text("\(s.cookingStreak) day\(s.cookingStreak == 1 ? "" : "s")").font(.system(size: 28, weight: .bold, design: .rounded)).foregroundStyle(WTheme.brown)
-                Text(s.cookedToday ? "Cooked today" : "Not cooked today").font(.caption).foregroundStyle(.secondary)
+                Text(s.cookedToday ? "Cooked today" : "Not cooked today").font(.caption).foregroundStyle(WTheme.brown)
                 Spacer(minLength: 0)
                 Link("Open tracker", destination: URL(string: "ate://open")!).font(.caption.weight(.semibold)).foregroundStyle(WTheme.primary)
             }.padding(4)
-        } else { NoDataView(text: "Open ate to see your cooking streak") }
+        } else { NoDataView(text: WidgetDataMessage.unavailable(groupAvailable: entry.groupAvailable), foreground: WTheme.brown) }
     }
 }
 
@@ -172,7 +174,7 @@ struct TonightsPickView: View {
         } else if entry.groupAvailable && entry.snapshot != nil {
             NoDataView(text: "Save a recipe to get tonight's pick")
         } else {
-            NoDataView()
+            NoDataView(text: WidgetDataMessage.unavailable(groupAvailable: entry.groupAvailable))
         }
     }
 }
@@ -222,7 +224,7 @@ struct ShoppingWidgetView: View {
                 }
             }
             .widgetURL(WidgetLinks.shopping)
-        } else { NoDataView() }
+        } else { NoDataView(text: WidgetDataMessage.unavailable(groupAvailable: entry.groupAvailable)) }
     }
 }
 
@@ -314,6 +316,6 @@ struct FavouritesView: View {
                     }
                 }
             }
-        } else { NoDataView() }
+        } else { NoDataView(text: WidgetDataMessage.unavailable(groupAvailable: entry.groupAvailable)) }
     }
 }

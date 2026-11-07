@@ -164,4 +164,43 @@ final class InsightsAcceptanceUITests: XCTestCase {
         afterAction.lifetime = .keepAlways
         add(afterAction)
     }
+    func testOpeningCookingHistoryKeepsInsightUntilExplicitDismissal() {
+        launch()
+        addAndCompleteRecipe()
+        reopenInsightsFromJournal()
+        let action = app.buttons["insights.progress.action.weekly-cooking"]
+        reveal(action)
+        action.tap()
+        wait(app.navigationBars["Insights & Cooking History"], 8)
+        let day = Calendar.current.component(.day, from: Date())
+        let today = app.buttons["tracker.day.\(day)"]
+        wait(today, 5)
+        XCTAssertTrue(today.isHittable)
+        today.tap()
+        let daySheet = app.navigationBars["Cooked that day"]
+        wait(daySheet, 5)
+        daySheet.swipeDown()
+        XCTAssertTrue(daySheet.waitForNonExistence(timeout: 5), "The real day-details sheet must close before returning")
+        app.navigationBars["Insights & Cooking History"].buttons["Journal"].tap()
+        wait(app.navigationBars["Journal"], 5)
+        app.buttons["journal.insightsHistory"].tap()
+        wait(app.navigationBars["Insights & Cooking History"], 8)
+        reveal(action)
+        XCTAssertTrue(action.exists, "Opening cooking history and returning must not dismiss its suggestion")
+        let afterOpen = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        afterOpen.name = "insight-normal-retained-after-open"
+        afterOpen.lifetime = .keepAlways
+        add(afterOpen)
+        let refresh = app.buttons["insights.refresh"]
+        for _ in 0..<6 where !refresh.isHittable { app.swipeDown() }
+        XCTAssertTrue(refresh.isHittable)
+        refresh.tap()
+        reveal(action)
+        XCTAssertTrue(action.exists, "Unchanged seen evidence must remain after refresh")
+        let dismiss = app.buttons["insights.progress.dismiss.weekly-cooking"]
+        reveal(dismiss)
+        dismiss.tap()
+        XCTAssertTrue(action.waitForNonExistence(timeout: 5), "Only explicit dismissal should remove this suggestion")
+    }
+
 }

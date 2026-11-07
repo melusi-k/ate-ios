@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// No call sites are activated in this candidate. All diary consumers must move together.
 /// The coordinator owns the binding between durable-open evidence and its actual container.
@@ -22,9 +23,10 @@ final class FoodJournalCoordinator {
 
     init(journal: JournalStore, legacy: NutritionDiaryRepository,
          markerDefaults: UserDefaults, backupDirectory: URL? = nil,
-         afterRestoreCommit: @escaping () throws -> Void = {}) {
+         afterRestoreCommit: @escaping () throws -> Void = {},
+         mealWriteContext: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
         self.journal = journal
-        self.meals = FoodJournalStore(container: journal.container)
+        self.meals = FoodJournalStore(container: journal.container, writeContext: mealWriteContext)
         self.legacy = legacy
         self.markerDefaults = markerDefaults
         self.backupDirectory = backupDirectory

@@ -134,3 +134,29 @@ Ate validates AI features in three lanes. Adopted by the project owner on 2026-1
 5. Failure messages identify the exact availability or inference failure.
 6. AI-ready runner provisioning remains subject to owner approval.
 7. Simulator requirements and the physical-device testing strategy are documented here and kept current.
+
+
+## Build-note source baseline
+
+Build IPA's release notes describe source history, not qualification or deployment
+status. The notes helper selects the highest lower numeric `build-N[-channel]` tag
+whose commit is an ancestor of the exact source SHA and whose channel suffix matches
+the IPA name exactly. The caller accepts a free-string channel; valid filename/tag
+suffixes (including dash, dot and underscore) are preserved literally, not restricted
+to a new channel enum. Unsuffixed legacy artifacts form their own channel; no silent
+cross-channel fallback is used. Equal/current and future build numbers, malformed
+tags and tags on unrelated source branches cannot become the baseline.
+
+This is a notes-only selection rule, not a change to build numbers, release channels,
+tag immutability, promotion authority or test gates. It does not assert that a tag's
+artifact was verified, distributed or accepted. The selected tag is printed so the
+comparison can be audited. A rebuild at the same source can have no new non-merge
+commits, which is stated explicitly rather than replacing it with unrelated history.
+
+If no earlier same-channel ancestor tag exists in the full checkout, notes explicitly
+list all non-merge source history through the target and say this is not a previous-
+release delta. They never silently substitute checkout HEAD or the last 20 commits.
+A shallow checkout, invalid source or inconsistent IPA identity fails generation.
+The caller already uses full-depth checkout. Tag discovery is local to that checkout;
+new tags published concurrently are outside its snapshot. Merge commit subjects remain
+excluded as before; these are source-change notes, not a complete release manifest.

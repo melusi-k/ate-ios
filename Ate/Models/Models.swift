@@ -144,9 +144,33 @@ struct ShoppingItem: Codable, Identifiable, Hashable {
 
 enum UnitSystem: String, Codable, CaseIterable { case metric, imperial }
 
+enum AppAppearance: String, Codable, CaseIterable, Identifiable {
+    case system, light, dark
+    var id: String { rawValue }
+    var title: String {
+        switch self { case .system: return "System"; case .light: return "Light"; case .dark: return "Dark" }
+    }
+}
+
 struct AppSettings: Codable, Equatable {
     var onDeviceOnly = false
     var units: UnitSystem = .metric
+    var appearance: AppAppearance = .system
+
+    init(onDeviceOnly: Bool = false, units: UnitSystem = .metric, appearance: AppAppearance = .system) {
+        self.onDeviceOnly = onDeviceOnly
+        self.units = units
+        self.appearance = appearance
+    }
+    private enum CodingKeys: String, CodingKey { case onDeviceOnly, units, appearance }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        onDeviceOnly = try values.decodeIfPresent(Bool.self, forKey: .onDeviceOnly) ?? false
+        units = try values.decodeIfPresent(UnitSystem.self, forKey: .units) ?? .metric
+        // Missing or future appearance values must not discard the user's other settings.
+        appearance = (try? values.decodeIfPresent(String.self, forKey: .appearance))
+            .flatMap(AppAppearance.init(rawValue:)) ?? .system
+    }
 }
 
 struct TimerPrefs: Codable, Equatable {
@@ -199,4 +223,6 @@ enum Route: Hashable {
     case betaNote
     case journal
     case journalEntry(String)
+    case nutritionDiary
+    case nutritionGoals
 }

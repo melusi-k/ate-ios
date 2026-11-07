@@ -101,6 +101,7 @@ struct JournalTimelineView: View {
             }
         }
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search journal")
+        .journalSearchChrome()
         .navigationTitle("Food Journal")
         .onAppear { if stateOverride == nil, Self.qaState() == nil { reload() } }
     }

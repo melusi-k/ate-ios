@@ -72,7 +72,10 @@ final class CoverageUITests: XCTestCase {
             sleep(1); n += 1
         }
         let b = app.tabBars.buttons[name]
-        if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
+        if name == "Journal" {
+            XCTAssertTrue(b.waitForExistence(timeout: 5), "Journal must be selected through its tab, not a pushed-screen back button")
+            b.tap()
+        } else if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
     }
     func startPrompt(_ s: String) {
         app.buttons["Add recipe"].tap()
@@ -602,8 +605,8 @@ final class CoverageUITests: XCTestCase {
 extension CoverageUITests {
     func openInsights(_ scenario: String) {
         launch(["-qaMockHealth", scenario, "-qaHealthRecipes"])
-        tab("Insights")
-        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        tab("Journal")
+        // Journal is the tab root; Insights & Cooking History is its one named route.
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         wait(hub); hub.tap()
     }
@@ -616,14 +619,16 @@ extension CoverageUITests {
         shot("journal-insights-hub-route")
         connect.tap()
         wait(text(title))
-        let prompt = app.buttons["insights.prompt"].firstMatch; scrollTo(prompt)
-        XCTAssertTrue(prompt.exists, "\(scenario): no journal prompt")
         let names = app.buttons.matching(identifier: "insights.suggestion").allElementsBoundByIndex.map(\.label)
         shot("insights-" + scenario)
+        // The reflection composer now lives on the Journal root, not in the pushed hub.
+        app.navigationBars["Insights & Cooking History"].buttons["Journal"].tap()
+        let prompt = app.buttons["insights.prompt"].firstMatch; scrollTo(prompt)
+        XCTAssertTrue(prompt.exists, "\(scenario): no journal prompt")
         if save {
             let field = any("insights.journalText"); scrollTo(field); field.tap(); field.typeText("Note for \(scenario)")
             let b = app.buttons["insights.save"]; scrollTo(b); b.tap()
-            wait(any("insights.entry"))
+            wait(app.staticTexts["Note for \(scenario)"].firstMatch)
             XCTAssertFalse(any("insights.journalingPicker").exists, "Picker must be hidden without the paid entitlement")
         }
         app.terminate()
@@ -742,7 +747,7 @@ extension CoverageUITests {
     /// Regression guard (StepTrackerTCA lesson): Connect must still ask for Health when access is undecided.
     func testHealthPermissionPromptAppearsWhenUndecided() {
         launch(["-qaMockHealth", "recovery", "-qaHealthRecipes", "-qaHealthPrompt"])
-        tab("Insights")
+        tab("Journal")
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch; wait(hub); hub.tap()
         let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
         let alert = app.alerts.firstMatch; wait(alert, 5)
@@ -760,7 +765,7 @@ extension CoverageUITests {
     /// Journaling Suggestions picker is never presented under UI tests; check the context row instead.
     func testJournalMomentContextRow() {
         launch(["-qaMockHealth", "recovery", "-qaJournalMomentEntry"])
-        tab("Insights")
+        tab("Journal")
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch; wait(hub); hub.tap()
         let ctx = any("insights.entryMomentContext"); scrollTo(ctx); wait(ctx)
         XCTAssertTrue(ctx.label.contains("Dinner at Mama"), ctx.label)
@@ -772,8 +777,8 @@ extension CoverageUITests {
 extension CoverageUITests {
     func testCookingTrackerMonthNavigationAndSelectedDay() {
         launch(["-qaMockHealth", "empty", "-qaHealthRecipes"])
-        tab("Insights")
-        // Insights tab root is the Journal; Insights & Cooking History is its one named route.
+        tab("Journal")
+        // Journal is the tab root; Insights & Cooking History is its one named route.
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         wait(hub); hub.tap()
 

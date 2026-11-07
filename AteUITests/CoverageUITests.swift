@@ -628,9 +628,9 @@ extension CoverageUITests {
         if save {
             let field = any("insights.journalText"); scrollTo(field); field.tap(); field.typeText("Note for \(scenario)")
             let b = app.buttons["insights.save"]; scrollTo(b); b.tap()
+            XCTAssertFalse(any("insights.tile.journal").exists, "Insights must not duplicate the Journal list")
             wait(app.staticTexts["Note for \(scenario)"].firstMatch)
             XCTAssertFalse(any("insights.journalingPicker").exists, "Picker must be hidden without the paid entitlement")
-            app.navigationBars.buttons.element(boundBy: 0).tap()
             wait(app.navigationBars["Journal"])
             let saved = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Note for \(scenario)")).firstMatch
             wait(saved)

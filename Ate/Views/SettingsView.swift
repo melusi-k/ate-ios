@@ -27,16 +27,6 @@ struct SettingsView: View {
     }
     @State private var qa = BetaQA.shared
 
-    @ViewBuilder private var diaryDestination: some View {
-        if let runtime = store.foodJournalRuntime {
-            CanonicalNutritionDiaryView(coordinator: runtime.coordinator,
-                                       goalsRepository: runtime.goalsRepository, repair: runtime.repair,
-                                       associationStore: nil)
-        } else {
-            NutritionDiaryView()
-        }
-    }
-
     var body: some View {
         @Bindable var store = store
         Form {
@@ -98,10 +88,14 @@ struct SettingsView: View {
                         Text("AI on this device")
                     }
                     Section {
-                        // Typed Route pushes keep the settings path accurate and prevent the
-                        // root-only bottom accessory from rendering over pushed screens.
                         NavigationLink(value: Route.nutritionDiary) {
-                            Label("Food diary", systemImage: "fork.knife")
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Food diary")
+                                    Text("What you ate, day by day.")
+                                        .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                                }
+                            } icon: { Image(systemName: "fork.knife") }
                         }
                         .accessibilityIdentifier("settings.nutritionDiary")
                         NavigationLink(value: Route.nutritionGoals) {

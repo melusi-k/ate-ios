@@ -89,6 +89,11 @@ final class InsightsAcceptanceUITests: XCTestCase {
             app.swipeUp()
             swipes += 1
         }
+        let carousel = app.scrollViews["insights.progress.results"]
+        if element.identifier.hasPrefix("insights.progress."), carousel.exists && !element.isHittable {
+            for _ in 0..<3 where !element.isHittable { carousel.swipeLeft() }
+            for _ in 0..<3 where !element.isHittable { carousel.swipeRight() }
+        }
         wait(element, 15)
         XCTAssertTrue(element.isHittable, "The insight action must be reachable after \(swipes) swipes.")
     }
@@ -201,6 +206,101 @@ final class InsightsAcceptanceUITests: XCTestCase {
         reveal(dismiss)
         dismiss.tap()
         XCTAssertTrue(action.waitForNonExistence(timeout: 5), "Only explicit dismissal should remove this suggestion")
+    }
+
+    func testJournalRootReflectionPlacementDraftAndSaveWithoutHealth() {
+        launch()
+        tab("Journal")
+        let hub = app.buttons["journal.insightsHistory"]
+        let reflection = app.descendants(matching: .any)["journal.reflection"].firstMatch
+        let field = app.descendants(matching: .any)["insights.journalText"].firstMatch
+        wait(hub); wait(reflection)
+        XCTAssertGreaterThanOrEqual(reflection.frame.minY, hub.frame.maxY,
+                                    "Reflection belongs directly below the named hub link")
+        wait(app.staticTexts["journal.reflection.manualPrompt"])
+        let seed = "Root reflection " + UUID().uuidString
+        reveal(field); field.tap(); field.typeText(seed)
+        // The hub is above the composer. Move only the Journal list toward its top.
+        for _ in 0..<6 where !hub.isHittable { app.swipeDown() }
+        XCTAssertTrue(hub.isHittable, "Journal's named hub must be visible before tapping")
+        hub.tap()
+        wait(app.navigationBars["Insights & Cooking History"])
+        XCTAssertFalse(app.descendants(matching: .any)["journal.reflection"].firstMatch.exists,
+                       "The composer must not be duplicated in the hub")
+        app.navigationBars["Insights & Cooking History"].buttons["Journal"].tap()
+        wait(field)
+        XCTAssertEqual(field.value as? String, seed, "Returning to Journal must retain the same draft")
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "journal-normal-root-reflection-retained"; shot.lifetime = .keepAlways; add(shot)
+        let save = app.buttons["insights.save"]; reveal(save); save.tap()
+        let saved = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", seed)).firstMatch
+        reveal(saved); saved.tap()
+        wait(app.staticTexts["journal.detail.text"])
+        XCTAssertEqual(app.staticTexts["journal.detail.text"].label, seed)
+    }
+
+    func testJournalRootReflectionFailedSaveKeepsDraftVisible() {
+        app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-qaJournalOpenState", "unavailable"]
+        app.launch(); tab("Journal")
+        let field = app.descendants(matching: .any)["insights.journalText"].firstMatch
+        reveal(field); field.tap(); field.typeText("Keep failed draft")
+        let save = app.buttons["insights.save"]; reveal(save); save.tap()
+        wait(app.staticTexts["insights.journalSaveError"])
+        XCTAssertEqual(field.value as? String, "Keep failed draft")
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "journal-normal-root-reflection-save-failure"; shot.lifetime = .keepAlways; add(shot)
+    }
+
+    func testCandidateCardsScrollSideBySideWithoutDismissing() {
+        launch(); addAndCompleteRecipe(); reopenInsightsFromJournal()
+        let weekly = app.buttons["insights.progress.action.weekly-cooking"]
+        reveal(weekly)
+        let discovery = app.buttons["insights.progress.action.recipe-discovery"]
+        wait(discovery)
+        let carousel = app.scrollViews["insights.progress.results"]
+        wait(carousel)
+        let weeklyCard = app.descendants(matching: .any)["insights.progress.candidate.weekly-cooking"].firstMatch
+        let discoveryCard = app.descendants(matching: .any)["insights.progress.candidate.recipe-discovery"].firstMatch
+        let before = weeklyCard.frame
+        XCTAssertGreaterThan(discoveryCard.frame.minX, before.minX,
+                             "Next insight must sit beside this one, not below it")
+        XCTAssertEqual(discoveryCard.frame.minY, before.minY, accuracy: 2,
+                       "The independent cards share a horizontal row")
+        XCTAssertLessThan(discoveryCard.frame.minX, carousel.frame.maxX,
+                          "The next card must visibly peek inside the initial viewport")
+        XCTAssertGreaterThan(discoveryCard.frame.maxX, carousel.frame.maxX,
+                             "The peek should indicate more card content to swipe to")
+        let firstShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        firstShot.name = "insights-normal-horizontal-first-card-peek"
+        firstShot.lifetime = .keepAlways; add(firstShot)
+        carousel.swipeLeft()
+        XCTAssertTrue(discovery.isHittable)
+        XCTAssertLessThan(weeklyCard.frame.minX, before.minX, "Horizontal swipe must move the card lane")
+        XCTAssertTrue(app.buttons["insights.progress.dismiss.recipe-discovery"].exists)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "insights-normal-horizontal-second-card"; shot.lifetime = .keepAlways; add(shot)
+        carousel.swipeRight()
+        XCTAssertTrue(weekly.isHittable, "Swiping must not dismiss either suggestion")
+        XCTAssertTrue(discovery.exists)
+    }
+
+    func testJournalRootReflectionLabelsSampleHealthPrompts() {
+        app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-qaMockHealth", "recovery", "-qaHealthRecipes"]
+        app.launch(); tab("Journal")
+        app.buttons["journal.insightsHistory"].tap()
+        wait(app.navigationBars["Insights & Cooking History"])
+        let connect = app.buttons["insights.connect"]; reveal(connect); connect.tap()
+        wait(app.staticTexts["insights.state"])
+        app.navigationBars["Insights & Cooking History"].buttons["Journal"].tap()
+        let badge = app.descendants(matching: .any)["journal.reflection.sampleBadge"].firstMatch
+        reveal(badge)
+        XCTAssertTrue(badge.isHittable, "Moved sample prompts must retain their sample provenance")
+        let prompt = app.buttons["insights.prompt"].firstMatch
+        wait(prompt)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "journal-normal-reflection-sample-provenance"; shot.lifetime = .keepAlways; add(shot)
     }
 
 }

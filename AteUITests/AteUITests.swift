@@ -49,7 +49,7 @@ final class AteUITests: XCTestCase {
     }
 
     func wait(_ e: XCUIElement, _ t: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertTrue(e.waitForExistence(timeout: t), "Missing \(e)", file: file, line: line)
+        XCTAssertTrue(e.waitForExistence(timeout: t), "Expected UI element did not appear within \(t) seconds", file: file, line: line)
     }
 
     func tapSwitch(_ id: String) {

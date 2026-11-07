@@ -619,14 +619,16 @@ extension CoverageUITests {
         shot("journal-insights-hub-route")
         connect.tap()
         wait(text(title))
-        let prompt = app.buttons["insights.prompt"].firstMatch; scrollTo(prompt)
-        XCTAssertTrue(prompt.exists, "\(scenario): no journal prompt")
         let names = app.buttons.matching(identifier: "insights.suggestion").allElementsBoundByIndex.map(\.label)
         shot("insights-" + scenario)
+        // The reflection composer now lives on the Journal root, not in the pushed hub.
+        app.navigationBars["Insights & Cooking History"].buttons["Journal"].tap()
+        let prompt = app.buttons["insights.prompt"].firstMatch; scrollTo(prompt)
+        XCTAssertTrue(prompt.exists, "\(scenario): no journal prompt")
         if save {
             let field = any("insights.journalText"); scrollTo(field); field.tap(); field.typeText("Note for \(scenario)")
             let b = app.buttons["insights.save"]; scrollTo(b); b.tap()
-            wait(any("insights.entry"))
+            wait(app.staticTexts["Note for \(scenario)"].firstMatch)
             XCTAssertFalse(any("insights.journalingPicker").exists, "Picker must be hidden without the paid entitlement")
         }
         app.terminate()

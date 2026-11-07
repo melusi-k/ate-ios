@@ -361,6 +361,7 @@ struct JournalReflectionCard: View {
         @Bindable var reflection = store.journalReflection
         VStack(alignment: .leading, spacing: 12) {
             Label("Reflect on your day", systemImage: "quote.bubble").font(AteFont.display(18))
+                .accessibilityIdentifier("journal.reflection")
             if model.context != nil && model.isSample {
                 Label("Sample data", systemImage: "testtube.2")
                     .font(AteFont.body(12, .semibold)).foregroundStyle(Theme.primary)
@@ -408,7 +409,6 @@ struct JournalReflectionCard: View {
             Text("Saved only on this iPhone. Ate can't write to Apple's Journal app.")
                 .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
         }
-        .accessibilityIdentifier("journal.reflection")
         .task { await model.loadIfNeeded(recipes: store.recipes) }
         .sheet(item: $openRecipe) { target in RecipeSheet(recipeID: target.id).environment(store) }
     }

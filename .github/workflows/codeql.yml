@@ -49,8 +49,9 @@ jobs:
 
   analyze-swift:
     name: Analyze (swift)
-    # Keep the macOS scan off the PR queue and never make it a required PR check.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Disabled by owner decision: Swift 6.4 extraction is unsupported by this scan.
+    # Keep the job definition for a future reviewed repair; do not downgrade the SDK.
+    if: ${{ false }}
     # Existing CI runner pool, not a new paid or larger runner.
     runs-on: xcode-27
     timeout-minutes: 60

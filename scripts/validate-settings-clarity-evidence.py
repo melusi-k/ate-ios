@@ -16,7 +16,7 @@ required = {
         'testReadyStateDoesNotSuggestDemoOrTurningOnAI',
     ],
     'SettingsClarificationUITests': ['testPrivateModeExplanationTracksToggleAndRetainsScreenshot'],
-    'SettingsOrganizationUITests': ['testSyncSummaryLargestDynamicType'],
+    'SettingsOrganizationUITests': ['testSyncSummaryNormalText', 'testAppearanceChoicesPersistAcrossRelaunchAtNormalText'],
     'SettingsAuditUITests': ['testAuditSettingsRoot'],
 }
 for suite, methods in required.items():
@@ -29,8 +29,14 @@ raw = pathlib.Path('ui-screenshots/raw').resolve()
 manifest = json.loads((raw / 'manifest.json').read_text())
 scoped = [
     ('SettingsClarificationUITests/testPrivateModeExplanationTracksToggleAndRetainsScreenshot', 'settings-private-mode-guidance'),
-    ('SettingsOrganizationUITests/testSyncSummaryLargestDynamicType', 'settings-sync-summary-largest-dt'),
+    ('SettingsOrganizationUITests/testSyncSummaryNormalText', 'settings-sync-summary-normal'),
 ]
+for mode in ['light', 'dark', 'system']:
+    for suffix in ['', '-diary-navigation', '-log-food-sheet']:
+        scoped.append(('SettingsOrganizationUITests/testAppearanceChoicesPersistAcrossRelaunchAtNormalText',
+                       f'appearance-normal-{mode}{suffix}'))
+scoped.append(('SettingsOrganizationUITests/testAppearanceChoicesPersistAcrossRelaunchAtNormalText',
+               'appearance-normal-dark-after-relaunch'))
 for test, capture in scoped:
     matches = []
     for record in manifest:
@@ -57,4 +63,4 @@ for test, capture in scoped:
             height = re.search(r'pixelHeight:\s*(\d+)', dimensions)
             assert width and height and int(width[1]) >= 300 and int(height[1]) >= 500, f'Invalid screenshot dimensions: {file}'
             print(f'Decoded scoped capture: {test} / {capture}: {width[1]} x {height[1]}')
-print('All eight exact named tests passed; required scoped screenshots decoded. Human pixel review still required.')
+print('All exact named tests passed; required scoped screenshots decoded. Human pixel review still required.')

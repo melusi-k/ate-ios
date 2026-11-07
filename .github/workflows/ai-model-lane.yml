@@ -68,6 +68,7 @@ jobs:
             xcode-27-homebrew-
       - run: brew install xcodegen && xcodegen generate
       - name: Build for testing (iOS simulator)
+        id: build
         run: |
           set -o pipefail
           SIM_ID=$(python3 scripts/select-ios-simulator.py)
@@ -84,6 +85,7 @@ jobs:
           fi
           echo "build-for-testing succeeded on $SIM_ID"
       - name: GATE 1 - availability preflight (this simulator)
+        if: ${{ success() && steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
           xcrun simctl boot "$SIM_ID" || true
@@ -110,6 +112,7 @@ jobs:
           fi
           echo "::notice::GATE 1 PASS: SystemLanguageModel availability is .available on simulator $SIM_ID"
       - name: GATE 2 - real inference smoke (this simulator; only after GATE 1 passes)
+        if: ${{ success() && steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
           set +e

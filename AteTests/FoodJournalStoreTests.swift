@@ -91,6 +91,7 @@ final class FoodJournalStoreTests: XCTestCase {
     }
 
     func testExistingReflectionDefaultsToReflectionKind() throws {
+        container.mainContext.autosaveEnabled = false
         let reflection = Ate.JournalEntry(prompt: "What did you enjoy?", text: "Pap night", state: .balanced)
         container.mainContext.insert(reflection)
         try container.mainContext.save()
@@ -167,7 +168,7 @@ final class FoodJournalStoreTests: XCTestCase {
                        sampleEntry(foodName: "Samp", dayKey: "2026-10-31", meal: .lunch),
                        sampleEntry(foodName: "Chakalaka", dayKey: "2026-10-31")]
         try legacyRepository().save(entries)
-        let result = FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store,
+        let result = FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store, openState: .ok,
                                                           backupDirectory: backupDir, markerDefaults: defaults)
         XCTAssertEqual(result, .migrated(3))
         let loaded = store.mealEntries()
@@ -180,7 +181,7 @@ final class FoodJournalStoreTests: XCTestCase {
     func testMigrationBacksUpPayloadBeforeRetiringLegacyKey() throws {
         let entries = [sampleEntry()]
         try legacyRepository().save(entries)
-        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store,
+        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store, openState: .ok,
                                                             backupDirectory: backupDir, markerDefaults: defaults), .migrated(1))
         XCTAssertNil(defaults.data(forKey: NutritionDiaryRepository.storageKey), "legacy key retired after backup")
         let backups = try FileManager.default.contentsOfDirectory(atPath: backupDir.path)
@@ -194,9 +195,9 @@ final class FoodJournalStoreTests: XCTestCase {
     func testMigrationIsIdempotentAcrossRunsAndRecovery() throws {
         let entries = [sampleEntry(foodName: "Pap"), sampleEntry(foodName: "Samp")]
         try legacyRepository().save(entries)
-        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store,
+        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store, openState: .ok,
                                                             backupDirectory: backupDir, markerDefaults: defaults), .migrated(2))
-        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store,
+        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store, openState: .ok,
                                                             backupDirectory: backupDir, markerDefaults: defaults), .alreadyMigrated)
         XCTAssertEqual(store.mealEntries().count, 2, "a second run never duplicates a meal")
 
@@ -206,14 +207,14 @@ final class FoodJournalStoreTests: XCTestCase {
                                                                         configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
         try legacyRepository().save(entries)
         defaults.removeObject(forKey: FoodJournalMigration.markerKey)
-        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: freshStore,
+        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: freshStore, openState: .ok,
                                                             backupDirectory: backupDir, markerDefaults: defaults), .migrated(2))
         XCTAssertEqual(freshStore.mealEntries().count, 2)
     }
 
     func testMigrationLeavesUnreadableLegacyUntouched() throws {
         defaults.set(Data("not json".utf8), forKey: NutritionDiaryRepository.storageKey)
-        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store,
+        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store, openState: .ok,
                                                             backupDirectory: backupDir, markerDefaults: defaults), .legacyCorrupt)
         XCTAssertEqual(defaults.data(forKey: NutritionDiaryRepository.storageKey), Data("not json".utf8),
                        "the only copy of an unreadable diary is never touched")
@@ -221,7 +222,7 @@ final class FoodJournalStoreTests: XCTestCase {
         XCTAssertFalse(defaults.bool(forKey: FoodJournalMigration.markerKey))
         // The existing diary recovery still works afterwards; then migration can proceed.
         try legacyRepository().recoverCorruptData()
-        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store,
+        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store, openState: .ok,
                                                             backupDirectory: backupDir, markerDefaults: defaults), .noLegacyData)
     }
 
@@ -230,13 +231,13 @@ final class FoodJournalStoreTests: XCTestCase {
         var malformed = sampleEntry(foodName: "Broken")
         malformed.servings = -1
         try legacyRepository().savePrepared(legacyRepository().prepare([valid, malformed]))
-        let result = FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store,
+        let result = FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store, openState: .ok,
                                                           backupDirectory: backupDir, markerDefaults: defaults)
         guard case .failed(let message) = result else { return XCTFail("malformed records must be reported, got \(result)") }
-        XCTAssertTrue(message.contains("1 malformed"), message)
+        XCTAssertTrue(message.contains("invalid or duplicate"), message)
         XCTAssertNotNil(defaults.data(forKey: NutritionDiaryRepository.storageKey),
                         "malformed records are never silently discarded: the legacy payload stays")
-        XCTAssertEqual(store.mealEntries().count, 1, "the valid record still migrated")
+        XCTAssertTrue(try store.readMeals().isEmpty, "invalid input must not create a partial copy")
     }
 
     func testMigrationFailsWithoutRetiringWhenBackupCannotBeWritten() throws {
@@ -246,7 +247,7 @@ final class FoodJournalStoreTests: XCTestCase {
         let blocker = FileManager.default.temporaryDirectory.appendingPathComponent("blocker-\(UUID().uuidString)")
         try Data("file".utf8).write(to: blocker)
         defer { try? FileManager.default.removeItem(at: blocker) }
-        let result = FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store,
+        let result = FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store, openState: .ok,
                                                           backupDirectory: blocker, markerDefaults: defaults)
         guard case .failed = result else { return XCTFail("backup failure must be reported, got \(result)") }
         XCTAssertNotNil(defaults.data(forKey: NutritionDiaryRepository.storageKey),
@@ -255,7 +256,7 @@ final class FoodJournalStoreTests: XCTestCase {
     }
 
     func testMigrationWithNoLegacyDiary() {
-        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store,
+        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store, openState: .ok,
                                                             backupDirectory: backupDir, markerDefaults: defaults), .noLegacyData)
     }
 
@@ -294,4 +295,127 @@ final class FoodJournalStoreTests: XCTestCase {
         try store.saveMeal(sampleEntry())
         XCTAssertEqual(store.mealEntries().count, 1, "the recovered store works")
     }
+
+    func testThrowingReadRejectsUnavailableInsteadOfReportingEmpty() {
+        XCTAssertThrowsError(try FoodJournalStore(container: nil).readMeals())
+    }
+
+    func testConflictingIdentityPreservesLegacyAndUnifiedPayload() throws {
+        let id = UUID()
+        let canonical = sampleEntry(id: id, foodName: "Existing meal")
+        let legacy = sampleEntry(id: id, foodName: "Conflicting legacy meal")
+        try store.saveMeal(canonical)
+        let repository = legacyRepository()
+        try repository.save([legacy])
+        let before = defaults.data(forKey: NutritionDiaryRepository.storageKey)
+        let result = FoodJournalMigration.migrateIfNeeded(legacy: repository, store: store, openState: .ok,
+            backupDirectory: backupDir, markerDefaults: defaults)
+        guard case .failed = result else { return XCTFail("Conflict must block retirement") }
+        XCTAssertEqual(defaults.data(forKey: NutritionDiaryRepository.storageKey), before)
+        XCTAssertEqual(try store.readMeals(), [canonical])
+        XCTAssertFalse(defaults.bool(forKey: FoodJournalMigration.markerKey))
+    }
+
+    func testBatchInvalidInputDoesNotLeavePendingRows() throws {
+        let valid = sampleEntry()
+        var invalid = sampleEntry(); invalid.quantity = -1
+        XCTAssertThrowsError(try store.importMeals([valid, invalid]))
+        try container.mainContext.save()
+        XCTAssertTrue(try store.readMeals().isEmpty)
+    }
+
+    func testIsolatedSaveFailureLeavesUnrelatedMainContextEditPending() throws {
+        enum Failure: Error { case injected }
+        container.mainContext.autosaveEnabled = false
+        let reflection = Ate.JournalEntry(prompt: "", text: "Unrelated unsaved reflection", state: .balanced)
+        container.mainContext.insert(reflection)
+        let failing = FoodJournalStore(container: container, writeContext: { _ in throw Failure.injected })
+        XCTAssertThrowsError(try failing.saveMeal(sampleEntry()))
+        XCTAssertTrue(try store.readMeals().isEmpty)
+        XCTAssertTrue(container.mainContext.hasChanges, "A failed meal save must not roll back another screen's draft")
+        try container.mainContext.save()
+        XCTAssertNotNil(try container.mainContext.fetch(FetchDescriptor<Ate.JournalEntry>()).first { $0.id == reflection.id })
+    }
+
+    func testMigrationThenCreateUpdateDeletePreservesIdentityAndHistoricalDay() throws {
+        let repository = legacyRepository()
+        let old = sampleEntry(dayKey: "2020-01-01")
+        try repository.save([old])
+        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: repository, store: store, openState: .ok,
+            backupDirectory: backupDir, markerDefaults: defaults), .migrated(1))
+        XCTAssertEqual(try store.readMeals(), [old])
+        XCTAssertNil(defaults.data(forKey: NutritionDiaryRepository.storageKey))
+        XCTAssertEqual(FoodJournalMigration.migrateIfNeeded(legacy: repository, store: store, openState: .ok,
+            backupDirectory: backupDir, markerDefaults: defaults), .alreadyMigrated)
+        var added = sampleEntry(dayKey: "2019-12-31")
+        try store.saveMeal(added)
+        added.quantity = 100; added.foodName = "Edited meal"
+        try store.updateMeal(added)
+        XCTAssertEqual(try store.readMeals().first { $0.id == added.id }, added)
+        try store.deleteMealSafely(id: old.id)
+        XCTAssertEqual(try store.readMeals(), [added])
+        XCTAssertNil(defaults.data(forKey: NutritionDiaryRepository.storageKey))
+    }
+
+    func testOrphanPayloadIsUnreadableAndCannotTriggerLegacyRetirement() throws {
+        let entry = sampleEntry()
+        try store.saveMeal(entry)
+        let row = try XCTUnwrap(container.mainContext.fetch(FetchDescriptor<Ate.JournalEntry>()).first)
+        container.mainContext.delete(row); try container.mainContext.save()
+        XCTAssertThrowsError(try store.readMeals())
+        let repository = legacyRepository(); try repository.save([sampleEntry()])
+        guard case .failed = FoodJournalMigration.migrateIfNeeded(legacy: repository, store: store, openState: .ok,
+            backupDirectory: backupDir, markerDefaults: defaults) else { return XCTFail("Unreadable store must block migration") }
+        XCTAssertNotNil(defaults.data(forKey: NutritionDiaryRepository.storageKey))
+    }
+
+    func testFallbackCannotImportOrRetireDurableLegacy() throws {
+        let legacy = legacyRepository(); let entry = sampleEntry(); try legacy.save([entry])
+        let raw = defaults.data(forKey: NutritionDiaryRepository.storageKey)
+        guard case .failed = FoodJournalMigration.migrateIfNeeded(legacy: legacy, store: store,
+            openState: .inMemoryFallback(error: "test"), backupDirectory: backupDir, markerDefaults: defaults)
+            else { return XCTFail("Nondurable open must block retirement") }
+        XCTAssertEqual(defaults.data(forKey: NutritionDiaryRepository.storageKey), raw)
+        XCTAssertFalse(defaults.bool(forKey: FoodJournalMigration.markerKey))
+        XCTAssertTrue(try store.readMeals().isEmpty)
+    }
+
+    func testDuplicateLegacyIdentityDoesNotImportEitherCopy() throws {
+        let legacy = legacyRepository(); let entry = sampleEntry()
+        legacy.savePrepared(try legacy.prepare([entry, entry]))
+        guard case .failed = FoodJournalMigration.migrateIfNeeded(legacy: legacy, store: store,
+            openState: .ok, backupDirectory: backupDir, markerDefaults: defaults)
+            else { return XCTFail("Duplicate legacy identities must block import") }
+        XCTAssertNotNil(defaults.data(forKey: NutritionDiaryRepository.storageKey))
+        XCTAssertTrue(try store.readMeals().isEmpty)
+    }
+    func testEveryCanonicalWriterRejectsInvalidDayBeforeAnyMutation() throws {
+        let original = sampleEntry()
+        try store.saveMeal(original)
+        for key in ["hello", "2026-02-30", "2026-2-03", "0000-01-01", "2026-13-01", "2026-01-00"] {
+            var invalid = original; invalid.dayKey = key
+            XCTAssertFalse(FoodJournalStore.validMeal(invalid), key)
+            XCTAssertThrowsError(try store.updateMeal(invalid), key)
+            invalid.id = UUID()
+            XCTAssertThrowsError(try store.saveMeal(invalid), key)
+            XCTAssertThrowsError(try store.importMeals([invalid]), key)
+            XCTAssertEqual(try store.readMeals(), [original], key)
+        }
+        XCTAssertTrue(FoodJournalStore.validDayKey("2024-02-29"))
+        XCTAssertFalse(FoodJournalStore.validDayKey("2026-02-29"))
+    }
+    func testMigrationRejectsMalformedDayBeforeCopyAndKeepsLegacyBytes() throws {
+        for key in ["hello", "2026-02-30"] {
+            var invalid = sampleEntry(); invalid.dayKey = key
+            let raw = try JSONEncoder().encode([invalid])
+            defaults.set(raw, forKey: NutritionDiaryRepository.storageKey)
+            let result = FoodJournalMigration.migrateIfNeeded(legacy: legacyRepository(), store: store,
+                openState: .ok, backupDirectory: backupDir, markerDefaults: defaults)
+            guard case .failed = result else { XCTFail("Expected failed migration"); continue }
+            XCTAssertEqual(defaults.data(forKey: NutritionDiaryRepository.storageKey), raw)
+            XCTAssertFalse(defaults.bool(forKey: FoodJournalMigration.markerKey))
+            XCTAssertTrue(try store.readMeals().isEmpty)
+        }
+    }
+
 }

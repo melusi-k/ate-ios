@@ -6,6 +6,8 @@ enum FoodJournalStoreError: Error, Equatable {
     case duplicateEntry
     case missingEntry
     case saveFailed
+    case unreadableStore
+    case conflictingIdentity
 }
 
 /// Unified local store for Food Journal meal entries (#245).
@@ -21,26 +23,69 @@ final class FoodJournalStore {
     static let shared = FoodJournalStore(container: JournalStore.shared.container)
 
     let container: ModelContainer?
+    private let writeContext: (ModelContext) throws -> Void
 
-    init(container: ModelContainer?) {
+    init(container: ModelContainer?, writeContext: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
         self.container = container
+        self.writeContext = writeContext
     }
-
-    private var context: ModelContext? { container?.mainContext }
 
     /// Every meal entry as a diary value, sorted exactly like the legacy diary repository
     /// (day descending, then time descending within a day).
-    func mealEntries() -> [NutritionDiaryEntry] {
-        guard let ctx = context else { return [] }
-        let entries = (try? ctx.fetch(FetchDescriptor<JournalEntry>())) ?? []
-        let payloads = (try? ctx.fetch(FetchDescriptor<JournalMealPayload>())) ?? []
-        let payloadByEntry = Dictionary(payloads.map { ($0.entryID, $0) }, uniquingKeysWith: { a, _ in a })
-        return entries.compactMap { entry in
-            guard entry.kind == .meal, let dayKey = entry.dayKey,
-                  let id = UUID(uuidString: entry.id),
-                  let payload = payloadByEntry[entry.id] else { return nil }
-            return payload.diaryEntry(id: id, date: entry.createdAt, dayKey: dayKey)
-        }.sorted { $0.dayKey == $1.dayKey ? $0.date > $1.date : $0.dayKey > $1.dayKey }
+    /// Canonical readers must use the throwing API: unreadable is never an empty diary.
+    func readMeals() throws -> [NutritionDiaryEntry] {
+        guard let container else { throw FoodJournalStoreError.unreadableStore }
+        let ctx = ModelContext(container)
+        let entries = try ctx.fetch(FetchDescriptor<JournalEntry>())
+        let payloads = try ctx.fetch(FetchDescriptor<JournalMealPayload>())
+        let meals = entries.filter { $0.kindRaw == JournalEntryKind.meal.rawValue }
+        let mealIDs = Set(meals.map(\.id))
+        guard mealIDs.count == meals.count,
+              Set(payloads.map(\.entryID)).count == payloads.count,
+              payloads.allSatisfy({ mealIDs.contains($0.entryID) }),
+              meals.count == payloads.count else { throw FoodJournalStoreError.unreadableStore }
+        let payloadByEntry = Dictionary(uniqueKeysWithValues: payloads.map { ($0.entryID, $0) })
+        let result = try meals.map { entry -> NutritionDiaryEntry in
+            guard let dayKey = entry.dayKey, let id = UUID(uuidString: entry.id),
+                  NutritionDiaryDayKey.date(for: dayKey) != nil,
+                  let payload = payloadByEntry[entry.id],
+                  NutritionMeal(rawValue: payload.mealRaw) != nil,
+                  NutritionEntrySource(rawValue: payload.sourceRaw) != nil else { throw FoodJournalStoreError.unreadableStore }
+            let meal = payload.diaryEntry(id: id, date: entry.createdAt, dayKey: dayKey)
+            guard FoodJournalStore.validMeal(meal) else { throw FoodJournalStoreError.invalidEntry }
+            return meal
+        }
+        return result.sorted { $0.dayKey == $1.dayKey ? $0.date > $1.date : $0.dayKey > $1.dayKey }
+    }
+
+    /// Compatibility helper only. Production integration must never use this lossy boundary.
+    func mealEntries() -> [NutritionDiaryEntry] { (try? readMeals()) ?? [] }
+
+    /// Same validity on every write and read. Gregorian day keys are literal calendar dates,
+    /// not permissively normalized DateComponents (for example February 30 must fail).
+    static func validMeal(_ entry: NutritionDiaryEntry) -> Bool {
+        NutritionDiaryValidation.isValid(entry) && validDayKey(entry.dayKey)
+    }
+
+    static func validDayKey(_ key: String) -> Bool {
+        guard key.utf8.count == 10,
+              key.range(of: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", options: .regularExpression) != nil else { return false }
+        let parts = key.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3, parts[0] > 0 else { return false }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let requested = DateComponents(year: parts[0], month: parts[1], day: parts[2])
+        guard let date = calendar.date(from: requested) else { return false }
+        let actual = calendar.dateComponents([.year, .month, .day], from: date)
+        return actual.year == parts[0] && actual.month == parts[1] && actual.day == parts[2]
+    }
+
+    private func transaction(_ write: (ModelContext) throws -> Void) throws {
+        guard let container else { throw FoodJournalStoreError.saveFailed }
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        do { try write(context); try writeContext(context) }
+        catch { context.rollback(); throw error }
     }
 
     func mealEntryIDs() -> Set<String> {
@@ -50,76 +95,74 @@ final class FoodJournalStore {
     /// Inserts a meal entry. Identity is the diary UUID; saving the same identity twice fails
     /// rather than duplicating (timeline contract: a saved meal appears exactly once).
     func saveMeal(_ entry: NutritionDiaryEntry) throws {
-        guard NutritionDiaryValidation.isValid(entry) else { throw FoodJournalStoreError.invalidEntry }
-        guard let ctx = context else { throw FoodJournalStoreError.saveFailed }
-        let entryID = entry.id.uuidString
-        let duplicates = (try? ctx.fetch(FetchDescriptor<JournalMealPayload>(predicate: #Predicate { $0.entryID == entryID }))) ?? []
-        guard duplicates.isEmpty else { throw FoodJournalStoreError.duplicateEntry }
-        insert(entry, into: ctx)
-        guard (try? ctx.save()) != nil else { ctx.rollback(); throw FoodJournalStoreError.saveFailed }
-    }
-
-    /// Updates the stored values for an existing meal identity. Editing never creates a second
-    /// entry and never changes the identity; the original day is preserved unless the caller
-    /// explicitly moves the entry to another day.
-    func updateMeal(_ entry: NutritionDiaryEntry) throws {
-        guard NutritionDiaryValidation.isValid(entry) else { throw FoodJournalStoreError.invalidEntry }
-        guard let ctx = context else { throw FoodJournalStoreError.saveFailed }
-        let entryID = entry.id.uuidString
-        guard let payload = try ctx.fetch(FetchDescriptor<JournalMealPayload>(predicate: #Predicate { $0.entryID == entryID })).first,
-              let journalEntry = try ctx.fetch(FetchDescriptor<JournalEntry>(predicate: #Predicate { $0.id == entryID })).first else {
-            throw FoodJournalStoreError.missingEntry
-        }
-        payload.mealRaw = entry.meal.rawValue
-        payload.foodName = entry.foodName
-        payload.quantity = entry.quantity
-        payload.quantityUnit = entry.quantityUnit
-        payload.servings = entry.servings
-        payload.sourceRaw = entry.source.rawValue
-        payload.sourceName = entry.sourceName
-        payload.sourceIdentifier = entry.sourceIdentifier
-        payload.verificationNote = entry.verificationNote
-        payload.energyKcal = entry.nutrientsPerServing.energyKcal
-        payload.proteinGrams = entry.nutrientsPerServing.proteinGrams
-        payload.carbohydratesGrams = entry.nutrientsPerServing.carbohydratesGrams
-        payload.fatGrams = entry.nutrientsPerServing.fatGrams
-        payload.fibreGrams = entry.nutrientsPerServing.fibreGrams
-        journalEntry.createdAt = entry.date
-        journalEntry.dayKey = entry.dayKey
-        journalEntry.editedAt = .now
-        guard (try? ctx.save()) != nil else { ctx.rollback(); throw FoodJournalStoreError.saveFailed }
-    }
-
-    /// Deletes a meal entry and its payload together; the timeline never keeps one without the other.
-    func deleteMeal(id: UUID) {
-        guard let ctx = context else { return }
-        let entryID = id.uuidString
-        if let payload = try? ctx.fetch(FetchDescriptor<JournalMealPayload>(predicate: #Predicate { $0.entryID == entryID })).first {
-            ctx.delete(payload)
-        }
-        if let entry = try? ctx.fetch(FetchDescriptor<JournalEntry>(predicate: #Predicate { $0.id == entryID })).first {
-            for file in entry.mediaFileNames { try? FileManager.default.removeItem(at: JournalStore.mediaURL(file)) }
-            ctx.delete(entry)
-        }
-        try? ctx.save()
-    }
-
-    /// Bulk insert for migration: all entries in one save so a failed migration commits nothing.
-    /// An invalid entry aborts the entire import; migration never silently discards records.
-    func importMeals(_ entries: [NutritionDiaryEntry]) throws {
-        guard let ctx = context else { throw FoodJournalStoreError.saveFailed }
-        for entry in entries {
-            guard NutritionDiaryValidation.isValid(entry) else { throw FoodJournalStoreError.invalidEntry }
+        guard FoodJournalStore.validMeal(entry) else { throw FoodJournalStoreError.invalidEntry }
+        try transaction { ctx in
+            let id = entry.id.uuidString
+            guard try ctx.fetch(FetchDescriptor<JournalEntry>(predicate: #Predicate { $0.id == id })).isEmpty,
+                  try ctx.fetch(FetchDescriptor<JournalMealPayload>(predicate: #Predicate { $0.entryID == id })).isEmpty else { throw FoodJournalStoreError.duplicateEntry }
             insert(entry, into: ctx)
         }
-        guard (try? ctx.save()) != nil else { ctx.rollback(); throw FoodJournalStoreError.saveFailed }
+    }
+
+    func updateMeal(_ entry: NutritionDiaryEntry) throws {
+        guard FoodJournalStore.validMeal(entry) else { throw FoodJournalStoreError.invalidEntry }
+        try transaction { ctx in
+            let id = entry.id.uuidString
+            guard let row = try ctx.fetch(FetchDescriptor<JournalEntry>(predicate: #Predicate { $0.id == id })).first,
+                  row.kindRaw == JournalEntryKind.meal.rawValue,
+                  let payload = try ctx.fetch(FetchDescriptor<JournalMealPayload>(predicate: #Predicate { $0.entryID == id })).first else { throw FoodJournalStoreError.missingEntry }
+            // Update only meal fields. Recipe snapshots, media and provenance stay attached.
+            payload.mealRaw = entry.meal.rawValue
+            payload.foodName = entry.foodName
+            payload.quantity = entry.quantity
+            payload.quantityUnit = entry.quantityUnit
+            payload.servings = entry.servings
+            payload.sourceRaw = entry.source.rawValue
+            payload.sourceName = entry.sourceName
+            payload.sourceIdentifier = entry.sourceIdentifier
+            payload.verificationNote = entry.verificationNote
+            payload.energyKcal = entry.nutrientsPerServing.energyKcal
+            payload.proteinGrams = entry.nutrientsPerServing.proteinGrams
+            payload.carbohydratesGrams = entry.nutrientsPerServing.carbohydratesGrams
+            payload.fatGrams = entry.nutrientsPerServing.fatGrams
+            payload.fibreGrams = entry.nutrientsPerServing.fibreGrams
+            row.createdAt = entry.date; row.dayKey = entry.dayKey; row.editedAt = .now
+        }
+    }
+
+    func deleteMealSafely(id: UUID) throws {
+        try transaction { ctx in
+            let id = id.uuidString
+            guard let row = try ctx.fetch(FetchDescriptor<JournalEntry>(predicate: #Predicate { $0.id == id })).first,
+                  row.kindRaw == JournalEntryKind.meal.rawValue,
+                  let payload = try ctx.fetch(FetchDescriptor<JournalMealPayload>(predicate: #Predicate { $0.entryID == id })).first else { throw FoodJournalStoreError.missingEntry }
+            // Do not delete filesystem bytes before the database commit succeeds.
+            ctx.delete(payload); ctx.delete(row)
+        }
+    }
+    func deleteMeal(id: UUID) { try? deleteMealSafely(id: id) }
+
+    /// Validate the complete input before making changes. Existing identical IDs are no-ops;
+    /// any conflict fails the whole batch rather than silently changing either record.
+    func importMeals(_ entries: [NutritionDiaryEntry]) throws {
+        guard entries.allSatisfy(FoodJournalStore.validMeal),
+              Set(entries.map(\.id)).count == entries.count else { throw FoodJournalStoreError.invalidEntry }
+        let existing = Dictionary(uniqueKeysWithValues: try readMeals().map { ($0.id, $0) })
+        guard entries.allSatisfy({ existing[$0.id] == nil || existing[$0.id] == $0 }) else { throw FoodJournalStoreError.conflictingIdentity }
+        try transaction { ctx in
+            let allIDs = Set(try ctx.fetch(FetchDescriptor<JournalEntry>()).map(\.id))
+            for entry in entries where existing[entry.id] == nil {
+                guard !allIDs.contains(entry.id.uuidString) else { throw FoodJournalStoreError.conflictingIdentity }
+                insert(entry, into: ctx)
+            }
+        }
     }
 
     private func insert(_ entry: NutritionDiaryEntry, into ctx: ModelContext) {
-        // Meal entries carry no reflection text and no inferred state: `.balanced` is a neutral
-        // placeholder, never shown as a health reading (contract: do not infer states).
+        // Meal entries carry no reflection text and no inferred Health state.
         let journalEntry = JournalEntry(id: entry.id.uuidString, createdAt: entry.date, prompt: "",
                                         text: "", state: .balanced)
+        journalEntry.stateRaw = ""
         journalEntry.kindRaw = JournalEntryKind.meal.rawValue
         journalEntry.dayKey = entry.dayKey
         ctx.insert(journalEntry)
@@ -154,8 +197,15 @@ enum FoodJournalMigration {
 
     @MainActor
     static func migrateIfNeeded(legacy: NutritionDiaryRepository, store: FoodJournalStore,
+                                openState: JournalOpenState,
                                 backupDirectory: URL? = nil, markerDefaults: UserDefaults = .standard,
                                 fileManager: FileManager = .default) -> FoodJournalMigrationResult {
+        // The retirement authority itself refuses nondurable containers. Callers cannot
+        // accidentally clear durable legacy data after an in-memory verification.
+        switch openState {
+        case .ok, .recovered: break
+        case .inMemoryFallback, .unavailable: return .failed("journal is not durably available")
+        }
         let state = legacy.loadState()
         if case .corrupt = state {
             // Never touch an unreadable payload: it is the only copy, and the existing diary
@@ -167,29 +217,29 @@ enum FoodJournalMigration {
         }
         guard case .loaded(let entries) = state else { return .failed("legacy diary state changed during migration") }
 
-        // Malformed records are never silently discarded: valid entries import, malformed ones stay
-        // in the legacy store, the key is not retired, and the failure is reported honestly.
-        let valid = entries.filter { NutritionDiaryValidation.isValid($0) }
-        let malformed = entries.count - valid.count
+        // All-or-nothing validation: a partially imported legacy diary must not stay
+        // editable and then conflict with the earlier partial canonical copy.
+        guard entries.allSatisfy(FoodJournalStore.validMeal),
+              Set(entries.map(\.id)).count == entries.count else {
+            return .failed("invalid or duplicate legacy records preserved; no meals imported")
+        }
+        let valid = entries
 
         // Idempotence is by identity, not by the marker: entries already in the store are skipped,
         // so a retried or post-recovery run can never duplicate a meal.
-        let existing = store.mealEntryIDs()
-        let newEntries = valid.filter { !existing.contains($0.id.uuidString) }
+        let existing: [NutritionDiaryEntry]
+        do { existing = try store.readMeals() }
+        catch { return .failed("journal read failed: \(error)") }
+        let newEntries = valid.filter { entry in !existing.contains(where: { $0.id == entry.id }) }
         do {
-            try store.importMeals(newEntries)
+            try store.importMeals(valid)
         } catch {
             return .failed("import failed: \(error)")
         }
 
         // Verification before any retirement: every valid legacy identity must now exist in the store.
-        let stored = store.mealEntryIDs()
-        guard valid.allSatisfy({ stored.contains($0.id.uuidString) }) else {
-            return .failed("verification failed: not every legacy entry is present in the journal store")
-        }
-
-        if malformed > 0 {
-            return .failed("\(malformed) malformed legacy record(s) preserved in the diary store for recovery")
+        guard let stored = try? store.readMeals(), valid.allSatisfy({ stored.contains($0) }) else {
+            return .failed("verification failed: legacy payloads do not match the journal store")
         }
 
         // Preserve a backup before retiring the legacy key: write the original payload to a file
@@ -203,7 +253,9 @@ enum FoodJournalMigration {
         do {
             try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
             let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
-            try raw.write(to: dir.appendingPathComponent("nutrition-diary-legacy-\(stamp).json"), options: .atomic)
+            let backup = dir.appendingPathComponent("nutrition-diary-legacy-\(stamp)-\(UUID().uuidString).json")
+            try raw.write(to: backup, options: .atomic)
+            guard try Data(contentsOf: backup) == raw else { return .failed("backup verification failed") }
         } catch {
             return .failed("backup failed: \(error)")
         }

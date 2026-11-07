@@ -70,6 +70,7 @@ enum JournalOpenState: Equatable {
 @MainActor
 final class JournalStore {
     static let shared = JournalStore()
+    private var writeReflectionContext: (ModelContext) throws -> Void = { try $0.save() }
     let container: ModelContainer?
     private(set) var openState: JournalOpenState
     init(inMemory: Bool = AppConfig.isUITesting) {
@@ -92,6 +93,14 @@ final class JournalStore {
         }
         seedMomentEntryForUITests()
         removeImagePromptEntriesOnce()
+    }
+
+    /// Explicit container injection for storage tests; production uses the verified open path above.
+    init(container: ModelContainer?, openState: JournalOpenState,
+         writeReflectionContext: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
+        self.container = container
+        self.openState = openState
+        self.writeReflectionContext = writeReflectionContext
     }
 
     /// UI-test hook (`-qaJournalOpenState <recovered|fallback|unavailable>`): the open state the
@@ -121,15 +130,50 @@ final class JournalStore {
         try? ctx.save(); UserDefaults.standard.set(true, forKey: k)
     }
     func entries() -> [JournalEntry] {
-        (try? container?.mainContext.fetch(FetchDescriptor<JournalEntry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []
+        guard let context = container?.mainContext else { return [] }
+        let rows = (try? context.fetch(FetchDescriptor<JournalEntry>())) ?? []
+        // MainActor-local comparison avoids a non-Sendable SortDescriptor key path.
+        return rows.sorted { $0.createdAt > $1.createdAt }
     }
     @discardableResult
     func save(prompt: String, text: String, state: HealthState, recipeIDs: [String], momentTitle: String? = nil, momentDate: Date? = nil) -> Bool {
-        guard let ctx = container?.mainContext, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
-        ctx.insert(JournalEntry(prompt: prompt, text: text, state: state, recipeIDs: recipeIDs, journalingSuggestionTitle: momentTitle,
-                                momentDate: momentDate, source: momentTitle == nil ? .ate : .journalMoment))
-        return (try? ctx.save()) != nil
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        let entry = JournalEntry(prompt: prompt, text: text, state: state, recipeIDs: recipeIDs,
+                                 journalingSuggestionTitle: momentTitle, momentDate: momentDate,
+                                 source: momentTitle == nil ? .ate : .journalMoment)
+        return (try? persistReflection(entry)) != nil
     }
+    /// Standalone reflections do not depend on Health or borrow an inferred state.
+    /// A separate context keeps unrelated, unsaved main-context edits out of this transaction.
+    @discardableResult
+    func saveManual(text: String) throws -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw ManualJournalSaveError.empty }
+        let entry = JournalEntry(prompt: "", text: trimmed, state: nil)
+        return try persistReflection(entry)
+    }
+
+    /// Save only this insertion, never unrelated pending edits in the shared main context.
+    private func persistReflection(_ entry: JournalEntry) throws -> String {
+        // Matches the accepted save behaviour: only .unavailable refuses. The in-memory fallback still
+        // saves for this session; JournalOpenStateBanner keeps telling the user it is temporary.
+        switch openState {
+        case .ok, .recovered, .inMemoryFallback: break
+        case .unavailable: throw ManualJournalSaveError.unavailable
+        }
+        guard let container else { throw ManualJournalSaveError.unavailable }
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        context.insert(entry)
+        do { try writeReflectionContext(context) }
+        catch {
+            // Only this short-lived context owns the insertion. Never roll back mainContext.
+            context.rollback()
+            throw ManualJournalSaveError.failed
+        }
+        return entry.id
+    }
+
     /// UI tests (`-qaJournalMomentEntry`): one entry that came from a Journal moment, to check the context row.
     func seedMomentEntryForUITests() {
         guard AppConfig.isUITesting, ProcessInfo.processInfo.arguments.contains("-qaJournalMomentEntry"), entries().isEmpty else { return }
@@ -189,3 +233,14 @@ enum JournalTextGuard {
     }
 }
 
+
+enum ManualJournalSaveError: LocalizedError {
+    case empty, unavailable, failed
+    var errorDescription: String? {
+        switch self {
+        case .empty: return "Write something before saving."
+        case .unavailable: return "Your journal cannot save to this iPhone right now. Your draft is still here."
+        case .failed: return "Your entry could not be saved. Your draft is still here. Try again."
+        }
+    }
+}

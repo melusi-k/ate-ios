@@ -44,22 +44,6 @@ final class InsightsAcceptanceUITests: XCTestCase {
         button.tap()
     }
 
-    /// The opened browse menu: the collection view containing the menu's own "Collections" section
-    /// header (matched by label via predicate - XCUIT has no containing(_:label:) overload). That header
-    /// is part of the menu definition (LibraryView.swift Section("Collections")) and appears nowhere else
-    /// in the observed hierarchy, so this scopes queries to the open menu.
-    private var browseMenu: XCUIElement {
-        app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch
-    }
-    /// Browse-menu item by exact label, scoped to the opened menu. Observed on the iOS 27 runtime
-    /// (identical source resolves them on iOS 26): SwiftUI Menu item buttons no longer expose their
-    /// accessibility identifiers (library.insights and friends) to XCUIT; the open menu renders them as
-    /// labelled buttons, so identifier queries can never match there. Taps and destination assertions
-    /// are unchanged. Menu-item identifier contract coverage is lost on this runtime.
-    private func browseMenuItem(_ label: String) -> XCUIElement {
-        browseMenu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", label)).firstMatch
-    }
-
     private func addAndCompleteRecipe() {
         app.buttons["Add recipe"].tap()
         wait(app.staticTexts["Add a recipe"])
@@ -87,7 +71,11 @@ final class InsightsAcceptanceUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 8)
 
         // Verify the cooking event is visible in the tracker before testing its downstream insight.
-        tab("Insights")
+        tab("Journal")
+        // Journal is the tab root; Insights & Cooking History is its one named route.
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
+        hub.tap()
         let day = Calendar.current.component(.day, from: Date())
         let today = app.buttons["tracker.day.\(day)"]
         wait(today, 5)
@@ -95,18 +83,40 @@ final class InsightsAcceptanceUITests: XCTestCase {
         tab("Library")
     }
 
+    private func reveal(_ element: XCUIElement) {
+        var swipes = 0
+        while !(element.exists && element.isHittable) && swipes < 6 {
+            app.swipeUp()
+            swipes += 1
+        }
+        wait(element, 15)
+        XCTAssertTrue(element.isHittable, "The insight action must be reachable after \(swipes) swipes.")
+    }
+
+    /// Switching tabs preserves the pushed hub. Return to Journal explicitly instead of
+    /// assuming a second tab selection pops a stack that was not currently selected.
+    private func reopenInsightsFromJournal() {
+        tab("Journal")
+        let title = app.navigationBars["Insights & Cooking History"]
+        wait(title)
+        let back = title.buttons["Journal"]
+        wait(back)
+        back.tap()
+        wait(app.navigationBars["Journal"])
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub)
+        hub.tap()
+        wait(title)
+    }
+
     func testInsightCanBeResolvedAndStaysSuppressedAfterRefresh() {
         launch()
         addAndCompleteRecipe()
 
-        tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let insightsEntry = browseMenuItem("Insights & journal")
-        wait(insightsEntry)
-        insightsEntry.tap()
+        reopenInsightsFromJournal()
 
         let resolve = app.buttons["insights.progress.resolve.weekly-cooking"]
-        wait(resolve, 15)
+        reveal(resolve)
         resolve.tap()
 
         let weeklyAction = app.buttons["insights.progress.action.weekly-cooking"]
@@ -127,14 +137,10 @@ final class InsightsAcceptanceUITests: XCTestCase {
         launch()
         addAndCompleteRecipe()
 
-        tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let insightsEntry = browseMenuItem("Insights & journal")
-        wait(insightsEntry)
-        insightsEntry.tap()
+        reopenInsightsFromJournal()
 
         let action = app.buttons["insights.progress.action.weekly-cooking"]
-        wait(action, 15)
+        reveal(action)
         let evidence = app.staticTexts["insights.progress.evidence.weekly-cooking"]
         wait(evidence, 5)
         XCTAssertTrue(evidence.label.contains("Cooking history"), evidence.label)
@@ -143,13 +149,19 @@ final class InsightsAcceptanceUITests: XCTestCase {
 
         action.tap()
 
-        // The Insights Explore sheet must close before the app switches to the tracker tab.
-        let trackerTab = app.tabBars.buttons["Insights"]
+        // A pushed hub must stay on screen and reveal its cooking calendar, not pop to Journal.
+        wait(app.navigationBars["Insights & Cooking History"], 8)
+        let trackerTab = app.tabBars.buttons["Journal"]
         wait(trackerTab, 8)
         XCTAssertTrue(trackerTab.isSelected, "The contextual action should select the tracker tab.")
         let day = Calendar.current.component(.day, from: Date())
         let today = app.buttons["tracker.day.\(day)"]
         wait(today, 5)
+        XCTAssertTrue(today.isHittable, "The cooking-history action must reveal today's calendar button.")
         XCTAssertTrue(today.label.contains("cooked") && today.label.contains("today"), today.label)
+        let afterAction = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        afterAction.name = "insights-cooking-history-action-reveals-today"
+        afterAction.lifetime = .keepAlways
+        add(afterAction)
     }
 }

@@ -46,6 +46,19 @@ class GateContractTests(unittest.TestCase):
     def test_current_inventory_passes(self):
         self.check()
 
+    def test_catalogue_revision_is_deterministic_and_tracks_acceptance_wording(self):
+        generated = self.root / 'Ate/Logic/BetaChecklist.swift'
+        initial = generated.read_text()
+        subprocess.run([sys.executable, str(self.root / 'scripts/gen-beta-checklist.py')], check=True, capture_output=True)
+        self.assertEqual(initial, generated.read_text())
+        self.edit('docs/MVP_CHECKLIST.md', 'a dead site fails in ≤10 s with a clear message.', 'a dead site fails in ≤9 s with a clear message.')
+        subprocess.run([sys.executable, str(self.root / 'scripts/gen-beta-checklist.py')], check=True, capture_output=True)
+        changed = generated.read_text()
+        old_revision = re.search(r'catalogueRevision = "([a-f0-9]+)"', initial).group(1)
+        new_revision = re.search(r'catalogueRevision = "([a-f0-9]+)"', changed).group(1)
+        self.assertNotEqual(old_revision, new_revision)
+        self.assertEqual(len(re.findall(r'BetaItem\(id:', initial)), len(re.findall(r'BetaItem\(id:', changed)))
+
     def test_documented_gate_count_drift_fails(self):
         self.edit('docs/LAUNCH_GATES.md', '| 97 |', '| 96 |')
         self.check('Pilot count 97 differs from LAUNCH_GATES 96')

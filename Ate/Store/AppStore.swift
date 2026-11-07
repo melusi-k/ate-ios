@@ -410,13 +410,41 @@ final class AppStore {
 
     let backend: BackendService
     private let context: ModelContext?
+    /// Nil until the complete canonical consumer graph is qualified for activation.
+    let foodJournalRuntime: FoodJournalRuntime?
+    /// All in-app Journal surfaces use the graph's actual owner, including isolated QA worlds.
+    /// The legacy graph retains its existing app-lifetime owner until activation is qualified.
+    var journalStore: JournalStore { foodJournalRuntime?.journal ?? JournalStore.shared }
+    var journalGoalsRepository: NutritionGoalsRepository {
+        foodJournalRuntime?.goalsRepository ?? nutritionGoalsRepository
+    }
+
+    /// Shortcuts must use the live app composition, not open a second singleton owner.
+    /// Background execution without that composition fails visibly until the app is open.
+    static func journalStoreForIntent() throws -> JournalStore {
+        guard let current else { throw JournalIntentOwnerError.appNotOpen }
+        let journal = current.journalStore
+        switch journal.openState {
+        case .ok, .recovered: return journal
+        case .inMemoryFallback, .unavailable: throw JournalIntentOwnerError.notDurable
+        }
+    }
+
+
+    func journalTimelineItems() throws -> [JournalTimelineItem] {
+        if let runtime = foodJournalRuntime { return try runtime.timelineItems() }
+        // The not-yet-activated legacy graph still has one explicit Journal owner.
+        return try FoodJournalStore(container: journalStore.container).timelineItems()
+    }
     private let nutritionDiaryRepository: NutritionDiaryRepository
     private let nutritionGoalsRepository: NutritionGoalsRepository
 
     init(context: ModelContext?, backend: BackendService = AppConfig.makeBackend(),
          nutritionDiaryRepository: NutritionDiaryRepository = NutritionDiaryRepository(),
-         nutritionGoalsRepository: NutritionGoalsRepository = NutritionGoalsRepository()) {
+         nutritionGoalsRepository: NutritionGoalsRepository = NutritionGoalsRepository(),
+         foodJournalRuntime: FoodJournalRuntime? = nil) {
         self.context = context
+        self.foodJournalRuntime = foodJournalRuntime
         self.backend = backend
         self.nutritionDiaryRepository = nutritionDiaryRepository
         self.nutritionGoalsRepository = nutritionGoalsRepository
@@ -576,12 +604,14 @@ final class AppStore {
     }
 
     func clearLibrary() {
+        guard foodJournalRuntime == nil else { show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return }
         recipes = []; CookingHistory.shared.clear()
         path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
         persistRecipes()
     }
 
     func importJSON(_ data: Data) throws -> DataImportSummary {
+        guard foodJournalRuntime == nil else { throw CanonicalConsumerBindingError.archiveBindingRequired }
         let decoder = JSONDecoder()
         if let legacyCards = try? decoder.decode([RecipeCard].self, from: data) {
             let result = importRecipesPreservingExisting(legacyCards)
@@ -632,6 +662,7 @@ final class AppStore {
     }
 
     func exportJSON() throws -> Data {
+        guard foodJournalRuntime == nil else { throw CanonicalConsumerBindingError.archiveBindingRequired }
         // An unreadable local diary must not be exported as an ordinary empty diary:
         // fail visibly instead of producing an archive that claims nothing was logged.
         if case .corrupt = nutritionDiaryRepository.loadState() { throw AteDataArchiveError.localDiaryUnreadableOnExport }
@@ -642,6 +673,16 @@ final class AppStore {
                                      nutritionGoals: try nutritionGoalsRepository.load(),
                                      appSettings: settings, timerPreferences: timerPrefs)
         return try enc.encode(archive)
+    }
+
+    /// Insights uses nil for unavailable, never an empty diary on a read/migration failure.
+    func nutritionEntriesForInsights() -> [NutritionDiaryEntry]? {
+        if let foodJournalRuntime { return try? foodJournalRuntime.readMeals() }
+        switch nutritionDiaryRepository.loadState() {
+        case .loaded(let entries): return entries
+        case .absent: return []
+        case .corrupt: return nil
+        }
     }
 
     // MARK: shopping
@@ -1021,6 +1062,9 @@ final class AppStore {
     }
 
     func signOut(removeLocalData: Bool = false) async {
+        guard foodJournalRuntime == nil || !removeLocalData else {
+            show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return
+        }
         if let s = session { await auth?.signOut(s) }
         syncTask?.cancel()
         setSession(nil)
@@ -1032,6 +1076,9 @@ final class AppStore {
 
     /// Permanently deletes the account on the server, then all local data, then shows onboarding.
     func deleteAccount() async -> AuthError? {
+        guard foodJournalRuntime == nil else {
+            return AuthError(message: "The unified Journal reset is not ready. Your account has not been deleted.")
+        }
         guard let auth, var s = session else { return AuthError(.unauthorized, "Sign in again to delete your account.") }
         do {
             if s.expiresAt < Date().timeIntervalSince1970 + 60 { s = try await auth.refresh(s) }
@@ -1176,5 +1223,17 @@ enum ShoppingEdit {
     static func trimmedName(_ text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+
+enum JournalIntentOwnerError: LocalizedError {
+    case appNotOpen, notDurable, saveFailed
+    var errorDescription: String? {
+        switch self {
+        case .appNotOpen: return "Open Ate before using this Journal shortcut."
+        case .notDurable: return "The Journal is not available for a durable save. Open Ate to review storage recovery."
+        case .saveFailed: return "The Journal entry could not be saved. Review the Journal before trying again."
+        }
     }
 }

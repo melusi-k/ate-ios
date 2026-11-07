@@ -27,6 +27,16 @@ struct SettingsView: View {
     }
     @State private var qa = BetaQA.shared
 
+    @ViewBuilder private var diaryDestination: some View {
+        if let runtime = store.foodJournalRuntime {
+            CanonicalNutritionDiaryView(coordinator: runtime.coordinator,
+                                       goalsRepository: runtime.goalsRepository, repair: runtime.repair,
+                                       associationStore: nil)
+        } else {
+            NutritionDiaryView()
+        }
+    }
+
     var body: some View {
         @Bindable var store = store
         Form {

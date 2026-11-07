@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Food diary on the canonical Food Journal coordinator (#179): real entry editing, visible
 /// weekly totals for the selected week, and honest blocked states with the legacy repair route.
@@ -11,6 +12,8 @@ struct CanonicalNutritionDiaryView: View {
     @State private var editingEntry: NutritionDiaryEntry?
     @State private var showingRepair = false
     @State private var mutationError: String?
+    @State private var choosingMealBackup = false
+    @State private var reviewedMealBackup: ReviewedMealBackup?
 
     init(coordinator: FoodJournalCoordinator,
          goalsRepository: NutritionGoalsRepository = NutritionGoalsRepository(),
@@ -51,6 +54,13 @@ struct CanonicalNutritionDiaryView: View {
                 }
                 diaryContent
             }
+            Section("Meal backup recovery") {
+                Button("Restore your JSON meal backup") { choosingMealBackup = true }
+                    .accessibilityIdentifier("nutritionDiary.restoreMealBackup")
+                Text("Choose a JSON meal backup you already have in Files. This picker does not expose Ate's retained internal backup copies.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if let mutationError {
                 Section { Text(mutationError).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.error") }
             }
@@ -62,6 +72,22 @@ struct CanonicalNutritionDiaryView: View {
                     .accessibilityIdentifier("nutritionDiary.add")
                     .disabled(controller.issue != nil)
             }
+        }
+        .fileImporter(isPresented: $choosingMealBackup, allowedContentTypes: [.json], allowsMultipleSelection: false) { result in
+            do {
+                guard let url = try result.get().first else { return }
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                guard size <= ReviewedMealBackup.maximumBytes else { throw ReviewedMealBackupError.tooLarge }
+                reviewedMealBackup = try ReviewedMealBackup(ReviewedMealBackup.readBytes(from: url))
+                mutationError = nil
+            } catch {
+                if !ReviewedMealBackup.isPickerCancellation(error) { mutationError = error.localizedDescription }
+            }
+        }
+        .sheet(item: $reviewedMealBackup, onDismiss: { controller.reload() }) { backup in
+            ReviewedMealBackupSheet(backup: backup) { try controller.restoreReviewedMealBackup(backup) }
         }
         .sheet(isPresented: $store.showNutritionDiaryEntry) {
             NavigationStack {

@@ -182,6 +182,9 @@ final class JournalStore {
         }
     }
     func delete(_ e: JournalEntry) {
+        // Reflection-only UI and intents cannot mutate structured meals or unknown kinds.
+        // Meals must use the coordinator's validated payload transaction.
+        guard e.kindRaw == JournalEntryKind.reflection.rawValue else { return }
         for f in e.mediaFileNames { try? FileManager.default.removeItem(at: Self.mediaURL(f)) }
         if let ctx = container?.mainContext {
             // A meal entry's structured payload goes with it; the timeline never keeps one without the other (#245).
@@ -192,8 +195,11 @@ final class JournalStore {
             ctx.delete(e); try? ctx.save()
         }
     }
-    func entry(_ id: String) -> JournalEntry? { entries().first { $0.id == id } }
+    func entry(_ id: String) -> JournalEntry? {
+        entries().first { $0.id == id && $0.kindRaw == JournalEntryKind.reflection.rawValue }
+    }
     func update(_ e: JournalEntry, text: String) {
+        guard e.kindRaw == JournalEntryKind.reflection.rawValue else { return }
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines); guard !t.isEmpty else { return }
         e.text = t; e.editedAt = .now; try? container?.mainContext.save()
     }

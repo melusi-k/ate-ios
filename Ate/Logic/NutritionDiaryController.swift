@@ -171,6 +171,20 @@ final class NutritionDiaryController {
         reload()
     }
 
+
+    /// Called only after the selected original backup has been reviewed and confirmed.
+    /// Failure stays visible; do not retry an uncertain commit automatically.
+    func restoreReviewedMealBackup(_ backup: ReviewedMealBackup) throws -> Int {
+        do {
+            let added = try coordinator.restoreReviewedLegacyBackup(backup.originalBytes,
+                preservedCopyDirectory: repairAdapter.backupDirectory.appendingPathComponent("ReviewedImports", isDirectory: true))
+            reload()
+            return added
+        } catch {
+            throw ReviewedMealBackupError.restoreFailed(classify(error).reason)
+        }
+    }
+
     /// Retries reading (which re-runs migration) after repair or a transient failure.
     /// Returns true when the diary is readable again.
     @discardableResult
@@ -190,6 +204,12 @@ final class NutritionDiaryController {
             return .readFailed(reason: error.localizedDescription)
         }
         switch access {
+        case .invalidBackup, .backupVerificationFailed:
+            return .readFailed(reason: "The reviewed backup could not be prepared. Nothing was imported from that backup.")
+        case .restoreCommittedButUnverified:
+            return .readFailed(reason: "Restore completed its write step but could not confirm saved records. Review the Journal before trying again.")
+        case .restoreOutcomeUncertain:
+            return .readFailed(reason: "Restore could not confirm whether records were saved. Review the Journal before trying again.")
         case .legacyCorrupt:
             return .legacyRepairNeeded(reason: "The older diary couldn't be decoded. Repair it below, then retry.")
         case .migrationFailed(let reason):

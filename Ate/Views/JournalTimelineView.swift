@@ -31,6 +31,7 @@ enum JournalTimelineContent: Equatable {
 /// Read-only unified Food Journal timeline (#245 step 4): meals and reflections in one day-grouped list.
 /// Reads through `FoodJournalStore.timelineItems`; it never writes. Reached from the Journal screen.
 struct JournalTimelineView: View {
+    @Environment(AppStore.self) private var store
     /// Tests inject items or a failure; nil reads the shared store.
     var stateOverride: JournalTimelineScreenState? = nil
     var openStateOverride: JournalOpenState? = nil
@@ -55,7 +56,7 @@ struct JournalTimelineView: View {
     private var state: JournalTimelineScreenState { stateOverride ?? Self.qaState() ?? loaded }
 
     var body: some View {
-        let openState = openStateOverride ?? JournalStore.shared.openState
+        let openState = openStateOverride ?? store.journalStore.openState
         let content = JournalTimelineContent.make(state: state, filter: filter, query: query)
         List {
             if openState != .ok {
@@ -135,9 +136,11 @@ struct JournalTimelineView: View {
 
     /// Reads on the main actor (the store is @MainActor and shares JournalStore's main context): two fetches and a map,
     /// the same cost class as JournalListView's entries() read on appear. The result is snapshotted into @State; the
-    /// open-state banner re-reads JournalStore.shared.openState whenever the body re-evaluates.
+    /// open-state banner re-reads the bound journal openState whenever the body re-evaluates.
     private func reload() {
-        do { loaded = .loaded(try FoodJournalStore.shared.timelineItems()) }
+        do {
+            loaded = .loaded(try store.journalTimelineItems())
+        }
         catch let error as JournalTimelineReadError { loaded = .failed(error) }
         catch { loaded = .failed(.readFailed) }
     }

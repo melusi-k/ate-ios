@@ -246,7 +246,7 @@ private struct CookingDaySheet: View {
 }
 
 
-/// Insights tab root: the Journal, with one named route to Insights & Cooking History (calendar, Health
+/// Journal tab root: the Journal, with one named route to Insights & Cooking History (calendar, Health
 /// insights and the journal card keep their existing behaviour there).
 struct CookingTrackerScreen: View {
     var body: some View {

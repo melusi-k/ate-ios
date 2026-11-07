@@ -334,7 +334,7 @@ struct LibraryView: View {
 
     /// Placement-dependent trailing menu: the Search tab offers results options; the Library
     /// surface keeps its browse & arrange menu. Journal and Insights have their own entry points
-    /// (the Insights tab root and its named route), so the Library menu carries no Explore links.
+    /// (the Journal tab root and its named route), so the Library menu carries no Explore links.
     @ViewBuilder private var trailingMenu: some View {
         if searchPlacement == .tabBar { resultsMenu } else { libraryMenu }
     }

@@ -19,6 +19,7 @@ on:
     branches:
       - feature/issue-74-settings-organisation
       - settings/clarity-quickwin-74
+      - settings/app-appearance
   workflow_dispatch:
 
 concurrency:

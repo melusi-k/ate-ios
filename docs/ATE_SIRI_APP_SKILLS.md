@@ -197,3 +197,7 @@ Use Apple's Siri integration diagnostics and evaluation tooling when available i
 - Apple, creating an App Intent: https://developer.apple.com/documentation/appintents/creating-your-first-app-intent
 - Apple, App Intents system experiences: https://developer.apple.com/documentation/appintents/adopting-app-intents-to-support-system-experiences
 - Apple Xcode help, Siri configuration: https://help.apple.com/xcode/mac/current/en.lproj/devb1fc06729.html
+
+## Deferred Siri tools
+
+The `@AppIntent(.tool)` implementation, runtime skill bundle, resource registration, and bundle validation are split into a separate Draft PR awaiting a future SDK/build. Xcode 27.2 cannot expand that macro variant. This foundation retains design guidance only; it does not claim active Siri tool support.

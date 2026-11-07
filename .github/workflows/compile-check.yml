@@ -74,7 +74,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "27.1"
+          xcode-version: "27.2.0"
       - name: Cache Xcode DerivedData
         uses: actions/cache@v6
         with:

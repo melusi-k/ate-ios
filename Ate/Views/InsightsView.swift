@@ -566,10 +566,9 @@ struct InsightsView: View {
     }
 
     @MainActor private func markRecipeInsightSeen(_ candidate: RankedRecipeInsightCandidate) {
-        recipeProgressRefreshGeneration += 1
+        // Opening an action does not remove or suppress the suggestion. Seen remains
+        // presentable after returning, refreshing and relaunching with the same evidence.
         _ = recipeProgressLifecycle.markSeen(id: candidate.id, evidenceFingerprint: candidate.evidenceFingerprint)
-        recipeProgressCandidates.removeAll { $0.id == candidate.id }
-        recipeProgressSuppressed = recipeProgressCandidates.isEmpty
     }
 
     @MainActor private func resolveRecipeInsight(_ candidate: RankedRecipeInsightCandidate) {

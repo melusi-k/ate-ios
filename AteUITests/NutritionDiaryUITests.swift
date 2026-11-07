@@ -340,12 +340,33 @@ final class NutritionDiaryUITests: XCTestCase {
         let foodName = app.textFields["nutritionDiary.foodName"]
         typeAfterKeyboard(foodName, in: app, "My lunch")
         tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
-        // Save-failure state: the diary-level error is shown. The entry exists only in memory,
-        // so after a relaunch without the fault argument the diary is empty again.
-        let saveError = app.descendants(matching: .any)["nutritionDiary.error"]
-        XCTAssertTrue(scrollToHittable(saveError, in: app), "Failed save should show the diary error")
-        XCTAssertTrue(saveError.waitForExistence(timeout: 5))
-        captureNutritionState(app, name: "nutrition-disk-save-error")
+        // A failed save must stay in the form with its error and the person's draft.
+        // No visible diary row may pretend the save succeeded. Fault injection stays on
+        // for the retry, so both attempts must leave the persisted diary unchanged.
+        let formError = app.descendants(matching: .any)["nutritionDiary.formError"]
+        XCTAssertTrue(scrollToHittable(formError, in: app), "Failed save should show its error in the retained form")
+        XCTAssertTrue(formError.waitForExistence(timeout: 5))
+        XCTAssertEqual(formError.label, "Your diary couldn’t be saved. Please try again.")
+        XCTAssertTrue(app.buttons["nutritionDiary.save"].exists, "A failed save must keep the form open")
+        XCTAssertEqual(foodName.value as? String, "My lunch", "A failed save must retain the typed draft")
+        XCTAssertTrue(diaryRows(app, containing: "My lunch").allElementsBoundByIndex.isEmpty,
+                      "A failed save must not create a pretend-saved diary row")
+        captureNutritionState(app, name: "nutrition-disk-save-error-retained-draft")
+
+        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
+        XCTAssertTrue(scrollToHittable(formError, in: app), "A failed retry must still show the form error")
+        XCTAssertEqual(formError.label, "Your diary couldn’t be saved. Please try again.")
+        XCTAssertTrue(app.buttons["nutritionDiary.save"].exists, "A failed retry must keep the form open")
+        XCTAssertEqual(foodName.value as? String, "My lunch", "A failed retry must retain the same draft")
+        XCTAssertTrue(diaryRows(app, containing: "My lunch").allElementsBoundByIndex.isEmpty,
+                      "A failed retry must not add or duplicate a diary row")
+        captureNutritionState(app, name: "nutrition-disk-save-retry-retained-draft")
+
+        app.navigationBars.buttons["Cancel"].tap()
+        XCTAssertTrue(app.buttons["nutritionDiary.save"].waitForNonExistence(timeout: 5), "Cancel should close the retained form")
+        XCTAssertTrue(diaryRows(app, containing: "My lunch").allElementsBoundByIndex.isEmpty,
+                      "Cancelling after failed attempts must leave the visible diary unchanged")
+        XCTAssertTrue(scrollToHittable(app.staticTexts["Nothing logged"], in: app), "Failed attempts must leave an empty diary")
         app.terminate()
         let relaunched = XCUIApplication()
         relaunched.launchArguments = ["-UITesting"]

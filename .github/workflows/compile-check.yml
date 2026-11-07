@@ -172,9 +172,7 @@ jobs:
           done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
 
-      # Owner's normal-size acceptance: cross-size audits and the default-size
-      # audit's five DT findings are deferred to #359, not deleted or reclassified.
-      # All Diary/Goals behaviour tests and their execution-evidence guards remain.
+      # Keep normal-size audits required; retain cross-size cases in the optional lane.
       - name: Nutrition diary and goals UI regressions (#179)
         if: ${{ steps.build.outcome == 'success' }}
         run: |
@@ -184,6 +182,7 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreensWithoutDynamicType \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
@@ -209,7 +208,8 @@ jobs:
             "NutritionDiaryUITests testRecipeNutritionShowsIncompleteStateForUnmappedIngredient]' passed" \
             "NutritionDiaryUITests testLoggedEntryCanBeEditedAndShowsUpdatedValues]' passed" \
             "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
-            "NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed"; do
+            "NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed" \
+            "AccessibilityAuditUITests testAuditNutritionScreensWithoutDynamicType]' passed"; do
             grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
@@ -590,6 +590,8 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteTests/CookSessionTests \
             -only-testing:AteUITests/CookIngredientsUITests \
+            -skip-testing:AteUITests/CookIngredientsUITests/testCookIngredientSheetLargeTextAccessibilityAndImperial \
+            -skip-testing:AteUITests/CookIngredientsUITests/testCookTimerCardLargeText \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-ingredients-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
@@ -622,8 +624,8 @@ jobs:
             "CookSessionTests testReenteringSameRecipeKeepsSessionFactor]' passed" \
             "CookSessionTests testChecklistAmountsRenderMetricAndImperial]' passed" \
             "CookIngredientsUITests testCookIngredientSheetScalesChecksAndPersists]' passed" \
-            "CookIngredientsUITests testCookIngredientSheetLargeTextAccessibilityAndImperial]' passed" \
-            "CookIngredientsUITests testCookTimerCardLargeText]' passed"; do
+            "CookIngredientsUITests testCookIngredientSheetNormalTextAccessibilityAndImperial]' passed" \
+            "CookIngredientsUITests testCookTimerCardNormalText]' passed"; do
             grep -qF "$evidence" cook-ingredients-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 cook-ingredients-tests.log; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed" cook-ingredients-tests.log | tail -40

@@ -221,7 +221,7 @@ final class AteUITests: XCTestCase {
 
         // Leaving Cook Mode is not completion. Inspect the calendar's accessible day label.
         tab("Journal")
-        // Journal tab root is the Journal; Insights & Cooking History is its one named route.
+        // Journal is the tab root; Insights & Cooking History is its one named route.
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
         hub.tap()
@@ -252,7 +252,7 @@ final class AteUITests: XCTestCase {
 
         // Completion must update the persistent Tracker, not merely dismiss Cook Mode.
         tab("Journal")
-        // Journal tab root is the Journal; Insights & Cooking History is its one named route.
+        // Journal is the tab root; Insights & Cooking History is its one named route.
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
         hub.tap()
@@ -1024,14 +1024,14 @@ final class AteUITests: XCTestCase {
         choices.firstMatch.tap()
     }
 
-    /// Journal menu journey: the Journal tab root is the Journal with "New journal entry" as its primary
+    /// Journal menu journey: the Journal is the tab root with "New journal entry" as its primary
     /// action, and "Insights & Cooking History" is the one named route to the tracker. Named captures:
     /// journal-root-new-entry-action, journal-root-insights-route, insights-cooking-history-route.
     func testJournalRootPrimaryActionAndInsightsRoute() {
         launch(["-qaMockHealth", "empty"])
         guard #available(iOS 26, *) else { return }
         tab("Journal")
-        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 10), "Journal tab root is the Journal")
+        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 10), "Journal is the tab root")
         let add = app.buttons["accessoryAdd"].firstMatch
         wait(add, 8)
         XCTAssertEqual(add.label, "New journal entry")

@@ -33,6 +33,8 @@ struct CookCompletionEvent: Codable, Equatable, Identifiable {
 enum CookCompletionOutboxError: Error, Equatable {
     /// A value is stored under the key but cannot be decoded. It is left byte-for-byte as found.
     case unreadable
+    /// Existing cooking-history bytes cannot be decoded; do not offer to set aside the unrelated outbox.
+    case historyUnreadable
     case encodeFailed
     /// The event to queue has an empty id. Refused before any write.
     case invalidEvent
@@ -114,8 +116,8 @@ final class CookCompletionOutbox {
 
 /// Frequency for the optional post-cook reflection offer. This is a routine product choice the owner delegated
 /// ("make the best decisions based on the docs and what is best practice", Nov 3 phonemsg-01M6H1PY83YGVKZ1A1WGXWTAS4)
-/// and docs/product/FOOD_JOURNAL.md asks for deterministic, respectful frequency. The user has not confirmed
-/// this exact rule. The rule: at most one offer per local day, counted when the offer is actually shown, however the
+/// and the completion-sheet proposal accepted Nov 7 includes at most one highlighted nudge per day.
+/// The rule: at most one offer per local day, counted when the offer is actually shown, however the
 /// user answers it. An offer that never reached the screen does not use up the day. Cooking completion never
 /// depends on this policy.
 final class CookReflectionOfferPolicy {

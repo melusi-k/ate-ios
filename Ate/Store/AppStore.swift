@@ -415,6 +415,21 @@ final class AppStore {
     /// All in-app Journal surfaces use the graph's actual owner, including isolated QA worlds.
     /// The legacy graph retains its existing app-lifetime owner until activation is qualified.
     var journalStore: JournalStore { foodJournalRuntime?.journal ?? JournalStore.shared }
+    var journalGoalsRepository: NutritionGoalsRepository {
+        foodJournalRuntime?.goalsRepository ?? nutritionGoalsRepository
+    }
+
+    /// Shortcuts must use the live app composition, not open a second singleton owner.
+    /// Background execution without that composition fails visibly until the app is open.
+    static func journalStoreForIntent() throws -> JournalStore {
+        guard let current else { throw JournalIntentOwnerError.appNotOpen }
+        let journal = current.journalStore
+        switch journal.openState {
+        case .ok, .recovered: return journal
+        case .inMemoryFallback, .unavailable: throw JournalIntentOwnerError.notDurable
+        }
+    }
+
 
     func journalTimelineItems() throws -> [JournalTimelineItem] {
         if let runtime = foodJournalRuntime { return try runtime.timelineItems() }
@@ -1208,5 +1223,17 @@ enum ShoppingEdit {
     static func trimmedName(_ text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+
+enum JournalIntentOwnerError: LocalizedError {
+    case appNotOpen, notDurable, saveFailed
+    var errorDescription: String? {
+        switch self {
+        case .appNotOpen: return "Open Ate before using this Journal shortcut."
+        case .notDurable: return "The Journal is not available for a durable save. Open Ate to review storage recovery."
+        case .saveFailed: return "The Journal entry could not be saved. Review the Journal before trying again."
+        }
     }
 }

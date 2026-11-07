@@ -213,11 +213,19 @@ final class AppStore {
         return events.values.sorted { $0.completedAt == $1.completedAt ? $0.id < $1.id : $0.completedAt > $1.completedAt }
     }
 
+    // Bind only the cooking reflection to the Journal already used by the app. This does not
+    // activate the pending unified diary/archive/reset graph.
+    var cookJournalDefaults: UserDefaults { foodJournalRuntime?.defaults ?? .standard }
+    var cookJournalOutbox: CookCompletionOutbox { foodJournalRuntime?.cookOutbox ?? CookCompletionOutbox(defaults: cookJournalDefaults) }
+    var cookJournalOfferPolicy: CookReflectionOfferPolicy { foodJournalRuntime?.cookOfferPolicy ?? CookReflectionOfferPolicy(defaults: cookJournalDefaults) }
+    var cookJournalStore: JournalStore { foodJournalRuntime?.journal ?? JournalStore.shared }
+
     func requestCookedReflection(_ event: CookCompletionEvent) {
-        guard let runtime = foodJournalRuntime else { return }
         do {
             if cookedReflectionSessions[event.id] == nil {
-                cookedReflectionSessions[event.id] = try runtime.reflectionSession(for: event.id)
+                guard try cookJournalOutbox.load().contains(event) else { throw CookedJournalReflectionError.invalidContext }
+                cookedReflectionSessions[event.id] = CookedJournalReflectionSession(event: event,
+                    reflections: CookedJournalReflectionStore(journal: cookJournalStore), outbox: cookJournalOutbox)
             }
             cookedReflectionPendingID = event.id
         } catch { show("Ate could not open the note for this cook. The saved cook list was not changed.", error: true) }
@@ -225,7 +233,7 @@ final class AppStore {
 
     /// Called by the presentation owner only after Cook Mode has left its modal/navigation host.
     func presentPendingCookedReflection() {
-        guard foodJournalRuntime != nil, cookTarget == nil, !cookJournalViewVisible, !cookJournalModalDismissing,
+        guard cookTarget == nil, !cookJournalViewVisible, !cookJournalModalDismissing,
               !path.contains(where: { if case .cook = $0 { return true }; return false }),
               manualJournalHost == nil, authSheet == nil, !showOnboarding, cookedReflectionPresentedID == nil,
               let id = cookedReflectionPendingID, cookedReflectionSessions[id] != nil else { return }
@@ -447,6 +455,15 @@ final class AppStore {
         Haptics.toggle()
     }
 
+    /// The sheet's history claim is allowed only after the exact day/recipe payload reads back.
+    /// Retry uses the retained event date and identity, not the current clock.
+    func recordCompletedCook(_ event: CookCompletionEvent) throws {
+        guard recipe(event.recipeID) != nil else { throw CookCompletionOutboxError.session }
+        let history = foodJournalRuntime?.cookingHistory ?? CookingHistory.shared
+        try history.recordVerified(recipeID: event.recipeID, date: event.completedAt, dayKey: event.cookedDayKey)
+        markCooked(event.recipeID, at: event.completedAt)
+    }
+
     func markCooked(_ id: String, at date: Date = .now) {
         guard var r = recipe(id) else { return }
         r.lastCookedAt = (date.timeIntervalSince1970 * 1000).rounded(); update(r)
@@ -656,8 +673,21 @@ final class AppStore {
         persistRecipes()
     }
 
+    /// New cooking context and retained drafts must not survive an explicit local-data wipe.
+    private func clearCookCompletionContext() {
+        for key in cookJournalDefaults.dictionaryRepresentation().keys
+            where key == CookCompletionOutbox.defaultsKey || key.hasPrefix(CookCompletionOutbox.unreadableKeyPrefix) || key == CookReflectionOfferPolicy.defaultsKey {
+            cookJournalDefaults.removeObject(forKey: key)
+        }
+        cookedReflectionSessions.removeAll()
+        cookedReflectionPendingID = nil
+        cookedReflectionPresentedID = nil
+        clearCookSession()
+    }
+
     func clearLibrary() {
         guard foodJournalRuntime == nil else { show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return }
+        clearCookCompletionContext()
         recipes = []; CookingHistory.shared.clear()
         path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
         persistRecipes()
@@ -1151,6 +1181,7 @@ final class AppStore {
 
     private func wipeLocalData() {
         InsightLifecycleStore.clearAll()
+        clearCookCompletionContext()
         recipes = []; shopping = []
         nutritionDiaryRepository.clear()
         try? nutritionGoalsRepository.save(DailyNutritionGoals())
@@ -1166,10 +1197,10 @@ final class AppStore {
     func openJournalEntry(_ id: String) {
         // More is not a shipped tab. Keep journal deep links inside the visible Tracker navigation stack.
         select(.tracker)
-        trackerPath = [.journalEntry(id)]   // Journal is the Insights tab root
+        trackerPath = [.journalEntry(id)]   // Journal is the Journal tab root
     }
 
-    /// The named "Insights & Cooking History" route, pushed above the Journal root of the Insights tab.
+    /// The named "Insights & Cooking History" route, pushed above the Journal root of the Journal tab.
     func openInsightsHub() {
         select(.tracker)
         trackerPath = [.insights]

@@ -251,16 +251,16 @@ struct SearchRecipesIntent: ShowInAppSearchResultsIntent {
 struct AteJournalEntryEntity {
     struct Query: EntityStringQuery {
         func entities(for identifiers: [AteJournalEntryEntity.ID]) async throws -> [AteJournalEntryEntity] {
-            await MainActor.run { JournalStore.shared.entries().filter { identifiers.contains($0.id) }.map(AteJournalEntryEntity.init) }
+            try await MainActor.run { try JournalStore.shared.readReflections().filter { identifiers.contains($0.id) }.map(AteJournalEntryEntity.init) }
         }
         func entities(matching string: String) async throws -> [AteJournalEntryEntity] {
-            await MainActor.run {
-                JournalStore.shared.entries().filter { $0.text.localizedCaseInsensitiveContains(string) || $0.prompt.localizedCaseInsensitiveContains(string) }
+            try await MainActor.run {
+                try JournalStore.shared.readReflections().filter { $0.text.localizedCaseInsensitiveContains(string) || $0.prompt.localizedCaseInsensitiveContains(string) }
                     .prefix(20).map(AteJournalEntryEntity.init)
             }
         }
         func suggestedEntities() async throws -> [AteJournalEntryEntity] {
-            await MainActor.run { JournalStore.shared.entries().prefix(10).map(AteJournalEntryEntity.init) }
+            try await MainActor.run { try JournalStore.shared.readReflections().prefix(10).map(AteJournalEntryEntity.init) }
         }
     }
     static let defaultQuery = Query()

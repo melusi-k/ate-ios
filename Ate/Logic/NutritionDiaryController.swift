@@ -190,6 +190,12 @@ final class NutritionDiaryController {
             return .readFailed(reason: error.localizedDescription)
         }
         switch access {
+        case .invalidBackup, .backupVerificationFailed:
+            return .readFailed(reason: "The reviewed backup could not be prepared. Nothing was imported from that backup.")
+        case .restoreCommittedButUnverified:
+            return .readFailed(reason: "Restore completed its write step but could not confirm saved records. Review the Journal before trying again.")
+        case .restoreOutcomeUncertain:
+            return .readFailed(reason: "Restore could not confirm whether records were saved. Review the Journal before trying again.")
         case .legacyCorrupt:
             return .legacyRepairNeeded(reason: "The older diary couldn't be decoded. Repair it below, then retry.")
         case .migrationFailed(let reason):

@@ -27,6 +27,30 @@ final class CookingHistory {
         save()
     }
 
+    /// Fail closed before claiming a completed cook was recorded. Unreadable prior history
+    /// is preserved instead of overwritten as an empty calendar.
+    func recordVerified(recipeID: String, date: Date, dayKey: String) throws {
+        guard !recipeID.isEmpty, date.timeIntervalSince1970.isFinite, key(for: date) == dayKey else {
+            throw CookCompletionOutboxError.invalidEvent
+        }
+        var saved: [String: [String]] = [:]
+        if let raw = defaults.object(forKey: Self.key) {
+            guard let data = raw as? Data,
+                  let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) else {
+                throw CookCompletionOutboxError.historyUnreadable
+            }
+            saved = decoded
+        }
+        var intended = saved.mapValues(Set.init)
+        intended[dayKey, default: []].insert(recipeID)
+        let data = try JSONEncoder().encode(intended.mapValues { Array($0).sorted() })
+        defaults.set(data, forKey: Self.key)
+        guard let readback = defaults.data(forKey: Self.key),
+              let verified = try? JSONDecoder().decode([String: [String]].self, from: readback),
+              verified.mapValues(Set.init) == intended else { throw CookCompletionOutboxError.verifyFailed }
+        events = intended
+    }
+
     func recipeIDs(on date: Date) -> Set<String> { events[key(for: date)] ?? [] }
     func cooked(on date: Date) -> Bool { !recipeIDs(on: date).isEmpty }
     func clear() { events.removeAll(); save() }

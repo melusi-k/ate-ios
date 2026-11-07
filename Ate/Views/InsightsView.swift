@@ -58,7 +58,7 @@ final class InsightsModel {
 
 /// Minimal, privacy-conscious snapshot used for recipe/progress insights. It contains no Health data.
 enum InsightsTileOrder {
-    static let defaults = ["tracker", "recipeProgress", "bodyToday", "suggestedMeals", "dailyReflection", "journal"]
+    static let defaults = ["tracker", "recipeProgress", "bodyToday", "suggestedMeals", "dailyReflection"]
 
     static func resolve(_ stored: String) -> [String] {
         let known = Set(defaults)
@@ -243,7 +243,6 @@ struct InsightsView: View {
     @State private var draft = ""
     @State private var journalSaveError: String?
     @State private var prompt: JournalPrompt?
-    @State private var entries: [JournalEntry] = []
     @State private var recipeProgressCandidates: [RankedRecipeInsightCandidate] = []
     @State private var recipeProgressSuppressed = false
     @State private var recipeProgressLoading = false
@@ -316,6 +315,7 @@ struct InsightsView: View {
                         .accessibilityIdentifier("insights.tile.\(tileID)")
                         .id(tileID)
                     }
+                    journalMomentPicker
                 }
                 .foregroundStyle(Theme.foreground)
                 .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
@@ -333,7 +333,6 @@ struct InsightsView: View {
         .contentMargins(.bottom, 96, for: .scrollContent)
         .navigationTitle(screenTitle)
         .ateRootNavigationChrome(logoID: "insights.logo", enabled: isRoot)
-        .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
         .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id).environment(store) }
         .onChange(of: model.context?.insight.state) { _, st in
             if st != nil { BetaQA.shared.pass("A-HEALTH-03", note: "Insights showed \(st!.title) with \(model.context?.suggestions.count ?? 0) meal ideas") }
@@ -345,12 +344,10 @@ struct InsightsView: View {
         .task {
             // Local cooking-history insights must not wait for unrelated HealthKit queries.
             async let healthLoad: Void = model.loadIfNeeded(recipes: store.recipes)
-            entries = JournalStore.shared.entries()
             await refreshRecipeProgressInsight()
             await healthLoad
             prompt = prompt ?? model.context?.prompts.first
         }
-        .onAppear { entries = JournalStore.shared.entries() }
         .alert("“ate” would like to access your Health data", isPresented: $model.mockPromptShown) {
             Button("Don't Allow", role: .cancel) {}
             Button("Allow") { Task { await model.connect(recipes: store.recipes); prompt = model.context?.prompts.first } }
@@ -373,7 +370,7 @@ struct InsightsView: View {
         case "bodyToday": return "Your body today"
         case "suggestedMeals": return "Suggested meals"
         case "dailyReflection": return "Reflect on your day"
-        default: return "Your Ate journal"
+        default: return "Insights"
         }
     }
 
@@ -412,8 +409,6 @@ struct InsightsView: View {
             suggestedMealsCard
         case "dailyReflection":
             dailyReflectionCard
-        case "journal":
-            journalCard
         default:
             EmptyView()
         }
@@ -709,36 +704,12 @@ struct InsightsView: View {
         .font(AteFont.body(14))
     }
 
-    @ViewBuilder private var journalCard: some View {
-        card("Your Ate journal") {
-            Button { store.beginManualJournal() } label: {
-                Label("New journal entry", systemImage: "square.and.pencil")
-            }.accessibilityIdentifier("insights.newJournalEntry")
-            if journalingEnabled && JournalingSuggestionsGate.isAvailable && !AppConfig.isUITesting {
+    /// Keep the entitlement-gated system picker, not a second journal list.
+    /// Its selected moment still feeds the existing reflection or recipe-draft workflow.
+    @ViewBuilder private var journalMomentPicker: some View {
+        if journalingEnabled && JournalingSuggestionsGate.isAvailable && !AppConfig.isUITesting {
+            card("Journal moments") {
                 JournalingSuggestionsButton { m in handle(moment: m) }
-            }
-            if entries.isEmpty {
-                Text("No entries yet.").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-            }
-            ForEach(entries.prefix(5), id: \.id) { e in
-                NavigationLink { JournalEntryDetailView(entryID: e.id) } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(e.datedStateLabel)
-                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                    if let line = JournalingMomentMapper.contextLine(title: e.journalingSuggestionTitle, date: e.momentDate) {
-                        Label(line, systemImage: "book.pages").font(AteFont.body(12)).foregroundStyle(Theme.primary)
-                            .accessibilityIdentifier("insights.entryMomentContext")
-                    }
-                    Text(e.text).font(AteFont.body(14)).lineLimit(3).multilineTextAlignment(.leading)
-                }.frame(maxWidth: .infinity, alignment: .leading)
-                }.buttonStyle(.plain)
-                .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
-                .accessibilityIdentifier("insights.entry")
-                .contextMenu { Button("Delete", role: .destructive) { JournalStore.shared.delete(e); entries = JournalStore.shared.entries() } }
-            }
-            if entries.count > 5 {
-                NavigationLink(value: Route.journal) { Text("See all \(entries.count) entries").font(AteFont.body(14, .semibold)) }
-                    .accessibilityIdentifier("insights.allEntries")
             }
         }
     }
@@ -775,7 +746,7 @@ struct InsightsView: View {
         let moment = pendingMoment
         if JournalStore.shared.save(prompt: p?.text ?? "", text: draft, state: c.insight.state, recipeIDs: c.suggestions.map(\.recipeID),
                                     momentTitle: moment?.title, momentDate: moment?.date) {
-            draft = ""; pendingMoment = nil; journalSaveError = nil; entries = JournalStore.shared.entries(); store.show("Saved to your Ate journal")
+            draft = ""; pendingMoment = nil; journalSaveError = nil; store.show("Saved to your Ate journal")
             BetaQA.shared.pass("A-HEALTH-04", note: "Saved a local journal entry")
         } else { journalSaveError = "Your entry could not be saved. Your draft is still here. Try again." }
     }
@@ -802,7 +773,7 @@ struct InsightsView: View {
         case "Your body today": return "heart.text.square"
         case "Suggested meals": return "fork.knife"
         case "Reflect on your day": return "quote.bubble"
-        case "Your Ate journal": return "book.closed"
+        case "Journal moments": return "book.pages"
         default: return "lightbulb"
         }
     }

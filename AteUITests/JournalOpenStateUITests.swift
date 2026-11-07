@@ -370,29 +370,28 @@ extension JournalOpenStateUITests {
         shot("manual-09-normal-accessory-opened-composer")
     }
 
-    func testManualActionFromInsightsDoesNotRequireHealth() {
+    func testManualActionAfterReturningFromInsightsDoesNotRequireHealth() {
         launch(extra: ["-qaMockHealth", "empty"])
         wait(app.tabBars.firstMatch, 15)
         app.tabBars.buttons["Journal"].tap()
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         wait(hub); hub.tap()
-        let action = app.buttons["insights.newJournalEntry"]
-        for _ in 0..<12 {
-            if action.exists && action.isHittable { break }
-            app.swipeUp()
-        }
+        XCTAssertFalse(any("insights.tile.journal").exists, "The hub must not duplicate the Journal list")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        wait(app.navigationBars["Journal"])
+        let action = app.buttons["journal.newEntry"]
         wait(action)
         XCTAssertTrue(action.isHittable)
         action.tap()
         wait(app.textViews["journal.compose.text"])
-        shot("manual-06-insights-no-health")
+        shot("manual-06-journal-root-no-health")
         XCTAssertFalse(app.alerts.firstMatch.exists, "Writing must not ask for Health permission")
         let editor = app.textViews["journal.compose.text"]
         editor.tap(); editor.typeText("Generic Insights rotation draft")
         XCUIDevice.shared.orientation = .landscapeLeft
         wait(editor)
         XCTAssertEqual(editor.value as? String, "Generic Insights rotation draft")
-        shot("manual-06-insights-landscape-draft")
+        shot("manual-06-journal-root-landscape-draft")
         XCUIDevice.shared.orientation = .portrait
         wait(editor)
         XCTAssertEqual(editor.value as? String, "Generic Insights rotation draft")

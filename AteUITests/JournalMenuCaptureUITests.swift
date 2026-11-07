@@ -74,6 +74,7 @@ final class JournalMenuCaptureUITests: XCTestCase {
         let field = any("insights.journalText")
         wait(field); field.tap(); field.typeText(seed)
         let save = app.buttons["insights.save"]; wait(save); save.tap()
+        returnToJournalRoot()
         _ = seedText()
     }
 
@@ -126,18 +127,18 @@ final class JournalMenuCaptureUITests: XCTestCase {
         deleteVerifiedSeedFromOpenDetail()
     }
 
-    func testInsightsEntryContextMenuOpens() {
+    func testSavedInsightsEntryDeleteMenuOpensFromJournal() {
         seedEntryViaInsights()
-        seedText().press(forDuration: 1.2)
+        openVerifiedSeedDetail()
+        let more = app.buttons["journal.detail.menu"].firstMatch
+        wait(more); more.tap()
         let del = app.buttons["Delete"].firstMatch
-        XCTAssertTrue(del.waitForExistence(timeout: 5), "entry context menu must offer Delete")
-        shot("insights-entry-context-menu")
+        XCTAssertTrue(del.waitForExistence(timeout: 5), "the saved entry detail menu must offer Delete")
+        shot("journal-saved-insights-entry-delete-menu")
         // Dismiss WITHOUT deleting and prove the menu is gone before navigating.
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)).tap()
         gone(del, 5)
-        returnToJournalRoot()
-        openJournalTimeline()
-        openVerifiedSeedDetail()
+        XCTAssertTrue(any("journal.detail.text").exists, "Dismissing Delete must keep the saved entry open")
         deleteVerifiedSeedFromOpenDetail()
     }
 }

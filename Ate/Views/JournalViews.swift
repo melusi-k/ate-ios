@@ -1,23 +1,89 @@
 import SwiftUI
 import MapKit
 
+/// What the root Journal list shows: an explicit read state shared with the timeline, so a store
+/// that cannot be read is never presented as "No journal entries yet".
+enum JournalListScreenState {
+    case loading
+    case failed(JournalReadError)
+    case loaded([JournalEntry])
+}
+
+/// What the body renders for a state, open state and filter result. Plain values, unit-testable.
+enum JournalListContent: Equatable {
+    case loading
+    case readError(JournalReadError)
+    /// A healthy, readable journal with nothing in it.
+    case emptyJournal
+    /// No rows with a non-ok open state: the banner carries the honest state, so no empty claim.
+    case emptySuppressed
+    case noMatches
+    case entries
+
+    static func make(state: JournalListScreenState, openState: JournalOpenState, filteredCount: Int) -> JournalListContent {
+        switch state {
+        case .loading: return .loading
+        case .failed(let error): return .readError(error)
+        case .loaded(let entries):
+            if entries.isEmpty { return openState == .ok ? .emptyJournal : .emptySuppressed }
+            return filteredCount == 0 ? .noMatches : .entries
+        }
+    }
+}
+
+extension View {
+    /// The search drawer only exists for a successfully read journal. SwiftUI's .searchable has no
+    /// disabled mode, and .disabled on the List would also disable the retry button and the
+    /// Timeline/Insights navigation links, so the modifier is applied conditionally. The List is
+    /// recreated only when the read state flips between loaded and not-loaded (first appear and
+    /// retry cycles), never on scroll, filter or content updates within one state.
+    @ViewBuilder
+    func searchableWhenReadable(_ readable: Bool, text: Binding<String>) -> some View {
+        if readable {
+            searchable(text: text, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search journal")
+                .journalSearchChrome()
+        } else {
+            self
+        }
+    }
+}
+
 /// More › Journal: every Ate journal entry, newest first, with search.
 struct JournalListView: View {
     @Environment(AppStore.self) private var store
     /// Tests render the banner and empty-state suppression without mutating the shared store.
     var openStateOverride: JournalOpenState? = nil
+    /// Tests inject a read state; nil reads the shared store on appear.
+    var stateOverride: JournalListScreenState? = nil
     /// True as the Journal tab root: shows the one named route to Insights & Cooking History.
     var isTabRoot = false
-    @State private var entries: [JournalEntry] = []
+    @State private var readState: JournalListScreenState = .loading
     @State private var query = ""
+
+    private var state: JournalListScreenState { stateOverride ?? readState }
+
+    private var loadedEntries: [JournalEntry] {
+        guard case .loaded(let entries) = state else { return [] }
+        return entries
+    }
+
     var filtered: [JournalEntry] {
         let q = query.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return entries }
-        return entries.filter { $0.text.localizedCaseInsensitiveContains(q) || $0.prompt.localizedCaseInsensitiveContains(q)
+        guard !q.isEmpty else { return loadedEntries }
+        return loadedEntries.filter { $0.text.localizedCaseInsensitiveContains(q) || $0.prompt.localizedCaseInsensitiveContains(q)
             || ($0.locationName ?? "").localizedCaseInsensitiveContains(q) || ($0.recordedHealthState?.title.localizedCaseInsensitiveContains(q) ?? false) }
     }
+
+    /// Search only operates on a journal that was actually read: in the loading and read-failure
+    /// states it is hidden, so an unread journal cannot be searched into looking empty.
+    static func controlsVisible(for state: JournalListScreenState) -> Bool {
+        if case .loaded = state { return true }
+        return false
+    }
+
     var body: some View {
         let openState = openStateOverride ?? JournalStore.shared.openState
+        let content = JournalListContent.make(state: state, openState: openState, filteredCount: filtered.count)
         List {
             Section {
                 NavigationLink { JournalTimelineView() } label: { Label("Timeline", systemImage: "calendar.day.timeline.left") }
@@ -33,23 +99,38 @@ struct JournalListView: View {
             if openState != .ok {
                 Section { JournalOpenStateBanner(state: openState) }
             }
-            if entries.isEmpty {
-                // With anything but a clean open the banner above carries the honest state; an
-                // empty "no entries yet" here would present a recovered-empty journal as real history.
-                if openState == .ok {
-                    ContentUnavailableView("No journal entries yet", systemImage: "book.closed",
-                                           description: Text("Tap New journal entry to write something, or ask Siri to save a journal entry in Ate."))
+            switch content {
+            case .loading:
+                ProgressView("Loading journal").accessibilityIdentifier("journal.loading")
+            case .readError(let error):
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(error == .storeUnavailable ? "Journal unavailable" : "Journal could not be read",
+                          systemImage: "exclamationmark.triangle")
+                    Text(error == .storeUnavailable
+                         ? "Ate could not open the journal on this iPhone."
+                         : "Ate could not read the journal just now. This is a read problem, not an empty journal.")
+                        .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                    Button("Try again") { reload() }.buttonStyle(.borderless)
                 }
-            } else if filtered.isEmpty {
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("journal.readError")
+            case .emptyJournal:
+                ContentUnavailableView("No journal entries yet", systemImage: "book.closed",
+                                       description: Text("Tap New journal entry to write something, or ask Siri to save a journal entry in Ate."))
+            case .emptySuppressed:
+                // The banner above carries the honest state; an empty claim here would present a
+                // recovered-empty journal as real history.
+                EmptyView()
+            case .noMatches:
                 ContentUnavailableView.search(text: query)
-            }
-            ForEach(filtered, id: \.id) { e in
-                NavigationLink(value: Route.journalEntry(e.id)) { JournalRow(entry: e) }
-                    .accessibilityIdentifier("journal.entry")
+            case .entries:
+                ForEach(filtered, id: \.id) { e in
+                    NavigationLink(value: Route.journalEntry(e.id)) { JournalRow(entry: e) }
+                        .accessibilityIdentifier("journal.entry")
+                }
             }
         }
-        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search journal")
-        .journalSearchChrome()
+        .searchableWhenReadable(Self.controlsVisible(for: state), text: $query)
         .navigationTitle("Journal")
         .ateRootNavigationChrome(logoID: "journal.logo", enabled: isTabRoot)
         .toolbar {
@@ -58,8 +139,18 @@ struct JournalListView: View {
                     .accessibilityIdentifier("journal.newEntry")
             }
         }
-        .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
-        .onAppear { entries = JournalStore.shared.entries() }
+        .onChange(of: store.journalRevision) { _, _ in reload() }
+        .onChange(of: Self.controlsVisible(for: state)) { _, readable in
+            // A failed or superseded read carries no query into the next successful one.
+            if !readable { query = "" }
+        }
+        .onAppear { if stateOverride == nil { reload() } }
+    }
+
+    private func reload() {
+        do { readState = .loaded(try JournalStore.shared.readEntries()) }
+        catch let error as JournalReadError { readState = .failed(error) }
+        catch { readState = .failed(.readFailed) }
     }
 }
 
@@ -87,6 +178,12 @@ struct JournalEntryDetailView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var entry: JournalEntry?
+    /// False until the first read settles: "Entry not found" is only shown after a successful
+    /// read returned nil, never on the frame before the read completes.
+    @State private var entryReadComplete = false
+    /// True only when the store could not be read at all; nil entry with this false means
+    /// the entry is genuinely gone.
+    @State private var entryReadFailed = false
     @State private var editing = false
     @State private var draft = ""
     @State private var confirmDelete = false
@@ -109,7 +206,7 @@ struct JournalEntryDetailView: View {
                         }.padding(.vertical, 4)
                     }
                     if let line = JournalingMomentMapper.contextLine(title: e.journalingSuggestionTitle, date: e.momentDate) {
-                        Section("Moment") { Label(line, systemImage: "book.pages") }
+                        Section("Moment") { Label(line, systemImage: "book.pages").accessibilityIdentifier("journal.detail.momentContext") }
                     }
                     if let name = e.locationName {
                         Section("Location") {
@@ -172,7 +269,7 @@ struct JournalEntryDetailView: View {
                                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { editing = false } }
                                 ToolbarItem(placement: .confirmationAction) {
                                     Button("Save") {
-                                        JournalStore.shared.update(e, text: draft); editing = false; entry = JournalStore.shared.entry(entryID)
+                                        JournalStore.shared.update(e, text: draft); editing = false; reloadEntry()
                                         BetaQA.shared.pass("C-JRN-03", note: "Edited an entry")
                                     }.disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                                 }
@@ -181,15 +278,36 @@ struct JournalEntryDetailView: View {
                     .interactiveDismissDisabled(draft != e.text)
                 }
                 .sheet(item: $openRecipe) { t in NavigationStack { RecipeDetailView(recipeID: t.id) } }
+            } else if !entryReadComplete {
+                ProgressView("Loading entry").accessibilityIdentifier("journal.detail.loading")
+            } else if entryReadFailed {
+                ContentUnavailableView {
+                    Label("Entry could not be read", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text("This is a read problem, not a deleted entry.")
+                } actions: {
+                    Button("Try again") { reloadEntry() }.accessibilityIdentifier("journal.detail.retry")
+                }
             } else {
                 ContentUnavailableView("Entry not found", systemImage: "book.closed", description: Text("It may have been deleted."))
             }
         }
         .navigationTitle("Journal entry")
         .onAppear {
-            entry = JournalStore.shared.entry(entryID)
+            reloadEntry()
             if entry != nil { BetaQA.shared.pass("C-JRN-01", note: "Opened an entry on its own") }
         }
+    }
+
+    private func reloadEntry() {
+        do {
+            entry = try JournalStore.shared.readEntry(entryID)
+            entryReadFailed = false
+        } catch {
+            entry = nil
+            entryReadFailed = true
+        }
+        entryReadComplete = true
     }
 
     func shareText(_ e: JournalEntry) -> String {

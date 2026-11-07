@@ -181,7 +181,9 @@ extension JournalOpenStateUITests {
         let compose = app.textViews["journal.compose.text"]
         compose.tap(); compose.typeText(original)
         app.buttons["journal.compose.save"].tap()
-        let saved = any("journal.entry")
+        wait(app.navigationBars["Journal"])
+        let saved = app.descendants(matching: .any).matching(identifier: "journal.entry")
+            .matching(NSPredicate(format: "label CONTAINS %@", original)).firstMatch
         wait(saved); saved.tap()
         let detail = any("journal.detail.text")
         wait(detail)
@@ -201,20 +203,26 @@ extension JournalOpenStateUITests {
         wait(editor)
         XCTAssertEqual(editor.value as? String, original)
         editor.tap()
-        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.1)).tap()
-        // Append via the native select-all action, not a guessed caret position.
+        // Replace via the native Select All action, not a guessed caret position.
         editor.press(forDuration: 1.2)
         let selectAll = app.menuItems["Select All"]
         wait(selectAll); selectAll.tap(); editor.typeText(changed)
         app.navigationBars["Edit entry"].buttons["Save"].tap()
         waitUntilGone(editor)
-        XCTAssertEqual(detail.label, changed, "Save must update the actual reflection")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        wait(app.navigationBars["Journal"])
+        let edited = app.descendants(matching: .any).matching(identifier: "journal.entry")
+            .matching(NSPredicate(format: "label CONTAINS %@", changed)).firstMatch
+        wait(edited); edited.tap()
+        wait(detail)
+        XCTAssertEqual(detail.label, changed, "Reopened detail must be the same edited reflection before deletion")
         XCTAssertEqual(any("journal.detail.date").label, originalDate, "Editing must preserve the original entry date")
         shot("manual-crud-edited-detail")
 
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
         wait(app.staticTexts["Delete this journal entry?"])
         app.buttons["Cancel"].tap()
+        waitUntilGone(app.staticTexts["Delete this journal entry?"])
         XCTAssertEqual(detail.label, changed, "Cancel must keep the reflection")
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
         wait(app.staticTexts["Delete this journal entry?"])

@@ -41,7 +41,35 @@ class ReleaseNotesTests(unittest.TestCase):
         out = self.notes(); self.assertEqual(out.returncode, 0, out.stderr)
         self.assertIn('Baseline: `build-2-TierA`', out.stdout)
         self.assertIn('- current source', out.stdout)
-        self.assertNotIn('- second source', out.stdout)
+        self.assertNotIn('- second source', out.stdout.split('### Recent-build catch-up')[0])
+        self.assertIn('- second source', out.stdout.split('### Recent-build catch-up')[1])
+
+    def test_test_sections_are_always_present_and_do_not_claim_pass(self):
+        out = self.notes()
+        self.assertIn('### What to test', out.stdout)
+        self.assertIn('### How to test', out.stdout)
+        self.assertIn('No mapped app journey changed', out.stdout)
+        self.assertIn('source inclusion is not device acceptance', out.stdout)
+
+    def test_changed_journal_path_adds_concrete_device_steps(self):
+        path = self.root / 'Ate' / 'Views' / 'JournalViews.swift'
+        path.parent.mkdir(parents=True)
+        path.write_text('// fixture source')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'Journal fixture')
+        out = self.notes(sha=self.git('rev-parse', 'HEAD'))
+        self.assertIn('Open the Journal tab, then Insights & Cooking History', out.stdout)
+        self.assertIn('do not reset or clear all data', out.stdout)
+
+    def test_catchup_is_channel_bound_and_excludes_unmerged_work(self):
+        self.git('checkout', '-qb', 'unmerged', self.first)
+        self.commit('UNMERGED must stay absent')
+        self.git('tag', 'build-20-Other')
+        self.git('checkout', '--detach', self.head)
+        out = self.notes(build=30)
+        self.assertIn('For upgrades from `build-1-TierA`', out.stdout)
+        self.assertNotIn('UNMERGED must stay absent', out.stdout)
+        self.assertNotIn('build-20-Other', out.stdout)
 
     def test_unrelated_branch_tag_cannot_hide_current_changes(self):
         self.git("checkout", "-qb", "unrelated", self.first)

@@ -626,8 +626,15 @@ extension CoverageUITests {
         if save {
             let field = any("insights.journalText"); scrollTo(field); field.tap(); field.typeText("Note for \(scenario)")
             let b = app.buttons["insights.save"]; scrollTo(b); b.tap()
-            wait(any("insights.entry"))
+            XCTAssertFalse(any("insights.tile.journal").exists, "Insights must not duplicate the Journal list")
             XCTAssertFalse(any("insights.journalingPicker").exists, "Picker must be hidden without the paid entitlement")
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+            wait(app.navigationBars["Journal"])
+            let saved = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Note for \(scenario)")).firstMatch
+            wait(saved)
+            saved.tap()
+            wait(any("journal.detail.text"))
+            XCTAssertTrue(any("journal.detail.text").label.contains("Note for \(scenario)"))
         }
         app.terminate()
         return names
@@ -764,8 +771,8 @@ extension CoverageUITests {
     func testJournalMomentContextRow() {
         launch(["-qaMockHealth", "recovery", "-qaJournalMomentEntry"])
         tab("Journal")
-        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch; wait(hub); hub.tap()
-        let ctx = any("insights.entryMomentContext"); scrollTo(ctx); wait(ctx)
+        let entry = app.descendants(matching: .any)["journal.entry"].firstMatch; wait(entry); entry.tap()
+        let ctx = any("journal.detail.momentContext"); scrollTo(ctx); wait(ctx)
         XCTAssertTrue(ctx.label.contains("Dinner at Mama"), ctx.label)
         XCTAssertFalse(any("insights.journalingPicker").exists)
     }

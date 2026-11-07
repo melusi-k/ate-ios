@@ -206,7 +206,7 @@ struct JournalEntryDetailView: View {
                         }.padding(.vertical, 4)
                     }
                     if let line = JournalingMomentMapper.contextLine(title: e.journalingSuggestionTitle, date: e.momentDate) {
-                        Section("Moment") { Label(line, systemImage: "book.pages") }
+                        Section("Moment") { Label(line, systemImage: "book.pages").accessibilityIdentifier("journal.detail.momentContext") }
                     }
                     if let name = e.locationName {
                         Section("Location") {

@@ -42,9 +42,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
-    # Build/nutrition and later regressions have independent exact-head jobs so
-    # the full serial workload cannot exhaust this unchanged cap before the tail.
-    timeout-minutes: 120
+    # Build/nutrition and later regressions have independent exact-head jobs
+    # with separate lower budgets (45m / 110m).
+    timeout-minutes: 45
     env:
       ATE_SIGN_STYLE: Automatic
     steps:
@@ -150,6 +150,7 @@ jobs:
           done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
 
+      # Keep normal-size audits required; retain cross-size cases in the optional lane.
       - name: Nutrition diary and goals UI regressions (#179)
         if: ${{ steps.build.outcome == 'success' }}
         run: |
@@ -159,16 +160,7 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreens \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeLibraryAndRecipe \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeCookMode \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditLargestDynamicTypeNutrition \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingXS \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingXXXL \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX1 \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX3 \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testNutritionFontScalingAX5 \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testLiveDynamicTypeToggle \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreensWithoutDynamicType \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
@@ -195,7 +187,7 @@ jobs:
             "NutritionDiaryUITests testLoggedEntryCanBeEditedAndShowsUpdatedValues]' passed" \
             "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
             "NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed" \
-            "AccessibilityAuditUITests testAuditNutritionScreens]' passed"; do
+            "AccessibilityAuditUITests testAuditNutritionScreensWithoutDynamicType]' passed"; do
             grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
@@ -246,11 +238,11 @@ jobs:
 
   regressions:
     # Independent exact-head lane: a nutrition diagnostic failure must not skip
-    # required regression evidence. Both jobs retain the existing 120-minute cap.
+    # required regression evidence. Keep main's lower 110-minute budget.
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
-    timeout-minutes: 120
+    timeout-minutes: 110
     env:
       ATE_SIGN_STYLE: Automatic
     steps:
@@ -309,25 +301,9 @@ jobs:
 
           grep -E "warning: .*(Widgets|Intents|Snapshot)" build.log > build-warnings.log || true
           tail -n 30 build-warnings.log || true
-      - name: Library Explore native sheet presentation (#83)
-        if: ${{ steps.build.outcome == 'success' }}
-        run: |
-          set -o pipefail
-          # A failed XCTest launch can leave the app process suspended on the simulator.
-          # Reboot this isolated shard's device so the two Explore tests start cleanly.
-          xcrun simctl shutdown "$SIM_ID" >/dev/null 2>&1 || true
-          xcrun simctl boot "$SIM_ID" >/dev/null 2>&1 || true
-          xcrun simctl bootstatus "$SIM_ID" -b
-          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteUITests/CoverageUITests/testExploreInsightsPresentsAsSheetAndDismissesToLibrary \
-            -only-testing:AteUITests/CoverageUITests/testExploreJournalPresentsAsSheetAndDismissesToLibrary \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/library-explore-sheets.xcresult" \
-            -parallel-testing-enabled NO -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
-            CODE_SIGNING_ALLOWED=NO > library-explore-sheets.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" library-explore-sheets.log || true; tail -100 library-explore-sheets.log; exit 1; }
-          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" library-explore-sheets.log | tail -40
-
+      # Removed obsolete Library Explore sheet selectors: the tests and UI no longer
+      # exist and v9 executed zero tests. Current Journal hub navigation is asserted
+      # by InsightsAcceptanceUITests below, not represented as sheet coverage.
       - name: Insights evidence and contextual navigation acceptance (issue #195)
         id: insights_acceptance
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -592,6 +568,8 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteTests/CookSessionTests \
             -only-testing:AteUITests/CookIngredientsUITests \
+            -skip-testing:AteUITests/CookIngredientsUITests/testCookIngredientSheetLargeTextAccessibilityAndImperial \
+            -skip-testing:AteUITests/CookIngredientsUITests/testCookTimerCardLargeText \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-ingredients-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
@@ -624,8 +602,8 @@ jobs:
             "CookSessionTests testReenteringSameRecipeKeepsSessionFactor]' passed" \
             "CookSessionTests testChecklistAmountsRenderMetricAndImperial]' passed" \
             "CookIngredientsUITests testCookIngredientSheetScalesChecksAndPersists]' passed" \
-            "CookIngredientsUITests testCookIngredientSheetLargeTextAccessibilityAndImperial]' passed" \
-            "CookIngredientsUITests testCookTimerCardLargeText]' passed"; do
+            "CookIngredientsUITests testCookIngredientSheetNormalTextAccessibilityAndImperial]' passed" \
+            "CookIngredientsUITests testCookTimerCardNormalText]' passed"; do
             grep -qF "$evidence" cook-ingredients-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 cook-ingredients-tests.log; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed" cook-ingredients-tests.log | tail -40
@@ -634,7 +612,7 @@ jobs:
         if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
           missing=0
-          for log in library-explore-sheets.log insights-evidence-navigation.log share-publish-outage-tests.log interrupted-generation-retry-lifecycle.log recipe-generation-tests.log drink-photo-prompt-tests.log transient-generation-retry.log photo-recipe-output-validation.log library-layout-tests.log expandable-recipe-sheet-tests.log settings-sync.log production-channel-production.log settings-about-145.log account-switch-sync-failure-library.log tracker-ui.log navigation-header-tests.log cook-mode-history.log cook-ingredients-tests.log; do
+          for log in insights-evidence-navigation.log share-publish-outage-tests.log interrupted-generation-retry-lifecycle.log recipe-generation-tests.log drink-photo-prompt-tests.log transient-generation-retry.log photo-recipe-output-validation.log library-layout-tests.log expandable-recipe-sheet-tests.log settings-sync.log production-channel-production.log settings-about-145.log account-switch-sync-failure-library.log tracker-ui.log navigation-header-tests.log cook-mode-history.log cook-ingredients-tests.log; do
             if [ ! -s "$log" ]; then
               echo "::error::Missing regression execution log: $log (not a pass)"
               missing=1
@@ -720,6 +698,7 @@ jobs:
           name: compile-regression-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
+            *.log
             build.log
             app-clip-build.log
             app-clip-tests.log

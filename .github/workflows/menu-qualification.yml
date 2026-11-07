@@ -1,0 +1,446 @@
+name: Menu Qualification (Menu cleanup)
+
+# Branch-owned qualification lane for the combined menu cleanup PR (fold of PRs
+# #292/#293 onto menu-shopping-list-options). Runs the real menu UI journeys on the
+# exact branch head with hard named-pass and named-screenshot gates and
+# always-uploaded evidence. Independent of the shared compile-check workflow.
+#
+# Coverage on one head: Shopping options menu (test07_ShoppingList), Shopping
+# edit/undo (ShoppingEditUndoUITests), Search results menu
+# (testSearchResultsOptionsMenu) and the repaired Library menu journeys
+# (test28_GroupSortAndMenus, test29_ReorderMyOrder).
+#
+# The 15 named screenshot gates cover Shopping (12: 6 options-menu journey + 6
+# edit/undo) and Search (3) only. test28/29 are EXECUTION gates: the Library menu
+# visuals were already accepted separately and get no new pixel gates here.
+#
+# Capture semantics (labels say exactly what each shot is):
+# - shopping-options-menu: the open Shopping options popup on a populated list.
+# - shopping-options-disabled: populated list with NOTHING BOUGHT - "Clear bought
+#   items" disabled, "Clear all items" enabled (paired isEnabled assertions in the
+#   test). This is not the empty-list state.
+# - shopping-clear-bought-cancel / shopping-clear-bought-confirm: PRE-action
+#   confirmation-dialog captures. The outcomes are proven by the test's
+#   post-condition assertions ("1 in the basket" survives cancel; "5 to buy" after
+#   confirm), not by a post-action image.
+# - shopping-clear-all-confirm: PRE-action dialog capture; "Nothing on the list"
+#   assertion proves completion; shopping-after-clear-all is the resulting state.
+# - Clear-All CANCEL is NOT covered by this lane (only the confirm path).
+# - timely-undo-restored: production-config (5s window) restore proven via a real UI
+#   tap per the source lane's verdict semantics; the batch-undo shots evidence the
+#   batch flow only and are not production-window proof.
+#
+# Fallback if the fold is blocked: repointing this trigger at
+# menu-search-results-options happens only by explicit coordination, never by
+# wildcarding future branches.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["menu-shopping-list-options"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: menu-qualification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  menu-ui:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    env:
+      SCHEME: Ate
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode 27.1
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v6
+        with:
+          path: build/DerivedData
+          key: xcode-27-menu-qual-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-27-menu-qual-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            xcode-27-xcode-deriveddata-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project for exact commit
+        run: |
+          BASE=$(grep -E '^\s*MARKETING_VERSION' project.yml | head -1 | sed -E 's/.*"(.*)".*/\1/')
+          VERSION="$(echo "$BASE" | cut -d. -f1-2).${GITHUB_RUN_NUMBER}"
+          sed -i '' -E "s/^( *MARKETING_VERSION: ).*/\1\"$VERSION\"/; s/^( *CURRENT_PROJECT_VERSION: ).*/\1\"${GITHUB_RUN_NUMBER}\"/" project.yml
+          xcodegen generate
+          mkdir -p build
+          xcodebuild -version
+          echo "Qualification commit: $GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Select iPhone 18 Pro simulator (iOS 27.0)
+        id: select_simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > /tmp/available-simulators.json
+          xcodebuild -project Ate.xcodeproj -scheme "$SCHEME" -showdestinations > /tmp/xcode-destinations.txt 2>&1 || {
+            cat /tmp/xcode-destinations.txt
+            exit 1
+          }
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          if ! grep -Fq "id:$SIM_ID" /tmp/xcode-destinations.txt; then
+            echo "ERROR: selected iPhone 18 Pro is not listed as an Ate scheme destination."
+            cat /tmp/xcode-destinations.txt
+            exit 1
+          fi
+          echo "id=$SIM_ID" >> "$GITHUB_OUTPUT"
+          echo "Selected simulator: $SIM_ID"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+
+      - name: Build for testing (iOS simulator)
+        id: build
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO > build-for-testing.log 2>&1 || { grep -n -B 8 -A 12 -E "error:" build-for-testing.log || true; tail -100 build-for-testing.log; exit 1; }
+          grep -E "warning:" build-for-testing.log | sort -u | tail -30 || true
+
+      - name: Shopping options menu and edit/undo UI journeys
+        id: shopping_journeys
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          # Clean process so launch arguments are real (same rationale as other UI shards).
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/AteUITests/test07_ShoppingList \
+            -only-testing:AteUITests/ShoppingEditUndoUITests \
+            -resultBundlePath build/MenuShoppingUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > menu-shopping-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Shopping menu UI journeys failed (xcodebuild exit $status). Exact diagnostics follow; log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" menu-shopping-ui.log || true
+            tail -n 100 menu-shopping-ui.log
+            exit "$status"
+          fi
+          # Hard gate: a green selection that ran nothing is a failure, and every named
+          # journey must appear with its own pass line in the log. A named selector that
+          # matches nothing produces no pass line, so a missing test fails closed here.
+          if grep -q "Executed 0 tests" menu-shopping-ui.log; then echo "::error::shopping menu selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "AteUITests test07_ShoppingList]' passed" \
+            "ShoppingEditUndoUITests testEditSaveCancelAndInvalidQuantityJourneys]' passed" \
+            "ShoppingEditUndoUITests testBatchUndoRestoresBothRemovalsInOriginalOrder]' passed" \
+            "ShoppingEditUndoUITests testTimelyUndoRestoreWithinProductionWindow]' passed" \
+            "ShoppingEditUndoUITests testUndoWindowExpiryFinalizesRemoval]' passed"; do
+            grep -qF "$evidence" menu-shopping-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 menu-shopping-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" menu-shopping-ui.log | tail -20
+
+      - name: Search results and Library menu UI journeys
+        id: search_journeys
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/AteUITests/testSearchResultsOptionsMenu \
+            -only-testing:AteUITests/AteUITests/test28_GroupSortAndMenus \
+            -only-testing:AteUITests/AteUITests/test29_ReorderMyOrder \
+            -resultBundlePath build/MenuSearchUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > menu-search-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Search/Library menu UI journeys failed (xcodebuild exit $status). Exact diagnostics follow; log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" menu-search-ui.log || true
+            tail -n 100 menu-search-ui.log
+            exit "$status"
+          fi
+          # Same fail-closed rule: no pass line, no pass.
+          if grep -q "Executed 0 tests" menu-search-ui.log; then echo "::error::search/library menu selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "AteUITests testSearchResultsOptionsMenu]' passed" \
+            "AteUITests test28_GroupSortAndMenus]' passed" \
+            "AteUITests test29_ReorderMyOrder]' passed"; do
+            grep -qF "$evidence" menu-search-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 menu-search-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" menu-search-ui.log | tail -20
+
+      - name: Journal action menu captures
+        id: journal_menus
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/JournalMenuCaptureUITests \
+            -resultBundlePath build/MenuJournalUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > menu-journal-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Journal menu captures failed (xcodebuild exit $status). Exact diagnostics follow; log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" menu-journal-ui.log || true
+            tail -n 100 menu-journal-ui.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" menu-journal-ui.log; then echo "::error::journal menu selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "JournalMenuCaptureUITests testJournalDetailMoreMenuOpens]' passed" \
+            "JournalMenuCaptureUITests testInsightsEntryContextMenuOpens]' passed"; do
+            grep -qF "$evidence" menu-journal-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 menu-journal-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" menu-journal-ui.log | tail -20
+
+      - name: Nutrition production controls capture
+        id: nutrition_controls
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/NutritionProductionControlsUITests \
+            -resultBundlePath build/MenuNutritionUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > menu-nutrition-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Nutrition production controls capture failed (xcodebuild exit $status). Exact diagnostics follow; log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" menu-nutrition-ui.log || true
+            tail -n 100 menu-nutrition-ui.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" menu-nutrition-ui.log; then echo "::error::nutrition controls selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "NutritionProductionControlsUITests testExistingFoodDiaryControlsAndSourceMenu]' passed"; do
+            grep -qF "$evidence" menu-nutrition-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 menu-nutrition-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" menu-nutrition-ui.log | tail -20
+
+      - name: Export journey screenshots
+        if: always()
+        run: |
+          # Export whatever the runs produced, success or failure: partial captures are
+          # failure diagnostics and the raw xcresults are always retained alongside.
+          # Each result bundle exports into its OWN directory so a screenshot can only
+          # satisfy a gate from the test group that was supposed to capture it.
+          mkdir -p build/MenuUIAttachments/shopping build/MenuUIAttachments/search build/MenuUIAttachments/journalmenus build/MenuUIAttachments/nutrition
+          if [ -d build/MenuShoppingUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/MenuShoppingUITests.xcresult --output-path build/MenuUIAttachments/shopping
+          fi
+          if [ -d build/MenuSearchUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/MenuSearchUITests.xcresult --output-path build/MenuUIAttachments/search
+          fi
+          if [ -d build/MenuJournalUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/MenuJournalUITests.xcresult --output-path build/MenuUIAttachments/journalmenus
+          fi
+          if [ -d build/MenuNutritionUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/MenuNutritionUITests.xcresult --output-path build/MenuUIAttachments/nutrition
+          fi
+          find build/MenuUIAttachments -type f | sort | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify journey screenshot evidence
+        if: always() && steps.shopping_journeys.outcome == 'success' && steps.search_journeys.outcome == 'success' && steps.journal_menus.outcome == 'success' && steps.nutrition_controls.outcome == 'success'
+        run: |
+          # Hard gate: every named journey screenshot must resolve, INSIDE ITS OWN
+          # SCOPE DIRECTORY, to a real decodable PNG with nonzero dimensions.
+          # Resolution is manifest-first with EXACT logical-name matching only
+          # (base == shot, or the observed "<shot>_0_<uuid>" export suffix) - never
+          # substring, so "search-results-menu" can never be satisfied by
+          # "search-results-menu-reset". Unknown manifest structure fails closed.
+          set -euo pipefail
+          ROOT=build/MenuUIAttachments
+          fail() {
+            echo "::error::$1"
+            echo "--- exported files ---"
+            find "$ROOT" -type f -exec ls -l {} + 2>/dev/null || true
+            for M in "$ROOT"/*/manifest.json; do [ -f "$M" ] && { echo "--- $M ---"; head -c 4000 "$M"; echo; }; done
+            exit 1
+          }
+          png_ok() {
+            # Signature alone is not enough (a header-only fixture would pass it):
+            # require sips to decode the image and report nonzero dimensions.
+            [ -f "$1" ] && [ -s "$1" ] || return 1
+            [ "$(od -An -tx1 -N8 "$1" | tr -d ' \n')" = "89504e470d0a1a0a" ] || return 1
+            local w h
+            w=$(sips -g pixelWidth "$1" 2>/dev/null | awk '/pixelWidth/ {print $2}')
+            h=$(sips -g pixelHeight "$1" 2>/dev/null | awk '/pixelHeight/ {print $2}')
+            [ "${w:-0}" -gt 0 ] 2>/dev/null && [ "${h:-0}" -gt 0 ] 2>/dev/null
+          }
+          resolve_shot() {
+            # $1 = logical shot name, $2 = scope directory. Manifest-first, exact names only.
+            local shot="$1" DIR="$2" MANIFEST="$2/manifest.json" f
+            if [ -f "$MANIFEST" ]; then
+              python3 - "$MANIFEST" "$shot" "$DIR" <<'PYMAP'
+          import json, os, sys
+          manifest, shot, outdir = sys.argv[1], sys.argv[2], sys.argv[3]
+          real_out = os.path.realpath(outdir)
+          def confined(fname):
+              # The joined export path must stay inside the scope directory:
+              # reject ../ escapes, absolute paths and symlink breakouts.
+              try:
+                  cand = os.path.realpath(os.path.join(outdir, fname))
+              except Exception:
+                  return None
+              try:
+                  if os.path.commonpath([cand, real_out]) != real_out:
+                      return None
+              except ValueError:
+                  return None
+              return cand if os.path.isfile(cand) else None
+          try:
+              top = json.load(open(manifest))
+          except Exception:
+              sys.exit(2)
+          if not isinstance(top, list):
+              sys.exit(2)
+          # Observed manifest shape (run 41775045591): a list of payload groups, each with an
+          # "attachments" list of {exportedFileName, suggestedHumanReadableName, ...}; suggested
+          # names carry an "_0_<uuid>" suffix and extension. Accept a flat list too; anything
+          # else fails closed.
+          atts = []
+          for e in top:
+              if not isinstance(e, dict):
+                  continue
+              inner = e.get("attachments")
+              atts.extend(inner) if isinstance(inner, list) else atts.append(e)
+          for a in atts:
+              if not isinstance(a, dict):
+                  continue
+              name = a.get("suggestedHumanReadableName") or a.get("humanReadableName") or ""
+              fname = a.get("exportedFileName") or a.get("fileName") or a.get("attachedFileName") or ""
+              base = name[:-4] if name.lower().endswith(".png") else name
+              if base == shot or base.startswith(shot + "_0_"):
+                  cand = confined(fname) if fname else None
+                  if cand:
+                      print(cand)
+                      sys.exit(0)
+                  sys.exit(1)
+          sys.exit(1)
+          PYMAP
+              return $?
+            fi
+            # No manifest: exact-stem filename fallback only (never substring).
+            for f in "$DIR/$shot.png" "$DIR/${shot}_0_"*.png; do
+              [ -f "$f" ] && { echo "$f"; return 0; }
+            done
+            return 1
+          }
+          verify_scope() {
+            local sub="$1"; shift
+            [ -d "$ROOT/$sub" ] || fail "attachment export directory missing: $ROOT/$sub"
+            local shot file rc
+            for shot in "$@"; do
+              set +e
+              file=$(resolve_shot "$shot" "$ROOT/$sub")
+              rc=$?
+              set -e
+              case $rc in
+                0) ;;
+                1) fail "missing screenshot evidence: $sub/$shot" ;;
+                *) fail "unrecognised export manifest structure; cannot associate screenshot: $sub/$shot" ;;
+              esac
+              png_ok "$file" || fail "screenshot for $sub/$shot is not a decodable PNG with nonzero dimensions: $file"
+              echo "verified $sub/$shot -> $file ($(stat -f%z "$file") bytes)"
+            done
+          }
+          verify_scope shopping \
+            shopping-options-menu \
+            shopping-options-disabled \
+            shopping-clear-bought-cancel \
+            shopping-clear-bought-confirm \
+            shopping-clear-all-confirm \
+            shopping-after-clear-all \
+            edit-save-row-renamed \
+            edit-invalid-quantity-save-disabled \
+            batch-undo-toast-two-items \
+            batch-undo-restored-order \
+            timely-undo-restored \
+            undo-expired-removal-final
+          verify_scope search \
+            search-results-menu \
+            search-results-menu-selected \
+            search-results-menu-reset
+          verify_scope journalmenus \
+            journal-detail-menu-open \
+            insights-entry-context-menu
+          verify_scope nutrition \
+            production-food-diary-controls \
+            production-food-diary-log-form \
+            production-food-diary-source-menu
+
+      - name: Record qualification metadata
+        if: always()
+        run: |
+          {
+            echo "head_sha=$GITHUB_SHA"
+            echo "ref=$GITHUB_REF"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "simulator_id=${{ steps.select_simulator.outputs.id }}"
+            echo "build_outcome=${{ steps.build.outcome }}"
+            echo "shopping_journeys_outcome=${{ steps.shopping_journeys.outcome }}"
+            echo "search_journeys_outcome=${{ steps.search_journeys.outcome }}"
+            echo "journal_menus_outcome=${{ steps.journal_menus.outcome }}"
+            echo "nutrition_controls_outcome=${{ steps.nutrition_controls.outcome }}"
+            echo "collected_at=$(date -u +%FT%TZ)"
+          } | tee qualification-metadata.txt
+          mkdir -p build/MenuUIAttachments
+
+      - name: Upload qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: menu-qualification-${{ github.run_number }}
+          path: |
+            qualification-metadata.txt
+            build-for-testing.log
+            menu-shopping-ui.log
+            menu-search-ui.log
+            menu-journal-ui.log
+            menu-nutrition-ui.log
+            build/MenuShoppingUITests.xcresult
+            build/MenuSearchUITests.xcresult
+            build/MenuJournalUITests.xcresult
+            build/MenuNutritionUITests.xcresult
+            build/MenuUIAttachments
+          if-no-files-found: warn

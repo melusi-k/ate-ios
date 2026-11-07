@@ -13,6 +13,8 @@ Also: Journal, widgets / Lock Screen / Control Center, Siri & Shortcuts, Apple W
 
 Data is stored on-device with SwiftData. A corrupt store is moved to `Backups/` and rebuilt from sync with a JSON export (A-DATA-01); failed saves retry and show a banner (A-DATA-02). Settings live in UserDefaults.
 
+**Product lifecycle:** [PRODUCT_LIFECYCLE.md](PRODUCT_LIFECYCLE.md) governs Plan → Build → Verify → Observe; [PRODUCT_OUTCOMES.md](PRODUCT_OUTCOMES.md) tracks customer outcome hypotheses and measures; [VERIFICATION_RECORDS/](VERIFICATION_RECORDS/) stores candidate-specific evidence; [OBSERVATION_REVIEWS/](OBSERVATION_REVIEWS/) records interpreted real-world outcomes and decisions. Use the [Product Outcome issue template](.github/ISSUE_TEMPLATE/product_outcome.yml) for significant customer-facing work. This connects the PRD, acceptance inventory, QA matrix, CI evidence, Supabase telemetry and beta feedback without replacing their existing source-of-truth roles.
+
 **Docs are one source of truth:** item IDs and statuses are defined in `docs/MVP_CHECKLIST.md`; `docs/QA_MATRIX.md` and the in-app Beta checks (`Ate/Logic/BetaChecklist.swift`, generated) follow it, and `scripts/check-ids.py` fails CI on drift (A-CI-05). Security: [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md).
 
 ## AI

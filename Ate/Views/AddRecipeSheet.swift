@@ -16,9 +16,11 @@ struct AddRecipeSheet: View {
     let onSave: (RecipeCard) -> Void
 
     var initialMode: WidgetLinks.AddMode?
+    /// Starting text for the prompt mode (for example a search with no results becomes the new idea).
+    var initialPrompt: String?
 
-    init(initial: SharedInbox.Item? = nil, initialMode: WidgetLinks.AddMode? = nil, onSave: @escaping (RecipeCard) -> Void) {
-        self.initial = initial; self.initialMode = initialMode; self.onSave = onSave
+    init(initial: SharedInbox.Item? = nil, initialMode: WidgetLinks.AddMode? = nil, initialPrompt: String? = nil, onSave: @escaping (RecipeCard) -> Void) {
+        self.initial = initial; self.initialMode = initialMode; self.initialPrompt = initialPrompt; self.onSave = onSave
     }
 
     @State private var mode: Mode = .link
@@ -82,6 +84,10 @@ struct AddRecipeSheet: View {
             if let m = initialMode, draft == nil {
                 mode = m == .photo ? .image : m == .prompt ? .prompt : .link
             }
+            if let initialPrompt, draft == nil, prompt.trimmingCharacters(in: .whitespaces).isEmpty {
+                mode = .prompt
+                prompt = initialPrompt
+            }
             if initial == nil, draft == nil, !loading { restoreInterrupted() }
             // Arrived from the "Save to ate" share extension: prefill and start right away.
             guard let it = initial, draft == nil, !loading else { return }
@@ -106,7 +112,7 @@ struct AddRecipeSheet: View {
 
     @ViewBuilder private var inputState: some View {
         Text("Add a recipe").font(AteFont.display(24))
-        Text("ate turns a link, a screenshot or an idea into a clean recipe card.")
+        Text("Import an existing recipe from a link or screenshot. Describe an idea to generate a new recipe.")
             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
         Picker("Source", selection: $mode) {
             ForEach(Mode.allCases, id: \.self) { m in Text(m.rawValue).tag(m) }
@@ -114,6 +120,7 @@ struct AddRecipeSheet: View {
 
         switch mode {
         case .link:
+            Text("Import an existing recipe. We'll read the source, not invent a new dish.").font(AteFont.body(14))
             HStack {
                 TextField("https://tiktok.com/...", text: $link).keyboardType(.URL)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -151,6 +158,7 @@ struct AddRecipeSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         case .prompt:
+            Text("Generate a new recipe from your idea. Review and edit the result before saving.").font(AteFont.body(14))
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $prompt).accessibilityIdentifier("promptEditor").frame(height: 84).scrollContentBackground(.hidden).padding(6)
                 if prompt.isEmpty {
@@ -212,7 +220,7 @@ struct AddRecipeSheet: View {
 
         Button { Task { await generate() } } label: {
             HStack { if loading { ProgressView().tint(Theme.primaryForeground); Text("Cooking up your card…") }
-                     else { Image(systemName: "sparkles"); Text("Generate recipe card") } }
+                     else { Image(systemName: "sparkles"); Text(mode == .link ? "Import recipe" : mode == .image ? "Read image" : "Generate recipe") } }
         }
         .buttonStyle(.ate(.primary, height: 52, full: true)).disabled(loading).accessibilityIdentifier("generateButton")
     }

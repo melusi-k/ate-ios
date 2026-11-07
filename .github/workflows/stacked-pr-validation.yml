@@ -17,12 +17,55 @@ jobs:
   validate-stack:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # The default branch is the trust anchor, even for stacked PRs.
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
       - name: Validate stack metadata and parent relationship
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/validate-stacked-pr.py
       - name: Test stack validator
+        run: python3 -m unittest scripts.tests.test_validate_stacked_pr -v
+      - name: Advisory PR scope (metadata only)
+        continue-on-error: true
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner, repo: context.repo.repo,
+              pull_number: context.issue.number, per_page: 100,
+            });
+            // Ate-specific test roots, docs and generated localisation are
+            // reported separately, not charged against implementation size.
+            const supporting = f => /^(docs\/|VERIFICATION_RECORDS\/|AteTests\/|AteUITests\/|AteClipTests\/|scripts\/tests\/)/.test(f.filename)
+              || /\.(md|xcstrings)$/.test(f.filename);
+            const implementation = files.filter(f => !supporting(f));
+            const lines = implementation.reduce((n, f) => n + f.additions + f.deletions, 0);
+            const large = lines > 600 || implementation.length > 20;
+            const incomplete = files.length >= 3000;
+            await core.summary.addHeading('PR scope advisory')
+              .addRaw(`Implementation: ${implementation.length} files, ${lines} changed lines. Supporting/test/docs: ${files.length - implementation.length} files.\n\n`)
+              .addRaw(incomplete ? 'GitHub file-list limit reached; totals may be incomplete. Review the full diff.\n\n' : '')
+              .addRaw(large ? 'Large incremental diff: consider whether independent parts can be reviewed separately. This is advice, not a gate.\n\n' : 'No size advisory for this incremental diff.\n\n')
+              .addRaw('Thresholds: more than 600 implementation lines or 20 implementation files. These counts do not assess correctness or replace review, stack validation, or native qualification. No comments, labels or approvals are changed.')
+              .write();
+
+  test-head-validator:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      # Public fetch needs no API token; do not expose credentials to HEAD tests.
+      - name: Fetch exact proposed head without credentials
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          git init .
+          git -c credential.helper= fetch --depth=1 https://github.com/melusi-k/ate-ios.git "$HEAD_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Test candidate stack validator (no token)
         run: python3 -m unittest scripts.tests.test_validate_stacked_pr -v

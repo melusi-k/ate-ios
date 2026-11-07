@@ -3,19 +3,33 @@ import MapKit
 
 /// More › Journal: every Ate journal entry, newest first, with search.
 struct JournalListView: View {
+    @Environment(AppStore.self) private var store
     /// Tests render the banner and empty-state suppression without mutating the shared store.
     var openStateOverride: JournalOpenState? = nil
+    /// True as the Journal tab root: shows the one named route to Insights & Cooking History.
+    var isTabRoot = false
     @State private var entries: [JournalEntry] = []
     @State private var query = ""
     var filtered: [JournalEntry] {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return entries }
         return entries.filter { $0.text.localizedCaseInsensitiveContains(q) || $0.prompt.localizedCaseInsensitiveContains(q)
-            || ($0.locationName ?? "").localizedCaseInsensitiveContains(q) || $0.state.title.localizedCaseInsensitiveContains(q) }
+            || ($0.locationName ?? "").localizedCaseInsensitiveContains(q) || ($0.recordedHealthState?.title.localizedCaseInsensitiveContains(q) ?? false) }
     }
     var body: some View {
         let openState = openStateOverride ?? JournalStore.shared.openState
         List {
+            Section {
+                NavigationLink { JournalTimelineView() } label: { Label("Timeline", systemImage: "calendar.day.timeline.left") }
+                    .accessibilityIdentifier("journal.timelineLink")
+            }
+            if isTabRoot {
+                Section {
+                    NavigationLink(value: Route.insights) {
+                        Label("Insights & Cooking History", systemImage: "heart.text.square")
+                    }.accessibilityIdentifier("journal.insightsHistory")
+                }
+            }
             if openState != .ok {
                 Section { JournalOpenStateBanner(state: openState) }
             }
@@ -24,7 +38,7 @@ struct JournalListView: View {
                 // empty "no entries yet" here would present a recovered-empty journal as real history.
                 if openState == .ok {
                     ContentUnavailableView("No journal entries yet", systemImage: "book.closed",
-                                           description: Text("Save one from Insights, or ask Siri to save a journal entry in Ate."))
+                                           description: Text("Tap New journal entry to write something, or ask Siri to save a journal entry in Ate."))
                 }
             } else if filtered.isEmpty {
                 ContentUnavailableView.search(text: query)
@@ -34,8 +48,17 @@ struct JournalListView: View {
                     .accessibilityIdentifier("journal.entry")
             }
         }
-        .searchable(text: $query, prompt: "Search journal")
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search journal")
+        .journalSearchChrome()
         .navigationTitle("Journal")
+        .ateRootNavigationChrome(logoID: "journal.logo", enabled: isTabRoot)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { store.beginManualJournal() } label: { Label("New journal entry", systemImage: "square.and.pencil") }
+                    .accessibilityIdentifier("journal.newEntry")
+            }
+        }
+        .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
         .onAppear { entries = JournalStore.shared.entries() }
     }
 }
@@ -44,7 +67,7 @@ struct JournalRow: View {
     let entry: JournalEntry
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(entry.createdAt.formatted(date: .abbreviated, time: .shortened) + " · " + entry.state.title)
+            Text(entry.datedStateLabel)
                 .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
             Text(entry.text).font(AteFont.body(15)).lineLimit(2)
             HStack(spacing: 10) {
@@ -75,7 +98,9 @@ struct JournalEntryDetailView: View {
                 List {
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
-                            Label(e.state.title, systemImage: e.state.symbol).font(AteFont.body(13, .semibold)).foregroundStyle(Theme.primary)
+                            if let state = e.recordedHealthState {
+                                Label(state.title, systemImage: state.symbol).font(AteFont.body(13, .semibold)).foregroundStyle(Theme.primary)
+                            }
                             Text(e.createdAt.formatted(date: .complete, time: .shortened)).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
                                 .accessibilityIdentifier("journal.detail.date")
                             if let t = e.editedAt { Text("Edited " + t.formatted(date: .abbreviated, time: .shortened)).font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground) }
@@ -168,7 +193,9 @@ struct JournalEntryDetailView: View {
     }
 
     func shareText(_ e: JournalEntry) -> String {
-        var s = e.createdAt.formatted(date: .long, time: .shortened) + " · " + e.state.title + "\n\n"
+        var s = e.createdAt.formatted(date: .long, time: .shortened)
+        if let state = e.recordedHealthState { s += " · " + state.title }
+        s += "\n\n"
         if !e.prompt.isEmpty { s += e.prompt + "\n\n" }
         s += e.text
         if let l = e.locationName { s += "\n\n📍 " + l }
@@ -205,3 +232,97 @@ struct JournalOpenStateBanner: View {
     }
 }
 
+
+/// Explicit local writing. No Health authorization, generated context or background draft upload.
+struct ManualJournalComposer: View {
+    @Binding var draft: String
+    var onSaved: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var saveError: String?
+    @State private var showSaveError = false
+    @FocusState private var editorFocused: Bool
+    @State private var confirmDiscard = false
+    private var isEmpty: Bool { draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let saveError {
+                    Section {
+                        Text(saveError).foregroundStyle(Theme.destructive)
+                            .accessibilityIdentifier("journal.compose.error")
+                    }
+                }
+                Section {
+                    TextEditor(text: $draft)
+                        .focused($editorFocused)
+                        .frame(minHeight: 180)
+                        .accessibilityLabel("Journal entry")
+                        .accessibilityIdentifier("journal.compose.text")
+                }
+                Section {
+                    Text("Saved only on this iPhone. No Health data is needed. Ate cannot write to Apple's Journal app.")
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                    JournalOpenStateBanner(state: JournalStore.shared.openState)
+                }
+            }
+            .navigationTitle("New journal entry")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        if draft.isEmpty { dismiss() } else { confirmDiscard = true }
+                    }.accessibilityIdentifier("journal.compose.cancel")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        do {
+                            try JournalStore.shared.saveManual(text: draft)
+                            draft = ""
+                            onSaved()
+                            dismiss()
+                        } catch {
+                            // Keep the draft, but never hide the failed-save feedback behind the keyboard.
+                            saveError = error.localizedDescription
+                            editorFocused = false
+                            showSaveError = true
+                        }
+                    }
+                    .disabled(isEmpty)
+                    .accessibilityIdentifier("journal.compose.save")
+                }
+            }
+            .alert("Journal entry not saved", isPresented: $showSaveError) {
+                Button("Continue writing") { editorFocused = true }
+            } message: {
+                Text(saveError ?? "Your draft is still here. Please try saving again.")
+            }
+            .alert("Discard this draft?", isPresented: $confirmDiscard) {
+                Button("Keep writing", role: .cancel) { editorFocused = true }
+                Button("Discard draft", role: .destructive) { draft = ""; dismiss() }
+            } message: { Text("This draft has not been saved.") }
+        }
+        .interactiveDismissDisabled(!draft.isEmpty)
+    }
+}
+
+enum ManualJournalHost { case root }
+
+/// Session-level composer host above the replaceable portrait/sidebar trees.
+/// Journal, Insights and the bottom action all use this same presentation owner.
+struct JournalTaskHost: ViewModifier {
+    @Environment(AppStore.self) private var store
+
+    private var rootComposer: Binding<Bool> {
+        Binding(get: { store.manualJournalHost == .root }, set: { if !$0 { store.manualJournalHost = nil } })
+    }
+
+    func body(content: Content) -> some View {
+        @Bindable var store = store
+        content
+            .sheet(isPresented: rootComposer) {
+                ManualJournalComposer(draft: $store.manualJournalDraft) { store.journalRevision += 1 }
+                    .environment(store)
+            }
+    }
+}

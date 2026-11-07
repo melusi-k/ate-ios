@@ -508,7 +508,7 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 
 - **A-NAV-01 · Navigation and layout in portrait and landscape** — 🟡
   - *Journey:* As a cook, I can use Ate held either way.
-  - *Acceptance:* Given b36+, When I rotate in the Library, Then landscape shows the sidebar + 2-column grid, portrait shows the list, the main bar has Library, Shopping, Insights and Settings (with the iOS 26 Search-role tab where available), and no dedicated Beta/More tab is shown; Beta testing is reachable only in explicitly named beta build channels and is absent from production builds.
+  - *Acceptance:* Given b36+, When I rotate in the Library, Then landscape shows the sidebar + 2-column grid, portrait shows the list, the main bar has Library, Shopping, Journal and Settings (with the iOS 26 Search-role tab where available), and no dedicated Beta/More tab is shown; Beta testing is reachable only in explicitly named beta build channels and is absent from production builds.
   - *Verified by:* `test22_TabBar, test26, test27_LandscapeSidebarGridAndCollections` · QA.md (new step)
   - *Status evidence:* Rotation only just enabled in b36 and unverified; test27 was failing/flaky
   - *Owner:* [#68](https://github.com/melusi-k/ate-ios/issues/68)
@@ -517,7 +517,7 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 #### Design review polish
 
 - **C-DES-01 · Native nav bars** — ❌
-  - *Acceptance:* Library, Shopping, Insights and Settings show system large serif titles that collapse on scroll; pushed screens use the system chevron Back and swipe-back; no custom bar chrome.
+  - *Acceptance:* Library, Shopping, Journal and Settings show system large serif titles that collapse on scroll; pushed screens use the system chevron Back and swipe-back; no custom bar chrome.
   - *Verified by:* auto: UI test testSystemBackFromRecipeNeverDead
   - *Owner:* [#37](https://github.com/melusi-k/ate-ios/issues/37)
   - *Feature area:* Accessibility and navigation · *Release gate:* No committed release gate · *Initial priority:* P1
@@ -764,7 +764,7 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 
 - **C-TAB-05 · Soft scroll edges** — ❌
   - *Journey:* As a cook, soft scroll edges.
-  - *Acceptance:* Library, Shopping, Insights and Settings fade softly under the nav bar when scrolled.
+  - *Acceptance:* Library, Shopping, Journal and Settings fade softly under the nav bar when scrolled.
   - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* [#69](https://github.com/melusi-k/ate-ios/issues/69)
@@ -1520,11 +1520,18 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
   - *Journey:* As the developer, I can investigate recorded app failures and understand crash-free usage.
   - *Acceptance:* Local diagnostic history is available in Settings, persists across relaunch, is capped at 200 typed events, and can be exported/cleared without recording recipe content or sending events off-device. Separately, crash-free sessions and weekly active testers are measured through an approved distribution/monitoring path; privacy disclosures are updated before any external SDK is added.
   - *Verified by:* `DiagnosticHistoryTests` for local history; TestFlight/Xcode Organizer or approved dashboard for crash-free sessions and retention
-  - *Status evidence:* Local-only history implemented on branch; external crash-free/retention measurement remains incomplete.
-  - *Status evidence:* No crash reporting; privacy policy currently says no analytics SDKs
+  - *Status evidence:* Local diagnostics and the privacy-gated Sentry foundation are on main. Sentry starts only in recognized beta channels with a valid configured DSN, and is disabled under tests and in production/unknown channels. Stored-event/privacy and symbolication proof, release-health sessions, crash-free usage and retention remain unverified or disabled; foundation code is not operational monitoring proof.
   - *Owner:* [#40](https://github.com/melusi-k/ate-ios/issues/40)
   - *Feature area:* Product infrastructure and delivery · *Release gate:* Public launch · *Initial priority:* P1
 
+
+## Build-bound beta catalogue
+
+The generated in-app catalogue is a snapshot of this checkout's acceptance wording, not a test execution report or proof that every requirement is implemented. `scripts/gen-beta-checklist.py` emits content revisions for the Pilot catalogue, the combined Pilot/uncommitted catalogue, and each acceptance item. The installed app displays its source commit alongside this revision. Results recorded after the provenance repair carry their own build, source/run identity and catalogue/item revision; older records remain legacy evidence with unknown missing fields.
+
+Pilot remains a readiness gate, not an inventory of all shipped features. Journal C-JRN-01 through C-JRN-08 and nutrition C-NUT-01 through C-NUT-04 remain separately documented under their existing No committed release gate classification. Their existence is visible in the build catalogue, not silently counted as Pilot checks or claimed implemented. Public-launch B requirements remain in this document/QA matrix, outside the beta Pilot/uncommitted screen. Future feature changes must update the relevant acceptance wording/IDs and matrix together before generation; a matching generated file alone does not prove semantic coverage.
+
+For the audited main baseline 2ff1aa8e, Library/Search (#285), Shopping (#282), Settings (#283), Sentry foundation (#290) and About-link repair (#291) are in the source build. The separate Journal v2 and unmerged nutrition editing/weekly work are not treated as shipped by this catalogue audit. No Pilot thresholds or gate assignments are changed by this provenance repair.
 
 ## Privacy-language audit (docs/legal vs code, 2026-10-10)
 

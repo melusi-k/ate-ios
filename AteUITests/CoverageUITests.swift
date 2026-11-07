@@ -25,7 +25,7 @@ final class CoverageUITests: XCTestCase {
     }
     /// Browse-menu item by exact label, scoped to the opened menu. Observed on the iOS 27 runtime
     /// (identical source resolves them on iOS 26): SwiftUI Menu item buttons no longer expose their
-    /// accessibility identifiers (library.insights / library.journal / library.collection.*) to XCUIT;
+    /// accessibility identifiers (library.collection.* and friends) to XCUIT;
     /// the open menu renders them as labelled buttons, so identifier queries can never match there.
     /// Taps and destination assertions are unchanged. Menu-item identifier contract coverage is lost
     /// on this runtime. `icon` anchors duplicates structurally, not by element order: "Recently added"
@@ -33,20 +33,36 @@ final class CoverageUITests: XCTestCase {
     /// and a Group by option (icon calendar), and the SF-symbol image identifiers still surface inside
     /// each button in the observed hierarchy.
     func browseMenuItem(_ label: String, icon: String? = nil) -> XCUIElement {
-        var q = browseMenu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", label))
+        let menu: XCUIElement
+        if label == "Journal" || label == "Insights & journal" {
+            // Target anchoring survives the native popup scrolling Collections away.
+            let menus = app.collectionViews.containing(NSPredicate(format: "label == %@", label))
+            wait(menus.firstMatch)
+            XCTAssertEqual(menus.count, 1, "Explore menu must be unique")
+            menu = menus.firstMatch
+        } else {
+            menu = browseMenu
+        }
+        var q = menu.descendants(matching: .button).matching(NSPredicate(format: "label == %@", label))
         if let icon = icon { q = q.containing(.image, identifier: icon) }
         return q.firstMatch
     }
     func wait(_ e: XCUIElement, _ t: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(e.waitForExistence(timeout: t), "Missing \(e)", file: file, line: line)
     }
-    /// Lists load rows lazily, so the target may be above or below: search down, then back up.
-    func scrollTo(_ e: XCUIElement, max: Int = 25) {
+    /// Search both directions for lazy rows. Callers with a known section order can choose the first direction.
+    func scrollTo(_ e: XCUIElement, max: Int = 25, searchDownFirst: Bool = true) {
         _ = e.waitForExistence(timeout: 2)
         var n = 0
-        while !(e.exists && e.isHittable) && n < max { app.swipeUp(); n += 1 }
+        while !(e.exists && e.isHittable) && n < max {
+            if searchDownFirst { app.swipeUp() } else { app.swipeDown() }
+            n += 1
+        }
         n = 0
-        while !(e.exists && e.isHittable) && n < max * 2 { app.swipeDown(); n += 1 }
+        while !(e.exists && e.isHittable) && n < max * 2 {
+            if searchDownFirst { app.swipeDown() } else { app.swipeUp() }
+            n += 1
+        }
     }
     func tab(_ name: String) {
         var n = 0
@@ -56,7 +72,10 @@ final class CoverageUITests: XCTestCase {
             sleep(1); n += 1
         }
         let b = app.tabBars.buttons[name]
-        if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
+        if name == "Journal" {
+            XCTAssertTrue(b.waitForExistence(timeout: 5), "Journal must be selected through its tab, not a pushed-screen back button")
+            b.tap()
+        } else if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
     }
     func startPrompt(_ s: String) {
         app.buttons["Add recipe"].tap()
@@ -184,21 +203,23 @@ final class CoverageUITests: XCTestCase {
         let settingsQuietHours = app.descendants(matching: .any)["toggle.Quiet hours"].firstMatch
 
         // Settings uses lazily materialized rows: scroll to each toggle before asserting it exists.
-        scrollTo(settingsQuietHours); wait(settingsQuietHours, 3)
+        // Export is in Tools, below Timer notifications. Search toward the earlier section first,
+        // retaining the opposite-direction fallback if the restored viewport differs.
+        scrollTo(settingsQuietHours, searchDownFirst: false); wait(settingsQuietHours, 3)
         XCTAssertTrue(settingsQuietHours.isHittable, "Quiet hours toggle should be reachable in Timer notifications")
         scrollTo(settingsStepAlerts); wait(settingsStepAlerts, 3)
         XCTAssertTrue(settingsStepAlerts.isHittable, "Step-by-step alerts toggle should be reachable in Timer notifications")
         let about = app.staticTexts["aboutVersion"]; scrollTo(about); wait(about, 3)
         XCTAssertTrue(about.label.contains("(build "))
-        let buildNotes = app.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
-        scrollTo(buildNotes); wait(buildNotes, 3)
-        // SwiftUI may expose the combined container differently across iOS simulator versions.
-        // Assert the visible heading and populated notes container independently instead of
-        // depending on the parent's synthesized accessibility label.
+        // The SwiftUI combined container is not consistently hittable across simulator
+        // runtimes, even when its child heading is visible. Scroll to the stable visible
+        // heading so this journey cannot spend minutes swiping toward a non-hittable parent.
         let buildNotesHeading = app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "Changes in this build")
         ).firstMatch
-        wait(buildNotesHeading, 3)
+        scrollTo(buildNotesHeading); wait(buildNotesHeading, 3)
+        let buildNotes = app.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
+        wait(buildNotes, 3)
         XCTAssertFalse(buildNotes.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                        "About should show generated build notes or an explicit fallback")
         let diagnostics = app.descendants(matching: .any)["aiDiagnostics"].firstMatch
@@ -206,44 +227,6 @@ final class CoverageUITests: XCTestCase {
         let transparency = app.descendants(matching: .any)["aiTransparency"].firstMatch
         scrollTo(transparency); wait(transparency, 3)
         shot("settings-about")
-    }
-
-    // MARK: Library Explore sheets (#83)
-
-    func testExploreInsightsPresentsAsSheetAndDismissesToLibrary() {
-        launch()
-        tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let insights = browseMenuItem("Insights & journal")
-        wait(insights)
-        insights.tap()
-
-        let dismiss = app.buttons["library.explore.dismiss"]
-        wait(dismiss)
-        XCTAssertTrue(app.navigationBars["Insights"].waitForExistence(timeout: 5),
-                      "Insights should open in its own sheet navigation stack")
-        dismiss.tap()
-        wait(app.buttons["libraryBrowseMenu"])
-        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected,
-                      "Dismissing Explore should return to the same Library tab")
-    }
-
-    func testExploreJournalPresentsAsSheetAndDismissesToLibrary() {
-        launch()
-        tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let journal = browseMenuItem("Journal")
-        wait(journal)
-        journal.tap()
-
-        let dismiss = app.buttons["library.explore.dismiss"]
-        wait(dismiss)
-        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 5),
-                      "Journal should open in its own sheet navigation stack")
-        dismiss.tap()
-        wait(app.buttons["libraryBrowseMenu"])
-        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected,
-                      "Dismissing Explore should return to the same Library tab")
     }
 
     // MARK: photo dish step
@@ -346,7 +329,7 @@ final class CoverageUITests: XCTestCase {
         shot("beta-item-pass")
         app.navigationBars.buttons.element(boundBy: 0).tap()
         for _ in 0..<6 { app.swipeDown() }
-        wait(text("Pilot gate: \(before + 1)/"), 5)
+        wait(text("This build: \(before + 1)/"), 5)
         let item2 = app.descendants(matching: .any)["beta.A-AUTH-04"].firstMatch
         scrollTo(item2); item2.tap()
         wait(app.buttons["Fail"], 5); app.buttons["Fail"].tap()
@@ -356,12 +339,17 @@ final class CoverageUITests: XCTestCase {
         scrollTo(export); export.tap(); sleep(2)
         shot("beta-export-sheet")
         if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
-        let reset = app.buttons["Reset all results"]
+        let reset = app.buttons["Reset this build's results"]
         scrollTo(reset); reset.tap()
-        let confirm = app.buttons["Reset"].firstMatch
-        wait(confirm, 5); confirm.tap()
+        let confirm = app.buttons["Reset this build"].firstMatch
+        wait(confirm, 5)
+        XCTAssertTrue(text("Earlier-build history is kept.").exists)
+        shot("beta-reset-current-build-confirmation")
+        app.buttons["Cancel"].firstMatch.tap()
+        XCTAssertFalse(confirm.exists)
+        reset.tap(); wait(confirm, 5); confirm.tap()
         app.swipeDown(); app.swipeDown(); app.swipeDown()
-        wait(text("Pilot gate: 0/"), 5)
+        wait(text("This build: 0/"), 5)
         shot("beta-reset")
     }
 
@@ -380,6 +368,7 @@ final class CoverageUITests: XCTestCase {
         wait(beta, 5); beta.tap()
         wait(app.staticTexts["betaProgress"], 8)
         XCTAssertTrue(app.navigationBars.staticTexts["Beta testing"].exists)
+        shot("beta-after-library-clear")
     }
 
     /// Regression for the direct user journey: tapping Settings › Beta testing from a
@@ -393,6 +382,37 @@ final class CoverageUITests: XCTestCase {
         wait(app.staticTexts["betaProgress"], 8)
         XCTAssertTrue(app.navigationBars.staticTexts["Beta testing"].exists)
         XCTAssertTrue(app.staticTexts["betaCISummary"].exists)
+        XCTAssertEqual(app.staticTexts["betaCISummary"].label, "CI: no published evidence for this exact build")
+        shot("beta-fresh-settings")
+        shot("beta-ci-no-published-evidence")
+    }
+
+    /// Presentation fixtures do not prove a live network failure or signed-out account race.
+    func test35d_BetaCINotLoadedAndUnknownAreNotNoEvidence() {
+        launch(["-qaBetaCINotLoaded"])
+        tab("Settings"); app.buttons["settings.betaTesting"].tap()
+        let summary = app.staticTexts["betaCISummary"]
+        wait(summary)
+        XCTAssertEqual(summary.label, "CI: not loaded")
+        XCTAssertFalse(summary.label.contains("no published evidence"))
+        shot("beta-ci-not-loaded")
+        app.terminate()
+        launch(["-qaBetaCIRefreshFailure"])
+        tab("Settings"); app.buttons["settings.betaTesting"].tap()
+        wait(app.staticTexts["betaCIError"])
+        XCTAssertEqual(app.staticTexts["betaCISummary"].label, "CI: status unknown")
+        XCTAssertTrue(app.staticTexts["betaCIError"].label.contains("Simulated refresh failure"))
+        shot("beta-ci-refresh-unknown")
+    }
+
+    func test35e_BetaLocalBuildExplainsUnverifiedVerdicts() {
+        launch()
+        tab("Settings"); app.buttons["settings.betaTesting"].tap()
+        let notice = app.staticTexts["betaUnverifiedBuildNotice"]
+        scrollTo(notice); wait(notice)
+        XCTAssertTrue(notice.label.contains("no verifiable release identity"))
+        XCTAssertTrue(notice.label.contains("not counted as current-build verification"))
+        shot("beta-local-build-identity-notice")
     }
 
     func passed() -> Int {
@@ -585,17 +605,19 @@ final class CoverageUITests: XCTestCase {
 extension CoverageUITests {
     func openInsights(_ scenario: String) {
         launch(["-qaMockHealth", scenario, "-qaHealthRecipes"])
-        tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let row = browseMenuItem("Insights & journal")
-        wait(row); row.tap()
+        tab("Journal")
+        // Journal is the tab root; Insights & Cooking History is its one named route.
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub); hub.tap()
     }
     func any(_ id: String) -> XCUIElement { app.descendants(matching: .any)[id] }
     /// Connects, checks title + prompts, returns suggestion titles, saves a journal entry.
     @discardableResult
     func runHealthScenario(_ scenario: String, title: String, save: Bool = false) -> [String] {
         openInsights(scenario)
-        let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
+        let connect = app.buttons["insights.connect"]; wait(connect)
+        shot("journal-insights-hub-route")
+        connect.tap()
         wait(text(title))
         let prompt = app.buttons["insights.prompt"].firstMatch; scrollTo(prompt)
         XCTAssertTrue(prompt.exists, "\(scenario): no journal prompt")
@@ -723,7 +745,8 @@ extension CoverageUITests {
     /// Regression guard (StepTrackerTCA lesson): Connect must still ask for Health when access is undecided.
     func testHealthPermissionPromptAppearsWhenUndecided() {
         launch(["-qaMockHealth", "recovery", "-qaHealthRecipes", "-qaHealthPrompt"])
-        tab("Library"); app.buttons["libraryBrowseMenu"].tap(); let row = browseMenuItem("Insights & journal"); wait(row); row.tap()
+        tab("Journal")
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch; wait(hub); hub.tap()
         let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
         let alert = app.alerts.firstMatch; wait(alert, 5)
         XCTAssertTrue(alert.label.contains("Health"), alert.label)
@@ -740,7 +763,8 @@ extension CoverageUITests {
     /// Journaling Suggestions picker is never presented under UI tests; check the context row instead.
     func testJournalMomentContextRow() {
         launch(["-qaMockHealth", "recovery", "-qaJournalMomentEntry"])
-        tab("Library"); app.buttons["libraryBrowseMenu"].tap(); let row = browseMenuItem("Insights & journal"); wait(row); row.tap()
+        tab("Journal")
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch; wait(hub); hub.tap()
         let ctx = any("insights.entryMomentContext"); scrollTo(ctx); wait(ctx)
         XCTAssertTrue(ctx.label.contains("Dinner at Mama"), ctx.label)
         XCTAssertFalse(any("insights.journalingPicker").exists)
@@ -751,14 +775,17 @@ extension CoverageUITests {
 extension CoverageUITests {
     func testCookingTrackerMonthNavigationAndSelectedDay() {
         launch(["-qaMockHealth", "empty", "-qaHealthRecipes"])
-        tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
-        let insights = browseMenuItem("Insights & journal")
-        wait(insights); insights.tap()
+        tab("Journal")
+        // Journal is the tab root; Insights & Cooking History is its one named route.
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub); hub.tap()
 
-        let insightsTitle = app.navigationBars["Insights"]
+        let insightsTitle = app.navigationBars["Insights & Cooking History"]
         wait(insightsTitle)
-        wait(app.images["insights.logo"])
+        // The hub is pushed above Journal, so its native Back button replaces root logo chrome.
+        let journalBack = insightsTitle.buttons["Journal"]
+        wait(journalBack)
+        XCTAssertTrue(journalBack.isHittable, "The pushed tracker must retain its route back to Journal")
         let month = any("tracker.displayedMonth")
         scrollTo(month)
         wait(month)

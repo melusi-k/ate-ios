@@ -1,0 +1,69 @@
+name: Classify native qualification scope
+
+on:
+  workflow_call:
+    outputs:
+      app:
+        description: True unless the complete PR diff is documentation-only
+        value: ${{ jobs.classify.outputs.app }}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.scope.outputs.app }}
+    steps:
+      # Metadata only, no checkout or execution of PR code.
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        id: scope
+        with:
+          script: |
+            let native = true;
+            let reason = 'Non-PR event: native qualification required.';
+            const pr = context.payload.pull_request;
+            const documentation = path => {
+              // Only named documentation locations, never arbitrary Markdown
+              // nested in app/test/backend/scripts roots (case-insensitive).
+              const lower = path.toLowerCase();
+              // New Markdown-generated inputs must be added to this list by hand.
+              const generatedInputs = new Set(['docs/mvp_checklist.md', 'changelog.md',
+                'readme.md', '.github/issue_template/release-readiness.md',
+                'ate/resources/buildnotes.md']);
+              if (generatedInputs.has(lower)) return false;
+              if (/^(scripts|ate|ateclip|atetests|ateuitests|atewidgets|atewatch|ate\.xcodeproj|supabase|shared|watchwidgets)\//.test(lower)) return false;
+              if (lower.startsWith('docs/')) return /\.(md|txt|png|jpe?g|gif|svg|webp)$/.test(lower);
+              if (lower.startsWith('.github/issue_template/')) return /\.(md|ya?ml)$/.test(lower);
+              return !lower.includes('/') && /\.md$/.test(lower)
+                || lower === '.github/pull_request_template.md';
+            };
+            if (pr) {
+              try {
+                const files = await github.paginate(github.rest.pulls.listFiles, {
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  pull_number: pr.number, per_page: 100,
+                });
+                const current = (await github.rest.pulls.get({
+                  owner: context.repo.owner, repo: context.repo.repo, pull_number: pr.number,
+                })).data;
+                const sameRevision = current.head.sha === pr.head.sha
+                  && current.base.sha === pr.base.sha;
+                const complete = sameRevision && files.length > 0 && files.length < 3000
+                  && files.length === current.changed_files;
+                const docsOnly = complete && files.every(f => documentation(f.filename)
+                  && (!f.previous_filename || documentation(f.previous_filename)));
+                native = !docsOnly;
+                reason = docsOnly ? 'Complete diff is documentation-only. Native tests NOT RUN.'
+                  : 'Non-documentation, empty or incomplete diff: native qualification required.';
+              } catch (error) {
+                reason = 'File classification unavailable: native qualification required (fail closed).';
+              }
+            }
+            core.setOutput('app', String(native));
+            await core.summary.addHeading('Native scope classification')
+              .addRaw(reason + '\n\n')
+              .addRaw('A documentation-only decision is not native test success. Workflows, scripts, app code and unknown paths retain native qualification. Renames from non-documentation paths also require native tests.')
+              .write();

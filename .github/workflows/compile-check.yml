@@ -21,36 +21,14 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
-    outputs:
-      app: ${{ steps.filter.outputs.app }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: Classify changed files
-        id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          filters: |
-            app:
-              - 'Ate/**'
-              - 'AteClip/**'
-              - 'AteTests/**'
-              - 'AteUITests/**'
-              - 'AteWidgets/**'
-              - 'AteWatch/**'
-              - 'Ate.xcodeproj/**'
-              - 'project.yml'
-              - 'Package.swift'
-              - 'Package.resolved'
-              - 'scripts/**'
-              - 'supabase/**'
-              - '.github/workflows/**'
+    uses: ./.github/workflows/classify-native-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
 
   docs-validation:
     needs: changes
-    if: needs.changes.outputs.app != 'true'
+    if: needs.changes.outputs.app == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -60,11 +38,13 @@ jobs:
       - name: Test release-readiness evidence logic
         run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
 
-  compile:
+  build-nutrition:
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
-    timeout-minutes: 75
+    # Build/nutrition and later regressions have independent exact-head jobs
+    # with separate lower budgets (45m / 110m).
+    timeout-minutes: 45
     env:
       ATE_SIGN_STYLE: Automatic
     steps:
@@ -142,34 +122,191 @@ jobs:
             -only-testing:AteTests/DataArchiveTests \
             -only-testing:AteTests/NutritionGoalsTests \
             -only-testing:AteTests/RecipeNutritionTests \
+            -only-testing:AteTests/NutritionDiaryTests \
+            -only-testing:AteTests/CatalogueIntegrityTests \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-foundation-unit-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > nutrition-foundation-unit-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-foundation-unit-tests.log || true; tail -120 nutrition-foundation-unit-tests.log; exit 1; }
+          # CatalogueIntegrityTests is introduced by PR #238 (food catalogue) and must merge
+          # before this slice; the pass-line guard below fails the job if the suite is absent.
+          # Execution evidence: a green selection that ran nothing is a failure, and the suites
+          # wired in by name must each show their own pass lines.
+          if grep -q "Executed 0 tests" nutrition-foundation-unit-tests.log; then echo "::error::nutrition unit selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "CatalogueIntegrityTests testCatalogueRecordsVerifiedWithRightsAndFiniteValues]' passed" \
+            "CatalogueIntegrityTests testCatalogueIDsAndNormalizedNamesAndAliasesUnique]' passed" \
+            "CatalogueIntegrityTests testAliasesPreserveAllMaterialQualifiers]' passed" \
+            "CatalogueIntegrityTests testCalculatorMatchesStateQualifiedAlias]' passed" \
+            "CatalogueIntegrityTests testCalculatorSurfacesUnmappedSADishNameAsIncomplete]' passed" \
+            "NutritionDiaryTests testDiaryRoundTripsEntryDateMealQuantityServingsAndProvenance]' passed" \
+            "NutritionDiaryTests testEditingEntryReplacesByIdentityKeepsDayAndLeavesOthersUntouched]' passed" \
+            "NutritionDiaryTests testDayTotalsReflectEditedEntrySnapshot]' passed" \
+            "NutritionDiaryTests testWeekIntervalUsesTheCalendarWeekContainingTheGivenDate]' passed" \
+            "NutritionDiaryTests testWeekTotalsIncludeOnlyCurrentCalendarWeekEntries]' passed" \
+            "NutritionDiaryTests testWeekTotalsExcludeEntriesWithoutParseableDay]' passed" \
+            "NutritionDiaryTests testWeekTotalsEmptyWeekReportsNoValues]' passed"; do
+            grep -qF "$evidence" nutrition-foundation-unit-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-foundation-unit-tests.log; exit 1; }
+          done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
 
-      - name: Library Explore native sheet presentation (#83)
+      # Keep normal-size audits required; retain cross-size cases in the optional lane.
+      - name: Nutrition diary and goals UI regressions (#179)
         if: ${{ steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
-          # A failed XCTest launch can leave the app process suspended on the simulator.
-          # Reboot this isolated shard's device so the two Explore tests start cleanly.
-          xcrun simctl shutdown "$SIM_ID" >/dev/null 2>&1 || true
-          xcrun simctl boot "$SIM_ID" >/dev/null 2>&1 || true
-          xcrun simctl bootstatus "$SIM_ID" -b
+          # Clean process so launch arguments are real (same rationale as other UI shards).
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteUITests/CoverageUITests/testExploreInsightsPresentsAsSheetAndDismissesToLibrary \
-            -only-testing:AteUITests/CoverageUITests/testExploreJournalPresentsAsSheetAndDismissesToLibrary \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/library-explore-sheets.xcresult" \
+            -only-testing:AteUITests/NutritionDiaryUITests \
+            -only-testing:AteUITests/NutritionGoalsUITests \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreensWithoutDynamicType \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
-            CODE_SIGNING_ALLOWED=NO > library-explore-sheets.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" library-explore-sheets.log || true; tail -100 library-explore-sheets.log; exit 1; }
-          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" library-explore-sheets.log | tail -40
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > nutrition-ui-tests.log 2>&1 || status=$?
+          # Export screenshots, hierarchy snapshots and audit attachments on every outcome,
+          # including successful runs, so merge-gate pixel evidence is retained.
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/nutrition-ui-attachments" 2>/dev/null || true
+          if [ "${status:-0}" -ne 0 ]; then
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-ui-tests.log || true
+            tail -120 nutrition-ui-tests.log
+            exit 1
+          fi
+          # Execution evidence: a green selection that ran nothing is a failure, and every
+          # named test must appear with its own pass line in the log.
+          if grep -q "Executed 0 tests" nutrition-ui-tests.log; then echo "::error::nutrition UI selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "NutritionDiaryUITests testFoodDiaryOpensAndExplicitlyLogsFoodWithUnavailableValues]' passed" \
+            "NutritionDiaryUITests testDiaryShowsGoalPromptWhenGoalsUnconfiguredAndEmptyState]' passed" \
+            "NutritionDiaryUITests testLogFoodRejectsNonPositiveQuantityWithVisibleError]' passed" \
+            "NutritionDiaryUITests testLogFoodSurfacesSaveFailure]' passed" \
+            "NutritionDiaryUITests testCorruptDiaryShowsErrorAndRecoversAfterBackupReset]' passed" \
+            "NutritionDiaryUITests testCorruptGoalsShowLoadErrorWithRetry]' passed" \
+            "NutritionDiaryUITests testRecipeNutritionShowsIncompleteStateForUnmappedIngredient]' passed" \
+            "NutritionDiaryUITests testLoggedEntryCanBeEditedAndShowsUpdatedValues]' passed" \
+            "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
+            "NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed" \
+            "AccessibilityAuditUITests testAuditNutritionScreensWithoutDynamicType]' passed"; do
+            grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
 
+      - name: Upload nutrition UI diagnostics (early)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          # Unique per run+attempt and distinct from the tail artifact, so this early upload
+          # never collides with the immutable tail artifact name and nutrition diagnostics
+          # survive even when a later push supersedes this run before the job tail.
+          name: nutrition-ui-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            nutrition-ui-tests.log
+            ${{ runner.temp }}/ate-test-results/nutrition-ui-tests.xcresult
+            ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
+
+      - name: Upload build and nutrition diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: compile-build-nutrition-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            build.log
+            app-clip-build.log
+            app-clip-tests.log
+            ${{ runner.temp }}/app-clip-tests.xcresult
+            build-warnings.log
+            test.log
+            test-summary.log
+            ui.log
+            ui-summary.log
+            production-channel-production.log
+            settings-sync.log
+            tracker-ui.log
+            cook-mode-history.log
+            recipe-generation-tests.log
+            library-layout-tests.log
+            navigation-header-tests.log
+            share-publish-outage-tests.log
+            nutrition-ui-tests.log
+            ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
+            ${{ runner.temp }}/ate-test-results/*.xcresult
+            cook-ingredients-tests.log
+            ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments
+
+  regressions:
+    # Independent exact-head lane: a nutrition diagnostic failure must not skip
+    # required regression evidence. Keep main's lower 110-minute budget.
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 110
+    env:
+      ATE_SIGN_STYLE: Automatic
+    steps:
+      # PR validation must build the exact proposed head, not GitHub's synthetic merge commit.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            xcode-27-xcode-deriveddata-
+      - name: Validate docs IDs and generated checklist consistency
+        run: python3 scripts/check-ids.py
+      - name: Test release-readiness evidence logic
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: xcode-27-homebrew-xcodegen-v1
+          restore-keys: |
+            xcode-27-homebrew-
+      - run: brew install xcodegen && xcodegen generate
+      - name: Prepare diagnostics directory
+        run: mkdir -p "$RUNNER_TEMP/ate-test-results"
+      - name: Build for testing (iOS simulator)
+        id: build
+        run: |
+          set -o pipefail
+          STEP_START=$(date +%s)
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+
+          set +e
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+          status=$?
+          set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=build-for-testing duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
+
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Simulator build failed (xcodebuild exit $status). Matching diagnostics and recent log follow:"
+            grep -n -B 8 -A 12 -E "error:|warning:|failed|Fatal error|Testing failed" build.log || true
+            echo "::group::Last 100 build log lines"
+            tail -n 100 build.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
+
+          grep -E "warning: .*(Widgets|Intents|Snapshot)" build.log > build-warnings.log || true
+          tail -n 30 build-warnings.log || true
+      # Removed obsolete Library Explore sheet selectors: the tests and UI no longer
+      # exist and v9 executed zero tests. Current Journal hub navigation is asserted
+      # by InsightsAcceptanceUITests below, not represented as sheet coverage.
       - name: Insights evidence and contextual navigation acceptance (issue #195)
         id: insights_acceptance
-        if: ${{ steps.build.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         continue-on-error: true
         run: |
           set -o pipefail
@@ -184,7 +321,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" insights-evidence-navigation.log | tail -40
 
       - name: Share publish outage fallback UI regression (PR #122)
-        if: ${{ steps.build.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
@@ -197,7 +334,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" share-publish-outage-tests.log | tail -40
 
       - name: Interrupted generation Retry lifecycle acceptance (#143)
-        if: ${{ steps.build.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
@@ -431,6 +568,8 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteTests/CookSessionTests \
             -only-testing:AteUITests/CookIngredientsUITests \
+            -skip-testing:AteUITests/CookIngredientsUITests/testCookIngredientSheetLargeTextAccessibilityAndImperial \
+            -skip-testing:AteUITests/CookIngredientsUITests/testCookTimerCardLargeText \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-ingredients-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
@@ -463,11 +602,23 @@ jobs:
             "CookSessionTests testReenteringSameRecipeKeepsSessionFactor]' passed" \
             "CookSessionTests testChecklistAmountsRenderMetricAndImperial]' passed" \
             "CookIngredientsUITests testCookIngredientSheetScalesChecksAndPersists]' passed" \
-            "CookIngredientsUITests testCookIngredientSheetLargeTextAccessibilityAndImperial]' passed" \
-            "CookIngredientsUITests testCookTimerCardLargeText]' passed"; do
+            "CookIngredientsUITests testCookIngredientSheetNormalTextAccessibilityAndImperial]' passed" \
+            "CookIngredientsUITests testCookTimerCardNormalText]' passed"; do
             grep -qF "$evidence" cook-ingredients-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 cook-ingredients-tests.log; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed" cook-ingredients-tests.log | tail -40
+
+      - name: Require retained regression logs
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          missing=0
+          for log in insights-evidence-navigation.log share-publish-outage-tests.log interrupted-generation-retry-lifecycle.log recipe-generation-tests.log drink-photo-prompt-tests.log transient-generation-retry.log photo-recipe-output-validation.log library-layout-tests.log expandable-recipe-sheet-tests.log settings-sync.log production-channel-production.log settings-about-145.log account-switch-sync-failure-library.log tracker-ui.log navigation-header-tests.log cook-mode-history.log cook-ingredients-tests.log; do
+            if [ ! -s "$log" ]; then
+              echo "::error::Missing regression execution log: $log (not a pass)"
+              missing=1
+            fi
+          done
+          exit "$missing"
 
       - name: Summarize non-blocking regression outcomes
         if: always()
@@ -485,7 +636,7 @@ jobs:
                 echo "### Regression failure detected — NOT PASSED"
                 echo "- Log: $log"
                 echo "- Candidate SHA: $GITHUB_SHA"
-                echo "- Artifacts: compile-check-diagnostics-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+                echo "- Artifacts: compile-regression-diagnostics-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
                 echo "- Action: link the failure evidence and reproduction steps to the owning issue."
                 echo
               } >> "$GITHUB_STEP_SUMMARY"
@@ -544,9 +695,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: compile-check-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          name: compile-regression-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
+            *.log
             build.log
             app-clip-build.log
             app-clip-tests.log
@@ -564,6 +716,50 @@ jobs:
             library-layout-tests.log
             navigation-header-tests.log
             share-publish-outage-tests.log
+            nutrition-ui-tests.log
+            ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log
             ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments
+
+  compile:
+    # Preserve the existing required-check context and fail closed on either lane.
+    needs: [changes, build-nutrition, regressions]
+    if: ${{ always() && needs.changes.outputs.app == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require both exact-head native lanes
+        env:
+          BUILD_NUTRITION_RESULT: ${{ needs.build-nutrition.result }}
+          REGRESSIONS_RESULT: ${{ needs.regressions.result }}
+        run: |
+          if [ "$BUILD_NUTRITION_RESULT" != success ] || [ "$REGRESSIONS_RESULT" != success ]; then
+            echo "::error::Native qualification incomplete: build-nutrition=$BUILD_NUTRITION_RESULT regressions=$REGRESSIONS_RESULT"
+            exit 1
+          fi
+
+  qualification-result:
+    name: Compile qualification result
+    if: always()
+    needs: [changes, compile, docs-validation]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Report actual qualification route
+        env:
+          CLASSIFIER: ${{ needs.changes.result }}
+          NATIVE: ${{ needs.changes.outputs.app }}
+          NATIVE_RESULT: ${{ needs.compile.result }}
+          DOCS_RESULT: ${{ needs.docs-validation.result }}
+        run: |
+          if [[ "$CLASSIFIER" != success ]]; then
+            echo 'Scope classifier failed; qualification is NOT established.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [[ "$NATIVE" == false ]]; then
+            echo 'Documentation-only diff. Mac compile/tests NOT RUN; this is NOT native qualification.' >> "$GITHUB_STEP_SUMMARY"
+            [[ "$NATIVE_RESULT" == skipped && "$DOCS_RESULT" == success ]]
+          else
+            echo "Native qualification required. Mac job result: $NATIVE_RESULT." >> "$GITHUB_STEP_SUMMARY"
+            [[ "$NATIVE" == true && "$NATIVE_RESULT" == success ]]
+          fi

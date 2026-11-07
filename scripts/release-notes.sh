@@ -51,6 +51,26 @@ prev=$(printf '%s\n' "$selection" | sed -n '2p')
 catchup=$(printf '%s\n' "$selection" | sed -n '3p')
 range=${prev:+$prev..}$SOURCE
 # No arbitrary HEAD/last-20 fallback: failure must stay visible and source-bound.
+render_history() {
+  python3 - "$1" <<'PYHISTORY'
+import subprocess, sys
+
+def git(*args):
+    return subprocess.check_output(["git", *args], text=True).strip()
+internal = []
+for line in git("log", "--no-merges", "--format=%H%x09%s", sys.argv[1]).splitlines():
+    sha, title = line.split("\t", 1)
+    paths = git("diff-tree", "--root", "--no-commit-id", "--name-only", "-r", sha).splitlines()
+    if paths and all(p.startswith((".github/", "docs/", "scripts/")) for p in paths):
+        internal.append(sha)
+    else:
+        print("- " + title)
+if internal:
+    print("\n#### Internal / CI - no device check needed")
+    print("Build, documentation and developer-tooling maintenance. Review the linked source and CI evidence rather than expecting a visible app change.")
+    print("- " + str(len(internal)) + " internal source changes: " + ", ".join("[`" + sha[:7] + "`](https://github.com/melusi-k/ate-ios/commit/" + sha + ")" for sha in internal))
+PYHISTORY
+}
 log=$(git log --no-merges --format='%s' "$range")
 echo "## ate $VERSION (build $BUILD)"
 echo
@@ -61,7 +81,7 @@ else
   printf 'No earlier same-channel ancestor build tag exists in this checkout. Listing all non-merge source history through this commit, not a previous-release delta.\n\n'
 fi
 if [ -n "$log" ]; then
-  printf '%s\n' "$log" | sed -E 's/^/- /'
+  render_history "$range"
 else
   printf 'No new non-merge source commits since `%s`.\n' "$prev"
 fi
@@ -75,8 +95,20 @@ window = (catchup + ".." if catchup else "") + source
 if catchup and catchup != previous:
     print("### Recent-build catch-up (not all new in this build)")
     print(f"For upgrades from `{catchup}` through this source. This covers up to five earlier same-channel ancestor builds; the exact new-build baseline is listed above.\n")
-    history = git("log", "--no-merges", "--format=%s", window)
-    print("\n".join("- " + line for line in history.splitlines()) if history else "No source changes in this window.")
+    history = git("log", "--no-merges", "--format=%H%x09%s", window)
+    internal = []
+    for line in history.splitlines():
+        sha, title = line.split("\t", 1)
+        changed = git("diff-tree", "--root", "--no-commit-id", "--name-only", "-r", sha).splitlines()
+        if changed and all(p.startswith((".github/", "docs/", "scripts/")) for p in changed):
+            internal.append(sha)
+        else:
+            print("- " + title)
+    if internal:
+        print("\n#### Internal / CI - no device check needed")
+        print("Build, documentation and developer-tooling maintenance. Review source/CI evidence, not a visible app change.")
+        print("- " + str(len(internal)) + " internal source changes: " + ", ".join("[`" + sha[:7] + "`](https://github.com/melusi-k/ate-ios/commit/" + sha + ")" for sha in internal))
+    if not history: print("No source changes in this window.")
     print()
 paths = set(git("diff", "--name-only", catchup, source).splitlines()) if catchup else set(git("ls-tree", "-r", "--name-only", source).splitlines())
 # Suggestions are tied to changed source areas, not generated claims that a feature shipped or passed.

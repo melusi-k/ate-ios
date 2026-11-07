@@ -62,7 +62,7 @@ struct InsightLifecycleStore {
                 save(all)
                 return true
             }
-            return existing.status == .active
+            return existing.status == .active || existing.status == .seen
         }
         all[id] = InsightLifecycleRecord(status: .active, evidenceFingerprint: evidenceFingerprint, updatedAt: now, snoozedUntil: nil)
         save(all)
@@ -70,13 +70,17 @@ struct InsightLifecycleStore {
     }
 
     func markSeen(_ id: String, now: Date = Date()) {
-        transition(id, to: .seen, now: now)
+        guard let record = records()[id] else { return }
+        _ = markSeen(id: id, evidenceFingerprint: record.evidenceFingerprint, now: now)
     }
 
-    /// Marks an insight seen only if its evidence still matches what the user acted on.
+    /// Viewing is not dismissal. Only the matching active/seen version may be marked seen;
+    /// never reopen a version the user explicitly dismissed, handled or snoozed.
     @discardableResult
     func markSeen(id: String, evidenceFingerprint: String, now: Date = Date()) -> Bool {
-        transition(id, to: .seen, expectedFingerprint: evidenceFingerprint, now: now)
+        guard let record = records()[id], record.evidenceFingerprint == evidenceFingerprint,
+              record.status == .active || record.status == .seen else { return false }
+        return transition(id, to: .seen, expectedFingerprint: evidenceFingerprint, now: now)
     }
 
     func dismiss(_ id: String, now: Date = Date()) {

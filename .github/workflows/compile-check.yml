@@ -64,9 +64,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
-    # Build/nutrition and later regressions have independent exact-head jobs so
-    # the full serial workload cannot exhaust this unchanged cap before the tail.
-    timeout-minutes: 120
+    # Build/nutrition and later regressions have independent exact-head jobs
+    # with separate lower budgets (45m / 110m).
+    timeout-minutes: 45
     env:
       ATE_SIGN_STYLE: Automatic
     steps:
@@ -264,7 +264,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
-    timeout-minutes: 120
+    timeout-minutes: 110
     env:
       ATE_SIGN_STYLE: Automatic
     steps:

@@ -190,4 +190,31 @@ final class FoodJournalReviewedBackupRestoreTests: XCTestCase {
         }
     }
 
+    func testIncomingReflectionIdentityConflictPreservesExistingLegacyBeforePrepare() throws {
+        for kind in [JournalEntryKind.reflection.rawValue, "future-kind"] {
+        try withDiskWorld { coordinator, journal, defaults, root in
+            let original = meal()
+            let reflectionID = try journal.saveManual(text: "Existing reflection")
+            let context = try XCTUnwrap(journal.container).mainContext
+            let saved = try XCTUnwrap(try context.fetch(FetchDescriptor<Ate.JournalEntry>()).first { $0.id == reflectionID })
+            saved.kindRaw = kind
+            try context.save()
+            var incoming = original; incoming.id = try XCTUnwrap(UUID(uuidString: reflectionID))
+            let legacyBytes = try JSONEncoder().encode([original])
+            defaults.set(legacyBytes, forKey: NutritionDiaryRepository.storageKey)
+            XCTAssertThrowsError(try coordinator.restoreReviewedLegacyBackup(JSONEncoder().encode([incoming]),
+                preservedCopyDirectory: root.appendingPathComponent("copies"))) { error in
+                XCTAssertEqual(error as? FoodJournalStoreError, .conflictingIdentity)
+            }
+            XCTAssertEqual(defaults.data(forKey: NutritionDiaryRepository.storageKey), legacyBytes)
+            XCTAssertFalse(defaults.bool(forKey: FoodJournalMigration.markerKey))
+            XCTAssertTrue(try FoodJournalStore(container: journal.container).readMeals().isEmpty)
+            XCTAssertEqual(saved.text, "Existing reflection")
+            XCTAssertEqual(saved.kindRaw, kind)
+            XCTAssertEqual(try context.fetch(FetchDescriptor<Ate.JournalEntry>()).map(\.id), [reflectionID])
+            XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("copies").path))
+        }
+        }
+    }
+
 }

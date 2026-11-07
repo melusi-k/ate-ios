@@ -412,6 +412,15 @@ final class AppStore {
     private let context: ModelContext?
     /// Nil until the complete canonical consumer graph is qualified for activation.
     let foodJournalRuntime: FoodJournalRuntime?
+    /// All in-app Journal surfaces use the graph's actual owner, including isolated QA worlds.
+    /// The legacy graph retains its existing app-lifetime owner until activation is qualified.
+    var journalStore: JournalStore { foodJournalRuntime?.journal ?? JournalStore.shared }
+
+    func journalTimelineItems() throws -> [JournalTimelineItem] {
+        if let runtime = foodJournalRuntime { return try runtime.timelineItems() }
+        // The not-yet-activated legacy graph still has one explicit Journal owner.
+        return try FoodJournalStore(container: journalStore.container).timelineItems()
+    }
     private let nutritionDiaryRepository: NutritionDiaryRepository
     private let nutritionGoalsRepository: NutritionGoalsRepository
 

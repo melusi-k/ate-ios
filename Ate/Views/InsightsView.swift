@@ -493,6 +493,21 @@ struct InsightsView: View {
                                 insightActionLabel(insightActionTitle(for: candidate), symbol: insightActionSymbol(for: candidate))
                             }
                             .accessibilityIdentifier("insights.progress.action.\(candidate.id)")
+                            if !candidate.relatedRecipes.isEmpty {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("From your cooking history")
+                                        .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
+                                    ForEach(candidate.relatedRecipes, id: \.id) { ref in
+                                        Button { openRecipe = RecipeSheetTarget(id: ref.id, recordsHealthSuggestionEvidence: false) } label: {
+                                            Label(ref.title, systemImage: "fork.knife")
+                                                .font(AteFont.body(13, .semibold))
+                                                .foregroundStyle(Theme.primary)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityIdentifier("insights.progress.recipe.\(candidate.id).\(ref.id)")
+                                    }
+                                }
+                            }
                             VStack(alignment: .leading, spacing: 12) {
                                 Button("I've handled this") { resolveRecipeInsight(candidate) }
                                     .font(AteFont.body(12, .semibold))
@@ -683,10 +698,7 @@ struct InsightsView: View {
                                   detail: "Turn it on in Settings › Health › Data Access & Devices › ate.",
                                   id: "insights.denied", presentation: presentation)
             case .notDetermined:
-                Text("Connect Apple Health (read-only) to get meal ideas that fit your sleep, steps and workouts. Your health data stays on this iPhone.")
-                    .font(AteFont.body(14))
-                Button("Connect Apple Health") { Task { await model.tapConnect(recipes: store.recipes) } }
-                    .buttonStyle(.ate(.primary, full: true)).accessibilityIdentifier("insights.connect")
+                quietHealthConnect(presentation)
             case .requested:
                 if model.loading { ProgressView() }
                 else if let c = model.context {
@@ -729,7 +741,7 @@ struct InsightsView: View {
                     .foregroundStyle(Theme.mutedForeground)
                 Spacer()
                 if presentation.showsConnect {
-                    Button("Connect Apple Health") { Task { await model.tapConnect(recipes: store.recipes); prompt = model.context?.prompts.first } }
+                    Button("Connect Apple Health") { Task { await model.tapConnect(recipes: store.recipes) } }
                         .buttonStyle(.ate(.secondary, height: 36))
                         .accessibilityIdentifier("insights.connect")
                 }
@@ -763,7 +775,7 @@ struct InsightsView: View {
                         .accessibilityIdentifier("insights.retry")
                 }
                 if !AppConfig.channel.isEmpty || AppConfig.isUITesting {
-                    Button("Use sample data") { Task { await model.useSampleData(recipes: store.recipes); prompt = model.context?.prompts.first } }
+                    Button("Use sample data") { Task { await model.useSampleData(recipes: store.recipes) } }
                         .font(AteFont.body(12, .semibold))
                         .accessibilityIdentifier("insights.sampleData")
                 }
@@ -788,8 +800,8 @@ struct InsightsView: View {
             }.accessibilityIdentifier("insights.newJournalEntry")
             Text("Reflect on your day on the Journal tab, just below Insights & Cooking History.")
                 .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-            if entries.isEmpty {
-                Text("No entries yet.").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+            NavigationLink { JournalTimelineView() } label: {
+                insightActionLabel("Open your Food Journal timeline", symbol: "calendar.day.timeline.left")
             }
             .accessibilityIdentifier("insights.journalTimeline")
             if let reflectionsReadError {
@@ -908,8 +920,10 @@ struct InsightsView: View {
             }
             reflectionsReadError = nil
         } catch let error as JournalTimelineReadError {
+            entries = []
             reflectionsReadError = error
         } catch {
+            entries = []
             reflectionsReadError = .readFailed
         }
     }

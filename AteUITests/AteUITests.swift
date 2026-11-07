@@ -19,7 +19,10 @@ final class AteUITests: XCTestCase {
             sleep(1); n += 1
         }
         let b = app.tabBars.buttons[name]
-        if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
+        if name == "Journal" {
+            XCTAssertTrue(b.waitForExistence(timeout: 5), "Journal must be selected through its tab, not a pushed-screen back button")
+            b.tap()
+        } else if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
     }
     func scrollTo(_ e: XCUIElement, max: Int = 8) {
         _ = e.waitForExistence(timeout: 5)
@@ -270,7 +273,7 @@ final class AteUITests: XCTestCase {
 
     /// Cooks the prompt recipe through Cook mode so today has a recorded cooking day (optionally
     /// deleting the recipe afterwards), then opens today's "Cooked that day" sheet through
-    /// Insights -> Insights & Cooking History. Returns the day's recipe row.
+    /// Journal -> Insights & Cooking History. Returns the day's recipe row.
     private func openTodayCookedSheet(deleteRecipeFirst: Bool = false, runningTimer: Bool = false) -> XCUIElement {
         launch()
         addPromptRecipe()
@@ -1100,7 +1103,7 @@ final class AteUITests: XCTestCase {
         app.tabBars.buttons["Shopping"].tap()
         XCTAssertEqual(add.label, "Add item")
         app.tabBars.buttons["Journal"].tap()
-        XCTAssertEqual(add.label, "New journal entry", "Insights root offers New journal entry, not the Shopping or recipe action")
+        XCTAssertEqual(add.label, "New journal entry", "Journal root offers New journal entry, not the Shopping or recipe action")
         app.tabBars.buttons["Library"].tap()
         XCTAssertEqual(add.label, "Add recipe")
         app.tabBars.buttons["Search"].firstMatch.tap()

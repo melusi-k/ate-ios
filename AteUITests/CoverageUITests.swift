@@ -72,7 +72,10 @@ final class CoverageUITests: XCTestCase {
             sleep(1); n += 1
         }
         let b = app.tabBars.buttons[name]
-        if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
+        if name == "Journal" {
+            XCTAssertTrue(b.waitForExistence(timeout: 5), "Journal must be selected through its tab, not a pushed-screen back button")
+            b.tap()
+        } else if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
     }
     func startPrompt(_ s: String) {
         app.buttons["Add recipe"].tap()

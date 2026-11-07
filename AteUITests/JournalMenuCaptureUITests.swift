@@ -7,7 +7,7 @@ import XCTest
 /// and the delete only runs after the open detail is verified to be the
 /// seed entry itself. Nothing pre-existing is selected or removed.
 ///
-/// Navigation discipline: Journal is the Insights tab root and the Insights hub is pushed.
+/// Navigation discipline: Journal is the Journal tab root and the Insights hub is pushed.
 /// Every menu dismissal is asserted gone before back or tab navigation.
 final class JournalMenuCaptureUITests: XCTestCase {
     private var app: XCUIApplication!
@@ -77,7 +77,7 @@ final class JournalMenuCaptureUITests: XCTestCase {
         _ = seedText()
     }
 
-    /// Journal is the Insights tab root, not an Explore sheet.
+    /// Journal is the Journal tab root, not an Explore sheet.
     private func openJournalTimeline() {
         app.tabBars.buttons["Journal"].tap()
         returnToJournalRoot()

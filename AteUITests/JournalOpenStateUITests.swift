@@ -70,7 +70,7 @@ final class JournalOpenStateUITests: XCTestCase {
         print("SNAPSHOT-END \(name)")
     }
 
-    /// The journal timeline is the Insights tab root: one tab tap, no menu.
+    /// The journal timeline is the Journal tab root: one tab tap, no menu.
     private func openJournal() {
         wait(app.tabBars.firstMatch, 15)
         app.tabBars.buttons["Journal"].tap()

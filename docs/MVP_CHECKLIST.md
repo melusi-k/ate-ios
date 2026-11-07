@@ -508,7 +508,7 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 
 - **A-NAV-01 · Navigation and layout in portrait and landscape** — 🟡
   - *Journey:* As a cook, I can use Ate held either way.
-  - *Acceptance:* Given b36+, When I rotate in the Library, Then landscape shows the sidebar + 2-column grid, portrait shows the list, the main bar has Library, Shopping, Insights and Settings (with the iOS 26 Search-role tab where available), and no dedicated Beta/More tab is shown; Beta testing is reachable only in explicitly named beta build channels and is absent from production builds.
+  - *Acceptance:* Given b36+, When I rotate in the Library, Then landscape shows the sidebar + 2-column grid, portrait shows the list, the main bar has Library, Shopping, Journal and Settings (with the iOS 26 Search-role tab where available), and no dedicated Beta/More tab is shown; Beta testing is reachable only in explicitly named beta build channels and is absent from production builds.
   - *Verified by:* `test22_TabBar, test26, test27_LandscapeSidebarGridAndCollections` · QA.md (new step)
   - *Status evidence:* Rotation only just enabled in b36 and unverified; test27 was failing/flaky
   - *Owner:* [#68](https://github.com/melusi-k/ate-ios/issues/68)
@@ -517,7 +517,7 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 #### Design review polish
 
 - **C-DES-01 · Native nav bars** — ❌
-  - *Acceptance:* Library, Shopping, Insights and Settings show system large serif titles that collapse on scroll; pushed screens use the system chevron Back and swipe-back; no custom bar chrome.
+  - *Acceptance:* Library, Shopping, Journal and Settings show system large serif titles that collapse on scroll; pushed screens use the system chevron Back and swipe-back; no custom bar chrome.
   - *Verified by:* auto: UI test testSystemBackFromRecipeNeverDead
   - *Owner:* [#37](https://github.com/melusi-k/ate-ios/issues/37)
   - *Feature area:* Accessibility and navigation · *Release gate:* No committed release gate · *Initial priority:* P1
@@ -764,7 +764,7 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 
 - **C-TAB-05 · Soft scroll edges** — ❌
   - *Journey:* As a cook, soft scroll edges.
-  - *Acceptance:* Library, Shopping, Insights and Settings fade softly under the nav bar when scrolled.
+  - *Acceptance:* Library, Shopping, Journal and Settings fade softly under the nav bar when scrolled.
   - *Verified by:* `—` · Manual (Settings › Beta testing)
   - *Status evidence:* Build 97; awaiting device run
   - *Owner:* [#69](https://github.com/melusi-k/ate-ios/issues/69)

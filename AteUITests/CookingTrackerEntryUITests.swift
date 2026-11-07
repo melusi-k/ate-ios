@@ -11,10 +11,12 @@ final class CookingTrackerEntryUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
         app.launch()
-        let insightsTab = app.tabBars.buttons["Journal"]
-        XCTAssertTrue(insightsTab.waitForExistence(timeout: 10), "Insights should be a first-class tab")
-        insightsTab.tap()
-        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 10), "Insights tab root is the Journal")
+        let journalTab = app.tabBars.buttons["Journal"]
+        XCTAssertTrue(journalTab.waitForExistence(timeout: 10), "Journal should be a first-class tab")
+        XCTAssertFalse(app.tabBars.buttons["Insights"].exists, "Insights remains a destination, not a tab")
+        journalTab.tap()
+        XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 10), "Journal tab root is the Journal")
+        shot("journal-tab-label-icon-root")
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10))
         hub.tap()

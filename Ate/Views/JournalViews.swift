@@ -9,6 +9,7 @@ struct JournalListView: View {
     /// True as the Journal tab root: shows the one named route to Insights & Cooking History.
     var isTabRoot = false
     @State private var entries: [JournalEntry] = []
+    @State private var readError: String?
     @State private var query = ""
     var filtered: [JournalEntry] {
         let q = query.trimmingCharacters(in: .whitespaces)
@@ -17,7 +18,7 @@ struct JournalListView: View {
             || ($0.locationName ?? "").localizedCaseInsensitiveContains(q) || ($0.recordedHealthState?.title.localizedCaseInsensitiveContains(q) ?? false) }
     }
     var body: some View {
-        let openState = openStateOverride ?? JournalStore.shared.openState
+        let openState = openStateOverride ?? store.journalStore.openState
         List {
             Section {
                 NavigationLink { JournalTimelineView() } label: { Label("Timeline", systemImage: "calendar.day.timeline.left") }
@@ -33,7 +34,12 @@ struct JournalListView: View {
             if openState != .ok {
                 Section { JournalOpenStateBanner(state: openState) }
             }
-            if entries.isEmpty {
+            if let readError {
+                Section {
+                    Text(readError).accessibilityIdentifier("journal.reflections.readError")
+                    Button("Try again") { reloadReflections() }
+                }
+            } else if entries.isEmpty {
                 // With anything but a clean open the banner above carries the honest state; an
                 // empty "no entries yet" here would present a recovered-empty journal as real history.
                 if openState == .ok {
@@ -58,8 +64,18 @@ struct JournalListView: View {
                     .accessibilityIdentifier("journal.newEntry")
             }
         }
-        .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
-        .onAppear { entries = JournalStore.shared.entries() }
+        .onChange(of: store.journalRevision) { _, _ in reloadReflections() }
+        .onAppear { reloadReflections() }
+    }
+
+    private func reloadReflections() {
+        do {
+            entries = try store.journalStore.readReflections()
+            readError = nil
+        } catch {
+            entries = []
+            readError = "Journal entries could not be read. This is not an empty journal."
+        }
     }
 }
 
@@ -158,7 +174,7 @@ struct JournalEntryDetailView: View {
                 }
                 .confirmationDialog("Delete this journal entry?", isPresented: $confirmDelete, titleVisibility: .visible) {
                     Button("Delete", role: .destructive) {
-                        JournalStore.shared.delete(e); store.show("Journal entry deleted")
+                        store.journalStore.delete(e); store.show("Journal entry deleted")
                         BetaQA.shared.pass("C-JRN-04", note: "Deleted an entry after confirming")
                         entry = nil; dismiss()
                     }
@@ -172,7 +188,7 @@ struct JournalEntryDetailView: View {
                                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { editing = false } }
                                 ToolbarItem(placement: .confirmationAction) {
                                     Button("Save") {
-                                        JournalStore.shared.update(e, text: draft); editing = false; entry = JournalStore.shared.entry(entryID)
+                                        store.journalStore.update(e, text: draft); editing = false; entry = store.journalStore.entry(entryID)
                                         BetaQA.shared.pass("C-JRN-03", note: "Edited an entry")
                                     }.disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                                 }
@@ -187,7 +203,7 @@ struct JournalEntryDetailView: View {
         }
         .navigationTitle("Journal entry")
         .onAppear {
-            entry = JournalStore.shared.entry(entryID)
+            entry = store.journalStore.entry(entryID)
             if entry != nil { BetaQA.shared.pass("C-JRN-01", note: "Opened an entry on its own") }
         }
     }
@@ -235,6 +251,7 @@ struct JournalOpenStateBanner: View {
 
 /// Explicit local writing. No Health authorization, generated context or background draft upload.
 struct ManualJournalComposer: View {
+    @Environment(AppStore.self) private var store
     @Binding var draft: String
     var onSaved: () -> Void
     @Environment(\.dismiss) private var dismiss
@@ -263,7 +280,7 @@ struct ManualJournalComposer: View {
                 Section {
                     Text("Saved only on this iPhone. No Health data is needed. Ate cannot write to Apple's Journal app.")
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                    JournalOpenStateBanner(state: JournalStore.shared.openState)
+                    JournalOpenStateBanner(state: store.journalStore.openState)
                 }
             }
             .navigationTitle("New journal entry")
@@ -277,7 +294,7 @@ struct ManualJournalComposer: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         do {
-                            try JournalStore.shared.saveManual(text: draft)
+                            try store.journalStore.saveManual(text: draft)
                             draft = ""
                             onSaved()
                             dismiss()

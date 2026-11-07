@@ -79,12 +79,12 @@ final class InsightsPresentationUITests: XCTestCase {
                       "the \(name) tab must show its content after tapping it")
     }
 
-    /// The Insights tab root is the Journal; Insights & Cooking History is its one named route.
+    /// The Journal tab root owns reflection; Insights & Cooking History is its one named route.
     private func openInsightsHub() {
         // Destination is the tab ROOT (the Journal tile): a redundant re-tap on the already
         // current tab only pops to that root, so the always-present tab bar is the origin
         // marker and up to 3 taps are safe here.
-        tab("Insights", from: app.tabBars.firstMatch, arrival: any("journal.insightsHistory"))
+        tab("Journal", from: app.tabBars.firstMatch, arrival: any("journal.insightsHistory"))
         let hub = any("journal.insightsHistory")
         wait(hub)
         hub.tap()
@@ -170,16 +170,24 @@ final class InsightsPresentationUITests: XCTestCase {
         XCTAssertTrue(card.isHittable, "the Library Today card must be present once Health is connected")
         wait(any("library.todayCard.sampleBadge"))
         shot("ipp-01-sample-marks-library-today")
-        // The reset above leaves the Insights stack with the hub pushed at its top position;
+        // The reset above leaves the Journal stack with the hub pushed at its top position;
         // the two remaining badge checks scroll in the known-downward direction from there.
-        tab("Insights", from: app.navigationBars["Your Kitchen"],
+        tab("Journal", from: app.navigationBars["Your Kitchen"],
             arrival: app.navigationBars["Insights & Cooking History"])
         wait(app.navigationBars["Insights & Cooking History"])
         XCTAssertTrue(scrollTo(any("insights.sampleBadge.suggestedMeals")),
                       "the Suggested meals tile must carry the sample marker")
-        XCTAssertTrue(scrollTo(any("insights.sampleBadge.dailyReflection")),
-                      "the Reflect on your day tile must carry the sample marker")
         shot("ipp-01-sample-marks-insights")
+        // Reflection moved to the Journal root in #407. Keep the same provenance assertion
+        // at its actual destination rather than reviving a duplicate Insights composer.
+        let back = app.navigationBars["Insights & Cooking History"].buttons["Journal"]
+        wait(back)
+        back.tap()
+        wait(app.navigationBars["Journal"])
+        XCTAssertTrue(scrollTo(any("journal.reflection.sampleBadge")),
+                      "the root Reflect on your day composer must carry the sample marker")
+        wait(text("These prompts use sample Health data, not your Health readings."))
+        shot("ipp-01-sample-marks-journal-root")
     }
 
     // MARK: Quiet optional Health
@@ -415,7 +423,7 @@ final class InsightsPresentationUITests: XCTestCase {
         // always-present tab bar, as in openInsightsHub: a redundant re-tap only pops to the
         // tab root, which IS the destination. A screen-specific origin marker here would
         // silently disable the retry whenever the cook flow's exit screen changes.
-        tab("Insights", from: app.tabBars.firstMatch, arrival: any("journal.insightsHistory"))
+        tab("Journal", from: app.tabBars.firstMatch, arrival: any("journal.insightsHistory"))
         let hub = any("journal.insightsHistory")
         wait(hub)
         hub.tap()
@@ -430,7 +438,7 @@ final class InsightsPresentationUITests: XCTestCase {
     /// Switching tabs preserves the pushed hub. Return to Journal explicitly instead of
     /// assuming a second tab selection pops a stack that was not currently selected.
     private func reopenInsightsFromJournal() {
-        tab("Insights", from: app.navigationBars["Your Kitchen"],
+        tab("Journal", from: app.navigationBars["Your Kitchen"],
             arrival: app.navigationBars["Insights & Cooking History"])
         let title = app.navigationBars["Insights & Cooking History"]
         wait(title)

@@ -11,7 +11,7 @@ final class CookReflectionUITests: XCTestCase {
 
     override func tearDown() {
         if app != nil {
-            if app.buttons["Keep for later"].exists { app.buttons["Keep for later"].tap() }
+            if app.buttons["Later"].exists { app.buttons["Later"].tap() }
             if app.buttons["cookReflection.notNow"].exists { app.buttons["cookReflection.notNow"].tap() }
             if app.buttons["cookJournal.qa.cleanup"].waitForExistence(timeout: 2) { app.buttons["cookJournal.qa.cleanup"].tap() }
         }
@@ -78,6 +78,22 @@ final class CookReflectionUITests: XCTestCase {
         finish.tap()
     }
 
+    /// Normal-size portrait acceptance: both action buttons precede centered content.
+    private func assertCompletionActionsAreAtTop(file: StaticString = #filePath, line: UInt = #line) {
+        let add = app.buttons["cookReflection.write"]
+        let done = app.buttons["cookReflection.notNow"]
+        let title = app.staticTexts["cookReflection.title"]
+        wait(add); wait(done); wait(title)
+        XCTAssertTrue(add.isHittable && done.isHittable, file: file, line: line)
+        XCTAssertLessThanOrEqual(max(add.frame.maxY, done.frame.maxY), title.frame.minY,
+                                 "Both completion actions belong above the content", file: file, line: line)
+        XCTAssertEqual(title.frame.midX, app.frame.midX, accuracy: 6,
+                       "Completion title is centered", file: file, line: line)
+        let recipe = app.staticTexts["cookCompletion.recipe"]
+        XCTAssertEqual(recipe.frame.midX, app.frame.midX, accuracy: 6,
+                       "Recipe is centered", file: file, line: line)
+    }
+
     /// Production route: history is confirmed before Done, which leaves no resumable session.
     func testFinishDoesNotRecreateTheResumeSession() {
         launch()
@@ -85,6 +101,7 @@ final class CookReflectionUITests: XCTestCase {
         cookAndFinish()
         wait(app.staticTexts["cookCompletion.recorded"])
         wait(app.buttons["cookReflection.write"])
+        assertCompletionActionsAreAtTop()
         shot("completion-01-first-cook-confirmation-portrait")
         app.buttons["cookReflection.notNow"].tap()
         wait(app.buttons["Cook mode"], 10)
@@ -104,6 +121,7 @@ final class CookReflectionUITests: XCTestCase {
         wait(app.staticTexts["cookCompletion.recorded"])
         XCTAssertFalse(app.staticTexts["cookCompletion.dailyNudge"].exists)
         wait(app.buttons["cookReflection.write"])
+        assertCompletionActionsAreAtTop()
         shot("completion-03-repeat-cook-note-still-available-portrait")
         app.buttons["cookReflection.write"].tap()
         wait(app.textViews["cookJournal.note"])
@@ -164,7 +182,7 @@ final class CookReflectionUITests: XCTestCase {
         wait(note)
         XCTAssertEqual(note.value as? String, retained)
         shot("cook-journal-landscape-draft")
-        app.buttons["Keep for later"].tap()
+        app.buttons["Later"].tap()
         XCTAssertTrue(note.waitForNonExistence(timeout: 10))
         XCUIDevice.shared.orientation = .portrait
         wait(app.tabBars.buttons["Journal"])

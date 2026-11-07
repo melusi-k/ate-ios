@@ -162,11 +162,43 @@ def find_run(run_id):
     return runs[0] if runs else None
 
 
+# QA1 runs as three independent cases; the flow passes only when these exact three case
+# names all passed - never on any one pass, a partial set, or a deprecated variant.
+# Keep in sync with QA1_REQUIRED_CASES in scripts/qa-summary.py and the -only-testing
+# list in .github/workflows/dogfood-qualification.yml.
+QA1_REQUIRED_CASES = ("testQA1_AddFromURL_JSONLD", "testQA1_AddFromURL_InstagramCaption", "testQA1_AddFromURL_HiddenCaptionFallback")
+QA_REQUIRED_CASES = {1: QA1_REQUIRED_CASES}
+
+
+def observe_qa_cases(qa_cases, log):
+    """Fold one job log into flow number -> {case name: result}. A failure is sticky:
+    a later pass of the same case name must not launder an earlier failure."""
+    for m in re.finditer(r"Test Case '-\[\S+ (testQA(\d)_\w+)\]' (passed|failed)", log):
+        num, name, result = int(m.group(2)), m.group(1), m.group(3)
+        if qa_cases.get(num, {}).get(name) == "failed":
+            continue
+        qa_cases.setdefault(num, {})[name] = result
+    return qa_cases
+
+
+def qa_flow_results(qa_cases):
+    """Flow number -> passed/failed. A flow with required cases passes only when every
+    named case passed; other flows pass when every observed case passed."""
+    out = {}
+    for n, cs in qa_cases.items():
+        required = QA_REQUIRED_CASES.get(n)
+        if required:
+            out[n] = "passed" if all(cs.get(name) == "passed" for name in required) else "failed"
+        else:
+            out[n] = "passed" if cs and all(r == "passed" for r in cs.values()) else "failed"
+    return out
+
+
 def run_data(run):
     d = {"url": run["html_url"], "id": run["id"], "run_number": run.get("run_number"), "run_attempt": run.get("run_attempt", 1), "created_at": run.get("created_at"), "updated_at": run.get("updated_at"), "status": run.get("status"), "conclusion": run.get("conclusion"), "name": run.get("name"), "head_branch": run.get("head_branch"), "path": run.get("path"), "sha": run["head_sha"], "commit_url": f"{SERVER}/{REPO}/commit/{run['head_sha']}", "ci": {}, "counts": {}, "artifacts": []}
     d["ci"]["build"] = "pass" if run.get("conclusion") == "success" else ("fail" if run.get("conclusion") in ("failure", "cancelled", "timed_out", "action_required") else None)
     jobs = gh_api(f"repos/{REPO}/actions/runs/{run['id']}/jobs?per_page=50")["jobs"]
-    unit = [0, 0]; ui = [0, 0]; qa = {}
+    unit = [0, 0]; ui = [0, 0]; qa = {}; qa_cases = {}
     ui_jobs = []
     unit_skipped = qa_skipped = e2e_skipped = False
     unit_failed = qa_failed = e2e_failed = False
@@ -188,8 +220,7 @@ def run_data(run):
         if "ui-suite" in j["name"] and j.get("conclusion") == "skipped": ui_skipped = True
         if j["conclusion"] in ("skipped", None): continue
         log = job_log(j["id"], j["name"])
-        for m in re.finditer(r"Test Case '-\[\S+ testQA(\d)_\w+\]' (passed|failed)", log):
-            qa[int(m.group(1))] = m.group(2)
+        observe_qa_cases(qa_cases, log)
         if "ui-suite" in j["name"]:
             for m in re.finditer(r"Test Case '-\[\S+ test\w+\]' (passed|failed)", log):
                 ui[0] += 1; ui[1] += m.group(1) == "failed"
@@ -205,6 +236,7 @@ def run_data(run):
     ui_state = ui_suite_verdict(ui_jobs, ui[0], ui[1])
     d["ci"]["ui"] = ui_state
     d["counts"]["ui"] = f"{ui[0]-ui[1]}/{ui[0]}" if ui[0] else ui_state
+    qa = qa_flow_results(qa_cases)
     if qa:
         for n, s in qa.items(): d["ci"][f"qa{n}"] = "pass" if s == "passed" else "fail"
         d["ci"]["qa"] = "pass" if all(s == "passed" for s in qa.values()) and len(qa) == 8 else "fail"

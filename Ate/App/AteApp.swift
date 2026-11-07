@@ -28,7 +28,12 @@ struct AteApp: App {
         }
         let c = outcome.container
         container = c
+        #if DEBUG
+        let upgradeRuntime = CanonicalUpgradeQARoute.prepareIfRequested()
+        let st = AppStore(context: c?.mainContext, foodJournalRuntime: upgradeRuntime)
+        #else
         let st = AppStore(context: c?.mainContext)
+        #endif
         if outcome.recovered || outcome.inMemoryFallback || (c == nil && !AppConfig.isUITesting) {
             st.recovery = RecoveryInfo(backupPath: outcome.backupURL?.lastPathComponent, inMemory: outcome.inMemoryFallback || c == nil, error: outcome.error)
         }
@@ -55,7 +60,7 @@ struct AteApp: App {
     /// One typed expression keeps the shared modifiers attached across DEBUG compilation.
     private var rootContent: AnyView {
 #if DEBUG
-        CanonicalNutritionQARoute.rootView(store: store) ?? AnyView(RootView())
+        CanonicalUpgradeQARoute.rootView() ?? CanonicalNutritionQARoute.rootView(store: store) ?? AnyView(RootView())
 #else
         AnyView(RootView())
 #endif

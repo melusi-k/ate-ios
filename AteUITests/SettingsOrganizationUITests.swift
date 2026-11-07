@@ -101,4 +101,54 @@ final class SettingsOrganizationUITests: XCTestCase {
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "settings-sync-summary-normal"; shot.lifetime = .keepAlways; add(shot)
     }
+    /// Normal-text acceptance: capture each explicit mode and verify a chosen mode
+    /// survives an app relaunch. System returns nil at the app root (unit-tested).
+    func testAppearanceChoicesPersistAcrossRelaunchAtNormalText() {
+        launch()
+        tab("Settings")
+        let selector = app.segmentedControls["settings.appearance"]
+        scrollTo(selector)
+        wait(selector, 5)
+        XCTAssertTrue(selector.buttons["System"].isSelected)
+        for mode in ["Light", "Dark", "System", "Dark"] {
+            selector.buttons[mode].tap()
+            XCTAssertTrue(selector.buttons[mode].isSelected)
+            let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            shot.name = "appearance-normal-\(mode.lowercased())"
+            shot.lifetime = .keepAlways
+            add(shot)
+            do {
+                let diary = app.buttons["settings.nutritionDiary"]
+                scrollTo(diary)
+                diary.tap()
+                wait(app.navigationBars["Food diary"], 5)
+                let diaryShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                diaryShot.name = "appearance-normal-\(mode.lowercased())-diary-navigation"
+                diaryShot.lifetime = .keepAlways
+                add(diaryShot)
+                app.buttons["nutritionDiary.add"].tap()
+                wait(app.navigationBars["Log food"], 5)
+                let sheet = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                sheet.name = "appearance-normal-\(mode.lowercased())-log-food-sheet"
+                sheet.lifetime = .keepAlways
+                add(sheet)
+                app.buttons["Cancel"].tap()
+                app.navigationBars["Food diary"].buttons.element(boundBy: 0).tap()
+                scrollTo(selector)
+                wait(selector, 5)
+            }
+        }
+        app.terminate()
+        app.launchArguments = ["-UITesting", "-qaPreserveSettings"]
+        app.launch()
+        tab("Settings")
+        scrollTo(selector)
+        wait(selector, 5)
+        XCTAssertTrue(selector.buttons["Dark"].isSelected, "The selected app appearance must survive relaunch")
+        let relaunch = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        relaunch.name = "appearance-normal-dark-after-relaunch"
+        relaunch.lifetime = .keepAlways
+        add(relaunch)
+    }
+
 }

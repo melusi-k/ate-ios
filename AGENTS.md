@@ -8,7 +8,7 @@ This is a native SwiftUI app generated from `project.yml` with XcodeGen. `Ate/` 
 
 - `brew install xcodegen` installs XcodeGen.
 - `bash scripts/prepare-local-build.sh` generates `Ate.xcodeproj` with local version and Git metadata. Run after checkout or branch changes; do not commit local generated version changes.
-- `open Ate.xcodeproj` opens the project in Xcode 27.3 (required for the iOS 27.3 Siri Tool Intent preview APIs).
+- `open Ate.xcodeproj` opens the project; the deferred Siri Tool Intent draft requires a future supported SDK/build. Current CI selects Xcode 27.2 and cannot compile `@AppIntent(.tool)`. Do not treat this draft as build-ready.
 - `xcodebuild -project Ate.xcodeproj -scheme Ate -destination 'platform=iOS Simulator,name=iPhone 17' build` builds for the simulator; adjust the simulator name as needed.
 - `xcodebuild -project Ate.xcodeproj -scheme Ate -destination 'platform=iOS Simulator,name=iPhone 17' test` runs the scheme's tests. CI checks are in `.github/workflows/compile-check.yml`; broader QA guidance is in `docs/QA.md`.
 

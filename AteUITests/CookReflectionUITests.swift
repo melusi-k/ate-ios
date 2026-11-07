@@ -1,7 +1,6 @@
 import XCTest
 
-/// Cook completion journeys that do not depend on the reflection offer. The offer is dormant in the app until the
-/// Journal integration binds `onReflect`, so no offer journey exists here and none is claimed.
+/// Actual completion sheets and event-linked optional Journal notes, including repeated cooks on one day.
 final class CookReflectionUITests: XCTestCase {
     var app: XCUIApplication!
 
@@ -41,6 +40,15 @@ final class CookReflectionUITests: XCTestCase {
         a.name = name
         a.lifetime = .keepAlways
         add(a)
+        let b64 = XCUIScreen.main.screenshot().pngRepresentation.base64EncodedString()
+        print("SNAPSHOT-BEGIN \(name) \(b64.count)")
+        var i = b64.startIndex
+        while i < b64.endIndex {
+            let j = b64.index(i, offsetBy: 4000, limitedBy: b64.endIndex) ?? b64.endIndex
+            print("SNAPSHOT-CHUNK \(name) \(b64[i..<j])")
+            i = j
+        }
+        print("SNAPSHOT-END \(name)")
     }
 
     func addPromptRecipe() {
@@ -70,17 +78,38 @@ final class CookReflectionUITests: XCTestCase {
         finish.tap()
     }
 
-    /// Finish with no offer host (the production default until the Journal binds onReflect) ends on the recipe and does not leave a resumable
-    /// session behind.
+    /// Production route: history is confirmed before Done, which leaves no resumable session.
     func testFinishDoesNotRecreateTheResumeSession() {
         launch()
         addPromptRecipe()
         cookAndFinish()
+        wait(app.staticTexts["cookCompletion.recorded"])
+        wait(app.buttons["cookReflection.write"])
+        shot("completion-01-first-cook-confirmation-portrait")
+        app.buttons["cookReflection.notNow"].tap()
         wait(app.buttons["Cook mode"], 10)
         XCTAssertTrue(app.buttons["cookSessionMiniPlayer"].waitForNonExistence(timeout: 5),
                       "a finished cook must not be offered for resume")
-        XCTAssertFalse(app.buttons["cookReflection.write"].exists, "no offer without a bound host")
+        XCTAssertFalse(app.buttons["cookReflection.write"].exists, "Done closes the completion sheet")
     }
+    func testEveryFinishShowsCompletionButDailyNudgeAppearsOnlyOnce() {
+        launch()
+        addPromptRecipe()
+        cookAndFinish()
+        wait(app.staticTexts["cookCompletion.recorded"])
+        wait(app.staticTexts["cookCompletion.dailyNudge"])
+        app.buttons["cookReflection.notNow"].tap()
+        wait(app.buttons["Cook mode"])
+        cookAndFinish()
+        wait(app.staticTexts["cookCompletion.recorded"])
+        XCTAssertFalse(app.staticTexts["cookCompletion.dailyNudge"].exists)
+        wait(app.buttons["cookReflection.write"])
+        shot("completion-03-repeat-cook-note-still-available-portrait")
+        app.buttons["cookReflection.write"].tap()
+        wait(app.textViews["cookJournal.note"])
+        shot("completion-04-production-event-linked-note-portrait")
+    }
+
     func launchHost(extra: [String] = []) {
         launch(extra: ["-qaCookJournalHost"] + extra)
         wait(app.buttons["cookFinish"], 15)
@@ -96,7 +125,8 @@ final class CookReflectionUITests: XCTestCase {
         XCTAssertTrue(finish.isHittable, "Finish must be a tappable control in its host safe area")
         finish.tap()
         wait(app.buttons["cookReflection.write"], 10)
-        shot("cook-journal-offer")
+        wait(app.staticTexts["cookCompletion.recorded"])
+        shot("completion-02-add-note-first-cook-portrait")
         app.buttons["cookReflection.write"].tap()
         wait(app.textViews["cookJournal.note"], 10)
         XCTAssertFalse(app.buttons["cookFinish"].exists, "Cook Mode must be dismissed before the composer")
@@ -137,8 +167,8 @@ final class CookReflectionUITests: XCTestCase {
         app.buttons["Keep for later"].tap()
         XCTAssertTrue(note.waitForNonExistence(timeout: 10))
         XCUIDevice.shared.orientation = .portrait
-        wait(app.tabBars.buttons["Insights"])
-        app.tabBars.buttons["Insights"].tap()
+        wait(app.tabBars.buttons["Journal"])
+        app.tabBars.buttons["Journal"].tap()
         let pending = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "cookJournal.pending.")).firstMatch
         wait(pending)
         pending.tap()

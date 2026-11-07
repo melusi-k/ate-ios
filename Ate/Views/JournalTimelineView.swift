@@ -136,7 +136,7 @@ struct JournalTimelineView: View {
 
     /// Reads on the main actor (the store is @MainActor and shares JournalStore's main context): two fetches and a map,
     /// the same cost class as JournalListView's entries() read on appear. The result is snapshotted into @State; the
-    /// open-state banner re-reads JournalStore.shared.openState whenever the body re-evaluates.
+    /// open-state banner re-reads the bound journal openState whenever the body re-evaluates.
     private func reload() {
         do {
             loaded = .loaded(try store.journalTimelineItems())

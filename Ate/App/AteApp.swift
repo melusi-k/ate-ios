@@ -468,6 +468,7 @@ extension RootView {
 
 /// Destination for every NavigationStack.
 struct RouteView: View {
+    @Environment(AppStore.self) private var store
     let route: Route
     var body: some View {
         Group {
@@ -483,7 +484,14 @@ struct RouteView: View {
             case .betaNote: AppConfig.isBetaBuild ? AnyView(BetaExpectationsView()) : AnyView(SettingsView())
             case .journal: JournalListView()
             case .journalEntry(let id): JournalEntryDetailView(entryID: id)
-            case .nutritionDiary: NutritionDiaryView()
+            case .nutritionDiary:
+                if let runtime = store.foodJournalRuntime {
+                    CanonicalNutritionDiaryView(coordinator: runtime.coordinator,
+                                               goalsRepository: runtime.goalsRepository,
+                                               repair: runtime.repair, associationStore: nil)
+                } else {
+                    NutritionDiaryView()
+                }
             case .nutritionGoals: NutritionGoalsView()
             }
         }

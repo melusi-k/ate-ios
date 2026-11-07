@@ -314,6 +314,11 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/InsightsAcceptanceUITests/testWeeklyCookingInsightShowsEvidenceAndNavigatesToTracker \
             -only-testing:AteUITests/InsightsAcceptanceUITests/testInsightCanBeResolvedAndStaysSuppressedAfterRefresh \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testOpeningCookingHistoryKeepsInsightUntilExplicitDismissal \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testJournalRootReflectionPlacementDraftAndSaveWithoutHealth \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testJournalRootReflectionFailedSaveKeepsDraftVisible \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testCandidateCardsScrollSideBySideWithoutDismissing \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testJournalRootReflectionLabelsSampleHealthPrompts \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \

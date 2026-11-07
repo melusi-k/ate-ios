@@ -63,7 +63,7 @@ final class JournalMenuCaptureUITests: XCTestCase {
         wait(hub, 10, file: file, line: line)
     }
 
-    /// Pushed Insights hub: connect mock Health and save one uniquely-texted seed entry.
+    /// Connect mock Health in the hub, save a unique reflection on Journal, then return to the hub.
     private func seedEntryViaInsights() {
         app.tabBars.buttons["Journal"].tap()
         wait(app.navigationBars["Journal"])
@@ -71,10 +71,20 @@ final class JournalMenuCaptureUITests: XCTestCase {
         wait(hub); hub.tap()
         wait(app.navigationBars["Insights & Cooking History"])
         let connect = app.buttons["insights.connect"]; wait(connect); connect.tap()
-        let field = any("insights.journalText")
-        wait(field); field.tap(); field.typeText(seed)
-        let save = app.buttons["insights.save"]; wait(save); save.tap()
         returnToJournalRoot()
+        let field = any("insights.journalText")
+        wait(field)
+        for _ in 0..<5 where !field.isHittable { app.swipeUp() }
+        XCTAssertTrue(field.isHittable); field.tap(); field.typeText(seed)
+        let save = app.buttons["insights.save"]; wait(save)
+        for _ in 0..<5 where !save.isHittable { app.swipeUp() }
+        XCTAssertTrue(save.isHittable); save.tap()
+        _ = seedText()
+        for _ in 0..<6 where !hub.isHittable { app.swipeDown() }
+        XCTAssertTrue(hub.isHittable)
+        // Keep the original context-menu acceptance journey on its real hub entry.
+        hub.tap()
+        wait(app.navigationBars["Insights & Cooking History"])
         _ = seedText()
     }
 
@@ -88,7 +98,9 @@ final class JournalMenuCaptureUITests: XCTestCase {
     /// entry (exact text) before anything else happens. Fail-closed: a
     /// mismatch aborts the test, so no delete can ever run unverified.
     private func openVerifiedSeedDetail(_ file: StaticString = #filePath, line: UInt = #line) {
-        seedText(file, line: line).tap()
+        let seedRow = seedText(file, line: line)
+        for _ in 0..<6 where !seedRow.isHittable { app.swipeUp() }
+        XCTAssertTrue(seedRow.isHittable); seedRow.tap()
         let detail = any("journal.detail.text")
         wait(detail, 10, file: file, line: line)
         let shown = (detail.value as? String) ?? detail.label

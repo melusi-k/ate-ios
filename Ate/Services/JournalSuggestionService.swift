@@ -152,7 +152,7 @@ final class JournalStore {
         return rows.sorted { $0.createdAt > $1.createdAt }
     }
     @discardableResult
-    func save(prompt: String, text: String, state: HealthState, recipeIDs: [String], momentTitle: String? = nil, momentDate: Date? = nil) -> Bool {
+    func save(prompt: String, text: String, state: HealthState?, recipeIDs: [String], momentTitle: String? = nil, momentDate: Date? = nil) -> Bool {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         let entry = JournalEntry(prompt: prompt, text: text, state: state, recipeIDs: recipeIDs,
                                  journalingSuggestionTitle: momentTitle, momentDate: momentDate,

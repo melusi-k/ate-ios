@@ -72,6 +72,25 @@ class ReleaseNotesTests(unittest.TestCase):
         self.assertNotIn('UNMERGED must stay absent', out.stdout)
         self.assertNotIn('build-20-Other', out.stdout)
 
+    def test_internal_group_uses_paths_not_commit_title(self):
+        path = self.root / '.github' / 'workflows' / 'probe.yml'
+        path.parent.mkdir(parents=True)
+        path.write_text('permissions: {contents: read}')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'raw confusing internal title')
+        internal = self.git('rev-parse', 'HEAD')
+        out = self.notes(sha=internal)
+        self.assertIn('Internal / CI - no device check needed', out.stdout)
+        self.assertIn(internal, out.stdout)
+        self.assertNotIn('raw confusing internal title', out.stdout)
+        app = self.root / 'Ate' / 'App.swift'
+        app.parent.mkdir()
+        app.write_text('// runtime fixture')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'fix(ci): actually changes app')
+        out = self.notes(sha=self.git('rev-parse', 'HEAD'))
+        self.assertIn('- fix(ci): actually changes app', out.stdout)
+
     def test_unrelated_branch_tag_cannot_hide_current_changes(self):
         self.git("checkout", "-qb", "unrelated", self.first)
         self.commit("unrelated work"); self.git("tag", "build-99-TierA")

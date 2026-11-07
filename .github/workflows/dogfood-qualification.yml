@@ -8,13 +8,22 @@ on:
 permissions:
   contents: read
   actions: read
+  pull-requests: read
 
 concurrency:
   group: dogfood-qualification-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    uses: ./.github/workflows/classify-native-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
+
   dogfood-qualification:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
     timeout-minutes: 60
     env:
@@ -183,3 +192,28 @@ jobs:
           path: ${{ runner.temp }}/ate-ci-telemetry.json
           if-no-files-found: warn
           retention-days: 30
+
+  qualification-result:
+    name: Dogfood qualification result
+    if: always()
+    needs: [changes, dogfood-qualification]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Report actual qualification route
+        env:
+          CLASSIFIER: ${{ needs.changes.result }}
+          NATIVE: ${{ needs.changes.outputs.app }}
+          NATIVE_RESULT: ${{ needs.dogfood-qualification.result }}
+        run: |
+          if [[ "$CLASSIFIER" != success ]]; then
+            echo 'Scope classifier failed; qualification is NOT established.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [[ "$NATIVE" == false ]]; then
+            echo 'Documentation-only diff. Mac tests NOT RUN; this is NOT native qualification.' >> "$GITHUB_STEP_SUMMARY"
+            [[ "$NATIVE_RESULT" == skipped ]]
+          else
+            echo "Native qualification required. Mac job result: $NATIVE_RESULT." >> "$GITHUB_STEP_SUMMARY"
+            [[ "$NATIVE" == true && "$NATIVE_RESULT" == success ]]
+          fi

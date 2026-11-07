@@ -361,7 +361,26 @@ final class NutritionDiaryUITests: XCTestCase {
         XCTAssertTrue(diaryRows(app, containing: "My lunch").allElementsBoundByIndex.isEmpty,
                       "A failed retry must not add or duplicate a diary row")
         captureNutritionState(app, name: "nutrition-disk-save-retry-retained-draft")
+    }
 
+    /// Persistence is a separate failure contract from the retained-draft/retry UI above.
+    /// Keep both failed writes and the real relaunch, without carrying the screenshot and
+    /// repeated layout checks of the retry presentation test into its execution budget.
+    func testCancelledFailedSavesLeaveDiaryEmptyAfterRelaunch() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-resetNutritionDiary", "-failDiarySaves"]
+        app.launch()
+        openDiary(app)
+        openLogForm(app)
+        typeAfterKeyboard(app.textFields["nutritionDiary.foodName"], in: app, "My lunch")
+        let save = app.buttons["nutritionDiary.save"]
+        let formError = app.descendants(matching: .any)["nutritionDiary.formError"]
+        for _ in 0..<2 {
+            tapWhenHittable(save, in: app)
+            XCTAssertTrue(scrollToHittable(formError, in: app), "Each failed write must show its error before cancellation")
+            XCTAssertEqual(formError.label, "Your diary couldn’t be saved. Please try again.")
+            XCTAssertEqual(app.textFields["nutritionDiary.foodName"].value as? String, "My lunch")
+        }
         app.navigationBars.buttons["Cancel"].tap()
         XCTAssertTrue(app.buttons["nutritionDiary.save"].waitForNonExistence(timeout: 5), "Cancel should close the retained form")
         XCTAssertTrue(diaryRows(app, containing: "My lunch").allElementsBoundByIndex.isEmpty,
@@ -376,6 +395,7 @@ final class NutritionDiaryUITests: XCTestCase {
                       "a failed save must not persist the entry")
         XCTAssertTrue(scrollToHittable(relaunched.staticTexts["Nothing logged"], in: relaunched), "Failed save should leave the relaunched diary empty")
         XCTAssertTrue(relaunched.staticTexts["Nothing logged"].exists)
+        captureNutritionState(relaunched, name: "nutrition-failed-saves-empty-after-relaunch")
     }
 
     func testCorruptDiaryShowsErrorAndRecoversAfterBackupReset() throws {

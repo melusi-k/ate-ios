@@ -60,6 +60,44 @@ struct WidgetSnapshot: Codable, Equatable {
     }
 }
 
+/// Do not tell someone to repeat setup when this installation cannot share data.
+/// No snapshot is not a zero-day streak, empty library or completed shopping list.
+enum WidgetDataMessage {
+    static func unavailable(groupAvailable: Bool) -> String {
+        groupAvailable
+            ? "Open ate and refresh widgets in Beta testing."
+            : "Shared widget data is unavailable. Open ate for widget diagnostics."
+    }
+}
+
+/// App-side publication cache. The explicit repair path must rewrite an unchanged
+/// snapshot if its saved bytes were lost, and request each affected timeline once.
+struct WidgetSnapshotPublisher {
+    private var lastPublished: WidgetSnapshot?
+
+    @discardableResult
+    mutating func publish(_ value: WidgetSnapshot, force: Bool = false,
+                          defaults: UserDefaults = SharedContainer.defaults,
+                          reload: ([String]) -> Void) -> Bool {
+        let changed: [String]
+        if let old = lastPublished, !force {
+            var kinds: [String] = []
+            if old.favourites != value.favourites { kinds.append(WidgetKinds.favourites) }
+            if old.shopping != value.shopping { kinds += [WidgetKinds.shopping, WidgetKinds.shoppingInline] }
+            if old.pick != value.pick { kinds.append(WidgetKinds.pick) }
+            if old.cookingStreak != value.cookingStreak || old.cookedToday != value.cookedToday { kinds.append(WidgetKinds.cooking) }
+            changed = kinds
+        } else {
+            changed = [WidgetKinds.favourites, WidgetKinds.shopping, WidgetKinds.shoppingInline, WidgetKinds.pick, WidgetKinds.cooking]
+        }
+        guard !changed.isEmpty else { return false }
+        value.save(defaults)
+        lastPublished = value
+        reload(changed)
+        return true
+    }
+}
+
 /// Changes made from widgets / controls / Siri while the app wasn't running. The app applies them when it becomes active.
 enum WidgetInbox {
     static let shoppingKey = "ate.widgets.pending.shopping.v1"   // [itemID: done]

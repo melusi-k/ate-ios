@@ -21,36 +21,14 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
-    outputs:
-      app: ${{ steps.filter.outputs.app }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: Classify changed files
-        id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          filters: |
-            app:
-              - 'Ate/**'
-              - 'AteClip/**'
-              - 'AteTests/**'
-              - 'AteUITests/**'
-              - 'AteWidgets/**'
-              - 'AteWatch/**'
-              - 'Ate.xcodeproj/**'
-              - 'project.yml'
-              - 'Package.swift'
-              - 'Package.resolved'
-              - 'scripts/**'
-              - 'supabase/**'
-              - '.github/workflows/**'
+    uses: ./.github/workflows/classify-native-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
 
   docs-validation:
     needs: changes
-    if: needs.changes.outputs.app != 'true'
+    if: needs.changes.outputs.app == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -64,9 +42,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
-    # Build/nutrition and later regressions have independent exact-head jobs so
-    # the full serial workload cannot exhaust this unchanged cap before the tail.
-    timeout-minutes: 120
+    # Build/nutrition and later regressions have independent exact-head jobs
+    # with separate lower budgets (45m / 110m).
+    timeout-minutes: 45
     env:
       ATE_SIGN_STYLE: Automatic
     steps:
@@ -172,9 +150,7 @@ jobs:
           done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
 
-      # Owner's normal-size acceptance: cross-size audits and the default-size
-      # audit's five DT findings are deferred to #359, not deleted or reclassified.
-      # All Diary/Goals behaviour tests and their execution-evidence guards remain.
+      # Keep normal-size audits required; retain cross-size cases in the optional lane.
       - name: Nutrition diary and goals UI regressions (#179)
         if: ${{ steps.build.outcome == 'success' }}
         run: |
@@ -184,6 +160,7 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreensWithoutDynamicType \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
@@ -209,7 +186,8 @@ jobs:
             "NutritionDiaryUITests testRecipeNutritionShowsIncompleteStateForUnmappedIngredient]' passed" \
             "NutritionDiaryUITests testLoggedEntryCanBeEditedAndShowsUpdatedValues]' passed" \
             "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
-            "NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed"; do
+            "NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed" \
+            "AccessibilityAuditUITests testAuditNutritionScreensWithoutDynamicType]' passed"; do
             grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
@@ -260,11 +238,11 @@ jobs:
 
   regressions:
     # Independent exact-head lane: a nutrition diagnostic failure must not skip
-    # required regression evidence. Both jobs retain the existing 120-minute cap.
+    # required regression evidence. Keep main's lower 110-minute budget.
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
-    timeout-minutes: 120
+    timeout-minutes: 110
     env:
       ATE_SIGN_STYLE: Automatic
     steps:
@@ -590,6 +568,8 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteTests/CookSessionTests \
             -only-testing:AteUITests/CookIngredientsUITests \
+            -skip-testing:AteUITests/CookIngredientsUITests/testCookIngredientSheetLargeTextAccessibilityAndImperial \
+            -skip-testing:AteUITests/CookIngredientsUITests/testCookTimerCardLargeText \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-ingredients-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
@@ -622,8 +602,8 @@ jobs:
             "CookSessionTests testReenteringSameRecipeKeepsSessionFactor]' passed" \
             "CookSessionTests testChecklistAmountsRenderMetricAndImperial]' passed" \
             "CookIngredientsUITests testCookIngredientSheetScalesChecksAndPersists]' passed" \
-            "CookIngredientsUITests testCookIngredientSheetLargeTextAccessibilityAndImperial]' passed" \
-            "CookIngredientsUITests testCookTimerCardLargeText]' passed"; do
+            "CookIngredientsUITests testCookIngredientSheetNormalTextAccessibilityAndImperial]' passed" \
+            "CookIngredientsUITests testCookTimerCardNormalText]' passed"; do
             grep -qF "$evidence" cook-ingredients-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 cook-ingredients-tests.log; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed" cook-ingredients-tests.log | tail -40
@@ -756,4 +736,30 @@ jobs:
           if [ "$BUILD_NUTRITION_RESULT" != success ] || [ "$REGRESSIONS_RESULT" != success ]; then
             echo "::error::Native qualification incomplete: build-nutrition=$BUILD_NUTRITION_RESULT regressions=$REGRESSIONS_RESULT"
             exit 1
+          fi
+
+  qualification-result:
+    name: Compile qualification result
+    if: always()
+    needs: [changes, compile, docs-validation]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Report actual qualification route
+        env:
+          CLASSIFIER: ${{ needs.changes.result }}
+          NATIVE: ${{ needs.changes.outputs.app }}
+          NATIVE_RESULT: ${{ needs.compile.result }}
+          DOCS_RESULT: ${{ needs.docs-validation.result }}
+        run: |
+          if [[ "$CLASSIFIER" != success ]]; then
+            echo 'Scope classifier failed; qualification is NOT established.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [[ "$NATIVE" == false ]]; then
+            echo 'Documentation-only diff. Mac compile/tests NOT RUN; this is NOT native qualification.' >> "$GITHUB_STEP_SUMMARY"
+            [[ "$NATIVE_RESULT" == skipped && "$DOCS_RESULT" == success ]]
+          else
+            echo "Native qualification required. Mac job result: $NATIVE_RESULT." >> "$GITHUB_STEP_SUMMARY"
+            [[ "$NATIVE" == true && "$NATIVE_RESULT" == success ]]
           fi

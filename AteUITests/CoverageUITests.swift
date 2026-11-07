@@ -606,7 +606,7 @@ extension CoverageUITests {
     func openInsights(_ scenario: String) {
         launch(["-qaMockHealth", scenario, "-qaHealthRecipes"])
         tab("Journal")
-        // Journal tab root is the Journal; Insights & Cooking History is its one named route.
+        // Journal is the tab root; Insights & Cooking History is its one named route.
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         wait(hub); hub.tap()
     }
@@ -783,7 +783,7 @@ extension CoverageUITests {
     func testCookingTrackerMonthNavigationAndSelectedDay() {
         launch(["-qaMockHealth", "empty", "-qaHealthRecipes"])
         tab("Journal")
-        // Journal tab root is the Journal; Insights & Cooking History is its one named route.
+        // Journal is the tab root; Insights & Cooking History is its one named route.
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         wait(hub); hub.tap()
 

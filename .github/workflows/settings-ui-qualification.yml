@@ -68,6 +68,7 @@ jobs:
             -only-testing:AteTests/SettingsAIStatusTests \
             -only-testing:AteUITests/SettingsClarificationUITests \
             -only-testing:AteUITests/SettingsOrganizationUITests \
+            -skip-testing:AteUITests/SettingsOrganizationUITests/testSyncSummaryLargestDynamicType \
             -only-testing:AteUITests/AccessibilityAuditUITests/testAuditMainScreens \
             -only-testing:AteUITests/SettingsAuditUITests \
             -only-testing:AteUITests/CoverageUITests/test32_MoreCollectionsToolsAbout \

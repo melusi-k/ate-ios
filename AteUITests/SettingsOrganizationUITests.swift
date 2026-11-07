@@ -87,4 +87,18 @@ final class SettingsOrganizationUITests: XCTestCase {
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "settings-sync-summary-largest-dt"; shot.lifetime = .keepAlways; add(shot)
     }
+
+    /// Normal-size coverage, separate from the retained original cross-size case.
+    func testSyncSummaryNormalText() {
+        app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-qaResetCookingHistory", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launch()
+        tab("Settings")
+        let summary = app.staticTexts["settings.syncSummary"]
+        scrollTo(summary)
+        wait(summary, 10)
+        XCTAssertTrue(summary.exists, "Sync summary should exist at normal text size")
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "settings-sync-summary-normal"; shot.lifetime = .keepAlways; add(shot)
+    }
 }

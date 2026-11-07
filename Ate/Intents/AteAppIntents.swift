@@ -251,16 +251,16 @@ struct SearchRecipesIntent: ShowInAppSearchResultsIntent {
 struct AteJournalEntryEntity {
     struct Query: EntityStringQuery {
         func entities(for identifiers: [AteJournalEntryEntity.ID]) async throws -> [AteJournalEntryEntity] {
-            try await MainActor.run { try JournalStore.shared.readReflections().filter { identifiers.contains($0.id) }.map(AteJournalEntryEntity.init) }
+            try await MainActor.run { try AppStore.journalStoreForIntent().readReflections().filter { identifiers.contains($0.id) }.map(AteJournalEntryEntity.init) }
         }
         func entities(matching string: String) async throws -> [AteJournalEntryEntity] {
             try await MainActor.run {
-                try JournalStore.shared.readReflections().filter { $0.text.localizedCaseInsensitiveContains(string) || $0.prompt.localizedCaseInsensitiveContains(string) }
+                try AppStore.journalStoreForIntent().readReflections().filter { $0.text.localizedCaseInsensitiveContains(string) || $0.prompt.localizedCaseInsensitiveContains(string) }
                     .prefix(20).map(AteJournalEntryEntity.init)
             }
         }
         func suggestedEntities() async throws -> [AteJournalEntryEntity] {
-            try await MainActor.run { try JournalStore.shared.readReflections().prefix(10).map(AteJournalEntryEntity.init) }
+            try await MainActor.run { try AppStore.journalStoreForIntent().readReflections().prefix(10).map(AteJournalEntryEntity.init) }
         }
     }
     static let defaultQuery = Query()
@@ -304,14 +304,15 @@ struct CreateAteJournalEntryIntent {
         let place = location.map { [$0.name, $0.locality].compactMap { $0 }.removingDuplicates().joined(separator: ", ") }
         var media: [(data: Data, ext: String)] = []
         for f in mediaItems { media.append((f.data, f.filename.split(separator: ".").last.map(String.init) ?? "jpg")) }
-        let saved = JournalStore.shared.saveFromIntent(title: title, text: text, date: entryDate, state: state,
+        let journal = try AppStore.journalStoreForIntent()
+        let saved = journal.saveFromIntent(title: title, text: text, date: entryDate, state: state,
                                                        locationName: place?.isEmpty == false ? place : nil,
                                                        latitude: location?.location?.coordinate.latitude, longitude: location?.location?.coordinate.longitude,
                                                        media: media)
+        guard let saved else { throw JournalIntentOwnerError.saveFailed }
         QAProbe.shared.lastIntent = "journal"
         BetaQA.shared.pass("A-INTENT-05", note: "Journal entry saved from Siri/Shortcuts")
-        if let e = saved { return .result(value: AteJournalEntryEntity(e)) }
-        return .result(value: AteJournalEntryEntity(id: UUID().uuidString, title: title, message: message, entryDate: entryDate ?? Date()))
+        return .result(value: AteJournalEntryEntity(saved))
     }
 }
 
@@ -338,7 +339,7 @@ struct OpenJournalEntryIntent: OpenIntent {
     @Parameter(title: "Entry") var target: AteJournalEntryEntity
     init() {}
     @MainActor func perform() async throws -> some IntentResult {
-        guard JournalStore.shared.entry(target.id) != nil else { throw JournalIntentError.notFound }
+        guard try AppStore.journalStoreForIntent().entry(target.id) != nil else { throw JournalIntentError.notFound }
         AppStore.current?.openJournalEntry(target.id)
         QAProbe.shared.lastIntent = "openJournal"
         BetaQA.shared.pass("C-JRN-06", note: "Opened a journal entry from Shortcuts")

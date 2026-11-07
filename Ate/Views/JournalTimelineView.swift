@@ -56,7 +56,7 @@ struct JournalTimelineView: View {
     private var state: JournalTimelineScreenState { stateOverride ?? Self.qaState() ?? loaded }
 
     var body: some View {
-        let openState = openStateOverride ?? store.foodJournalRuntime?.openState ?? JournalStore.shared.openState
+        let openState = openStateOverride ?? store.journalStore.openState
         let content = JournalTimelineContent.make(state: state, filter: filter, query: query)
         List {
             if openState != .ok {
@@ -139,11 +139,7 @@ struct JournalTimelineView: View {
     /// open-state banner re-reads JournalStore.shared.openState whenever the body re-evaluates.
     private func reload() {
         do {
-            if let runtime = store.foodJournalRuntime {
-                loaded = .loaded(try runtime.timelineItems())
-            } else {
-                loaded = .loaded(try FoodJournalStore.shared.timelineItems())
-            }
+            loaded = .loaded(try store.journalTimelineItems())
         }
         catch let error as JournalTimelineReadError { loaded = .failed(error) }
         catch { loaded = .failed(.readFailed) }

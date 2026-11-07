@@ -842,7 +842,7 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 
 - **A-HEALTH-04 · Journal prompt + save locally** — 🔴
   - *Journey:* As a cook, I get meal ideas that fit how my body is doing today.
-  - *Acceptance:* Given an insight, When I pick a prompt, write a note and tap Save to journal, Then the entry appears under Your Ate journal and survives relaunch; nothing syncs.
+  - *Acceptance:* Given an insight, When I pick a prompt, write a note and tap Save to journal, Then the entry appears in the Journal tab and survives relaunch; nothing syncs.
   - *Verified by:* `CoverageUITests` (mock Health) · device
   - *Status evidence:* new in build 59+
   - *Owner:* [#38](https://github.com/melusi-k/ate-ios/issues/38)
@@ -883,13 +883,13 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 #### Journal
 
 - **C-JRN-01 · Journal entry opens on its own** — ❌
-  - *Acceptance:* Tapping an entry in Insights › Your Ate journal opens a detail view with the full text, date, state, and any linked recipe, location or media.
+  - *Acceptance:* Tapping an entry in the Journal tab opens a detail view with the full text, date, state, and any linked recipe, location or media.
   - *Verified by:* auto: detected when an entry detail opens
   - *Owner:* [#38](https://github.com/melusi-k/ate-ios/issues/38)
   - *Feature area:* Health and journal · *Release gate:* No committed release gate · *Initial priority:* P2
 
 - **C-JRN-02 · Journal list with search** — ❌
-  - *Acceptance:* Insights › Your Ate journal lists every entry newest first; searching by words, place or state filters it, and an empty search says so.
+  - *Acceptance:* The Journal tab lists every entry newest first; searching by words, place or state filters it, and an empty search says so.
   - *Verified by:* manual
   - *Owner:* [#38](https://github.com/melusi-k/ate-ios/issues/38)
   - *Feature area:* Health and journal · *Release gate:* No committed release gate · *Initial priority:* P2

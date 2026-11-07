@@ -12,7 +12,8 @@ final class FoodJournalReviewedBackupRestoreTests: XCTestCase {
                 energyKcal: 715, proteinGrams: 55, carbohydratesGrams: nil, fatGrams: 55, fibreGrams: nil),
             dayKey: "2026-11-06")
     }
-    private func withDiskWorld(state: JournalOpenState = .ok, afterCommit: @escaping () throws -> Void = {}, _ body: (FoodJournalCoordinator, JournalStore, UserDefaults, URL) throws -> Void) throws {
+    private func withDiskWorld(state: JournalOpenState = .ok, afterCommit: @escaping () throws -> Void = {},
+                               mealWrite: @escaping (ModelContext) throws -> Void = { try $0.save() }, _ body: (FoodJournalCoordinator, JournalStore, UserDefaults, URL) throws -> Void) throws {
         let id = "ReviewedBackup-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: id))
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(id)
@@ -23,7 +24,7 @@ final class FoodJournalReviewedBackupRestoreTests: XCTestCase {
         let journal = JournalStore(container: container, openState: state)
         let coordinator = FoodJournalCoordinator(journal: journal,
             legacy: NutritionDiaryRepository(defaults: defaults), markerDefaults: defaults,
-            backupDirectory: root.appendingPathComponent("migration"), afterRestoreCommit: afterCommit)
+            backupDirectory: root.appendingPathComponent("migration"), afterRestoreCommit: afterCommit, mealWriteContext: mealWrite)
         try body(coordinator, journal, defaults, root)
     }
     func testExplicitBackupRestoreIsAdditiveIdempotentAndNeverRecreatesLegacy() throws {
@@ -137,6 +138,30 @@ final class FoodJournalReviewedBackupRestoreTests: XCTestCase {
                     preservedCopyDirectory: root.appendingPathComponent("copies")))
                 XCTAssertTrue(try FoodJournalStore(container: journal.container).readMeals().isEmpty)
                 XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("copies").path))
+                XCTAssertNil(defaults.data(forKey: NutritionDiaryRepository.storageKey))
+            }
+        }
+    }
+
+    func testImportSaveThrowsBeforeOrAfterActualCommitReportsUncertain() throws {
+        enum Failure: Error { case injected }
+        for commitFirst in [false, true] {
+            try withDiskWorld(mealWrite: { context in
+                if commitFirst { try context.save() }
+                throw Failure.injected
+            }) { coordinator, journal, defaults, root in
+                let original = meal()
+                let raw = try JSONEncoder().encode([original])
+                let copies = root.appendingPathComponent("copies")
+                XCTAssertThrowsError(try coordinator.restoreReviewedLegacyBackup(raw,
+                    preservedCopyDirectory: copies)) { error in
+                    XCTAssertEqual(error as? FoodJournalCoordinator.AccessError, .restoreOutcomeUncertain)
+                }
+                let actual = try FoodJournalStore(container: journal.container).readMeals()
+                XCTAssertEqual(actual, commitFirst ? [original] : [], "Read committed-store truth after save threw; not process-death or power-loss proof")
+                let retained = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: copies,
+                    includingPropertiesForKeys: nil).first)
+                XCTAssertEqual(try Data(contentsOf: retained), raw)
                 XCTAssertNil(defaults.data(forKey: NutritionDiaryRepository.storageKey))
             }
         }

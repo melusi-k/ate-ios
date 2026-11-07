@@ -174,6 +174,60 @@ extension JournalOpenStateUITests {
         shot("manual-03-detail-actions")
     }
 
+    func testManualReflectionEditSaveCancelAndConfirmedDelete() {
+        composeFromHistory()
+        let original = "Manual CRUD " + UUID().uuidString
+        let changed = original + " edited"
+        let compose = app.textViews["journal.compose.text"]
+        compose.tap(); compose.typeText(original)
+        app.buttons["journal.compose.save"].tap()
+        let saved = any("journal.entry")
+        wait(saved); saved.tap()
+        let detail = any("journal.detail.text")
+        wait(detail)
+        XCTAssertEqual(detail.label, original, "Only the newly created reflection may be edited or deleted")
+        let originalDate = any("journal.detail.date").label
+
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Edit"].tap()
+        let editor = app.textViews["journal.edit.text"]
+        wait(editor)
+        XCTAssertEqual(editor.value as? String, original)
+        editor.tap(); editor.typeText(" discarded draft")
+        app.navigationBars["Edit entry"].buttons["Cancel"].tap()
+        waitUntilGone(editor)
+        XCTAssertEqual(detail.label, original, "Cancel must not save the draft")
+
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Edit"].tap()
+        wait(editor)
+        XCTAssertEqual(editor.value as? String, original)
+        editor.tap()
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.1)).tap()
+        // Append via the native select-all action, not a guessed caret position.
+        editor.press(forDuration: 1.2)
+        let selectAll = app.menuItems["Select All"]
+        wait(selectAll); selectAll.tap(); editor.typeText(changed)
+        app.navigationBars["Edit entry"].buttons["Save"].tap()
+        waitUntilGone(editor)
+        XCTAssertEqual(detail.label, changed, "Save must update the actual reflection")
+        XCTAssertEqual(any("journal.detail.date").label, originalDate, "Editing must preserve the original entry date")
+        shot("manual-crud-edited-detail")
+
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
+        wait(app.staticTexts["Delete this journal entry?"])
+        app.buttons["Cancel"].tap()
+        XCTAssertEqual(detail.label, changed, "Cancel must keep the reflection")
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
+        wait(app.staticTexts["Delete this journal entry?"])
+        shot("manual-crud-delete-confirmation")
+        app.buttons["Delete"].tap()
+        waitUntilGone(detail)
+        wait(app.navigationBars["Journal"])
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "journal.entry")
+            .matching(NSPredicate(format: "label CONTAINS %@", original)).firstMatch.exists,
+            "Confirmed deletion must remove the created reflection from history")
+        shot("manual-crud-confirmed-deleted-history")
+    }
+
     func testManualCancelKeepsDraftUntilExplicitDiscard() {
         composeFromHistory()
         let editor = app.textViews["journal.compose.text"]

@@ -31,6 +31,7 @@ final class CanonicalUpgradeUITests: XCTestCase {
         app.buttons["upgradeQA.diary"].tap()
         XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10))
         let meal = app.buttons["nutritionDiary.entry.24500000-0000-4000-8000-000000000002"]
+        reveal(meal, in: app)
         XCTAssertTrue(meal.waitForExistence(timeout: 10))
         XCTAssertTrue(meal.label.contains("Sample upgrade lunch"))
         shot("upgrade-02-typed-diary-same-migrated-meal")
@@ -41,6 +42,7 @@ final class CanonicalUpgradeUITests: XCTestCase {
         XCTAssertTrue(reflectionRow.exists)
         shot("upgrade-03-relaunch-disk-timeline")
         app.buttons["upgradeQA.diary"].tap()
+        reveal(meal, in: app)
         XCTAssertTrue(meal.waitForExistence(timeout: 10))
         meal.tap()
         let food = app.textFields["nutritionDiary.foodName"]
@@ -84,12 +86,15 @@ final class CanonicalUpgradeUITests: XCTestCase {
 
     func testMealBackupReviewCancelThenConfirmOnceOnRealIsolatedStore() {
         let app = launchBackupWorld()
-        app.buttons["upgradeQA.backupReview"].tap()
+        let review = app.buttons["upgradeQA.backupReview"]
+        XCTAssertTrue(review.isHittable, "The review action must be visible inside the safe area")
+        review.tap()
         XCTAssertTrue(app.navigationBars["Review meal backup"].waitForExistence(timeout: 10))
         shot("upgrade-backup-01-review-before-cancel")
         app.buttons["Cancel"].tap()
         XCTAssertTrue(app.buttons["upgradeQA.backupReview"].waitForExistence(timeout: 10))
         XCTAssertFalse(recoveredRow(app).exists, "Cancel review must not import the sample")
+        XCTAssertTrue(app.buttons["upgradeQA.backupReview"].isHittable)
         app.buttons["upgradeQA.backupReview"].tap()
         let confirm = app.buttons["mealBackup.confirmImport"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 10))
@@ -106,6 +111,7 @@ final class CanonicalUpgradeUITests: XCTestCase {
 
     func testMealBackupCommittedButUnverifiedCannotRetryFromSheet() {
         let app = launchBackupWorld(failVerification: true)
+        XCTAssertTrue(app.buttons["upgradeQA.backupReview"].isHittable)
         app.buttons["upgradeQA.backupReview"].tap()
         let confirm = app.buttons["mealBackup.confirmImport"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 10))

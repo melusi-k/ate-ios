@@ -219,7 +219,7 @@ final class AteUITests: XCTestCase {
         // Leaving Cook Mode is not completion. Inspect the calendar's accessible day label.
         tab("Journal")
         // Journal is the tab root; Insights & Cooking History is its one named route.
-        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        let hub = app.buttons["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
         hub.tap()
         let todayWithoutCooking = app.buttons.matching(
@@ -250,7 +250,7 @@ final class AteUITests: XCTestCase {
         // Completion must update the persistent Tracker, not merely dismiss Cook Mode.
         tab("Journal")
         // Journal is the tab root; Insights & Cooking History is its one named route.
-        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        let hub = app.buttons["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
         hub.tap()
         let day = Calendar.current.component(.day, from: Date())
@@ -307,7 +307,7 @@ final class AteUITests: XCTestCase {
         }
 
         tab("Journal")
-        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        let hub = app.buttons["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
         hub.tap()
         let day = Calendar.current.component(.day, from: Date())

@@ -240,7 +240,6 @@ struct InsightsView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var model = InsightsModel.shared
-    @State private var entries: [JournalEntry] = []
     @State private var recipeProgressCandidates: [RankedRecipeInsightCandidate] = []
     @State private var recipeProgressSuppressed = false
     @State private var recipeProgressLoading = false
@@ -311,7 +310,6 @@ struct InsightsView: View {
                         .accessibilityIdentifier("insights.tile.\(tileID)")
                         .id(tileID)
                     }
-                    journalMomentPicker
                 }
                 .foregroundStyle(Theme.foreground)
                 .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 40)
@@ -329,7 +327,7 @@ struct InsightsView: View {
         .contentMargins(.bottom, 96, for: .scrollContent)
         .navigationTitle(screenTitle)
         .ateRootNavigationChrome(logoID: "insights.logo", enabled: isRoot)
-        .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id).environment(store) }
+        .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id, recordsHealthSuggestionEvidence: t.recordsHealthSuggestionEvidence).environment(store) }
         .onChange(of: model.context?.insight.state) { _, st in
             if st != nil { BetaQA.shared.pass("A-HEALTH-03", note: "Insights showed \(st!.title) with \(model.context?.suggestions.count ?? 0) meal ideas") }
         }
@@ -402,8 +400,6 @@ struct InsightsView: View {
             bodyToday
         case "suggestedMeals":
             suggestedMealsCard
-        case "journal":
-            journalCard
         default:
             EmptyView()
         }
@@ -672,39 +668,6 @@ struct InsightsView: View {
         .font(AteFont.body(14))
     }
 
-    @ViewBuilder private var journalCard: some View {
-        card("Your Ate journal") {
-            Button { store.beginManualJournal() } label: {
-                Label("New journal entry", systemImage: "square.and.pencil")
-            }.accessibilityIdentifier("insights.newJournalEntry")
-            Text("Reflect on your day on the Journal tab, just below Insights & Cooking History.")
-                .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-            if entries.isEmpty {
-                Text("No entries yet.").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-            }
-            ForEach(entries.prefix(5), id: \.id) { e in
-                NavigationLink { JournalEntryDetailView(entryID: e.id) } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(e.datedStateLabel)
-                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                    if let line = JournalingMomentMapper.contextLine(title: e.journalingSuggestionTitle, date: e.momentDate) {
-                        Label(line, systemImage: "book.pages").font(AteFont.body(12)).foregroundStyle(Theme.primary)
-                            .accessibilityIdentifier("insights.entryMomentContext")
-                    }
-                    Text(e.text).font(AteFont.body(14)).lineLimit(3).multilineTextAlignment(.leading)
-                }.frame(maxWidth: .infinity, alignment: .leading)
-                }.buttonStyle(.plain)
-                .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
-                .accessibilityIdentifier("insights.entry")
-                .contextMenu { Button("Delete", role: .destructive) { JournalStore.shared.delete(e); entries = JournalStore.shared.entries() } }
-            }
-            if entries.count > 5 {
-                NavigationLink(value: Route.journal) { Text("See all \(entries.count) entries").font(AteFont.body(14, .semibold)) }
-                    .accessibilityIdentifier("insights.allEntries")
-            }
-        }
-    }
-
     @ViewBuilder
     private func unavailable(_ title: String, _ symbol: String, _ detail: String, id: String, settings: Bool = false, retry: Bool = false) -> some View {
         ContentUnavailableView {
@@ -795,7 +758,10 @@ struct TodayHealthCard: View {
 
 @MainActor @Observable final class InsightsNavState { static let shared = InsightsNavState(); var open = false }
 
-struct RecipeSheetTarget: Identifiable, Hashable { let id: String }
+struct RecipeSheetTarget: Identifiable, Hashable {
+    let id: String
+    var recordsHealthSuggestionEvidence = true
+}
 
 /// Recipe opened from Insights: its own stack + Done, so Back never strands you. Cook mode dismisses the sheet
 /// first so the root full-screen cover can present.

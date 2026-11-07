@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Dormant host-ready composer: Save uses the runtime-bound journal and retained cook, never the shared store.
-/// The presentation owner must retain this session when the sheet is dismissed. No app host activates it yet.
+/// Event-bound composer: Save uses the explicitly selected journal and retained cook, not the current recipe.
+/// The presentation owner must retain this session when the sheet is dismissed.
 struct CookedJournalReflectionComposer: View {
     @Bindable var session: CookedJournalReflectionSession
     var onSaved: () -> Void
@@ -12,6 +12,8 @@ struct CookedJournalReflectionComposer: View {
         NavigationStack {
             Form {
                 Section("Cooked \(session.event.recipeTitle)") {
+                    Text(session.event.completedAt, format: .dateTime.day().month().year().hour().minute())
+                        .font(.footnote).foregroundStyle(Theme.mutedForeground)
                     TextEditor(text: $session.draft)
                         .focused($focused)
                         .disabled(session.isAcknowledgementPending)
@@ -45,15 +47,15 @@ struct CookedJournalReflectionComposer: View {
     }
 }
 
-/// Both actual Cook Mode entrances share the optional runtime-gated callback. No runtime means no offer.
+/// Both actual Cook Mode entrances share the same completion and Journal handoff.
 struct JournalBoundCookMode: View {
     let recipeID: String
     var onExit: (() -> Void)? = nil
     @Environment(AppStore.self) private var store
 
     var body: some View {
-        CookModeView(recipeID: recipeID, completionOutbox: store.foodJournalRuntime?.cookOutbox ?? CookCompletionOutbox(), offerPolicy: store.foodJournalRuntime?.cookOfferPolicy ?? CookReflectionOfferPolicy(), onExit: onExit,
-                     onReflect: store.foodJournalRuntime == nil ? nil : { event in store.requestCookedReflection(event) })
+        CookModeView(recipeID: recipeID, completionOutbox: store.cookJournalOutbox, offerPolicy: store.cookJournalOfferPolicy, onExit: onExit,
+                     onReflect: { event in store.requestCookedReflection(event) })
             .onAppear { store.cookJournalViewVisible = true }
             .onDisappear { store.cookJournalViewVisible = false; store.presentPendingCookedReflection() }
     }
@@ -93,7 +95,7 @@ struct PendingCookedReflectionSection: View {
     private var offered: [CookCompletionEvent] { store.availableCookedReflections(queued: pending) }
 
     var body: some View {
-        if store.foodJournalRuntime != nil {
+        if !pending.isEmpty || readFailed || !offered.isEmpty {
             Section("Notes about cooking") {
                 if readFailed {
                     Text("Ate could not read its saved cooks. This is not an empty history.")
@@ -104,13 +106,17 @@ struct PendingCookedReflectionSection: View {
                         .accessibilityIdentifier("cookJournal.pending.\(event.id)")
                 }
             }
+        }
+        // An always-present loader is needed even when there are initially no visible rows.
+        Color.clear.frame(height: 0).listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden).listRowBackground(Color.clear)
+            .environment(\.defaultMinListRowHeight, 0)
             .onAppear(perform: reload)
             .onChange(of: store.journalRevision) { _, _ in reload() }
-        }
     }
 
     private func reload() {
-        do { pending = try store.foodJournalRuntime?.pendingCookReflections() ?? []; readFailed = false }
+        do { pending = try store.cookJournalOutbox.load(); readFailed = false }
         catch { pending = []; readFailed = true }
     }
 }

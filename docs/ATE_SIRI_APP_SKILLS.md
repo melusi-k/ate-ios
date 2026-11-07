@@ -1,5 +1,9 @@
 # Ate Siri App Skills integration
 
+## Deferred Draft status
+
+This branch preserves the Siri Tool Intent implementation split from #331. It is parked for a future SDK/build, not approved for landing or current distribution. The current CI selects Xcode 27.2 and cannot expand `@AppIntent(.tool)`; availability guards do not avoid macro expansion. Keep this PR Draft until a supported SDK is available and normal build, tests, and device evaluation pass.
+
 ## Purpose and separation of concerns
 
 Ate now has three distinct layers:
@@ -20,7 +24,7 @@ The existing `Ate/Intents/AteAppIntents.swift` already contains useful foundatio
 - Existing custom actions include opening a recipe, starting cook mode, adding a single shopping-list item, suggesting tonight's pick, importing a URL, creating an Ate Journal entry and other widget/Shortcuts actions.
 - `AteShortcuts` publishes a curated set of App Shortcuts.
 
-The app's deployment target remains iOS 18.0. Siri's new custom Tool Intent API is guarded with `@available(iOS 27.3, *)`; the CI toolchain is pinned to Xcode 27.3 for the preview SDK.
+The app's deployment target remains iOS 18.0. Siri's new custom Tool Intent API is guarded with `@available(iOS 27.3, *)`; the current CI toolchain remains Xcode 27.2, which cannot compile the custom tool macro variant. A future supported SDK/build is required.
 
 ## First implemented workflow: find and cook a saved recipe
 
@@ -137,7 +141,7 @@ This is developer-preview integration work. Per Apple's current preview guidance
 - [x] Add the first app skill using Apple's constrained `SKILL.md` format.
 - [x] Embed the bundle in the main Ate target through XcodeGen.
 - [x] Add a static skill-format validator and unit tests.
-- [x] Pin PR and release CI to Xcode 27.3 for the preview APIs.
+- [ ] Use an available SDK/build that supports the custom tool macro variant. Current CI remains pinned to Xcode 27.2; do not claim a successful tool build.
 - [ ] Confirm clean XcodeGen output and successful simulator build/tests in CI.
 - [ ] Verify Siri discovers the skill on a supported physical device.
 - [ ] Complete repeated Siri evaluations, including ambiguity and lock-screen cases.

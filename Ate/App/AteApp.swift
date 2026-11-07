@@ -497,7 +497,7 @@ struct RouteView: View {
                 } else {
                     NutritionDiaryView()
                 }
-            case .nutritionGoals: NutritionGoalsView()
+            case .nutritionGoals: NutritionGoalsView(repository: store.journalGoalsRepository)
             }
         }
         .toolbarTitleDisplayMode(.inline)

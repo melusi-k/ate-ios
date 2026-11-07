@@ -25,8 +25,8 @@ struct ReviewedMealBackupSheet: View {
                             Text("Quantity: \(entry.quantity.formatted()) \(entry.quantityUnit)")
                             Text("Servings: \(entry.servings.formatted())")
                             Text("Source: \(entry.sourceName)")
-                            if let sourceID = entry.sourceIdentifier { Text("Source identifier: \(sourceID)") }
-                            if let note = entry.verificationNote { Text("Verification note: \(note)") }
+                            if !entry.sourceIdentifier.isEmpty { Text("Source identifier: \(entry.sourceIdentifier)") }
+                            if !entry.verificationNote.isEmpty { Text("Verification note: \(entry.verificationNote)") }
                             ForEach(NutritionGoalField.allCases) { field in
                                 if let amount = entry.nutrientsPerServing[field] {
                                     Text("\(field.title) per serving: \(amount.formatted()) \(field.unit)")

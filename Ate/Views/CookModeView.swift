@@ -15,6 +15,7 @@ struct CookModeView: View {
     @Environment(AppStore.self) private var store
     @State private var finishState = CookFinishState()
     @State private var reflectionOffer: CookCompletionEvent?
+    @State private var showReflectionNudge = false
     @State private var writeRequest: CookCompletionEvent?
     @State private var finishProblem: CookCompletionOutboxError?
     @State private var index = 0
@@ -67,18 +68,20 @@ struct CookModeView: View {
         } message: {
             Text(finishProblem == .unreadable
                  ? "Ate could not read its list of finished cooks. The saved list was kept. You can try again, or set the old list aside and continue."
+                 : finishProblem == .historyUnreadable
+                 ? "Ate could not read your cooking history. The saved history was kept. This cook is queued, but completion is not confirmed. Please try again."
                  : "Ate could not finish saving this cook. Some changes may already be saved. Please try again.")
         }
         .sheet(item: $reflectionOffer, onDismiss: {
             // Single exit owner for every way out of the offer: leave Cook Mode once, then hand a chosen
-            // "Write a note" to the host. Not now and swipe-down only leave.
+            // "Add a note" to the host. Done and swipe-down only leave.
             let write = writeRequest
             writeRequest = nil
             exit()
             if let write { onReflect?(write) }
         }) { event in
-            CookReflectionOfferSheet(event: event,
-                                     onShown: { offerPolicy.markShown(on: Date()) },
+            CookReflectionOfferSheet(event: event, showReflectionNudge: showReflectionNudge,
+                                     onShown: { if showReflectionNudge { offerPolicy.markShown(on: Date()) } },
                                      onWrite: { writeRequest = event; reflectionOffer = nil },
                                      onNotNow: { reflectionOffer = nil })
         }
@@ -104,7 +107,7 @@ struct CookModeView: View {
                                             dayKey: CookingHistory.shared.key(for: now),
                                             id: "cook-" + session.sessionID)
             let stored = try completionOutbox.enqueue(event)
-            store.markCooked(recipeID, at: stored.completedAt)
+            try store.recordCompletedCook(stored)
             try store.clearCompletedCookSession(sessionID: session.sessionID)
             complete(stored)
         } catch let e as CookCompletionOutboxError {
@@ -124,11 +127,8 @@ struct CookModeView: View {
         guard finishState.begin() else { return }
         DiagnosticHistory.shared.record(.cookingSessionCompleted)
         onCompleted?(event)
-        if onReflect != nil, offerPolicy.shouldOffer(on: Date()) {
-            reflectionOffer = event
-        } else {
-            exit()
-        }
+        showReflectionNudge = offerPolicy.shouldOffer(on: Date())
+        reflectionOffer = event
     }
 
     private func exit() {
@@ -308,9 +308,11 @@ struct CookSessionMiniPlayer: View {
                 HStack(spacing: 10) {
                     Image(systemName: "frying.pan").foregroundStyle(Theme.primary)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(recipe.title).font(AteFont.body(13, .semibold)).lineLimit(1)
+                        Text(recipe.title).font(AteFont.body(13, .semibold)).lineLimit(2)
+                        // Two lines at accessibility sizes: one line truncated the step
+                        // text inside the capsule at AX5 (CI pixel evidence, #179).
                         Text("Resume · Step \(min(session.stepIndex, recipe.steps.count - 1) + 1) of \(recipe.steps.count)")
-                            .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground).lineLimit(1)
+                            .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground).lineLimit(2)
                     }
                     Spacer(minLength: 4)
                     Image(systemName: "play.fill").font(.system(size: 12, weight: .semibold))

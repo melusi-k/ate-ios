@@ -167,4 +167,27 @@ final class FoodJournalReviewedBackupRestoreTests: XCTestCase {
         }
     }
 
+    func testControllerCommittedButUnverifiedShowsHonestFailureWithoutAutomaticRetry() throws {
+        enum Failure: Error { case injected }
+        var commits = 0
+        try withDiskWorld(afterCommit: { throw Failure.injected }, mealWrite: { context in
+            try context.save(); commits += 1
+        }) { coordinator, journal, defaults, root in
+            let legacy = NutritionDiaryRepository(defaults: defaults)
+            let controller = NutritionDiaryController(coordinator: coordinator,
+                goalsRepository: NutritionGoalsRepository(defaults: defaults,
+                    storage: FileNutritionGoalsStorage(fileURL: root.appendingPathComponent("goals.json"))),
+                repair: LegacyDiaryRepair(repository: legacy, backupDirectory: root.appendingPathComponent("repair")))
+            let backup = try ReviewedMealBackup(JSONEncoder().encode([meal()]))
+            XCTAssertThrowsError(try controller.restoreReviewedMealBackup(backup)) { error in
+                XCTAssertTrue(error.localizedDescription.contains("could not confirm"))
+                XCTAssertFalse(error.localizedDescription.contains("have not been replaced"))
+            }
+            XCTAssertEqual(commits, 1, "Never retry an uncertain committed restore")
+            XCTAssertEqual(try FoodJournalStore(container: journal.container).readMeals(), backup.entries)
+            controller.reload()
+            XCTAssertEqual(controller.entries, backup.entries)
+        }
+    }
+
 }

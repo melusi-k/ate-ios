@@ -49,7 +49,8 @@ class ReleaseNotesTests(unittest.TestCase):
         self.assertIn('### What to test', out.stdout)
         self.assertIn('### How to test', out.stdout)
         self.assertIn('No mapped app journey changed', out.stdout)
-        self.assertIn('source inclusion is not device acceptance', out.stdout)
+        self.assertNotIn('Not proven by these notes', out.stdout)
+        self.assertIn('not test results or proof', out.stdout)
 
     def test_changed_journal_path_adds_concrete_device_steps(self):
         path = self.root / 'Ate' / 'Views' / 'JournalViews.swift'

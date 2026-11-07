@@ -199,10 +199,24 @@ final class KeyFlowsQATests: XCTestCase {
         let ok = sheet.waitForExistence(timeout: 8) || app.navigationBars["UIActivityContentView"].waitForExistence(timeout: 2)
         XCTAssertTrue(ok, "share sheet for the link")
         shot("5-share-link-sheet")
-        if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
-        sleep(1)
-        waitHittable(app.buttons["Share recipe"])
-        app.buttons["Share recipe"].tap()
+        // The activity host can exist before its Close button is ready. Dismiss
+        // the sheet itself, then prove the underlying share control is reachable.
+        let close = app.buttons["Close"].firstMatch
+        if close.waitForExistence(timeout: 3) {
+            close.tap()
+        } else {
+            let activity = sheet.exists ? sheet : app.navigationBars["UIActivityContentView"]
+            activity.swipeDown(velocity: .fast)
+        }
+        let shareButton = app.buttons["Share recipe"]
+        let dismissed = NSPredicate { _, _ in
+            !sheet.exists && !self.app.navigationBars["UIActivityContentView"].exists
+                && shareButton.exists && shareButton.isHittable
+        }
+        XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: dismissed, object: app)],
+                                    timeout: 5) == .completed,
+                      "Link share sheet must dismiss before reopening share options")
+        shareButton.tap()
         wait(app.buttons["Share as text"], 5)
         app.buttons["Share as text"].tap()
         XCTAssertTrue(app.otherElements["ActivityListView"].firstMatch.waitForExistence(timeout: 8)

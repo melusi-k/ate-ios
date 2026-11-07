@@ -6,6 +6,7 @@ name: Journal open state UI (#245)
 # (#239-#241); additive coverage must not collide with that file.
 permissions:
   contents: read
+  pull-requests: read
 
 on:
   pull_request:
@@ -16,7 +17,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    uses: ./.github/workflows/classify-native-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
+
   open-state-ui:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
     timeout-minutes: 60
     steps:
@@ -36,7 +45,7 @@ jobs:
             xcode-27-homebrew-
       - run: brew install xcodegen && xcodegen generate
       - name: Build for testing (iOS simulator)
-        continue-on-error: true
+        id: build
         run: |
           set -o pipefail
           SIM_ID=$(python3 scripts/select-ios-simulator.py)
@@ -53,6 +62,7 @@ jobs:
           fi
           echo "build-for-testing succeeded on $SIM_ID"
       - name: Journal open state app-launch UI tests
+        if: ${{ success() && steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
           # Diagnostics only: do not prelaunch, warm, erase or otherwise change the simulator.
@@ -181,3 +191,28 @@ jobs:
             ui-screenshots
             ${{ runner.temp }}/ate-test-results/journal-open-state-ui.xcresult
           if-no-files-found: warn
+
+  qualification-result:
+    name: Journal qualification result
+    if: always()
+    needs: [changes, open-state-ui]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Report actual qualification route
+        env:
+          CLASSIFIER: ${{ needs.changes.result }}
+          NATIVE: ${{ needs.changes.outputs.app }}
+          NATIVE_RESULT: ${{ needs.open-state-ui.result }}
+        run: |
+          if [[ "$CLASSIFIER" != success ]]; then
+            echo 'Scope classifier failed; qualification is NOT established.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [[ "$NATIVE" == false ]]; then
+            echo 'Documentation-only diff. Mac tests NOT RUN; this is NOT native qualification.' >> "$GITHUB_STEP_SUMMARY"
+            [[ "$NATIVE_RESULT" == skipped ]]
+          else
+            echo "Native qualification required. Mac job result: $NATIVE_RESULT." >> "$GITHUB_STEP_SUMMARY"
+            [[ "$NATIVE" == true && "$NATIVE_RESULT" == success ]]
+          fi

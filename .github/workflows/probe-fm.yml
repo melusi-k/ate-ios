@@ -1,5 +1,7 @@
 name: Probe FoundationModels SDK
 on: workflow_dispatch
+permissions:
+  contents: read
 jobs:
   probe:
     runs-on: macos-26

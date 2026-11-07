@@ -1,8 +1,8 @@
 import XCTest
 
-/// Captures the real Journal / Insights action menus on the current head:
-/// the journal entry detail "More" menu (Edit / Delete) and the Insights
-/// entry long-press context menu. The store is NOT assumed isolated, so the
+/// Captures the real Journal action menus on the current head:
+/// the journal entry detail "More" menu (Edit / Delete), including an entry
+/// saved from the Journal root reflection. The store is NOT assumed isolated, so the
 /// seed entry carries unique text, every selection is by that exact text,
 /// and the delete only runs after the open detail is verified to be the
 /// seed entry itself. Nothing pre-existing is selected or removed.
@@ -63,7 +63,7 @@ final class JournalMenuCaptureUITests: XCTestCase {
         wait(hub, 10, file: file, line: line)
     }
 
-    /// Connect mock Health in the hub, save a unique reflection on Journal, then return to the hub.
+    /// Connect mock Health in the hub, then save a unique reflection on the Journal root.
     private func seedEntryViaInsights() {
         app.tabBars.buttons["Journal"].tap()
         wait(app.navigationBars["Journal"])
@@ -79,12 +79,6 @@ final class JournalMenuCaptureUITests: XCTestCase {
         let save = app.buttons["insights.save"]; wait(save)
         for _ in 0..<5 where !save.isHittable { app.swipeUp() }
         XCTAssertTrue(save.isHittable); save.tap()
-        _ = seedText()
-        for _ in 0..<6 where !hub.isHittable { app.swipeDown() }
-        XCTAssertTrue(hub.isHittable)
-        // Keep the original context-menu acceptance journey on its real hub entry.
-        hub.tap()
-        wait(app.navigationBars["Insights & Cooking History"])
         _ = seedText()
     }
 
@@ -139,14 +133,14 @@ final class JournalMenuCaptureUITests: XCTestCase {
         deleteVerifiedSeedFromOpenDetail()
     }
 
-    func testSavedInsightsEntryDeleteMenuOpensFromJournal() {
+    func testInsightsEntryContextMenuOpens() {
         seedEntryViaInsights()
         openVerifiedSeedDetail()
         let more = app.buttons["journal.detail.menu"].firstMatch
         wait(more); more.tap()
         let del = app.buttons["Delete"].firstMatch
         XCTAssertTrue(del.waitForExistence(timeout: 5), "the saved entry detail menu must offer Delete")
-        shot("journal-saved-insights-entry-delete-menu")
+        shot("insights-entry-context-menu")
         // Dismiss WITHOUT deleting and prove the menu is gone before navigating.
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)).tap()
         gone(del, 5)

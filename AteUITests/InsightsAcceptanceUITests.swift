@@ -170,6 +170,10 @@ final class InsightsAcceptanceUITests: XCTestCase {
         reopenInsightsFromJournal()
         let action = app.buttons["insights.progress.action.weekly-cooking"]
         reveal(action)
+        let beforeOpen = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        beforeOpen.name = "insight-normal-before-open"
+        beforeOpen.lifetime = .keepAlways
+        add(beforeOpen)
         action.tap()
         wait(app.navigationBars["Insights & Cooking History"], 8)
         let day = Calendar.current.component(.day, from: Date())
@@ -179,7 +183,11 @@ final class InsightsAcceptanceUITests: XCTestCase {
         today.tap()
         let daySheet = app.navigationBars["Cooked that day"]
         wait(daySheet, 5)
-        daySheet.swipeDown()
+        // Drag across the medium sheet's dismissal distance. A short swipe within
+        // its navigation bar leaves the actual sheet open on the native simulator.
+        let sheetHeader = daySheet.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
+        let belowSheet = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98))
+        sheetHeader.press(forDuration: 0.05, thenDragTo: belowSheet)
         XCTAssertTrue(daySheet.waitForNonExistence(timeout: 5), "The real day-details sheet must close before returning")
         app.navigationBars["Insights & Cooking History"].buttons["Journal"].tap()
         wait(app.navigationBars["Journal"], 5)
@@ -201,6 +209,10 @@ final class InsightsAcceptanceUITests: XCTestCase {
         reveal(dismiss)
         dismiss.tap()
         XCTAssertTrue(action.waitForNonExistence(timeout: 5), "Only explicit dismissal should remove this suggestion")
+        let afterDismiss = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        afterDismiss.name = "insight-normal-after-explicit-dismiss"
+        afterDismiss.lifetime = .keepAlways
+        add(afterDismiss)
     }
 
 }

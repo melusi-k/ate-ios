@@ -2,7 +2,7 @@
 
 ## Product decision
 
-The existing combined daily/monthly hub is labelled **Insights** in both the tab bar and the screen heading. The screen continues to contain cooking history, read-only Health insights, and the local Ate journal. Do not add another tab or imply that Ate writes to Apple's Journal. This is a cross-issue UI change: cooking completion, persistence, streak/calendar semantics, and early-exit behavior remain owned by [issue #31](https://github.com/melusi-k/ate-ios/issues/31); Health and journal acceptance remains owned by [issue #38](https://github.com/melusi-k/ate-ios/issues/38).
+Current navigation decision (2026-11-05): the tab is **Journal** with the book.closed symbol and Journal root. **Insights & Cooking History** is a pushed destination inside Journal. This supersedes the former Insights tab/root naming below; historical acceptance evidence is not fresh qualification of the renamed tab. The screen continues to contain cooking history, read-only Health insights, and the local Ate journal. Do not add another tab or imply that Ate writes to Apple's Journal. This is a cross-issue UI change: cooking completion, persistence, streak/calendar semantics, and early-exit behavior remain owned by [issue #31](https://github.com/melusi-k/ate-ios/issues/31); Health and journal acceptance remains owned by [issue #38](https://github.com/melusi-k/ate-ios/issues/38).
 
 ## Screen composition
 
@@ -10,7 +10,7 @@ The existing combined daily/monthly hub is labelled **Insights** in both the tab
 2. Apple Health insight card, including explicit Connect action and honest unavailable, entitlement-missing, denied, error, sample-data, and no-data states.
 3. Health-aware meal suggestions and reflection prompts when an insight is available.
 4. Local Ate journal preview, with detail navigation and the existing full searchable journal list.
-5. Library/Home shortcut that switches to the Insights tab's root.
+5. Library/Home shortcut that opens Insights & Cooking History above the Journal root.
 
 The Insights screen should reuse its existing content in a single scroll view. Do not wrap one scroll view inside another or create a second calendar, Health model, or journal store. Keep existing routes, Shortcuts, CookingHistory, InsightsModel, and JournalStore as the sources of truth.
 
@@ -26,12 +26,12 @@ The Insights screen should reuse its existing content in a single scroll view. D
 
 Run the full `CookingTrackerEntryUITests` target, the Cook Mode completion/early-exit integration tests, Health/Journal unit tests, the compile workflow, and normal CI test targets. PR #59 wires the Tracker target and Cook Mode integration tests into the main-push release gate; new #38 hub tests must remain in that same target. At minimum verify:
 
-- Insights tab opens with the native navigation heading `Insights`.
+- Journal tab opens with the native navigation heading `Journal`; its named route opens `Insights & Cooking History`.
 - Calendar month navigation, current-month future restriction, and selected-day empty state still work.
 - The combined hub exposes the Health card, cooking calendar, and journal card without nested scrolling.
 - Opening Insights alone does not display a Health permission prompt; only the explicit Connect action can initiate access.
 - Existing journal list/search/detail/edit/cancel/delete/share/Shortcuts/location/media coverage remains intact.
-- Library/Home shortcut opens the Insights root and does not disturb iOS 26 Search or the bottom accessory.
+- Library/Home shortcut opens Insights & Cooking History above Journal and does not disturb iOS 26 Search or the bottom accessory.
 
 Simulator/CI acceptance is required for implementation and merge. **Physical-device and entitlement-matrix testing is deliberately deferred until the end of issue #38** and is not a blocker for implementing or merging this UI. Keep those device-only criteria open until actual evidence is recorded; do not mark issue #38 fully accepted before then.
 

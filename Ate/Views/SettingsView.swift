@@ -103,6 +103,17 @@ struct SettingsView: View {
                     } footer: {
                         Text(SettingsCopy.nutritionFooter)
                     }
+                    Section {
+                        Picker("Appearance", selection: $store.settings.appearance) {
+                            ForEach(AppAppearance.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .accessibilityIdentifier("settings.appearance")
+                    } header: { Text("Appearance") } footer: {
+                        Text("System follows your iPhone's appearance. Light or Dark applies to Ate. Widgets and Live Activities keep their current appearance.")
+                    }
                     Section("Units") {
                         Picker("Units", selection: $store.settings.units) {
                             Text("Metric").tag(UnitSystem.metric); Text("Imperial").tag(UnitSystem.imperial)

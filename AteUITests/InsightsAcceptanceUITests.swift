@@ -23,6 +23,50 @@ final class InsightsAcceptanceUITests: XCTestCase {
                       file: file, line: line)
     }
 
+    /// Handle only the identified iOS slide-to-type onboarding, not a generic Continue.
+    private func dismissSystemTypingTipIfPresented() {
+        let hosts = [app!, XCUIApplication(bundleIdentifier: "com.apple.springboard")]
+        let message = "Speed up your typing by sliding your finger"
+        let tips = hosts.map {
+            $0.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", message)).firstMatch
+        }.filter { $0.exists }
+        guard !tips.isEmpty else { return }
+        var eligible: [XCUIElement] = []
+        for host in hosts {
+            let buttons = host.buttons.matching(NSPredicate(format: "label ==[c] 'Continue'"))
+            for index in 0..<buttons.count {
+                let button = buttons.element(boundBy: index)
+                guard button.exists, button.isHittable else { continue }
+                let frame = button.frame
+                guard tips.contains(where: { tip in
+                    let textFrame = tip.frame
+                    return !textFrame.isEmpty && app.frame.intersects(textFrame)
+                        && frame.minY >= textFrame.maxY - 1
+                        && frame.minY <= textFrame.maxY + 160
+                        && min(frame.maxX, textFrame.maxX) > max(frame.minX, textFrame.minX)
+                        && abs(frame.midX - textFrame.midX) <= textFrame.width / 2
+                }) else { continue }
+                // App and SpringBoard can expose aliases of one physical control.
+                guard !eligible.contains(where: { existing in
+                    let old = existing.frame
+                    return abs(old.minX - frame.minX) < 1 && abs(old.minY - frame.minY) < 1
+                        && abs(old.width - frame.width) < 1 && abs(old.height - frame.height) < 1
+                }) else { continue }
+                eligible.append(button)
+            }
+        }
+        guard eligible.count == 1 else {
+            XCTFail("The system typing tip must have exactly one distinct reachable Continue action")
+            return
+        }
+        eligible[0].tap()
+        for host in hosts {
+            let tip = host.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", message)).firstMatch
+            XCTAssertTrue(tip.waitForNonExistence(timeout: 3),
+                          "The system typing tip must close in both queried hosts")
+        }
+    }
+
     private func tab(_ name: String) {
         var attempts = 0
         while !app.tabBars.firstMatch.exists && attempts < 4 {
@@ -188,12 +232,92 @@ final class InsightsAcceptanceUITests: XCTestCase {
         today.tap()
         let daySheet = app.navigationBars["Cooked that day"]
         wait(daySheet, 5)
-        // Drag across the medium sheet's dismissal distance. A short swipe within
-        // its navigation bar leaves the actual sheet open on the native simulator.
-        let sheetHeader = daySheet.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
-        let belowSheet = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98))
-        sheetHeader.press(forDuration: 0.05, thenDragTo: belowSheet)
-        XCTAssertTrue(daySheet.waitForNonExistence(timeout: 5), "The real day-details sheet must close before returning")
+        // This journey checks one outside tap, not swipe support or AX shield count.
+        let dismissRegions = app.otherElements.matching(identifier: "PopoverDismissRegion")
+        let regionCount = dismissRegions.count
+        let regionObservation = XCTAttachment(string:
+            "PopoverDismissRegion count=\(regionCount); duplicate exposure is diagnostic, not dismissal behaviour")
+        regionObservation.name = "day-sheet-dismiss-region-observation"
+        regionObservation.lifetime = .keepAlways
+        add(regionObservation)
+        let hubBar = app.navigationBars["Insights & Cooking History"]
+        let appFrame = app.frame
+        let sheetNavigationFrame = daySheet.frame
+        // Bind geometry to the smallest real container that contains this sheet bar.
+        // Equal nested container frames are harmless; no dismissal shield is selected.
+        let sheetFrames = app.otherElements
+            .containing(.navigationBar, identifier: "Cooked that day")
+            .allElementsBoundByIndex.map { $0.frame }
+            .filter { !$0.isEmpty && $0.contains(sheetNavigationFrame) && appFrame.contains($0) }
+        let sheetFrame = sheetFrames.min { $0.width * $0.height < $1.width * $1.height }
+        // The retained native frame places this explanatory copy on the dimmed
+        // tracker, well above the day sheet. Do not tap a calendar day or control.
+        let explanation = app.staticTexts[
+            "Finish cooking in Cook Mode to record a day. Tap a date to see what you cooked."
+        ]
+        let explanationFrame = explanation.frame
+        let target = CGPoint(x: explanationFrame.midX, y: explanationFrame.midY)
+        let beforeTap = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        beforeTap.name = "day-sheet-before-outside-tap"
+        beforeTap.lifetime = .keepAlways
+        add(beforeTap)
+        let beforeAX = XCTAttachment(string: app.debugDescription)
+        beforeAX.name = "day-sheet-before-outside-tap-AX"
+        beforeAX.lifetime = .keepAlways
+        add(beforeAX)
+        guard let sheetFrame, explanation.exists, hubBar.exists,
+              !appFrame.isEmpty, !sheetNavigationFrame.isEmpty, !explanationFrame.isEmpty,
+              appFrame.contains(explanationFrame),
+              explanationFrame.minY > hubBar.frame.maxY + 16,
+              sheetFrame.height < appFrame.height,
+              explanationFrame.maxY < sheetFrame.minY - 16,
+              appFrame.contains(target) else {
+            XCTFail("No verified non-control tracker background above the real day sheet")
+            return
+        }
+        // Check underlying controls too, even while the sheet makes them unhittable.
+        let controlTypes: [XCUIElement.ElementType] = [
+            .button, .textField, .secureTextField, .textView, .switch, .slider,
+            .picker, .pickerWheel, .segmentedControl, .link
+        ]
+        for type in controlTypes {
+            for control in app.descendants(matching: type).allElementsBoundByIndex {
+                if control.exists && control.frame.insetBy(dx: -8, dy: -8).contains(target) {
+                    XCTFail("Outside-tap point overlaps a control: \(control.identifier)")
+                    return
+                }
+            }
+        }
+        let geometry = XCTAttachment(string:
+            "outsideTap=\(target); trackerExplanation=\(explanationFrame); sheet=\(sheetFrame); sheetNavigation=\(sheetNavigationFrame)")
+        geometry.name = "day-sheet-outside-tap-geometry"
+        geometry.lifetime = .keepAlways
+        add(geometry)
+        // One app coordinate tap only. No shield-node selection, retry or second gesture.
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: target.x - appFrame.minX,
+                                 dy: target.y - appFrame.minY)).tap()
+        let daySheetClosed = daySheet.waitForNonExistence(timeout: 5)
+        let afterTap = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        afterTap.name = "day-sheet-after-outside-tap"
+        afterTap.lifetime = .keepAlways
+        add(afterTap)
+        let afterAX = XCTAttachment(string: app.debugDescription)
+        afterAX.name = "day-sheet-after-outside-tap-AX"
+        afterAX.lifetime = .keepAlways
+        add(afterAX)
+        if !daySheetClosed {
+            // Capture at the failed disappearance wait, before XCTest stops this journey.
+            let failureShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            failureShot.name = "day-sheet-disappearance-failure"
+            failureShot.lifetime = .keepAlways
+            add(failureShot)
+            let failureAX = XCTAttachment(string: app.debugDescription)
+            failureAX.name = "day-sheet-disappearance-failure-AX"
+            failureAX.lifetime = .keepAlways
+            add(failureAX)
+        }
+        XCTAssertTrue(daySheetClosed, "The real day-details sheet must close before returning")
         app.navigationBars["Insights & Cooking History"].buttons["Journal"].tap()
         wait(app.navigationBars["Journal"], 5)
         app.buttons["journal.insightsHistory"].tap()
@@ -232,6 +356,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
         wait(app.staticTexts["journal.reflection.manualPrompt"])
         let seed = "Root reflection " + UUID().uuidString
         reveal(field); field.tap(); field.typeText(seed)
+        dismissSystemTypingTipIfPresented()
         // The hub is above the composer. Move only the Journal list toward its top.
         for _ in 0..<6 where !hub.isHittable { app.swipeDown() }
         XCTAssertTrue(hub.isHittable, "Journal's named hub must be visible before tapping")
@@ -241,6 +366,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
                        "The composer must not be duplicated in the hub")
         app.navigationBars["Insights & Cooking History"].buttons["Journal"].tap()
         wait(field)
+        dismissSystemTypingTipIfPresented()
         XCTAssertEqual(field.value as? String, seed, "Returning to Journal must retain the same draft")
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "journal-normal-root-reflection-retained"; shot.lifetime = .keepAlways; add(shot)
@@ -257,6 +383,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
         app.launch(); tab("Journal")
         let field = app.descendants(matching: .any)["insights.journalText"].firstMatch
         reveal(field); field.tap(); field.typeText("Keep failed draft")
+        dismissSystemTypingTipIfPresented()
         let save = app.buttons["insights.save"]; reveal(save); save.tap()
         wait(app.staticTexts["insights.journalSaveError"])
         XCTAssertEqual(field.value as? String, "Keep failed draft")

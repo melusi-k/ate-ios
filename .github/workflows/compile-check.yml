@@ -325,6 +325,13 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > insights-evidence-navigation.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" insights-evidence-navigation.log || true; tail -120 insights-evidence-navigation.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" insights-evidence-navigation.log | tail -40
 
+      - name: Retain UI-test day-sheet presentation trace
+        if: ${{ always() && steps.insights_acceptance.outcome != 'skipped' }}
+        run: |
+          xcrun simctl spawn "$SIM_ID" log show --style compact --last 30m \
+            --predicate 'subsystem == "com.melusik.ate" AND category == "day-sheet-presentation"' \
+            > day-sheet-presentation.log 2>&1 || true
+
       - name: Share publish outage fallback UI regression (PR #122)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |

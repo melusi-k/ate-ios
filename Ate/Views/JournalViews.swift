@@ -353,6 +353,7 @@ final class JournalReflectionDraft {
 
 struct JournalReflectionCard: View {
     @Environment(AppStore.self) private var store
+    @FocusState private var editorFocused: Bool
     @State private var model = InsightsModel.shared
     @AppStorage(JournalingSuggestionsGate.settingKey) private var journalingEnabled = false
     @State private var openRecipe: RecipeSheetTarget?
@@ -393,6 +394,7 @@ struct JournalReflectionCard: View {
                     .accessibilityIdentifier("journal.reflection.moment")
             }
             TextField("Write a few lines…", text: $reflection.text, axis: .vertical).lineLimit(3...8)
+                .focused($editorFocused)
                 .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
                 .accessibilityIdentifier("insights.journalText")
             Button("Save to journal") { save() }
@@ -416,6 +418,7 @@ struct JournalReflectionCard: View {
     private func save() {
         let reflection = store.journalReflection
         if reflection.save(context: model.context) {
+            editorFocused = false
             store.journalRevision += 1
             store.show("Saved to your Ate journal")
             BetaQA.shared.pass("A-HEALTH-04", note: "Saved a local journal entry")

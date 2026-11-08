@@ -222,13 +222,17 @@ final class CoverageUITests: XCTestCase {
         // Screenshot/AX and native event time are not extra readiness wait allowance.
         let exportActivity = app.otherElements["ActivityListView"]
         var readinessBudget: TimeInterval = 2
-        let presentationStarted = Date()
-        let exportPresented = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+        let exportPresentedPredicate = NSPredicate { _, _ in
             exportActivity.exists && !exportActivity.frame.isEmpty
-        }, object: nil)
-        let presentationResult = XCTWaiter.wait(for: [exportPresented], timeout: readinessBudget)
-        readinessBudget = max(0, readinessBudget - Date().timeIntervalSince(presentationStarted))
-        guard presentationResult == .completed else {
+        }
+        var exportIsPresented = exportPresentedPredicate.evaluate(with: nil)
+        if !exportIsPresented && readinessBudget > 0 {
+            let exportPresented = XCTNSPredicateExpectation(predicate: exportPresentedPredicate, object: nil)
+            let presentationStarted = Date()
+            exportIsPresented = XCTWaiter.wait(for: [exportPresented], timeout: readinessBudget) == .completed
+            readinessBudget = max(0, readinessBudget - Date().timeIntervalSince(presentationStarted))
+        }
+        guard exportIsPresented else {
             XCTFail("Export ActivityListView must present before dismissal")
             return
         }
@@ -238,10 +242,15 @@ final class CoverageUITests: XCTestCase {
         print("SETTINGS-EXPORT-PRESENTATION-AX-END")
         if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
         let settingsNavigation = app.navigationBars["Settings"]
-        let exportDismissed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+        let exportDismissedPredicate = NSPredicate { _, _ in
             !exportActivity.exists && settingsNavigation.exists && !settingsNavigation.frame.isEmpty && settingsNavigation.isHittable
-        }, object: nil)
-        guard XCTWaiter.wait(for: [exportDismissed], timeout: readinessBudget) == .completed else {
+        }
+        var exportIsDismissed = exportDismissedPredicate.evaluate(with: nil)
+        if !exportIsDismissed && readinessBudget > 0 {
+            let exportDismissed = XCTNSPredicateExpectation(predicate: exportDismissedPredicate, object: nil)
+            exportIsDismissed = XCTWaiter.wait(for: [exportDismissed], timeout: readinessBudget) == .completed
+        }
+        guard exportIsDismissed else {
             XCTFail("Export ActivityListView must dismiss before Settings becomes the active screen")
             return
         }

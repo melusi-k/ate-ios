@@ -24,6 +24,25 @@ final class AteUITests: XCTestCase {
             b.tap()
         } else if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
     }
+    /// This journey exits Cook Mode onto a known recipe detail, whose tab bar is
+    /// deliberately hidden. Pop that exact navigation surface before querying root tabs.
+    /// No global absent-tab probe, swipe fallback, or retry is needed for this one-level route.
+    private func tabFromRecipeDetail(_ name: String, recipeTitle: String) {
+        let detailNavigation = app.navigationBars[recipeTitle]
+        XCTAssertTrue(detailNavigation.exists && !detailNavigation.frame.isEmpty && detailNavigation.isHittable,
+                      "Expected recipe detail before returning to a tab")
+        let backButtons = detailNavigation.buttons.matching(NSPredicate(format: "label == %@", "Back"))
+        XCTAssertEqual(backButtons.count, 1, "Recipe detail must expose exactly one Back-labelled navigation button")
+        let back = backButtons.element(boundBy: 0)
+        XCTAssertTrue(back.exists && back.isHittable, "Recipe detail must expose its navigation back button")
+        back.tap()
+        let rootTabBar = app.windows.firstMatch.tabBars.containing(NSPredicate(format: "label == %@", name)).firstMatch
+        let button = rootTabBar.buttons[name]
+        XCTAssertTrue(button.waitForExistence(timeout: 5),
+                      "Journal must be selected through its tab, not a pushed-screen back button")
+        button.tap()
+    }
+
     func scrollTo(_ e: XCUIElement, max: Int = 8) {
         _ = e.waitForExistence(timeout: 5)
         var n = 0
@@ -220,7 +239,7 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 5)
 
         // Leaving Cook Mode is not completion. Inspect the calendar's accessible day label.
-        tab("Journal")
+        tabFromRecipeDetail("Journal", recipeTitle: "Miso salmon for two")
         // Journal is the tab root; Insights & Cooking History is its one named route.
         let hub = app.buttons["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")

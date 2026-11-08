@@ -582,6 +582,12 @@ final class CoverageUITests: XCTestCase {
         launch(["-qaPersistDraft"])
         app.buttons["Add recipe"].tap()
         wait(text("Add a recipe"))
+        // Retain final-relaunch evidence before the original negative query.
+        shot("generation-after-save-relaunch-before-persistence-query")
+        let hierarchy = XCTAttachment(string: app.debugDescription)
+        hierarchy.name = "generation-after-save-relaunch-before-persistence-query-AX"
+        hierarchy.lifetime = .keepAlways
+        add(hierarchy)
         XCTAssertFalse(text("Restored your unsaved card").exists, "saved draft must not come back")
     }
 

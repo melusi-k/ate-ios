@@ -221,9 +221,10 @@ final class CoverageUITests: XCTestCase {
         // Share the former two-second sleep budget between explicit readiness waits.
         // Screenshot/AX and native event time are not extra readiness wait allowance.
         let exportActivity = app.otherElements["ActivityListView"]
+        let exportClose = app.buttons["Close"]
         var readinessBudget: TimeInterval = 2
         let exportPresentedPredicate = NSPredicate { _, _ in
-            exportActivity.exists && !exportActivity.frame.isEmpty
+            exportActivity.exists && !exportActivity.frame.isEmpty && exportClose.exists && !exportClose.frame.isEmpty && exportClose.isHittable
         }
         var exportIsPresented = exportPresentedPredicate.evaluate(with: nil)
         if !exportIsPresented && readinessBudget > 0 {
@@ -233,14 +234,14 @@ final class CoverageUITests: XCTestCase {
             readinessBudget = max(0, readinessBudget - Date().timeIntervalSince(presentationStarted))
         }
         guard exportIsPresented else {
-            XCTFail("Export ActivityListView must present before dismissal")
+            XCTFail("Export ActivityListView and its Close control must be ready before dismissal")
             return
         }
         shot("more-export-sheet")
         print("SETTINGS-EXPORT-PRESENTATION-AX-BEGIN")
         print(app.debugDescription)
         print("SETTINGS-EXPORT-PRESENTATION-AX-END")
-        if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
+        exportClose.tap()
         let settingsNavigation = app.navigationBars["Settings"]
         let exportDismissedPredicate = NSPredicate { _, _ in
             !exportActivity.exists && settingsNavigation.exists && !settingsNavigation.frame.isEmpty && settingsNavigation.isHittable

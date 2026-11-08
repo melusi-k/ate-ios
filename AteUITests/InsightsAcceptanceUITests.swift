@@ -228,8 +228,53 @@ final class InsightsAcceptanceUITests: XCTestCase {
         today.tap()
         let daySheet = app.navigationBars["Cooked that day"]
         wait(daySheet, 5)
-        daySheet.swipeDown()
+        // This journey checks explicit tap-away dismissal, not swipe support.
+        // UIKit exposes the actual outside-tap shield as PopoverDismissRegion.
+        let dismissRegions = app.otherElements.matching(identifier: "PopoverDismissRegion")
+        let hubBar = app.navigationBars["Insights & Cooking History"]
+        let appFrame = app.frame
+        let sheetFrame = daySheet.frame
+        let backgroundTop = max(appFrame.minY, hubBar.frame.maxY) + 16
+        let backgroundBottom = min(appFrame.maxY, sheetFrame.minY) - 32
+        let target = CGPoint(x: appFrame.midX,
+                             y: (backgroundTop + backgroundBottom) / 2)
+        let beforeTap = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        beforeTap.name = "day-sheet-before-outside-tap"
+        beforeTap.lifetime = .keepAlways
+        add(beforeTap)
+        let beforeAX = XCTAttachment(string: app.debugDescription)
+        beforeAX.name = "day-sheet-before-outside-tap-AX"
+        beforeAX.lifetime = .keepAlways
+        add(beforeAX)
+        // Multiple native shields can share bounds and labels. Do not guess ownership.
+        let regionCount = dismissRegions.count
+        guard regionCount == 1 else {
+            XCTFail("Expected one unambiguous day-sheet dismissal region, found \(regionCount)")
+            return
+        }
+        let dismissRegion = dismissRegions.element(boundBy: 0)
+        guard dismissRegion.exists, dismissRegion.isHittable,
+              dismissRegion.label == "dismiss popup", hubBar.exists,
+              !appFrame.isEmpty, !sheetFrame.isEmpty,
+              backgroundBottom > backgroundTop,
+              appFrame.contains(target), dismissRegion.frame.contains(target),
+              target.y < sheetFrame.minY - 16 else {
+            XCTFail("No verified outside-tap dismissal region above the real day sheet")
+            return
+        }
+        // One tap only. No retry, second gesture, or arbitrary control target.
+        dismissRegion.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: target.x - dismissRegion.frame.minX,
+                                 dy: target.y - dismissRegion.frame.minY)).tap()
         let daySheetClosed = daySheet.waitForNonExistence(timeout: 5)
+        let afterTap = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        afterTap.name = "day-sheet-after-outside-tap"
+        afterTap.lifetime = .keepAlways
+        add(afterTap)
+        let afterAX = XCTAttachment(string: app.debugDescription)
+        afterAX.name = "day-sheet-after-outside-tap-AX"
+        afterAX.lifetime = .keepAlways
+        add(afterAX)
         if !daySheetClosed {
             // Capture at the failed disappearance wait, before XCTest stops this journey.
             let failureShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())

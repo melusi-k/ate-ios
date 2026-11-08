@@ -88,4 +88,56 @@ final class CanonicalConsumerBindingTests: XCTestCase {
         }
     }
 
+    func testRootReflectionUsesInjectedOwnerAndKeepsDraftWhenThatOwnerIsUnavailable() throws {
+        let previous = AppStore.current
+        let settings = UserDefaults.standard.object(forKey: "ate.settings.v1")
+        let timers = UserDefaults.standard.object(forKey: "ate.timerprefs.v1")
+        defer {
+            AppStore.current = previous
+            if let settings { UserDefaults.standard.set(settings, forKey: "ate.settings.v1") }
+            else { UserDefaults.standard.removeObject(forKey: "ate.settings.v1") }
+            if let timers { UserDefaults.standard.set(timers, forKey: "ate.timerprefs.v1") }
+            else { UserDefaults.standard.removeObject(forKey: "ate.timerprefs.v1") }
+        }
+        let suite = "ReflectionOwner-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory.appendingPathComponent(suite))
+        }
+        let journal = JournalStore(inMemory: true)
+        let otherOwner = JournalStore(inMemory: true)
+        let marker = "Injected owner reflection \(UUID().uuidString)"
+        for unavailable in [false, true] {
+            let owner = unavailable ? JournalStore(container: nil, openState: .unavailable(error: "fixture")) : journal
+            let runtime = FoodJournalRuntime(journal: owner,
+                goalsRepository: goals(defaults, suite: suite), defaults: defaults)
+            let store = AppStore(context: nil, backend: MockBackend(),
+                nutritionDiaryRepository: NutritionDiaryRepository(defaults: defaults), foodJournalRuntime: runtime)
+            let draft = store.journalReflection
+            draft.text = marker
+            draft.prompt = JournalPrompt(text: "Owner-bound prompt", state: .balanced)
+            draft.pendingMoment = ("Owner-bound moment", .distantPast)
+            XCTAssertTrue(store.journalStore === owner)
+            XCTAssertEqual(draft.save(context: nil, journal: store.journalStore), !unavailable)
+            XCTAssertTrue(try otherOwner.readReflections().isEmpty, "A different owner must not receive the reflection")
+            if unavailable {
+                XCTAssertEqual(draft.text, marker)
+                XCTAssertEqual(draft.prompt?.text, "Owner-bound prompt")
+                XCTAssertEqual(draft.pendingMoment?.title, "Owner-bound moment")
+                XCTAssertNotNil(draft.saveError)
+                XCTAssertThrowsError(try owner.readReflections())
+            } else {
+                let row = try XCTUnwrap(try journal.readReflections().first { $0.text == marker })
+                XCTAssertEqual(row.prompt, "Owner-bound prompt")
+                XCTAssertEqual(row.journalingSuggestionTitle, "Owner-bound moment")
+                XCTAssertNil(row.recordedHealthState)
+                XCTAssertTrue(draft.text.isEmpty)
+                XCTAssertNil(draft.saveError)
+            }
+        }
+        XCTAssertEqual(try journal.readReflections().filter { $0.text == marker }.count, 1,
+                       "The failed bound-owner attempt must not fall back to the earlier readable owner")
+    }
+
 }

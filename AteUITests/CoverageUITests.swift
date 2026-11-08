@@ -214,6 +214,10 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(settings.buttons["settings.replayOnboarding"].exists)
         shot("settings-tools")
         export.tap()
+        shot("settings-export-immediately-after-tap")
+        print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-BEGIN")
+        print(app.debugDescription)
+        print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-END")
         // Share the former two-second sleep budget between explicit readiness waits.
         // Screenshot/AX and native event time are not extra readiness wait allowance.
         let exportActivity = app.otherElements["ActivityListView"]

@@ -353,6 +353,7 @@ final class JournalReflectionDraft {
 
 struct JournalReflectionCard: View {
     @Environment(AppStore.self) private var store
+    @FocusState private var editorFocused: Bool
     @State private var model = InsightsModel.shared
     @AppStorage(JournalingSuggestionsGate.settingKey) private var journalingEnabled = false
     @State private var openRecipe: RecipeSheetTarget?
@@ -361,6 +362,7 @@ struct JournalReflectionCard: View {
         @Bindable var reflection = store.journalReflection
         VStack(alignment: .leading, spacing: 12) {
             Label("Reflect on your day", systemImage: "quote.bubble").font(AteFont.display(18))
+                .accessibilityIdentifier("journal.reflection")
             if model.context != nil && model.isSample {
                 Label("Sample data", systemImage: "testtube.2")
                     .font(AteFont.body(12, .semibold)).foregroundStyle(Theme.primary)
@@ -392,6 +394,7 @@ struct JournalReflectionCard: View {
                     .accessibilityIdentifier("journal.reflection.moment")
             }
             TextField("Write a few lines…", text: $reflection.text, axis: .vertical).lineLimit(3...8)
+                .focused($editorFocused)
                 .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
                 .accessibilityIdentifier("insights.journalText")
             Button("Save to journal") { save() }
@@ -408,7 +411,6 @@ struct JournalReflectionCard: View {
             Text("Saved only on this iPhone. Ate can't write to Apple's Journal app.")
                 .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
         }
-        .accessibilityIdentifier("journal.reflection")
         .task { await model.loadIfNeeded(recipes: store.recipes) }
         .sheet(item: $openRecipe) { target in RecipeSheet(recipeID: target.id).environment(store) }
     }
@@ -416,6 +418,7 @@ struct JournalReflectionCard: View {
     private func save() {
         let reflection = store.journalReflection
         if reflection.save(context: model.context) {
+            editorFocused = false
             store.journalRevision += 1
             store.show("Saved to your Ate journal")
             BetaQA.shared.pass("A-HEALTH-04", note: "Saved a local journal entry")

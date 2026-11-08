@@ -36,6 +36,13 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: "27.1"
+      - name: Cache Xcode package artifacts and DerivedData
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
       - name: Cache Homebrew downloads
         uses: actions/cache@v6
         with:

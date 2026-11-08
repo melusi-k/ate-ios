@@ -355,7 +355,7 @@ final class JournalReflectionDraft {
     var saveError: String?
 
     @discardableResult
-    func save(context: HealthContext?, journal: JournalStore = .shared) -> Bool {
+    func save(context: HealthContext?, journal: JournalStore) -> Bool {
         let selected = prompt ?? context?.prompts.first
         guard journal.save(prompt: selected?.text ?? "", text: text,
                            state: context?.insight.state, recipeIDs: context?.suggestions.map(\.recipeID) ?? [],
@@ -434,7 +434,7 @@ struct JournalReflectionCard: View {
 
     private func save() {
         let reflection = store.journalReflection
-        if reflection.save(context: model.context) {
+        if reflection.save(context: model.context, journal: store.journalStore) {
             editorFocused = false
             store.journalRevision += 1
             store.show("Saved to your Ate journal")

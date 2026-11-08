@@ -1,5 +1,6 @@
 import Foundation
 import Vision
+import OSLog
 import UIKit
 #if canImport(FoundationModels)
 import FoundationModels
@@ -392,19 +393,36 @@ final class OnDeviceBackend: BackendService {
     }
 
     static func ocr(dataURL: String) async throws -> String {
+        let diagnostic = PhotoImportDiagnostics.begin()
+        diagnostic?.mark(.decodeStarted)
         let b64 = dataURL.components(separatedBy: ",").last ?? ""
-        guard let data = Data(base64Encoded: b64), let cg = UIImage(data: data)?.cgImage else { return "" }
+        guard let data = Data(base64Encoded: b64), let cg = UIImage(data: data)?.cgImage else {
+            diagnostic?.mark(.decodeRejected)
+            return ""
+        }
+        diagnostic?.mark(.decodeCompleted)
+        diagnostic?.mark(.workerQueued)
         return try await withCheckedThrowingContinuation { cont in
             DispatchQueue.global(qos: .userInitiated).async {
+                diagnostic?.mark(.workerStarted)
                 // Keep the request confined to the worker that performs it.
                 let req = VNRecognizeTextRequest { req, err in
-                    if let err { cont.resume(throwing: err); return }
+                    diagnostic?.mark(.ocrCallback)
+                    if let err { diagnostic?.mark(.ocrFailed); cont.resume(throwing: err); return }
                     let lines = (req.results as? [VNRecognizedTextObservation] ?? []).compactMap { $0.topCandidates(1).first?.string }
+                    diagnostic?.mark(.ocrCompleted)
                     cont.resume(returning: lines.joined(separator: "\n"))
                 }
                 req.recognitionLevel = .accurate
                 req.usesLanguageCorrection = true
-                do { try VNImageRequestHandler(cgImage: cg).perform([req]) } catch { cont.resume(throwing: error) }
+                diagnostic?.mark(.performStarted)
+                do {
+                    try VNImageRequestHandler(cgImage: cg).perform([req])
+                    diagnostic?.mark(.performReturned)
+                } catch {
+                    diagnostic?.mark(.performFailed)
+                    cont.resume(throwing: error)
+                }
             }
         }
     }
@@ -561,3 +579,28 @@ extension GenerationFailure {
     }
 }
 #endif
+
+/// UI-test-only, category-and-duration evidence. Never log images, OCR text, prompts,
+/// recipe content, URLs, account data or raw errors. No retries or timing decisions.
+struct PhotoImportDiagnostics: Sendable {
+    enum Phase: String {
+        case generationStarted, imagePreparationStarted, imagePreparationCompleted, generationLoading
+        case backendReturned, draftAssigned, dishQuestion, generationFailed, generationFinished
+        case decodeStarted, decodeRejected, decodeCompleted, workerQueued, workerStarted
+        case performStarted, performReturned, performFailed, ocrCallback, ocrCompleted, ocrFailed
+    }
+
+    private static let log = Logger(subsystem: "com.melusik.ate", category: "photo-import-phases")
+    private let id: String
+    private let started: TimeInterval
+
+    static func begin() -> Self? {
+        guard AppConfig.isUITesting else { return nil }
+        return Self(id: UUID().uuidString, started: ProcessInfo.processInfo.systemUptime)
+    }
+
+    func mark(_ phase: Phase) {
+        let elapsedMs = Int((ProcessInfo.processInfo.systemUptime - started) * 1_000)
+        Self.log.notice("trace=\(id, privacy: .public) phase=\(phase.rawValue, privacy: .public) elapsed_ms=\(elapsedMs, privacy: .public)")
+    }
+}

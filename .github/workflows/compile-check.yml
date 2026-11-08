@@ -236,13 +236,25 @@ jobs:
             cook-ingredients-tests.log
             ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments
 
-  regressions:
-    # Independent exact-head lane: a nutrition diagnostic failure must not skip
-    # required regression evidence. Keep main's lower 110-minute budget.
+  regression-suites:
+    name: regression suite (${{ matrix.suite }})
+    # Separate standard hosted VMs; one simulator and sequential tests per worker.
+    # Two regression workers plus nutrition, Journal and Dogfood permit five
+    # priority native jobs per head. GitHub's account-wide macOS cap still
+    # queues these alongside other PRs; this matrix reserves no extra capacity.
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
     timeout-minutes: 110
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - suite: presentation-creation
+            required_logs: insights-evidence-navigation.log share-publish-outage-tests.log interrupted-generation-retry-lifecycle.log recipe-generation-tests.log drink-photo-prompt-tests.log transient-generation-retry.log photo-recipe-output-validation.log library-layout-tests.log expandable-recipe-sheet-tests.log
+          - suite: account-cooking
+            required_logs: settings-sync.log production-channel-production.log settings-about-145.log account-switch-sync-failure-library.log tracker-ui.log navigation-header-tests.log cook-mode-history.log cook-ingredients-tests.log
     env:
       ATE_SIGN_STYLE: Automatic
     steps:
@@ -306,8 +318,7 @@ jobs:
       # by InsightsAcceptanceUITests below, not represented as sheet coverage.
       - name: Insights evidence and contextual navigation acceptance (issue #195)
         id: insights_acceptance
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        continue-on-error: true
+        if: ${{ matrix.suite == 'presentation-creation' && (!cancelled() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
@@ -325,8 +336,15 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > insights-evidence-navigation.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" insights-evidence-navigation.log || true; tail -120 insights-evidence-navigation.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" insights-evidence-navigation.log | tail -40
 
+      - name: Retain UI-test day-sheet presentation trace
+        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.insights_acceptance.outcome != 'skipped') }}
+        run: |
+          xcrun simctl spawn "$SIM_ID" log show --style compact --last 30m \
+            --predicate 'subsystem == "com.melusik.ate" AND category == "day-sheet-presentation"' \
+            > day-sheet-presentation.log 2>&1 || true
+
       - name: Share publish outage fallback UI regression (PR #122)
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'presentation-creation' && (!cancelled() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
@@ -339,7 +357,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" share-publish-outage-tests.log | tail -40
 
       - name: Interrupted generation Retry lifecycle acceptance (#143)
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'presentation-creation' && (!cancelled() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
@@ -351,8 +369,10 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > interrupted-generation-retry-lifecycle.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" interrupted-generation-retry-lifecycle.log || true; tail -120 interrupted-generation-retry-lifecycle.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" interrupted-generation-retry-lifecycle.log | tail -40
 
+      # Explicit retained quarantine: only these two #89 fixture tests remain advisory.
+      # A failure is NOT a pass; all other regression steps block by command exit status.
       - name: Recipe generation focused unit regressions (#89) — quarantined, not a pass
-        if: ${{ always() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
         continue-on-error: true
         run: |
           set -o pipefail
@@ -365,7 +385,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" recipe-generation-tests.log | tail -40
 
       - name: Drink-photo prompt guardrails (#89) — blocking
-        if: ${{ always() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
@@ -376,7 +396,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" drink-photo-prompt-tests.log | tail -40
 
       - name: Transient generation Retry recovery (#89)
-        if: ${{ always() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
@@ -389,7 +409,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" transient-generation-retry.log | tail -40
 
       - name: Photo recipe output validation (#144)
-        if: ${{ always() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
@@ -400,8 +420,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" photo-recipe-output-validation.log | tail -40
 
       - name: Library layout and reorder guard regressions (#73)
-        continue-on-error: true
-        if: ${{ always() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
@@ -412,7 +431,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" library-layout-tests.log | tail -40
 
       - name: Expandable recipe-detail sheet regression (#101)
-        if: ${{ always() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
@@ -425,8 +444,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" expandable-recipe-sheet-tests.log | tail -40
 
       - name: Settings-tab key-flow regression test
-        continue-on-error: true
-        if: ${{ always() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
           STEP_START=$(date +%s)
           set -e
@@ -480,7 +498,7 @@ jobs:
           STEP_END=$(date +%s)
           echo "::notice::CI_TIMING step=settings-tab-key-flow duration_seconds=$((STEP_END-STEP_START)) exit_code=0"
       - name: Settings About build notes and timer rows (#145)
-        if: ${{ always() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
@@ -493,7 +511,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" settings-about-145.log | tail -40
 
       - name: Account-switch sync failure preserves local library (#34)
-        if: ${{ always() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
@@ -506,8 +524,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" account-switch-sync-failure-library.log | tail -40
 
       - name: Cooking Tracker focused UI tests
-        continue-on-error: true
-        if: ${{ always() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
           STEP_START=$(date +%s)
           set +e
@@ -528,8 +545,7 @@ jobs:
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" tracker-ui.log | tail -n 30
       - name: Shared navigation header regressions (#68)
-        continue-on-error: true
-        if: ${{ always() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
@@ -541,8 +557,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" navigation-header-tests.log | tail -40
 
       - name: Cook Mode completion/history UI tests
-        continue-on-error: true
-        if: ${{ always() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
           STEP_START=$(date +%s)
           set +e
@@ -564,7 +579,7 @@ jobs:
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" cook-mode-history.log | tail -n 30
 
       - name: Cook Mode ingredient sheet (session unit + UI)
-        if: ${{ always() && steps.build.outcome == 'success' }}
+        if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
           # Clean process so launch arguments are real (same rationale as other UI shards).
@@ -615,9 +630,11 @@ jobs:
 
       - name: Require retained regression logs
         if: ${{ always() && steps.build.outcome == 'success' }}
+        env:
+          REQUIRED_REGRESSION_LOGS: ${{ matrix.required_logs }}
         run: |
           missing=0
-          for log in insights-evidence-navigation.log share-publish-outage-tests.log interrupted-generation-retry-lifecycle.log recipe-generation-tests.log drink-photo-prompt-tests.log transient-generation-retry.log photo-recipe-output-validation.log library-layout-tests.log expandable-recipe-sheet-tests.log settings-sync.log production-channel-production.log settings-about-145.log account-switch-sync-failure-library.log tracker-ui.log navigation-header-tests.log cook-mode-history.log cook-ingredients-tests.log; do
+          for log in $REQUIRED_REGRESSION_LOGS; do
             if [ ! -s "$log" ]; then
               echo "::error::Missing regression execution log: $log (not a pass)"
               missing=1
@@ -625,32 +642,18 @@ jobs:
           done
           exit "$missing"
 
-      - name: Summarize non-blocking regression outcomes
+      - name: Summarize regression enforcement
         if: always()
         shell: bash
         run: |
-          failed=0
-          for log in recipe-generation-tests.log library-layout-tests.log settings-sync.log production-channel-production.log tracker-ui.log navigation-header-tests.log cook-mode-history.log share-publish-outage-tests.log; do
-            [ -f "$log" ] || continue
-            # CoreData/platform diagnostics can contain "error:" even when xcodebuild
-            # exits 0 and XCTest reports zero failures. Use explicit test-failure markers;
-            # the individual xcodebuild step exit status remains authoritative.
-            if grep -Eq 'Testing failed|TEST FAILED|Test Case .* failed|Executed [0-9]+ tests?, with [1-9][0-9]* failures?|XCTAssert|Assertion Failure|Fatal error|Assertion failed' "$log"; then
-              echo "::warning::Regression diagnostics indicate a failure in $log; see retained log and xcresult artifact. This is NOT a pass."
-              {
-                echo "### Regression failure detected — NOT PASSED"
-                echo "- Log: $log"
-                echo "- Candidate SHA: $GITHUB_SHA"
-                echo "- Artifacts: compile-regression-diagnostics-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-                echo "- Action: link the failure evidence and reproduction steps to the owning issue."
-                echo
-              } >> "$GITHUB_STEP_SUMMARY"
-              failed=1
-            fi
-          done
-          if [ "$failed" -eq 0 ]; then
-            echo "No regression failure markers were found in available logs. A skipped/quarantined test is not counted as a pass." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          {
+            echo "### Regression enforcement"
+            echo "- Individual regression command exit codes determine worker success; log text does not override them."
+            echo "- Existing #89 focused-unit fixture quarantine remains advisory, never a pass."
+            echo "- Existing #76 Settings/account-sync quarantine remains advisory; production-channel hiding is blocking."
+            echo "- Existing beta-channel UI skip remains quarantined, never a pass."
+            echo "- See individual step outcomes and retained logs/xcresults for actual execution evidence."
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Link regression failures to owning issues
         if: always()
         env:
@@ -658,12 +661,14 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
+          # Advisory issue reporting only; these anchored records never decide the gate.
+          failure_record_re="^Test Case '-\[.+\]' failed \([0-9.]+ seconds\)\.$|^[[:space:]]*Executed [0-9]+ tests?, with [1-9][0-9]* failures?([[:space:](,]|$)|^\*\* TEST (EXECUTE )?FAILED \*\*[[:space:]]*$|^Testing failed:$"
           report_failure() {
             log_file="$1"; suite="$2"; issue="$3"
             [ -f "$log_file" ] || return 0
-            if ! grep -Eq 'Testing failed|TEST FAILED|Test Case .* failed|XCTAssert|Assertion Failure|Fatal error|Assertion failed' "$log_file"; then return 0; fi
+            if ! grep -Eq "$failure_record_re" "$log_file"; then return 0; fi
             marker="<!-- ate-ci-regression:${GITHUB_RUN_ID}:${log_file} -->"
-            details=$(grep -n -E 'Test Case .* failed|XCTAssert|Assertion Failure|Fatal error|Assertion failed|Testing failed|TEST FAILED' "$log_file" | tail -n 12 | cut -c1-500 || true)
+            details=$(grep -n -E "$failure_record_re" "$log_file" | tail -n 12 | cut -c1-500 || true)
             [ -n "$details" ] || details="Failure markers found; inspect the full retained log and xcresult."
             run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             if [ "$issue" = "auto" ]; then
@@ -675,7 +680,7 @@ jobs:
             fi
             if [ -z "$issue" ]; then echo "::warning::No issue target resolved for $suite ($log_file)."; return 0; fi
             if gh api "repos/${GITHUB_REPOSITORY}/issues/$issue/comments?per_page=100" --paginate --jq '.[].body' 2>/dev/null | grep -Fq "$marker"; then echo "Issue #$issue already has this run's regression report."; return 0; fi
-            body=$(printf '%s\n' "$marker" "## CI regression detected — NOT PASSED" "- **Suite:** $suite" "- **Candidate SHA:** ${GITHUB_SHA}" "- **Workflow run and retained artifacts:** $run_url" "- **Log:** $log_file" "" "### Failure evidence (tail)" '```text' "$details" '```' "" "### Triage" "Reproduce from the exact candidate SHA, record reproduction steps, and keep this open until a fix is verified. continue-on-error allowed later suites to proceed; it does not mean this test passed.")
+            body=$(printf '%s\n' "$marker" "## CI regression detected — NOT PASSED" "- **Suite:** $suite" "- **Candidate SHA:** ${GITHUB_SHA}" "- **Workflow run and retained artifacts:** $run_url" "- **Log:** $log_file" "" "### Failure evidence (tail)" '```text' "$details" '```' "" "### Triage" "Reproduce from the exact candidate SHA, record reproduction steps, and keep this open until a fix is verified. Later diagnostics may still run after a failed step; command failures block except the explicit workflow quarantines. A quarantine is never a pass.")
             if gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$body"; then
               echo "::warning::Regression in $suite recorded on issue #$issue (NOT PASSED)."
               echo "- **Issue:** #$issue — $suite" >> "$GITHUB_STEP_SUMMARY"
@@ -700,7 +705,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: compile-regression-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          name: compile-regression-diagnostics-${{ matrix.suite }}-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
             *.log
@@ -726,6 +731,23 @@ jobs:
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log
             ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments
+
+  regressions:
+    # Preserve the original required-check context. Matrix skips, cancellation or
+    # any failed worker block this aggregate. Regression command failures block;
+    # only the explicit #89/#76/beta-channel quarantines above remain advisory.
+    needs: [changes, regression-suites]
+    if: ${{ always() && needs.changes.outputs.app == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every native regression suite
+        env:
+          REGRESSION_SUITES_RESULT: ${{ needs.regression-suites.result }}
+        run: |
+          if [ "$REGRESSION_SUITES_RESULT" != success ]; then
+            echo "::error::Native regression suites incomplete: $REGRESSION_SUITES_RESULT (not a pass)"
+            exit 1
+          fi
 
   compile:
     # Preserve the existing required-check context and fail closed on either lane.

@@ -151,29 +151,22 @@ final class InsightsPresentationUITests: XCTestCase {
 
     func testSampleScenarioMarksEveryHealthDerivedSurface() {
         launch(["-qaMockHealth", "recovery", "-qaHealthRecipes"])
+        defer { XCUIDevice.shared.orientation = .portrait }
         openInsightsHub()
         connectHealth()
         wait(text("Recovery day"))
         wait(any("insights.sampleBadge"))
         wait(text("Not your personal Health data."))
-        // connectHealth()'s tap auto-scrolls the hub to reach the quiet Connect row ("Scroll
-        // element to visible" in the run log), which minimizes the iOS 26+ tab bar; a tab tap
-        // then lands on the minimized bar instead of switching (run-431 evidence: the tap
-        // synthesized cleanly and the hub stayed on screen). Reset to the hub top first so
-        // the bar is expanded and settled. First Library visit of this launch opens at the
-        // top, where the Today card lives; a miss fails explicitly, no blind scrolling.
+        // Portrait Library uses list(_:), which has only the navigation Insights tile.
+        // Check the portrait Health-derived Recovery day state and its sample marker here.
+        let recoveryState = any("insights.state")
+        wait(recoveryState)
+        XCTAssertTrue(recoveryState.isHittable, "the Recovery day Health state must be reachable once Health is connected")
+        wait(any("insights.sampleBadge"))
+        shot("ipp-01-sample-marks-body-today")
+        // Connecting can scroll the hub down. Reset before the remaining known-downward
+        // badge checks so the Suggested meals tile cannot be above the scroll origin.
         resetHubScrollPosition()
-        tab("Library", from: app.navigationBars["Insights & Cooking History"],
-            arrival: app.navigationBars["Your Kitchen"])
-        let card = any("library.todayCard")
-        wait(card)
-        XCTAssertTrue(card.isHittable, "the Library Today card must be present once Health is connected")
-        wait(any("library.todayCard.sampleBadge"))
-        shot("ipp-01-sample-marks-library-today")
-        // The reset above leaves the Journal stack with the hub pushed at its top position;
-        // the two remaining badge checks scroll in the known-downward direction from there.
-        tab("Journal", from: app.navigationBars["Your Kitchen"],
-            arrival: app.navigationBars["Insights & Cooking History"])
         wait(app.navigationBars["Insights & Cooking History"])
         XCTAssertTrue(scrollTo(any("insights.sampleBadge.suggestedMeals")),
                       "the Suggested meals tile must carry the sample marker")
@@ -188,6 +181,20 @@ final class InsightsPresentationUITests: XCTestCase {
                       "the root Reflect on your day composer must carry the sample marker")
         wait(text("These prompts use sample Health data, not your Health readings."))
         shot("ipp-01-sample-marks-journal-root")
+        // Compact-height Library uses grid(_:), which still renders TodayHealthCard.
+        // Deliberately cover that real surface instead of dropping its provenance checks.
+        XCUIDevice.shared.orientation = .landscapeLeft
+        wait(any("sidebar"))
+        let library = app.buttons["sidebar.Library"]
+        wait(library)
+        XCTAssertTrue(library.isHittable, "the landscape Library route must be reachable")
+        library.tap()
+        wait(any("libraryGrid"))
+        let card = any("library.todayCard")
+        wait(card)
+        XCTAssertTrue(card.isHittable, "the Library grid Today card must be present once Health is connected")
+        wait(any("library.todayCard.sampleBadge"))
+        shot("ipp-01-sample-marks-library-grid-today")
     }
 
     // MARK: Quiet optional Health

@@ -229,7 +229,19 @@ final class InsightsAcceptanceUITests: XCTestCase {
         let daySheet = app.navigationBars["Cooked that day"]
         wait(daySheet, 5)
         daySheet.swipeDown()
-        XCTAssertTrue(daySheet.waitForNonExistence(timeout: 5), "The real day-details sheet must close before returning")
+        let daySheetClosed = daySheet.waitForNonExistence(timeout: 5)
+        if !daySheetClosed {
+            // Capture at the failed disappearance wait, before XCTest stops this journey.
+            let failureShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            failureShot.name = "day-sheet-disappearance-failure"
+            failureShot.lifetime = .keepAlways
+            add(failureShot)
+            let failureAX = XCTAttachment(string: app.debugDescription)
+            failureAX.name = "day-sheet-disappearance-failure-AX"
+            failureAX.lifetime = .keepAlways
+            add(failureAX)
+        }
+        XCTAssertTrue(daySheetClosed, "The real day-details sheet must close before returning")
         app.navigationBars["Insights & Cooking History"].buttons["Journal"].tap()
         wait(app.navigationBars["Journal"], 5)
         app.buttons["journal.insightsHistory"].tap()

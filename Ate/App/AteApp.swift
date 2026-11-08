@@ -14,7 +14,10 @@ struct AteApp: App {
         LiveDTProbe.installIfRequested()
         #endif
         if AppConfig.isUITesting {
-            for k in ["ate.settings.v1", "ate.timerprefs.v1", "ate.cookSession.v1"] { UserDefaults.standard.removeObject(forKey: k) }
+            for k in ["ate.timerprefs.v1", "ate.cookSession.v1"] { UserDefaults.standard.removeObject(forKey: k) }
+            if !ProcessInfo.processInfo.arguments.contains("-qaPreserveSettings") {
+                UserDefaults.standard.removeObject(forKey: "ate.settings.v1")
+            }
         }
         // Corruption-safe open: a broken store is moved aside and a fresh one opened; never crashes (R-DATA-01).
         let corruptQA = AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaCorruptStore")
@@ -70,6 +73,7 @@ struct AteApp: App {
         WindowGroup {
             rootContent
                 .environment(store)
+                .preferredColorScheme(store.settings.appearance.preferredColorScheme)
                 .onOpenURL { store.handle(url: $0) }
                 .task {
                     PhoneWatchBridge.shared.activate()
@@ -691,3 +695,10 @@ final class LiveDTProbe {
     }
 }
 #endif
+
+// App-only override. Widget and Live Activity hosts keep their existing colors and system rules.
+extension AppAppearance {
+    var preferredColorScheme: ColorScheme? {
+        switch self { case .system: return nil; case .light: return .light; case .dark: return .dark }
+    }
+}

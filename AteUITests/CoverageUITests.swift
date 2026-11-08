@@ -213,11 +213,34 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(settings.buttons["settings.import"].exists)
         XCTAssertTrue(settings.buttons["settings.replayOnboarding"].exists)
         shot("settings-tools")
-        export.tap(); sleep(2); shot("more-export-sheet")
+        export.tap()
+        // Share the former two-second sleep budget between explicit readiness waits.
+        // Screenshot/AX and native event time are not extra readiness wait allowance.
+        let exportActivity = app.otherElements["ActivityListView"]
+        var readinessBudget: TimeInterval = 2
+        let presentationStarted = Date()
+        let exportPresented = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            exportActivity.exists && !exportActivity.frame.isEmpty
+        }, object: nil)
+        let presentationResult = XCTWaiter.wait(for: [exportPresented], timeout: readinessBudget)
+        readinessBudget = max(0, readinessBudget - Date().timeIntervalSince(presentationStarted))
+        guard presentationResult == .completed else {
+            XCTFail("Export ActivityListView must present before dismissal")
+            return
+        }
+        shot("more-export-sheet")
         print("SETTINGS-EXPORT-PRESENTATION-AX-BEGIN")
         print(app.debugDescription)
         print("SETTINGS-EXPORT-PRESENTATION-AX-END")
         if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
+        let settingsNavigation = app.navigationBars["Settings"]
+        let exportDismissed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            !exportActivity.exists && settingsNavigation.exists && !settingsNavigation.frame.isEmpty && settingsNavigation.isHittable
+        }, object: nil)
+        guard XCTWaiter.wait(for: [exportDismissed], timeout: readinessBudget) == .completed else {
+            XCTFail("Export ActivityListView must dismiss before Settings becomes the active screen")
+            return
+        }
         // Revalidate Settings after dismissing Export. Keep the exact identifiers and
         // original scroll/wait budgets, but query the Form's actual Switch elements.
         let timerSettings = settingsContent()

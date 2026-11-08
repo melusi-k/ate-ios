@@ -35,8 +35,10 @@ final class AteUITests: XCTestCase {
         print("COOK-EXIT-DETAIL-NAVIGATION-AX-BEGIN")
         print(detailNavigation.debugDescription)
         print("COOK-EXIT-DETAIL-NAVIGATION-AX-END")
-        let backButtons = detailNavigation.buttons.matching(NSPredicate(format: "label == %@", "Back"))
-        XCTAssertEqual(backButtons.count, 1, "Recipe detail must expose exactly one Back-labelled navigation button")
+        let backButtons = detailNavigation.buttons.matching(
+            NSPredicate(format: "identifier == %@ AND label == %@", "BackButton", "Your Kitchen")
+        )
+        XCTAssertEqual(backButtons.count, 1, "Recipe detail must expose exactly one BackButton returning to Your Kitchen")
         let back = backButtons.element(boundBy: 0)
         XCTAssertTrue(back.exists && back.isHittable, "Recipe detail must expose its navigation back button")
         back.tap()

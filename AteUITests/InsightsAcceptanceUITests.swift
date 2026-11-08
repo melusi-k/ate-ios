@@ -23,6 +23,50 @@ final class InsightsAcceptanceUITests: XCTestCase {
                       file: file, line: line)
     }
 
+    /// Handle only the identified iOS slide-to-type onboarding, not a generic Continue.
+    private func dismissSystemTypingTipIfPresented() {
+        let hosts = [app!, XCUIApplication(bundleIdentifier: "com.apple.springboard")]
+        let message = "Speed up your typing by sliding your finger"
+        let tips = hosts.map {
+            $0.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", message)).firstMatch
+        }.filter { $0.exists }
+        guard !tips.isEmpty else { return }
+        var eligible: [XCUIElement] = []
+        for host in hosts {
+            let buttons = host.buttons.matching(NSPredicate(format: "label ==[c] 'Continue'"))
+            for index in 0..<buttons.count {
+                let button = buttons.element(boundBy: index)
+                guard button.exists, button.isHittable else { continue }
+                let frame = button.frame
+                guard tips.contains(where: { tip in
+                    let textFrame = tip.frame
+                    return !textFrame.isEmpty && app.frame.intersects(textFrame)
+                        && frame.minY >= textFrame.maxY - 1
+                        && frame.minY <= textFrame.maxY + 160
+                        && min(frame.maxX, textFrame.maxX) > max(frame.minX, textFrame.minX)
+                        && abs(frame.midX - textFrame.midX) <= textFrame.width / 2
+                }) else { continue }
+                // App and SpringBoard can expose aliases of one physical control.
+                guard !eligible.contains(where: { existing in
+                    let old = existing.frame
+                    return abs(old.minX - frame.minX) < 1 && abs(old.minY - frame.minY) < 1
+                        && abs(old.width - frame.width) < 1 && abs(old.height - frame.height) < 1
+                }) else { continue }
+                eligible.append(button)
+            }
+        }
+        guard eligible.count == 1 else {
+            XCTFail("The system typing tip must have exactly one distinct reachable Continue action")
+            return
+        }
+        eligible[0].tap()
+        for host in hosts {
+            let tip = host.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", message)).firstMatch
+            XCTAssertTrue(tip.waitForNonExistence(timeout: 3),
+                          "The system typing tip must close in both queried hosts")
+        }
+    }
+
     private func tab(_ name: String) {
         var attempts = 0
         while !app.tabBars.firstMatch.exists && attempts < 4 {
@@ -220,6 +264,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
         wait(app.staticTexts["journal.reflection.manualPrompt"])
         let seed = "Root reflection " + UUID().uuidString
         reveal(field); field.tap(); field.typeText(seed)
+        dismissSystemTypingTipIfPresented()
         // The hub is above the composer. Move only the Journal list toward its top.
         for _ in 0..<6 where !hub.isHittable { app.swipeDown() }
         XCTAssertTrue(hub.isHittable, "Journal's named hub must be visible before tapping")
@@ -229,6 +274,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
                        "The composer must not be duplicated in the hub")
         app.navigationBars["Insights & Cooking History"].buttons["Journal"].tap()
         wait(field)
+        dismissSystemTypingTipIfPresented()
         XCTAssertEqual(field.value as? String, seed, "Returning to Journal must retain the same draft")
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "journal-normal-root-reflection-retained"; shot.lifetime = .keepAlways; add(shot)
@@ -245,6 +291,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
         app.launch(); tab("Journal")
         let field = app.descendants(matching: .any)["insights.journalText"].firstMatch
         reveal(field); field.tap(); field.typeText("Keep failed draft")
+        dismissSystemTypingTipIfPresented()
         let save = app.buttons["insights.save"]; reveal(save); save.tap()
         wait(app.staticTexts["insights.journalSaveError"])
         XCTAssertEqual(field.value as? String, "Keep failed draft")

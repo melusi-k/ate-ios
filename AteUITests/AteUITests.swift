@@ -31,6 +31,10 @@ final class AteUITests: XCTestCase {
         let detailNavigation = app.navigationBars[recipeTitle]
         XCTAssertTrue(detailNavigation.exists && !detailNavigation.frame.isEmpty && detailNavigation.isHittable,
                       "Expected recipe detail before returning to a tab")
+        shot("cook-exit-detail-navigation-before-back-guard")
+        print("COOK-EXIT-DETAIL-NAVIGATION-AX-BEGIN")
+        print(detailNavigation.debugDescription)
+        print("COOK-EXIT-DETAIL-NAVIGATION-AX-END")
         let backButtons = detailNavigation.buttons.matching(NSPredicate(format: "label == %@", "Back"))
         XCTAssertEqual(backButtons.count, 1, "Recipe detail must expose exactly one Back-labelled navigation button")
         let back = backButtons.element(boundBy: 0)

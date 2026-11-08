@@ -214,6 +214,9 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(settings.buttons["settings.replayOnboarding"].exists)
         shot("settings-tools")
         export.tap(); sleep(2); shot("more-export-sheet")
+        print("SETTINGS-EXPORT-PRESENTATION-AX-BEGIN")
+        print(app.debugDescription)
+        print("SETTINGS-EXPORT-PRESENTATION-AX-END")
         if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
         // Revalidate Settings after dismissing Export. Keep the exact identifiers and
         // original scroll/wait budgets, but query the Form's actual Switch elements.

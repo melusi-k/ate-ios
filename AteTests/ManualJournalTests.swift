@@ -125,4 +125,50 @@ final class ManualJournalTests: XCTestCase {
         XCTAssertNil(row.recordedHealthState)
         XCTAssertFalse(row.datedStateLabel.contains(HealthState.balanced.title))
     }
+    func testRootReflectionWithoutHealthKeepsMomentAndNoInventedReading() throws {
+        let c = try container()
+        let journal = JournalStore(container: c, openState: .ok)
+        let draft = JournalReflectionDraft()
+        draft.text = "A quiet supper"
+        draft.prompt = JournalPrompt(text: "What did you enjoy?", state: .balanced)
+        draft.pendingMoment = ("Dinner with friends", .distantPast)
+        XCTAssertTrue(draft.save(context: nil, journal: journal))
+        let row = try XCTUnwrap(journal.entries().first)
+        XCTAssertEqual(row.prompt, "What did you enjoy?")
+        XCTAssertEqual(row.journalingSuggestionTitle, "Dinner with friends")
+        XCTAssertEqual(row.momentDate, .distantPast)
+        XCTAssertNil(row.recordedHealthState)
+        XCTAssertEqual(row.stateRaw, "")
+        XCTAssertTrue(row.recipeIDs.isEmpty)
+        XCTAssertEqual(draft.text, "")
+        XCTAssertNil(draft.pendingMoment)
+        XCTAssertNil(draft.prompt)
+        XCTAssertNil(draft.saveError)
+        // A second plain reflection cannot inherit the prior moment's metadata or prompt.
+        draft.text = "Ordinary reflection after the moment"
+        XCTAssertTrue(draft.save(context: nil, journal: journal))
+        let ordinary = try XCTUnwrap(journal.entries().first { $0.text == "Ordinary reflection after the moment" })
+        XCTAssertEqual(ordinary.prompt, "")
+        XCTAssertNil(ordinary.journalingSuggestionTitle)
+        XCTAssertNil(ordinary.momentDate)
+        XCTAssertNil(ordinary.recordedHealthState)
+        XCTAssertEqual(ordinary.stateRaw, "")
+        XCTAssertTrue(ordinary.recipeIDs.isEmpty)
+        XCTAssertEqual(ordinary.source, .ate)
+    }
+
+    func testRootReflectionFailureRetainsDraftPromptAndMoment() throws {
+        let draft = JournalReflectionDraft()
+        draft.text = "Keep my words"
+        draft.prompt = JournalPrompt(text: "Keep prompt", state: .recovery)
+        draft.pendingMoment = ("A moment", .distantPast)
+        let journal = JournalStore(container: try container(), openState: .unavailable(error: nil))
+        XCTAssertFalse(draft.save(context: nil, journal: journal))
+        XCTAssertEqual(draft.text, "Keep my words")
+        XCTAssertEqual(draft.prompt?.text, "Keep prompt")
+        XCTAssertEqual(draft.pendingMoment?.title, "A moment")
+        XCTAssertNotNil(draft.saveError)
+        XCTAssertTrue(journal.entries().isEmpty)
+    }
+
 }

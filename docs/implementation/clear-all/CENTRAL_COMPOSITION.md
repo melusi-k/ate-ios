@@ -1,0 +1,13 @@
+# Bounded central composition, not activation
+
+Base draft332 187cbdb. Exact Settings dependency a094 plus reviewed central adapter V2, receipt V2, startup V2 and gate V2, with typed control persistence and actual dependency composition.
+
+AccountResetComposition now actually constructs the shared FileResetControlPersistence, AccountWriterGate, file receipt sink, actual RPC coordinator and generation adapter against one explicitly supplied control directory. Coordinator no longer silently defaults to standard UserDefaults: a typed ResetControlPersistence is required. Existing 24 fault fixtures use labelled DefaultsResetControlPersistence only. No production constructor or Settings button calls this candidate.
+
+File control is mode0600 unique-temp, exact bytes, fsync/fullsync, atomic rename, directory sync and fresh readback. Removal unlinks and directory syncs before absent readback. Coordinator keeps exact phase/owner/receipt/UUID semantics. Shared gate's pending-control callback reads file bytes, never cached defaults. Corrupt raw bytes count as pending for writers and fail semantic coordinator decode. No raw corrupt record becomes a new UUID.
+
+The actual startup factory runs synchronously under the same gate's writer effect and transfers original lease plus composition to its lazy graph factory. Synchronous same-actor nested writers with the same lease reuse the held lock; mismatched lease refuses. No awaits or escaping effect authorization. Existing ungated AppStore/TimerCenter/JournalStore/Root constructors are NOT supplied as a production factory.
+
+Specific open participant gates: ordinary recipe/shopping/meta mutation APIs still must use withWriterEffect BEFORE in-memory/disk changes; all independent Journal/Nutrition/archive/intent/watch/widget/timer writers need the same lease; actual AppStore metadata receipt migration must reject unknown nonempty legacy state rather than bless stale data with a fresh snapshot. Session lifecycle must rotate epoch. Real graph owns task cleanup/invalidation and retained gate. Watch cleanup needs actual generation acknowledgement or truthful incomplete; Widget publish/index tasks need quiescence and awaited deletes. Root mount and recovery must stay behind actual lazy admission.
+
+Immutable ancestor and lock inode provisioning remains an explicit requirement; actual shared app-group path must be resolved without fallback. Control directory creation is not silently done here. No native compile, Darwin/fullsync/two-process/process-death, authenticated DB role/two-connection, rollout, product activation or device acceptance is claimed. All fixture methods are written, UNRUN. No publication/deployment/reset/user-data mutation was performed.

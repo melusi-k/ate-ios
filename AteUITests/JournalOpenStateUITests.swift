@@ -271,6 +271,7 @@ extension JournalOpenStateUITests {
 
     /// Separate from ordinary XXXL save-error coverage: the root add accessory at the
     /// maximum accessibility category must fit its fixed system height and remain actionable.
+
     func testJournalRootAddAtMaximumAccessibilitySizeAndSidebarRoundTrip() {
         launch(extra: ["-qaMockHealth", "empty", "-UIPreferredContentSizeCategoryName",
                        "UICTContentSizeCategoryAccessibilityXXXL"])
@@ -341,11 +342,18 @@ extension JournalOpenStateUITests {
         wait(app.navigationBars["Journal"])
         let toolbarAdd = app.buttons["journal.newEntry"]
         shot("manual-09-normal-sidebar-root")
+        print("JOURNAL-NORMAL-SIDEBAR-ROOT-AX-BEGIN")
+        print(app.debugDescription)
+        print("JOURNAL-NORMAL-SIDEBAR-ROOT-AX-END")
         wait(toolbarAdd)
         XCTAssertTrue(toolbarAdd.isHittable, "The sidebar root must retain a reachable journal action")
         toolbarAdd.tap()
         let editor = app.textViews["journal.compose.text"]
         wait(editor)
+        shot("manual-09-normal-composer-before-tap")
+        print("JOURNAL-NORMAL-COMPOSER-BEFORE-TAP-AX-BEGIN")
+        print(app.debugDescription)
+        print("JOURNAL-NORMAL-COMPOSER-BEFORE-TAP-AX-END")
         editor.tap()
         editor.typeText("Generic normal-size draft")
         XCUIDevice.shared.orientation = .portrait

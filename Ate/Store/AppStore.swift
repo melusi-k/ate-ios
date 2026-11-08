@@ -196,6 +196,7 @@ final class AppStore {
     // Session-only manual Journal draft; survives portrait/sidebar tree replacement.
     var manualJournalHost: ManualJournalHost?
     var manualJournalDraft = ""
+    var journalReflection = JournalReflectionDraft()
     var journalRevision = 0
     func beginManualJournal() { if manualJournalHost == nil { manualJournalHost = .root } }
     /// Controls the persistent bottom action for the destination currently in view.

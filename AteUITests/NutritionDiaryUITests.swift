@@ -13,15 +13,43 @@ final class NutritionDiaryUITests: XCTestCase {
     /// against the measured frame until the element's centre sits inside the clear band
     /// between the top bar and the keyboard before tapping.
 
+    /// Explicit caller-owned screen context. Do not infer the active screen from a
+    /// global identifier search while another sheet may be present.
+    private enum GeometrySurface {
+        case settings, diary, library, logFood, editFood
+
+        var navigationTitle: String? {
+            switch self {
+            case .settings: return "Settings"
+            case .diary: return "Food diary"
+            case .library: return nil // Library may show a collection title.
+            case .logFood: return "Log food"
+            case .editFood: return "Edit food"
+            }
+        }
+
+        var isEntryForm: Bool {
+            switch self {
+            case .logFood, .editFood: return true
+            case .settings, .diary, .library: return false
+            }
+        }
+    }
+
     /// Bottom edge of the tappable band, measured from the chrome actually on screen: the
     /// floating tab bar and, at tab roots, the Add accessory floating above it. A fixed
     /// offset let rows resting behind that chrome count as reachable - on the CI simulator
     /// the Food diary row's centre sat at y=869, inside the tab bar's 791-874 frame, so the
     /// old maxY-4 bound judged it "in band", the nudge swiped the wrong way and the tap was
     /// intercepted by the bar (CI hierarchy + recording, #179).
-    private func bottomClearBound(_ app: XCUIApplication, keyboard: XCUIElement?) -> CGFloat {
+    private func bottomClearBound(_ app: XCUIApplication, keyboard: XCUIElement?, surface: GeometrySurface) -> CGFloat {
         var bound = app.windows.firstMatch.frame.maxY - 4
         if let keyboard { bound = min(bound, keyboard.frame.minY - 8) }
+        // The verified Log/Edit food navigation stack is a presented sheet. Its
+        // keyboard and window bound its content; the underlying tab/accessory are
+        // not part of that sheet. Keep both live checks for non-form screens,
+        // including pushed diary content where an accessory can still be present.
+        if surface.isEntryForm { return bound }
         let tabBar = app.tabBars.firstMatch
         if tabBar.exists {
             let frame = tabBar.frame
@@ -52,10 +80,18 @@ final class NutritionDiaryUITests: XCTestCase {
     }
 
     @discardableResult
-    private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication, max: Int = 12) -> Bool {
+    private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication, surface: GeometrySurface, max: Int = 12) -> Bool {
         // Clear band top: measured from the on-screen navigation bar when one is present;
         // the 120pt fallback matches the pinned CI simulator (402x874) inline-bar sheets.
-        let navBar = app.navigationBars.firstMatch
+        let navBar: XCUIElement
+        if let title = surface.navigationTitle {
+            navBar = app.navigationBars[title]
+            // A missing expected screen is a miss, never permission to ignore its
+            // chrome or use a background navigation bar's geometry.
+            guard navBar.exists, !navBar.frame.isEmpty, navBar.isHittable else { return false }
+        } else {
+            navBar = app.navigationBars.firstMatch
+        }
         let navFrame = navBar.exists ? navBar.frame : .zero
         let topBound: CGFloat = !navFrame.isEmpty ? navFrame.maxY + 4 : 120
         var attempts = 0
@@ -75,21 +111,18 @@ final class NutritionDiaryUITests: XCTestCase {
             // and hittability are read (CI: not-hittable verdict on a fully visible field
             // during scroll settling fed the sourceName oscillation, #179).
             let frame = settledFrame(of: element)
-            // Toolbar / navigation-bar chrome is not scroll content: a chrome control's
-            // frame sits above the content band, so band classification swipes forever
-            // (CI 241: nutritionDiary.save - a .confirmationAction in the sheet's nav bar -
-            // exhausted 12 down-swipes without ever being offered a tap, #179). Require
-            // REAL chrome membership by identifier - a frame-overlap guess can falsely
-            // pass scroll content clipped under a bar - then trust settled + isHittable:
-            // XCTest reports false for chrome genuinely covered by an alert or keyboard.
-            // A future non-button toolbar control queried via .any must take the band path.
-            if element.elementType == .button, !element.identifier.isEmpty,
-               app.navigationBars.buttons[element.identifier].exists || app.toolbars.buttons[element.identifier].exists {
+            // Save is the only navigation-chrome target passed by these journeys.
+            // Verify REAL membership in the expected active form navigation bar,
+            // not app-wide navigation/toolbar matches for every content button.
+            // A coincident content frame is never evidence of chrome membership.
+            if element.elementType == .button && element.identifier == "nutritionDiary.save" {
+                guard surface.isEntryForm,
+                      navBar.buttons["nutritionDiary.save"].exists else { return false }
                 return element.isHittable
             }
             let keyboard = app.keyboards.firstMatch
             let keyboardUp = keyboard.exists
-            let bottomBound = bottomClearBound(app, keyboard: keyboardUp ? keyboard : nil)
+            let bottomBound = bottomClearBound(app, keyboard: keyboardUp ? keyboard : nil, surface: surface)
             if frame.midY >= topBound && frame.midY <= bottomBound {
                 if element.isHittable { return true }
                 blockedInBand += 1
@@ -143,12 +176,12 @@ final class NutritionDiaryUITests: XCTestCase {
         guard element.exists, !element.frame.isEmpty, element.isHittable else { return false }
         let finalFrame = element.frame
         let finalKeyboard = app.keyboards.firstMatch
-        let finalBottom = bottomClearBound(app, keyboard: finalKeyboard.exists ? finalKeyboard : nil)
+        let finalBottom = bottomClearBound(app, keyboard: finalKeyboard.exists ? finalKeyboard : nil, surface: surface)
         return finalFrame.midY >= topBound && finalFrame.midY <= finalBottom
     }
 
-    private func tapWhenHittable(_ element: XCUIElement, in app: XCUIApplication, _ message: String? = nil, file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertTrue(scrollToHittable(element, in: app), message ?? "Element should be visible before it is tapped", file: file, line: line)
+    private func tapWhenHittable(_ element: XCUIElement, in app: XCUIApplication, surface: GeometrySurface, _ message: String? = nil, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(scrollToHittable(element, in: app, surface: surface), message ?? "Element should be visible before it is tapped", file: file, line: line)
         element.tap()
     }
 
@@ -159,8 +192,8 @@ final class NutritionDiaryUITests: XCTestCase {
     /// the interaction. A miss (tap eaten by the bar/keyboard, previous field still focused)
     /// costs one measured re-centre, re-tap and retype, then fails loudly with a screenshot in
     /// the diagnostics artifact.
-    private func typeAfterKeyboard(_ element: XCUIElement, in app: XCUIApplication, _ text: String, file: StaticString = #filePath, line: UInt = #line) {
-        tapWhenHittable(element, in: app, file: file, line: line)
+    private func typeAfterKeyboard(_ element: XCUIElement, in app: XCUIApplication, surface: GeometrySurface, _ text: String, file: StaticString = #filePath, line: UInt = #line) {
+        tapWhenHittable(element, in: app, surface: surface, file: file, line: line)
         // scrollToHittable may have dismissed a keyboard that occluded this field, so
         // prior existence proves nothing: always wait for the keyboard before typing.
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the focused field", file: file, line: line)
@@ -173,7 +206,7 @@ final class NutritionDiaryUITests: XCTestCase {
         }
         element.typeText(text)
         if (element.value as? String) != text {
-            _ = scrollToHittable(element, in: app)
+            _ = scrollToHittable(element, in: app, surface: surface)
             element.tap()
             element.doubleTap()
             element.typeText(text)
@@ -204,7 +237,7 @@ final class NutritionDiaryUITests: XCTestCase {
         }
         XCTAssertTrue(diaryEntry.waitForExistence(timeout: 10))
         diaryEntry.tap()
-        XCTAssertTrue(scrollToHittable(app.staticTexts["Nothing logged"], in: app), "Empty diary state should be reachable below totals")
+        XCTAssertTrue(scrollToHittable(app.staticTexts["Nothing logged"], in: app, surface: .diary), "Empty diary state should be reachable below totals")
         XCTAssertTrue(app.staticTexts["Nothing logged"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Unavailable"].firstMatch.exists)
 
@@ -217,13 +250,13 @@ final class NutritionDiaryUITests: XCTestCase {
         }
         let foodName = app.textFields["nutritionDiary.foodName"]
         XCTAssertTrue(foodName.waitForExistence(timeout: 5))
-        typeAfterKeyboard(foodName, in: app, "My lunch")
-        typeAfterKeyboard(app.textFields["nutritionDiary.quantityUnit"], in: app, "bowl")
+        typeAfterKeyboard(foodName, in: app, surface: .logFood, "My lunch")
+        typeAfterKeyboard(app.textFields["nutritionDiary.quantityUnit"], in: app, surface: .logFood, "bowl")
         let sourceName = app.textFields["nutritionDiary.sourceName"]
-        typeAfterKeyboard(sourceName, in: app, "My notes")
+        typeAfterKeyboard(sourceName, in: app, surface: .logFood, "My notes")
         let sourcePicker = app.descendants(matching: .any)["nutritionDiary.source"].firstMatch
         XCTAssertTrue(sourcePicker.waitForExistence(timeout: 5))
-        tapWhenHittable(sourcePicker, in: app)
+        tapWhenHittable(sourcePicker, in: app, surface: .logFood)
         let externalSource = app.buttons["External record (not verified by Ate)"]
         XCTAssertTrue(externalSource.waitForExistence(timeout: 5))
         let sourcePageCapture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
@@ -233,14 +266,14 @@ final class NutritionDiaryUITests: XCTestCase {
         externalSource.tap()
         XCTAssertNotEqual(sourceName.value as? String, "You")
         XCTAssertNotEqual(sourceName.value as? String, "My notes")
-        typeAfterKeyboard(sourceName, in: app, "Test food database")
-        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
+        typeAfterKeyboard(sourceName, in: app, surface: .logFood, "Test food database")
+        tapWhenHittable(app.navigationBars["Log food"].buttons["nutritionDiary.save"], in: app, surface: .logFood)
 
         XCTAssertTrue(app.staticTexts["Unavailable"].firstMatch.exists)
         let savedRow = diaryRows(app, containing: "My lunch").firstMatch
         // Daily and weekly totals precede meal rows; a successful save can leave the
         // new row below the viewport. Reveal the actual entry rather than matching totals.
-        XCTAssertTrue(scrollToHittable(savedRow, in: app), "Saved meal should be reachable below totals")
+        XCTAssertTrue(scrollToHittable(savedRow, in: app, surface: .diary), "Saved meal should be reachable below totals")
         XCTAssertTrue(savedRow.waitForExistence(timeout: 5))
     }
 
@@ -258,11 +291,11 @@ final class NutritionDiaryUITests: XCTestCase {
         openDiary(app)
         openLogForm(app)
         let sourceName = app.textFields["nutritionDiary.sourceName"]
-        typeAfterKeyboard(sourceName, in: app, "My notes")
+        typeAfterKeyboard(sourceName, in: app, surface: .logFood, "My notes")
         sourceName.typeText("\n")
         let sourcePicker = app.descendants(matching: .any)["nutritionDiary.source"].firstMatch
         XCTAssertTrue(sourcePicker.waitForExistence(timeout: 5))
-        tapWhenHittable(sourcePicker, in: app)
+        tapWhenHittable(sourcePicker, in: app, surface: .logFood)
         let externalSource = app.buttons["External record (not verified by Ate)"]
         XCTAssertTrue(externalSource.waitForExistence(timeout: 30),
                       "picker option should be reachable after keyboard resign (diagnostic)")
@@ -276,8 +309,8 @@ final class NutritionDiaryUITests: XCTestCase {
         let diaryEntry = app.buttons["settings.nutritionDiary"]
         // SwiftUI does not materialise this below-fold cell until Settings is scrolled.
         // Reveal it before asserting presence, then keep the actual screen assertion below.
-        XCTAssertTrue(scrollToHittable(diaryEntry, in: app), "Settings should expose Food diary inside the clear band")
-        tapWhenHittable(diaryEntry, in: app)
+        XCTAssertTrue(scrollToHittable(diaryEntry, in: app, surface: .settings), "Settings should expose Food diary inside the clear band")
+        tapWhenHittable(diaryEntry, in: app, surface: .settings)
         XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10), "Food diary screen should open")
     }
 
@@ -306,7 +339,7 @@ final class NutritionDiaryUITests: XCTestCase {
         openDiary(app)
         // Goal-unconfigured and empty states are both visible without any setup.
         XCTAssertTrue(app.descendants(matching: .any)["nutritionDiary.configureGoals"].waitForExistence(timeout: 5))
-        XCTAssertTrue(scrollToHittable(app.staticTexts["Nothing logged"], in: app), "Empty diary state should be reachable below totals")
+        XCTAssertTrue(scrollToHittable(app.staticTexts["Nothing logged"], in: app, surface: .diary), "Empty diary state should be reachable below totals")
         XCTAssertTrue(app.staticTexts["Nothing logged"].exists)
     }
 
@@ -317,15 +350,15 @@ final class NutritionDiaryUITests: XCTestCase {
         openDiary(app)
         openLogForm(app)
         let foodName = app.textFields["nutritionDiary.foodName"]
-        typeAfterKeyboard(foodName, in: app, "Bad entry")
+        typeAfterKeyboard(foodName, in: app, surface: .logFood, "Bad entry")
         let quantity = app.textFields["nutritionDiary.quantity"]
-        typeAfterKeyboard(quantity, in: app, "0")
+        typeAfterKeyboard(quantity, in: app, surface: .logFood, "0")
         XCTAssertEqual(quantity.value as? String, "0", "Validation must submit zero, not a positive value with zero inserted before it")
-        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
+        tapWhenHittable(app.navigationBars["Log food"].buttons["nutritionDiary.save"], in: app, surface: .logFood)
         // Error state: visible message, and the form stays open for correction. If the error
         // section renders outside the materialised cells, scroll it into the hierarchy.
         let formError = app.descendants(matching: .any)["nutritionDiary.formError"]
-        XCTAssertTrue(scrollToHittable(formError, in: app) || formError.waitForExistence(timeout: 3), "Save error should be visible")
+        XCTAssertTrue(scrollToHittable(formError, in: app, surface: .logFood) || formError.waitForExistence(timeout: 3), "Save error should be visible")
         XCTAssertTrue(app.staticTexts["Enter a quantity and servings greater than zero."].exists)
         XCTAssertTrue(app.buttons["nutritionDiary.save"].exists)
         captureNutritionState(app, name: "nutrition-invalid-quantity-visible-error")
@@ -338,12 +371,12 @@ final class NutritionDiaryUITests: XCTestCase {
         openDiary(app)
         openLogForm(app)
         let foodName = app.textFields["nutritionDiary.foodName"]
-        typeAfterKeyboard(foodName, in: app, "My lunch")
-        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
+        typeAfterKeyboard(foodName, in: app, surface: .logFood, "My lunch")
+        tapWhenHittable(app.navigationBars["Log food"].buttons["nutritionDiary.save"], in: app, surface: .logFood)
         // Save-failure state: the diary-level error is shown. The entry exists only in memory,
         // so after a relaunch without the fault argument the diary is empty again.
         let saveError = app.descendants(matching: .any)["nutritionDiary.error"]
-        XCTAssertTrue(scrollToHittable(saveError, in: app), "Failed save should show the diary error")
+        XCTAssertTrue(scrollToHittable(saveError, in: app, surface: .diary), "Failed save should show the diary error")
         XCTAssertTrue(saveError.waitForExistence(timeout: 5))
         captureNutritionState(app, name: "nutrition-disk-save-error")
         app.terminate()
@@ -353,7 +386,7 @@ final class NutritionDiaryUITests: XCTestCase {
         openDiary(relaunched)
         XCTAssertTrue(diaryRows(relaunched, containing: "My lunch").allElementsBoundByIndex.isEmpty,
                       "a failed save must not persist the entry")
-        XCTAssertTrue(scrollToHittable(relaunched.staticTexts["Nothing logged"], in: relaunched), "Failed save should leave the relaunched diary empty")
+        XCTAssertTrue(scrollToHittable(relaunched.staticTexts["Nothing logged"], in: relaunched, surface: .diary), "Failed save should leave the relaunched diary empty")
         XCTAssertTrue(relaunched.staticTexts["Nothing logged"].exists)
     }
 
@@ -363,12 +396,12 @@ final class NutritionDiaryUITests: XCTestCase {
         app.launch()
         openDiary(app)
         XCTAssertTrue(app.descendants(matching: .any)["nutritionDiary.corruptDataError"].waitForExistence(timeout: 5))
-        tapWhenHittable(app.buttons["nutritionDiary.recoverCorruptData"], in: app)
+        tapWhenHittable(app.buttons["nutritionDiary.recoverCorruptData"], in: app, surface: .diary)
         let confirm = app.buttons["Back up and reset"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
         confirm.tap()
         XCTAssertTrue(app.descendants(matching: .any)["nutritionDiary.recoveryNotice"].waitForExistence(timeout: 5))
-        XCTAssertTrue(scrollToHittable(app.staticTexts["Nothing logged"], in: app), "Empty diary state should be reachable below totals")
+        XCTAssertTrue(scrollToHittable(app.staticTexts["Nothing logged"], in: app, surface: .diary), "Empty diary state should be reachable below totals")
         XCTAssertTrue(app.staticTexts["Nothing logged"].waitForExistence(timeout: 5))
     }
 
@@ -390,7 +423,7 @@ final class NutritionDiaryUITests: XCTestCase {
         let card = app.buttons.matching(identifier: "listCard")
             .matching(NSPredicate(format: "label CONTAINS %@", "QA pap and rice")).firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 10), "Seeded recipe should appear in the library")
-        tapWhenHittable(card, in: app, "Seeded recipe card should be visible before it is tapped")
+        tapWhenHittable(card, in: app, surface: .library, "Seeded recipe card should be visible before it is tapped")
         // Library cards open a compact sheet; the nutrition card lives in the expanded detail.
         // The sheet's internal controls are not reliably exposed to accessibility (see
         // test32c_ExpandableRecipeSheetOpensExpandsAndDismisses), so accept a detail that is
@@ -448,12 +481,12 @@ final class NutritionDiaryUITests: XCTestCase {
         openLogForm(app)
         captureNutritionState(app, name: "nutrition-add-entry")
         let foodName = app.textFields["nutritionDiary.foodName"]
-        typeAfterKeyboard(foodName, in: app, "My lunch")
-        typeAfterKeyboard(app.textFields["nutritionDiary.quantityUnit"], in: app, "bowl")
-        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
+        typeAfterKeyboard(foodName, in: app, surface: .logFood, "My lunch")
+        typeAfterKeyboard(app.textFields["nutritionDiary.quantityUnit"], in: app, surface: .logFood, "bowl")
+        tapWhenHittable(app.navigationBars["Log food"].buttons["nutritionDiary.save"], in: app, surface: .logFood)
 
         let row = diaryRows(app, containing: "My lunch").firstMatch
-        XCTAssertTrue(scrollToHittable(row, in: app), "Saved meal should be reachable below totals")
+        XCTAssertTrue(scrollToHittable(row, in: app, surface: .diary), "Saved meal should be reachable below totals")
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         captureNutritionState(app, name: "nutrition-diary-list")
         row.swipeLeft()
@@ -463,7 +496,7 @@ final class NutritionDiaryUITests: XCTestCase {
         let quantity = app.textFields["nutritionDiary.quantity"]
         XCTAssertTrue(quantity.waitForExistence(timeout: 5))
         captureNutritionState(app, name: "nutrition-edit-entry")
-        tapWhenHittable(quantity, in: app)
+        tapWhenHittable(quantity, in: app, surface: .editFood)
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the quantity field")
         // The centre tap places the caret before the seeded decimal on native iOS.
         // Tap past its trailing glyph, then clear with slack before replacing it.
@@ -472,9 +505,9 @@ final class NutritionDiaryUITests: XCTestCase {
         quantity.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existingQuantity.count + 2))
         quantity.typeText("2")
         XCTAssertEqual(quantity.value as? String, "2", "Edit must replace the seeded quantity, not append to it")
-        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
+        tapWhenHittable(app.navigationBars["Edit food"].buttons["nutritionDiary.save"], in: app, surface: .editFood)
         let editedRow = diaryRows(app, containing: "2 bowl").firstMatch
-        XCTAssertTrue(scrollToHittable(editedRow, in: app), "Edited meal should remain reachable below totals")
+        XCTAssertTrue(scrollToHittable(editedRow, in: app, surface: .diary), "Edited meal should remain reachable below totals")
         XCTAssertTrue(editedRow.waitForExistence(timeout: 5))
         XCTAssertEqual(diaryRows(app, containing: "My lunch").allElementsBoundByIndex.count, 1,
                        "edit must keep one row with the same identity")
@@ -498,7 +531,7 @@ final class NutritionDiaryUITests: XCTestCase {
         openLogForm(app)
         let foodName = app.textFields["nutritionDiary.foodName"]
         XCTAssertTrue(foodName.waitForExistence(timeout: 5))
-        typeAfterKeyboard(foodName, in: app, "Week lunch")
+        typeAfterKeyboard(foodName, in: app, surface: .logFood, "Week lunch")
         let energy = app.textFields["nutritionDiary.nutrient.energy"]
         scrolls = 0
         while !energy.exists && scrolls < 8 {
@@ -506,8 +539,8 @@ final class NutritionDiaryUITests: XCTestCase {
             scrolls += 1
         }
         XCTAssertTrue(energy.waitForExistence(timeout: 5))
-        typeAfterKeyboard(energy, in: app, "200")
-        tapWhenHittable(app.buttons["nutritionDiary.save"], in: app)
+        typeAfterKeyboard(energy, in: app, surface: .logFood, "200")
+        tapWhenHittable(app.navigationBars["Log food"].buttons["nutritionDiary.save"], in: app, surface: .logFood)
 
         let weeklyEnergy = app.staticTexts["nutritionDiary.weeklyTotal.energy.value"]
         scrolls = 0

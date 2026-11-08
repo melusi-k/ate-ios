@@ -219,6 +219,10 @@ final class InsightsAcceptanceUITests: XCTestCase {
         reopenInsightsFromJournal()
         let action = app.buttons["insights.progress.action.weekly-cooking"]
         reveal(action)
+        let beforeOpen = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        beforeOpen.name = "insight-normal-before-open"
+        beforeOpen.lifetime = .keepAlways
+        add(beforeOpen)
         action.tap()
         wait(app.navigationBars["Insights & Cooking History"], 8)
         let day = Calendar.current.component(.day, from: Date())
@@ -334,6 +338,10 @@ final class InsightsAcceptanceUITests: XCTestCase {
         reveal(dismiss)
         dismiss.tap()
         XCTAssertTrue(action.waitForNonExistence(timeout: 5), "Only explicit dismissal should remove this suggestion")
+        let afterDismiss = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        afterDismiss.name = "insight-normal-after-explicit-dismiss"
+        afterDismiss.lifetime = .keepAlways
+        add(afterDismiss)
     }
 
     func testJournalRootReflectionPlacementDraftAndSaveWithoutHealth() {

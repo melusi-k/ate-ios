@@ -213,56 +213,15 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(settings.buttons["settings.import"].exists)
         XCTAssertTrue(settings.buttons["settings.replayOnboarding"].exists)
         shot("settings-tools")
-        export.tap()
-        shot("settings-export-immediately-after-tap")
-        print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-BEGIN")
-        print(app.debugDescription)
-        print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-END")
-        // Share the former two-second sleep budget between explicit readiness waits.
-        // Screenshot/AX and native event time are not extra readiness wait allowance.
-        let exportActivity = app.otherElements["ActivityListView"]
-        var readinessBudget: TimeInterval = 2
-        let exportPresentedPredicate = NSPredicate { _, _ in
-            exportActivity.exists && !exportActivity.frame.isEmpty
-        }
-        var exportIsPresented = exportPresentedPredicate.evaluate(with: nil)
-        if !exportIsPresented && readinessBudget > 0 {
-            let exportPresented = XCTNSPredicateExpectation(predicate: exportPresentedPredicate, object: nil)
-            let presentationStarted = Date()
-            exportIsPresented = XCTWaiter.wait(for: [exportPresented], timeout: readinessBudget) == .completed
-            readinessBudget = max(0, readinessBudget - Date().timeIntervalSince(presentationStarted))
-        }
-        guard exportIsPresented else {
-            XCTFail("Export ActivityListView must present before dismissal")
-            return
-        }
-        shot("more-export-sheet")
-        print("SETTINGS-EXPORT-PRESENTATION-AX-BEGIN")
-        print(app.debugDescription)
-        print("SETTINGS-EXPORT-PRESENTATION-AX-END")
-        if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
-        let settingsNavigation = app.navigationBars["Settings"]
-        let exportDismissedPredicate = NSPredicate { _, _ in
-            !exportActivity.exists && settingsNavigation.exists && !settingsNavigation.frame.isEmpty && settingsNavigation.isHittable
-        }
-        var exportIsDismissed = exportDismissedPredicate.evaluate(with: nil)
-        if !exportIsDismissed && readinessBudget > 0 {
-            let exportDismissed = XCTNSPredicateExpectation(predicate: exportDismissedPredicate, object: nil)
-            exportIsDismissed = XCTWaiter.wait(for: [exportDismissed], timeout: readinessBudget) == .completed
-        }
-        guard exportIsDismissed else {
-            XCTFail("Export ActivityListView must dismiss before Settings becomes the active screen")
-            return
-        }
-        // Revalidate Settings after dismissing Export. Keep the exact identifiers and
-        // original scroll/wait budgets, but query the Form's actual Switch elements.
+        // Check Settings before opening Export. Keep the exact identifiers and
+        // original scroll/wait budgets, querying the Form's actual Switch elements.
         let timerSettings = settingsContent()
         let settingsStepAlerts = timerSettings.switches["toggle.Step-by-step alerts"].firstMatch
         let settingsQuietHours = timerSettings.switches["toggle.Quiet hours"].firstMatch
 
         // Settings uses lazily materialized rows: scroll to each toggle before asserting it exists.
         // Export is in Tools, below Timer notifications. Search toward the earlier section first,
-        // retaining the opposite-direction fallback if the restored viewport differs.
+        // retaining the opposite-direction fallback if the viewport differs.
         scrollTo(settingsQuietHours, searchDownFirst: false); wait(settingsQuietHours, 3)
         XCTAssertTrue(settingsQuietHours.isHittable, "Quiet hours toggle should be reachable in Timer notifications")
         scrollTo(settingsStepAlerts); wait(settingsStepAlerts, 3)
@@ -285,6 +244,33 @@ final class CoverageUITests: XCTestCase {
         let transparency = timerSettings.descendants(matching: .any)["aiTransparency"].firstMatch
         scrollTo(transparency); wait(transparency, 3)
         shot("settings-about")
+
+        scrollTo(export)
+        export.tap()
+        shot("settings-export-immediately-after-tap")
+        print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-BEGIN")
+        print(app.debugDescription)
+        print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-END")
+        // Export opens is retained; dismissal is device-verified on build408.
+        // Owner decision 2026-11-08: do not test simulator share-sheet dismissal.
+        let exportActivity = app.otherElements["ActivityListView"]
+        let readinessBudget: TimeInterval = 2
+        let exportPresentedPredicate = NSPredicate { _, _ in
+            exportActivity.exists && !exportActivity.frame.isEmpty
+        }
+        var exportIsPresented = exportPresentedPredicate.evaluate(with: nil)
+        if !exportIsPresented && readinessBudget > 0 {
+            let exportPresented = XCTNSPredicateExpectation(predicate: exportPresentedPredicate, object: nil)
+            exportIsPresented = XCTWaiter.wait(for: [exportPresented], timeout: readinessBudget) == .completed
+        }
+        guard exportIsPresented else {
+            XCTFail("Export ActivityListView must present")
+            return
+        }
+        shot("more-export-sheet")
+        print("SETTINGS-EXPORT-PRESENTATION-AX-BEGIN")
+        print(app.debugDescription)
+        print("SETTINGS-EXPORT-PRESENTATION-AX-END")
     }
 
     // MARK: photo dish step

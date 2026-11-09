@@ -19,7 +19,9 @@ enum UnifiedArchiveStartupRecovery {
     /// The one admission-blocking entry point. Also owns the generation-completion rule:
     /// a historically committed transaction whose durable generation advance never landed
     /// (process death between the committed marker and commitGeneration) is advanced exactly
-    /// once after successful recovery; an already-advanced generation is never re-committed.
+    /// once, INSIDE run's beforeRetire, so the commit lands before the retire and a crash
+    /// anywhere in that window is completed exactly once by a later startup; an
+    /// already-advanced generation is never re-committed.
     static func recoverAtStartup(
         lease: POSIXArchiveWriterLease,
         journal: DiskArchiveRecoveryJournal,
@@ -41,8 +43,13 @@ enum UnifiedArchiveStartupRecovery {
         let recovery = makeRecovery(journal: journal, defaults: defaults, diary: diary, goals: goals,
                                     recipeContainer: recipeContainer, journalContainer: journalContainer,
                                     mediaDirectory: mediaDirectory)
-        try recovery.run(ownerIdentity: ownerIdentity)
-        if pendingAdvance { try lease.commitGeneration(lease.generation + 1) }
+        try recovery.run(ownerIdentity: ownerIdentity, beforeRetire: { _ in
+            // Commit the pending generation BEFORE the transaction retires: a crash after
+            // this commit leaves an unresolved committed record one generation behind,
+            // which the next startup retires via the authorized-advance path without
+            // advancing again. A crash before it leaves pendingAdvance true again.
+            if pendingAdvance { try lease.commitGeneration(lease.generation + 1) }
+        })
     }
 
     /// Assembles ArchiveStartupRecovery with handlers bound to the real stores. The handler

@@ -20,8 +20,6 @@ enum FoodJournalStoreError: Error, Equatable {
 /// calculations, totals and views keep operating on the same fields they use today.
 @MainActor
 final class FoodJournalStore {
-    static let shared = FoodJournalStore(container: JournalStore.shared.container)
-
     let container: ModelContainer?
     private let writeContext: (ModelContext) throws -> Void
 
@@ -206,7 +204,10 @@ enum FoodJournalMigration {
         case .ok, .recovered: break
         case .inMemoryFallback, .unavailable: return .failed("journal is not durably available")
         }
-        let state = legacy.loadState()
+        // Capture the original bytes before decoding. Legacy reads may otherwise persist a
+        // normalized day key and erase the only exact copy before backup.
+        let originalBytes = legacy.defaults.data(forKey: NutritionDiaryRepository.storageKey)
+        let state = legacy.loadState(persistHistoricalDayKeys: false)
         if case .corrupt = state {
             // Never touch an unreadable payload: it is the only copy, and the existing diary
             // recovery (backup then reset) stays in charge until it is readable or removed.
@@ -231,22 +232,10 @@ enum FoodJournalMigration {
         do { existing = try store.readMeals() }
         catch { return .failed("journal read failed: \(error)") }
         let newEntries = valid.filter { entry in !existing.contains(where: { $0.id == entry.id }) }
-        do {
-            try store.importMeals(valid)
-        } catch {
-            return .failed("import failed: \(error)")
-        }
-
-        // Verification before any retirement: every valid legacy identity must now exist in the store.
-        guard let stored = try? store.readMeals(), valid.allSatisfy({ stored.contains($0) }) else {
-            return .failed("verification failed: legacy payloads do not match the journal store")
-        }
-
-        // Preserve a backup before retiring the legacy key: write the original payload to a file
-        // first, and only retire the key once the backup is proven written. If the backup cannot
-        // be written, nothing is retired and the next run retries.
-        guard let raw = legacy.defaults.data(forKey: NutritionDiaryRepository.storageKey) else {
-            return .failed("could not re-read the legacy payload for backup")
+        // A backup failure must precede all canonical mutation, not leave a partial move.
+        guard let raw = originalBytes,
+              legacy.defaults.data(forKey: NutritionDiaryRepository.storageKey) == raw else {
+            return .failed("legacy payload changed before backup")
         }
         let dir = backupDirectory ?? fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent(legacyBackupDirectoryName, isDirectory: true)
@@ -259,7 +248,23 @@ enum FoodJournalMigration {
         } catch {
             return .failed("backup failed: \(error)")
         }
+        // Recheck the exact snapshot after disk IO and immediately before importing it.
+        guard legacy.defaults.data(forKey: NutritionDiaryRepository.storageKey) == raw else {
+            return .failed("legacy payload changed during backup")
+        }
+        do { try store.importMeals(valid) }
+        catch { return .failed("import failed: \(error)") }
+        guard let stored = try? store.readMeals(), valid.allSatisfy({ stored.contains($0) }) else {
+            return .failed("verification failed: legacy payloads do not match the journal store")
+        }
+        // Never retire a payload written by another consumer while this move was running.
+        guard legacy.defaults.data(forKey: NutritionDiaryRepository.storageKey) == raw else {
+            return .failed("legacy payload changed before retirement")
+        }
         legacy.clear()
+        guard legacy.defaults.data(forKey: NutritionDiaryRepository.storageKey) == nil else {
+            return .failed("legacy retirement could not be verified")
+        }
         markerDefaults.set(true, forKey: markerKey)
         return .migrated(newEntries.count)
     }

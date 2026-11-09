@@ -88,10 +88,14 @@ struct SettingsView: View {
                         Text("AI on this device")
                     }
                     Section {
-                        // Typed Route pushes keep the settings path accurate and prevent the
-                        // root-only bottom accessory from rendering over pushed screens.
                         NavigationLink(value: Route.nutritionDiary) {
-                            Label("Food diary", systemImage: "fork.knife")
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Food diary")
+                                    Text("What you ate, day by day.")
+                                        .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                                }
+                            } icon: { Image(systemName: "fork.knife") }
                         }
                         .accessibilityIdentifier("settings.nutritionDiary")
                         NavigationLink(value: Route.nutritionGoals) {

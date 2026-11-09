@@ -333,6 +333,7 @@ extension JournalOpenStateUITests {
 
     /// Separate from ordinary XXXL save-error coverage: the root add accessory at the
     /// maximum accessibility category must fit its fixed system height and remain actionable.
+
     func testJournalRootAddAtMaximumAccessibilitySizeAndSidebarRoundTrip() {
         launch(extra: ["-qaMockHealth", "empty", "-UIPreferredContentSizeCategoryName",
                        "UICTContentSizeCategoryAccessibilityXXXL"])

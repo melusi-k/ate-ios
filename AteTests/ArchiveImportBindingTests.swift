@@ -306,7 +306,83 @@ final class ArchiveImportBindingTests: XCTestCase {
         }
     }
 
+    /// Crash window 1: the committed marker is durable but the process died before the
+    /// session advanced the generation and retired. The transaction stays unresolved, so
+    /// startup recovery verifies the after-images against the actual stores, finishes,
+    /// retires, and advances the generation exactly once.
+    func testCrashBetweenCommitAndGenerationAdvanceIsCompletedExactlyOnceAtStartup() throws {
+        let f = try fixture(); defer { cleanup(f) }
+        let value = try archive(f: f)
+        let result = try f.binding.importArchive(value) // committed; NO advance, NO retire
+        XCTAssertEqual(f.session.lease.generation, 0)
+        XCTAssertEqual(try f.session.recoveryJournal.transactions(), [result.committedTransactionID],
+                       "committed transaction stays unresolved until the advance is durable")
+
+        try UnifiedArchiveStartupRecovery.recoverAtStartup(lease: f.session.lease,
+            journal: f.session.recoveryJournal, ownerIdentity: "fixture-owner",
+            defaults: f.defaults, diary: NutritionDiaryRepository(defaults: f.defaults),
+            goals: f.binding.goals, recipeContainer: f.container,
+            journalContainer: { try XCTUnwrap(f.journalStore.container) }, mediaDirectory: f.mediaDir)
+
+        XCTAssertEqual(f.session.lease.generation, 1, "startup completed the advance exactly once")
+        XCTAssertTrue(try f.session.recoveryJournal.transactions().isEmpty, "startup retired the transaction")
+        let rows = try ModelContext(try XCTUnwrap(f.journalStore.container)).fetch(FetchDescriptor<Ate.JournalEntry>())
+        XCTAssertEqual(rows.map(\.id), ["j-new"], "committed import stays applied")
+        XCTAssertEqual(try Data(contentsOf: f.mediaDir.appendingPathComponent("m-1.jpg")), Data("photo".utf8))
+    }
+
+    /// Crash window 2: the generation advanced but the process died before the retire.
+    /// Startup recovery retires WITHOUT advancing again (authorized-advance path).
+    func testCrashBetweenGenerationAdvanceAndRetireNeverAdvancesAgain() throws {
+        let f = try fixture(); defer { cleanup(f) }
+        let result = try f.binding.importArchive(archive(f: f)) // committed, unresolved
+        try f.session.lease.commitGeneration(f.session.lease.generation + 1) // session's advance
+        XCTAssertEqual(f.session.lease.generation, 1)
+        XCTAssertEqual(try f.session.recoveryJournal.transactions(), [result.committedTransactionID])
+
+        try UnifiedArchiveStartupRecovery.recoverAtStartup(lease: f.session.lease,
+            journal: f.session.recoveryJournal, ownerIdentity: "fixture-owner",
+            defaults: f.defaults, diary: NutritionDiaryRepository(defaults: f.defaults),
+            goals: f.binding.goals, recipeContainer: f.container,
+            journalContainer: { try XCTUnwrap(f.journalStore.container) }, mediaDirectory: f.mediaDir)
+
+        XCTAssertEqual(f.session.lease.generation, 1, "already-advanced generation is never re-committed")
+        XCTAssertTrue(try f.session.recoveryJournal.transactions().isEmpty)
+        let rows = try ModelContext(try XCTUnwrap(f.journalStore.container)).fetch(FetchDescriptor<Ate.JournalEntry>())
+        XCTAssertEqual(rows.map(\.id), ["j-new"], "committed import stays applied")
+    }
+
+    /// The session owns the full ordering: committed unit, durable advance, then retire.
+    func testSessionAdvancesThenRetires() throws {
+        let f = try fixture(); defer { cleanup(f) }
+        let result = try f.session.importArchive(try archive(f: f), binding: f.binding)
+        XCTAssertEqual(f.session.lease.generation, 1)
+        XCTAssertFalse(try f.session.recoveryJournal.transactions().contains(result.committedTransactionID))
+    }
+
     // MARK: - lease modes
+
+    /// A reset control record created between the pre-check and the flock must still be
+    /// caught under the held lock: the factory releases and refuses, never interleaving
+    /// with the reset writer.
+    func testStandaloneLeaseRechecksResetPendingUnderHeldLock() throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath()
+            .appendingPathComponent("ArchiveLeaseRace-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var calls = 0
+        XCTAssertThrowsError(try ArchiveStandaloneLeaseFactory.lease(controlDirectory: root, resetPending: {
+            calls += 1
+            return calls > 1 // reset appears between the pre-check and the held-lock recheck
+        })) { error in
+            guard case ArchiveStandaloneLeaseFailure.resetPending = error else {
+                return XCTFail("expected resetPending, got \(error)")
+            }
+        }
+        XCTAssertEqual(calls, 2, "reset state is rechecked under the acquired flock")
+        let lease = try ArchiveStandaloneLeaseFactory.lease(controlDirectory: root, resetPending: { false })
+        lease.release()
+    }
 
     func testStandaloneLeaseFlocksSharedFileAndRefusesWhileResetPending() throws {
         let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath()

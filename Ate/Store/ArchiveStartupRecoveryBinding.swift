@@ -94,7 +94,9 @@ enum UnifiedArchiveStartupRecovery {
     /// Opens the Journal store directly, WITHOUT StoreRecovery's move-aside path: archive
     /// startup recovery must never relocate store files while restoring exact before-images.
     /// A damaged store throws here and blocks admission visibly instead.
-    static func openJournalContainer() throws -> ModelContainer {
+    /// nonisolated: it touches no actor state (a plain ModelContainer init), and the
+    /// journalContainer default-argument closures are evaluated in a nonisolated context.
+    nonisolated static func openJournalContainer() throws -> ModelContainer {
         try ModelContainer(for: JournalEntry.self, JournalMealPayload.self,
                            configurations: ModelConfiguration("AteJournal"))
     }

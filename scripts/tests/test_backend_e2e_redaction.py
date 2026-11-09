@@ -242,9 +242,23 @@ class LinearTimeTests(unittest.TestCase):
         for base in ("'", '"', "'\\"):
             small, large = base * 40_000, base * 80_000
             e2e.scrub(small)  # warm-up
-            t1 = min(_time(small) for _ in range(3))
-            t2 = min(_time(large) for _ in range(3))
-            self.assertLess(t2, 5.0, f"{base!r}: 80k chars took {t2:.2f}s")
+            samples = {"small": [], "large": []}
+            # CPU time measures scanner work, not another job descheduling this process.
+            # Alternate size order so warm caches/frequency changes do not always favour
+            # the small input. Wall time remains an independent latency requirement.
+            for sample in range(3):
+                order = (("small", small), ("large", large))
+                if sample % 2:
+                    order = tuple(reversed(order))
+                for name, text in order:
+                    wall_start, cpu_start = time.monotonic(), time.process_time()
+                    e2e.scrub(text)
+                    elapsed = time.monotonic() - wall_start
+                    samples[name].append(time.process_time() - cpu_start)
+                    self.assertLess(elapsed, 5.0, f"{base!r}: {name} wall time {elapsed:.2f}s")
+            t1 = min(samples["small"])
+            t2 = min(samples["large"])
+            self.assertLess(t2, 5.0, f"{base!r}: 80k chars took {t2:.2f}s CPU time")
             if t1 > 0.005:  # below timer noise the ratio is meaningless; the absolute bound covers it
                 self.assertLess(t2 / t1, 3.0, f"{base!r}: 40k={t1:.3f}s 80k={t2:.3f}s looks super-linear")
 

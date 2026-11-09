@@ -1,5 +1,6 @@
 import Foundation
 import Vision
+import OSLog
 import UIKit
 #if canImport(FoundationModels)
 import FoundationModels
@@ -66,31 +67,22 @@ final class OnDeviceBackend: BackendService {
         var visibleLabels: [String] = []
         var visionLabels: [(String, Float)] = []
         var photoOCR = ""
-        // Attributable cue sources for dietary/servings detection: the user's own words
-        // (request text / photo hint) and the scraped source. The assembled prompt also
-        // carries examples and guidance, so it is never scanned for cues.
-        var contextUser = request.text ?? ""
-        var contextSource = ""
-        var sourceIsLongForm = false
         switch request.mode {
         case .prompt:
             prompt = RecipePrompt.prompt(request.text ?? "")
         case .url where socialCaption != nil:
             prompt = RecipePrompt.social(caption: socialCaption!); input = .social
-            contextSource = socialCaption!  // short dish-defining source
         case .url:
             let page: String
             if let html = pageHTML { page = String(Self.htmlToText(html).prefix(3500)) }
             else { page = try await Self.fetchPageText(request.text ?? "") }
             prompt = RecipePrompt.page(page); input = .link
-            contextSource = page; sourceIsLongForm = true
         case .image:
             let text = try await Self.ocr(dataURL: request.imageDataUrl ?? "")
             photoOCR = text
             let hint = (request.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             if PhotoGuess.isScreenshotText(text) && hint.isEmpty {
                 prompt = RecipePrompt.screenshot(text); input = .screenshot
-                contextSource = text; contextUser = ""; sourceIsLongForm = true
             } else {
                 // A food photo: OCR + labels; generic labels mean we ask the user before generating.
                 let labels = try await Self.classify(dataURL: request.imageDataUrl ?? "")
@@ -115,7 +107,6 @@ final class OnDeviceBackend: BackendService {
                 }
                 prompt = pp + "\n" + scene
                 source = .photoGuess
-                contextSource = text  // short dish-defining source
             }
         case .rewrite:
             var c = request.currentRecipe ?? RecipeCard()
@@ -124,7 +115,7 @@ final class OnDeviceBackend: BackendService {
             prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"; input = .rewrite
             reviseID = c.id
         }
-        let ctx = RecipePrompt.context(userText: contextUser, sourceText: contextSource, sourceIsLongForm: sourceIsLongForm)
+        let ctx = RecipePrompt.context(for: request.text ?? "")
         var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx)
         // Never show a confident recipe for an object the camera saw instead of food.
         // Send the user back through the dish question so the next pass is grounded by a human label.
@@ -134,21 +125,9 @@ final class OnDeviceBackend: BackendService {
         // Too thin, or missing what the photo shows: regenerate ONCE with the gaps spelled out.
         let gaps = RecipeQuality.shortfall(card, labels: visibleLabels)
         if request.mode != .rewrite, !gaps.isEmpty {
-            // Repair, don't re-roll. Prefer the same session: generate() keys it by card.id, so the
-            // failed draft is still in the transcript and the instruction prefix is not re-paid.
-            // When no session survives (eviction between generations), inline the draft as JSON so
-            // the model always sees what it is fixing.
-            let retryText = RecipePrompt.retryInstruction(gaps: gaps, visibleLabels: visibleLabels)
-            let fix: String
-            let retryReviseID: String?
-            if await Self.sessionExists(for: card.id) {
-                fix = retryText; retryReviseID = card.id
-            } else {
-                let draft = (try? String(data: JSONEncoder().encode(card), encoding: .utf8)) ?? ""
-                fix = prompt + "\nPrevious draft (JSON):\n" + draft + "\n" + retryText
-                retryReviseID = nil
-            }
-            if let again = try? await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx),
+            let fix = prompt + "\nThe previous draft fell short: " + gaps.joined(separator: " ")
+                + (visibleLabels.isEmpty ? "" : " Include every visible component: \(visibleLabels.prefix(8).joined(separator: ", ")).")
+            if let again = try? await Self.generate(fix, input: input, photoDataURL: photoForTool, context: ctx),
                RecipeQuality.shortfall(again, labels: visibleLabels).count < gaps.count { card = again }
         }
         if source == .photoGuess {
@@ -270,24 +249,15 @@ final class OnDeviceBackend: BackendService {
     }
 
     #if canImport(FoundationModels)
-    /// Session instructions: persona, rules and format per input mode. The lookupRegionalDish call
-    /// instruction lives once in shared rule 7; glossary detail comes from the tool on demand.
+    /// Instructions { } builder: persona, rules and format; the glossary now comes from lookupRegionalDish on demand.
     @available(iOS 26.0, *)
     static func makeSession(tools: [any Tool], input: RecipePrompt.Input) -> LanguageModelSession {
         LanguageModelSession(tools: tools, instructions: Instructions {
             RecipePrompt.instructions(for: input)
+            "For any regional or unfamiliar dish name, call lookupRegionalDish before writing ingredients."
         })
     }
     #endif
-
-    /// Whether a generation session survives for this card id (shortfall retry reuses it so the
-    /// failed draft stays in the transcript; the retry inlines the draft JSON when this is false).
-    @MainActor static func sessionExists(for id: String) -> Bool {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) { return sessions[id] != nil }
-        #endif
-        return false
-    }
 
     /// Move a revised card's session to the recipe's stable id (rewrite keeps the original id).
     @MainActor static func rekeySession(from old: String, to new: String) {
@@ -422,89 +392,38 @@ final class OnDeviceBackend: BackendService {
         return s.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
     }
 
-    /// Shared by real image generation, demo fallback and the model's readPhotoText tool.
-    static let ocrDeadlineSeconds: TimeInterval = 10
-
     static func ocr(dataURL: String) async throws -> String {
+        let diagnostic = PhotoImportDiagnostics.begin()
+        diagnostic?.mark(.decodeStarted)
         let b64 = dataURL.components(separatedBy: ",").last ?? ""
-        guard let data = Data(base64Encoded: b64), let cg = UIImage(data: data)?.cgImage else { return "" }
-        let cancellation = OCRRequestCancellation()
-        return try await OCRTerminalResult.run(timeout: ocrDeadlineSeconds, cancel: { cancellation.cancel() }) { finish in
+        guard let data = Data(base64Encoded: b64), let cg = UIImage(data: data)?.cgImage else {
+            diagnostic?.mark(.decodeRejected)
+            return ""
+        }
+        diagnostic?.mark(.decodeCompleted)
+        diagnostic?.mark(.workerQueued)
+        return try await withCheckedThrowingContinuation { cont in
             DispatchQueue.global(qos: .userInitiated).async {
-                // Read synchronous perform's result on this worker. Completion must not
-                // depend on Vision calling a request callback, and must happen only once
-                // even when a slow worker finishes after the deadline.
-                let req = VNRecognizeTextRequest()
+                diagnostic?.mark(.workerStarted)
+                // Keep the request confined to the worker that performs it.
+                let req = VNRecognizeTextRequest { req, err in
+                    diagnostic?.mark(.ocrCallback)
+                    if let err { diagnostic?.mark(.ocrFailed); cont.resume(throwing: err); return }
+                    let lines = (req.results as? [VNRecognizedTextObservation] ?? []).compactMap { $0.topCandidates(1).first?.string }
+                    diagnostic?.mark(.ocrCompleted)
+                    cont.resume(returning: lines.joined(separator: "\n"))
+                }
                 req.recognitionLevel = .accurate
                 req.usesLanguageCorrection = true
-                cancellation.install { req.cancel() }
+                diagnostic?.mark(.performStarted)
                 do {
                     try VNImageRequestHandler(cgImage: cg).perform([req])
-                    let lines = (req.results ?? []).compactMap { $0.topCandidates(1).first?.string }
-                    finish(.success(lines.joined(separator: "\n")))
-                } catch { finish(.failure(error)) }
+                    diagnostic?.mark(.performReturned)
+                } catch {
+                    diagnostic?.mark(.performFailed)
+                    cont.resume(throwing: error)
+                }
             }
-        }
-    }
-}
-
-/// Bridges a deadline to Vision cancellation even if the worker starts after it fires.
-final class OCRRequestCancellation: @unchecked Sendable {
-    private let lock = NSLock()
-    private var cancelled = false
-    private var action: (() -> Void)?
-
-    func install(_ action: @escaping () -> Void) {
-        lock.lock()
-        self.action = action
-        let shouldCancel = cancelled
-        lock.unlock()
-        if shouldCancel { action() }
-    }
-
-    func cancel() {
-        lock.lock()
-        cancelled = true
-        let action = action
-        lock.unlock()
-        action?()
-    }
-}
-
-/// A non-cooperative Vision worker cannot hold a recipe attempt open indefinitely.
-/// The deadline releases the awaiting attempt; a late worker result is ignored.
-/// The caller asks Vision to cancel; prompt release of synchronous work is not guaranteed.
-final class OCRTerminalResult: @unchecked Sendable {
-    struct DeadlineExceeded: LocalizedError {
-        var errorDescription: String? {
-            "Reading that image took too long. Try again, choose a clearer screenshot, or describe the recipe."
-        }
-    }
-
-    private let lock = NSLock()
-    private var completion: (@Sendable (Result<String, Error>) -> Void)?
-
-    init(completion: @escaping @Sendable (Result<String, Error>) -> Void) {
-        self.completion = completion
-    }
-
-    func finish(_ result: Result<String, Error>) {
-        lock.lock()
-        let callback = completion
-        completion = nil
-        lock.unlock()
-        callback?(result)
-    }
-
-    static func run(timeout: TimeInterval, cancel: @escaping @Sendable () -> Void = {},
-                    start: (@escaping @Sendable (Result<String, Error>) -> Void) -> Void) async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
-            let terminal = OCRTerminalResult { continuation.resume(with: $0) }
-            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + timeout) {
-                terminal.finish(.failure(DeadlineExceeded()))
-                cancel()
-            }
-            start { terminal.finish($0) }
         }
     }
 }
@@ -560,7 +479,7 @@ struct GenStep {
 @available(iOS 26.0, *)
 @Generable
 struct DishIdentification {
-    @Guide(description: "Most likely edible dish name from the caption/OCR/image labels and glossary; never a non-food object (utensil, plate, bowl, cookware, tableware), place, business, hashtag or handle; use Unknown dish when no food is established") var name: String
+    @Guide(description: "Most likely edible dish name from the caption/OCR/image labels and glossary; never a utensil, plate, bowl, cookware, tableware, place, business, hashtag or handle; use Unknown dish when no food is established") var name: String
     @Guide(description: "Cuisine in one or two words, e.g. South African, Italian") var cuisine: String
     @Guide(description: "How sure you are the dish is `name`; below 0.8 when the input doesn't clearly name or show it", .range(0.0...1.0)) var confidence: Double
     @Guide(description: "Other plausible dish names, most likely first; empty when sure", .maximumCount(4)) var alternatives: [String]
@@ -571,7 +490,7 @@ struct DishIdentification {
 @Generable
 struct GenRecipe {
     @Guide(description: "Identify the dish first") var dish: DishIdentification
-    @Guide(description: "The card title: the identified edible dish name as written; never a non-food object (utensil, plate, bowl, cookware, tableware), place, business, hashtag or handle") var title: String
+    @Guide(description: "The card title: the identified edible dish name as written; never an object such as utensil or plate") var title: String
     @Guide(description: "Under 20 words") var description: String
     @Guide(description: "Servings that suit the dish (stews 4 to 6); for one plated item in a photo (one sandwich, one bowl) use 1", .range(1...24)) var servings: Int
     @Guide(description: "Total minutes: the sum of all step minutes plus a short prep time; never more than that", .range(1...2880)) var timeMinutes: Int
@@ -661,3 +580,27 @@ extension GenerationFailure {
 }
 #endif
 
+/// UI-test-only, category-and-duration evidence. Never log images, OCR text, prompts,
+/// recipe content, URLs, account data or raw errors. No retries or timing decisions.
+struct PhotoImportDiagnostics: Sendable {
+    enum Phase: String {
+        case generationStarted, imagePreparationStarted, imagePreparationCompleted, generationLoading
+        case backendReturned, draftAssigned, dishQuestion, generationFailed, generationFinished
+        case decodeStarted, decodeRejected, decodeCompleted, workerQueued, workerStarted
+        case performStarted, performReturned, performFailed, ocrCallback, ocrCompleted, ocrFailed
+    }
+
+    private static let log = Logger(subsystem: "com.melusik.ate", category: "photo-import-phases")
+    private let id: String
+    private let started: TimeInterval
+
+    static func begin() -> Self? {
+        guard AppConfig.isUITesting else { return nil }
+        return Self(id: UUID().uuidString, started: ProcessInfo.processInfo.systemUptime)
+    }
+
+    func mark(_ phase: Phase) {
+        let elapsedMs = Int((ProcessInfo.processInfo.systemUptime - started) * 1_000)
+        Self.log.notice("trace=\(id, privacy: .public) phase=\(phase.rawValue, privacy: .public) elapsed_ms=\(elapsedMs, privacy: .public)")
+    }
+}

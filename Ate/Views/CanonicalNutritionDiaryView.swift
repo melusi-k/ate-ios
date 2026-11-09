@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
+import OSLog
 
 /// Food diary on the canonical Food Journal coordinator (#179): real entry editing, visible
 /// weekly totals for the selected week, and honest blocked states with the legacy repair route.
@@ -524,33 +525,49 @@ struct MealBackupDocumentPicker: UIViewControllerRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        context.coordinator.trace("create")
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json], asCopy: false)
         picker.allowsMultipleSelection = false
         picker.delegate = context.coordinator
         return picker
     }
 
-    func updateUIViewController(_ picker: UIDocumentPickerViewController, context: Context) {}
+    func updateUIViewController(_ picker: UIDocumentPickerViewController, context: Context) {
+        context.coordinator.trace("update")
+    }
+
+    static func dismantleUIViewController(_ picker: UIDocumentPickerViewController, coordinator: Coordinator) {
+        coordinator.trace("dismantle")
+    }
 
     @MainActor
     final class Coordinator: NSObject, UIDocumentPickerDelegate {
+        private static let logger = Logger(subsystem: "com.melusik.ate", category: "MealBackupPickerLifecycle")
+        // Random per-presentation correlation only. Never log paths, names, URLs or meal data.
+        private let diagnosticID = UUID().uuidString
         private let onFinish: (URL?) -> Void
         private var finished = false
 
         init(onFinish: @escaping (URL?) -> Void) { self.onFinish = onFinish }
 
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-            finish(urls.first)
+            finish(urls.first, outcome: urls.isEmpty ? "empty-selection" : "selected")
         }
 
         func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
-            finish(nil)
+            finish(nil, outcome: "cancelled")
         }
 
-        private func finish(_ url: URL?) {
+        private func finish(_ url: URL?, outcome: String) {
             guard !finished else { return }
             finished = true
+            trace("delegate-finish-" + outcome)
             onFinish(url)
+        }
+
+        func trace(_ phase: String) {
+            // Uptime is monotonic. Markers observe lifecycle only and never gate presentation.
+            Self.logger.info("phase=\(phase, privacy: .public) instance=\(self.diagnosticID, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public)")
         }
     }
 }

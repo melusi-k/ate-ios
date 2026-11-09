@@ -1035,7 +1035,16 @@ final class AteUITests: XCTestCase {
         XCTAssertTrue(menu == "sortMenu" || menu == "groupByMenu", "Unknown picker contract")
         app.buttons["libraryBrowseMenu"].firstMatch.tap()
         shot("library-browse-opened-\(menu)-\(option)")
-        let submenu = app.buttons.matching(identifier: menu)
+        // Native iOS 27 popups expose the submenu label and icon but omit the
+        // SwiftUI Menu identifier. Scope to the actual open Collections menu,
+        // then require the unique labelled submenu with its expected icon.
+        let browse = app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections"))
+        XCTAssertEqual(browse.count, 1, "Browse popup must be unique")
+        let label = menu == "sortMenu" ? "Sort" : "Group by"
+        let icon = menu == "sortMenu" ? "arrow.up.arrow.down" : "rectangle.3.group"
+        let submenu = browse.firstMatch.descendants(matching: .button)
+            .matching(NSPredicate(format: "label == %@", label))
+            .containing(.image, identifier: icon)
         wait(submenu.firstMatch, 3)
         XCTAssertEqual(submenu.count, 1, "Browse must expose one named arrange submenu")
         XCTAssertTrue(submenu.firstMatch.isHittable, "Arrange submenu must be visible without scrolling")

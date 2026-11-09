@@ -54,7 +54,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
-    # Build/nutrition and later regressions have independent exact-head jobs
+    # Full units/nutrition and later regressions have independent exact-head jobs
     # with separate lower budgets (45m / 110m).
     timeout-minutes: 45
     env:
@@ -124,25 +124,24 @@ jobs:
 
           grep -E "warning: .*(Widgets|Intents|Snapshot)" build.log > build-warnings.log || true
           tail -n 30 build-warnings.log || true
-      - name: Nutrition foundation focused unit regressions (#206)
+      - name: Full exact-head unit suite (all AteTests)
+        id: unit_tests
         if: ${{ steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
+          echo "Full unit suite source: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteTests/DataArchiveTests \
-            -only-testing:AteTests/NutritionGoalsTests \
-            -only-testing:AteTests/RecipeNutritionTests \
-            -only-testing:AteTests/NutritionDiaryTests \
-            -only-testing:AteTests/CatalogueIntegrityTests \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-foundation-unit-tests.xcresult" \
+            -only-testing:AteTests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/full-unit-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
-            CODE_SIGNING_ALLOWED=NO > nutrition-foundation-unit-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-foundation-unit-tests.log || true; tail -120 nutrition-foundation-unit-tests.log; exit 1; }
-          # CatalogueIntegrityTests is introduced by PR #238 (food catalogue) and must merge
-          # before this slice; the pass-line guard below fails the job if the suite is absent.
-          # Execution evidence: a green selection that ran nothing is a failure, and the suites
-          # wired in by name must each show their own pass lines.
-          if grep -q "Executed 0 tests" nutrition-foundation-unit-tests.log; then echo "::error::nutrition unit selection executed 0 tests"; exit 1; fi
+            CODE_SIGNING_ALLOWED=NO > full-unit-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" full-unit-tests.log || true; tail -120 full-unit-tests.log; exit 1; }
+          total=$(sed -nE 's/^[[:space:]]*Executed ([0-9]+) tests?,.*/\1/p' full-unit-tests.log | tail -1)
+          if ! [[ "$total" =~ ^[0-9]+$ ]] || [ "$total" -lt 1 ]; then
+            echo "::error::Full AteTests suite reported no execution: ${total:-missing}"
+            exit 1
+          fi
+          # Keep every named unit-pass assertion formerly enforced in focused lanes.
           for evidence in \
             "CatalogueIntegrityTests testCatalogueRecordsVerifiedWithRightsAndFiniteValues]' passed" \
             "CatalogueIntegrityTests testCatalogueIDsAndNormalizedNamesAndAliasesUnique]' passed" \
@@ -155,14 +154,37 @@ jobs:
             "NutritionDiaryTests testWeekIntervalUsesTheCalendarWeekContainingTheGivenDate]' passed" \
             "NutritionDiaryTests testWeekTotalsIncludeOnlyCurrentCalendarWeekEntries]' passed" \
             "NutritionDiaryTests testWeekTotalsExcludeEntriesWithoutParseableDay]' passed" \
-            "NutritionDiaryTests testWeekTotalsEmptyWeekReportsNoValues]' passed"; do
-            grep -qF "$evidence" nutrition-foundation-unit-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-foundation-unit-tests.log; exit 1; }
+            "NutritionDiaryTests testWeekTotalsEmptyWeekReportsNoValues]' passed" \
+            "CookSessionTests testLegacySessionWithoutFactorDecodesWithDefaults]' passed" \
+            "CookSessionTests testSessionRoundTripsFactorAndChecked]' passed" \
+            "CookSessionTests testToggleCheckedAddsAndRemoves]' passed" \
+            "CookSessionTests testScaledIngredientAmountsFollowSessionFactor]' passed" \
+            "CookSessionTests testScaledAmountsRenderForArbitraryFactor]' passed" \
+            "CookSessionTests testEditingIngredientsClearsGatheredChecks]' passed" \
+            "CookSessionTests testNonIngredientEditKeepsGatheredChecks]' passed" \
+            "CookSessionTests testToggleAfterExternalChangeResetsThenApplies]' passed" \
+            "CookSessionTests testBeginCookSessionResetsChecksWhenIngredientsChanged]' passed" \
+            "CookSessionTests testWholesaleRecipeReplacementClearsChecksPreservesFactorAndStep]' passed" \
+            "CookSessionTests testIngredientSignatureResistsSeparatorCollisions]' passed" \
+            "CookSessionTests testReenteringSameRecipeKeepsSessionFactor]' passed" \
+            "CookSessionTests testChecklistAmountsRenderMetricAndImperial]' passed"; do
+            grep -qF "$evidence" full-unit-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 full-unit-tests.log; exit 1; }
           done
-          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" nutrition-foundation-unit-tests.log | tail -60
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" full-unit-tests.log | tail -60
+
+      - name: Retain full unit diagnostics before UI acceptance
+        if: always() && (steps.unit_tests.outcome == 'success' || steps.unit_tests.outcome == 'failure')
+        uses: actions/upload-artifact@v7
+        with:
+          name: full-unit-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          path: |
+            full-unit-tests.log
+            ${{ runner.temp }}/ate-test-results/full-unit-tests.xcresult
 
       # Keep normal-size audits required; retain cross-size cases in the optional lane.
       - name: Nutrition diary and goals UI regressions (#179)
-        if: ${{ steps.build.outcome == 'success' }}
+        if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
           # Clean process so launch arguments are real (same rationale as other UI shards).
@@ -236,8 +258,6 @@ jobs:
             settings-sync.log
             tracker-ui.log
             cook-mode-history.log
-            recipe-generation-tests.log
-            library-layout-tests.log
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
@@ -262,7 +282,7 @@ jobs:
       matrix:
         include:
           - suite: presentation-creation
-            required_logs: insights-evidence-navigation.log share-publish-outage-tests.log interrupted-generation-retry-lifecycle.log recipe-generation-tests.log drink-photo-prompt-tests.log transient-generation-retry.log photo-recipe-output-validation.log library-layout-tests.log expandable-recipe-sheet-tests.log
+            required_logs: insights-evidence-navigation.log share-publish-outage-tests.log interrupted-generation-retry-lifecycle.log transient-generation-retry.log expandable-recipe-sheet-tests.log
           - suite: account-cooking
             required_logs: settings-sync.log production-channel-production.log settings-about-145.log account-switch-sync-failure-library.log tracker-ui.log navigation-header-tests.log cook-mode-history.log cook-ingredients-tests.log
     env:
@@ -377,32 +397,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > interrupted-generation-retry-lifecycle.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" interrupted-generation-retry-lifecycle.log || true; tail -120 interrupted-generation-retry-lifecycle.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" interrupted-generation-retry-lifecycle.log | tail -40
 
-      # Explicit retained quarantine: only these two #89 fixture tests remain advisory.
-      # A failure is NOT a pass; all other regression steps block by command exit status.
-      - name: Recipe generation focused unit regressions (#89) — quarantined, not a pass
-        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteTests/SyncFixtureTests/testInterruptedPhotoGenerationRestoresImageInput \
-            -only-testing:AteTests/SyncFixtureTests/testLegacyPendingDraftWithoutPhotoStillDecodes \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/recipe-generation-regressions.xcresult" \
-            -parallel-testing-enabled NO -test-timeouts-enabled YES \
-            CODE_SIGNING_ALLOWED=NO > recipe-generation-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" recipe-generation-tests.log || true; tail -100 recipe-generation-tests.log; exit 1; }
-          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" recipe-generation-tests.log | tail -40
-
-      - name: Drink-photo prompt guardrails (#89) — blocking
-        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
-        run: |
-          set -o pipefail
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteTests/PhotoRegressionTests/testAmbiguousPhotoPromptSupportsDrinksWithoutInventingSpirits \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/drink-photo-prompt-guardrails.xcresult" \
-            -parallel-testing-enabled NO -test-timeouts-enabled YES \
-            CODE_SIGNING_ALLOWED=NO > drink-photo-prompt-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" drink-photo-prompt-tests.log || true; tail -100 drink-photo-prompt-tests.log; exit 1; }
-          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" drink-photo-prompt-tests.log | tail -40
-
+      # Unit selectors, including #89 fixtures, execute once in the strict full unit lane.
       - name: Transient generation Retry recovery (#89)
         if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
         run: |
@@ -415,28 +410,6 @@ jobs:
             -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
             CODE_SIGNING_ALLOWED=NO > transient-generation-retry.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" transient-generation-retry.log || true; tail -120 transient-generation-retry.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" transient-generation-retry.log | tail -40
-
-      - name: Photo recipe output validation (#144)
-        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
-        run: |
-          set -o pipefail
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteTests/PhotoRecipeOutputValidationTests \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/photo-recipe-output-validation.xcresult" \
-            -parallel-testing-enabled NO -test-timeouts-enabled YES \
-            CODE_SIGNING_ALLOWED=NO > photo-recipe-output-validation.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" photo-recipe-output-validation.log || true; tail -100 photo-recipe-output-validation.log; exit 1; }
-          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" photo-recipe-output-validation.log | tail -40
-
-      - name: Library layout and reorder guard regressions (#73)
-        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
-        run: |
-          set -o pipefail
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteTests/LibraryLayoutTests \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/library-layout-regressions.xcresult" \
-            -parallel-testing-enabled NO -test-timeouts-enabled YES \
-            CODE_SIGNING_ALLOWED=NO > library-layout-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" library-layout-tests.log || true; tail -100 library-layout-tests.log; exit 1; }
-          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" library-layout-tests.log | tail -40
 
       - name: Expandable recipe-detail sheet regression (#101)
         if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
@@ -586,7 +559,7 @@ jobs:
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" cook-mode-history.log | tail -n 30
 
-      - name: Cook Mode ingredient sheet (session unit + UI)
+      - name: Cook Mode ingredient sheet (UI; session units in full unit lane)
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
@@ -594,7 +567,6 @@ jobs:
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
           set +e
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteTests/CookSessionTests \
             -only-testing:AteUITests/CookIngredientsUITests \
             -skip-testing:AteUITests/CookIngredientsUITests/testCookIngredientSheetLargeTextAccessibilityAndImperial \
             -skip-testing:AteUITests/CookIngredientsUITests/testCookTimerCardLargeText \
@@ -616,19 +588,6 @@ jobs:
           # named test must appear with its own pass line in the log.
           if grep -q "Executed 0 tests" cook-ingredients-tests.log; then echo "::error::cook ingredient selection executed 0 tests"; exit 1; fi
           for evidence in \
-            "CookSessionTests testLegacySessionWithoutFactorDecodesWithDefaults]' passed" \
-            "CookSessionTests testSessionRoundTripsFactorAndChecked]' passed" \
-            "CookSessionTests testToggleCheckedAddsAndRemoves]' passed" \
-            "CookSessionTests testScaledIngredientAmountsFollowSessionFactor]' passed" \
-            "CookSessionTests testScaledAmountsRenderForArbitraryFactor]' passed" \
-            "CookSessionTests testEditingIngredientsClearsGatheredChecks]' passed" \
-            "CookSessionTests testNonIngredientEditKeepsGatheredChecks]' passed" \
-            "CookSessionTests testToggleAfterExternalChangeResetsThenApplies]' passed" \
-            "CookSessionTests testBeginCookSessionResetsChecksWhenIngredientsChanged]' passed" \
-            "CookSessionTests testWholesaleRecipeReplacementClearsChecksPreservesFactorAndStep]' passed" \
-            "CookSessionTests testIngredientSignatureResistsSeparatorCollisions]' passed" \
-            "CookSessionTests testReenteringSameRecipeKeepsSessionFactor]' passed" \
-            "CookSessionTests testChecklistAmountsRenderMetricAndImperial]' passed" \
             "CookIngredientsUITests testCookIngredientSheetScalesChecksAndPersists]' passed" \
             "CookIngredientsUITests testCookIngredientSheetNormalTextAccessibilityAndImperial]' passed" \
             "CookIngredientsUITests testCookTimerCardNormalText]' passed"; do
@@ -657,7 +616,7 @@ jobs:
           {
             echo "### Regression enforcement"
             echo "- Individual regression command exit codes determine worker success; log text does not override them."
-            echo "- Existing #89 focused-unit fixture quarantine remains advisory, never a pass."
+            echo "- All AteTests, including the former #89 focused fixtures, are required in the separate full unit lane."
             echo "- Existing #76 Settings/account-sync quarantine remains advisory; production-channel hiding is blocking."
             echo "- Existing beta-channel UI skip remains quarantined, never a pass."
             echo "- See individual step outcomes and retained logs/xcresults for actual execution evidence."
@@ -695,8 +654,6 @@ jobs:
               echo "- **Evidence:** $run_url" >> "$GITHUB_STEP_SUMMARY"
             else echo "::warning::Could not comment regression evidence for $suite on issue #$issue; run: $run_url"; fi
           }
-          report_failure recipe-generation-tests.log "Recipe generation (#89)" 89
-          report_failure library-layout-tests.log "Library layout and reorder (#73)" 73
           report_failure settings-sync.log "Settings/account sync (#76)" 76
           report_failure production-channel-production.log "Production channel UI" auto
           report_failure tracker-ui.log "Cooking Tracker UI (#31)" 31
@@ -730,8 +687,6 @@ jobs:
             settings-sync.log
             tracker-ui.log
             cook-mode-history.log
-            recipe-generation-tests.log
-            library-layout-tests.log
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
@@ -743,7 +698,7 @@ jobs:
   regressions:
     # Preserve the original required-check context. Matrix skips, cancellation or
     # any failed worker block this aggregate. Regression command failures block;
-    # only the explicit #89/#76/beta-channel quarantines above remain advisory.
+    # only the explicit #76/beta-channel quarantines above remain advisory.
     needs: [changes, regression-suites]
     if: ${{ always() && needs.changes.outputs.app == 'true' }}
     runs-on: ubuntu-latest

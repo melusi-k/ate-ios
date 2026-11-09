@@ -197,4 +197,36 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
         XCTAssertTrue(store.recipes.contains { $0.id == "remote-1" },
                       "without a bound boundary the legacy merge publishes exactly as before")
     }
+    func testBoundCookSessionLoadWithoutBytesDoesNotEnterEffect() {
+        let store = makeStore()
+        var effects = 0
+        store.journalWriterEffect = { work in effects += 1; try work() }
+        store.loadPersistedCookSession(defaults: defaults)
+        XCTAssertEqual(effects, 0)
+        XCTAssertNil(store.cookSession)
+    }
+
+    func testBoundCookSessionWithIdentityAdoptsWithoutRewritingBytes() throws {
+        let store = makeStore()
+        let session = CookSession(recipeID: "r1", stepIndex: 1)
+        let raw = try JSONEncoder().encode(session)
+        defaults.set(raw, forKey: "ate.cookSession.v1")
+        var effects = 0
+        store.journalWriterEffect = { work in effects += 1; try work() }
+        store.loadPersistedCookSession(defaults: defaults)
+        XCTAssertEqual(effects, 0)
+        XCTAssertEqual(store.cookSession, session)
+        XCTAssertEqual(defaults.data(forKey: "ate.cookSession.v1"), raw)
+    }
+
+    func testDeniedLegacyCookIdentityUpgradeDoesNotPublishOrChangeBytes() throws {
+        let store = makeStore()
+        let raw = Data("{\"recipeID\":\"r1\",\"stepIndex\":1,\"factor\":1,\"checked\":[],\"ingredientSignature\":\"\"}".utf8)
+        defaults.set(raw, forKey: "ate.cookSession.v1")
+        store.journalWriterEffect = { _ in throw StubError.boundaryRefused }
+        store.loadPersistedCookSession(defaults: defaults)
+        XCTAssertNil(store.cookSession)
+        XCTAssertEqual(defaults.data(forKey: "ate.cookSession.v1"), raw)
+    }
+
 }

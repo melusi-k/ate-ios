@@ -10,6 +10,11 @@ import Foundation
 /// reflection, defaults, import) so a prepared recovery record's storeGeneration can never
 /// be wrongly treated as current. Exactly one advance per committed unit; throwing work
 /// commits nothing.
+///
+/// When the covered unit is a journaled import, its committed recovery transaction stays
+/// UNRESOLVED through the advance: the caller retires Result.committedTransactionID only
+/// AFTER withNestedLease returns, so a crash between commit and advance (or between
+/// advance and retire) is completed exactly once by startup recovery.
 protocol ArchiveNestedLeaseBoundary {
     func withNestedLease<T>(_ work: () throws -> T) throws -> T
 }
@@ -57,7 +62,17 @@ enum ArchiveStandaloneLeaseFactory {
 
     static func lease(controlDirectory: URL, resetPending: () throws -> Bool) throws -> POSIXArchiveWriterLease {
         guard try !resetPending() else { throw ArchiveStandaloneLeaseFailure.resetPending }
-        return try POSIXArchiveWriterLease(directory: controlDirectory, lockName: sharedLockName)
+        let lease = try POSIXArchiveWriterLease(directory: controlDirectory, lockName: sharedLockName)
+        // A reset control record created between the pre-check and the flock is caught
+        // here, under the held lock: release and refuse rather than interleave with the
+        // reset writer.
+        do {
+            guard try !resetPending() else { throw ArchiveStandaloneLeaseFailure.resetPending }
+        } catch {
+            lease.release()
+            throw error
+        }
+        return lease
     }
 }
 
@@ -76,12 +91,16 @@ struct ArchiveStandaloneImportSession {
     }
 
     /// Runs one journaled import as one committed unit, then advances the durable
-    /// generation exactly once. A throwing import commits nothing.
+    /// generation exactly once, then retires the committed transaction. A throwing import
+    /// commits nothing. A crash between the durable commit and the advance, or between
+    /// the advance and the retire, is completed exactly once by startup recovery from the
+    /// unresolved transaction (see UnifiedArchiveImportBinding.importArchive).
     func importArchive(_ archive: AteUnifiedArchive,
                        binding: UnifiedArchiveImportBinding,
                        checkpoint: (ArchiveRestoreBoundary) throws -> Void = { _ in }) throws -> UnifiedArchiveImportBinding.Result {
         let result = try binding.importArchive(archive, checkpoint: checkpoint)
         try lease.commitGeneration(lease.generation + 1)
+        try binding.recoveryJournal.retire(result.committedTransactionID)
         return result
     }
 }

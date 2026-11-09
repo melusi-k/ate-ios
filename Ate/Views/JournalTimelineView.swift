@@ -99,8 +99,16 @@ struct JournalTimelineView: View {
                 ForEach(sections) { section in
                     Section {
                         ForEach(section.items) { item in
-                            JournalTimelineRow(item: item)
+                            if item.kind == .reflection {
+                                NavigationLink(value: Route.journalEntry(item.id)) {
+                                    JournalTimelineRow(item: item)
+                                }
                                 .accessibilityIdentifier("journal.timeline.row")
+                            } else {
+                                // Meal editing waits for the complete canonical graph.
+                                JournalTimelineRow(item: item)
+                                    .accessibilityIdentifier("journal.timeline.row")
+                            }
                         }
                     } header: {
                         Text(Self.dayTitle(section.dayKey)).accessibilityAddTraits(.isHeader)

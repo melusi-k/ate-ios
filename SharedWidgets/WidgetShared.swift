@@ -46,8 +46,13 @@ struct WidgetSnapshot: Codable, Equatable {
     static func load(_ d: UserDefaults = SharedContainer.defaults) -> WidgetSnapshot? {
         d.data(forKey: key).flatMap { try? JSONDecoder().decode(WidgetSnapshot.self, from: $0) }
     }
-    func save(_ d: UserDefaults = SharedContainer.defaults) {
-        d.set(try? JSONEncoder().encode(self), forKey: Self.key)
+    /// Writes inside the writer boundary's effect. Returns false when the
+    /// boundary refused the effect; nothing was written.
+    @discardableResult
+    func save(_ d: UserDefaults = SharedContainer.defaults, boundary: SharedWriterBoundary = .current) -> Bool {
+        (try? boundary.withEffect {
+            d.set(try? JSONEncoder().encode(self), forKey: Self.key)
+        }) != nil
     }
 
     /// Unticked items first (in list order), for the widget and the inline Lock Screen accessory.
@@ -78,6 +83,7 @@ struct WidgetSnapshotPublisher {
     @discardableResult
     mutating func publish(_ value: WidgetSnapshot, force: Bool = false,
                           defaults: UserDefaults = SharedContainer.defaults,
+                          boundary: SharedWriterBoundary = .current,
                           reload: ([String]) -> Void) -> Bool {
         let changed: [String]
         if let old = lastPublished, !force {
@@ -91,8 +97,13 @@ struct WidgetSnapshotPublisher {
             changed = [WidgetKinds.favourites, WidgetKinds.shopping, WidgetKinds.shoppingInline, WidgetKinds.pick, WidgetKinds.cooking]
         }
         guard !changed.isEmpty else { return false }
-        value.save(defaults)
-        lastPublished = value
+        // The save and the in-memory publish cache commit under one effect, so a
+        // concurrent gated writer never sees half of the update. The reload is a
+        // hint and runs only after a committed publish, outside the boundary.
+        guard (try? boundary.withEffect {
+            value.save(defaults, boundary: boundary)
+            lastPublished = value
+        }) != nil else { return false }
         reload(changed)
         return true
     }
@@ -104,26 +115,53 @@ enum WidgetInbox {
     static let addsKey = "ate.widgets.pending.adds.v1"           // [name]
     static let urlKey = "ate.widgets.pending.url.v1"             // deep link to open on next activation
 
-    static func setDone(_ id: String, _ done: Bool, _ d: UserDefaults = SharedContainer.defaults) {
-        var m = pendingShopping(d); m[id] = done
-        d.set(try? JSONEncoder().encode(m), forKey: shoppingKey)
+    /// Queues a tick as one gated read-modify-write, so concurrent widget and
+    /// app writers cannot lose each other's entries. Returns false (nothing
+    /// queued) when the boundary refused the effect.
+    @discardableResult
+    static func setDone(_ id: String, _ done: Bool, _ d: UserDefaults = SharedContainer.defaults,
+                        boundary: SharedWriterBoundary = .current) -> Bool {
+        (try? boundary.withEffect {
+            var m = pendingShopping(d); m[id] = done
+            d.set(try? JSONEncoder().encode(m), forKey: shoppingKey)
+        }) != nil
     }
     static func pendingShopping(_ d: UserDefaults = SharedContainer.defaults) -> [String: Bool] {
         d.data(forKey: shoppingKey).flatMap { try? JSONDecoder().decode([String: Bool].self, from: $0) } ?? [:]
     }
-    static func addItem(_ name: String, _ d: UserDefaults = SharedContainer.defaults) {
+    /// Queues an added item as one gated read-modify-write. Returns false (and
+    /// queues nothing) for a blank name or when the boundary refused the effect.
+    @discardableResult
+    static func addItem(_ name: String, _ d: UserDefaults = SharedContainer.defaults,
+                        boundary: SharedWriterBoundary = .current) -> Bool {
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !n.isEmpty else { return }
-        d.set(pendingAdds(d) + [n], forKey: addsKey)
+        guard !n.isEmpty else { return false }
+        return (try? boundary.withEffect {
+            d.set(pendingAdds(d) + [n], forKey: addsKey)
+        }) != nil
     }
     static func pendingAdds(_ d: UserDefaults = SharedContainer.defaults) -> [String] { d.stringArray(forKey: addsKey) ?? [] }
-    static func openLater(_ url: URL, _ d: UserDefaults = SharedContainer.defaults) { d.set(url.absoluteString, forKey: urlKey) }
+    /// Gated so the write can never interleave with the app's drain and be lost.
+    /// Returns false when the boundary refused the effect.
+    @discardableResult
+    static func openLater(_ url: URL, _ d: UserDefaults = SharedContainer.defaults,
+                          boundary: SharedWriterBoundary = .current) -> Bool {
+        (try? boundary.withEffect {
+            d.set(url.absoluteString, forKey: urlKey)
+        }) != nil
+    }
 
-    /// Returns everything queued and clears the queue.
-    static func drain(_ d: UserDefaults = SharedContainer.defaults) -> (shopping: [String: Bool], adds: [String], url: URL?) {
-        let s = pendingShopping(d), a = pendingAdds(d), u = d.string(forKey: urlKey).flatMap(URL.init(string:))
-        d.removeObject(forKey: shoppingKey); d.removeObject(forKey: addsKey); d.removeObject(forKey: urlKey)
-        return (s, a, u)
+    /// Returns everything queued and clears the queue as one gated effect, so a
+    /// writer in another process cannot write between the read and the clear and
+    /// have it silently dropped. A refused effect returns an empty result and
+    /// leaves the queue intact for the next activation.
+    static func drain(_ d: UserDefaults = SharedContainer.defaults,
+                      boundary: SharedWriterBoundary = .current) -> (shopping: [String: Bool], adds: [String], url: URL?) {
+        (try? boundary.withEffect {
+            let s = pendingShopping(d), a = pendingAdds(d), u = d.string(forKey: urlKey).flatMap(URL.init(string:))
+            d.removeObject(forKey: shoppingKey); d.removeObject(forKey: addsKey); d.removeObject(forKey: urlKey)
+            return (s, a, u)
+        }) ?? ([:], [], nil)
     }
 }
 

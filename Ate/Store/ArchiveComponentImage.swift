@@ -59,3 +59,18 @@ struct JournalMediaRecoveryPayload: Codable, Equatable {
     /// Media basename -> lowercase hex sha256 of the exact planned bytes.
     let media: [String: String]
 }
+
+/// Row-to-value mapping identical to JournalArchiveCapture/JournalArchiveRestore: every raw
+/// field is copied verbatim, never normalized. Shared by capture and startup recovery so the
+/// two sides can never disagree about what a stored row means.
+@MainActor
+enum ArchiveJournalRowMapping {
+    static func value(_ row: JournalEntry, meal: NutritionDiaryEntry?) -> JournalArchiveEntry {
+        JournalArchiveEntry(id: row.id, createdAt: row.createdAt, prompt: row.prompt, text: row.text,
+            stateRaw: row.stateRaw, recipeIDs: row.recipeIDs,
+            journalingSuggestionTitle: row.journalingSuggestionTitle, momentDate: row.momentDate,
+            sourceRaw: row.sourceRaw, locationName: row.locationName, latitude: row.latitude,
+            longitude: row.longitude, mediaFileNames: row.mediaFileNames, editedAt: row.editedAt,
+            kindRaw: row.kindRaw, dayKey: row.dayKey, recipeSnapshotsRaw: row.recipeSnapshotsRaw, meal: meal)
+    }
+}

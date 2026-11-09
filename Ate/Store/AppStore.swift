@@ -511,6 +511,18 @@ final class AppStore {
         foodJournalRuntime?.goalsRepository ?? nutritionGoalsRepository
     }
 
+    /// Central's consumer binding point (#245): the runtime's cooking history while the
+    /// unified graph is injected; the legacy app-lifetime singleton only before activation.
+    var journalCookingHistory: CookingHistory { foodJournalRuntime?.cookingHistory ?? CookingHistory.shared }
+
+    /// Central binds the composed writer boundary at activation (FoodJournalWriterBoundary
+    /// via JournalWriterBoundaryComposition). While nil, unified account actions keep
+    /// refusing - no ungated wipe or transfer of the unified Journal.
+    @ObservationIgnored var journalWriterEffect: ((() throws -> Void) throws -> Void)?
+    /// Central supplies the adoption-preservation directory at composition
+    /// (JournalInstallReconciliation); it joins the unified wipe's erase inventory.
+    @ObservationIgnored var journalResetPreservationDirectory: URL?
+
     /// Shortcuts must use the live app composition, not open a second singleton owner.
     /// Background execution without that composition fails visibly until the app is open.
     static func journalStoreForIntent() throws -> JournalStore {
@@ -618,7 +630,8 @@ final class AppStore {
         shopping = s.compactMap { try? dec.decode(ShoppingItem.self, from: $0.json) }
     }
 
-    private func persistRecipes(stamp: Bool = true) {
+    // Internal (not private) for AppStore+JournalAccountActions, the unified account-action binding.
+    func persistRecipes(stamp: Bool = true) {
         BetaQA.shared.recipeCountChanged(recipes.count)
         if stamp { stampChanges() }
         WidgetBridge.publish(self)
@@ -633,7 +646,8 @@ final class AppStore {
         StoreSaver.save(context, what: "recipes")
     }
 
-    private func persistShopping(stamp: Bool = true) {
+    // Internal (not private) for AppStore+JournalAccountActions.
+    func persistShopping(stamp: Bool = true) {
         if stamp { stampChanges() }
         WidgetBridge.publish(self)
         guard let context else { return }
@@ -699,7 +713,8 @@ final class AppStore {
     }
 
     /// New cooking context and retained drafts must not survive an explicit local-data wipe.
-    private func clearCookCompletionContext() {
+    // Internal (not private) for AppStore+JournalAccountActions.
+    func clearCookCompletionContext() {
         for key in cookJournalDefaults.dictionaryRepresentation().keys
             where key == CookCompletionOutbox.defaultsKey || key.hasPrefix(CookCompletionOutbox.unreadableKeyPrefix) || key == CookReflectionOfferPolicy.defaultsKey {
             cookJournalDefaults.removeObject(forKey: key)
@@ -711,7 +726,8 @@ final class AppStore {
     }
 
     func clearLibrary() {
-        guard foodJournalRuntime == nil else { show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return }
+        // Unified graph: the bound action routes through the runtime's own stores.
+        if foodJournalRuntime != nil { clearLibraryUnified(); return }
         clearCookCompletionContext()
         recipes = []; CookingHistory.shared.clear()
         path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
@@ -719,7 +735,8 @@ final class AppStore {
     }
 
     func importJSON(_ data: Data) throws -> DataImportSummary {
-        guard foodJournalRuntime == nil else { throw CanonicalConsumerBindingError.archiveBindingRequired }
+        // Unified graph: the bound action imports through the migration barrier.
+        if foodJournalRuntime != nil { return try importJSONUnified(data) }
         let decoder = JSONDecoder()
         if let legacyCards = try? decoder.decode([RecipeCard].self, from: data) {
             let result = importRecipesPreservingExisting(legacyCards)
@@ -763,14 +780,16 @@ final class AppStore {
 
     /// Imports are additive. A matching ID on this device wins so an older archive
     /// cannot silently replace a newer local recipe.
-    private func importRecipesPreservingExisting(_ incoming: [RecipeCard]) -> (result: [RecipeCard], added: Int) {
+    // Internal (not private) for AppStore+JournalAccountActions.
+    func importRecipesPreservingExisting(_ incoming: [RecipeCard]) -> (result: [RecipeCard], added: Int) {
         var seenIDs = Set(recipes.map(\.id))
         let newCards = incoming.filter { seenIDs.insert($0.id).inserted }
         return RecipeLogic.importCards(newCards, into: recipes)
     }
 
     func exportJSON() throws -> Data {
-        guard foodJournalRuntime == nil else { throw CanonicalConsumerBindingError.archiveBindingRequired }
+        // Unified graph: the bound action exports through the migration barrier.
+        if foodJournalRuntime != nil { return try exportJSONUnified() }
         // An unreadable local diary must not be exported as an ordinary empty diary:
         // fail visibly instead of producing an archive that claims nothing was logged.
         if case .corrupt = nutritionDiaryRepository.loadState() { throw AteDataArchiveError.localDiaryUnreadableOnExport }
@@ -1170,21 +1189,38 @@ final class AppStore {
     }
 
     func signOut(removeLocalData: Bool = false) async {
-        guard foodJournalRuntime == nil || !removeLocalData else {
+        // Unified graph: refuse an unbound wipe exactly as before; bound wipes report
+        // per-component partial failure honestly instead of claiming a clean wipe.
+        if foodJournalRuntime != nil && removeLocalData && journalWriterEffect == nil {
             show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return
         }
         if let s = session { await auth?.signOut(s) }
         syncTask?.cancel()
         setSession(nil)
         syncState = .signedOut
-        if removeLocalData { wipeLocalData() }
+        var partial: [String] = []
+        if removeLocalData {
+            if foodJournalRuntime != nil {
+                let report = wipeLocalDataUnified()
+                partial = report.complete ? [] : report.failures.map(\.component)
+            } else {
+                wipeLocalData()
+            }
+        }
         BetaQA.shared.signedOut(removeLocalData: removeLocalData, remaining: recipes.count)
-        show(removeLocalData ? "Signed out and removed this iPhone's copy" : "Signed out — your recipes stay on this device")
+        if !partial.isEmpty {
+            show("Signed out, but some data on this device could not be removed: \(partial.joined(separator: ", "))", error: true)
+        } else {
+            show(removeLocalData ? "Signed out and removed this iPhone's copy" : "Signed out — your recipes stay on this device")
+        }
     }
 
     /// Permanently deletes the account on the server, then all local data, then shows onboarding.
     func deleteAccount() async -> AuthError? {
-        guard foodJournalRuntime == nil else {
+        // Unified graph: refuse only while the writer boundary is unbound. Once bound,
+        // the account is deleted server-side first; a partial local wipe is reported
+        // honestly and cannot resurrect the account.
+        if foodJournalRuntime != nil && journalWriterEffect == nil {
             return AuthError(message: "The unified Journal reset is not ready. Your account has not been deleted.")
         }
         guard let auth, var s = session else { return AuthError(.unauthorized, "Sign in again to delete your account.") }
@@ -1196,15 +1232,26 @@ final class AppStore {
         syncTask?.cancel()
         setSession(nil)
         syncState = .signedOut
-        wipeLocalData()
+        var partial: [String] = []
+        if foodJournalRuntime != nil {
+            let report = wipeLocalDataUnified()
+            partial = report.complete ? [] : report.failures.map(\.component)
+        } else {
+            wipeLocalData()
+        }
         path.removeAll()
         if !AppConfig.isUITesting { UserDefaults.standard.removeObject(forKey: Self.onboardedKey) }
         showOnboarding = true
-        show("Your account and data were deleted")
+        if !partial.isEmpty {
+            show("Your account was deleted, but some data on this device could not be removed: \(partial.joined(separator: ", "))", error: true)
+        } else {
+            show("Your account and data were deleted")
+        }
         return nil
     }
 
-    private func wipeLocalData() {
+    // Internal (not private) for AppStore+JournalAccountActions.
+    func wipeLocalData() {
         InsightLifecycleStore.clearAll()
         clearCookCompletionContext()
         recipes = []; shopping = []

@@ -338,7 +338,7 @@ enum SharedWriterGateComposition {
     /// closed when the App Group is unavailable: the caller chooses explicit
     /// app-only mode instead of pretending extensions share a container.
     static func controlDirectory(
-        resolution: AppGroupResolver.Resolution = .current,
+        resolution: AppGroupResolver.Resolution = AppGroupResolver.current,
         fileManager: FileManager = .default
     ) throws -> URL {
         guard resolution.available,
@@ -353,7 +353,7 @@ enum SharedWriterGateComposition {
     static func makeGate(
         resetPending: @escaping () throws -> Bool,
         archive: SharedArchiveNestedLeaseBoundary,
-        resolution: AppGroupResolver.Resolution = .current,
+        resolution: AppGroupResolver.Resolution = AppGroupResolver.current,
         fileManager: FileManager = .default
     ) throws -> SharedFileWriterGate {
         try SharedFileWriterGate(
@@ -367,11 +367,30 @@ enum SharedWriterGateComposition {
     static func makeBoundary(
         resetPending: @escaping () throws -> Bool,
         archive: SharedArchiveNestedLeaseBoundary,
-        resolution: AppGroupResolver.Resolution = .current,
+        resolution: AppGroupResolver.Resolution = AppGroupResolver.current,
         fileManager: FileManager = .default
     ) throws -> SharedWriterBoundary {
         try makeGate(resetPending: resetPending, archive: archive,
                      resolution: resolution, fileManager: fileManager).makeBoundary()
+    }
+
+    /// Extension-process composition (#245 lane 2 shim): one call wires all three
+    /// fail-closed primitives from the SAME resolved control directory - the
+    /// strict reset-control reader, the shared flock gate, and the archive nested
+    /// unit - so an extension writer refuses while a reset is pending or an
+    /// archive recovery transaction is unresolved instead of writing over them.
+    static func makeExtensionBoundary(
+        resolution: AppGroupResolver.Resolution = AppGroupResolver.current,
+        fileManager: FileManager = .default
+    ) throws -> SharedWriterBoundary {
+        let directory = try controlDirectory(resolution: resolution, fileManager: fileManager)
+        let gate = try SharedFileWriterGate(
+            directory: directory,
+            resetPending: { try SharedResetControl.exists(directory: directory) },
+            archive: SharedArchiveNestedLeaseBoundary { work in
+                try SharedArchiveNestedUnit.run(directory: directory, work)
+            })
+        return try gate.makeBoundary()
     }
 
     /// Explicit app-only boundary for an installation with no shared container.

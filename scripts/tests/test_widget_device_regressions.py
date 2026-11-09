@@ -28,6 +28,6 @@ class WidgetDeviceRegressionTests(unittest.TestCase):
         self.assertIn('if let old = lastPublished, !force', source)
         self.assertIn('guard !changed.isEmpty else { return false }', source)
         bridge = (ROOT / 'Ate/Services/WidgetBridge.swift').read_text()
-        self.assertIn('publisher.publish(snap, force: force, reload: WidgetKinds.reload)', bridge)
+        self.assertIn('publisher.publish(snap, force: force, boundary: boundary, reload: WidgetKinds.reload)', bridge)
         self.assertNotIn('WidgetKinds.reloadAll()', (ROOT / 'Ate/Views/BetaTestingView.swift').read_text())
         self.assertIn('WidgetBridge.publishNow(store, force: true)', (ROOT / 'Ate/Views/BetaTestingView.swift').read_text())

@@ -98,6 +98,21 @@ final class CoverageUITests: XCTestCase {
         e.typeText(newText)
     }
 
+    /// Caller-owned Settings surface: never resolve content against an underlying sheet
+    /// or another tab. The retained iOS 27 hierarchy exposes Settings Form as a CollectionView.
+    private func settingsContent() -> XCUIElement {
+        let navigation = app.navigationBars["Settings"]
+        XCTAssertTrue(navigation.exists && !navigation.frame.isEmpty && navigation.isHittable,
+                      "Settings must be the active screen before querying its Form")
+        let collections = app.windows.firstMatch.collectionViews
+        XCTAssertEqual(collections.count, 1,
+                       "Active Settings must expose exactly one content collection; never choose an arbitrary first match")
+        let content = collections.element(boundBy: 0)
+        XCTAssertTrue(content.exists && !content.frame.isEmpty,
+                      "Settings Form must expose its content collection")
+        return content
+    }
+
     // MARK: covers
 
     func test31_CoverControlsHeroAndTile() {
@@ -193,40 +208,69 @@ final class CoverageUITests: XCTestCase {
         wait(text("Miso salmon"), 5)
         shot("collection-filtered-library")
         tab("Settings")
-        let export = app.buttons["settings.export"]; scrollTo(export); wait(export, 3)
-        XCTAssertTrue(app.buttons["settings.import"].exists)
-        XCTAssertTrue(app.buttons["settings.replayOnboarding"].exists)
+        let settings = settingsContent()
+        let export = settings.buttons["settings.export"]; scrollTo(export); wait(export, 3)
+        XCTAssertTrue(settings.buttons["settings.import"].exists)
+        XCTAssertTrue(settings.buttons["settings.replayOnboarding"].exists)
         shot("settings-tools")
-        export.tap(); sleep(2); shot("more-export-sheet")
-        if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
-        let settingsStepAlerts = app.descendants(matching: .any)["toggle.Step-by-step alerts"].firstMatch
-        let settingsQuietHours = app.descendants(matching: .any)["toggle.Quiet hours"].firstMatch
+        // Check Settings before opening Export. Keep the exact identifiers and
+        // original scroll/wait budgets, querying the Form's actual Switch elements.
+        let timerSettings = settingsContent()
+        let settingsStepAlerts = timerSettings.switches["toggle.Step-by-step alerts"].firstMatch
+        let settingsQuietHours = timerSettings.switches["toggle.Quiet hours"].firstMatch
 
         // Settings uses lazily materialized rows: scroll to each toggle before asserting it exists.
         // Export is in Tools, below Timer notifications. Search toward the earlier section first,
-        // retaining the opposite-direction fallback if the restored viewport differs.
+        // retaining the opposite-direction fallback if the viewport differs.
         scrollTo(settingsQuietHours, searchDownFirst: false); wait(settingsQuietHours, 3)
         XCTAssertTrue(settingsQuietHours.isHittable, "Quiet hours toggle should be reachable in Timer notifications")
         scrollTo(settingsStepAlerts); wait(settingsStepAlerts, 3)
         XCTAssertTrue(settingsStepAlerts.isHittable, "Step-by-step alerts toggle should be reachable in Timer notifications")
-        let about = app.staticTexts["aboutVersion"]; scrollTo(about); wait(about, 3)
+        let about = timerSettings.staticTexts["aboutVersion"]; scrollTo(about); wait(about, 3)
         XCTAssertTrue(about.label.contains("(build "))
         // The SwiftUI combined container is not consistently hittable across simulator
         // runtimes, even when its child heading is visible. Scroll to the stable visible
         // heading so this journey cannot spend minutes swiping toward a non-hittable parent.
-        let buildNotesHeading = app.staticTexts.matching(
+        let buildNotesHeading = timerSettings.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "Changes in this build")
         ).firstMatch
         scrollTo(buildNotesHeading); wait(buildNotesHeading, 3)
-        let buildNotes = app.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
+        let buildNotes = timerSettings.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
         wait(buildNotes, 3)
         XCTAssertFalse(buildNotes.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                        "About should show generated build notes or an explicit fallback")
-        let diagnostics = app.descendants(matching: .any)["aiDiagnostics"].firstMatch
+        let diagnostics = timerSettings.descendants(matching: .any)["aiDiagnostics"].firstMatch
         scrollTo(diagnostics); wait(diagnostics, 3)
-        let transparency = app.descendants(matching: .any)["aiTransparency"].firstMatch
+        let transparency = timerSettings.descendants(matching: .any)["aiTransparency"].firstMatch
         scrollTo(transparency); wait(transparency, 3)
         shot("settings-about")
+
+        scrollTo(export)
+        export.tap()
+        shot("settings-export-immediately-after-tap")
+        print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-BEGIN")
+        print(app.debugDescription)
+        print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-END")
+        // Export opens is retained; dismissal is device-verified on build408.
+        // Owner decision 2026-11-08: do not test simulator share-sheet dismissal.
+        let exportActivity = app.otherElements["ActivityListView"]
+        let readinessBudget: TimeInterval = 2
+        let exportPresentedPredicate = NSPredicate { _, _ in
+            exportActivity.exists && !exportActivity.frame.isEmpty
+        }
+        var exportIsPresented = exportPresentedPredicate.evaluate(with: nil)
+        if !exportIsPresented && readinessBudget > 0 {
+            let exportPresented = XCTNSPredicateExpectation(predicate: exportPresentedPredicate, object: nil)
+            exportIsPresented = XCTWaiter.wait(for: [exportPresented], timeout: readinessBudget) == .completed
+        }
+        guard exportIsPresented else {
+            XCTFail("Export ActivityListView must present")
+            return
+        }
+        shot("more-export-sheet")
+        print("SETTINGS-EXPORT-PRESENTATION-AX-BEGIN")
+        print(app.debugDescription)
+        print("SETTINGS-EXPORT-PRESENTATION-AX-END")
     }
 
     // MARK: photo dish step
@@ -582,6 +626,12 @@ final class CoverageUITests: XCTestCase {
         launch(["-qaPersistDraft"])
         app.buttons["Add recipe"].tap()
         wait(text("Add a recipe"))
+        // Retain final-relaunch evidence before the original negative query.
+        shot("generation-after-save-relaunch-before-persistence-query")
+        let hierarchy = XCTAttachment(string: app.debugDescription)
+        hierarchy.name = "generation-after-save-relaunch-before-persistence-query-AX"
+        hierarchy.lifetime = .keepAlways
+        add(hierarchy)
         XCTAssertFalse(text("Restored your unsaved card").exists, "saved draft must not come back")
     }
 

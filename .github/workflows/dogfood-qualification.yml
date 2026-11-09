@@ -118,6 +118,17 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > dogfood-critical-flows.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" dogfood-critical-flows.log || true; tail -100 dogfood-critical-flows.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" dogfood-critical-flows.log | tail -50
 
+      - name: Retain UI-test photo-import phase diagnostics
+        if: always() && steps.critical_flows.outcome != 'skipped' && steps.select_simulator.outputs.id != ''
+        env:
+          SIM_ID: ${{ steps.select_simulator.outputs.id }}
+        run: |
+          # Fixed phase names and elapsed milliseconds only, emitted solely with -UITesting.
+          # This is collection, not a retry or a qualification outcome.
+          xcrun simctl spawn "$SIM_ID" log show --last 60m --style compact --info --debug \
+            --predicate 'subsystem == "com.melusik.ate" AND category == "photo-import-phases"' \
+            > dogfood-photo-import-phases.log 2>&1 || true
+
       - name: Diagnose quarantined Settings/account-sync flow (#76)
         id: sync_quarantine
         continue-on-error: true
@@ -161,6 +172,7 @@ jobs:
           path: |
             dogfood-unit-tests.log
             dogfood-critical-flows.log
+            dogfood-photo-import-phases.log
             dogfood-sync-quarantine.log
             build/DogfoodUnitTests.xcresult
             build/DogfoodCriticalFlows.xcresult

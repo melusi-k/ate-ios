@@ -8,6 +8,7 @@ import CryptoKit
 /// in for the on-disk stores (injected, so the "reopened" container is the crashed one).
 @MainActor
 final class ArchiveStartupRecoveryBindingTests: XCTestCase {
+    enum Injected: Error { case failure }
 
     private struct Rig {
         let root: URL
@@ -203,6 +204,58 @@ final class ArchiveStartupRecoveryBindingTests: XCTestCase {
         try recover(r)
 
         XCTAssertEqual(r.lease.generation, 1, "never re-commits an already-advanced generation")
+        XCTAssertTrue(try r.journal.transactions().isEmpty)
+    }
+
+    // MARK: - the generation commit lands inside the retire boundary
+
+    /// Crash BEFORE the pending generation commit inside beforeRetire: the transaction
+    /// stays unresolved with its committed marker, the generation is unmoved, and the next
+    /// startup completes the advance exactly once.
+    func testCrashInsideBeforeRetireBeforeCommitLeavesPendingAdvanceForNextStartup() throws {
+        let r = try rig(); defer { cleanup(r) }
+        let before = try currentImages(r)
+        let id = try prepareRecord(r, images: outerImages(r, before: before, after: before),
+                                   payload: JournalMediaRecoveryPayload(version: 1, entries: [], media: [:]))
+        try r.journal.transition(id, to: .applying)
+        try r.journal.transition(id, to: .committed)
+
+        let recovery = UnifiedArchiveStartupRecovery.makeRecovery(journal: r.journal, defaults: r.defaults,
+            diary: r.diary, goals: r.goals, recipeContainer: r.container,
+            journalContainer: { try XCTUnwrap(r.journalStore.container) }, mediaDirectory: r.mediaDir)
+        XCTAssertThrowsError(try recovery.run(ownerIdentity: "fixture-owner", beforeRetire: { _ in
+            throw Injected.failure // process died before the pending commitGeneration
+        }))
+        XCTAssertEqual(r.lease.generation, 0, "no advance landed")
+        XCTAssertEqual(try r.journal.transactions(), [id], "transaction still unresolved")
+
+        try recover(r) // next startup: the pendingAdvance path completes it exactly once
+        XCTAssertEqual(r.lease.generation, 1)
+        XCTAssertTrue(try r.journal.transactions().isEmpty)
+    }
+
+    /// Crash AFTER the pending generation commit but BEFORE the retire: the next startup
+    /// retires via the authorized-advance path and never re-commits the generation.
+    func testCrashInsideBeforeRetireAfterCommitRetiresWithoutReAdvancing() throws {
+        let r = try rig(); defer { cleanup(r) }
+        let before = try currentImages(r)
+        let id = try prepareRecord(r, images: outerImages(r, before: before, after: before),
+                                   payload: JournalMediaRecoveryPayload(version: 1, entries: [], media: [:]))
+        try r.journal.transition(id, to: .applying)
+        try r.journal.transition(id, to: .committed)
+
+        let recovery = UnifiedArchiveStartupRecovery.makeRecovery(journal: r.journal, defaults: r.defaults,
+            diary: r.diary, goals: r.goals, recipeContainer: r.container,
+            journalContainer: { try XCTUnwrap(r.journalStore.container) }, mediaDirectory: r.mediaDir)
+        XCTAssertThrowsError(try recovery.run(ownerIdentity: "fixture-owner", beforeRetire: { _ in
+            try r.lease.commitGeneration(r.lease.generation + 1) // advance landed...
+            throw Injected.failure // ...then the process died before the retire
+        }))
+        XCTAssertEqual(r.lease.generation, 1)
+        XCTAssertEqual(try r.journal.transactions(), [id], "transaction still unresolved")
+
+        try recover(r) // next startup: authorizedAdvance retires, never re-commits
+        XCTAssertEqual(r.lease.generation, 1)
         XCTAssertTrue(try r.journal.transactions().isEmpty)
     }
 

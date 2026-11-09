@@ -109,3 +109,20 @@ class BuildFocusTests(unittest.TestCase):
         text = (self.root / 'Ate' / 'Resources' / 'BuildNotes.md').read_text()
         self.assertTrue(text.startswith('Build notes\n\nMain feature focus\n\nJournal focus\n\nSource included; device acceptance pending.'))
         self.assertLess(text.index('Main feature focus'), text.index('Changes in this build'))
+
+    def test_shallow_checkout_rejects_unverifiable_anchor(self):
+        sha = self.commit_record()
+        shallow = self.root / 'shallow-clone'
+        subprocess.run(['git', 'clone', '-q', '--depth', '1', self.root.as_uri(), str(shallow)], check=True)
+        out = subprocess.run(['python3', str(SCRIPTS / 'build-focus.py'), sha], cwd=shallow, text=True, capture_output=True)
+        self.assertNotEqual(out.returncode, 0)
+        self.assertNotIn('Journal focus', out.stdout)
+
+    def test_full_history_repairs_anchor_without_relaxing_checks(self):
+        sha = self.commit_record()
+        shallow = self.root / 'shallow-clone'
+        subprocess.run(['git', 'clone', '-q', '--depth', '1', self.root.as_uri(), str(shallow)], check=True)
+        subprocess.run(['git', '-C', str(shallow), 'fetch', '-q', '--unshallow'], check=True)
+        out = subprocess.run(['python3', str(SCRIPTS / 'build-focus.py'), sha], cwd=shallow, text=True, capture_output=True)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertIn('Journal focus', out.stdout)

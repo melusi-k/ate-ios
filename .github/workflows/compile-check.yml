@@ -26,6 +26,20 @@ jobs:
       contents: read
       pull-requests: read
 
+  python-tests:
+    # One credential-free candidate-head suite. Merge-ref Python duplication in
+    # Dogfood is intentionally removed; native Dogfood coverage is unchanged.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Run complete Python script suite once
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
+
   docs-validation:
     needs: changes
     if: needs.changes.outputs.app == 'false'
@@ -35,8 +49,6 @@ jobs:
 
       - name: Validate docs IDs and generated checklist consistency
         run: python3 scripts/check-ids.py
-      - name: Test release-readiness evidence logic
-        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
 
   build-nutrition:
     needs: changes
@@ -65,8 +77,6 @@ jobs:
             xcode-27-xcode-deriveddata-
       - name: Validate docs IDs and generated checklist consistency
         run: python3 scripts/check-ids.py
-      - name: Test release-readiness evidence logic
-        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
       - name: Cache Homebrew downloads
         uses: actions/cache@v6
         with:
@@ -275,8 +285,6 @@ jobs:
             xcode-27-xcode-deriveddata-
       - name: Validate docs IDs and generated checklist consistency
         run: python3 scripts/check-ids.py
-      - name: Test release-readiness evidence logic
-        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
       - name: Cache Homebrew downloads
         uses: actions/cache@v6
         with:
@@ -751,34 +759,40 @@ jobs:
 
   compile:
     # Preserve the existing required-check context and fail closed on either lane.
-    needs: [changes, build-nutrition, regressions]
+    needs: [changes, python-tests, build-nutrition, regressions]
     if: ${{ always() && needs.changes.outputs.app == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Require both exact-head native lanes
         env:
+          PYTHON_RESULT: ${{ needs.python-tests.result }}
           BUILD_NUTRITION_RESULT: ${{ needs.build-nutrition.result }}
           REGRESSIONS_RESULT: ${{ needs.regressions.result }}
         run: |
-          if [ "$BUILD_NUTRITION_RESULT" != success ] || [ "$REGRESSIONS_RESULT" != success ]; then
-            echo "::error::Native qualification incomplete: build-nutrition=$BUILD_NUTRITION_RESULT regressions=$REGRESSIONS_RESULT"
+          if [ "$PYTHON_RESULT" != success ] || [ "$BUILD_NUTRITION_RESULT" != success ] || [ "$REGRESSIONS_RESULT" != success ]; then
+            echo "::error::Native qualification incomplete: python=$PYTHON_RESULT build-nutrition=$BUILD_NUTRITION_RESULT regressions=$REGRESSIONS_RESULT"
             exit 1
           fi
 
   qualification-result:
     name: Compile qualification result
     if: always()
-    needs: [changes, compile, docs-validation]
+    needs: [changes, python-tests, compile, docs-validation]
     runs-on: ubuntu-latest
     permissions: {}
     steps:
       - name: Report actual qualification route
         env:
+          PYTHON_RESULT: ${{ needs.python-tests.result }}
           CLASSIFIER: ${{ needs.changes.result }}
           NATIVE: ${{ needs.changes.outputs.app }}
           NATIVE_RESULT: ${{ needs.compile.result }}
           DOCS_RESULT: ${{ needs.docs-validation.result }}
         run: |
+          if [[ "$PYTHON_RESULT" != success ]]; then
+            echo 'Python script suite incomplete; qualification is NOT established.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
           if [[ "$CLASSIFIER" != success ]]; then
             echo 'Scope classifier failed; qualification is NOT established.' >> "$GITHUB_STEP_SUMMARY"
             exit 1

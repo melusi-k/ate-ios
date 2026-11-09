@@ -97,7 +97,9 @@ final class ArchiveCaptureBindingTests: XCTestCase {
         try media.write(to: dir.appendingPathComponent("m-1.jpg"))
         try seedJournalReflection(store, id: "j-1", mediaName: "m-1.jpg")
 
-        let archive = try await capture(store, c, d, name).capture()
+        let binding = capture(store, c, d, name)
+        let snapshot = try binding.snapshot()
+        let archive = try await binding.finish(snapshot, stillCurrent: {})
         XCTAssertEqual(archive.format, AteUnifiedArchive.formatName)
         XCTAssertEqual(archive.version, 2)
         XCTAssertEqual(archive.recipes.map(\.id), ["r-1", "r-2"])
@@ -113,37 +115,103 @@ final class ArchiveCaptureBindingTests: XCTestCase {
                        SHA256.hash(data: media).map { String(format: "%02x", $0) }.joined())
     }
 
-    func testCorruptDiaryRefusesExportRatherThanFabricatingEmpty() async throws {
+    func testCorruptDiaryRefusesExportRatherThanFabricatingEmpty() throws {
         let (d, name) = try suite(); defer { cleanup(name) }
         d.set(Data("not a diary".utf8), forKey: NutritionDiaryRepository.storageKey)
         let store = JournalStore(inMemory: true)
-        await XCTAssertAsyncThrowsError(try await capture(store, try container(), d, name).capture()) { error in
+        XCTAssertThrowsError(try capture(store, try container(), d, name).snapshot()) { error in
             guard case AteDataArchiveError.localDiaryUnreadableOnExport = error else {
                 return XCTFail("expected localDiaryUnreadableOnExport, got \(error)")
             }
         }
     }
 
-    func testUnavailableJournalRefusesCapture() async throws {
+    func testUnavailableJournalRefusesCapture() throws {
         let (d, name) = try suite(); defer { cleanup(name) }
         let store = JournalStore(container: nil, openState: .unavailable(error: "fixture"))
-        await XCTAssertAsyncThrowsError(try await capture(store, try container(), d, name).capture()) { error in
+        XCTAssertThrowsError(try capture(store, try container(), d, name).snapshot()) { error in
             guard case JournalArchiveError.unavailable = error else {
                 return XCTFail("expected unavailable, got \(error)")
             }
         }
     }
 
-    func testUndecodableRecipeEntityFailsVisibly() async throws {
+    func testUndecodableRecipeEntityFailsVisibly() throws {
         let (d, name) = try suite(); defer { cleanup(name) }
         let c = try container()
         let ctx = ModelContext(c); ctx.autosaveEnabled = false
         ctx.insert(RecipeEntity(id: "r-bad", createdAt: 1, position: 0, json: Data("{broken".utf8)))
         try ctx.save()
-        await XCTAssertAsyncThrowsError(try await capture(JournalStore(inMemory: true), c, d, name).capture()) { error in
+        XCTAssertThrowsError(try capture(JournalStore(inMemory: true), c, d, name).snapshot()) { error in
             guard case UnifiedArchiveCaptureError.recipeStoreUnreadable = error else {
                 return XCTFail("expected recipeStoreUnreadable, got \(error)")
             }
+        }
+    }
+
+    /// Snapshot must never run the diary's dayKey migration: legacy (dayKey-less) records
+    /// refuse visibly and the stored bytes stay untouched for the migrating writer effect.
+    func testLegacyDiaryWithoutDayKeyRefusesRatherThanMigrating() throws {
+        let (d, name) = try suite(); defer { cleanup(name) }
+        let diary = NutritionDiaryRepository(defaults: d)
+        try diary.savePrepared(diary.prepare([diaryEntry()]))
+        let encoded = try XCTUnwrap(d.data(forKey: NutritionDiaryRepository.storageKey))
+        var objects = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [[String: Any]])
+        objects[0].removeValue(forKey: "dayKey")
+        let legacy = try JSONSerialization.data(withJSONObject: objects)
+        d.set(legacy, forKey: NutritionDiaryRepository.storageKey)
+
+        XCTAssertThrowsError(try capture(JournalStore(inMemory: true), try container(), d, name).snapshot()) { error in
+            guard case UnifiedArchiveCaptureError.diaryMigrationPending = error else {
+                return XCTFail("expected diaryMigrationPending, got \(error)")
+            }
+        }
+        XCTAssertEqual(d.data(forKey: NutritionDiaryRepository.storageKey), legacy)
+    }
+
+    /// Snapshot must never run the goals legacy-key migration: a legacy-only copy refuses
+    /// visibly and the legacy bytes stay untouched for the migrating writer effect.
+    func testLegacyGoalsKeyRefusesRatherThanMigrating() throws {
+        let (d, name) = try suite(); defer { cleanup(name) }
+        var goalValues = DailyNutritionGoals()
+        goalValues.energyKcal = 2000
+        let legacy = try JSONEncoder().encode(goalValues)
+        d.set(legacy, forKey: DailyNutritionGoals.defaultsKey)
+
+        XCTAssertThrowsError(try capture(JournalStore(inMemory: true), try container(), d, name).snapshot()) { error in
+            guard case UnifiedArchiveCaptureError.goalsMigrationPending = error else {
+                return XCTFail("expected goalsMigrationPending, got \(error)")
+            }
+        }
+        XCTAssertEqual(d.data(forKey: DailyNutritionGoals.defaultsKey), legacy)
+    }
+
+    /// A readable stored goals file wins over any legacy key, exactly like load(): no
+    /// migration refusal, no write.
+    func testStoredGoalsFileDecodesEvenWithLegacyKeyPresent() throws {
+        let (d, name) = try suite(); defer { cleanup(name) }
+        var stored = DailyNutritionGoals()
+        stored.proteinGrams = 120
+        try goals(d, suite: name).save(stored)
+        var legacyGoals = DailyNutritionGoals()
+        legacyGoals.energyKcal = 9999
+        d.set(try JSONEncoder().encode(legacyGoals), forKey: DailyNutritionGoals.defaultsKey)
+
+        let snapshot = try capture(JournalStore(inMemory: true), try container(), d, name).snapshot()
+        XCTAssertEqual(snapshot.nutritionGoals, stored)
+    }
+
+    /// The post-await validation runs after media loading and before acceptance: when it
+    /// throws (epoch or generation moved during the await), the export fails and the
+    /// archive is discarded.
+    func testStillCurrentFailureDiscardsTheArchive() async throws {
+        let (d, name) = try suite(); defer { cleanup(name) }
+        let store = JournalStore(inMemory: true)
+        let binding = capture(store, try container(), d, name)
+        let snapshot = try binding.snapshot()
+        struct Injected: Error {}
+        await XCTAssertAsyncThrowsError(try await binding.finish(snapshot, stillCurrent: { throw Injected() })) { error in
+            XCTAssertTrue(error is Injected, "expected injected validation failure, got \(error)")
         }
     }
 

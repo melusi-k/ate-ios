@@ -18,6 +18,11 @@ final class UnifiedArchiveImportBinding {
     struct Result: Equatable {
         let journalEntriesAdded: Int
         let journalEntriesSkippedExisting: Int
+        /// The committed recovery transaction. It stays UNRESOLVED on purpose: the
+        /// enclosing boundary/session must advance the durable generation FIRST and only
+        /// then retire it. Retiring before the advance is durable would make exact-once
+        /// completion unreachable (startup recovery scans unresolved transactions).
+        let committedTransactionID: UUID
     }
 
     enum Failure: LocalizedError {
@@ -87,8 +92,16 @@ final class UnifiedArchiveImportBinding {
     }
 
     /// Imports additively (existing identity wins everywhere) under the durable recovery
-    /// journal: prepare -> applying -> execute -> committed -> retire. The generation
-    /// advance is deliberately left to the enclosing boundary.
+    /// journal: prepare -> applying -> execute -> committed. Retirement is deliberately
+    /// NOT done here: the caller (standalone session or the code driving the nested
+    /// boundary) retires the committed transaction AFTER the durable generation advance
+    /// lands. Crash windows, both recovered exactly once at startup:
+    ///  - committed but not advanced: the unresolved record's storeGeneration equals the
+    ///    current generation, so recovery verifies the after-images against the actual
+    ///    stores, finishes the committed unit, retires, and advances exactly once;
+    ///  - advanced but not retired: the record's storeGeneration is behind the current
+    ///    generation, so recovery takes the authorized-advance path (verify, finish,
+    ///    retire) without advancing again.
     func importArchive(_ archive: AteUnifiedArchive,
                        checkpoint: (ArchiveRestoreBoundary) throws -> Void = { _ in }) throws -> Result {
         try lease.validate()
@@ -167,10 +180,9 @@ final class UnifiedArchiveImportBinding {
                 }
             })
         try recoveryJournal.transition(record.transactionID, to: .committed)
-        // Retirement is an atomic namespace move only, so it is safe to finish before the
-        // enclosing boundary advances the generation.
-        try recoveryJournal.retire(record.transactionID)
-        return Result(journalEntriesAdded: added, journalEntriesSkippedExisting: plan.skippedExisting)
+        // Do NOT retire here: the generation advance must be durable first (see Result).
+        return Result(journalEntriesAdded: added, journalEntriesSkippedExisting: plan.skippedExisting,
+                      committedTransactionID: record.transactionID)
     }
 
     // MARK: - recovery images

@@ -21,6 +21,10 @@ import CryptoKit
 /// put_user_recipe fences by caller generation but never increments - and no shipped
 /// client has ever had the reset contract. Adoption therefore treats
 /// "no receipt + generation 0" as "no reset has ever committed for this account".
+/// A MISSING reset contract does NOT establish the server epoch (central 2026-11-10):
+/// signed-in startup with an unverifiable snapshot - including contractMissing - is
+/// blocked with zero mutation, never treated as generation 0. Signed-out adoption
+/// never consults the server and is unchanged.
 @MainActor
 struct JournalInstallReconciliation {
     /// Successful authorization outcomes. Blocked outcomes throw instead.
@@ -200,12 +204,11 @@ struct JournalInstallReconciliation {
         catch { throw JournalStartupAuthorizationError.blocked("generation receipt unreadable") }
     }
 
-    /// nil = unverifiable (transport/structure). contractMissing maps to 0: the reset
-    /// RPC is the only generation bump, so an absent contract means no reset has ever
-    /// committed (same header assumption).
+    /// nil = unverifiable: transport, structure, AND contractMissing. An absent reset
+    /// contract proves nothing about whether a reset committed, so it can never stand
+    /// in for generation 0.
     private func remoteGeneration(_ session: AuthSession) async -> Int64? {
         do { return try await snapshot(session).generation }
-        catch ResetRPCError.contractMissing { return 0 }
         catch { return nil }
     }
 

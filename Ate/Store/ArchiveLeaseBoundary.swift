@@ -19,9 +19,22 @@ protocol ArchiveNestedLeaseBoundary {
     func withNestedLease<T>(_ work: () throws -> T) throws -> T
 }
 
+enum ArchiveNestedLeaseFailure: LocalizedError {
+    /// An unresolved archive recovery transaction exists: startup recovery must complete
+    /// it before any further covered writer effect may run.
+    case unresolvedRecoveryTransaction
+
+    var errorDescription: String? {
+        switch self {
+        case .unresolvedRecoveryTransaction: "A previous archive operation is still being recovered. New changes are paused until startup recovery finishes."
+        }
+    }
+}
+
 /// Per-effect nested boundary: holds no lease and no flock for any lifetime. Each effect
 /// acquires a nested (no-flock) POSIXArchiveWriterLease, validates the generation chain,
-/// runs the covered unit, commits exactly one generation on success, and releases.
+/// refuses while any recovery transaction is unresolved, runs the covered unit, commits
+/// exactly one generation on success, and releases.
 /// The caller's held account-gate flock on writer-gate-v1.lock is the mutual exclusion;
 /// this type never opens or flocks any lock file.
 @MainActor
@@ -36,6 +49,12 @@ final class ArchiveNestedGenerationBoundary: ArchiveNestedLeaseBoundary {
         let lease = try POSIXArchiveWriterLease(nestedDirectory: directory)
         defer { lease.release() }
         try lease.validate()
+        // An unresolved recovery transaction blocks every covered writer effect until
+        // startup recovery completes it: writing over it would fork the generation chain
+        // and corrupt the record's storeGeneration evidence.
+        guard try !DiskArchiveRecoveryJournal(lease: lease).hasUnresolvedTransactions() else {
+            throw ArchiveNestedLeaseFailure.unresolvedRecoveryTransaction
+        }
         let result = try work()
         try lease.commitGeneration(lease.generation + 1)
         return result

@@ -50,7 +50,7 @@ struct WidgetSnapshot: Codable, Equatable {
     /// boundary refused the effect; nothing was written.
     @discardableResult
     func save(_ d: UserDefaults = SharedContainer.defaults, boundary: SharedWriterBoundary = .current) -> Bool {
-        (try? boundary.withEffect {
+        (try? boundary.withEffect { () -> Void in
             d.set(try? JSONEncoder().encode(self), forKey: Self.key)
         }) != nil
     }
@@ -100,7 +100,7 @@ struct WidgetSnapshotPublisher {
         // The save and the in-memory publish cache commit under one effect, so a
         // concurrent gated writer never sees half of the update. The reload is a
         // hint and runs only after a committed publish, outside the boundary.
-        guard (try? boundary.withEffect {
+        guard (try? boundary.withEffect { () -> Void in
             value.save(defaults, boundary: boundary)
             lastPublished = value
         }) != nil else { return false }
@@ -121,7 +121,7 @@ enum WidgetInbox {
     @discardableResult
     static func setDone(_ id: String, _ done: Bool, _ d: UserDefaults = SharedContainer.defaults,
                         boundary: SharedWriterBoundary = .current) -> Bool {
-        (try? boundary.withEffect {
+        (try? boundary.withEffect { () -> Void in
             var m = pendingShopping(d); m[id] = done
             d.set(try? JSONEncoder().encode(m), forKey: shoppingKey)
         }) != nil
@@ -136,7 +136,7 @@ enum WidgetInbox {
                         boundary: SharedWriterBoundary = .current) -> Bool {
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !n.isEmpty else { return false }
-        return (try? boundary.withEffect {
+        return (try? boundary.withEffect { () -> Void in
             d.set(pendingAdds(d) + [n], forKey: addsKey)
         }) != nil
     }
@@ -146,7 +146,7 @@ enum WidgetInbox {
     @discardableResult
     static func openLater(_ url: URL, _ d: UserDefaults = SharedContainer.defaults,
                           boundary: SharedWriterBoundary = .current) -> Bool {
-        (try? boundary.withEffect {
+        (try? boundary.withEffect { () -> Void in
             d.set(url.absoluteString, forKey: urlKey)
         }) != nil
     }

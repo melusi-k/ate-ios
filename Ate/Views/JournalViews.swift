@@ -429,7 +429,7 @@ struct JournalReflectionCard: View {
                 .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
         }
         .task { await model.loadIfNeeded(recipes: store.recipes) }
-        .sheet(item: $openRecipe) { target in RecipeSheet(recipeID: target.id).environment(store) }
+        .sheet(item: $openRecipe) { target in Self.momentRecipeSheet(target).environment(store) }
     }
 
     private func save() {
@@ -442,13 +442,24 @@ struct JournalReflectionCard: View {
         }
     }
 
+    /// Journal moments are not Health suggestions. Preserve origin through both the target
+    /// and the presented sheet, whose disappearance can record Health beta evidence.
+    static func momentRecipeTarget(id: String) -> RecipeSheetTarget {
+        RecipeSheetTarget(id: id, recordsHealthSuggestionEvidence: false)
+    }
+
+    static func momentRecipeSheet(_ target: RecipeSheetTarget) -> RecipeSheet {
+        RecipeSheet(recipeID: target.id,
+                    recordsHealthSuggestionEvidence: target.recordsHealthSuggestionEvidence)
+    }
+
     private func handle(moment: PickedMoment) {
         switch JournalingMomentMapper.map(title: moment.title,
                                           date: moment.date.map { DateInterval(start: $0, duration: 0) },
                                           hasPhotos: !moment.photoURLs.isEmpty, isWorkout: moment.isWorkout) {
         case .recipeDraft(let title, let date):
             let recipe = JournalingMomentMapper.draft(title: title, date: date)
-            store.add(recipe); openRecipe = RecipeSheetTarget(id: recipe.id)
+            store.add(recipe); openRecipe = Self.momentRecipeTarget(id: recipe.id)
             store.show("Recipe draft from your Journal moment")
         case .journalEntry(let prompt, let title, let date, let state):
             store.journalReflection.prompt = JournalPrompt(text: prompt, state: state)

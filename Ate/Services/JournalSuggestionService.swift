@@ -133,7 +133,7 @@ final class JournalStore {
     /// while a store or fetch failure throws, so the detail shows an error instead of a false
     /// "It may have been deleted".
     func readEntry(_ id: String) throws -> JournalEntry? {
-        try readEntries().first { $0.id == id }
+        try readEntries().first { $0.id == id && $0.kindRaw == JournalEntryKind.reflection.rawValue }
     }
     /// Non-throwing read kept for Siri/Shortcuts queries, which have no error surface: a failed
     /// read answers as little as possible rather than throwing through an intent. User-facing
@@ -198,6 +198,9 @@ final class JournalStore {
         }
     }
     func delete(_ e: JournalEntry) {
+        // Reflection-only UI and intents cannot mutate structured meals or unknown kinds.
+        // Meals must use the coordinator's validated payload transaction.
+        guard e.kindRaw == JournalEntryKind.reflection.rawValue else { return }
         for f in e.mediaFileNames { try? FileManager.default.removeItem(at: Self.mediaURL(f)) }
         if let ctx = container?.mainContext {
             // A meal entry's structured payload goes with it; the timeline never keeps one without the other (#245).
@@ -212,6 +215,7 @@ final class JournalStore {
     /// uses `readEntry(_:)` so a read failure cannot look like a deleted entry.
     func entry(_ id: String) -> JournalEntry? { try? readEntry(id) }
     func update(_ e: JournalEntry, text: String) {
+        guard e.kindRaw == JournalEntryKind.reflection.rawValue else { return }
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines); guard !t.isEmpty else { return }
         e.text = t; e.editedAt = .now; try? container?.mainContext.save()
     }

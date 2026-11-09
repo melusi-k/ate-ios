@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 /// Food diary on the canonical Food Journal coordinator (#179): real entry editing, visible
@@ -13,6 +14,7 @@ struct CanonicalNutritionDiaryView: View {
     @State private var showingRepair = false
     @State private var mutationError: String?
     @State private var choosingMealBackup = false
+    @State private var pendingMealBackupReview: ReviewedMealBackup?
     @State private var reviewedMealBackup: ReviewedMealBackup?
 
     init(coordinator: FoodJournalCoordinator,
@@ -73,17 +75,25 @@ struct CanonicalNutritionDiaryView: View {
                     .disabled(controller.issue != nil)
             }
         }
-        .fileImporter(isPresented: $choosingMealBackup, allowedContentTypes: [.json], allowsMultipleSelection: false) { result in
-            do {
-                guard let url = try result.get().first else { return }
-                let scoped = url.startAccessingSecurityScopedResource()
-                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                guard size <= ReviewedMealBackup.maximumBytes else { throw ReviewedMealBackupError.tooLarge }
-                reviewedMealBackup = try ReviewedMealBackup(ReviewedMealBackup.readBytes(from: url))
-                mutationError = nil
-            } catch {
-                if !ReviewedMealBackup.isPickerCancellation(error) { mutationError = error.localizedDescription }
+        .sheet(isPresented: $choosingMealBackup, onDismiss: {
+            // Present review only after Files has finished dismissing, not from its delegate.
+            reviewedMealBackup = pendingMealBackupReview
+            pendingMealBackupReview = nil
+        }) {
+            MealBackupDocumentPicker { url in
+                defer { choosingMealBackup = false }
+                // Genuine Files cancellation is no action: no read, error or mutation.
+                guard let url else { return }
+                do {
+                    let scoped = url.startAccessingSecurityScopedResource()
+                    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                    let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                    guard size <= ReviewedMealBackup.maximumBytes else { throw ReviewedMealBackupError.tooLarge }
+                    pendingMealBackupReview = try ReviewedMealBackup(ReviewedMealBackup.readBytes(from: url))
+                    mutationError = nil
+                } catch {
+                    mutationError = error.localizedDescription
+                }
             }
         }
         .sheet(item: $reviewedMealBackup, onDismiss: { controller.reload() }) { backup in
@@ -502,6 +512,45 @@ private struct NutritionDiaryEntryEditView: View {
                 // The draft stays exactly as typed; only a fully saved change dismisses the editor.
                 errorMessage = "The change wasn't saved: \(error.localizedDescription)"
             }
+        }
+    }
+}
+
+/// Own the genuine Files controller and delegate for the entire sheet lifetime.
+/// No app-owned substitute Cancel control or test-specific picker is used.
+struct MealBackupDocumentPicker: UIViewControllerRepresentable {
+    let onFinish: (URL?) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json], asCopy: false)
+        picker.allowsMultipleSelection = false
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ picker: UIDocumentPickerViewController, context: Context) {}
+
+    @MainActor
+    final class Coordinator: NSObject, UIDocumentPickerDelegate {
+        private let onFinish: (URL?) -> Void
+        private var finished = false
+
+        init(onFinish: @escaping (URL?) -> Void) { self.onFinish = onFinish }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            finish(urls.first)
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            finish(nil)
+        }
+
+        private func finish(_ url: URL?) {
+            guard !finished else { return }
+            finished = true
+            onFinish(url)
         }
     }
 }

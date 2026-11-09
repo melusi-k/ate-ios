@@ -1,4 +1,6 @@
 import XCTest
+import UIKit
+import UniformTypeIdentifiers
 @testable import Ate
 
 @MainActor
@@ -51,6 +53,36 @@ final class ReviewedMealBackupTests: XCTestCase {
     func testPickerCancellationIsNotAReadFailure() {
         XCTAssertTrue(ReviewedMealBackup.isPickerCancellation(CocoaError(.userCancelled)))
         XCTAssertFalse(ReviewedMealBackup.isPickerCancellation(CocoaError(.fileReadNoSuchFile)))
+    }
+
+    func testActualPickerDelegateCancellationFinishesOnceWithoutSelectedURL() {
+        var outcomes: [URL?] = []
+        let delegate = MealBackupDocumentPicker.Coordinator { outcomes.append($0) }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json], asCopy: false)
+        delegate.documentPickerWasCancelled(picker)
+        delegate.documentPicker(picker, didPickDocumentsAt: [URL(fileURLWithPath: "/late.json")])
+        XCTAssertEqual(outcomes.count, 1)
+        XCTAssertNil(outcomes[0])
+    }
+
+    func testActualPickerDelegateSelectionFinishesOnceWithExactURL() {
+        var outcomes: [URL?] = []
+        let delegate = MealBackupDocumentPicker.Coordinator { outcomes.append($0) }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json], asCopy: false)
+        let selected = URL(fileURLWithPath: "/selected.json")
+        delegate.documentPicker(picker, didPickDocumentsAt: [selected])
+        delegate.documentPickerWasCancelled(picker)
+        XCTAssertEqual(outcomes.count, 1)
+        XCTAssertEqual(outcomes[0], selected)
+    }
+
+    func testActualPickerDelegateEmptySelectionIsNoSelectedURL() {
+        var outcomes: [URL?] = []
+        let delegate = MealBackupDocumentPicker.Coordinator { outcomes.append($0) }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json], asCopy: false)
+        delegate.documentPicker(picker, didPickDocumentsAt: [])
+        XCTAssertEqual(outcomes.count, 1)
+        XCTAssertNil(outcomes[0])
     }
 
 }

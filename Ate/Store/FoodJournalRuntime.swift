@@ -4,7 +4,11 @@ import Foundation
 /// reset and all ordinary writer routes have been reviewed together.
 @MainActor
 final class FoodJournalRuntime {
+    let defaults: UserDefaults
+    let cookingHistory: CookingHistory
     let journal: JournalStore
+    let cookOfferPolicy: CookReflectionOfferPolicy
+    let cookOutbox: CookCompletionOutbox
     let coordinator: FoodJournalCoordinator
     let repair: LegacyDiaryRepair
     let goalsRepository: NutritionGoalsRepository
@@ -13,6 +17,10 @@ final class FoodJournalRuntime {
          migrationBackupDirectory: URL? = nil, repairBackupDirectory: URL? = nil,
          afterRestoreCommit: @escaping () throws -> Void = {}) {
         self.journal = journal
+        self.defaults = defaults
+        self.cookingHistory = CookingHistory(defaults: defaults)
+        self.cookOfferPolicy = CookReflectionOfferPolicy(defaults: defaults)
+        self.cookOutbox = CookCompletionOutbox(defaults: defaults)
         self.goalsRepository = goalsRepository
         let legacy = NutritionDiaryRepository(defaults: defaults, backupDirectory: repairBackupDirectory)
         coordinator = FoodJournalCoordinator(journal: journal, legacy: legacy,
@@ -20,6 +28,18 @@ final class FoodJournalRuntime {
                                               backupDirectory: migrationBackupDirectory,
                                               afterRestoreCommit: afterRestoreCommit)
         repair = LegacyDiaryRepair(repository: legacy, backupDirectory: legacy.backupDirectory)
+    }
+
+    /// Explicit host query. Never acknowledges a pending cook just because it was read or offered.
+    func pendingCookReflections() throws -> [CookCompletionEvent] { try cookOutbox.load() }
+
+    /// Require the retained event from this runtime's own queue, not a reconstructed current recipe.
+    func reflectionSession(for eventID: String, existingDraft: String = "") throws -> CookedJournalReflectionSession {
+        guard let event = try cookOutbox.load().first(where: { $0.id == eventID }) else {
+            throw CookedJournalReflectionError.invalidContext
+        }
+        return CookedJournalReflectionSession(event: event, reflections: CookedJournalReflectionStore(journal: journal),
+                                              outbox: cookOutbox, existingDraft: existingDraft)
     }
 
     /// All consumers retain failure as unavailable, never fabricate an empty diary.

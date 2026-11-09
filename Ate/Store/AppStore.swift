@@ -257,8 +257,10 @@ final class AppStore {
         pendingSearch = term.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     /// Persisted independently from timers so exiting Cook Mode never loses an untimed step.
+    @ObservationIgnored private var adoptingPersistedCookSession = false
     var cookSession: CookSession? = nil {
         didSet {
+            guard !adoptingPersistedCookSession else { return }
             performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
                 Self.saveCookSession(cookSession, defaults: foodJournalRuntime?.defaults ?? .standard)
             }
@@ -751,9 +753,30 @@ final class AppStore {
 
     /// Launch load of the persisted cook session, gated like every other ordinary write
     /// (older snapshots are re-saved with an assigned identity by the loader).
-    private func loadPersistedCookSession() {
-        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
-            cookSession = Self.loadCookSession(defaults: foodJournalRuntime?.defaults ?? .standard)
+    func loadPersistedCookSession(defaults suppliedDefaults: UserDefaults? = nil) {
+        let defaults = suppliedDefaults ?? foodJournalRuntime?.defaults ?? .standard
+        if journalWriterEffect == nil {
+            // Preserve the dormant production graph's established load/save behavior.
+            cookSession = Self.loadCookSession(defaults: defaults)
+            return
+        }
+        guard let raw = defaults.data(forKey: Self.cookSessionDefaultsKey),
+              let decoded = try? JSONDecoder().decode(CookSession.self, from: raw) else { return }
+        let fields = (try? JSONSerialization.jsonObject(with: raw)) as? [String: Any]
+        if fields?["sessionID"] is String {
+            // Existing identity: memory-only adoption is not a committed write.
+            adoptingPersistedCookSession = true
+            defer { adoptingPersistedCookSession = false }
+            cookSession = decoded
+        } else {
+            // Persist the identity assigned by the legacy decoder exactly once.
+            performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+                guard defaults.data(forKey: Self.cookSessionDefaultsKey) == raw else { return }
+                Self.saveCookSession(decoded, defaults: defaults)
+                adoptingPersistedCookSession = true
+                defer { adoptingPersistedCookSession = false }
+                cookSession = decoded
+            }
         }
     }
 

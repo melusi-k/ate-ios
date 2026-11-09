@@ -231,18 +231,63 @@ final class CoverageUITests: XCTestCase {
         // The SwiftUI combined container is not consistently hittable across simulator
         // runtimes, even when its child heading is visible. Scroll to the stable visible
         // heading so this journey cannot spend minutes swiping toward a non-hittable parent.
+        // Read-only combined text does not need to accept taps. XCUITest can report
+        // isHittable=false for these visible, selectable SwiftUI rows. Prove actual
+        // viewport clearance instead of spending the existing swipe budget seeking
+        // a tappable parent. Keep the same directional bounds and content assertions.
+        func revealReadOnlySettingsRow(_ heading: XCUIElement) {
+            func fullyVisible() -> Bool {
+                guard heading.exists else { return false }
+                let row = heading.frame
+                let window = app.windows.firstMatch
+                let navigation = app.navigationBars["Settings"]
+                let tabs = app.tabBars.firstMatch
+                // Chrome is a sibling of the Form, not a descendant of timerSettings.
+                // This portrait journey requires the active Settings navigation and tab bar;
+                // missing chrome must fail rather than silently widening the viewport.
+                guard window.exists, navigation.exists, tabs.exists else { return false }
+                let screen = window.frame
+                let navFrame = navigation.frame
+                let tabFrame = tabs.frame
+                guard !screen.isEmpty, !navFrame.isEmpty, !tabFrame.isEmpty,
+                      !screen.isInfinite, !navFrame.isInfinite, !tabFrame.isInfinite,
+                      !screen.isNull, !navFrame.isNull, !tabFrame.isNull else { return false }
+                let top = max(screen.minY, navFrame.maxY)
+                var bottom = min(screen.maxY, tabFrame.minY)
+                let accessory = app.descendants(matching: .any)["bottomAccessory"].firstMatch
+                if accessory.exists {
+                    let frame = accessory.frame
+                    guard !frame.isEmpty, !frame.isInfinite, !frame.isNull else { return false }
+                    if frame.intersects(screen) { bottom = min(bottom, frame.minY) }
+                }
+                return !row.isEmpty && !row.isInfinite && !row.isNull
+                    && row.minX >= screen.minX && row.maxX <= screen.maxX
+                    && row.minY >= top && row.maxY <= bottom
+            }
+            var swipes = 0
+            while !fullyVisible() && swipes < 25 { timerSettings.swipeUp(); swipes += 1 }
+            swipes = 0
+            while !fullyVisible() && swipes < 50 { timerSettings.swipeDown(); swipes += 1 }
+            XCTAssertTrue(fullyVisible(), "Settings read-only row must clear the live Settings navigation, tab bar and bottom accessory")
+        }
         let buildNotesHeading = timerSettings.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "Changes in this build")
         ).firstMatch
-        scrollTo(buildNotesHeading); wait(buildNotesHeading, 3)
+        revealReadOnlySettingsRow(buildNotesHeading); wait(buildNotesHeading, 3)
         let buildNotes = timerSettings.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
         wait(buildNotes, 3)
         XCTAssertFalse(buildNotes.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                        "About should show generated build notes or an explicit fallback")
+        let diagnosticsHeading = timerSettings.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "AI diagnostics")
+        ).firstMatch
+        revealReadOnlySettingsRow(diagnosticsHeading); wait(diagnosticsHeading, 3)
         let diagnostics = timerSettings.descendants(matching: .any)["aiDiagnostics"].firstMatch
-        scrollTo(diagnostics); wait(diagnostics, 3)
+        wait(diagnostics, 3)
+        XCTAssertFalse(diagnostics.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                       "About must retain its AI diagnostics content")
         let transparency = timerSettings.descendants(matching: .any)["aiTransparency"].firstMatch
-        scrollTo(transparency); wait(transparency, 3)
+        revealReadOnlySettingsRow(transparency); wait(transparency, 3)
         shot("settings-about")
 
         scrollTo(export)
@@ -678,8 +723,15 @@ extension CoverageUITests {
         if save {
             let field = any("insights.journalText"); scrollTo(field); field.tap(); field.typeText("Note for \(scenario)")
             let b = app.buttons["insights.save"]; scrollTo(b); b.tap()
+            XCTAssertFalse(any("insights.tile.journal").exists, "Insights must not duplicate the Journal list")
             wait(app.staticTexts["Note for \(scenario)"].firstMatch)
             XCTAssertFalse(any("insights.journalingPicker").exists, "Picker must be hidden without the paid entitlement")
+            wait(app.navigationBars["Journal"])
+            let saved = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Note for \(scenario)")).firstMatch
+            wait(saved)
+            saved.tap()
+            wait(any("journal.detail.text"))
+            XCTAssertTrue(any("journal.detail.text").label.contains("Note for \(scenario)"))
         }
         app.terminate()
         return names
@@ -816,8 +868,8 @@ extension CoverageUITests {
     func testJournalMomentContextRow() {
         launch(["-qaMockHealth", "recovery", "-qaJournalMomentEntry"])
         tab("Journal")
-        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch; wait(hub); hub.tap()
-        let ctx = any("insights.entryMomentContext"); scrollTo(ctx); wait(ctx)
+        let entry = app.descendants(matching: .any)["journal.entry"].firstMatch; wait(entry); entry.tap()
+        let ctx = any("journal.detail.momentContext"); scrollTo(ctx); wait(ctx)
         XCTAssertTrue(ctx.label.contains("Dinner at Mama"), ctx.label)
         XCTAssertFalse(any("insights.journalingPicker").exists)
     }

@@ -171,4 +171,19 @@ final class ManualJournalTests: XCTestCase {
         XCTAssertTrue(journal.entries().isEmpty)
     }
 
+    func testJournalMomentRecipeDraftDoesNotEnableHealthSuggestionEvidence() {
+        let target = JournalReflectionCard.momentRecipeTarget(id: "moment-recipe-draft")
+        XCTAssertEqual(target.id, "moment-recipe-draft")
+        XCTAssertFalse(target.recordsHealthSuggestionEvidence,
+                       "A Journal moment is not an Apple Health meal suggestion")
+        let sheet = JournalReflectionCard.momentRecipeSheet(target)
+        XCTAssertEqual(sheet.recipeID, target.id)
+        XCTAssertFalse(sheet.recordsHealthSuggestionEvidence,
+                       "The sheet disappearance must not record A-HEALTH-08 for a Journal draft")
+        let healthTarget = RecipeSheetTarget(id: "actual-health-suggestion")
+        XCTAssertTrue(healthTarget.recordsHealthSuggestionEvidence,
+                      "The actual Health suggestion default remains unchanged")
+        XCTAssertTrue(RecipeSheet(recipeID: healthTarget.id).recordsHealthSuggestionEvidence)
+    }
+
 }

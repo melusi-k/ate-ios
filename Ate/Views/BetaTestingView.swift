@@ -67,7 +67,7 @@ struct BetaTestingView: View {
                     Text(AteShortcuts.diagnostics).font(AteFont.body(12)).foregroundStyle(Theme.foreground)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }.buttonStyle(.plain).accessibilityIdentifier("beta.siriDiagnostics")
-                Button { WidgetBridge.publishNow(store); WidgetKinds.reloadAll(); store.show("Widgets refreshed") } label: {
+                Button { WidgetBridge.publishNow(store, force: true); store.show("Widget refresh requested") } label: {
                     Label("Refresh widgets now", systemImage: "arrow.clockwise")
                 }.accessibilityIdentifier("beta.refreshWidgets")
                 Text("Checks A-WIDGET, A-LOCK, A-CONTROL and A-INTENT. If the App Group shows missing, widgets can only show “Open ate”; Siri phrases and Control Center still work.")

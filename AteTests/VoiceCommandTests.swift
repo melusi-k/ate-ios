@@ -25,4 +25,20 @@ final class VoiceCommandTests: XCTestCase {
         XCTAssertEqual(VoiceCommands.parse("stop timer"), .pauseTimer)
         XCTAssertEqual(VoiceCommands.parse("stop cooking"), .exit)
     }
+    @MainActor
+    func testStoppingUnusedVoiceControllerDoesNotInitializeAudioEngine() {
+        let controller = VoiceController()
+        XCTAssertFalse(controller.hasInitializedAudioEngine)
+        XCTAssertEqual(controller.state, .off)
+
+        controller.stop()
+        XCTAssertEqual(controller.state, .off)
+        XCTAssertFalse(controller.hasInitializedAudioEngine,
+                       "Leaving Cook Mode without voice must not create a microphone input node")
+
+        controller.stop()
+        XCTAssertEqual(controller.state, .off)
+        XCTAssertFalse(controller.hasInitializedAudioEngine,
+                       "Repeated inactive cleanup must remain free of audio resources")
+    }
 }

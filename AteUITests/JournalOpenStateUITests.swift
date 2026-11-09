@@ -174,6 +174,68 @@ extension JournalOpenStateUITests {
         shot("manual-03-detail-actions")
     }
 
+    func testManualReflectionEditSaveCancelAndConfirmedDelete() {
+        composeFromHistory()
+        let original = "Manual CRUD " + UUID().uuidString
+        let changed = original + " edited"
+        let compose = app.textViews["journal.compose.text"]
+        compose.tap(); compose.typeText(original)
+        app.buttons["journal.compose.save"].tap()
+        wait(app.navigationBars["Journal"])
+        let saved = app.descendants(matching: .any).matching(identifier: "journal.entry")
+            .matching(NSPredicate(format: "label CONTAINS %@", original)).firstMatch
+        wait(saved); saved.tap()
+        let detail = any("journal.detail.text")
+        wait(detail)
+        XCTAssertEqual(detail.label, original, "Only the newly created reflection may be edited or deleted")
+        let originalDate = any("journal.detail.date").label
+
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Edit"].tap()
+        let editor = app.textViews["journal.edit.text"]
+        wait(editor)
+        XCTAssertEqual(editor.value as? String, original)
+        editor.tap(); editor.typeText(" discarded draft")
+        app.navigationBars["Edit entry"].buttons["Cancel"].tap()
+        waitUntilGone(editor)
+        XCTAssertEqual(detail.label, original, "Cancel must not save the draft")
+
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Edit"].tap()
+        wait(editor)
+        XCTAssertEqual(editor.value as? String, original)
+        editor.tap()
+        // Replace via the native Select All action, not a guessed caret position.
+        editor.press(forDuration: 1.2)
+        let selectAll = app.menuItems["Select All"]
+        wait(selectAll); selectAll.tap(); editor.typeText(changed)
+        app.navigationBars["Edit entry"].buttons["Save"].tap()
+        waitUntilGone(editor)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        wait(app.navigationBars["Journal"])
+        let edited = app.descendants(matching: .any).matching(identifier: "journal.entry")
+            .matching(NSPredicate(format: "label CONTAINS %@", changed)).firstMatch
+        wait(edited); edited.tap()
+        wait(detail)
+        XCTAssertEqual(detail.label, changed, "Reopened detail must be the same edited reflection before deletion")
+        XCTAssertEqual(any("journal.detail.date").label, originalDate, "Editing must preserve the original entry date")
+        shot("manual-crud-edited-detail")
+
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
+        wait(app.staticTexts["Delete this journal entry?"])
+        app.buttons["Cancel"].tap()
+        waitUntilGone(app.staticTexts["Delete this journal entry?"])
+        XCTAssertEqual(detail.label, changed, "Cancel must keep the reflection")
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
+        wait(app.staticTexts["Delete this journal entry?"])
+        shot("manual-crud-delete-confirmation")
+        app.buttons["Delete"].tap()
+        waitUntilGone(detail)
+        wait(app.navigationBars["Journal"])
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "journal.entry")
+            .matching(NSPredicate(format: "label CONTAINS %@", original)).firstMatch.exists,
+            "Confirmed deletion must remove the created reflection from history")
+        shot("manual-crud-confirmed-deleted-history")
+    }
+
     func testManualCancelKeepsDraftUntilExplicitDiscard() {
         composeFromHistory()
         let editor = app.textViews["journal.compose.text"]
@@ -377,29 +439,28 @@ extension JournalOpenStateUITests {
         shot("manual-09-normal-accessory-opened-composer")
     }
 
-    func testManualActionFromInsightsDoesNotRequireHealth() {
+    func testManualActionAfterReturningFromInsightsDoesNotRequireHealth() {
         launch(extra: ["-qaMockHealth", "empty"])
         wait(app.tabBars.firstMatch, 15)
         app.tabBars.buttons["Journal"].tap()
         let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
         wait(hub); hub.tap()
-        let action = app.buttons["insights.newJournalEntry"]
-        for _ in 0..<12 {
-            if action.exists && action.isHittable { break }
-            app.swipeUp()
-        }
+        XCTAssertFalse(any("insights.tile.journal").exists, "The hub must not duplicate the Journal list")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        wait(app.navigationBars["Journal"])
+        let action = app.buttons["journal.newEntry"]
         wait(action)
         XCTAssertTrue(action.isHittable)
         action.tap()
         wait(app.textViews["journal.compose.text"])
-        shot("manual-06-insights-no-health")
+        shot("manual-06-journal-root-no-health")
         XCTAssertFalse(app.alerts.firstMatch.exists, "Writing must not ask for Health permission")
         let editor = app.textViews["journal.compose.text"]
         editor.tap(); editor.typeText("Generic Insights rotation draft")
         XCUIDevice.shared.orientation = .landscapeLeft
         wait(editor)
         XCTAssertEqual(editor.value as? String, "Generic Insights rotation draft")
-        shot("manual-06-insights-landscape-draft")
+        shot("manual-06-journal-root-landscape-draft")
         XCUIDevice.shared.orientation = .portrait
         wait(editor)
         XCTAssertEqual(editor.value as? String, "Generic Insights rotation draft")

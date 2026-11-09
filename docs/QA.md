@@ -32,7 +32,7 @@ All simulator-based CI checks now target the **iPhone 18 Pro simulator on iOS 27
 
 | # | Flow | Automated test | What it checks |
 |---|---|---|---|
-| 1 | Add recipe from URL | `testQA1_AddFromURL` | JSON-LD fixture → "Imported from page data" badge; Instagram caption fixture → card; hidden caption → friendly message + switch to Prompt |
+| 1 | Add recipe from URL | `testQA1_AddFromURL_JSONLD` / `testQA1_AddFromURL_InstagramCaption` / `testQA1_AddFromURL_HiddenCaptionFallback` | Three independent fresh-launch cases over the same Add › Link path: JSON-LD fixture → "Imported from page data" badge; Instagram caption fixture → card; hidden caption → friendly message + switch to Prompt. The flow passes only when all three cases pass |
 | 2 | Add from photo | `testQA2_AddFromPhoto` | text screenshot via real Vision OCR; text-free food photo → "Guessed from photo" or the friendly message, never the old OCR error |
 | 3 | Generate and edit | `testQA3_GenerateAndEdit` | edit title + cuisine on the review step |
 | 4 | Save | `testQA4_Save` | lands in the library |

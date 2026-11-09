@@ -46,7 +46,12 @@ def verify(class_name, expected):
         raise SystemExit(f'Expected exact {len(expected)} nonzero {class_name} passes, found {rows!r}')
     print(f'Verified {len(expected)} named nonzero {class_name} passes')
 
-if '** TEST SUCCEEDED **' not in text:
-    raise SystemExit('Missing TEST SUCCEEDED')
+# test-without-building reports TEST EXECUTE SUCCEEDED on current Xcode.
+# Keep a single completed success marker and reject any failed invocation.
+lines = [line.strip() for line in text.splitlines()]
+success = {'** TEST SUCCEEDED **', '** TEST EXECUTE SUCCEEDED **'}
+failure = {'** TEST FAILED **', '** TEST EXECUTE FAILED **'}
+if any(line in failure for line in lines) or sum(line in success for line in lines) != 1:
+    raise SystemExit('Expected one success marker and no failure marker')
 verify('InsightsPresentationUITests', EXPECTED)
 verify('InsightsPresentationTests', UNIT_EXPECTED)

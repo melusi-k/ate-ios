@@ -419,4 +419,36 @@ final class ArchiveImportBindingTests: XCTestCase {
         let check = try POSIXArchiveWriterLease(directory: root); defer { check.release() }
         XCTAssertEqual(check.generation, 2)
     }
+
+    /// While any recovery transaction is unresolved, the nested boundary refuses every
+    /// covered writer effect - validating the generation alone is not enough: writing over
+    /// an open transaction would fork the generation chain.
+    func testNestedBoundaryRefusesWhileRecoveryTransactionUnresolved() throws {
+        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath()
+            .appendingPathComponent("ArchiveNestedBlocked-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let boundary = ArchiveNestedGenerationBoundary(directory: root)
+        let journal = DiskArchiveRecoveryJournal(lease: try POSIXArchiveWriterLease(nestedDirectory: root))
+        let record = ArchiveRecoveryRecord(version: 1, transactionID: UUID(), ownerIdentity: "fixture-owner",
+            storeGeneration: 0, images: [],
+            journalAndMediaRecovery: try JSONEncoder().encode(JournalMediaRecoveryPayload(version: 1, entries: [], media: [:])))
+        try journal.prepare(record)
+
+        XCTAssertThrowsError(try boundary.withNestedLease { }) { error in
+            guard case ArchiveNestedLeaseFailure.unresolvedRecoveryTransaction = error else {
+                return XCTFail("expected unresolvedRecoveryTransaction, got \(error)")
+            }
+        }
+        // The refused effect committed nothing.
+        let check = try POSIXArchiveWriterLease(directory: root); defer { check.release() }
+        XCTAssertEqual(check.generation, 0)
+
+        // Once recovery resolves the transaction, covered effects run and advance again.
+        try journal.transition(record.transactionID, to: .applying)
+        try journal.transition(record.transactionID, to: .committed)
+        try journal.retire(record.transactionID)
+        try boundary.withNestedLease { }
+        XCTAssertEqual(check.generation, 1)
+    }
 }

@@ -60,8 +60,8 @@ jobs:
           xcodebuild -version
           echo "Qualification commit: $GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: CI telemetry unit tests
-        run: python3 -m unittest discover -s scripts/tests -v
+      # Python scripts are tested once on the exact candidate head in Compile.
+      # Separate merge-ref Python coverage is intentionally removed.
 
       - name: Select iPhone 18 Pro simulator (iOS 27.0)
         id: select_simulator

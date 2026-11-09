@@ -2,7 +2,7 @@ import XCTest
 
 /// Acceptance for the Insights presentation work (audit quick wins): quiet optional Health,
 /// unmistakable sample data on every Health-derived surface, a clear next action per insight,
-/// cooking-history insights that link back to their recipes, and the unified Food Journal tile.
+/// cooking-history insights that link back to their recipes, and the Journal-root route to the unified Food Journal.
 ///
 /// Screenshots of the new surfaces are attached and mirrored into the log (SNAPSHOT-CHUNK base64)
 /// so review sees exactly what shipped. Visual-inspection shots are captured BEFORE assertions,
@@ -292,34 +292,38 @@ final class InsightsPresentationUITests: XCTestCase {
         wait(action)
     }
 
-    // MARK: Unified Food Journal tile
+    // MARK: Journal-root timeline and open-state honesty
 
-    func testFoodJournalTileRoutesToUnifiedTimeline() {
+    func testJournalRootRoutesToUnifiedTimeline() {
         launch(["-qaMockHealth", "empty"])
-        openInsightsHub()
-        let link = any("insights.journalTimeline")
-        XCTAssertTrue(scrollTo(link), "the Food Journal tile must route to the unified timeline")
-        shot("ipp-08-food-journal-tile")
+        tab("Journal", from: app.tabBars.firstMatch, arrival: any("journal.timelineLink"))
+        wait(app.navigationBars["Journal"])
+        let link = any("journal.timelineLink")
+        XCTAssertTrue(link.exists && link.isHittable, "the Journal root must route to the unified timeline")
+        shot("ipp-08-journal-root-timeline-route")
         link.tap()
         wait(app.navigationBars["Food Journal"], 10)
         wait(any("journal.timeline.filter"), 10)
         shot("ipp-08-unified-timeline")
         app.navigationBars["Food Journal"].buttons.element(boundBy: 0).tap()
-        wait(app.navigationBars["Insights & Cooking History"])
+        wait(app.navigationBars["Journal"])
+        XCTAssertTrue(any("journal.timelineLink").isHittable, "Back must restore the Journal root route")
     }
 
-    /// Fixture-level honesty: -qaJournalOpenState forces the presented state, it is not a
-    /// runtime-injected store failure. Bound-runtime acceptance (tile + reader + banner over the
-    /// same actual journal) belongs to central's composition qualification, not this test.
-    func testJournalTileNeverPresentsForcedBadOpenAsHealthyEmpty() {
+    /// Fixture-level honesty: this forces the presented state, not a runtime store failure.
+    /// The Journal root now owns the banner; Insights no longer has a duplicate Journal card.
+    func testJournalRootNeverPresentsForcedBadOpenAsHealthyEmpty() {
         launch(["-qaJournalOpenState", "unavailable"])
-        openInsightsHub()
+        tab("Journal", from: app.tabBars.firstMatch, arrival: any("journal.timelineLink"))
+        wait(app.navigationBars["Journal"])
         let banner = any("journal.openStateBanner")
-        XCTAssertTrue(scrollTo(banner), "the tile must carry the honest open-state banner")
+        XCTAssertTrue(scrollTo(banner), "the Journal root must carry the honest open-state banner")
         XCTAssertTrue(banner.label.contains("Journal unavailable"), banner.label)
-        XCTAssertFalse(text("No reflections yet").exists,
+        XCTAssertFalse(text("No journal entries yet").exists,
                        "an unavailable journal must not be presented as an empty healthy one")
-        shot("ipp-09-forced-unavailable-tile")
+        XCTAssertFalse(text("No reflections yet").exists,
+                       "the removed preview must not supply a false healthy-empty claim")
+        shot("ipp-09-forced-unavailable-journal-root")
     }
 
     // MARK: Compact landscape rotation

@@ -1,15 +1,11 @@
 import Foundation
 
-/// Archive-side nested entry, implemented by slice A (ArchiveNestedGenerationBoundary).
-/// Nested mode runs UNDER the caller's held account-gate effect: it must NOT open or
-/// flock any lock file and holds no lifetime lease. It validates the durable generation
-/// chain on entry and commits exactly one generation after a successful covered unit.
-/// A throwing work commits nothing. Read-only capture never goes through this entry:
-/// reads must not advance the generation (wrap them in the account-gate effect only).
-/// Reentrant: an empty nested call inside an outer one re-validates and runs.
-protocol ArchiveNestedLeaseBoundary {
-    func withNestedLease<T>(_ work: () throws -> T) throws -> T
-}
+// ArchiveNestedLeaseBoundary is declared ONCE in A's ArchiveLeaseBoundary.swift
+// (authoritative). Contract recap: nested mode runs UNDER the caller's held
+// account-gate effect - no lock file, no lifetime lease; it validates the durable
+// generation chain on entry and commits exactly one generation after a successful
+// covered unit; a throwing work commits nothing; read-only capture never goes
+// through it; reentrant.
 
 /// Production composition of the shared writer boundary for the unified Journal graph
 /// (#245, slice B). Lock order (Shape A, agreed with central/A 2026-11-09): account
@@ -37,14 +33,18 @@ enum JournalWriterBoundaryComposition {
     }
 
     /// Validation-only form for call sites that re-prove the boundary without an effect
-    /// (e.g. per-component validation inside one larger composed effect). Nesting is
-    /// supported: the account gate reuses the held lock for the same lease.
+    /// (e.g. per-component validation inside one larger composed effect). This NEVER
+    /// enters the archive boundary: an empty covered unit would still commit one
+    /// archive generation, and a nested validation inside an active outer lease could
+    /// stamp a second generation and go stale. The account gate's validateWriter is
+    /// itself non-mutating (a flock cycle + durable epoch/control check) and reuses
+    /// the held lock for the same lease.
     static func makeValidator(
         gate: AccountWriterGate,
         writerLease: UUID,
         archive: ArchiveNestedLeaseBoundary
     ) -> () throws -> Void {
-        let perform = makePerform(gate: gate, writerLease: writerLease, archive: archive)
-        return { try perform({}) }
+        _ = archive   // archive chain re-validation happens inside real effects only
+        return { try gate.validateWriter(writerLease) }
     }
 }

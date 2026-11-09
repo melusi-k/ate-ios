@@ -183,15 +183,11 @@ enum UnifiedArchiveStartupRecovery {
 
     // MARK: - journal + media
 
-    /// Row-to-value mapping identical to JournalArchiveCapture/JournalArchiveRestore:
-    /// every raw field is copied verbatim, never normalized.
+    /// Row-to-value mapping lives in ArchiveJournalRowMapping (ArchiveComponentImage.swift),
+    /// identical to JournalArchiveCapture/JournalArchiveRestore: every raw field is copied
+    /// verbatim, never normalized.
     static func journalValue(_ row: JournalEntry, meal: NutritionDiaryEntry?) -> JournalArchiveEntry {
-        JournalArchiveEntry(id: row.id, createdAt: row.createdAt, prompt: row.prompt, text: row.text,
-            stateRaw: row.stateRaw, recipeIDs: row.recipeIDs,
-            journalingSuggestionTitle: row.journalingSuggestionTitle, momentDate: row.momentDate,
-            sourceRaw: row.sourceRaw, locationName: row.locationName, latitude: row.latitude,
-            longitude: row.longitude, mediaFileNames: row.mediaFileNames, editedAt: row.editedAt,
-            kindRaw: row.kindRaw, dayKey: row.dayKey, recipeSnapshotsRaw: row.recipeSnapshotsRaw, meal: meal)
+        ArchiveJournalRowMapping.value(row, meal: meal)
     }
 
     /// Uncommitted transaction: remove exactly what the transaction inserted, and only while

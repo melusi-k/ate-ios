@@ -36,6 +36,13 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: "27.1"
+      - name: Cache Xcode package artifacts and DerivedData
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
       - name: Cache Homebrew downloads
         uses: actions/cache@v6
         with:
@@ -138,6 +145,7 @@ jobs:
           PYREADINESS
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/JournalOpenStateUITests \
+            -only-testing:AteUITests/CanonicalUpgradeUITests \
             -skip-testing:AteUITests/JournalOpenStateUITests/testManualSaveFailureVisibleAtXXXL \
             -skip-testing:AteUITests/JournalOpenStateUITests/testJournalRootAddAtMaximumAccessibilitySizeAndSidebarRoundTrip \
             -skip-testing:AteUITests/JournalOpenStateUITests/testTimelineFixtureAtLargestTextSizeKeepsRowAndFilterReachable \
@@ -148,28 +156,45 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > journal-open-state-ui.log 2>&1 || \
             { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" journal-open-state-ui.log || true; tail -120 journal-open-state-ui.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" journal-open-state-ui.log | tail -40
-      - name: Bounded actual cooking Journal host acceptance
-        if: ${{ github.head_ref == 'prep/cooking-journal-host' && success() }}
+      - name: Qualify dormant reset composition on its exact candidate branch
+        if: github.head_ref == 'prep/account-reset-composition'
+        run: |
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/ClearAllLocalDataTests \
+            -only-testing:AteTests/ClearAllResetCoordinatorTests \
+            -only-testing:AteTests/AccountGenerationPolicyTests \
+            -only-testing:AteTests/AccountGenerationReceiptStoreTests \
+            -only-testing:AteTests/AccountWriterGateTests \
+            -only-testing:AteTests/ResetAwareStartupTests \
+            -only-testing:AteTests/GenerationFencedSyncTests \
+            -only-testing:AteTests/FileResetControlPersistenceTests \
+            -only-testing:AteTests/AccountResetCompositionTests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/reset-composition.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > reset-composition.log 2>&1 || \
+            { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Testing failed" reset-composition.log || true; tail -120 reset-composition.log; exit 1; }
+          python3 scripts/verify-reset-composition-results.py reset-composition.log
+      - name: Export reset composition attachments
+        if: always() && github.head_ref == 'prep/account-reset-composition'
+        run: |
+          mkdir -p reset-attachments
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/reset-composition.xcresult" --output-path reset-attachments || true
+      - name: Bounded Insights presentation acceptance
+        if: ${{ (github.head_ref == 'prep/insights-pattern-actions' || github.head_ref == 'prep/account-reset-composition') && success() }}
         run: |
           set -o pipefail
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteTests/CookCompletionTests \
-            -only-testing:AteTests/CookSessionIdentityTests \
-            -only-testing:AteTests/CookSessionIdentityLifecycleTests \
-            -only-testing:AteTests/CookedJournalReflectionTests \
-            -only-testing:AteTests/CookedJournalReflectionSessionTests \
-            -only-testing:AteUITests/CookReflectionUITests \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/cooking-journal-host.xcresult" \
+            -only-testing:AteUITests/InsightsPresentationUITests \
+            -only-testing:AteTests/InsightsPresentationTests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/insights-presentation.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
-            CODE_SIGNING_ALLOWED=NO > cooking-journal-host.log 2>&1 || \
-            { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" cooking-journal-host.log || true; tail -120 cooking-journal-host.log; exit 1; }
-          python3 scripts/verify-cooking-journal-results.py cooking-journal-host.log
-      - name: Export cooking Journal raw screenshots
-        if: ${{ always() && github.head_ref == 'prep/cooking-journal-host' }}
-        run: |
-          mkdir -p cooking-journal-screenshots/raw
-          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/cooking-journal-host.xcresult" --output-path cooking-journal-screenshots/raw
+            CODE_SIGNING_ALLOWED=NO > insights-presentation.log 2>&1 || \
+            { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" insights-presentation.log || true; tail -120 insights-presentation.log; exit 1; }
+          python3 scripts/verify-insights-presentation-results.py insights-presentation.log
+          mkdir -p insights-screenshots/raw
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/insights-presentation.xcresult" --output-path insights-screenshots/raw
       - name: Export rendered screenshots
         if: always()
         run: |
@@ -209,9 +234,12 @@ jobs:
           name: journal-open-state-ui-${{ github.run_number }}
           path: |
             journal-open-state-ui.log
-            cooking-journal-host.log
-            cooking-journal-screenshots
-            ${{ runner.temp }}/ate-test-results/cooking-journal-host.xcresult
+            reset-composition.log
+            reset-attachments
+            ${{ runner.temp }}/ate-test-results/reset-composition.xcresult
+            insights-presentation.log
+            insights-screenshots
+            ${{ runner.temp }}/ate-test-results/insights-presentation.xcresult
             launch-diagnostics
             ui-screenshots
             ${{ runner.temp }}/ate-test-results/journal-open-state-ui.xcresult

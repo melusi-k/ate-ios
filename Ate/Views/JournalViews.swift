@@ -82,9 +82,10 @@ struct JournalListView: View {
     }
 
     var body: some View {
-        let openState = openStateOverride ?? JournalStore.shared.openState
+        let openState = openStateOverride ?? store.journalStore.openState
         let content = JournalListContent.make(state: state, openState: openState, filteredCount: filtered.count)
         List {
+            PendingCookedReflectionSection()
             Section {
                 NavigationLink { JournalTimelineView() } label: { Label("Timeline", systemImage: "calendar.day.timeline.left") }
                     .accessibilityIdentifier("journal.timelineLink")
@@ -150,7 +151,7 @@ struct JournalListView: View {
     }
 
     private func reload() {
-        do { readState = .loaded(try JournalStore.shared.readEntries()) }
+        do { readState = .loaded(try store.journalStore.readReflections()) }
         catch let error as JournalReadError { readState = .failed(error) }
         catch { readState = .failed(.readFailed) }
     }
@@ -259,7 +260,7 @@ struct JournalEntryDetailView: View {
                 // A confirmation popover may omit its cancel row; an alert keeps both choices.
                 .alert("Delete this journal entry?", isPresented: $confirmDelete) {
                     Button("Delete", role: .destructive) {
-                        JournalStore.shared.delete(e); store.show("Journal entry deleted")
+                        store.journalStore.delete(e); store.show("Journal entry deleted")
                         BetaQA.shared.pass("C-JRN-04", note: "Deleted an entry after confirming")
                         entry = nil; dismiss()
                     }
@@ -273,7 +274,7 @@ struct JournalEntryDetailView: View {
                                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { editing = false } }
                                 ToolbarItem(placement: .confirmationAction) {
                                     Button("Save") {
-                                        JournalStore.shared.update(e, text: draft); editing = false; reloadEntry()
+                                        store.journalStore.update(e, text: draft); editing = false; reloadEntry()
                                         BetaQA.shared.pass("C-JRN-03", note: "Edited an entry")
                                     }.disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                                 }
@@ -305,7 +306,7 @@ struct JournalEntryDetailView: View {
 
     private func reloadEntry() {
         do {
-            entry = try JournalStore.shared.readEntry(entryID)
+            entry = try store.journalStore.readEntry(entryID)
             entryReadFailed = false
         } catch {
             entry = nil
@@ -357,6 +358,7 @@ struct JournalOpenStateBanner: View {
 
 /// Explicit local writing. No Health authorization, generated context or background draft upload.
 struct ManualJournalComposer: View {
+    @Environment(AppStore.self) private var store
     @Binding var draft: String
     var onSaved: () -> Void
     @Environment(\.dismiss) private var dismiss
@@ -385,7 +387,7 @@ struct ManualJournalComposer: View {
                 Section {
                     Text("Saved only on this iPhone. No Health data is needed. Ate cannot write to Apple's Journal app.")
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                    JournalOpenStateBanner(state: JournalStore.shared.openState)
+                    JournalOpenStateBanner(state: store.journalStore.openState)
                 }
             }
             .navigationTitle("New journal entry")
@@ -399,7 +401,7 @@ struct ManualJournalComposer: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         do {
-                            try JournalStore.shared.saveManual(text: draft)
+                            try store.journalStore.saveManual(text: draft)
                             draft = ""
                             onSaved()
                             dismiss()
@@ -458,7 +460,7 @@ final class JournalReflectionDraft {
     var saveError: String?
 
     @discardableResult
-    func save(context: HealthContext?, journal: JournalStore = .shared) -> Bool {
+    func save(context: HealthContext?, journal: JournalStore) -> Bool {
         let selected = prompt ?? context?.prompts.first
         guard journal.save(prompt: selected?.text ?? "", text: text,
                            state: context?.insight.state, recipeIDs: context?.suggestions.map(\.recipeID) ?? [],
@@ -537,7 +539,7 @@ struct JournalReflectionCard: View {
 
     private func save() {
         let reflection = store.journalReflection
-        if reflection.save(context: model.context) {
+        if reflection.save(context: model.context, journal: store.journalStore) {
             editorFocused = false
             store.journalRevision += 1
             store.show("Saved to your Ate journal")

@@ -65,7 +65,7 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        let filtered = store.filter.apply(store.recipes, query: searchPlacement == .none ? "" : query)
+        let filtered = store.filter.apply(store.recipes, query: searchPlacement == .none ? "" : query, history: store.journalCookingHistory)
         ZStack {
             Theme.background.ignoresSafeArea()
             if useGrid { grid(filtered) } else { list(filtered) }
@@ -501,7 +501,7 @@ struct LibraryView: View {
         Button { store.addToShopping(r, factor: 1); store.show("Added to your shopping list") } label: {
             Label("Add to shopping list", systemImage: "basket")
         }
-        let visible = store.filter.apply(store.recipes, query: searchPlacement == .none ? "" : query)
+        let visible = store.filter.apply(store.recipes, query: searchPlacement == .none ? "" : query, history: store.journalCookingHistory)
         if canReorder(visible) {
             let ordered = store.layout.sorted(visible)
             if let i = ordered.firstIndex(where: { $0.id == r.id }) {

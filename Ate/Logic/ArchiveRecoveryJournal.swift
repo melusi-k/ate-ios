@@ -17,8 +17,28 @@ final class POSIXArchiveWriterLease {
     private var active = true
     private(set) var generation: UInt64 = 0
 
-    init(directory: URL) throws {
+    /// Standalone mode: lifetime exclusive flock on `.ate-writer.lock` in the directory.
+    convenience init(directory: URL) throws {
+        try self.init(directory: directory, lockName: ".ate-writer.lock", flockLockFile: true)
+    }
+
+    /// NESTED mode (approved cross-slice lock order: account gate OUTER, archive INNER).
+    /// The caller already holds the shared account-gate flock on writer-gate-v1.lock, so this
+    /// opens and flocks NO lock file; it only reads/validates/advances the append-only
+    /// generation record. Intended to be acquired and released per effect, never held for an
+    /// app lifetime or across an await.
+    convenience init(nestedDirectory: URL) throws {
+        try self.init(directory: nestedDirectory, lockName: "", flockLockFile: false)
+    }
+
+    /// lockName must be one safe file component inside the directory. The lock file is NEVER
+    /// unlinked: unlinking would allow a second inode and a parallel lock. When flockLockFile
+    /// is false (nested mode) the lock file is not even opened.
+    init(directory: URL, lockName: String, flockLockFile: Bool = true) throws {
         guard directory.isFileURL, directory.path.hasPrefix("/") else { throw Failure.invalidDirectory }
+        if flockLockFile {
+            guard JournalArchiveValidation.safeMediaName(lockName) else { throw Failure.invalidDirectory }
+        }
         var dir = Darwin.open("/", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
         guard dir >= 0 else { throw Failure.syscall("root", errno) }
         do {
@@ -28,20 +48,26 @@ final class POSIXArchiveWriterLease {
                 guard next >= 0 else { throw Failure.syscall("directory", errno) }
                 Darwin.close(dir); dir = next
             }
-            let fd = Darwin.openat(dir, ".ate-writer.lock", O_RDWR | O_CREAT | O_NOFOLLOW | O_CLOEXEC, mode_t(0o600))
-            guard fd >= 0 else { throw Failure.syscall("lock file", errno) }
-            var info = stat()
-            guard Darwin.fstat(fd, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_nlink == 1 else {
-                Darwin.close(fd); throw Failure.unsafeFile
+            if flockLockFile {
+                let fd = Darwin.openat(dir, lockName, O_RDWR | O_CREAT | O_NOFOLLOW | O_CLOEXEC, mode_t(0o600))
+                guard fd >= 0 else { throw Failure.syscall("lock file", errno) }
+                var info = stat()
+                guard Darwin.fstat(fd, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_nlink == 1 else {
+                    Darwin.close(fd); throw Failure.unsafeFile
+                }
+                guard archive_flock(fd, LOCK_EX | LOCK_NB) == 0 else {
+                    let code = errno; Darwin.close(fd)
+                    if code == EWOULDBLOCK || code == EAGAIN { throw Failure.busy }
+                    throw Failure.syscall("lock", code)
+                }
+                directoryDescriptor = dir; lockDescriptor = fd
+                do { generation = try readGeneration() }
+                catch { archive_flock(fd, LOCK_UN); Darwin.close(fd); throw error }
+            } else {
+                // No lock file opened; the outer catch closes dir on any throw.
+                directoryDescriptor = dir; lockDescriptor = -1
+                generation = try readGeneration()
             }
-            guard archive_flock(fd, LOCK_EX | LOCK_NB) == 0 else {
-                let code = errno; Darwin.close(fd)
-                if code == EWOULDBLOCK || code == EAGAIN { throw Failure.busy }
-                throw Failure.syscall("lock", code)
-            }
-            directoryDescriptor = dir; lockDescriptor = fd
-            do { generation = try readGeneration() }
-            catch { archive_flock(fd, LOCK_UN); Darwin.close(fd); throw error }
         } catch { Darwin.close(dir); throw error }
     }
 
@@ -102,8 +128,11 @@ final class POSIXArchiveWriterLease {
     func release() {
         guard active else { return }
         active = false
-        _ = archive_flock(lockDescriptor, LOCK_UN)
-        Darwin.close(lockDescriptor); Darwin.close(directoryDescriptor)
+        if lockDescriptor >= 0 {
+            _ = archive_flock(lockDescriptor, LOCK_UN)
+            Darwin.close(lockDescriptor)
+        }
+        Darwin.close(directoryDescriptor)
     }
     deinit { release() }
     // NEVER unlink the lock file: that would allow a second inode/parallel lock.

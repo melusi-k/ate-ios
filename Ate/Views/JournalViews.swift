@@ -255,7 +255,9 @@ struct JournalEntryDetailView: View {
                         .accessibilityIdentifier("journal.detail.menu")
                     }
                 }
-                .confirmationDialog("Delete this journal entry?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                // Destructive deletion always needs an explicit, accessible Cancel action.
+                // A confirmation popover may omit its cancel row; an alert keeps both choices.
+                .alert("Delete this journal entry?", isPresented: $confirmDelete) {
                     Button("Delete", role: .destructive) {
                         JournalStore.shared.delete(e); store.show("Journal entry deleted")
                         BetaQA.shared.pass("C-JRN-04", note: "Deleted an entry after confirming")

@@ -28,7 +28,7 @@ enum WidgetBridge {
     }
 
     static func publishNow(_ store: AppStore, force: Bool = false) {
-        let snap = WidgetSnapshotBuilder.build(recipes: store.recipes, shopping: store.shopping, health: lastHealthState)
+        let snap = WidgetSnapshotBuilder.build(recipes: store.recipes, shopping: store.shopping, health: lastHealthState, history: store.journalCookingHistory)
         guard publisher.publish(snap, force: force, reload: WidgetKinds.reload) else { return }
         if AppConfig.isUITesting { QAProbe.shared.widgetPublishes += 1 }
         index(store.recipes)

@@ -65,18 +65,28 @@ struct CookTimerLiveActivity: Widget {
                     Label("Step \(context.state.stepIndex + 1)", systemImage: "timer").foregroundStyle(terracotta).font(.caption)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Countdown(state: context.state).font(.title2.bold()).frame(maxWidth: 90, alignment: .trailing)
-                }
-                DynamicIslandExpandedRegion(.center) {
-                    Text(context.attributes.recipeTitle).font(.headline).lineLimit(1)
+                    Countdown(state: context.state)
+                        .font(.title2.bold())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .frame(minWidth: 76, alignment: .trailing)
+                        .layoutPriority(1)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text(context.state.stepText).font(.caption).lineLimit(2).opacity(0.8)
+                    // Full-width text no longer competes with the countdown's region.
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(context.attributes.recipeTitle).font(.headline).lineLimit(2)
+                        Text(context.state.stepText).font(.caption).lineLimit(2).opacity(0.8)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } compactLeading: {
                 Image(systemName: "timer").foregroundStyle(terracotta)
             } compactTrailing: {
-                Countdown(state: context.state).frame(maxWidth: 52).font(.caption.bold())
+                Countdown(state: context.state).font(.caption.bold())
+                    .lineLimit(1).minimumScaleFactor(0.75)
+                    .frame(width: 52, alignment: .trailing)
             } minimal: {
                 Image(systemName: context.state.endDate == nil ? "pause.fill" : "timer").foregroundStyle(terracotta)
             }

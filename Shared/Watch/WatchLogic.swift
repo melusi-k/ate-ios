@@ -224,13 +224,24 @@ enum WatchAuthRequests {
     static func needsRefresh(expiresAt: Double, now: Date = Date()) -> Bool { expiresAt - now.timeIntervalSince1970 < 120 }
 }
 
-/// Shared between the watch app and its Smart Stack widget via the App Group (falls back to standard defaults).
+/// Shared between the watch app and its Smart Stack widget via the App Group.
+/// Container selection is explicit: `.shared` when the App Group is available, otherwise
+/// a declared `.appOnly` mode (sideloads). The fallback never pretends the widget and
+/// the app share a container: `mode` says which one a save/load actually used.
+/// (AppGroupResolver is not in the watch targets, so the group id stays a literal here.)
 enum WatchTimerStore {
     static let groupID = "group.com.melusik.ate"
     static let key = "ate.watch.timer.v1"
+    enum ContainerMode: String { case shared, appOnly }
+    static var mode: ContainerMode { UserDefaults(suiteName: groupID) != nil ? .shared : .appOnly }
     static var defaults: UserDefaults { UserDefaults(suiteName: groupID) ?? .standard }
+    /// Injected by production watch wiring before ordinary use; `.legacy` preserves
+    /// today's behavior exactly (#245, lane 3).
+    static var writerBoundary: WatchWriterBoundary = .legacy
     static func save(_ t: WatchStepTimer?) {
-        defaults.set(t.flatMap { try? JSONEncoder().encode($0) }, forKey: key)
+        try? writerBoundary.withEffect {
+            defaults.set(t.flatMap { try? JSONEncoder().encode($0) }, forKey: key)
+        }
     }
     static func load() -> WatchStepTimer? {
         defaults.data(forKey: key).flatMap { try? JSONDecoder().decode(WatchStepTimer.self, from: $0) }

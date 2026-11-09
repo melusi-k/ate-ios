@@ -111,11 +111,23 @@ final class JournalInstallReconciliationTests: XCTestCase {
         XCTAssertNil(try receipts.read(), "A blocked adoption must never stamp a receipt")
     }
 
-    func testAbsentResetContractCountsAsGenerationZero() async throws {
+    func testAbsentResetContractBlocksWhenSignedIn() async throws {
+        // A missing reset contract does not establish the server epoch: it can never
+        // stand in for generation 0. Signed in + unverifiable snapshot blocks, no mutation.
+        await assertBlocked("account snapshot unverifiable") {
+            try await makeReconciliation(snapshotStub: .contractMissing,
+                                         currentSession: { self.session("user-1") }).reconcile()
+        }
+        XCTAssertNil(try receipts.read(), "A blocked adoption must never stamp a receipt")
+    }
+
+    func testAbsentResetContractIsIrrelevantWhenSignedOut() async throws {
+        // Signed-out adoption never consults the server, so a missing contract cannot
+        // block it; the stamped receipt is the local identity at generation 0.
         let decision = try await makeReconciliation(snapshotStub: .contractMissing,
-                                                    currentSession: { self.session("user-1") }).reconcile()
+                                                    currentSession: { nil }).reconcile()
         XCTAssertEqual(decision, .adoptedExistingInstall)
-        XCTAssertEqual(try receipts.read()?.generation, 0)
+        XCTAssertEqual(try receipts.read(), .init(ownerID: localIdentity, generation: 0))
     }
 
     func testUnverifiableSnapshotBlocksWithoutMutation() async throws {

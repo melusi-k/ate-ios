@@ -519,6 +519,19 @@ final class AppStore {
     /// via JournalWriterBoundaryComposition). While nil, unified account actions keep
     /// refusing - no ungated wipe or transfer of the unified Journal.
     @ObservationIgnored var journalWriterEffect: ((() throws -> Void) throws -> Void)?
+    /// Non-mutating re-proof of the same boundary: gate.validateWriter only, NEVER a
+    /// generation-committing empty effect through the archive's nested lease. Central
+    /// binds JournalWriterBoundaryComposition.makeValidator. Required together with
+    /// journalWriterEffect for any wipe.
+    @ObservationIgnored var journalWriterValidator: (() throws -> Void)?
+    /// Unified Settings export, backed by A's UnifiedArchiveCapture service
+    /// (snapshot() plus finish(stillCurrent:) before the bytes are published). The
+    /// archive format and capture discipline are A's; AppStore only routes. While nil,
+    /// the canonical refusal stands.
+    @ObservationIgnored var journalArchiveExport: (() async throws -> Data)?
+    /// Unified Settings import, backed by A's standalone ArchiveStandaloneImportSession.
+    /// While nil, the canonical refusal stands.
+    @ObservationIgnored var journalArchiveImport: ((Data) throws -> DataImportSummary)?
     /// Central supplies the adoption-preservation directory at composition
     /// (JournalInstallReconciliation); it joins the unified wipe's erase inventory.
     @ObservationIgnored var journalResetPreservationDirectory: URL?
@@ -735,7 +748,7 @@ final class AppStore {
     }
 
     func importJSON(_ data: Data) throws -> DataImportSummary {
-        // Unified graph: the bound action imports through the migration barrier.
+        // Unified graph: import routes whole-file to A's standalone import session.
         if foodJournalRuntime != nil { return try importJSONUnified(data) }
         let decoder = JSONDecoder()
         if let legacyCards = try? decoder.decode([RecipeCard].self, from: data) {
@@ -788,7 +801,8 @@ final class AppStore {
     }
 
     func exportJSON() throws -> Data {
-        // Unified graph: the bound action exports through the migration barrier.
+        // Unified graph: sync export refuses unconditionally; the canonical export is
+        // the async exportUserData() through A's capture service - never a local v1 fallback.
         if foodJournalRuntime != nil { return try exportJSONUnified() }
         // An unreadable local diary must not be exported as an ordinary empty diary:
         // fail visibly instead of producing an archive that claims nothing was logged.
@@ -1191,7 +1205,7 @@ final class AppStore {
     func signOut(removeLocalData: Bool = false) async {
         // Unified graph: refuse an unbound wipe exactly as before; bound wipes report
         // per-component partial failure honestly instead of claiming a clean wipe.
-        if foodJournalRuntime != nil && removeLocalData && journalWriterEffect == nil {
+        if foodJournalRuntime != nil && removeLocalData && (journalWriterEffect == nil || journalWriterValidator == nil) {
             show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return
         }
         if let s = session { await auth?.signOut(s) }
@@ -1220,7 +1234,7 @@ final class AppStore {
         // Unified graph: refuse only while the writer boundary is unbound. Once bound,
         // the account is deleted server-side first; a partial local wipe is reported
         // honestly and cannot resurrect the account.
-        if foodJournalRuntime != nil && journalWriterEffect == nil {
+        if foodJournalRuntime != nil && (journalWriterEffect == nil || journalWriterValidator == nil) {
             return AuthError(message: "The unified Journal reset is not ready. Your account has not been deleted.")
         }
         guard let auth, var s = session else { return AuthError(.unauthorized, "Sign in again to delete your account.") }

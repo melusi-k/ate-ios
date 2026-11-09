@@ -195,6 +195,28 @@ jobs:
           python3 scripts/verify-insights-presentation-results.py insights-presentation.log
           mkdir -p insights-screenshots/raw
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/insights-presentation.xcresult" --output-path insights-screenshots/raw
+      - name: Bounded actual cooking Journal host acceptance
+        if: ${{ (github.head_ref == 'prep/cooking-journal-host' || github.head_ref == 'prep/account-reset-composition') && success() }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/CookCompletionTests \
+            -only-testing:AteTests/CookSessionIdentityTests \
+            -only-testing:AteTests/CookSessionIdentityLifecycleTests \
+            -only-testing:AteTests/CookedJournalReflectionTests \
+            -only-testing:AteTests/CookedJournalReflectionSessionTests \
+            -only-testing:AteUITests/CookReflectionUITests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/cooking-journal-host.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > cooking-journal-host.log 2>&1 || \
+            { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" cooking-journal-host.log || true; tail -120 cooking-journal-host.log; exit 1; }
+          python3 scripts/verify-cooking-journal-results.py cooking-journal-host.log
+      - name: Export cooking Journal raw screenshots
+        if: ${{ always() && (github.head_ref == 'prep/cooking-journal-host' || github.head_ref == 'prep/account-reset-composition') }}
+        run: |
+          mkdir -p cooking-journal-screenshots/raw
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/cooking-journal-host.xcresult" --output-path cooking-journal-screenshots/raw
       - name: Export rendered screenshots
         if: always()
         run: |
@@ -240,6 +262,9 @@ jobs:
             insights-presentation.log
             insights-screenshots
             ${{ runner.temp }}/ate-test-results/insights-presentation.xcresult
+            cooking-journal-host.log
+            cooking-journal-screenshots
+            ${{ runner.temp }}/ate-test-results/cooking-journal-host.xcresult
             launch-diagnostics
             ui-screenshots
             ${{ runner.temp }}/ate-test-results/journal-open-state-ui.xcresult

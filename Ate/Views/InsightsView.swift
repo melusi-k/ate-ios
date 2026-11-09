@@ -241,6 +241,7 @@ struct InsightsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model = InsightsModel.shared
     @State private var entries: [JournalEntry] = []
+    @State private var reflectionReadError: String?
     @State private var recipeProgressCandidates: [RankedRecipeInsightCandidate] = []
     @State private var recipeProgressSuppressed = false
     @State private var recipeProgressLoading = false
@@ -328,7 +329,7 @@ struct InsightsView: View {
         .contentMargins(.bottom, 96, for: .scrollContent)
         .navigationTitle(screenTitle)
         .ateRootNavigationChrome(logoID: "insights.logo", enabled: isRoot)
-        .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
+        .onChange(of: store.journalRevision) { _, _ in reloadReflections() }
         .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id).environment(store) }
         .onChange(of: model.context?.insight.state) { _, st in
             if st != nil { BetaQA.shared.pass("A-HEALTH-03", note: "Insights showed \(st!.title) with \(model.context?.suggestions.count ?? 0) meal ideas") }
@@ -340,11 +341,11 @@ struct InsightsView: View {
         .task {
             // Local cooking-history insights must not wait for unrelated HealthKit queries.
             async let healthLoad: Void = model.loadIfNeeded(recipes: store.recipes)
-            entries = JournalStore.shared.entries()
+            reloadReflections()
             await refreshRecipeProgressInsight()
             await healthLoad
         }
-        .onAppear { entries = JournalStore.shared.entries() }
+        .onAppear { reloadReflections() }
         .alert("“ate” would like to access your Health data", isPresented: $model.mockPromptShown) {
             Button("Don't Allow", role: .cancel) {}
             Button("Allow") { Task { await model.connect(recipes: store.recipes) } }
@@ -669,6 +670,16 @@ struct InsightsView: View {
         .font(AteFont.body(14))
     }
 
+    private func reloadReflections() {
+        do {
+            entries = try store.journalStore.readReflections()
+            reflectionReadError = nil
+        } catch {
+            entries = []
+            reflectionReadError = "Journal entries could not be read. This is not an empty journal."
+        }
+    }
+
     @ViewBuilder private var journalCard: some View {
         card("Your Ate journal") {
             Button { store.beginManualJournal() } label: {
@@ -676,7 +687,11 @@ struct InsightsView: View {
             }.accessibilityIdentifier("insights.newJournalEntry")
             Text("Reflect on your day on the Journal tab, just below Insights & Cooking History.")
                 .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-            if entries.isEmpty {
+            if let reflectionReadError {
+                Text(reflectionReadError).font(AteFont.body(13))
+                    .accessibilityIdentifier("insights.reflections.readError")
+                Button("Try again") { reloadReflections() }
+            } else if entries.isEmpty {
                 Text("No entries yet.").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
             }
             ForEach(entries.prefix(5), id: \.id) { e in
@@ -693,7 +708,7 @@ struct InsightsView: View {
                 }.buttonStyle(.plain)
                 .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
                 .accessibilityIdentifier("insights.entry")
-                .contextMenu { Button("Delete", role: .destructive) { JournalStore.shared.delete(e); entries = JournalStore.shared.entries() } }
+                .contextMenu { Button("Delete", role: .destructive) { store.journalStore.delete(e); reloadReflections() } }
             }
             if entries.count > 5 {
                 NavigationLink(value: Route.journal) { Text("See all \(entries.count) entries").font(AteFont.body(14, .semibold)) }

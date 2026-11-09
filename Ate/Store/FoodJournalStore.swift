@@ -20,8 +20,6 @@ enum FoodJournalStoreError: Error, Equatable {
 /// calculations, totals and views keep operating on the same fields they use today.
 @MainActor
 final class FoodJournalStore {
-    static let shared = FoodJournalStore(container: JournalStore.shared.container)
-
     let container: ModelContainer?
     private let writeContext: (ModelContext) throws -> Void
 

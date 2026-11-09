@@ -145,6 +145,7 @@ jobs:
           PYREADINESS
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/JournalOpenStateUITests \
+            -only-testing:AteUITests/CanonicalUpgradeUITests \
             -skip-testing:AteUITests/JournalOpenStateUITests/testManualSaveFailureVisibleAtXXXL \
             -skip-testing:AteUITests/JournalOpenStateUITests/testJournalRootAddAtMaximumAccessibilitySizeAndSidebarRoundTrip \
             -skip-testing:AteUITests/JournalOpenStateUITests/testTimelineFixtureAtLargestTextSizeKeepsRowAndFilterReachable \

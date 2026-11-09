@@ -4,17 +4,21 @@ import Foundation
 /// reset and all ordinary writer routes have been reviewed together.
 @MainActor
 final class FoodJournalRuntime {
+    let journal: JournalStore
     let coordinator: FoodJournalCoordinator
     let repair: LegacyDiaryRepair
     let goalsRepository: NutritionGoalsRepository
 
     init(journal: JournalStore, goalsRepository: NutritionGoalsRepository, defaults: UserDefaults = .standard,
-         migrationBackupDirectory: URL? = nil, repairBackupDirectory: URL? = nil) {
+         migrationBackupDirectory: URL? = nil, repairBackupDirectory: URL? = nil,
+         afterRestoreCommit: @escaping () throws -> Void = {}) {
+        self.journal = journal
         self.goalsRepository = goalsRepository
         let legacy = NutritionDiaryRepository(defaults: defaults, backupDirectory: repairBackupDirectory)
         coordinator = FoodJournalCoordinator(journal: journal, legacy: legacy,
                                               markerDefaults: defaults,
-                                              backupDirectory: migrationBackupDirectory)
+                                              backupDirectory: migrationBackupDirectory,
+                                              afterRestoreCommit: afterRestoreCommit)
         repair = LegacyDiaryRepair(repository: legacy, backupDirectory: legacy.backupDirectory)
     }
 

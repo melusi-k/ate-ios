@@ -2,8 +2,10 @@ import XCTest
 @testable import Ate
 
 /// #245 slice B: bound account actions under the unified Journal graph - clear-library,
-/// sign-out-remove, delete-account, Settings import/export. The legacy paths are covered
-/// by DataArchiveTests and friends; these tests pin the runtime-injected behavior.
+/// sign-out-remove, delete-account, Settings import/export routing. The legacy paths are
+/// covered by DataArchiveTests and friends; these tests pin the runtime-injected behavior.
+/// Unified export/import bytes and merge logic belong to A's archive services; here they
+/// are injected callbacks, and the tests assert routing and fail-closed refusals only.
 @MainActor
 final class JournalAccountActionBindingTests: XCTestCase {
     private var suite: String!
@@ -96,100 +98,60 @@ final class JournalAccountActionBindingTests: XCTestCase {
 
     // MARK: Settings export
 
-    func testExportUnifiedContainsMealsAndGoalsFromTheRuntime() throws {
-        let runtime = makeRuntime()
-        let store = makeStore(runtime: runtime)
-        let meal = sampleMeal()
-        try runtime.coordinator.saveMeal(meal)
-        try runtime.goalsRepository.save(DailyNutritionGoals(energyKcal: 2_000, proteinGrams: 100,
-                                                             carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil))
-
-        let data = try store.exportJSON()
-        let archive = try JSONDecoder().decode(AteDataArchive.self, from: data)
-        XCTAssertEqual(archive.format, AteDataArchive.formatName)
-        XCTAssertEqual(archive.nutritionDiaryEntries, [meal])
-        XCTAssertEqual(archive.nutritionGoals.energyKcal, 2_000)
+    func testExportUserDataRoutesToInjectedCaptureWhenUnified() async throws {
+        let store = makeStore(runtime: makeRuntime())
+        let captureBytes = Data("unified-archive-bytes".utf8)
+        store.journalArchiveExport = { captureBytes }
+        XCTAssertEqual(try await store.exportUserData(), captureBytes,
+                       "The unified export is exactly what A's capture service produced")
     }
 
-    func testExportUnifiedRefusesANonDurableStore() {
-        let runtime = makeRuntime(journal: JournalStore(container: nil, openState: .unavailable(error: "simulated")))
-        let store = makeStore(runtime: runtime)
+    func testExportUserDataRefusesWithoutInjectedCapture() async {
+        let store = makeStore(runtime: makeRuntime())
+        do {
+            _ = try await store.exportUserData()
+            XCTFail("A unified export with no capture callback must refuse")
+        } catch {
+            XCTAssertTrue(error is CanonicalConsumerBindingError, "got \(error)")
+        }
+    }
+
+    func testExportUserDataUsesLegacyPathWithoutRuntime() async throws {
+        let store = makeStore(runtime: nil)
+        let data = try await store.exportUserData()
+        let archive = try JSONDecoder().decode(AteDataArchive.self, from: data)
+        XCTAssertEqual(archive.format, AteDataArchive.formatName,
+                       "The legacy graph keeps today's legacy export")
+    }
+
+    func testSyncExportJSONRefusesWhileUnifiedEvenWithCaptureBound() {
+        let store = makeStore(runtime: makeRuntime())
+        store.journalArchiveExport = { Data("unified".utf8) }
         XCTAssertThrowsError(try store.exportJSON()) { error in
-            guard case AteDataArchiveError.localDiaryUnreadableOnExport = error else {
-                return XCTFail("An unreadable unified store must never export as an empty diary; got \(error)")
-            }
+            XCTAssertTrue(error is CanonicalConsumerBindingError,
+                          "The sync export must refuse under the unified graph, never fall back to v1; got \(error)")
         }
     }
 
     // MARK: Settings import
 
-    private func archiveData(meals: [NutritionDiaryEntry], goals: DailyNutritionGoals = DailyNutritionGoals()) throws -> Data {
-        let archive = AteDataArchive(recipes: [], shoppingItems: [], nutritionDiaryEntries: meals,
-                                     nutritionGoals: goals, appSettings: AppSettings(),
-                                     timerPreferences: TimerPrefs())
-        return try JSONEncoder().encode(archive)
-    }
-
-    func testImportUnifiedMergesMealsThroughTheBarrierIdempotently() throws {
-        // Import assigns settings/timerPrefs, whose didSet writes .standard; preserve them.
-        let priorSettings = UserDefaults.standard.object(forKey: "ate.settings.v1")
-        let priorTimers = UserDefaults.standard.object(forKey: "ate.timerprefs.v1")
-        defer {
-            if let priorSettings { UserDefaults.standard.set(priorSettings, forKey: "ate.settings.v1") }
-            else { UserDefaults.standard.removeObject(forKey: "ate.settings.v1") }
-            if let priorTimers { UserDefaults.standard.set(priorTimers, forKey: "ate.timerprefs.v1") }
-            else { UserDefaults.standard.removeObject(forKey: "ate.timerprefs.v1") }
-        }
-        let runtime = makeRuntime()
-        let store = makeStore(runtime: runtime)
-        store.journalWriterEffect = { work in try work() }
-        let meal = sampleMeal()
-        let data = try archiveData(meals: [meal])
-
-        let first = try store.importJSON(data)
-        XCTAssertEqual(first.nutritionEntriesAdded, 1)
-        XCTAssertEqual(try runtime.readMeals(), [meal])
-
-        let second = try store.importJSON(data)
-        XCTAssertEqual(second.nutritionEntriesAdded, 0, "Imports are additive: a matching ID on this device wins")
-        XCTAssertEqual(try runtime.readMeals(), [meal], "Exactly one row per identity, never a duplicate")
-        XCTAssertNil(defaults.object(forKey: "ate.nutritionDiary.v1"),
-                     "Import must never recreate legacy diary bytes")
-    }
-
-    func testImportUnifiedRejectsInvalidMealsBeforeWriting() throws {
-        let runtime = makeRuntime()
-        let store = makeStore(runtime: runtime)
-        store.journalWriterEffect = { work in try work() }
-        let invalid = NutritionDiaryEntry(foodName: "  ", date: .now, meal: .dinner, quantity: 1,
-                                          quantityUnit: "bowl", servings: 1, source: .userProvided,
-                                          sourceName: "You",
-                                          nutrientsPerServing: NutritionSnapshot(energyKcal: 100, proteinGrams: nil,
-                                                                                 carbohydratesGrams: nil, fatGrams: nil,
-                                                                                 fibreGrams: nil))
-        XCTAssertThrowsError(try store.importJSON(archiveData(meals: [invalid]))) { error in
-            guard case AteDataArchiveError.invalidNutritionEntry = error else {
-                return XCTFail("expected invalidNutritionEntry, got \(error)")
-            }
-        }
-        XCTAssertEqual(try runtime.readMeals(), [])
-    }
-
-    func testImportUnifiedRefusesWhileBoundaryUnbound() throws {
+    func testImportUnifiedRoutesToInjectedSession() throws {
         let store = makeStore(runtime: makeRuntime())
-        XCTAssertThrowsError(try store.importJSON(archiveData(meals: [sampleMeal()]))) { error in
-            XCTAssertTrue(error is CanonicalConsumerBindingError)
+        let bytes = Data("archive-bytes".utf8)
+        var received: Data?
+        store.journalArchiveImport = { data in
+            received = data
+            return DataImportSummary(recipesAdded: 2)
         }
+        let summary = try store.importJSON(bytes)
+        XCTAssertEqual(received, bytes, "The whole file goes to A's standalone import session")
+        XCTAssertEqual(summary.recipesAdded, 2, "The session's summary is returned verbatim")
     }
 
-    func testImportUnifiedRefusesANonDurableStore() throws {
-        let runtime = makeRuntime(journal: JournalStore(container: nil, openState: .inMemoryFallback(error: "simulated")))
-        let store = makeStore(runtime: runtime)
-        store.journalWriterEffect = { work in try work() }
-        XCTAssertThrowsError(try store.importJSON(archiveData(meals: [sampleMeal()]))) { error in
-            guard case AteDataArchiveError.localDiaryUnreadable = error else {
-                return XCTFail("expected localDiaryUnreadable, got \(error)")
-            }
+    func testImportUnifiedRefusesWithoutInjectedSession() {
+        let store = makeStore(runtime: makeRuntime())
+        XCTAssertThrowsError(try store.importJSON(Data("archive-bytes".utf8))) { error in
+            XCTAssertTrue(error is CanonicalConsumerBindingError, "got \(error)")
         }
     }
 
@@ -198,7 +160,10 @@ final class JournalAccountActionBindingTests: XCTestCase {
     func testWipeUnifiedErasesJournalAndPreservesLifecycleMarkers() throws {
         let runtime = makeRuntime()
         let store = makeStore(runtime: runtime)
-        store.journalWriterEffect = { work in try work() }
+        var effectCalls = 0
+        var validatorCalls = 0
+        store.journalWriterEffect = { work in effectCalls += 1; return try work() }
+        store.journalWriterValidator = { validatorCalls += 1 }
         try runtime.coordinator.saveMeal(sampleMeal())
         defaults.set(Data("legacy diary".utf8), forKey: "ate.nutritionDiary.v1")
         defaults.set(true, forKey: "ate.foodJournal.diaryMigration.v1")
@@ -210,15 +175,31 @@ final class JournalAccountActionBindingTests: XCTestCase {
         XCTAssertNil(defaults.object(forKey: "ate.nutritionDiary.v1"))
         XCTAssertNotNil(defaults.object(forKey: "ate.foodJournal.diaryMigration.v1"),
                         "Migration markers are non-personal control state and must survive a wipe")
+        XCTAssertEqual(effectCalls, 1, "The wipe is ONE covered effect, not one per component")
+        XCTAssertGreaterThan(validatorCalls, 0,
+                             "Per-component re-proof uses the validator, never an empty effect")
     }
 
     func testWipeUnifiedReportsFailureInsteadOfClaimingSuccess() {
         let runtime = makeRuntime(journal: JournalStore(container: nil, openState: .ok))
         let store = makeStore(runtime: runtime)
         store.journalWriterEffect = { work in try work() }
+        store.journalWriterValidator = { }
         let report = store.wipeLocalDataUnified()
         XCTAssertFalse(report.complete, "A nil container in a durable state is a failure, never an empty store")
         XCTAssertTrue(report.failures.contains { $0.component == "journal-rows-payloads" })
+    }
+
+    func testWipeUnifiedFailsClosedWithoutValidator() throws {
+        let runtime = makeRuntime()
+        let store = makeStore(runtime: runtime)
+        store.journalWriterEffect = { work in try work() }   // effect bound, validator NOT bound
+        try runtime.coordinator.saveMeal(sampleMeal())
+        let report = store.wipeLocalDataUnified()
+        XCTAssertFalse(report.complete)
+        XCTAssertTrue(report.failures.contains { $0.component == "writer-boundary" },
+                      "A missing validator binding is a boundary failure, never a skipped re-proof")
+        XCTAssertEqual(try runtime.readMeals().count, 1, "Nothing is erased when the boundary is incomplete")
     }
 
     // MARK: sign-out / delete-account guards
@@ -230,6 +211,14 @@ final class JournalAccountActionBindingTests: XCTestCase {
         await store.signOut(removeLocalData: true)
         XCTAssertEqual(store.recipes.map(\.id), ["recipe-1"])
         XCTAssertEqual(store.toast?.message, "The unified Journal reset is not ready. Nothing was cleared.")
+    }
+
+    func testSignOutRemoveRefusesWithEffectButNoValidator() async {
+        let store = makeStore(runtime: makeRuntime())
+        store.journalWriterEffect = { work in try work() }
+        await store.signOut(removeLocalData: true)
+        XCTAssertEqual(store.toast?.message, "The unified Journal reset is not ready. Nothing was cleared.",
+                       "Effect and validator are bound together; half a boundary refuses")
     }
 
     func testDeleteAccountRefusesWhileBoundaryUnbound() async {

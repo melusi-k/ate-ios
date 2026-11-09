@@ -270,11 +270,9 @@ final class CoverageUITests: XCTestCase {
             while !fullyVisible() && swipes < 50 { timerSettings.swipeDown(); swipes += 1 }
             XCTAssertTrue(fullyVisible(), "Settings read-only row must clear the live Settings navigation, tab bar and bottom accessory")
         }
-        let buildNotesHeading = timerSettings.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS %@", "Changes in this build")
-        ).firstMatch
+        let buildNotesHeading = timerSettings.staticTexts["aboutBuildNotesHeading"]
         revealReadOnlySettingsRow(buildNotesHeading); wait(buildNotesHeading, 3)
-        let buildNotes = timerSettings.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
+        let buildNotes = timerSettings.staticTexts["aboutBuildNotes"].firstMatch
         wait(buildNotes, 3)
         XCTAssertFalse(buildNotes.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                        "About should show generated build notes or an explicit fallback")

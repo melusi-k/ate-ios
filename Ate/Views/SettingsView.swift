@@ -201,6 +201,7 @@ struct SettingsView: View {
                             .accessibilityIdentifier("aboutVersion")
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Changes in this build").font(AteFont.body(12, .semibold))
+                                .accessibilityIdentifier("aboutBuildNotesHeading")
                             Text(BuildNotes.current)
                                 .font(AteFont.body(12))
                                 .foregroundStyle(Theme.mutedForeground)
@@ -208,7 +209,9 @@ struct SettingsView: View {
                                 .accessibilityIdentifier("aboutBuildNotes")
                         }
                         .textSelection(.enabled)
-                        .accessibilityElement(children: .combine)
+                        // Keep the short heading independently addressable when notes span
+                        // more than one screen. The full selectable body remains unchanged.
+                        .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("aboutBuildNotesSection")
                         VStack(alignment: .leading, spacing: 2) {
                             Text("AI diagnostics").font(AteFont.body(12, .semibold))

@@ -20,7 +20,7 @@ final class ResetAwareStartupTests: XCTestCase {
             validateAdmission: { _ in events.append("validate") },
             buildGraph: { _ in events.append("build"); return 7 })
         await startup.start()
-        XCTAssertEqual(events, ["resume", "admit", "validate", "build", "validate"])
+        XCTAssertEqual(events, ["resume", "admit", "validate", "validate", "build", "validate"])
         guard case .ready(7) = startup.state else { return XCTFail("wrong graph") }
     }
     func testControlAppearingBetweenResumeAndAdmissionRefusesBuild() async {
@@ -44,12 +44,54 @@ final class ResetAwareStartupTests: XCTestCase {
         var validations = 0
         var built = false
         let startup = ResetAwareStartup<Int>(resume: { nil }, captureAdmission: { UUID() },
-            validateAdmission: { _ in validations += 1; if validations == 2 { throw Fault.noAdmission } },
+            validateAdmission: { _ in validations += 1; if validations == 3 { throw Fault.noAdmission } },
             buildGraph: { _ in built = true; return 1 })
         await startup.start()
         XCTAssertTrue(built, "post-check cannot undo earlier construction")
         guard case .failed(let message) = startup.state else { return XCTFail("must not publish ready") }
         XCTAssertFalse(message.contains("not been loaded"))
+    }
+
+    func testAsyncReconciliationPrecedesConstructorsAndIsRevalidatedAfterAwait() async {
+        var events: [String] = []
+        let lease = UUID()
+        let startup = ResetAwareStartup<Int>(resume: { events.append("resume"); return nil },
+            captureAdmission: { events.append("capture"); return lease },
+            validateAdmission: { value in XCTAssertEqual(value, lease); events.append("validate") },
+            authorizeAdmission: { value in
+                XCTAssertEqual(value, lease)
+                events.append("snapshot")
+                await Task.yield()
+                events.append("reconciled")
+            }, buildGraph: { _ in events.append("build"); return 7 })
+        await startup.start()
+        XCTAssertEqual(events, ["resume", "capture", "validate", "snapshot", "reconciled", "validate", "build", "validate"])
+        guard case .ready(7) = startup.state else { return XCTFail("expected admitted graph") }
+    }
+
+    func testStaleAdmissionAfterSnapshotNeverConstructsGraph() async {
+        var validations = 0
+        var built = false
+        let startup = ResetAwareStartup<Int>(resume: { nil }, captureAdmission: { UUID() },
+            validateAdmission: { _ in validations += 1; if validations == 2 { throw Fault.noAdmission } },
+            authorizeAdmission: { _ in await Task.yield() },
+            buildGraph: { _ in built = true; return 1 })
+        await startup.start()
+        XCTAssertFalse(built)
+        guard case .failed = startup.state else { return XCTFail("stale admission must fail") }
+    }
+
+    func testReconciliationBlockPreservesReasonWithoutConstructingGraph() async {
+        var built = false
+        let startup = ResetAwareStartup<Int>(resume: { nil }, captureAdmission: { UUID() },
+            validateAdmission: { _ in },
+            authorizeAdmission: { _ in throw JournalStartupAuthorizationError.blocked("Existing data needs review") },
+            buildGraph: { _ in built = true; return 1 })
+        await startup.start()
+        XCTAssertFalse(built)
+        guard case .blocked(.unavailable("Existing data needs review")) = startup.state else {
+            return XCTFail("must show reconciliation reason")
+        }
     }
 
 }

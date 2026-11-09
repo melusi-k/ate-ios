@@ -2,16 +2,36 @@ import SwiftUI
 
 struct CookModeView: View {
     let recipeID: String
+    let offerPolicy: CookReflectionOfferPolicy
+    let completionOutbox: CookCompletionOutbox
     var onExit: (() -> Void)? = nil
+    /// Called once per explicit Finish with the completed cook, whether or not a reflection is offered or written.
+    /// The event is also queued durably in `CookCompletionOutbox` first. This is the completion seam for the Journal.
+    var onCompleted: ((CookCompletionEvent) -> Void)? = nil
+    /// Opt-in to the optional reflection offer. Called with the cook when the user chose "Write a note", AFTER this
+    /// view has asked its host to exit (one owner sequence: leave Cook Mode, then the host routes). The host must
+    /// not navigate before its own dismissal completes. With no host closure, no offer is shown.
+    var onReflect: ((CookCompletionEvent) -> Void)? = nil
     @Environment(AppStore.self) private var store
+    @State private var finishState = CookFinishState()
+    @State private var reflectionOffer: CookCompletionEvent?
+    @State private var showReflectionNudge = false
+    @State private var writeRequest: CookCompletionEvent?
+    @State private var finishProblem: CookCompletionOutboxError?
     @State private var index = 0
     @State private var showIngredients = false
     @State private var voice = VoiceController()
     @State private var testUtterance = ""
 
-    init(recipeID: String, onExit: (() -> Void)? = nil) {
+    init(recipeID: String, completionOutbox: CookCompletionOutbox = CookCompletionOutbox(), offerPolicy: CookReflectionOfferPolicy = CookReflectionOfferPolicy(), onExit: (() -> Void)? = nil,
+         onCompleted: ((CookCompletionEvent) -> Void)? = nil,
+         onReflect: ((CookCompletionEvent) -> Void)? = nil) {
         self.recipeID = recipeID
+        self.completionOutbox = completionOutbox
+        self.offerPolicy = offerPolicy
         self.onExit = onExit
+        self.onCompleted = onCompleted
+        self.onReflect = onReflect
     }
 
     var body: some View {
@@ -25,23 +45,90 @@ struct CookModeView: View {
         }
         .foregroundStyle(Theme.warmForeground)
         .toolbar(.hidden, for: .navigationBar)
-        .toolbar(.visible, for: .bottomBar)
+        // A pushed cook is full-screen work too. The tab bar otherwise overlays
+        // Finish and can receive its tap (native navigation-host evidence).
+        .toolbar(.hidden, for: .tabBar)
         .onAppear {
+            guard finishState.allowsSessionWrites else { return }
             UIApplication.shared.isIdleTimerDisabled = true
             // Opening Cook Mode is intent, not evidence that a meal was cooked.
             // Record history only when the user explicitly finishes the final step.
-            // Resume at the step whose timer is running, if any.
-            if let session = store.cookSession, session.recipeID == recipeID {
-                index = session.stepIndex
-            }
-            if let t = store.timers.timers.first(where: { $0.recipeID == recipeID && $0.isRunning }) { index = t.stepIndex }
+            // Resume at the running timer's step, else the saved step, never past the recipe's current last step.
+            let saved = store.cookSession.flatMap { $0.recipeID == recipeID ? $0.stepIndex : nil }
+            let timerStep = store.timers.timers.first(where: { $0.recipeID == recipeID && $0.isRunning })?.stepIndex
+            index = CookSessionRecovery.resumeStep(savedStep: saved, runningTimerStep: timerStep,
+                                                   stepCount: store.recipe(recipeID)?.steps.count ?? 0)
             store.updateCookSession(recipeID: recipeID, stepIndex: index)
+        }
+        .alert("Could not save this cook", isPresented: Binding(get: { finishProblem != nil }, set: { if !$0 { finishProblem = nil } })) {
+            Button("Try again", role: .cancel) { finishProblem = nil }
+            if finishProblem == .unreadable {
+                Button("Set aside and continue") { finishProblem = nil; setAsideAndFinish() }
+            }
+        } message: {
+            Text(finishProblem == .unreadable
+                 ? "Ate could not read its list of finished cooks. The saved list was kept. You can try again, or set the old list aside and continue."
+                 : finishProblem == .historyUnreadable
+                 ? "Ate could not read your cooking history. The saved history was kept. This cook is queued, but completion is not confirmed. Please try again."
+                 : "Ate could not finish saving this cook. Some changes may already be saved. Please try again.")
+        }
+        .sheet(item: $reflectionOffer, onDismiss: {
+            // Single exit owner for every way out of the offer: leave Cook Mode once, then hand a chosen
+            // "Add a note" to the host. Done and swipe-down only leave.
+            let write = writeRequest
+            writeRequest = nil
+            exit()
+            if let write { onReflect?(write) }
+        }) { event in
+            CookReflectionOfferSheet(event: event, showReflectionNudge: showReflectionNudge,
+                                     onShown: { if showReflectionNudge { offerPolicy.markShown(on: Date()) } },
+                                     onWrite: { writeRequest = event; reflectionOffer = nil },
+                                     onNotNow: { reflectionOffer = nil })
         }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false; voice.stop() }
         .onChange(of: index) {
+            guard finishState.allowsSessionWrites else { return }
             store.updateCookSession(recipeID: recipeID, stepIndex: index)
             Haptics.step()
         }
+    }
+
+    /// Explicit Finish only. Order: verify the live session (identity read back), queue the event under
+    /// "cook-" + its session id and read the queue back, record history at the stored date, then clear only that
+    /// same session. Any failure is shown. A retry is possible only while the session is still in memory, and the stable
+    /// id makes a retry return the stored event. Which steps completed before a failure is not guaranteed. Separate stores are not one transaction, so this is
+    /// at-least-once, not exactly-once, and no fsync claim is made.
+    private func finish(_ recipe: RecipeCard) {
+        guard finishState.allowsSessionWrites else { return }
+        do {
+            let session = try store.prepareCookCompletion(recipeID: recipeID)
+            let now = Date()
+            let event = CookCompletionEvent(recipeID: recipeID, recipeTitle: recipe.title, completedAt: now,
+                                            dayKey: CookingHistory.shared.key(for: now),
+                                            id: "cook-" + session.sessionID)
+            let stored = try completionOutbox.enqueue(event)
+            try store.recordCompletedCook(stored)
+            try store.clearCompletedCookSession(sessionID: session.sessionID)
+            complete(stored)
+        } catch let e as CookCompletionOutboxError {
+            finishProblem = e
+        } catch {
+            finishProblem = .session
+        }
+    }
+
+    /// After the user chose to keep the unreadable list aside, queue the finish again.
+    private func setAsideAndFinish() {
+        do { try completionOutbox.setUnreadableAside() } catch { finishProblem = .verifyFailed; return }
+        if let recipe = store.recipe(recipeID) { finish(recipe) }
+    }
+
+    private func complete(_ event: CookCompletionEvent) {
+        guard finishState.begin() else { return }
+        DiagnosticHistory.shared.record(.cookingSessionCompleted)
+        onCompleted?(event)
+        showReflectionNudge = offerPolicy.shouldOffer(on: Date())
+        reflectionOffer = event
     }
 
     private func exit() {
@@ -157,9 +244,11 @@ struct CookModeView: View {
         .sheet(isPresented: $showIngredients) {
             CookIngredientsSheet(recipe: recipe).environment(store)
         }
-        .toolbar {
-            // Back / Next live in the system bottom toolbar (bottom-bar semantics, glass on iOS 26).
-            ToolbarItemGroup(placement: .bottomBar) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Keep controls in the layout's real safe area. In the pushed route the
+            // system toolbar exposed Finish under a zero-sized AX ancestor and
+            // returned hit point (-1,-1), even though the button was drawn onscreen.
+            HStack {
                 Button("Back") { index -= 1 }.disabled(index == 0).frame(minHeight: 44)
                 Spacer()
                 if index < n - 1 {
@@ -167,16 +256,13 @@ struct CookModeView: View {
                         .buttonStyle(.borderedProminent).controlSize(.large)
                         .accessibilityIdentifier("cookNextStep")
                 } else {
-                    Button("Finish cooking") {
-                        DiagnosticHistory.shared.record(.cookingSessionCompleted)
-                        store.markCooked(recipeID)
-                        store.clearCookSession(recipeID: recipeID)
-                        exit()
-                    }
+                    Button("Finish cooking") { finish(recipe) }
                     .buttonStyle(.borderedProminent).controlSize(.large)
                     .accessibilityIdentifier("cookFinish")
                 }
             }
+            .padding(.horizontal, 20).padding(.vertical, 12)
+            .background(Theme.warm)
         }
     }
 
@@ -213,7 +299,10 @@ struct CookSessionMiniPlayer: View {
     var body: some View {
         if let recipe = store.recipe(session.recipeID), !recipe.steps.isEmpty {
             Button {
-                store.updateCookSession(recipeID: session.recipeID, stepIndex: session.stepIndex)
+                let step = CookSessionRecovery.reconcile(session: session, stepCount: recipe.steps.count)
+                if case .keep(let clamped) = step {
+                    store.updateCookSession(recipeID: session.recipeID, stepIndex: clamped)
+                }
                 store.cookTarget = CookTarget(id: session.recipeID)
             } label: {
                 HStack(spacing: 10) {
@@ -242,6 +331,16 @@ struct CookSessionMiniPlayer: View {
                     store.clearCookSession(recipeID: session.recipeID)
                 }
             }
+        } else {
+            // The recipe is gone or has no steps: there is nothing to resume, so the dead session is cleared
+            // instead of lingering invisibly. Timers are separate and untouched.
+            Color.clear.frame(width: 0, height: 0).accessibilityHidden(true)
+                .onAppear {
+                    let count = store.recipe(session.recipeID)?.steps.count
+                    if CookSessionRecovery.reconcile(session: session, stepCount: count) == .discard {
+                        store.clearCookSession(recipeID: session.recipeID)
+                    }
+                }
         }
     }
 }

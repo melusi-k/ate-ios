@@ -10,20 +10,20 @@ final class FoodJournalRuntime {
     let goalsRepository: NutritionGoalsRepository
 
     init(journal: JournalStore, goalsRepository: NutritionGoalsRepository, defaults: UserDefaults = .standard,
-         migrationBackupDirectory: URL? = nil, repairBackupDirectory: URL? = nil) {
+         migrationBackupDirectory: URL? = nil, repairBackupDirectory: URL? = nil,
+         afterRestoreCommit: @escaping () throws -> Void = {}) {
         self.journal = journal
         self.goalsRepository = goalsRepository
         let legacy = NutritionDiaryRepository(defaults: defaults, backupDirectory: repairBackupDirectory)
         coordinator = FoodJournalCoordinator(journal: journal, legacy: legacy,
                                               markerDefaults: defaults,
-                                              backupDirectory: migrationBackupDirectory)
+                                              backupDirectory: migrationBackupDirectory,
+                                              afterRestoreCommit: afterRestoreCommit)
         repair = LegacyDiaryRepair(repository: legacy, backupDirectory: legacy.backupDirectory)
     }
 
     /// All consumers retain failure as unavailable, never fabricate an empty diary.
     var openState: JournalOpenState { coordinator.openState }
-
-    func readReflections() throws -> [JournalEntry] { try journal.readReflections() }
 
     func readMeals() throws -> [NutritionDiaryEntry] { try coordinator.readMeals() }
 

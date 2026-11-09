@@ -25,6 +25,8 @@ final class FoodJournalRuntime {
     /// All consumers retain failure as unavailable, never fabricate an empty diary.
     var openState: JournalOpenState { coordinator.openState }
 
+    func readReflections() throws -> [JournalEntry] { try journal.readReflections() }
+
     func readMeals() throws -> [NutritionDiaryEntry] { try coordinator.readMeals() }
 
     /// Timeline and meal consumers enter through the same migration barrier. A failed move

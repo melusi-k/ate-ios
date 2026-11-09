@@ -12,7 +12,10 @@ final class VoiceController {
     private(set) var lastHeard: String = ""
     var onCommand: ((VoiceCommand) -> Void)?
 
-    private let engine = AVAudioEngine()
+    private var engine: AVAudioEngine?
+    private var ownsAudioSession = false
+
+    var hasInitializedAudioEngine: Bool { engine != nil }
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
@@ -47,6 +50,9 @@ final class VoiceController {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker, .mixWithOthers])
             try session.setActive(true, options: .notifyOthersOnDeactivation)
+            ownsAudioSession = true
+            let engine = self.engine ?? AVAudioEngine()
+            self.engine = engine
             let req = SFSpeechAudioBufferRecognitionRequest()
             req.shouldReportPartialResults = true
             req.requiresOnDeviceRecognition = true
@@ -93,14 +99,19 @@ final class VoiceController {
 
     func stop() {
         restartTimer?.invalidate(); restartTimer = nil
-        teardown()
         state = .off
+        // Leaving Cook Mode must not touch the microphone or deactivate another audio
+        // session when this controller never started voice recognition.
+        guard ownsAudioSession else { return }
+        teardown()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        ownsAudioSession = false
     }
 
     private func teardown() {
         task?.cancel(); task = nil
         request?.endAudio(); request = nil
+        guard let engine else { return }
         if engine.isRunning { engine.stop() }
         engine.inputNode.removeTap(onBus: 0)
     }

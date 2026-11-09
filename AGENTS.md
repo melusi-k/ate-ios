@@ -28,6 +28,14 @@ Recent commits use short imperative subjects, usually with prefixes such as `fea
 
 Follow [docs/STACKED_PULL_REQUESTS.md](docs/STACKED_PULL_REQUESTS.md) for stack selection, metadata, branch/base conventions, validation, merge order, and issue-closure rules. Every PR must declare Stack ID, Parent PR, and Position in its `## Stack` section; use `None` for all three on standalone PRs. Keep stacked diffs incremental, target the immediate parent's branch, and merge from root to leaf only after exact-head checks and independent approvals pass. A merged PR does not by itself complete an issue.
 
+## AI agent skills
+
+- Project-wide instructions live in this file; specialist guidance lives in `.agents/skills/<skill-name>/SKILL.md`.
+- Read the applicable skill before making changes in its domain. Skills supplement, and never override, these repository instructions.
+- Skills are plain-text Agent Skills resources for compatible coding agents. They are not Xcode build products, Swift packages, app resources, or compiled `.bundle` files.
+- Keep skills concise and actionable. Update them when verified project conventions change; do not encode transient CI observations as permanent rules.
+- See [docs/AGENT_SKILLS.md](docs/AGENT_SKILLS.md) for the catalogue, authoring contract, and Xcode compatibility notes.
+
 ## Security & Configuration
 
 Never commit credentials, signing material, or Supabase secret keys. App configuration belongs in `project.yml` build settings and secrets belong in GitHub Actions secrets. Keep database access protected by the existing Supabase policies and migrations; include security implications when modifying auth, sharing, or stored user data.

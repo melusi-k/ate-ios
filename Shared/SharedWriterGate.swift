@@ -319,7 +319,7 @@ final class SharedFileWriterGate {
     /// nested lease.
     func makeBoundary() throws -> SharedWriterBoundary {
         let lease = try captureEpoch()
-        return SharedWriterBoundary { effect in try withWriterEffect(lease, effect) }
+        return SharedWriterBoundary { effect in try self.withWriterEffect(lease, effect) }
     }
 }
 

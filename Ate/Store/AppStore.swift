@@ -26,6 +26,7 @@ struct CookTarget: Identifiable, Equatable { let id: String }
 
 /// The last in-progress cooking session. Deliberately independent of timers: many recipe steps have no timer.
 struct CookSession: Codable, Equatable {
+    var sessionID: String
     var recipeID: String
     var stepIndex: Int
     /// Servings factor chosen for this cook (from the recipe detail picker); drives the ingredient checklist sheet.
@@ -36,7 +37,8 @@ struct CookSession: Codable, Equatable {
     /// positional, so an ingredient edit invalidates them; a mismatch resets checked to empty.
     var ingredientSignature: String
 
-    init(recipeID: String, stepIndex: Int, factor: Double = 1, checked: [Int] = [], ingredientSignature: String = "") {
+    init(recipeID: String, stepIndex: Int, factor: Double = 1, checked: [Int] = [], ingredientSignature: String = "", sessionID: String = UUID().uuidString) {
+        self.sessionID = sessionID
         self.recipeID = recipeID
         self.stepIndex = stepIndex
         self.factor = factor
@@ -48,6 +50,7 @@ struct CookSession: Codable, Equatable {
     /// instead of dropping the session on app upgrade.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        sessionID = try c.decodeIfPresent(String.self, forKey: .sessionID) ?? UUID().uuidString
         recipeID = try c.decode(String.self, forKey: .recipeID)
         stepIndex = try c.decode(Int.self, forKey: .stepIndex)
         factor = try c.decodeIfPresent(Double.self, forKey: .factor) ?? 1
@@ -198,6 +201,47 @@ final class AppStore {
     var manualJournalDraft = ""
     var journalReflection = JournalReflectionDraft()
     var journalRevision = 0
+    // Retain each optional cooked-reflection draft across sheet and portrait/sidebar replacement.
+    var cookedReflectionSessions: [String: CookedJournalReflectionSession] = [:]
+    var cookJournalViewVisible = false
+    var cookJournalModalDismissing = false
+    var cookedReflectionPendingID: String?
+    var cookedReflectionPresentedID: String?
+
+    func availableCookedReflections(queued: [CookCompletionEvent]) -> [CookCompletionEvent] {
+        var events = Dictionary(uniqueKeysWithValues: queued.map { ($0.id, $0) })
+        for (id, session) in cookedReflectionSessions where !session.isSaved { events[id] = session.event }
+        return events.values.sorted { $0.completedAt == $1.completedAt ? $0.id < $1.id : $0.completedAt > $1.completedAt }
+    }
+
+    // Bind only the cooking reflection to the Journal already used by the app. This does not
+    // activate the pending unified diary/archive/reset graph.
+    var cookJournalDefaults: UserDefaults { foodJournalRuntime?.defaults ?? .standard }
+    var cookJournalOutbox: CookCompletionOutbox { foodJournalRuntime?.cookOutbox ?? CookCompletionOutbox(defaults: cookJournalDefaults) }
+    var cookJournalOfferPolicy: CookReflectionOfferPolicy { foodJournalRuntime?.cookOfferPolicy ?? CookReflectionOfferPolicy(defaults: cookJournalDefaults) }
+    var cookJournalStore: JournalStore { journalStore }
+
+    func requestCookedReflection(_ event: CookCompletionEvent) {
+        do {
+            if cookedReflectionSessions[event.id] == nil {
+                guard try cookJournalOutbox.load().contains(event) else { throw CookedJournalReflectionError.invalidContext }
+                cookedReflectionSessions[event.id] = CookedJournalReflectionSession(event: event,
+                    reflections: CookedJournalReflectionStore(journal: cookJournalStore), outbox: cookJournalOutbox)
+            }
+            cookedReflectionPendingID = event.id
+        } catch { show("Ate could not open the note for this cook. The saved cook list was not changed.", error: true) }
+    }
+
+    /// Called by the presentation owner only after Cook Mode has left its modal/navigation host.
+    func presentPendingCookedReflection() {
+        guard cookTarget == nil, !cookJournalViewVisible, !cookJournalModalDismissing,
+              !path.contains(where: { if case .cook = $0 { return true }; return false }),
+              manualJournalHost == nil, authSheet == nil, !showOnboarding, cookedReflectionPresentedID == nil,
+              let id = cookedReflectionPendingID, cookedReflectionSessions[id] != nil else { return }
+        cookedReflectionPresentedID = id
+        cookedReflectionPendingID = nil
+    }
+
     func beginManualJournal() { if manualJournalHost == nil { manualJournalHost = .root } }
     /// Controls the persistent bottom action for the destination currently in view.
     var bottomAddContext: BottomAddContext = .recipe
@@ -213,19 +257,57 @@ final class AppStore {
         pendingSearch = term.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     /// Persisted independently from timers so exiting Cook Mode never loses an untimed step.
-    var cookSession: CookSession? = AppConfig.isUITesting ? nil : AppStore.loadCookSession() {
-        didSet { Self.saveCookSession(cookSession) }
+    var cookSession: CookSession? = nil {
+        didSet { Self.saveCookSession(cookSession, defaults: foodJournalRuntime?.defaults ?? .standard) }
     }
     private static let cookSessionDefaultsKey = "ate.cookSession.v1"
-    private static func loadCookSession() -> CookSession? {
-        guard let data = UserDefaults.standard.data(forKey: cookSessionDefaultsKey) else { return nil }
-        return try? JSONDecoder().decode(CookSession.self, from: data)
+    private static func loadCookSession(defaults: UserDefaults = .standard) -> CookSession? {
+        guard let data = defaults.data(forKey: cookSessionDefaultsKey) else { return nil }
+        guard let session = try? JSONDecoder().decode(CookSession.self, from: data) else { return nil }
+        // Persist an identity assigned to an older snapshot before it can be used by Finish.
+        // Exact readback is rechecked by prepareCookCompletion; this is not an fsync claim.
+        saveCookSession(session, defaults: defaults)
+        return session
     }
-    private static func saveCookSession(_ session: CookSession?) {
-        guard let session, let data = try? JSONEncoder().encode(session) else {
-            UserDefaults.standard.removeObject(forKey: cookSessionDefaultsKey); return
+    private static func saveCookSession(_ session: CookSession?, defaults: UserDefaults = .standard) {
+        guard let session else {
+            defaults.removeObject(forKey: cookSessionDefaultsKey); return
         }
-        UserDefaults.standard.set(data, forKey: cookSessionDefaultsKey)
+        // Encoding failure never deletes the prior resumable session.
+        guard let data = try? JSONEncoder().encode(session) else { return }
+        defaults.set(data, forKey: cookSessionDefaultsKey)
+    }
+
+    enum CookCompletionPreparationError: Error { case missingSession, invalidIdentity, persistenceFailed, sessionChanged }
+
+    /// One actual session snapshot, persisted and verified before any completion queue/history change.
+    /// Separate queue/store fsync and cross-process reset fencing remain integration gates.
+    func prepareCookCompletion(recipeID: String) throws -> CookSession {
+        let defaults = foodJournalRuntime?.defaults ?? .standard
+        guard let session = cookSession, session.recipeID == recipeID else {
+            throw CookCompletionPreparationError.missingSession
+        }
+        guard UUID(uuidString: session.sessionID) != nil else { throw CookCompletionPreparationError.invalidIdentity }
+        let raw: Data
+        do { raw = try JSONEncoder().encode(session) }
+        catch { throw CookCompletionPreparationError.persistenceFailed }
+        defaults.set(raw, forKey: Self.cookSessionDefaultsKey)
+        guard defaults.data(forKey: Self.cookSessionDefaultsKey) == raw,
+              let verified = try? JSONDecoder().decode(CookSession.self, from: raw), verified == session else {
+            throw CookCompletionPreparationError.persistenceFailed
+        }
+        return session
+    }
+
+    /// Delayed completion cannot clear a replacement cook, even for the same recipe.
+    func clearCompletedCookSession(sessionID: String) throws {
+        let defaults = foodJournalRuntime?.defaults ?? .standard
+        guard cookSession?.sessionID == sessionID else { throw CookCompletionPreparationError.sessionChanged }
+        defaults.removeObject(forKey: Self.cookSessionDefaultsKey)
+        guard defaults.object(forKey: Self.cookSessionDefaultsKey) == nil else {
+            throw CookCompletionPreparationError.persistenceFailed
+        }
+        cookSession = nil
     }
     func updateCookSession(recipeID: String, stepIndex: Int) {
         // Moving between steps keeps the session's servings factor and gathered checks.
@@ -374,10 +456,19 @@ final class AppStore {
         Haptics.toggle()
     }
 
-    func markCooked(_ id: String) {
+    /// The sheet's history claim is allowed only after the exact day/recipe payload reads back.
+    /// Retry uses the retained event date and identity, not the current clock.
+    func recordCompletedCook(_ event: CookCompletionEvent) throws {
+        guard recipe(event.recipeID) != nil else { throw CookCompletionOutboxError.session }
+        let history = foodJournalRuntime?.cookingHistory ?? CookingHistory.shared
+        try history.recordVerified(recipeID: event.recipeID, date: event.completedAt, dayKey: event.cookedDayKey)
+        markCooked(event.recipeID, at: event.completedAt)
+    }
+
+    func markCooked(_ id: String, at date: Date = .now) {
         guard var r = recipe(id) else { return }
-        r.lastCookedAt = (Date().timeIntervalSince1970 * 1000).rounded(); update(r)
-        CookingHistory.shared.record(recipeID: id)
+        r.lastCookedAt = (date.timeIntervalSince1970 * 1000).rounded(); update(r)
+        (foodJournalRuntime?.cookingHistory ?? CookingHistory.shared).record(recipeID: id, date: date)
     }
 
     /// Picks up the next item queued by the share extension (called when the app becomes active).
@@ -449,6 +540,9 @@ final class AppStore {
         self.backend = backend
         self.nutritionDiaryRepository = nutritionDiaryRepository
         self.nutritionGoalsRepository = nutritionGoalsRepository
+        if !AppConfig.isUITesting {
+            cookSession = Self.loadCookSession(defaults: foodJournalRuntime?.defaults ?? .standard)
+        }
         // UI tests opt into a clean local cooking timeline per test launch so one test's
         // completed recipe cannot make another test's empty-history assertions flaky.
         if ProcessInfo.processInfo.arguments.contains("-qaResetCookingHistory") {
@@ -604,8 +698,21 @@ final class AppStore {
         persistRecipes()
     }
 
+    /// New cooking context and retained drafts must not survive an explicit local-data wipe.
+    private func clearCookCompletionContext() {
+        for key in cookJournalDefaults.dictionaryRepresentation().keys
+            where key == CookCompletionOutbox.defaultsKey || key.hasPrefix(CookCompletionOutbox.unreadableKeyPrefix) || key == CookReflectionOfferPolicy.defaultsKey {
+            cookJournalDefaults.removeObject(forKey: key)
+        }
+        cookedReflectionSessions.removeAll()
+        cookedReflectionPendingID = nil
+        cookedReflectionPresentedID = nil
+        clearCookSession()
+    }
+
     func clearLibrary() {
         guard foodJournalRuntime == nil else { show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return }
+        clearCookCompletionContext()
         recipes = []; CookingHistory.shared.clear()
         path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
         persistRecipes()
@@ -1099,6 +1206,7 @@ final class AppStore {
 
     private func wipeLocalData() {
         InsightLifecycleStore.clearAll()
+        clearCookCompletionContext()
         recipes = []; shopping = []
         nutritionDiaryRepository.clear()
         try? nutritionGoalsRepository.save(DailyNutritionGoals())

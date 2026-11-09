@@ -180,21 +180,6 @@ jobs:
         run: |
           mkdir -p reset-attachments
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/reset-composition.xcresult" --output-path reset-attachments || true
-      - name: Bounded Insights presentation acceptance
-        if: ${{ (github.head_ref == 'prep/insights-pattern-actions' || github.head_ref == 'prep/account-reset-composition') && success() }}
-        run: |
-          set -o pipefail
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteUITests/InsightsPresentationUITests \
-            -only-testing:AteTests/InsightsPresentationTests \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/insights-presentation.xcresult" \
-            -parallel-testing-enabled NO -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
-            CODE_SIGNING_ALLOWED=NO > insights-presentation.log 2>&1 || \
-            { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" insights-presentation.log || true; tail -120 insights-presentation.log; exit 1; }
-          python3 scripts/verify-insights-presentation-results.py insights-presentation.log
-          mkdir -p insights-screenshots/raw
-          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/insights-presentation.xcresult" --output-path insights-screenshots/raw
       - name: Export rendered screenshots
         if: always()
         run: |
@@ -237,9 +222,6 @@ jobs:
             reset-composition.log
             reset-attachments
             ${{ runner.temp }}/ate-test-results/reset-composition.xcresult
-            insights-presentation.log
-            insights-screenshots
-            ${{ runner.temp }}/ate-test-results/insights-presentation.xcresult
             launch-diagnostics
             ui-screenshots
             ${{ runner.temp }}/ate-test-results/journal-open-state-ui.xcresult

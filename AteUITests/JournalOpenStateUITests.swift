@@ -272,6 +272,55 @@ extension JournalOpenStateUITests {
     /// Separate from ordinary XXXL save-error coverage: the root add accessory at the
     /// maximum accessibility category must fit its fixed system height and remain actionable.
 
+    func testJournalRootAddAtMaximumAccessibilitySizeAndSidebarRoundTrip() {
+        launch(extra: ["-qaMockHealth", "empty", "-UIPreferredContentSizeCategoryName",
+                       "UICTContentSizeCategoryAccessibilityXXXL"])
+        defer { XCUIDevice.shared.orientation = .portrait }
+        openJournal()
+        let accessory = any("bottomAccessory")
+        let add = app.buttons["accessoryAdd"]
+        shot("manual-09-maxax-root-expanded")
+        wait(accessory)
+        wait(add)
+        XCTAssertTrue(add.isHittable, "The maximum-accessibility root add action must be reachable")
+        XCTAssertEqual(add.label, "New journal entry", "VoiceOver must retain the full action name")
+        XCTAssertGreaterThanOrEqual(add.frame.height, 44)
+        XCTAssertTrue(accessory.frame.contains(add.frame), "The action must fit inside the system accessory")
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+        wait(any("sidebar"))
+        wait(app.navigationBars["Journal"])
+        let toolbarAdd = app.buttons["journal.newEntry"]
+        shot("manual-09-maxax-sidebar-root")
+        wait(toolbarAdd)
+        XCTAssertTrue(toolbarAdd.isHittable, "The sidebar root must retain a reachable journal action")
+        toolbarAdd.tap()
+        let editor = app.textViews["journal.compose.text"]
+        wait(editor)
+        editor.tap()
+        editor.typeText("Generic maximum accessibility draft")
+        XCUIDevice.shared.orientation = .portrait
+        wait(editor)
+        XCTAssertEqual(editor.value as? String, "Generic maximum accessibility draft")
+        shot("manual-09-maxax-returned-portrait-draft")
+        app.buttons["journal.compose.cancel"].tap()
+        let discard = app.alerts["Discard this draft?"]
+        wait(discard)
+        XCTAssertTrue(discard.buttons["Discard draft"].isHittable)
+        discard.buttons["Discard draft"].tap()
+        waitUntilGone(editor)
+        wait(app.navigationBars["Journal"])
+        wait(add)
+        XCTAssertTrue(add.isHittable)
+        XCTAssertEqual(add.label, "New journal entry")
+        shot("manual-09-maxax-root-returned")
+        add.tap()
+        wait(editor)
+        XCTAssertEqual(editor.value as? String, "",
+                       "Explicit discard must not leak the previous draft into a new entry")
+        shot("manual-09-maxax-accessory-opened-composer")
+    }
+
     /// Normal-size coverage, separate from the retained original cross-size case.
     func testJournalRootAddAtNormalTextAndSidebarRoundTrip() {
         launch(extra: ["-qaMockHealth", "empty", "-UIPreferredContentSizeCategoryName",
@@ -293,11 +342,18 @@ extension JournalOpenStateUITests {
         wait(app.navigationBars["Journal"])
         let toolbarAdd = app.buttons["journal.newEntry"]
         shot("manual-09-normal-sidebar-root")
+        print("JOURNAL-NORMAL-SIDEBAR-ROOT-AX-BEGIN")
+        print(app.debugDescription)
+        print("JOURNAL-NORMAL-SIDEBAR-ROOT-AX-END")
         wait(toolbarAdd)
         XCTAssertTrue(toolbarAdd.isHittable, "The sidebar root must retain a reachable journal action")
         toolbarAdd.tap()
         let editor = app.textViews["journal.compose.text"]
         wait(editor)
+        shot("manual-09-normal-composer-before-tap")
+        print("JOURNAL-NORMAL-COMPOSER-BEFORE-TAP-AX-BEGIN")
+        print(app.debugDescription)
+        print("JOURNAL-NORMAL-COMPOSER-BEFORE-TAP-AX-END")
         editor.tap()
         editor.typeText("Generic normal-size draft")
         XCUIDevice.shared.orientation = .portrait

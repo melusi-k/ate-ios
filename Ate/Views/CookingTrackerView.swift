@@ -1,4 +1,5 @@
 import SwiftUI
+import OSLog
 
 struct CookingTrackerView: View {
     @Environment(AppStore.self) private var store
@@ -13,6 +14,12 @@ struct CookingTrackerView: View {
     /// leaving for Cook mode or another route (RecipeSheet reports it) does not reopen it.
     @State private var returnDate: Date?
     @State private var leftRecipeForElsewhere = false
+    /// UI-test-only state trace. Booleans only: no date, recipe identity or content.
+    private func traceDaySheet(_ phase: String) {
+        guard AppConfig.isUITesting else { return }
+        Logger(subsystem: "com.melusik.ate", category: "day-sheet-presentation")
+            .notice("phase=\(phase, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public) selected=\(selectedDate != nil, privacy: .public) pendingRecipe=\(pendingRecipeID != nil, privacy: .public) openRecipe=\(openRecipe != nil, privacy: .public) returnDay=\(returnDate != nil, privacy: .public)")
+    }
     private func invalidateDayReturn() {
         returnDate = nil
         pendingRecipeID = nil
@@ -39,8 +46,12 @@ struct CookingTrackerView: View {
             }
         }
         .cardSurface(padding: 16)
-        .sheet(item: Binding(get: { selectedDate.map { TrackerDate(date: $0) } }, set: { selectedDate = $0?.date }),
+        .sheet(item: Binding(get: { selectedDate.map { TrackerDate(date: $0) } }, set: {
+            selectedDate = $0?.date
+            traceDaySheet("binding-set")
+        }),
                onDismiss: {
+                   traceDaySheet("on-dismiss")
                    guard let id = pendingRecipeID else { return }
                    pendingRecipeID = nil
                    openRecipe = RecipeSheetTarget(id: id)
@@ -50,10 +61,13 @@ struct CookingTrackerView: View {
                 returnDate = item.date
                 selectedDate = nil
             }
+            .onAppear { traceDaySheet("content-appear") }
+            .onDisappear { traceDaySheet("content-disappear") }
             .presentationDetents([.medium])
         }
         // Leaving the tracker context (tab, pushed route, or the host going away) cancels any
         // pending return to the day sheet, so a later dismissal never requeues an old day.
+        .onChange(of: selectedDate) { _, _ in traceDaySheet("selected-date-changed") }
         .onChange(of: store.tab) { _, _ in invalidateDayReturn() }
         .onChange(of: store.path) { _, _ in invalidateDayReturn() }
         .onChange(of: store.trackerPath) { _, _ in invalidateDayReturn() }

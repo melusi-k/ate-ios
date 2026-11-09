@@ -30,6 +30,9 @@ struct RankedRecipeInsightCandidate: Equatable {
     let evidenceMetadata: InsightEvidenceMetadata
     let action: InsightActionDestination
     let insight: RecipeProgressInsight
+    /// Saved recipes behind this insight, so a pattern links back to the recipes that generated it.
+    /// Presentation-only: never part of the evidence fingerprint, so linking cannot reset lifecycle state.
+    let relatedRecipes: [RecipeReference]
 }
 
 /// Produces a small ranked set rather than forcing the UI to choose between unrelated rules.
@@ -50,7 +53,7 @@ enum InsightCandidateEngine {
         let weekKey = calendar.dateInterval(of: .weekOfYear, for: now)
             .map { NutritionDiaryDayKey.make($0.start, calendar: calendar) } ?? "unknown-week"
         var result: [RankedRecipeInsightCandidate] = []
-        func append(_ id: String, priority: Int, evidence: String, metadata: InsightEvidenceMetadata, action: InsightActionDestination, insight: RecipeProgressInsight) {
+        func append(_ id: String, priority: Int, evidence: String, metadata: InsightEvidenceMetadata, action: InsightActionDestination, relatedRecipes: [RecipeReference] = [], insight: RecipeProgressInsight) {
             let fingerprint = RecipeProgressInsightFingerprint.makeEvidence(
                 candidateID: id,
                 evidence: evidence
@@ -61,7 +64,8 @@ enum InsightCandidateEngine {
                 evidenceFingerprint: fingerprint,
                 evidenceMetadata: metadata,
                 action: action,
-                insight: insight
+                insight: insight,
+                relatedRecipes: relatedRecipes
             ))
         }
 
@@ -90,6 +94,7 @@ enum InsightCandidateEngine {
                 evidence: "\(weekKey)|\(count)",
                 metadata: InsightEvidenceMetadata(source: "Cooking history", period: "This week", confidence: .high),
                 action: .cookingHistory,
+                relatedRecipes: input.weekRecipeRefs,
                 insight: RecipeProgressInsight(
                     title: "This week's cooking",
                     detail: "You've recorded \(count) cooked meal\(count == 1 ? "" : "s") this week. You can revisit a favourite or try something new from your saved recipes.",
@@ -107,6 +112,7 @@ enum InsightCandidateEngine {
                 evidence: "\(weekKey)|\(count)",
                 metadata: InsightEvidenceMetadata(source: "Saved recipes and cooking history", period: "This week", confidence: .moderate),
                 action: .recipes,
+                relatedRecipes: input.firstTimeRecipeRefs,
                 insight: RecipeProgressInsight(
                     title: "New recipes in your rotation",
                     detail: "\(count) saved recipe\(count == 1 ? "" : "s") appear in this week's cooking history for the first time.",
@@ -194,6 +200,8 @@ enum InsightCandidateEngine {
                     evidence: "\(input.cookedRecipeCount)|\(input.cookingDayCount)|\(input.mostCookedRecipe ?? "")",
                     metadata: InsightEvidenceMetadata(source: "Saved recipes and cooking history", period: "Recorded history", confidence: .moderate),
                     action: .cookingHistory,
+                    relatedRecipes: (input.mostCookedRecipeID != nil && input.mostCookedRecipe != nil)
+                        ? [RecipeReference(id: input.mostCookedRecipeID!, title: input.mostCookedRecipe!)] : [],
                     insight: RecipeProgressInsight(
                         title: "Your cooking rhythm",
                         detail: "You've cooked \(input.cookedRecipeCount) distinct saved recipe\(input.cookedRecipeCount == 1 ? "" : "s") across \(input.cookingDayCount) recorded day\(input.cookingDayCount == 1 ? "" : "s").\(focus)",

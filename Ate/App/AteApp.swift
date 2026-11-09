@@ -14,7 +14,10 @@ struct AteApp: App {
         LiveDTProbe.installIfRequested()
         #endif
         if AppConfig.isUITesting {
-            for k in ["ate.settings.v1", "ate.timerprefs.v1", "ate.cookSession.v1"] { UserDefaults.standard.removeObject(forKey: k) }
+            for k in ["ate.timerprefs.v1", "ate.cookSession.v1", CookCompletionOutbox.defaultsKey, CookReflectionOfferPolicy.defaultsKey] { UserDefaults.standard.removeObject(forKey: k) }
+            if !ProcessInfo.processInfo.arguments.contains("-qaPreserveSettings") {
+                UserDefaults.standard.removeObject(forKey: "ate.settings.v1")
+            }
         }
         // Corruption-safe open: a broken store is moved aside and a fresh one opened; never crashes (R-DATA-01).
         let corruptQA = AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaCorruptStore")
@@ -28,7 +31,13 @@ struct AteApp: App {
         }
         let c = outcome.container
         container = c
+        #if DEBUG
+        let upgradeRuntime = CanonicalUpgradeQARoute.prepareIfRequested()
+        let st = AppStore(context: c?.mainContext, foodJournalRuntime: upgradeRuntime ?? CookJournalQARoute.runtime())
+        CookJournalQARoute.prepare(st)
+        #else
         let st = AppStore(context: c?.mainContext)
+        #endif
         if outcome.recovered || outcome.inMemoryFallback || (c == nil && !AppConfig.isUITesting) {
             st.recovery = RecoveryInfo(backupPath: outcome.backupURL?.lastPathComponent, inMemory: outcome.inMemoryFallback || c == nil, error: outcome.error)
         }
@@ -55,7 +64,7 @@ struct AteApp: App {
     /// One typed expression keeps the shared modifiers attached across DEBUG compilation.
     private var rootContent: AnyView {
 #if DEBUG
-        CanonicalNutritionQARoute.rootView(store: store) ?? AnyView(RootView())
+        CanonicalUpgradeQARoute.rootView() ?? CanonicalNutritionQARoute.rootView(store: store) ?? AnyView(RootView().modifier(CookJournalQAInspector()))
 #else
         AnyView(RootView())
 #endif
@@ -65,6 +74,7 @@ struct AteApp: App {
         WindowGroup {
             rootContent
                 .environment(store)
+                .preferredColorScheme(store.settings.appearance.preferredColorScheme)
                 .onOpenURL { store.handle(url: $0) }
                 .task {
                     PhoneWatchBridge.shared.activate()
@@ -165,14 +175,15 @@ struct RootView: View {
             }
         }
         .modifier(JournalTaskHost())
+        .modifier(CookedJournalReflectionHost())
         .onChange(of: vSize) { _, v in
             // Collections are sidebar-only; back in portrait keep the filter but show the Library tab.
             if v != .compact, case .collection = store.tab { store.tab = .library }
         }
         .onPreferenceChange(BottomChromeMinYKey.self) { bottomChromeMinY = $0 }
         .environment(\.bottomChromeMinY, bottomChromeMinY)
-        .fullScreenCover(item: $store.cookTarget) { target in
-            NavigationStack { CookModeView(recipeID: target.id, onExit: { store.cookTarget = nil }) }.environment(store)
+        .fullScreenCover(item: $store.cookTarget, onDismiss: { store.cookJournalModalDismissing = false; store.presentPendingCookedReflection() }) { target in
+            NavigationStack { JournalBoundCookMode(recipeID: target.id, onExit: { store.cookJournalModalDismissing = true; store.cookTarget = nil }) }.environment(store)
         }
         .fullScreenCover(isPresented: $store.showOnboarding) { OnboardingView().environment(store) }
         .sheet(item: $store.authSheet) { m in AuthSheet(mode: m).environment(store) }
@@ -468,12 +479,13 @@ extension RootView {
 
 /// Destination for every NavigationStack.
 struct RouteView: View {
+    @Environment(AppStore.self) private var store
     let route: Route
     var body: some View {
         Group {
             switch route {
             case .recipe(let id): RecipeDetailView(recipeID: id)
-            case .cook(let id): CookModeView(recipeID: id)
+            case .cook(let id): JournalBoundCookMode(recipeID: id)
             case .shopping: ShoppingListView()
             case .settings: SettingsView()
             case .shared(let slug): SharedRecipeView(slug: slug)
@@ -483,8 +495,15 @@ struct RouteView: View {
             case .betaNote: AppConfig.isBetaBuild ? AnyView(BetaExpectationsView()) : AnyView(SettingsView())
             case .journal: JournalListView()
             case .journalEntry(let id): JournalEntryDetailView(entryID: id)
-            case .nutritionDiary: NutritionDiaryView()
-            case .nutritionGoals: NutritionGoalsView()
+            case .nutritionDiary:
+                if let runtime = store.foodJournalRuntime {
+                    CanonicalNutritionDiaryView(coordinator: runtime.coordinator,
+                                               goalsRepository: runtime.goalsRepository,
+                                               repair: runtime.repair, associationStore: nil)
+                } else {
+                    NutritionDiaryView()
+                }
+            case .nutritionGoals: NutritionGoalsView(repository: store.journalGoalsRepository)
             }
         }
         .toolbarTitleDisplayMode(.inline)
@@ -678,3 +697,10 @@ final class LiveDTProbe {
     }
 }
 #endif
+
+// App-only override. Widget and Live Activity hosts keep their existing colors and system rules.
+extension AppAppearance {
+    var preferredColorScheme: ColorScheme? {
+        switch self { case .system: return nil; case .light: return .light; case .dark: return .dark }
+    }
+}

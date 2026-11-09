@@ -58,7 +58,7 @@ final class InsightsModel {
 
 /// Minimal, privacy-conscious snapshot used for recipe/progress insights. It contains no Health data.
 enum InsightsTileOrder {
-    static let defaults = ["tracker", "recipeProgress", "bodyToday", "suggestedMeals", "dailyReflection", "journal"]
+    static let defaults = ["tracker", "recipeProgress", "bodyToday", "suggestedMeals", "dailyReflection"]
 
     static func resolve(_ stored: String) -> [String] {
         let known = Set(defaults)
@@ -98,8 +98,27 @@ struct RecipeProgressInsightInput: Equatable {
     var recordedMealsThisWeek: Int = 0
     var firstTimeRecipesThisWeek: Int = 0
     var currentStreak: Int = 0
+    /// Saved recipes recorded in cooking history this week, most cooked first (audit: tie patterns back to their recipes).
+    /// Presentation-only: never part of any evidence fingerprint, so linking cannot reset lifecycle state.
+    var weekRecipeRefs: [RecipeReference] = []
+    /// Saved recipes cooked for the first time this week.
+    var firstTimeRecipeRefs: [RecipeReference] = []
+    /// Identity behind `mostCookedRecipe`, so an insight can link to the actual recipe.
+    var mostCookedRecipeID: String? = nil
 
     var hasEnoughData: Bool { !duplicateTitleGroups.isEmpty || savedRecipeCount >= 3 || cookedRecipeCount >= 2 || cookingDayCount >= 2 }
+
+    /// Most cooked first, titles breaking ties, so the shown recipes are stable and relevant.
+    static func recipeReferences(for ids: some Sequence<String>, counts: [String: Int], titleByID: [String: String], limit: Int) -> [RecipeReference] {
+        ids.compactMap { id in titleByID[id].map { RecipeReference(id: id, title: $0) } }
+            .sorted { lhs, rhs in
+                let l = counts[lhs.id] ?? 0, r = counts[rhs.id] ?? 0
+                if l != r { return l > r }
+                if lhs.title != rhs.title { return lhs.title < rhs.title }
+                return lhs.id < rhs.id
+            }
+            .prefix(max(0, limit)).map { $0 }
+    }
 
     static func make(recipes: [RecipeCard], historyEvents: [String: Set<String>], calendar: Calendar = .autoupdatingCurrent, now: Date = Date(), history: CookingHistory = .shared) -> RecipeProgressInsightInput {
         let ids = Set(recipes.map(\.id))
@@ -137,7 +156,10 @@ struct RecipeProgressInsightInput: Equatable {
             duplicateTitleGroups: duplicateGroups,
             recordedMealsThisWeek: weekMeals,
             firstTimeRecipesThisWeek: firstTimeIDs.count,
-            currentStreak: history.streak(from: events, asOf: now)
+            currentStreak: history.streak(from: events, asOf: now),
+            weekRecipeRefs: recipeReferences(for: weekIDs, counts: counts, titleByID: titleByID, limit: 3),
+            firstTimeRecipeRefs: recipeReferences(for: firstTimeIDs, counts: counts, titleByID: titleByID, limit: 3),
+            mostCookedRecipeID: mostCookedID
         )
     }
 }
@@ -240,10 +262,6 @@ struct InsightsView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var model = InsightsModel.shared
-    @State private var draft = ""
-    @State private var journalSaveError: String?
-    @State private var prompt: JournalPrompt?
-    @State private var entries: [JournalEntry] = []
     @State private var recipeProgressCandidates: [RankedRecipeInsightCandidate] = []
     @State private var recipeProgressSuppressed = false
     @State private var recipeProgressLoading = false
@@ -253,8 +271,6 @@ struct InsightsView: View {
     @State private var isEditingInsightOrder = false
     @AppStorage("insights.tileOrder") private var savedInsightTileOrder = ""
     @State private var openRecipe: RecipeSheetTarget?
-    @State private var pendingMoment: (title: String, date: Date?)?
-    @AppStorage(JournalingSuggestionsGate.settingKey) private var journalingEnabled = false
 
     var body: some View {
         ZStack {
@@ -333,8 +349,7 @@ struct InsightsView: View {
         .contentMargins(.bottom, 96, for: .scrollContent)
         .navigationTitle(screenTitle)
         .ateRootNavigationChrome(logoID: "insights.logo", enabled: isRoot)
-        .onChange(of: store.journalRevision) { _, _ in entries = JournalStore.shared.entries() }
-        .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id).environment(store) }
+        .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id, recordsHealthSuggestionEvidence: t.recordsHealthSuggestionEvidence).environment(store) }
         .onChange(of: model.context?.insight.state) { _, st in
             if st != nil { BetaQA.shared.pass("A-HEALTH-03", note: "Insights showed \(st!.title) with \(model.context?.suggestions.count ?? 0) meal ideas") }
         }
@@ -345,15 +360,12 @@ struct InsightsView: View {
         .task {
             // Local cooking-history insights must not wait for unrelated HealthKit queries.
             async let healthLoad: Void = model.loadIfNeeded(recipes: store.recipes)
-            entries = JournalStore.shared.entries()
             await refreshRecipeProgressInsight()
             await healthLoad
-            prompt = prompt ?? model.context?.prompts.first
         }
-        .onAppear { entries = JournalStore.shared.entries() }
         .alert("“ate” would like to access your Health data", isPresented: $model.mockPromptShown) {
             Button("Don't Allow", role: .cancel) {}
-            Button("Allow") { Task { await model.connect(recipes: store.recipes); prompt = model.context?.prompts.first } }
+            Button("Allow") { Task { await model.connect(recipes: store.recipes) } }
         } message: { Text("Read: Sleep, Steps, Active Energy, Workouts") }
     }
 
@@ -361,7 +373,7 @@ struct InsightsView: View {
     private var orderedInsightTileIDs: [String] { InsightsTileOrder.resolve(savedInsightTileOrder) }
     private var visibleInsightTileIDs: [String] {
         orderedInsightTileIDs.filter {
-            ( !["suggestedMeals", "dailyReflection"].contains($0) || model.context != nil )
+            $0 != "dailyReflection" && ( $0 != "suggestedMeals" || model.context != nil )
                 && !( $0 == "recipeProgress" && recipeProgressSuppressed )
         }
     }
@@ -373,7 +385,7 @@ struct InsightsView: View {
         case "bodyToday": return "Your body today"
         case "suggestedMeals": return "Suggested meals"
         case "dailyReflection": return "Reflect on your day"
-        default: return "Your Ate journal"
+        default: return "Insights"
         }
     }
 
@@ -410,10 +422,6 @@ struct InsightsView: View {
             bodyToday
         case "suggestedMeals":
             suggestedMealsCard
-        case "dailyReflection":
-            dailyReflectionCard
-        case "journal":
-            journalCard
         default:
             EmptyView()
         }
@@ -422,6 +430,9 @@ struct InsightsView: View {
     @ViewBuilder private var suggestedMealsCard: some View {
         if let c = model.context {
             card("Suggested meals") {
+                if InsightsSampleMarking.requiresSampleBadge(tileID: "suggestedMeals", isSample: model.isSample) {
+                    sampleBadge(id: "insights.sampleBadge.suggestedMeals")
+                }
                 Text(c.insight.state.mealFocus).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
                 if c.suggestions.isEmpty {
                     Text("Save a few recipes and Ate will pick the ones that fit your day.")
@@ -444,43 +455,14 @@ struct InsightsView: View {
         }
     }
 
-    @ViewBuilder private var dailyReflectionCard: some View {
-        if let c = model.context {
-            card("Reflect on your day") {
-                ForEach(c.prompts) { p in
-                    Button { prompt = p } label: {
-                        HStack(alignment: .top) {
-                            Image(systemName: prompt == p ? "largecircle.fill.circle" : "circle").foregroundStyle(Theme.primary)
-                            Text(p.text).font(AteFont.body(15)).multilineTextAlignment(.leading)
-                        }
-                    }.buttonStyle(.plain).accessibilityIdentifier("insights.prompt")
-                }
-                TextField("Write a few lines…", text: $draft, axis: .vertical).lineLimit(3...8)
-                    .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
-                    .accessibilityIdentifier("insights.journalText")
-                Button("Save to journal") { save(c) }
-                    .buttonStyle(.ate(.primary, full: true))
-                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityIdentifier("insights.save")
-                if let journalSaveError {
-                    Text(journalSaveError).font(AteFont.body(13)).foregroundStyle(Theme.destructive)
-                        .accessibilityIdentifier("insights.journalSaveError")
-                }
-                Text("Saved only on this iPhone. Ate can't write to Apple's Journal app.")
-                    .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-            }
-        } else {
-            EmptyView()
-        }
-    }
-
     @ViewBuilder private var recipeProgressCard: some View {
         card("Recipe & cooking insights") {
             if recipeProgressLoading {
                 ProgressView("Looking at your recipe collection…")
                     .accessibilityIdentifier("insights.progress.loading")
             } else if !recipeProgressCandidates.isEmpty {
-                VStack(alignment: .leading, spacing: 16) {
+                ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: 12) {
                     ForEach(recipeProgressCandidates, id: \.id) { candidate in
                         VStack(alignment: .leading, spacing: 9) {
                             HStack(alignment: .top, spacing: 8) {
@@ -503,7 +485,22 @@ struct InsightsView: View {
                                 insightActionLabel(insightActionTitle(for: candidate), symbol: insightActionSymbol(for: candidate))
                             }
                             .accessibilityIdentifier("insights.progress.action.\(candidate.id)")
-                            HStack(spacing: 16) {
+                            if !candidate.relatedRecipes.isEmpty {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("From your cooking history")
+                                        .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
+                                    ForEach(candidate.relatedRecipes, id: \.id) { ref in
+                                        Button { openRecipe = RecipeSheetTarget(id: ref.id, recordsHealthSuggestionEvidence: false) } label: {
+                                            Label(ref.title, systemImage: "fork.knife")
+                                                .font(AteFont.body(13, .semibold))
+                                                .foregroundStyle(Theme.primary)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityIdentifier("insights.progress.recipe.\(candidate.id).\(ref.id)")
+                                    }
+                                }
+                            }
+                            VStack(alignment: .leading, spacing: 12) {
                                 Button("I've handled this") { resolveRecipeInsight(candidate) }
                                     .font(AteFont.body(12, .semibold))
                                     .accessibilityIdentifier("insights.progress.resolve.\(candidate.id)")
@@ -518,11 +515,14 @@ struct InsightsView: View {
                         }
                         .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("insights.progress.candidate.\(candidate.id)")
-                        if candidate.id != recipeProgressCandidates.last?.id {
-                            Divider()
-                        }
+                        .padding(12)
+                        .containerRelativeFrame(.horizontal, count: 5, span: 4, spacing: 12)
+                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
                     }
                 }
+                .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned)
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("insights.progress.results")
             } else {
@@ -566,10 +566,9 @@ struct InsightsView: View {
     }
 
     @MainActor private func markRecipeInsightSeen(_ candidate: RankedRecipeInsightCandidate) {
-        recipeProgressRefreshGeneration += 1
+        // Opening an action does not remove or suppress the suggestion. Seen remains
+        // presentable after returning, refreshing and relaunching with the same evidence.
         _ = recipeProgressLifecycle.markSeen(id: candidate.id, evidenceFingerprint: candidate.evidenceFingerprint)
-        recipeProgressCandidates.removeAll { $0.id == candidate.id }
-        recipeProgressSuppressed = recipeProgressCandidates.isEmpty
     }
 
     @MainActor private func resolveRecipeInsight(_ candidate: RankedRecipeInsightCandidate) {
@@ -646,12 +645,7 @@ struct InsightsView: View {
         let input = RecipeProgressInsightInput.make(recipes: store.recipes, historyEvents: CookingHistory.shared.events)
         // A corrupt diary is unavailable, not empty: pass nil so diary-derived insights
         // are skipped instead of computed against a fabricated empty diary.
-        let nutritionEntries: [NutritionDiaryEntry]?
-        switch NutritionDiaryRepository(defaults: .standard).loadState() {
-        case .loaded(let entries): nutritionEntries = entries
-        case .absent: nutritionEntries = []
-        case .corrupt: nutritionEntries = nil
-        }
+        let nutritionEntries = store.nutritionEntriesForInsights()
         let lifecycle = recipeProgressLifecycle
         var hadSuppressed = false
         let eligible = RecipeProgressInsightService.candidates(
@@ -671,28 +665,32 @@ struct InsightsView: View {
 
     @ViewBuilder private var bodyToday: some View {
         card("Your body today") {
-            if model.isSample {
-                Label("Sample data", systemImage: "testtube.2").font(AteFont.body(12, .semibold)).foregroundStyle(Theme.primary)
-                    .padding(.horizontal, 8).padding(.vertical, 4).background(Theme.primary.opacity(0.12), in: Capsule())
-                    .accessibilityIdentifier("insights.sampleBadge")
+            if InsightsSampleMarking.requiresSampleBadge(tileID: "bodyToday", isSample: model.isSample) {
+                HStack(spacing: 8) {
+                    sampleBadge()
+                    Text("Not your personal Health data.").font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                }
             } else if let err = model.requestError {
                 Label("Apple Health request failed: \(err)", systemImage: "exclamationmark.triangle")
                     .font(AteFont.body(13)).foregroundStyle(Theme.destructive)
                     .accessibilityIdentifier("insights.healthError")
             }
+            let presentation = InsightsHealthPresentation.make(access: model.access)
             switch model.access {
             case .unavailable:
-                unavailable("Apple Health isn't available", "heart.slash", "This device has no Health app (e.g. iPad).", id: "insights.unavailable")
+                quietHealthNotice("Apple Health isn't available", symbol: "heart.slash",
+                                  detail: "This device has no Health app (e.g. iPad).",
+                                  id: "insights.unavailable", presentation: presentation)
             case .entitlementMissing:
-                unavailable("Health access not in this build", "lock.shield",
-                            "This copy was signed without Apple Health access. Re-sideload the latest Ate build with the same Apple ID.", id: "insights.entitlementMissing")
+                quietHealthNotice("Health access not in this build", symbol: "lock.shield",
+                                  detail: "This copy was signed without Apple Health access. Re-sideload the latest Ate build with the same Apple ID.",
+                                  id: "insights.entitlementMissing", presentation: presentation)
             case .denied:
-                unavailable("Health access is off", "hand.raised", "Turn it on in Settings › Health › Data Access & Devices › ate.", id: "insights.denied", settings: true, retry: true)
+                quietHealthNotice("Health access is off", symbol: "hand.raised",
+                                  detail: "Turn it on in Settings › Health › Data Access & Devices › ate.",
+                                  id: "insights.denied", presentation: presentation)
             case .notDetermined:
-                Text("Connect Apple Health (read-only) to get meal ideas that fit your sleep, steps and workouts. Your health data stays on this iPhone.")
-                    .font(AteFont.body(14))
-                Button("Connect Apple Health") { Task { await model.tapConnect(recipes: store.recipes); prompt = model.context?.prompts.first } }
-                    .buttonStyle(.ate(.primary, full: true)).accessibilityIdentifier("insights.connect")
+                quietHealthConnect(presentation)
             case .requested:
                 if model.loading { ProgressView() }
                 else if let c = model.context {
@@ -700,47 +698,84 @@ struct InsightsView: View {
                         .accessibilityIdentifier("insights.state")
                     Text(c.insight.headline).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
                     StepsSparkline(days: c.summary.days)
+                    if let top = c.suggestions.first {
+                        Button { openRecipe = RecipeSheetTarget(id: top.recipeID) } label: {
+                            insightActionLabel("Next meal idea: \(top.title)", symbol: "fork.knife")
+                        }
+                        .accessibilityIdentifier("insights.topMealIdea")
+                    }
                 } else {
-                    unavailable("No recent Health data", "chart.line.downtrend.xyaxis",
-                                "Wear your Apple Watch or carry your iPhone, then pull to refresh.", id: "insights.noData", retry: true)
+                    quietHealthNotice("No recent Health data", symbol: "chart.line.downtrend.xyaxis",
+                                      detail: "Wear your Apple Watch or carry your iPhone, then pull to refresh.",
+                                      id: "insights.noData", presentation: presentation)
                 }
             }
         }
         .font(AteFont.body(14))
     }
 
-    @ViewBuilder private var journalCard: some View {
-        card("Your Ate journal") {
-            Button { store.beginManualJournal() } label: {
-                Label("New journal entry", systemImage: "square.and.pencil")
-            }.accessibilityIdentifier("insights.newJournalEntry")
-            if journalingEnabled && JournalingSuggestionsGate.isAvailable && !AppConfig.isUITesting {
-                JournalingSuggestionsButton { m in handle(moment: m) }
+    private func sampleBadge(id: String = "insights.sampleBadge") -> some View {
+        Label("Sample data", systemImage: "testtube.2").font(AteFont.body(12, .semibold)).foregroundStyle(Theme.primary)
+            .padding(.horizontal, 8).padding(.vertical, 4).background(Theme.primary.opacity(0.12), in: Capsule())
+            .accessibilityIdentifier(id)
+    }
+
+    /// Audit direction: Health is an optional extra. Until it is connected, setup is one compact,
+    /// quiet row - never a dominant warning or a full-width primary takeover.
+    @ViewBuilder private func quietHealthConnect(_ presentation: InsightsHealthPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: "heart.text.square")
+                    .font(AteFont.body(14, .semibold))
+                    .foregroundStyle(Theme.mutedForeground)
+                Text("Apple Health (optional)")
+                    .font(AteFont.body(13, .semibold))
+                    .foregroundStyle(Theme.mutedForeground)
+                Spacer()
+                if presentation.showsConnect {
+                    Button("Connect Apple Health") { Task { await model.tapConnect(recipes: store.recipes) } }
+                        .buttonStyle(.ate(.secondary, height: 36))
+                        .accessibilityIdentifier("insights.connect")
+                }
             }
-            if entries.isEmpty {
-                Text("No entries yet.").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-            }
-            ForEach(entries.prefix(5), id: \.id) { e in
-                NavigationLink { JournalEntryDetailView(entryID: e.id) } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(e.datedStateLabel)
-                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                    if let line = JournalingMomentMapper.contextLine(title: e.journalingSuggestionTitle, date: e.momentDate) {
-                        Label(line, systemImage: "book.pages").font(AteFont.body(12)).foregroundStyle(Theme.primary)
-                            .accessibilityIdentifier("insights.entryMomentContext")
-                    }
-                    Text(e.text).font(AteFont.body(14)).lineLimit(3).multilineTextAlignment(.leading)
-                }.frame(maxWidth: .infinity, alignment: .leading)
-                }.buttonStyle(.plain)
-                .padding(10).background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
-                .accessibilityIdentifier("insights.entry")
-                .contextMenu { Button("Delete", role: .destructive) { JournalStore.shared.delete(e); entries = JournalStore.shared.entries() } }
-            }
-            if entries.count > 5 {
-                NavigationLink(value: Route.journal) { Text("See all \(entries.count) entries").font(AteFont.body(14, .semibold)) }
-                    .accessibilityIdentifier("insights.allEntries")
-            }
+            Text("Connect read-only for meal ideas that fit your sleep, steps and workouts. Your health data stays on this iPhone.")
+                .font(AteFont.body(12))
+                .foregroundStyle(Theme.mutedForeground)
         }
+    }
+
+    /// Quiet replacement for the old full-card unavailable states: one muted notice with only the
+    /// actions the presentation contract allows. The beta sample-data path stays available.
+    @ViewBuilder
+    private func quietHealthNotice(_ title: String, symbol: String, detail: String, id: String, presentation: InsightsHealthPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: symbol)
+                .font(AteFont.body(13, .semibold))
+                .foregroundStyle(Theme.mutedForeground)
+            Text(detail)
+                .font(AteFont.body(12))
+                .foregroundStyle(Theme.mutedForeground)
+            HStack(spacing: 16) {
+                if presentation.showsSettings, let u = URL(string: UIApplication.openSettingsURLString) {
+                    Button("Open Settings") { UIApplication.shared.open(u) }
+                        .font(AteFont.body(12, .semibold))
+                        .accessibilityIdentifier("insights.openSettings")
+                }
+                if presentation.showsRetry {
+                    Button("Try again") { Task { await model.refresh(recipes: store.recipes) } }
+                        .font(AteFont.body(12, .semibold))
+                        .accessibilityIdentifier("insights.retry")
+                }
+                if !AppConfig.channel.isEmpty || AppConfig.isUITesting {
+                    Button("Use sample data") { Task { await model.useSampleData(recipes: store.recipes) } }
+                        .font(AteFont.body(12, .semibold))
+                        .accessibilityIdentifier("insights.sampleData")
+                }
+            }
+            .foregroundStyle(Theme.mutedForeground)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(id)
     }
 
     @ViewBuilder
@@ -753,31 +788,11 @@ struct InsightsView: View {
             }
             if retry { Button("Try again") { Task { await model.refresh(recipes: store.recipes) } }.accessibilityIdentifier("insights.retry") }
             if !AppConfig.channel.isEmpty || AppConfig.isUITesting {
-                Button("Use sample data") { Task { await model.useSampleData(recipes: store.recipes); prompt = model.context?.prompts.first } }
+                Button("Use sample data") { Task { await model.useSampleData(recipes: store.recipes) } }
                     .accessibilityIdentifier("insights.sampleData")
             }
         }
         .accessibilityElement(children: .contain).accessibilityIdentifier(id)
-    }
-
-    private func handle(moment m: PickedMoment) {
-        switch JournalingMomentMapper.map(title: m.title, date: m.date.map { DateInterval(start: $0, duration: 0) }, hasPhotos: !m.photoURLs.isEmpty, isWorkout: m.isWorkout) {
-        case .recipeDraft(let title, let date):
-            let card = JournalingMomentMapper.draft(title: title, date: date)
-            store.add(card); openRecipe = RecipeSheetTarget(id: card.id); store.show("Recipe draft from your Journal moment")
-        case .journalEntry(let p, let title, let date, let state):
-            prompt = JournalPrompt(text: p, state: state); pendingMoment = (title, date)
-        }
-    }
-
-    private func save(_ c: HealthContext) {
-        let p = prompt ?? c.prompts.first
-        let moment = pendingMoment
-        if JournalStore.shared.save(prompt: p?.text ?? "", text: draft, state: c.insight.state, recipeIDs: c.suggestions.map(\.recipeID),
-                                    momentTitle: moment?.title, momentDate: moment?.date) {
-            draft = ""; pendingMoment = nil; journalSaveError = nil; entries = JournalStore.shared.entries(); store.show("Saved to your Ate journal")
-            BetaQA.shared.pass("A-HEALTH-04", note: "Saved a local journal entry")
-        } else { journalSaveError = "Your entry could not be saved. Your draft is still here. Try again." }
     }
 
     private func card<C: View>(_ title: String, @ViewBuilder _ c: () -> C) -> some View {
@@ -802,7 +817,7 @@ struct InsightsView: View {
         case "Your body today": return "heart.text.square"
         case "Suggested meals": return "fork.knife"
         case "Reflect on your day": return "quote.bubble"
-        case "Your Ate journal": return "book.closed"
+        case "Journal moments": return "book.pages"
         default: return "lightbulb"
         }
     }
@@ -825,7 +840,6 @@ struct InsightsView: View {
         async let healthRefresh: Void = model.refresh(recipes: store.recipes)
         await refreshRecipeProgressInsight()
         await healthRefresh
-        prompt = model.context?.prompts.first
     }
 }
 
@@ -840,7 +854,14 @@ struct TodayHealthCard: View {
                     HStack(spacing: 12) {
                         Image(systemName: c.insight.state.symbol).font(.title3).foregroundStyle(Theme.primary)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Today · " + c.insight.state.title).font(AteFont.body(15, .semibold))
+                            HStack(spacing: 6) {
+                                Text("Today · " + c.insight.state.title).font(AteFont.body(15, .semibold))
+                                if InsightsSampleMarking.requiresSampleBadge(tileID: InsightsSampleMarking.libraryTodayCardID, isSample: model.isSample) {
+                                    Text("Sample").font(AteFont.body(10, .semibold)).foregroundStyle(Theme.primary)
+                                        .padding(.horizontal, 6).padding(.vertical, 2).background(Theme.primary.opacity(0.12), in: Capsule())
+                                        .accessibilityIdentifier("library.todayCard.sampleBadge")
+                                }
+                            }
                             Text(c.insight.state.mealFocus).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
                         }
                         Spacer(); Image(systemName: "chevron.right").foregroundStyle(Theme.mutedForeground)
@@ -854,7 +875,10 @@ struct TodayHealthCard: View {
 
 @MainActor @Observable final class InsightsNavState { static let shared = InsightsNavState(); var open = false }
 
-struct RecipeSheetTarget: Identifiable, Hashable { let id: String }
+struct RecipeSheetTarget: Identifiable, Hashable {
+    let id: String
+    var recordsHealthSuggestionEvidence = true
+}
 
 /// Recipe opened from Insights: its own stack + Done, so Back never strands you. Cook mode dismisses the sheet
 /// first so the root full-screen cover can present.

@@ -213,6 +213,100 @@ final class NutritionDiaryTests: XCTestCase {
         XCTAssertEqual(totals.value(for: .energy), 1e307)
     }
 
+    // MARK: Failed-save rollback (legacy diary add/delete, via NutritionDiaryMutation)
+
+    private func snapshot() -> NutritionSnapshot {
+        NutritionSnapshot(energyKcal: 100, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil)
+    }
+
+    func testFailedAddKeepsOnlyTheDraftAndReportsNotSaved() {
+        let existing = entry(servings: 1, nutrients: snapshot())
+        let added = entry(servings: 2, nutrients: snapshot())
+        var persisted: [[NutritionDiaryEntry]] = []
+        let outcome = NutritionDiaryMutation.appending(added, to: [existing]) { candidate in
+            persisted.append(candidate)
+            return false
+        }
+        XCTAssertFalse(outcome.saved, "a failed save is reported so the sheet stays open")
+        XCTAssertEqual(outcome.entries, [existing],
+                       "no pretend-saved row: only the form's draft keeps the typed food")
+        XCTAssertEqual(persisted.first?.map(\.id), [existing.id, added.id],
+                       "the store is asked to save the list including the new entry")
+    }
+
+    func testFailedAddThenRetryPersistsExactlyOneMeal() {
+        let existing = entry(servings: 1, nutrients: snapshot())
+        var failures = 1
+        var visible = [existing]
+        // First Save attempt fails: the diary list is unchanged and the draft stays in the form.
+        let first = NutritionDiaryMutation.appending(entry(servings: 2, nutrients: snapshot()), to: visible) { _ in
+            failures -= 1
+            return false
+        }
+        visible = first.entries
+        XCTAssertFalse(first.saved)
+        XCTAssertEqual(visible, [existing])
+        // The retry rebuilds the entry from the draft (a fresh id, as the form does) and succeeds.
+        let retry = NutritionDiaryMutation.appending(entry(servings: 2, nutrients: snapshot()), to: visible) { _ in true }
+        visible = retry.entries
+        XCTAssertTrue(retry.saved)
+        XCTAssertEqual(visible.count, 2, "exactly one new meal reaches the diary, never a duplicate")
+        XCTAssertEqual(Set(visible.map(\.id)).count, 2)
+        XCTAssertEqual(failures, 0)
+    }
+
+    func testCancelAfterFailedAddLeavesNoRow() {
+        let existing = entry(servings: 1, nutrients: snapshot())
+        let outcome = NutritionDiaryMutation.appending(entry(servings: 2, nutrients: snapshot()), to: [existing]) { _ in false }
+        // Cancelling the form afterwards discards the draft; the diary must show nothing new.
+        XCTAssertFalse(outcome.saved)
+        XCTAssertEqual(outcome.entries, [existing], "a cancelled failed add leaves no pretend-saved row")
+    }
+
+    func testSuccessfulAddReportsSaved() {
+        let added = entry(servings: 1, nutrients: snapshot())
+        let outcome = NutritionDiaryMutation.appending(added, to: []) { _ in true }
+        XCTAssertTrue(outcome.saved)
+        XCTAssertEqual(outcome.entries.map(\.id), [added.id])
+    }
+
+    func testFailedDeleteRestoresTheEntryAtItsOriginalPosition() {
+        let first = entry(servings: 1, nutrients: snapshot())
+        let middle = entry(servings: 2, nutrients: snapshot())
+        let last = entry(servings: 3, nutrients: snapshot())
+        let original = [first, middle, last]
+        var persisted: [[NutritionDiaryEntry]] = []
+        let outcome = NutritionDiaryMutation.removing(id: middle.id, from: original) { candidate in
+            persisted.append(candidate)
+            return false
+        }
+        XCTAssertFalse(outcome.saved, "a failed delete is reported so an error can be shown")
+        XCTAssertEqual(outcome.entries, original,
+                       "the entry comes back exactly where it was, not appended at the end")
+        XCTAssertEqual(persisted.first?.map(\.id), [first.id, last.id],
+                       "the store is asked to save the list without the deleted entry")
+    }
+
+    func testSuccessfulDeleteRemovesTheEntry() {
+        let keep = entry(servings: 1, nutrients: snapshot())
+        let gone = entry(servings: 2, nutrients: snapshot())
+        let outcome = NutritionDiaryMutation.removing(id: gone.id, from: [keep, gone]) { _ in true }
+        XCTAssertTrue(outcome.saved)
+        XCTAssertEqual(outcome.entries.map(\.id), [keep.id])
+    }
+
+    func testDeleteOfUnknownIDChangesNothingAndDoesNotPersist() {
+        let keep = entry(servings: 1, nutrients: snapshot())
+        var persistCalls = 0
+        let outcome = NutritionDiaryMutation.removing(id: UUID(), from: [keep]) { _ in
+            persistCalls += 1
+            return true
+        }
+        XCTAssertFalse(outcome.saved)
+        XCTAssertEqual(outcome.entries, [keep])
+        XCTAssertEqual(persistCalls, 0, "nothing changed, so nothing is written to the store")
+    }
+
     func testEditingEntryReplacesByIdentityKeepsDayAndLeavesOthersUntouched() throws {
         let date = Date(timeIntervalSince1970: 1_790_000_000)
         let original = NutritionDiaryEntry(foodName: "Oats", date: date, meal: .breakfast, quantity: 40,

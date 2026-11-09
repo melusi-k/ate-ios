@@ -98,6 +98,21 @@ final class CoverageUITests: XCTestCase {
         e.typeText(newText)
     }
 
+    /// Caller-owned Settings surface: never resolve content against an underlying sheet
+    /// or another tab. The retained iOS 27 hierarchy exposes Settings Form as a CollectionView.
+    private func settingsContent() -> XCUIElement {
+        let navigation = app.navigationBars["Settings"]
+        XCTAssertTrue(navigation.exists && !navigation.frame.isEmpty && navigation.isHittable,
+                      "Settings must be the active screen before querying its Form")
+        let collections = app.windows.firstMatch.collectionViews
+        XCTAssertEqual(collections.count, 1,
+                       "Active Settings must expose exactly one content collection; never choose an arbitrary first match")
+        let content = collections.element(boundBy: 0)
+        XCTAssertTrue(content.exists && !content.frame.isEmpty,
+                      "Settings Form must expose its content collection")
+        return content
+    }
+
     // MARK: covers
 
     func test31_CoverControlsHeroAndTile() {
@@ -193,40 +208,114 @@ final class CoverageUITests: XCTestCase {
         wait(text("Miso salmon"), 5)
         shot("collection-filtered-library")
         tab("Settings")
-        let export = app.buttons["settings.export"]; scrollTo(export); wait(export, 3)
-        XCTAssertTrue(app.buttons["settings.import"].exists)
-        XCTAssertTrue(app.buttons["settings.replayOnboarding"].exists)
+        let settings = settingsContent()
+        let export = settings.buttons["settings.export"]; scrollTo(export); wait(export, 3)
+        XCTAssertTrue(settings.buttons["settings.import"].exists)
+        XCTAssertTrue(settings.buttons["settings.replayOnboarding"].exists)
         shot("settings-tools")
-        export.tap(); sleep(2); shot("more-export-sheet")
-        if app.buttons["Close"].exists { app.buttons["Close"].tap() } else { app.swipeDown(velocity: .fast) }
-        let settingsStepAlerts = app.descendants(matching: .any)["toggle.Step-by-step alerts"].firstMatch
-        let settingsQuietHours = app.descendants(matching: .any)["toggle.Quiet hours"].firstMatch
+        // Check Settings before opening Export. Keep the exact identifiers and
+        // original scroll/wait budgets, querying the Form's actual Switch elements.
+        let timerSettings = settingsContent()
+        let settingsStepAlerts = timerSettings.switches["toggle.Step-by-step alerts"].firstMatch
+        let settingsQuietHours = timerSettings.switches["toggle.Quiet hours"].firstMatch
 
         // Settings uses lazily materialized rows: scroll to each toggle before asserting it exists.
         // Export is in Tools, below Timer notifications. Search toward the earlier section first,
-        // retaining the opposite-direction fallback if the restored viewport differs.
+        // retaining the opposite-direction fallback if the viewport differs.
         scrollTo(settingsQuietHours, searchDownFirst: false); wait(settingsQuietHours, 3)
         XCTAssertTrue(settingsQuietHours.isHittable, "Quiet hours toggle should be reachable in Timer notifications")
         scrollTo(settingsStepAlerts); wait(settingsStepAlerts, 3)
         XCTAssertTrue(settingsStepAlerts.isHittable, "Step-by-step alerts toggle should be reachable in Timer notifications")
-        let about = app.staticTexts["aboutVersion"]; scrollTo(about); wait(about, 3)
+        let about = timerSettings.staticTexts["aboutVersion"]; scrollTo(about); wait(about, 3)
         XCTAssertTrue(about.label.contains("(build "))
         // The SwiftUI combined container is not consistently hittable across simulator
         // runtimes, even when its child heading is visible. Scroll to the stable visible
         // heading so this journey cannot spend minutes swiping toward a non-hittable parent.
-        let buildNotesHeading = app.staticTexts.matching(
+        // Read-only combined text does not need to accept taps. XCUITest can report
+        // isHittable=false for these visible, selectable SwiftUI rows. Prove actual
+        // viewport clearance instead of spending the existing swipe budget seeking
+        // a tappable parent. Keep the same directional bounds and content assertions.
+        func revealReadOnlySettingsRow(_ heading: XCUIElement) {
+            func fullyVisible() -> Bool {
+                guard heading.exists else { return false }
+                let row = heading.frame
+                let window = app.windows.firstMatch
+                let navigation = app.navigationBars["Settings"]
+                let tabs = app.tabBars.firstMatch
+                // Chrome is a sibling of the Form, not a descendant of timerSettings.
+                // This portrait journey requires the active Settings navigation and tab bar;
+                // missing chrome must fail rather than silently widening the viewport.
+                guard window.exists, navigation.exists, tabs.exists else { return false }
+                let screen = window.frame
+                let navFrame = navigation.frame
+                let tabFrame = tabs.frame
+                guard !screen.isEmpty, !navFrame.isEmpty, !tabFrame.isEmpty,
+                      !screen.isInfinite, !navFrame.isInfinite, !tabFrame.isInfinite,
+                      !screen.isNull, !navFrame.isNull, !tabFrame.isNull else { return false }
+                let top = max(screen.minY, navFrame.maxY)
+                var bottom = min(screen.maxY, tabFrame.minY)
+                let accessory = app.descendants(matching: .any)["bottomAccessory"].firstMatch
+                if accessory.exists {
+                    let frame = accessory.frame
+                    guard !frame.isEmpty, !frame.isInfinite, !frame.isNull else { return false }
+                    if frame.intersects(screen) { bottom = min(bottom, frame.minY) }
+                }
+                return !row.isEmpty && !row.isInfinite && !row.isNull
+                    && row.minX >= screen.minX && row.maxX <= screen.maxX
+                    && row.minY >= top && row.maxY <= bottom
+            }
+            var swipes = 0
+            while !fullyVisible() && swipes < 25 { timerSettings.swipeUp(); swipes += 1 }
+            swipes = 0
+            while !fullyVisible() && swipes < 50 { timerSettings.swipeDown(); swipes += 1 }
+            XCTAssertTrue(fullyVisible(), "Settings read-only row must clear the live Settings navigation, tab bar and bottom accessory")
+        }
+        let buildNotesHeading = timerSettings.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "Changes in this build")
         ).firstMatch
-        scrollTo(buildNotesHeading); wait(buildNotesHeading, 3)
-        let buildNotes = app.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
+        revealReadOnlySettingsRow(buildNotesHeading); wait(buildNotesHeading, 3)
+        let buildNotes = timerSettings.descendants(matching: .any)["aboutBuildNotesSection"].firstMatch
         wait(buildNotes, 3)
         XCTAssertFalse(buildNotes.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                        "About should show generated build notes or an explicit fallback")
-        let diagnostics = app.descendants(matching: .any)["aiDiagnostics"].firstMatch
-        scrollTo(diagnostics); wait(diagnostics, 3)
-        let transparency = app.descendants(matching: .any)["aiTransparency"].firstMatch
-        scrollTo(transparency); wait(transparency, 3)
+        let diagnosticsHeading = timerSettings.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "AI diagnostics")
+        ).firstMatch
+        revealReadOnlySettingsRow(diagnosticsHeading); wait(diagnosticsHeading, 3)
+        let diagnostics = timerSettings.descendants(matching: .any)["aiDiagnostics"].firstMatch
+        wait(diagnostics, 3)
+        XCTAssertFalse(diagnostics.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                       "About must retain its AI diagnostics content")
+        let transparency = timerSettings.descendants(matching: .any)["aiTransparency"].firstMatch
+        revealReadOnlySettingsRow(transparency); wait(transparency, 3)
         shot("settings-about")
+
+        scrollTo(export)
+        export.tap()
+        shot("settings-export-immediately-after-tap")
+        print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-BEGIN")
+        print(app.debugDescription)
+        print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-END")
+        // Export opens is retained; dismissal is device-verified on build408.
+        // Owner decision 2026-11-08: do not test simulator share-sheet dismissal.
+        let exportActivity = app.otherElements["ActivityListView"]
+        let readinessBudget: TimeInterval = 2
+        let exportPresentedPredicate = NSPredicate { _, _ in
+            exportActivity.exists && !exportActivity.frame.isEmpty
+        }
+        var exportIsPresented = exportPresentedPredicate.evaluate(with: nil)
+        if !exportIsPresented && readinessBudget > 0 {
+            let exportPresented = XCTNSPredicateExpectation(predicate: exportPresentedPredicate, object: nil)
+            exportIsPresented = XCTWaiter.wait(for: [exportPresented], timeout: readinessBudget) == .completed
+        }
+        guard exportIsPresented else {
+            XCTFail("Export ActivityListView must present")
+            return
+        }
+        shot("more-export-sheet")
+        print("SETTINGS-EXPORT-PRESENTATION-AX-BEGIN")
+        print(app.debugDescription)
+        print("SETTINGS-EXPORT-PRESENTATION-AX-END")
     }
 
     // MARK: photo dish step
@@ -582,6 +671,12 @@ final class CoverageUITests: XCTestCase {
         launch(["-qaPersistDraft"])
         app.buttons["Add recipe"].tap()
         wait(text("Add a recipe"))
+        // Retain final-relaunch evidence before the original negative query.
+        shot("generation-after-save-relaunch-before-persistence-query")
+        let hierarchy = XCTAttachment(string: app.debugDescription)
+        hierarchy.name = "generation-after-save-relaunch-before-persistence-query-AX"
+        hierarchy.lifetime = .keepAlways
+        add(hierarchy)
         XCTAssertFalse(text("Restored your unsaved card").exists, "saved draft must not come back")
     }
 
@@ -619,15 +714,24 @@ extension CoverageUITests {
         shot("journal-insights-hub-route")
         connect.tap()
         wait(text(title))
-        let prompt = app.buttons["insights.prompt"].firstMatch; scrollTo(prompt)
-        XCTAssertTrue(prompt.exists, "\(scenario): no journal prompt")
         let names = app.buttons.matching(identifier: "insights.suggestion").allElementsBoundByIndex.map(\.label)
         shot("insights-" + scenario)
+        // The reflection composer now lives on the Journal root, not in the pushed hub.
+        app.navigationBars["Insights & Cooking History"].buttons["Journal"].tap()
+        let prompt = app.buttons["insights.prompt"].firstMatch; scrollTo(prompt)
+        XCTAssertTrue(prompt.exists, "\(scenario): no journal prompt")
         if save {
             let field = any("insights.journalText"); scrollTo(field); field.tap(); field.typeText("Note for \(scenario)")
             let b = app.buttons["insights.save"]; scrollTo(b); b.tap()
-            wait(any("insights.entry"))
+            XCTAssertFalse(any("insights.tile.journal").exists, "Insights must not duplicate the Journal list")
+            wait(app.staticTexts["Note for \(scenario)"].firstMatch)
             XCTAssertFalse(any("insights.journalingPicker").exists, "Picker must be hidden without the paid entitlement")
+            wait(app.navigationBars["Journal"])
+            let saved = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Note for \(scenario)")).firstMatch
+            wait(saved)
+            saved.tap()
+            wait(any("journal.detail.text"))
+            XCTAssertTrue(any("journal.detail.text").label.contains("Note for \(scenario)"))
         }
         app.terminate()
         return names
@@ -764,8 +868,8 @@ extension CoverageUITests {
     func testJournalMomentContextRow() {
         launch(["-qaMockHealth", "recovery", "-qaJournalMomentEntry"])
         tab("Journal")
-        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch; wait(hub); hub.tap()
-        let ctx = any("insights.entryMomentContext"); scrollTo(ctx); wait(ctx)
+        let entry = app.descendants(matching: .any)["journal.entry"].firstMatch; wait(entry); entry.tap()
+        let ctx = any("journal.detail.momentContext"); scrollTo(ctx); wait(ctx)
         XCTAssertTrue(ctx.label.contains("Dinner at Mama"), ctx.label)
         XCTAssertFalse(any("insights.journalingPicker").exists)
     }

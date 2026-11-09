@@ -1,0 +1,100 @@
+name: "CodeQL Advanced"
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: '0 18 * * *'
+
+# Public repository; no private packs, package access, signing or release writes.
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+          - language: python
+            build-mode: none
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  analyze-swift:
+    name: Analyze (swift)
+    # Disabled by owner decision: Swift 6.4 extraction is unsupported by this scan.
+    # Keep the job definition for a future reviewed repair; do not downgrade the SDK.
+    if: ${{ false }}
+    # Existing CI runner pool, not a new paid or larger runner.
+    runs-on: xcode-27
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      ATE_SIGN_STYLE: Automatic
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Select Xcode 27.1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          xcode-version: "27.1"
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
+        with:
+          languages: swift
+          build-mode: manual
+      - name: Generate project and build Swift for analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The project is generated and gitignored; default autobuild cannot find it.
+          xcodegen generate
+          # Fresh DerivedData and disabled compiler caches ensure CodeQL traces compilation.
+          # No simulator boot, tests, archive, signing credentials or release publication.
+          xcodebuild clean build \
+            -project Ate.xcodeproj \
+            -scheme Ate \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/codeql-derived-data" \
+            ONLY_ACTIVE_ARCH=YES ARCHS=arm64 \
+            CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            COMPILATION_CACHE_ENABLE_CACHING=NO SWIFT_ENABLE_COMPILE_CACHE=NO \
+            SWIFT_USE_INTEGRATED_DRIVER=NO
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
+        with:
+          category: "/language:swift"

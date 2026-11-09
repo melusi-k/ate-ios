@@ -89,5 +89,45 @@ class ReadinessEvidenceTests(unittest.TestCase):
         self.assertFalse(readiness.is_main_build_ipa_run({**base, "status": "in_progress"}))
 
 
+
+
+LINE = "Test Case '-[AteUITests.KeyFlowsQATests {}]' {} ({}.0 seconds)\n"
+QA1 = readiness.QA1_REQUIRED_CASES
+
+
+def qa_log(*entries):
+    return "".join(LINE.format(name, result, secs) for name, result, secs in entries)
+
+
+class QaFlowAggregationTests(unittest.TestCase):
+    def results(self, text):
+        return readiness.qa_flow_results(readiness.observe_qa_cases({}, text))
+
+    def test_all_three_cases_pass(self):
+        text = qa_log((QA1[0], "passed", 61), (QA1[1], "passed", 56), (QA1[2], "passed", 30))
+        self.assertEqual(self.results(text)[1], "passed")
+
+    def test_missing_one_case_fails(self):
+        text = qa_log((QA1[0], "passed", 61), (QA1[1], "passed", 56))
+        self.assertEqual(self.results(text)[1], "failed")
+
+    def test_deprecated_or_wrong_name_never_counts(self):
+        text = qa_log(("testQA1_AddFromURL", "passed", 200), (QA1[0], "passed", 61), (QA1[1], "passed", 56))
+        self.assertEqual(self.results(text)[1], "failed")
+
+    def test_zero_tests_yields_no_flow_result(self):
+        self.assertEqual(self.results(""), {})
+
+    def test_failure_is_sticky_against_later_pass(self):
+        text = qa_log((QA1[0], "passed", 61), (QA1[1], "passed", 56),
+                      (QA1[2], "failed", 240), (QA1[2], "passed", 30))
+        self.assertEqual(self.results(text)[1], "failed")
+
+    def test_failure_is_sticky_across_job_logs(self):
+        cases = readiness.observe_qa_cases({}, qa_log((QA1[2], "failed", 240)))
+        readiness.observe_qa_cases(cases, qa_log((QA1[0], "passed", 61), (QA1[1], "passed", 56), (QA1[2], "passed", 30)))
+        self.assertEqual(readiness.qa_flow_results(cases)[1], "failed")
+
+
 if __name__ == "__main__":
     unittest.main()

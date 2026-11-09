@@ -38,7 +38,13 @@ final class CookIngredientsUITests: XCTestCase {
     /// (2 servings; rice 150 g; garlic "2 cloves — finely chopped"; 4 steps).
     func addPromptRecipe() {
         app.buttons["Add recipe"].tap()
-        wait(text("Add a recipe"))
+        // The caller just presented Add recipe. Do not search all StaticText nodes
+        // across the background Library while the sheet's own navigation is active.
+        let navigation = app.navigationBars["Add recipe"]
+        XCTAssertTrue(navigation.exists && !navigation.frame.isEmpty && navigation.isHittable,
+                      "Add recipe must be the active sheet before querying its heading")
+        let sheetContent = app.scrollViews.containing(.textField, identifier: "linkField").firstMatch
+        wait(sheetContent.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Add a recipe")).firstMatch)
         app.buttons["Prompt"].tap()
         let e = app.textViews["promptEditor"]; e.tap(); e.typeText("Miso salmon for two")
         app.buttons["generateButton"].tap()

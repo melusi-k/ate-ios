@@ -57,19 +57,19 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 
 #### Recipe creation
 
-- **A-CREATE-01 · Add from link** — ✅
+- **A-CREATE-01 · Add from link** — 🟡
   - *Journey:* As a cook, I paste a recipe blog link and get a card I can save.
   - *Acceptance:* Given a JSON-LD recipe page, When I paste the URL, Then a card with title, ingredients and steps appears in ≤10 s with the "Imported from page data" badge; a dead site fails in ≤10 s with a clear message.
-  - *Verified by:* `testQA1_AddFromURL, test02_AddViaLink, JSONLDTests` · QA gate + QA.md §1
-  - *Status evidence:* QA1 green in last full run; Instagram caption fixture added in b35 (unit SocialAndPhotoTests)
+  - *Verified by:* `testQA1_AddFromURL_JSONLD, test02_AddViaLink, JSONLDTests` · QA gate + QA.md §1
+  - *Status evidence:* Historic only: pre-split QA1 green in last full run (pre-b35). The three split cases have NOT RUN on the current head - no post-split native proof yet. Instagram caption fixture added in b35 (unit SocialAndPhotoTests)
   - *Owner:* [#35](https://github.com/melusi-k/ate-ios/issues/35)
   - *Feature area:* Recipe creation and quality · *Release gate:* Pilot · *Initial priority:* P1
 
 - **A-CREATE-02 · Add from social reel (Instagram/TikTok/YouTube)** — 🟡
   - *Journey:* As a cook, I share a reel and get the recipe from its caption.
   - *Acceptance:* Given a reel with a recipe caption, Then a card is built from the caption; Given no caption, Then a friendly message offers Prompt and switches tabs in one tap.
-  - *Verified by:* `testQA1_AddFromURL, test25_InstagramNoCaptionSwitchesToPrompt, testInstagramCaptionFromOG` · QA.md §1
-  - *Status evidence:* Caption path verified against the user's reel on the server side; not yet tried in the b35/36 app on a phone
+  - *Verified by:* `testQA1_AddFromURL_InstagramCaption, testQA1_AddFromURL_HiddenCaptionFallback, test25_InstagramNoCaptionSwitchesToPrompt, testInstagramCaptionFromOG` · QA.md §1
+  - *Status evidence:* Caption path verified against the user's reel on the server side; not yet tried in the b35/36 app on a phone. The split QA1 caption/fallback cases have NOT RUN on the current head
   - *Owner:* [#35](https://github.com/melusi-k/ate-ios/issues/35)
   - *Feature area:* Recipe creation and quality · *Release gate:* Pilot · *Initial priority:* P1
 
@@ -842,7 +842,7 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 
 - **A-HEALTH-04 · Journal prompt + save locally** — 🔴
   - *Journey:* As a cook, I get meal ideas that fit how my body is doing today.
-  - *Acceptance:* Given an insight, When I pick a prompt, write a note and tap Save to journal, Then the entry appears under Your Ate journal and survives relaunch; nothing syncs.
+  - *Acceptance:* Given an insight, When I pick a prompt, write a note and tap Save to journal, Then the entry appears in the Journal tab and survives relaunch; nothing syncs.
   - *Verified by:* `CoverageUITests` (mock Health) · device
   - *Status evidence:* new in build 59+
   - *Owner:* [#38](https://github.com/melusi-k/ate-ios/issues/38)
@@ -883,13 +883,13 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 #### Journal
 
 - **C-JRN-01 · Journal entry opens on its own** — ❌
-  - *Acceptance:* Tapping an entry in Insights › Your Ate journal opens a detail view with the full text, date, state, and any linked recipe, location or media.
+  - *Acceptance:* Tapping an entry in the Journal tab opens a detail view with the full text, date, state, and any linked recipe, location or media.
   - *Verified by:* auto: detected when an entry detail opens
   - *Owner:* [#38](https://github.com/melusi-k/ate-ios/issues/38)
   - *Feature area:* Health and journal · *Release gate:* No committed release gate · *Initial priority:* P2
 
 - **C-JRN-02 · Journal list with search** — ❌
-  - *Acceptance:* Insights › Your Ate journal lists every entry newest first; searching by words, place or state filters it, and an empty search says so.
+  - *Acceptance:* The Journal tab lists every entry newest first; searching by words, place or state filters it, and an empty search says so.
   - *Verified by:* manual
   - *Owner:* [#38](https://github.com/melusi-k/ate-ios/issues/38)
   - *Feature area:* Health and journal · *Release gate:* No committed release gate · *Initial priority:* P2

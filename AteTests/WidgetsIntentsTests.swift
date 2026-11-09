@@ -3,6 +3,38 @@ import AppIntents
 @testable import Ate
 
 final class WidgetLogicTests: XCTestCase {
+    func testMissingWidgetDataNeverPretendsSetupOrZeroStreakSucceeded() {
+        XCTAssertEqual(WidgetDataMessage.unavailable(groupAvailable: true),
+                       "Open ate and refresh widgets in Beta testing.")
+        XCTAssertEqual(WidgetDataMessage.unavailable(groupAvailable: false),
+                       "Shared widget data is unavailable. Open ate for widget diagnostics.")
+        XCTAssertFalse(WidgetDataMessage.unavailable(groupAvailable: false).contains("set up"))
+    }
+
+    func testForcePublishRestoresMissingUnchangedSnapshotAndRequestsOneReload() throws {
+        let suite = "WidgetPublicationTests-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var publisher = WidgetSnapshotPublisher()
+        var snapshot = WidgetSnapshot()
+        snapshot.cookingStreak = 2
+        var reloads: [[String]] = []
+        XCTAssertTrue(publisher.publish(snapshot, defaults: defaults, reload: { reloads.append($0) }))
+        XCTAssertEqual(WidgetSnapshot.load(defaults), snapshot)
+        XCTAssertEqual(reloads.count, 1)
+        defaults.removeObject(forKey: WidgetSnapshot.key)
+        reloads.removeAll()
+        XCTAssertFalse(publisher.publish(snapshot, defaults: defaults, reload: { reloads.append($0) }))
+        XCTAssertNil(WidgetSnapshot.load(defaults))
+        XCTAssertTrue(reloads.isEmpty, "Ordinary unchanged publishing stays a no-op")
+        XCTAssertTrue(publisher.publish(snapshot, force: true, defaults: defaults, reload: { reloads.append($0) }))
+        XCTAssertEqual(WidgetSnapshot.load(defaults), snapshot)
+        XCTAssertEqual(reloads.count, 1)
+        XCTAssertEqual(Set(reloads[0]), Set([WidgetKinds.favourites, WidgetKinds.shopping,
+            WidgetKinds.shoppingInline, WidgetKinds.pick, WidgetKinds.cooking]))
+        XCTAssertEqual(reloads[0].count, Set(reloads[0]).count)
+    }
+
     private func timer(_ r: String = "r1", step: Int = 0, end: Date?, paused: Int = 300, total: Int = 600) -> TimerSnapshot {
         TimerSnapshot(recipeID: r, recipeTitle: "Mogodu", stepIndex: step, stepCount: 6, stepText: "Simmer for 20 minutes. Stir often",
                       total: total, endDate: end, pausedRemaining: paused)

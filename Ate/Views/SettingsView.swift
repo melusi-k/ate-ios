@@ -88,10 +88,14 @@ struct SettingsView: View {
                         Text("AI on this device")
                     }
                     Section {
-                        // Typed Route pushes keep the settings path accurate and prevent the
-                        // root-only bottom accessory from rendering over pushed screens.
                         NavigationLink(value: Route.nutritionDiary) {
-                            Label("Food diary", systemImage: "fork.knife")
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Food diary")
+                                    Text("What you ate, day by day.")
+                                        .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                                }
+                            } icon: { Image(systemName: "fork.knife") }
                         }
                         .accessibilityIdentifier("settings.nutritionDiary")
                         NavigationLink(value: Route.nutritionGoals) {
@@ -102,6 +106,17 @@ struct SettingsView: View {
                         Text("Nutrition")
                     } footer: {
                         Text(SettingsCopy.nutritionFooter)
+                    }
+                    Section {
+                        Picker("Appearance", selection: $store.settings.appearance) {
+                            ForEach(AppAppearance.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .accessibilityIdentifier("settings.appearance")
+                    } header: { Text("Appearance") } footer: {
+                        Text("System follows your iPhone's appearance. Light or Dark applies to Ate. Widgets and Live Activities keep their current appearance.")
                     }
                     Section("Units") {
                         Picker("Units", selection: $store.settings.units) {

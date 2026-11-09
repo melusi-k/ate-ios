@@ -221,13 +221,20 @@ final class HealthInsightTests: XCTestCase {
 
     func testInsightsTileOrderPreservesKnownOrderAndAddsNewTiles() {
         XCTAssertEqual(InsightsTileOrder.resolve("journal,bodyToday,journal,unknown"),
-                       ["journal", "bodyToday", "tracker", "recipeProgress", "suggestedMeals", "dailyReflection"])
+                       ["bodyToday", "tracker", "recipeProgress", "suggestedMeals", "dailyReflection"])
+    }
+
+    func testInsightsTileOrderDropsRetiredJournalTileFromPersistedOrder() {
+        let restored = InsightsTileOrder.resolve("journal,tracker,journal,dailyReflection")
+        XCTAssertFalse(restored.contains("journal"))
+        XCTAssertEqual(Set(restored), Set(InsightsTileOrder.defaults))
+        XCTAssertEqual(Array(restored.prefix(2)), ["tracker", "dailyReflection"])
     }
 
     func testInsightsTileOrderMovesTilesAndKeepsAllTiles() {
         let initial = InsightsTileOrder.defaults
-        let moved = InsightsTileOrder.moving(initial, id: "journal", before: "tracker")
-        XCTAssertEqual(moved.first, "journal")
+        let moved = InsightsTileOrder.moving(initial, id: "dailyReflection", before: "tracker")
+        XCTAssertEqual(moved.first, "dailyReflection")
         XCTAssertEqual(Set(moved), Set(initial))
         XCTAssertEqual(InsightsTileOrder.moving(initial, id: "tracker", offset: -1), initial)
     }
@@ -283,4 +290,3 @@ final class HealthInsightTests: XCTestCase {
     /// The instruction says under 25 words ending in a question mark; the acceptance gate enforces both.
 
 }
-

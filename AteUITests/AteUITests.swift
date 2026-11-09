@@ -24,6 +24,31 @@ final class AteUITests: XCTestCase {
             b.tap()
         } else if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
     }
+    /// This journey exits Cook Mode onto a known recipe detail, whose tab bar is
+    /// deliberately hidden. Pop that exact navigation surface before querying root tabs.
+    /// No global absent-tab probe, swipe fallback, or retry is needed for this one-level route.
+    private func tabFromRecipeDetail(_ name: String, recipeTitle: String) {
+        let detailNavigation = app.navigationBars[recipeTitle]
+        XCTAssertTrue(detailNavigation.exists && !detailNavigation.frame.isEmpty && detailNavigation.isHittable,
+                      "Expected recipe detail before returning to a tab")
+        shot("cook-exit-detail-navigation-before-back-guard")
+        print("COOK-EXIT-DETAIL-NAVIGATION-AX-BEGIN")
+        print(detailNavigation.debugDescription)
+        print("COOK-EXIT-DETAIL-NAVIGATION-AX-END")
+        let backButtons = detailNavigation.buttons.matching(
+            NSPredicate(format: "identifier == %@ AND label == %@", "BackButton", "Your Kitchen")
+        )
+        XCTAssertEqual(backButtons.count, 1, "Recipe detail must expose exactly one BackButton returning to Your Kitchen")
+        let back = backButtons.element(boundBy: 0)
+        XCTAssertTrue(back.exists && back.isHittable, "Recipe detail must expose its navigation back button")
+        back.tap()
+        let rootTabBar = app.windows.firstMatch.tabBars.containing(NSPredicate(format: "label == %@", name)).firstMatch
+        let button = rootTabBar.buttons[name]
+        XCTAssertTrue(button.waitForExistence(timeout: 5),
+                      "Journal must be selected through its tab, not a pushed-screen back button")
+        button.tap()
+    }
+
     func scrollTo(_ e: XCUIElement, max: Int = 8) {
         _ = e.waitForExistence(timeout: 5)
         var n = 0
@@ -220,7 +245,7 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["Cook mode"], 5)
 
         // Leaving Cook Mode is not completion. Inspect the calendar's accessible day label.
-        tab("Journal")
+        tabFromRecipeDetail("Journal", recipeTitle: "Miso salmon for two")
         // Journal is the tab root; Insights & Cooking History is its one named route.
         let hub = app.buttons["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
@@ -1007,20 +1032,41 @@ final class AteUITests: XCTestCase {
     }
 
     func pick(_ menu: String, _ option: String) {
-        // iOS 27 realizes these Pickers inline in the native Browse popup.
         XCTAssertTrue(menu == "sortMenu" || menu == "groupByMenu", "Unknown picker contract")
         app.buttons["libraryBrowseMenu"].firstMatch.tap()
-        let popups = app.collectionViews.containing(NSPredicate(format: "label == %@", option))
-        wait(popups.firstMatch, 3)
-        XCTAssertEqual(popups.count, 1, "Browse popup must be unique")
-        var choices = popups.firstMatch.descendants(matching: .button)
-            .matching(NSPredicate(format: "label == %@", option))
+        shot("library-browse-opened-\(menu)-\(option)")
+        // Native iOS 27 popups expose the submenu label and icon but omit the
+        // SwiftUI Menu identifier. Scope to the actual open Collections menu,
+        // then require the unique labelled submenu with its expected icon.
+        let browse = app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections"))
+        XCTAssertEqual(browse.count, 1, "Browse popup must be unique")
+        let label = menu == "sortMenu" ? "Sort" : "Group by"
+        let icon = menu == "sortMenu" ? "arrow.up.arrow.down" : "rectangle.3.group"
+        let submenu = browse.firstMatch.descendants(matching: .button)
+            .matching(NSPredicate(format: "label == %@", label))
+            .containing(.image, identifier: icon)
+        wait(submenu.firstMatch, 3)
+        XCTAssertEqual(submenu.count, 1, "Browse must expose one named arrange submenu")
+        XCTAssertTrue(submenu.firstMatch.isHittable, "Arrange submenu must be visible without scrolling")
+        guard submenu.count == 1 && submenu.firstMatch.isHittable else { return }
+        submenu.firstMatch.tap()
+        shot("library-browse-choice-\(menu)-\(option)")
+        // The explicit submenu contains only its own choices; shared labels such as
+        // Recently added cannot accidentally select a collection in the parent popup.
+        var choices = app.buttons.matching(NSPredicate(format: "label == %@", option))
         if menu == "groupByMenu" && option == "Recently added" {
-            // Actual hierarchy: calendar is Group by; the collection uses a clock-arrow icon.
             choices = choices.containing(.image, identifier: "calendar")
         }
         wait(choices.firstMatch, 3)
-        XCTAssertEqual(choices.count, 1, "Picker option must be unique in the native popup")
+        if choices.count != 1 || !choices.firstMatch.isHittable {
+            let evidence = XCTAttachment(string: app.debugDescription)
+            evidence.name = "library-browse-choice-failure-\(menu)-\(option)"
+            evidence.lifetime = .keepAlways
+            add(evidence)
+        }
+        XCTAssertEqual(choices.count, 1, "Picker option must be unique in its submenu")
+        XCTAssertTrue(choices.firstMatch.isHittable, "Picker option must be visible without scrolling")
+        guard choices.count == 1 && choices.firstMatch.isHittable else { return }
         choices.firstMatch.tap()
     }
 

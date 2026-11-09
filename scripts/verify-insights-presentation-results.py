@@ -12,8 +12,8 @@ EXPECTED = {
     'testConnectedButEmptyHealthKeepsQuietNoDataNotice',
     'testConnectedHealthStateOffersNextMealIdeaAction',
     'testCookingHistoryInsightLinksGeneratingRecipe',
-    'testFoodJournalTileRoutesToUnifiedTimeline',
-    'testJournalTileNeverPresentsForcedBadOpenAsHealthyEmpty',
+    'testJournalRootRoutesToUnifiedTimeline',
+    'testJournalRootNeverPresentsForcedBadOpenAsHealthyEmpty',
     'testQuietConnectAndSampleMarksSurviveLandscapeRotation',
 }
 UNIT_EXPECTED = {

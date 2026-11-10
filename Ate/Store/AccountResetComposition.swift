@@ -51,11 +51,19 @@ final class AccountResetComposition {
     /// This is the only candidate route that can build ordinary AppStore/Root graph.
     /// Factory must pass the same lease to EVERY writer and retain the gate. This API
     /// does not supply a factory using today's ungated production constructors.
+    /// authorizeLocalState stays synchronous and runs INSIDE gate.withWriterEffect:
+    /// strict receipt/control validation only, never an await under the flock.
+    /// authorizeAdmission is the async admission phase (central's ResetAwareStartup runs
+    /// it after captureAdmission, before final validation/buildGraph): unfenced awaits
+    /// such as JournalInstallReconciliation's snapshot RPC belong there, with their
+    /// final durable writes re-validated and stamped in a short gate effect.
     func startup<Graph>(authorizeLocalState: @escaping (UUID, AccountResetComposition) throws -> Void,
+                        authorizeAdmission: @escaping (UUID) async throws -> Void = { _ in },
                         buildGraph: @escaping (UUID, AccountResetComposition) throws -> Graph) -> ResetAwareStartup<Graph> {
         ResetAwareStartup(resume: { [self] in await reset.resumeIfPending() },
             captureAdmission: { [self] in try gate.captureWriter() },
             validateAdmission: { [self] in try gate.validateWriter($0) },
+            authorizeAdmission: authorizeAdmission,
             buildGraph: { [self] lease in
                 try gate.withWriterEffect(lease) {
                     // Must evaluate strict persisted receipt + verified remote epoch policy

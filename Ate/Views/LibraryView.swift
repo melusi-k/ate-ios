@@ -257,7 +257,7 @@ struct LibraryView: View {
             .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
             .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                Button(role: .destructive) { store.deleteWithUndo(r.id) } label: { Label("Delete", systemImage: "trash") }
+                Button(role: .destructive) { Task { await store.deleteWithUndo(r.id) } } label: { Label("Delete", systemImage: "trash") }
                     .tint(Theme.destructive)
             }
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
@@ -512,7 +512,7 @@ struct LibraryView: View {
             }
         }
         Divider()
-        Button(role: .destructive) { store.deleteWithUndo(r.id) } label: { Label("Delete", systemImage: "trash") }
+        Button(role: .destructive) { Task { await store.deleteWithUndo(r.id) } } label: { Label("Delete", systemImage: "trash") }
     }
 }
 
@@ -537,7 +537,7 @@ private struct LibrarySheets: ViewModifier {
         .confirmationDialog("Delete “\(confirmDelete?.title ?? "")”?", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
                             titleVisibility: .visible) {
             Button("Delete recipe", role: .destructive) {
-                if let r = confirmDelete { store.delete(r.id); store.show("Recipe deleted"); Haptics.warning() }
+                if let r = confirmDelete { Task { if await store.delete(r.id) { store.show("Recipe deleted"); Haptics.warning() } } }
                 confirmDelete = nil
             }
         }

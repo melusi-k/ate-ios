@@ -1,5 +1,10 @@
 # Ate — QA acceptance matrix
 
+## Pilot/Launch policy - 10 November 2026
+
+[LAUNCH_GATES.md](LAUNCH_GATES.md) defines the approved two-stage policy. `gate:mvp` is the entry-to-Pilot work queue; existing per-ID Pilot/Public launch values are retained pending explicit criterion-level reconciliation. `Public launch` is the inventory compatibility name for Launch. No IDs, acceptance results or checkboxes are changed by this policy update. Optional or disabled account/cloud/Health features are not silently promoted into the cooking pilot. No percentage score approves a stage. #45 owns the decision, #33 candidate evidence, #30 history.
+
+
 _Source of truth for acceptance IDs and definitions: [MVP_CHECKLIST.md](MVP_CHECKLIST.md). The in-app Beta checks follow the same IDs (CI scripts/check-ids.py). Existing result and evidence fields are preserved by this migration._
 
 **Simulator target:** simulator-based CI runs use iPhone 18 Pro on iOS 27.0 via the `xcode-27` runner image; a missing target is a hard setup failure, not a reason to fall back to another device. The iOS 18 deployment target is unchanged.

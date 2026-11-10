@@ -14,15 +14,6 @@ Evidence:
 
 Offline tests do not establish a hosted repaired build, native About rendering, or device acceptance. Ordinary CI on the repair's final head is still required. No manual dispatch or retry is part of this repair.
 
-## Reflection deletion review on the dormant Journal branch
+## Reflection deletion promotion to core writers
 
-Source 6ae1839169bc914faf4041b554a21720b25b1009 changes the guarded JournalViews source:
-confirmed reflection deletion now refreshes retained history only after a successful save,
-and failed deletion keeps detail visible with an error. The existing Journal navigation
-and cooking-reflection focus remains accurate; its title and summary are unchanged.
-The focus record is re-anchored to that source with exact current blobs after this review.
-No dormant unified-store activation, native test pass or device acceptance is claimed.
-The strict ancestry/blob validator and all qualification requirements remain unchanged.
-
-This split re-anchors the reviewed focus to the destination runtime commit above,
-not to the frozen aggregate branch. Activation remains OFF.
+Source a6e45b5a2a57942b76a6fb54512eb5b29cdc2d36 promotes the frozen truthful reflection-delete guard and tests into #432. The focus evidence is re-anchored at this actual published runtime commit with the current JournalViews blob. The focus title and summary remain accurate and unchanged. This metadata repair does not claim a native pass or that :233 is fixed. Activation remains OFF. The strict ancestry and blob validator remains unchanged.

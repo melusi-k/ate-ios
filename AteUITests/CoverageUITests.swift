@@ -197,10 +197,15 @@ final class CoverageUITests: XCTestCase {
         let fully = app.buttons["recipeSheet.expandFully"]
         wait(fully, 3)
         fully.tap()
-        let steps = app.staticTexts["Steps"].firstMatch
-        scrollTo(steps)
-        XCTAssertTrue(steps.exists && steps.isHittable, "Full recipe must allow scrolling to steps")
+        let detailScroll = app.scrollViews["recipe.detail.scroll"]
+        wait(detailScroll, 5)
+        let steps = detailScroll.staticTexts["recipe.steps.heading"]
+        // Overline text is exposed as uppercase STEPS. Use the stable identifier,
+        // and scroll only the mounted detail rather than the sheet or Library.
+        wait(steps, 5)
+        for _ in 0..<5 where !steps.isHittable { detailScroll.swipeUp() }
         shot("recipe-sheet-expanded-steps-portrait")
+        XCTAssertTrue(steps.exists && steps.isHittable, "Full recipe must allow scrolling to steps")
         app.buttons["recipeSheet.collapse"].tap()
         wait(expand, 3)
         XCTAssertTrue(title.exists, "Collapse must restore the compact preview")
@@ -208,7 +213,8 @@ final class CoverageUITests: XCTestCase {
         wait(servings, 5)
         // The preserved hierarchy must keep detail state, not reconstruct a new recipe view.
         // Scroll upward within the visible detail if expansion preserved a lower position.
-        scrollTo(servings, searchDownFirst: false)
+        for _ in 0..<5 where !servings.isHittable { detailScroll.swipeDown() }
+        XCTAssertTrue(servings.isHittable, "Retained detail must allow scrolling back to servings")
         XCTAssertTrue(servings.buttons["2×"].isSelected, "Collapsing and expanding must retain servings")
         app.buttons["recipeSheet.close"].tap()
         XCTAssertTrue(expand.waitForNonExistence(timeout: 3), "Close must dismiss the recipe sheet")

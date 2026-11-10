@@ -1,7 +1,7 @@
 {
   "title": "Journal navigation and cooking reflections",
   "summary": "Focus: the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log.",
-  "source_commit": "f084a9fefeeeeac93fe1b8a01d735f227cfa28a7",
+  "source_commit": "a6e45b5a2a57942b76a6fb54512eb5b29cdc2d36",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/Views/JournalViews.swift",
-      "blob": "784f8738703cdc0da51a299ca3753496e1185468"
+      "blob": "61c2d7df9cf3b780cf809b779efef40b0daeb3d2"
     }
   ]
 }

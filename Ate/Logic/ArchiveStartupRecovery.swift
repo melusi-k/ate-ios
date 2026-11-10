@@ -22,7 +22,13 @@ struct ArchiveStartupRecovery {
     let handlers: [Handler]
     let journalMedia: JournalMediaHandler
 
-    func run(ownerIdentity: String) throws {
+    /// beforeRetire runs AFTER every verification, restoration and cleanup succeeded and
+    /// BEFORE the transaction's atomic retirement. The startup binding uses it to land the
+    /// pending durable generation commit: a crash between that commit and the retire leaves
+    /// an unresolved committed record, which the next startup completes via the
+    /// authorized-advance path without advancing again. A throw skips the retire and keeps
+    /// the transaction unresolved for the next startup.
+    func run(ownerIdentity: String, beforeRetire: (UUID) throws -> Void = { _ in }) throws {
         try journal.lease.validate()
         let ids = try journal.transactions()
         guard ids.count <= 1 else { throw Failure.multipleTransactions }
@@ -80,6 +86,7 @@ struct ArchiveStartupRecovery {
             }
             if status != .rolledBack { try journal.transition(id, to: .rolledBack) }
         }
+        try beforeRetire(id)
         try journal.retire(id)
     }
 }

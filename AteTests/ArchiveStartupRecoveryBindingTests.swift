@@ -69,7 +69,7 @@ final class ArchiveStartupRecoveryBindingTests: XCTestCase {
     /// Inserts a journal row exactly as JournalArchiveRestore would have written it.
     private func insertRow(_ entry: JournalArchiveEntry, into store: JournalStore) throws {
         let ctx = ModelContext(try XCTUnwrap(store.container)); ctx.autosaveEnabled = false
-        let row = JournalEntry(id: entry.id, createdAt: entry.createdAt, prompt: entry.prompt,
+        let row = Ate.JournalEntry(id: entry.id, createdAt: entry.createdAt, prompt: entry.prompt,
                                text: entry.text, state: nil, recipeIDs: entry.recipeIDs,
                                journalingSuggestionTitle: entry.journalingSuggestionTitle,
                                momentDate: entry.momentDate)

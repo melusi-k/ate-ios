@@ -70,34 +70,48 @@ enum JournalOpenState: Equatable {
 @MainActor
 final class JournalStore {
     static let shared = JournalStore()
+    private let writerBoundary: FoodJournalWriterBoundary
     private var writeReflectionContext: (ModelContext) throws -> Void = { try $0.save() }
     let container: ModelContainer?
     private(set) var openState: JournalOpenState
-    init(inMemory: Bool = AppConfig.isUITesting) {
-        if inMemory {
-            container = try? ModelContainer(for: JournalEntry.self, JournalMealPayload.self,
-                                            configurations: ModelConfiguration("AteJournal", isStoredInMemoryOnly: true))
-            openState = container == nil ? .unavailable(error: "the in-memory journal failed to open") : .ok
-            // UI tests (`-qaJournalOpenState recovered|fallback|unavailable`): force the presented
-            // open state so the honest banner is verifiable through the running app's accessibility
-            // tree. Inert in production: qaForcedOpenState returns nil unless AppConfig.isUITesting.
-            if let forced = Self.qaForcedOpenState() { openState = forced }
-        } else {
-            // "AteJournal" has always resolved to this URL in the default directory, so opening
-            // by URL keeps every existing entry while giving recovery a path to move aside.
-            let outcome = StoreRecovery.open(url: ModelConfiguration("AteJournal").url) { cfg in
-                try ModelContainer(for: JournalEntry.self, JournalMealPayload.self, configurations: cfg)
+    convenience init(inMemory: Bool = AppConfig.isUITesting,
+                     writerBoundary: FoodJournalWriterBoundary = .legacy) {
+        let opened: (ModelContainer?, JournalOpenState)
+        do {
+            opened = try writerBoundary.withEffect {
+                if inMemory {
+                    let container = try? ModelContainer(for: JournalEntry.self, JournalMealPayload.self,
+                        configurations: ModelConfiguration("AteJournal", isStoredInMemoryOnly: true))
+                    let state: JournalOpenState = container == nil ? .unavailable(error: "the in-memory journal failed to open") : .ok
+                    return (container, Self.qaForcedOpenState() ?? state)
+                }
+                // Preserve the existing named-store path. Recovery may move bytes and
+                // therefore belongs inside admission, before any ordinary consumers.
+                let outcome = StoreRecovery.open(url: ModelConfiguration("AteJournal").url) { cfg in
+                    try ModelContainer(for: JournalEntry.self, JournalMealPayload.self, configurations: cfg)
+                }
+                return (outcome.container, Self.openState(for: outcome))
             }
-            container = outcome.container
-            openState = Self.openState(for: outcome)
+        } catch {
+            opened = (nil, .unavailable(error: "safe Journal startup could not be verified"))
         }
-        seedMomentEntryForUITests()
-        removeImagePromptEntriesOnce()
+        self.init(container: opened.0, openState: opened.1, writerBoundary: writerBoundary)
+        do {
+            try writerBoundary.withEffect {
+                container?.mainContext.autosaveEnabled = false
+                seedMomentEntryForUITests()
+                try removeImagePromptEntriesOnce()
+            }
+        } catch {
+            openState = .unavailable(error: "Journal startup maintenance could not be verified")
+        }
     }
 
     /// Explicit container injection for storage tests; production uses the verified open path above.
     init(container: ModelContainer?, openState: JournalOpenState,
+         writerBoundary: FoodJournalWriterBoundary = .legacy,
          writeReflectionContext: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
+        self.writerBoundary = writerBoundary
         self.container = container
         self.openState = openState
         self.writeReflectionContext = writeReflectionContext
@@ -123,11 +137,12 @@ final class JournalStore {
         return .ok
     }
     /// One-time cleanup (b81): earlier builds saved image-generation prompts routed through the journal schema as entries.
-    private func removeImagePromptEntriesOnce() {
+    private func removeImagePromptEntriesOnce() throws {
         let k = "ate.journal.imagePromptCleanup.v1"
         guard !UserDefaults.standard.bool(forKey: k), let ctx = container?.mainContext else { return }
         for e in entries() where e.source != .journalMoment && JournalTextGuard.looksLikeImagePrompt(e.text) { ctx.delete(e) }
-        try? ctx.save(); UserDefaults.standard.set(true, forKey: k)
+        try writeReflectionContext(ctx)
+        UserDefaults.standard.set(true, forKey: k)
     }
     /// Throwing single-entry read for the detail screen: nil means the entry is genuinely gone,
     /// while a store or fetch failure throws, so the detail shows an error instead of a false
@@ -171,23 +186,26 @@ final class JournalStore {
 
     /// Save only this insertion, never unrelated pending edits in the shared main context.
     private func persistReflection(_ entry: JournalEntry) throws -> String {
-        // Matches the accepted save behaviour: only .unavailable refuses. The in-memory fallback still
-        // saves for this session; JournalOpenStateBanner keeps telling the user it is temporary.
-        switch openState {
-        case .ok, .recovered, .inMemoryFallback: break
-        case .unavailable: throw ManualJournalSaveError.unavailable
+        return try writerBoundary.withEffect {
+            // Matches the accepted save behaviour: only .unavailable refuses. The in-memory fallback still
+            // saves for this session; JournalOpenStateBanner keeps telling the user it is temporary.
+            switch openState {
+            case .ok, .recovered, .inMemoryFallback: break
+            case .unavailable: throw ManualJournalSaveError.unavailable
+            }
+            guard let container else { throw ManualJournalSaveError.unavailable }
+            let context = ModelContext(container)
+            context.autosaveEnabled = false
+            context.insert(entry)
+            do { try writeReflectionContext(context) }
+            catch {
+                // Only this short-lived context owns the insertion. Never roll back mainContext.
+                context.rollback()
+                throw ManualJournalSaveError.failed
+            }
+            return entry.id
+
         }
-        guard let container else { throw ManualJournalSaveError.unavailable }
-        let context = ModelContext(container)
-        context.autosaveEnabled = false
-        context.insert(entry)
-        do { try writeReflectionContext(context) }
-        catch {
-            // Only this short-lived context owns the insertion. Never roll back mainContext.
-            context.rollback()
-            throw ManualJournalSaveError.failed
-        }
-        return entry.id
     }
 
     /// UI tests (`-qaJournalMomentEntry`): one entry that came from a Journal moment, to check the context row.
@@ -197,42 +215,78 @@ final class JournalStore {
             save(prompt: p, text: "Seeded from a Journal moment", state: state, recipeIDs: [], momentTitle: title, momentDate: date)
         }
     }
-    func delete(_ e: JournalEntry) {
-        // Reflection-only UI and intents cannot mutate structured meals or unknown kinds.
-        // Meals must use the coordinator's validated payload transaction.
-        guard e.kindRaw == JournalEntryKind.reflection.rawValue else { return }
-        for f in e.mediaFileNames { try? FileManager.default.removeItem(at: Self.mediaURL(f)) }
-        if let ctx = container?.mainContext {
-            // A meal entry's structured payload goes with it; the timeline never keeps one without the other (#245).
-            let entryID = e.id
-            if let payload = try? ctx.fetch(FetchDescriptor<JournalMealPayload>(predicate: #Predicate { $0.entryID == entryID })).first {
-                ctx.delete(payload)
-            }
-            ctx.delete(e); try? ctx.save()
-        }
+    @discardableResult
+    func delete(_ entry: JournalEntry) -> Bool {
+        (try? writerBoundary.withEffect { () -> Bool in
+            guard entry.kindRaw == JournalEntryKind.reflection.rawValue, let container else { return false }
+            let id = entry.id
+            let ctx = ModelContext(container)
+            ctx.autosaveEnabled = false
+            guard let stored = try ctx.fetch(FetchDescriptor<JournalEntry>(predicate: #Predicate { $0.id == id })).first,
+                  stored.kindRaw == JournalEntryKind.reflection.rawValue else { return false }
+            let media = stored.mediaFileNames
+            do {
+                ctx.delete(stored)
+                try writeReflectionContext(ctx)
+            } catch { ctx.rollback(); throw error }
+            // Keep media until the record deletion commits. A failed cleanup leaves
+            // removable orphan bytes, never a live reflection with missing media.
+            for name in media { try? FileManager.default.removeItem(at: Self.mediaURL(name)) }
+            return true
+        }) ?? false
     }
     /// Non-throwing single lookup kept for intents and internal maintenance; user-facing detail
     /// uses `readEntry(_:)` so a read failure cannot look like a deleted entry.
     func entry(_ id: String) -> JournalEntry? { try? readEntry(id) }
-    func update(_ e: JournalEntry, text: String) {
-        guard e.kindRaw == JournalEntryKind.reflection.rawValue else { return }
-        let t = text.trimmingCharacters(in: .whitespacesAndNewlines); guard !t.isEmpty else { return }
-        e.text = t; e.editedAt = .now; try? container?.mainContext.save()
+    func update(_ entry: JournalEntry, text: String) {
+        _ = try? writerBoundary.withEffect {
+            guard entry.kindRaw == JournalEntryKind.reflection.rawValue, let container else { return }
+            let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return }
+            let id = entry.id
+            let ctx = ModelContext(container)
+            ctx.autosaveEnabled = false
+            guard let stored = try ctx.fetch(FetchDescriptor<JournalEntry>(predicate: #Predicate { $0.id == id })).first,
+                  stored.kindRaw == JournalEntryKind.reflection.rawValue else { return }
+            let editedAt = Date()
+            stored.text = text; stored.editedAt = editedAt
+            do { try writeReflectionContext(ctx) }
+            catch { ctx.rollback(); throw error }
+            entry.text = text; entry.editedAt = editedAt
+        }
     }
     /// Entry saved from Siri/Shortcuts, keeping location and media (media files live in Application Support/JournalMedia).
     @discardableResult
     func saveFromIntent(title: String?, text: String, date: Date?, state: HealthState, locationName: String?, latitude: Double?, longitude: Double?,
                         media: [(data: Data, ext: String)]) -> JournalEntry? {
-        guard let ctx = container?.mainContext, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        let e = JournalEntry(createdAt: date ?? .now, prompt: title ?? "Note from Siri", text: text, state: state, source: .siri)
-        e.locationName = locationName; e.latitude = latitude; e.longitude = longitude
-        try? FileManager.default.createDirectory(at: Self.mediaDir, withIntermediateDirectories: true)
-        e.mediaFileNames = media.prefix(10).compactMap { m in
-            let name = "\(e.id)-\(UUID().uuidString.prefix(8)).\(m.ext.isEmpty ? "jpg" : m.ext)"
-            return (try? m.data.write(to: Self.mediaURL(name))) != nil ? name : nil
+        try? writerBoundary.withEffect {
+            guard let container, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw ManualJournalSaveError.unavailable
+            }
+            let ctx = ModelContext(container)
+            ctx.autosaveEnabled = false
+            let entry = JournalEntry(createdAt: date ?? .now, prompt: title ?? "Note from Siri", text: text, state: state, source: .siri)
+            entry.locationName = locationName; entry.latitude = latitude; entry.longitude = longitude
+            try FileManager.default.createDirectory(at: Self.mediaDir, withIntermediateDirectories: true)
+            do {
+                for item in media.prefix(10) {
+                    let ext = item.ext.isEmpty ? "jpg" : item.ext
+                    guard ext.allSatisfy({ $0.isLetter || $0.isNumber }) else { throw ManualJournalSaveError.failed }
+                    let name = "\(entry.id)-\(UUID().uuidString).\(ext)"
+                    let url = Self.mediaURL(name)
+                    try item.data.write(to: url, options: .atomic)
+                    entry.mediaFileNames.append(name)
+                }
+                ctx.insert(entry)
+                try writeReflectionContext(ctx)
+                return entry
+            } catch {
+                ctx.rollback()
+                // A save hook may throw after a durable commit. Retain created media
+                // on an uncertain outcome rather than delete bytes a live row may own.
+                throw error
+            }
         }
-        ctx.insert(e)
-        return (try? ctx.save()) != nil ? e : nil
     }
     nonisolated static var mediaDir: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("JournalMedia", isDirectory: true)

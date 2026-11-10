@@ -33,7 +33,7 @@ struct TimerSnapshot: Codable, Equatable {
     /// written and the caller must leave notifications and UI unchanged.
     @discardableResult
     static func save(_ s: [TimerSnapshot], boundary: SharedWriterBoundary = .current) -> Bool {
-        (try? boundary.withEffect {
+        (try? boundary.withEffect { () -> Void in
             SharedContainer.defaults.set(try? JSONEncoder().encode(s), forKey: key)
         }) != nil
     }

@@ -200,23 +200,23 @@ final class UnifiedArchiveImportBinding {
     }
 
     /// Mirrors ArchiveNutritionParticipant's planned write exactly: existing entries decode
-    /// without migration, additions are new identities only, one plain JSONEncoder pass.
+    /// without migration, additions are new identities only, one deterministic JSONEncoder pass.
     static func plannedNutritionImage(before: ArchiveNutritionImage,
                                       incomingDiary: [NutritionDiaryEntry],
                                       incomingGoals: DailyNutritionGoals) throws -> ArchiveNutritionImage {
         let existing = try before.diary.map { try JSONDecoder().decode([NutritionDiaryEntry].self, from: $0) } ?? []
         var ids = Set(existing.map(\.id))
         let additions = incomingDiary.filter { ids.insert($0.id).inserted }
-        let newDiary = try JSONEncoder().encode(existing + additions)
-        let newGoalFile = incomingGoals.isEmpty ? nil : try JSONEncoder().encode(incomingGoals)
+        let newDiary = try ArchiveRestoreEncoding.encoder().encode(existing + additions)
+        let newGoalFile = incomingGoals.isEmpty ? nil : try ArchiveRestoreEncoding.encoder().encode(incomingGoals)
         // The participant always removes the legacy goals key.
         return ArchiveNutritionImage(diary: newDiary, goalFile: newGoalFile, legacyGoals: nil)
     }
 
     static func plannedDefaultsImage(before: ArchiveDefaultsImage, settings: AppSettings,
                                      timerPrefs: TimerPrefs) throws -> ArchiveDefaultsImage {
-        ArchiveDefaultsImage(settings: try JSONEncoder().encode(settings),
-                             timer: try JSONEncoder().encode(timerPrefs),
+        ArchiveDefaultsImage(settings: try ArchiveRestoreEncoding.encoder().encode(settings),
+                             timer: try ArchiveRestoreEncoding.encoder().encode(timerPrefs),
                              syncMeta: before.syncMeta)
     }
 
@@ -257,7 +257,7 @@ final class UnifiedArchiveImportBinding {
         var shopIDs = Set(before.shopping.map(\.id))
         let freshShopping = incomingShopping.filter { shopIDs.insert($0.id).inserted }
 
-        let enc = JSONEncoder()
+        let enc = ArchiveRestoreEncoding.encoder()
         var plannedRecipes: [ArchiveRawRecipeImage] = try importable.reversed().map {
             ArchiveRawRecipeImage(id: $0.id, createdAt: $0.createdAt, position: 0, json: try enc.encode($0))
         }

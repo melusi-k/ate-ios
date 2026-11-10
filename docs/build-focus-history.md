@@ -13,3 +13,13 @@ Evidence:
 - https://github.com/melusi-k/ate-ios/commit/d663b966457a632b4a43460f14fe2a253d2adb99/checks/129303228594/logs/6
 
 Offline tests do not establish a hosted repaired build, native About rendering, or device acceptance. Ordinary CI on the repair's final head is still required. No manual dispatch or retry is part of this repair.
+
+## Reflection deletion review on the dormant Journal branch
+
+Source 227b8ce0735615606433561b5a1713e8b133bf69 changes the guarded JournalViews source:
+confirmed reflection deletion now refreshes retained history only after a successful save,
+and failed deletion keeps detail visible with an error. The existing Journal navigation
+and cooking-reflection focus remains accurate; its title and summary are unchanged.
+The focus record is re-anchored to that source with exact current blobs after this review.
+No dormant unified-store activation, native test pass or device acceptance is claimed.
+The strict ancestry/blob validator and all qualification requirements remain unchanged.

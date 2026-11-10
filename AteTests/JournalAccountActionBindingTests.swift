@@ -102,7 +102,8 @@ final class JournalAccountActionBindingTests: XCTestCase {
         let store = makeStore(runtime: makeRuntime())
         let captureBytes = Data("unified-archive-bytes".utf8)
         store.journalArchiveExport = { captureBytes }
-        XCTAssertEqual(try await store.exportUserData(), captureBytes,
+        let exported = try await store.exportUserData()
+        XCTAssertEqual(exported, captureBytes,
                        "The unified export is exactly what A's capture service produced")
     }
 

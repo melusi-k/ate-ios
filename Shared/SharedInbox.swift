@@ -26,7 +26,7 @@ enum SharedInbox {
     @discardableResult
     static func push(_ item: Item, _ d: UserDefaults = SharedContainer.defaults,
                      boundary: SharedWriterBoundary = .current) -> Bool {
-        (try? boundary.withEffect {
+        (try? boundary.withEffect { () -> Void in
             var all = load(d); all.append(item); save(Array(all.suffix(20)), d)
         }) != nil
     }

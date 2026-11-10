@@ -262,6 +262,28 @@ final class ArchiveImportBindingTests: XCTestCase {
                       "staging leftovers cleaned")
     }
 
+    func testPlannedRawImagesAreStableAcrossIndependentEncoders() throws {
+        let f = try fixture(); defer { cleanup(f) }
+        let value = try archive(f: f)
+        let before = try f.binding.readNutritionImage()
+        let expected = try UnifiedArchiveImportBinding.plannedNutritionImage(before: before,
+            incomingDiary: value.nutritionDiaryEntries, incomingGoals: value.nutritionGoals)
+        let defaultsBefore = f.binding.readDefaultsImage()
+        let expectedDefaults = try UnifiedArchiveImportBinding.plannedDefaultsImage(before: defaultsBefore,
+            settings: value.appSettings, timerPrefs: value.timerPreferences)
+        let recipesBefore = try UnifiedArchiveImportBinding.snapshotRecipeShopping(f.container)
+        let expectedRecipes = try UnifiedArchiveImportBinding.plannedRecipeShoppingImage(before: recipesBefore,
+            incomingRecipes: value.recipes, incomingShopping: value.shoppingItems)
+        for _ in 0..<32 {
+            XCTAssertEqual(try UnifiedArchiveImportBinding.plannedNutritionImage(before: before,
+                incomingDiary: value.nutritionDiaryEntries, incomingGoals: value.nutritionGoals), expected)
+            XCTAssertEqual(try UnifiedArchiveImportBinding.plannedDefaultsImage(before: defaultsBefore,
+                settings: value.appSettings, timerPrefs: value.timerPreferences), expectedDefaults)
+            XCTAssertEqual(try UnifiedArchiveImportBinding.plannedRecipeShoppingImage(before: recipesBefore,
+                incomingRecipes: value.recipes, incomingShopping: value.shoppingItems), expectedRecipes)
+        }
+    }
+
     func testRecordImagesMatchActualPlannedWrites() throws {
         let f = try fixture(); defer { cleanup(f) }
         let existingDiary = diaryEntry(food: "Inhloko")

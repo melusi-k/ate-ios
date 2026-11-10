@@ -47,6 +47,35 @@ final class FoodJournalWriterBoundaryTests: XCTestCase {
         XCTAssertTrue(try ModelContext(container).fetch(FetchDescriptor<Ate.JournalEntry>()).isEmpty)
     }
 
+    /// Matches the UI sequence behind JournalOpenStateUITests:233: an edited reflection is
+    /// reloaded through the main-context history/detail readers before isolated deletion.
+    func testEditedReflectionReloadThenDeleteDisappearsFromDiskAndUIReaders() throws {
+        let journal = JournalStore(inMemory: true)
+        let container = try XCTUnwrap(journal.container)
+        let id = try journal.saveManual(text: "Reflection before edit")
+        let loadedHistory = try journal.readReflections()
+        let retainedRow = try XCTUnwrap(loadedHistory.first { $0.id == id })
+        let originalDate = retainedRow.createdAt
+
+        journal.update(retainedRow, text: "Reflection after edit")
+        let reloadedHistory = try journal.readReflections()
+        let reloadedRow = try XCTUnwrap(reloadedHistory.first { $0.id == id })
+        let reloadedDetail = try XCTUnwrap(journal.readEntry(id))
+        XCTAssertEqual(reloadedRow.text, "Reflection after edit")
+        XCTAssertEqual(reloadedDetail.text, "Reflection after edit")
+        XCTAssertEqual(reloadedDetail.createdAt, originalDate)
+
+        XCTAssertTrue(journal.delete(reloadedDetail), "The deletion must report a committed write")
+        let diskReader = ModelContext(container)
+        diskReader.autosaveEnabled = false
+        XCTAssertFalse(try diskReader.fetch(FetchDescriptor<Ate.JournalEntry>()).contains { $0.id == id },
+            "An independent context must not find the deleted reflection")
+        XCTAssertFalse(try journal.readReflections().contains { $0.id == id },
+            "The history reader must not retain an edited row after committed deletion")
+        XCTAssertNil(try journal.readEntry(id),
+            "The detail reader must agree with the committed deletion")
+    }
+
     func testDeniedMaintenanceOpenDoesNotReturnUsableContainer() {
         let journal = JournalStore(inMemory: true,
             writerBoundary: FoodJournalWriterBoundary { _ in throw Denied.stale })

@@ -140,7 +140,8 @@ final class JournalStore {
     private func removeImagePromptEntriesOnce() throws {
         let k = "ate.journal.imagePromptCleanup.v1"
         guard !UserDefaults.standard.bool(forKey: k), let ctx = container?.mainContext else { return }
-        for e in entries() where e.source != .journalMoment && JournalTextGuard.looksLikeImagePrompt(e.text) { ctx.delete(e) }
+        // Delete models fetched by this transaction, not a committed-reader context.
+        for e in try ctx.fetch(FetchDescriptor<JournalEntry>()) where e.source != .journalMoment && JournalTextGuard.looksLikeImagePrompt(e.text) { ctx.delete(e) }
         try writeReflectionContext(ctx)
         UserDefaults.standard.set(true, forKey: k)
     }
@@ -159,7 +160,12 @@ final class JournalStore {
     /// Throwing read for user-facing lists. An unopened store or a failed fetch throws, so the
     /// Journal screens show an explicit error with retry instead of "No journal entries yet".
     func readEntries() throws -> [JournalEntry] {
-        guard let context = container?.mainContext else { throw JournalReadError.storeUnavailable }
+        guard let container else { throw JournalReadError.storeUnavailable }
+        // Writers commit in isolated contexts. A retained main-context model can still be
+        // dirty after an edit and outlive a later committed deletion. Read committed state
+        // without saving or rolling back another screen's pending main-context work.
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
         let rows: [JournalEntry]
         do { rows = try context.fetch(FetchDescriptor<JournalEntry>()) }
         catch { throw JournalReadError.readFailed }

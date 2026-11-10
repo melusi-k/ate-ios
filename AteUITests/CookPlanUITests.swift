@@ -23,7 +23,9 @@ final class CookPlanUITests: XCTestCase {
         let reminder = app.switches["cookPlan.reminder"]
         XCTAssertTrue(reminder.waitForExistence(timeout: 10))
         if reminder.value as? String == "1" { reminder.tap() }
+        XCTAssertEqual(reminder.value as? String, "0", "Turn the reminder off before saving the no-reminder plan")
         app.buttons["cookPlan.save"].tap()
+        XCTAssertTrue(reminder.waitForNonExistence(timeout: 10), "Save must dismiss the cooking plan sheet before reopening")
         XCTAssertTrue(plan.waitForExistence(timeout: 10))
         plan.tap()
         XCTAssertTrue(app.staticTexts["cookPlan.savedDate"].waitForExistence(timeout: 10))

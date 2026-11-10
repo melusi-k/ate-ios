@@ -642,7 +642,7 @@ struct InsightsView: View {
             if generation == recipeProgressRefreshGeneration { recipeProgressLoading = false }
         }
 
-        let input = RecipeProgressInsightInput.make(recipes: store.recipes, historyEvents: CookingHistory.shared.events)
+        let input = RecipeProgressInsightInput.make(recipes: store.recipes, historyEvents: store.journalCookingHistory.events)
         // A corrupt diary is unavailable, not empty: pass nil so diary-derived insights
         // are skipped instead of computed against a fabricated empty diary.
         let nutritionEntries = store.nutritionEntriesForInsights()

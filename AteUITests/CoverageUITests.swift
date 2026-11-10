@@ -288,7 +288,10 @@ final class CoverageUITests: XCTestCase {
         revealReadOnlySettingsRow(transparency); wait(transparency, 3)
         shot("settings-about")
 
-        scrollTo(export)
+        // About is below Tools. Return toward the earlier Export row first,
+        // rather than spending the full downward search at the bottom of Settings.
+        // Keep the same bounded opposite-direction fallback and all export assertions.
+        scrollTo(export, searchDownFirst: false)
         export.tap()
         shot("settings-export-immediately-after-tap")
         print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-BEGIN")

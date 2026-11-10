@@ -193,6 +193,7 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
+            -only-testing:AteUITests/CookPlanUITests \
             -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreensWithoutDynamicType \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
@@ -218,6 +219,7 @@ jobs:
             "NutritionDiaryUITests testCorruptGoalsShowLoadErrorWithRetry]' passed" \
             "NutritionDiaryUITests testRecipeNutritionShowsIncompleteStateForUnmappedIngredient]' passed" \
             "NutritionDiaryUITests testLoggedEntryCanBeEditedAndShowsUpdatedValues]' passed" \
+            "CookPlanUITests testSavedRecipePlanWithoutReminderCanBeReopenedAndCancelled]' passed" \
             "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
             "NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed" \
             "AccessibilityAuditUITests testAuditNutritionScreensWithoutDynamicType]' passed"; do

@@ -54,7 +54,7 @@ final class JournalLocalResetTests: XCTestCase {
     private func rowCounts(_ journal: JournalStore) throws -> (entries: Int, payloads: Int) {
         let container = try XCTUnwrap(journal.container)
         let context = ModelContext(container)
-        return (try context.fetch(FetchDescriptor<JournalEntry>()).count,
+        return (try context.fetch(FetchDescriptor<Ate.JournalEntry>()).count,
                 try context.fetch(FetchDescriptor<JournalMealPayload>()).count)
     }
 
@@ -112,7 +112,7 @@ final class JournalLocalResetTests: XCTestCase {
     }
 
     func testInMemoryFallbackErasesSessionRowsAndDurableStoreFiles() throws {
-        let container = try ModelContainer(for: JournalEntry.self, JournalMealPayload.self,
+        let container = try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let journal = JournalStore(container: container, openState: .inMemoryFallback(error: "simulated"))
         try FoodJournalStore(container: container).saveMeal(sampleMeal())

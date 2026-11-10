@@ -260,7 +260,14 @@ struct JournalEntryDetailView: View {
                 // A confirmation popover may omit its cancel row; an alert keeps both choices.
                 .alert("Delete this journal entry?", isPresented: $confirmDelete) {
                     Button("Delete", role: .destructive) {
-                        store.journalStore.delete(e); store.show("Journal entry deleted")
+                        guard store.journalStore.delete(e) else {
+                            store.show("Ate couldn't delete this journal entry. Try again.", error: true)
+                            return
+                        }
+                        // The history retains its loaded array while detail is pushed.
+                        // Refresh it only after the deletion's context has saved.
+                        store.journalRevision += 1
+                        store.show("Journal entry deleted")
                         BetaQA.shared.pass("C-JRN-04", note: "Deleted an entry after confirming")
                         entry = nil; dismiss()
                     }

@@ -411,9 +411,9 @@ final class AppStore {
     }
 
     /// Delete with a 5-second Undo toast.
-    func deleteWithUndo(_ id: String) {
+    func deleteWithUndo(_ id: String) async {
         guard let r = recipe(id), let idx = recipes.firstIndex(where: { $0.id == id }) else { return }
-        delete(id); Haptics.warning()
+        guard await delete(id) else { return }; Haptics.warning()
         show("Deleted “\(r.title)”", action: "Undo", perform: { [weak self] in
             guard let self else { return }
             self.recipes.insert(r, at: min(idx, self.recipes.count)); self.persistRecipes()
@@ -480,6 +480,27 @@ final class AppStore {
     var settings: AppSettings { didSet { saveDefaults(settings, key: "ate.settings.v1") } }
     var timerPrefs: TimerPrefs { didSet { saveDefaults(timerPrefs, key: "ate.timerprefs.v1") } }
 
+    /// Local-only plans use this store's defaults, never sync payloads or Journal rows.
+    var cookPlanStore: CookPlanStore { CookPlanStore(defaults: cookJournalDefaults) }
+    let cookPlanNotifications: CookPlanNotifications
+    private let clearCookPlansOverride: (() throws -> Void)?
+    private func clearCookPlans() throws {
+        if let clearCookPlansOverride { try clearCookPlansOverride() }
+        else { try cookPlanStore.clear() }
+    }
+
+    func refreshCookPlanReminders() async {
+        guard !AppConfig.isUITesting else { return }
+        do { try await cookPlanNotifications.reconcile(plans: cookPlanStore.plans(), recipes: recipes) }
+        catch { show("Cooking reminders could not be updated. Your plans are still saved.", error: true) }
+    }
+
+    func openPendingCookPlanReminder() {
+        guard !showOnboarding, let id = CookPlanNotificationRouter.shared.takePendingRecipeID() else { return }
+        select(.library); cookTarget = nil
+        path = [.recipe(id)]
+    }
+
     var cookTarget: CookTarget?
     let timers = TimerCenter()
 
@@ -534,7 +555,12 @@ final class AppStore {
     init(context: ModelContext?, backend: BackendService = AppConfig.makeBackend(),
          nutritionDiaryRepository: NutritionDiaryRepository = NutritionDiaryRepository(),
          nutritionGoalsRepository: NutritionGoalsRepository = NutritionGoalsRepository(),
-         foodJournalRuntime: FoodJournalRuntime? = nil) {
+         foodJournalRuntime: FoodJournalRuntime? = nil,
+         cookPlanNotifications: CookPlanNotifications? = nil,
+         clearCookPlans: (() throws -> Void)? = nil,
+         authOverride: AuthService? = nil, syncOverride: SyncService? = nil) {
+        self.cookPlanNotifications = cookPlanNotifications ?? CookPlanNotifications()
+        self.clearCookPlansOverride = clearCookPlans
         self.context = context
         self.foodJournalRuntime = foodJournalRuntime
         self.backend = backend
@@ -554,7 +580,9 @@ final class AppStore {
             ProcessInfo.processInfo.arguments.contains("-qaResetInsightLifecycle") {
             InsightLifecycleStore.clearAll()
         }
-        if AppConfig.isUITesting {
+        if let authOverride, let syncOverride {
+            auth = authOverride; sync = syncOverride
+        } else if AppConfig.isUITesting {
             auth = MockAuth(); sync = MockSync()
         } else if let url = AppConfig.supabaseURL, !AppConfig.supabasePublishableKey.isEmpty {
             auth = SupabaseAuth(baseURL: url, key: AppConfig.supabasePublishableKey)
@@ -692,10 +720,19 @@ final class AppStore {
         persistRecipes()
     }
 
-    func delete(_ id: String) {
+    @discardableResult
+    func delete(_ id: String) async -> Bool {
+        do {
+            try cookPlanStore.cancel(recipeID: id)
+            try await cookPlanNotifications.cancel(recipeID: id)
+        } catch {
+            show("Recipe cleanup could not be verified. The recipe was kept. Try again.", error: true)
+            return false
+        }
         CoverStore.shared.removeFiles(recipeID: id)
         recipes.removeAll { $0.id == id }
         persistRecipes()
+        return true
     }
 
     /// New cooking context and retained drafts must not survive an explicit local-data wipe.
@@ -710,12 +747,16 @@ final class AppStore {
         clearCookSession()
     }
 
-    func clearLibrary() {
-        guard foodJournalRuntime == nil else { show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return }
+    @discardableResult
+    func clearLibrary() async -> Bool {
+        guard foodJournalRuntime == nil else { show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return false }
+        do { try clearCookPlans(); try await cookPlanNotifications.cancelAll() }
+        catch { show("Cooking plan cleanup could not be verified. Other local data was kept. Try again.", error: true); return false }
         clearCookCompletionContext()
         recipes = []; CookingHistory.shared.clear()
         path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
         persistRecipes()
+        return true
     }
 
     func importJSON(_ data: Data) throws -> DataImportSummary {
@@ -1003,11 +1044,12 @@ final class AppStore {
                 saveDefaults(meta, key: "ate.sync.v1")
             }
             let remote = try await sync.pull(session: s)
-            accountSwitchPullSucceeded = true
             BetaQA.shared.syncPulled(rows: remote.count)
             if switchingAccounts {
                 // Keep the previous account's local copy until the new account's pull succeeds.
                 // A failed request must not erase recipes or change their account ownership.
+                try clearCookPlans()
+                try await cookPlanNotifications.cancelAll()
                 recipes = []; shopping = []; recipeSnapshot = [:]; shopSnapshot = [:]
                 persistRecipes(stamp: false); persistShopping(stamp: false)
                 meta = SyncMeta()
@@ -1015,6 +1057,7 @@ final class AppStore {
                 BetaQA.shared.pass("A-SYNC-05", note: "Account switch detected; previous account's copy removed")
                 show("Switched accounts — the other account's recipes were removed from this iPhone (they're still in that account).")
             }
+            accountSwitchPullSucceeded = true
             meta.userID = s.userID
             let enc = JSONEncoder()
             let dec = JSONDecoder()
@@ -1177,7 +1220,13 @@ final class AppStore {
         syncTask?.cancel()
         setSession(nil)
         syncState = .signedOut
-        if removeLocalData { wipeLocalData() }
+        if removeLocalData {
+            do { try await wipeLocalData() }
+            catch {
+                show("Signed out, but this iPhone's data cleanup failed. Retained data was kept for recovery. Try removing it again.", error: true)
+                return
+            }
+        }
         BetaQA.shared.signedOut(removeLocalData: removeLocalData, remaining: recipes.count)
         show(removeLocalData ? "Signed out and removed this iPhone's copy" : "Signed out — your recipes stay on this device")
     }
@@ -1192,11 +1241,17 @@ final class AppStore {
             if s.expiresAt < Date().timeIntervalSince1970 + 60 { s = try await auth.refresh(s) }
             try await auth.deleteAccount(s)
         } catch { let e = AuthError.network(error); BetaQA.shared.fail("A-AUTH-08", error: e.message); return e }
-        BetaQA.shared.pass("A-AUTH-08", note: "Account deleted on the server and locally")
         syncTask?.cancel()
         setSession(nil)
         syncState = .signedOut
-        wipeLocalData()
+        do { try await wipeLocalData() }
+        catch {
+            let error = AuthError(message: "The server account was deleted, but this iPhone's cleanup failed. Retained local data was kept for recovery. Retry local removal.")
+            show(error.message, error: true)
+            BetaQA.shared.fail("A-AUTH-08", error: error.message)
+            return error
+        }
+        BetaQA.shared.pass("A-AUTH-08", note: "Account deleted on the server and locally")
         path.removeAll()
         if !AppConfig.isUITesting { UserDefaults.standard.removeObject(forKey: Self.onboardedKey) }
         showOnboarding = true
@@ -1204,7 +1259,10 @@ final class AppStore {
         return nil
     }
 
-    private func wipeLocalData() {
+    private func wipeLocalData() async throws {
+        // Explicit local-data removal also removes plans and queued cooking reminders.
+        try clearCookPlans()
+        try await cookPlanNotifications.cancelAll()
         InsightLifecycleStore.clearAll()
         clearCookCompletionContext()
         recipes = []; shopping = []

@@ -14,6 +14,7 @@ final class FoodJournalCoordinator {
         case restoreOutcomeUncertain
     }
 
+    private let writerBoundary: FoodJournalWriterBoundary
     private let journal: JournalStore
     private let meals: FoodJournalStore
     private let legacy: NutritionDiaryRepository
@@ -22,9 +23,11 @@ final class FoodJournalCoordinator {
     private let afterRestoreCommit: () throws -> Void
 
     init(journal: JournalStore, legacy: NutritionDiaryRepository,
+         writerBoundary: FoodJournalWriterBoundary = .legacy,
          markerDefaults: UserDefaults, backupDirectory: URL? = nil,
          afterRestoreCommit: @escaping () throws -> Void = {},
          mealWriteContext: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
+        self.writerBoundary = writerBoundary
         self.journal = journal
         self.meals = FoodJournalStore(container: journal.container, writeContext: mealWriteContext)
         self.legacy = legacy
@@ -38,39 +41,57 @@ final class FoodJournalCoordinator {
     /// Rechecks legacy existence and actual open state on every boundary use. Do not cache
     /// readiness across external restore, account resets or corrupt-data recovery.
     private func prepare() throws {
-        let outcome = FoodJournalMigration.migrateIfNeeded(
-            legacy: legacy, store: meals, openState: journal.openState,
-            backupDirectory: backupDirectory, markerDefaults: markerDefaults)
-        switch outcome {
-        case .migrated, .alreadyMigrated, .noLegacyData: return
-        case .legacyCorrupt: throw AccessError.legacyCorrupt
-        case .failed(let reason): throw AccessError.migrationFailed(reason)
+        return try writerBoundary.withEffect {
+            let outcome = FoodJournalMigration.migrateIfNeeded(
+                legacy: legacy, store: meals, openState: journal.openState,
+                backupDirectory: backupDirectory, markerDefaults: markerDefaults)
+            switch outcome {
+            case .migrated, .alreadyMigrated, .noLegacyData: return
+            case .legacyCorrupt: throw AccessError.legacyCorrupt
+            case .failed(let reason): throw AccessError.migrationFailed(reason)
+            }
+
         }
     }
 
     func readMeals() throws -> [NutritionDiaryEntry] {
-        try prepare()
-        return try meals.readMeals()
+        return try writerBoundary.withEffect {
+            try prepare()
+            return try meals.readMeals()
+
+        }
     }
 
     func timelineItems(calendar: Calendar = .autoupdatingCurrent) throws -> [JournalTimelineItem] {
-        try prepare()
-        return try meals.timelineItems(calendar: calendar)
+        return try writerBoundary.withEffect {
+            try prepare()
+            return try meals.timelineItems(calendar: calendar)
+
+        }
     }
 
     func saveMeal(_ entry: NutritionDiaryEntry) throws {
-        try prepare()
-        try meals.saveMeal(entry)
+        return try writerBoundary.withEffect {
+            try prepare()
+            try meals.saveMeal(entry)
+
+        }
     }
 
     func updateMeal(_ entry: NutritionDiaryEntry) throws {
-        try prepare()
-        try meals.updateMeal(entry)
+        return try writerBoundary.withEffect {
+            try prepare()
+            try meals.updateMeal(entry)
+
+        }
     }
 
     func deleteMeal(id: UUID) throws {
-        try prepare()
-        try meals.deleteMealSafely(id: id)
+        return try writerBoundary.withEffect {
+            try prepare()
+            try meals.deleteMealSafely(id: id)
+
+        }
     }
 
     /// Explicit user-reviewed legacy-backup import only, never called during startup.
@@ -79,68 +100,71 @@ final class FoodJournalCoordinator {
     /// This is meal-backup recovery, not complete goals/media/reflection archive restore.
     @discardableResult
     func restoreReviewedLegacyBackup(_ raw: Data, preservedCopyDirectory: URL) throws -> Int {
-        let incoming: [NutritionDiaryEntry]
-        do { incoming = try JSONDecoder().decode([NutritionDiaryEntry].self, from: raw) }
-        catch { throw AccessError.invalidBackup }
-        guard incoming.allSatisfy(FoodJournalStore.validMeal),
-              Set(incoming.map(\.id)).count == incoming.count else { throw AccessError.invalidBackup }
-        switch journal.openState {
-        case .ok, .recovered: break
-        case .inMemoryFallback, .unavailable:
-            throw AccessError.migrationFailed("journal is not durably available")
-        }
-        // Reject conflicts against BOTH canonical and still-legacy values before prepare()
-        // can migrate/retire anything. Decode without historical-day normalization writes.
-        let canonical = try meals.readMeals()
-        guard let container = journal.container else { throw FoodJournalStoreError.unreadableStore }
-        let allRows = try ModelContext(container).fetch(FetchDescriptor<JournalEntry>())
-        let rowIDs = Set(allRows.map(\.id))
-        let mealIDs = Set(canonical.map { $0.id.uuidString })
-        guard incoming.allSatisfy({ !rowIDs.contains($0.id.uuidString) || mealIDs.contains($0.id.uuidString) }) else {
-            throw FoodJournalStoreError.conflictingIdentity
-        }
-        var known = Dictionary(uniqueKeysWithValues: canonical.map { ($0.id, $0) })
-        switch legacy.loadState(persistHistoricalDayKeys: false) {
-        case .corrupt: throw AccessError.legacyCorrupt
-        case .absent: break
-        case .loaded(let old):
-            guard old.allSatisfy(FoodJournalStore.validMeal),
-                  Set(old.map(\.id)).count == old.count else {
-                throw AccessError.migrationFailed("invalid or duplicate legacy records preserved; no meals imported")
+        return try writerBoundary.withEffect {
+            let incoming: [NutritionDiaryEntry]
+            do { incoming = try JSONDecoder().decode([NutritionDiaryEntry].self, from: raw) }
+            catch { throw AccessError.invalidBackup }
+            guard incoming.allSatisfy(FoodJournalStore.validMeal),
+                  Set(incoming.map(\.id)).count == incoming.count else { throw AccessError.invalidBackup }
+            switch journal.openState {
+            case .ok, .recovered: break
+            case .inMemoryFallback, .unavailable:
+                throw AccessError.migrationFailed("journal is not durably available")
             }
-            for entry in old {
-                guard known[entry.id] == nil || known[entry.id] == entry else {
-                    throw FoodJournalStoreError.conflictingIdentity
+            // Reject conflicts against BOTH canonical and still-legacy values before prepare()
+            // can migrate/retire anything. Decode without historical-day normalization writes.
+            let canonical = try meals.readMeals()
+            guard let container = journal.container else { throw FoodJournalStoreError.unreadableStore }
+            let allRows = try ModelContext(container).fetch(FetchDescriptor<JournalEntry>())
+            let rowIDs = Set(allRows.map(\.id))
+            let mealIDs = Set(canonical.map { $0.id.uuidString })
+            guard incoming.allSatisfy({ !rowIDs.contains($0.id.uuidString) || mealIDs.contains($0.id.uuidString) }) else {
+                throw FoodJournalStoreError.conflictingIdentity
+            }
+            var known = Dictionary(uniqueKeysWithValues: canonical.map { ($0.id, $0) })
+            switch legacy.loadState(persistHistoricalDayKeys: false) {
+            case .corrupt: throw AccessError.legacyCorrupt
+            case .absent: break
+            case .loaded(let old):
+                guard old.allSatisfy(FoodJournalStore.validMeal),
+                      Set(old.map(\.id)).count == old.count else {
+                    throw AccessError.migrationFailed("invalid or duplicate legacy records preserved; no meals imported")
                 }
-                known[entry.id] = entry
+                for entry in old {
+                    guard known[entry.id] == nil || known[entry.id] == entry else {
+                        throw FoodJournalStoreError.conflictingIdentity
+                    }
+                    known[entry.id] = entry
+                }
             }
-        }
-        guard incoming.allSatisfy({ known[$0.id] == nil || known[$0.id] == $0 }) else {
-            throw FoodJournalStoreError.conflictingIdentity
-        }
-        try FileManager.default.createDirectory(at: preservedCopyDirectory, withIntermediateDirectories: true)
-        let copy = preservedCopyDirectory.appendingPathComponent("reviewed-legacy-backup-\(UUID().uuidString).json")
-        try raw.write(to: copy, options: .atomic)
-        guard try Data(contentsOf: copy) == raw else { throw AccessError.backupVerificationFailed }
-        // Existing legacy data, if any, must pass the same migration barrier first.
-        // A failure here may have created a retained backup, never a new legacy key.
-        try prepare()
-        let before = try meals.readMeals()
-        do { try meals.importMeals(incoming) }
-        catch {
-            // A save implementation can throw after a durable commit. Do not promise
-            // rollback or silently retry from an uncertain outcome.
-            throw AccessError.restoreOutcomeUncertain
-        }
-        do {
-            try afterRestoreCommit()
-            let after = try meals.readMeals()
-            let indexed = Dictionary(uniqueKeysWithValues: after.map { ($0.id, $0) })
-            guard incoming.allSatisfy({ indexed[$0.id] == $0 }) else {
-                throw AccessError.restoreCommittedButUnverified
+            guard incoming.allSatisfy({ known[$0.id] == nil || known[$0.id] == $0 }) else {
+                throw FoodJournalStoreError.conflictingIdentity
             }
-            return after.count - before.count
-        } catch { throw AccessError.restoreCommittedButUnverified }
+            try FileManager.default.createDirectory(at: preservedCopyDirectory, withIntermediateDirectories: true)
+            let copy = preservedCopyDirectory.appendingPathComponent("reviewed-legacy-backup-\(UUID().uuidString).json")
+            try raw.write(to: copy, options: .atomic)
+            guard try Data(contentsOf: copy) == raw else { throw AccessError.backupVerificationFailed }
+            // Existing legacy data, if any, must pass the same migration barrier first.
+            // A failure here may have created a retained backup, never a new legacy key.
+            try prepare()
+            let before = try meals.readMeals()
+            do { try meals.importMeals(incoming) }
+            catch {
+                // A save implementation can throw after a durable commit. Do not promise
+                // rollback or silently retry from an uncertain outcome.
+                throw AccessError.restoreOutcomeUncertain
+            }
+            do {
+                try afterRestoreCommit()
+                let after = try meals.readMeals()
+                let indexed = Dictionary(uniqueKeysWithValues: after.map { ($0.id, $0) })
+                guard incoming.allSatisfy({ indexed[$0.id] == $0 }) else {
+                    throw AccessError.restoreCommittedButUnverified
+                }
+                return after.count - before.count
+            } catch { throw AccessError.restoreCommittedButUnverified }
+
+        }
     }
 
     // Archive import/clear are intentionally absent: coordinating their goals/media/reflection

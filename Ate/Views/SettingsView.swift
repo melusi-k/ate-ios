@@ -283,7 +283,7 @@ struct SettingsView: View {
             Text("New recipes, shopping items and diary entries will be added. Existing matching items stay on this iPhone. If this archive contains nutrition goals and app preferences, they replace the current ones.")
         }
         .confirmationDialog("Clear your whole library?", isPresented: $confirmClear, titleVisibility: .visible) {
-            Button("Clear all", role: .destructive) { store.clearLibrary(); store.show("Library cleared") }
+            Button("Clear all", role: .destructive) { Task { if await store.clearLibrary() { store.show("Library cleared") } } }
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {

@@ -60,7 +60,7 @@ final class ArchiveCaptureBindingTests: XCTestCase {
 
     private func seedJournalReflection(_ store: JournalStore, id: String, mediaName: String?) throws {
         let ctx = ModelContext(try XCTUnwrap(store.container)); ctx.autosaveEnabled = false
-        let row = JournalEntry(id: id, createdAt: Date(timeIntervalSince1970: 1234),
+        let row = Ate.JournalEntry(id: id, createdAt: Date(timeIntervalSince1970: 1234),
                                prompt: "Dinner?", text: "Dinner", state: .balanced)
         if let mediaName { row.mediaFileNames = [mediaName] }
         ctx.insert(row)

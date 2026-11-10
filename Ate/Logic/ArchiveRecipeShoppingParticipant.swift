@@ -60,7 +60,7 @@ final class ArchiveRecipeShoppingParticipant {
         var shopIDs = Set(shopping.map(\.id))
         let freshShopping = incomingShopping.filter { shopIDs.insert($0.id).inserted }
 
-        let enc = JSONEncoder()
+        let enc = ArchiveRestoreEncoding.encoder()
         var plannedRecipes: [RawRecipe] = try importable.reversed().map {
             RawRecipe(id: $0.id, createdAt: $0.createdAt, position: 0, json: try enc.encode($0))
         }

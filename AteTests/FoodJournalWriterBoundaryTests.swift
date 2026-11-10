@@ -48,7 +48,7 @@ final class FoodJournalWriterBoundaryTests: XCTestCase {
     }
 
     /// Matches the UI sequence behind JournalOpenStateUITests:233: an edited reflection is
-    /// reloaded through the main-context history/detail readers before isolated deletion.
+    /// reloaded through history/detail readers before isolated deletion.
     func testEditedReflectionReloadThenDeleteDisappearsFromDiskAndUIReaders() throws {
         let journal = JournalStore(inMemory: true)
         let container = try XCTUnwrap(journal.container)
@@ -74,6 +74,40 @@ final class FoodJournalWriterBoundaryTests: XCTestCase {
             "The history reader must not retain an edited row after committed deletion")
         XCTAssertNil(try journal.readEntry(id),
             "The detail reader must agree with the committed deletion")
+    }
+
+    func testEditReloadDeleteReadsCommittedStateWithoutTouchingPendingMainContextWork() throws {
+        let journal = JournalStore(inMemory: true)
+        let container = try XCTUnwrap(journal.container)
+        let main = container.mainContext
+        main.autosaveEnabled = false
+        let unrelatedID = try journal.saveManual(text: "Unrelated committed reflection")
+        let unrelated = try XCTUnwrap(try main.fetch(FetchDescriptor<Ate.JournalEntry>())
+            .first { $0.id == unrelatedID })
+        unrelated.text = "Unrelated pending edit"
+        let pending = Ate.JournalEntry(prompt: "", text: "Unrelated pending insertion", state: nil)
+        main.insert(pending)
+
+        let id = try journal.saveManual(text: "Target before edit")
+        let row = try XCTUnwrap(try journal.readReflections().first { $0.id == id })
+        journal.update(row, text: "Target after edit")
+        let detail = try XCTUnwrap(journal.readEntry(id))
+        XCTAssertEqual(detail.text, "Target after edit")
+        XCTAssertEqual(try journal.readReflections().first { $0.id == id }?.text, "Target after edit")
+        XCTAssertTrue(journal.delete(detail))
+        XCTAssertFalse(try journal.readReflections().contains { $0.id == id || $0.id == pending.id })
+        XCTAssertNil(try journal.readEntry(id))
+        XCTAssertEqual(try journal.readEntries().map(\.text), ["Unrelated committed reflection"])
+        XCTAssertTrue(main.hasChanges, "Reads and target writes must leave unrelated edits pending")
+        XCTAssertEqual(unrelated.text, "Unrelated pending edit")
+        XCTAssertTrue(try main.fetch(FetchDescriptor<Ate.JournalEntry>()).contains { $0.id == pending.id })
+
+        // Only the explicit owner save may commit those unrelated changes. It must not
+        // resurrect the edited-and-deleted target through a dirty retained reader row.
+        try main.save()
+        let committed = try ModelContext(container).fetch(FetchDescriptor<Ate.JournalEntry>())
+        XCTAssertEqual(Set(committed.map(\.id)), Set([unrelatedID, pending.id]))
+        XCTAssertEqual(committed.first { $0.id == unrelatedID }?.text, "Unrelated pending edit")
     }
 
     func testDeniedMaintenanceOpenDoesNotReturnUsableContainer() {

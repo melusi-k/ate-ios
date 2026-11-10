@@ -16,7 +16,7 @@ Offline tests do not establish a hosted repaired build, native About rendering, 
 
 ## Reflection deletion review on the dormant Journal branch
 
-Source 6ae1839169bc914faf4041b554a21720b25b1009 changes the guarded JournalViews source:
+Source a6e45b5a2a57942b76a6fb54512eb5b29cdc2d36 changes the guarded JournalViews source:
 confirmed reflection deletion now refreshes retained history only after a successful save,
 and failed deletion keeps detail visible with an error. The existing Journal navigation
 and cooking-reflection focus remains accurate; its title and summary are unchanged.

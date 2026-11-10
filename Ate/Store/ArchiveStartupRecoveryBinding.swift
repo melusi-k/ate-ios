@@ -77,8 +77,8 @@ enum UnifiedArchiveStartupRecovery {
             ArchiveStartupRecovery.Handler(
                 component: ArchiveComponentName.defaults,
                 restoreBefore: { try restoreDefaults(decodeRequired(ArchiveDefaultsImage.self, $0), defaults: defaults) },
-                verifyBefore: { guard readDefaultsImage(defaults: defaults) == decodeRequired(ArchiveDefaultsImage.self, $0) else { throw ArchiveRestoreFailure.verificationFailed } },
-                verifyAfter: { guard readDefaultsImage(defaults: defaults) == decodeRequired(ArchiveDefaultsImage.self, $0) else { throw ArchiveRestoreFailure.verificationFailed } }),
+                verifyBefore: { guard try readDefaultsImage(defaults: defaults) == decodeRequired(ArchiveDefaultsImage.self, $0) else { throw ArchiveRestoreFailure.verificationFailed } },
+                verifyAfter: { guard try readDefaultsImage(defaults: defaults) == decodeRequired(ArchiveDefaultsImage.self, $0) else { throw ArchiveRestoreFailure.verificationFailed } }),
             ArchiveStartupRecovery.Handler(
                 component: ArchiveComponentName.recipeShopping,
                 restoreBefore: { try restoreRecipeShopping(decodeRequired(ArchiveRecipeShoppingImage.self, $0), container: recipeContainer) },

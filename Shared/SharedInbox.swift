@@ -19,14 +19,26 @@ enum SharedInbox {
     static func save(_ items: [Item], _ d: UserDefaults = SharedContainer.defaults) {
         d.set(try? JSONEncoder().encode(items), forKey: key)
     }
-    static func push(_ item: Item, _ d: UserDefaults = SharedContainer.defaults) {
-        var all = load(d); all.append(item); save(Array(all.suffix(20)), d)
+    /// Appends an item (newest kept, 20 max) as one gated read-modify-write, so a
+    /// share extension and the app can never lose each other's items. Returns false
+    /// when the writer boundary refused the effect; nothing was queued and the
+    /// caller must not claim the item was saved.
+    @discardableResult
+    static func push(_ item: Item, _ d: UserDefaults = SharedContainer.defaults,
+                     boundary: SharedWriterBoundary = .current) -> Bool {
+        (try? boundary.withEffect { () -> Void in
+            var all = load(d); all.append(item); save(Array(all.suffix(20)), d)
+        }) != nil
     }
-    /// Removes and returns the oldest item.
-    static func pop(_ d: UserDefaults = SharedContainer.defaults) -> Item? {
-        var all = load(d)
-        guard !all.isEmpty else { return nil }
-        let first = all.removeFirst(); save(all, d); return first
+    /// Removes and returns the oldest item as one gated read-modify-write. A
+    /// refused effect returns nil and leaves the inbox untouched.
+    static func pop(_ d: UserDefaults = SharedContainer.defaults,
+                    boundary: SharedWriterBoundary = .current) -> Item? {
+        (try? boundary.withEffect { () -> Item? in
+            var all = load(d)
+            guard !all.isEmpty else { return nil }
+            let first = all.removeFirst(); save(all, d); return first
+        }) ?? nil
     }
 
     static var folder: URL? {

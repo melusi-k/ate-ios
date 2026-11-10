@@ -35,8 +35,8 @@ final class JournalAccountActionBindingTests: XCTestCase {
             storage: FileNutritionGoalsStorage(fileURL: root.appendingPathComponent("goals.json")))
     }
 
-    private func makeRuntime(journal: JournalStore = JournalStore(inMemory: true)) -> FoodJournalRuntime {
-        FoodJournalRuntime(journal: journal, goalsRepository: goalsRepo(), defaults: defaults,
+    private func makeRuntime(journal: JournalStore? = nil) -> FoodJournalRuntime {
+        FoodJournalRuntime(journal: journal ?? JournalStore(inMemory: true), goalsRepository: goalsRepo(), defaults: defaults,
                            migrationBackupDirectory: root.appendingPathComponent("NutritionDiaryLegacyBackups", isDirectory: true),
                            repairBackupDirectory: root.appendingPathComponent("NutritionDiaryCorruptBackups", isDirectory: true))
     }

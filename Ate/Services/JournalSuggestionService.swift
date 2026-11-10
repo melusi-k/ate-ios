@@ -215,14 +215,15 @@ final class JournalStore {
             save(prompt: p, text: "Seeded from a Journal moment", state: state, recipeIDs: [], momentTitle: title, momentDate: date)
         }
     }
-    func delete(_ entry: JournalEntry) {
-        _ = try? writerBoundary.withEffect {
-            guard entry.kindRaw == JournalEntryKind.reflection.rawValue, let container else { return }
+    @discardableResult
+    func delete(_ entry: JournalEntry) -> Bool {
+        (try? writerBoundary.withEffect { () -> Bool in
+            guard entry.kindRaw == JournalEntryKind.reflection.rawValue, let container else { return false }
             let id = entry.id
             let ctx = ModelContext(container)
             ctx.autosaveEnabled = false
             guard let stored = try ctx.fetch(FetchDescriptor<JournalEntry>(predicate: #Predicate { $0.id == id })).first,
-                  stored.kindRaw == JournalEntryKind.reflection.rawValue else { return }
+                  stored.kindRaw == JournalEntryKind.reflection.rawValue else { return false }
             let media = stored.mediaFileNames
             do {
                 ctx.delete(stored)
@@ -231,7 +232,8 @@ final class JournalStore {
             // Keep media until the record deletion commits. A failed cleanup leaves
             // removable orphan bytes, never a live reflection with missing media.
             for name in media { try? FileManager.default.removeItem(at: Self.mediaURL(name)) }
-        }
+            return true
+        }) ?? false
     }
     /// Non-throwing single lookup kept for intents and internal maintenance; user-facing detail
     /// uses `readEntry(_:)` so a read failure cannot look like a deleted entry.

@@ -225,13 +225,21 @@ final class UnifiedArchiveImportBinding {
         let read = ModelContext(container)
         read.autosaveEnabled = false
         let recipeRows = try read.fetch(FetchDescriptor<RecipeEntity>())
-        let recipes = recipeRows.map {
-            ArchiveRawRecipeImage(id: $0.id, createdAt: $0.createdAt, position: $0.position, json: $0.json)
-        }.sorted { $0.position == $1.position ? $0.id < $1.id : $0.position < $1.position }
+        var recipes: [ArchiveRawRecipeImage] = recipeRows.map { row in
+            ArchiveRawRecipeImage(id: row.id, createdAt: row.createdAt, position: row.position, json: row.json)
+        }
+        recipes.sort { lhs, rhs in
+            if lhs.position == rhs.position { return lhs.id < rhs.id }
+            return lhs.position < rhs.position
+        }
         let shoppingRows = try read.fetch(FetchDescriptor<ShoppingEntity>())
-        let shopping = shoppingRows.map {
-            ArchiveRawShoppingImage(id: $0.id, position: $0.position, json: $0.json)
-        }.sorted { $0.position == $1.position ? $0.id < $1.id : $0.position < $1.position }
+        var shopping: [ArchiveRawShoppingImage] = shoppingRows.map { row in
+            ArchiveRawShoppingImage(id: row.id, position: row.position, json: row.json)
+        }
+        shopping.sort { lhs, rhs in
+            if lhs.position == rhs.position { return lhs.id < rhs.id }
+            return lhs.position < rhs.position
+        }
         return ArchiveRecipeShoppingImage(recipes: recipes, shopping: shopping)
     }
 

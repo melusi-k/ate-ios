@@ -9,6 +9,13 @@ final class CookPlanUITests: XCTestCase {
         let recipe = app.staticTexts["QA pap and rice"].firstMatch
         XCTAssertTrue(recipe.waitForExistence(timeout: 10))
         recipe.tap()
+        // Library opens a compact quick-look. Follow its explicit route to real detail
+        // before searching for the planning action, which is not mounted in the preview.
+        let expand = app.buttons["expandRecipeDetails"]
+        XCTAssertTrue(expand.waitForExistence(timeout: 10))
+        expand.tap()
+        let servings = app.segmentedControls["servingsPicker"]
+        XCTAssertTrue(servings.waitForExistence(timeout: 10), "Expansion must mount recipe detail before planning")
         let plan = app.buttons["recipe.plan"]
         for _ in 0..<5 where !plan.isHittable { app.swipeUp() }
         XCTAssertTrue(plan.isHittable)

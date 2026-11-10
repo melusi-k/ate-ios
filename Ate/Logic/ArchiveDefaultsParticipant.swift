@@ -1,5 +1,16 @@
 import Foundation
 
+/// Recovery verifies exact newly planned bytes, not semantic JSON equality. Separate
+/// encoders must produce identical object-key ordering for the participant and its
+/// recorded after-image. Raw before-images are retained unchanged.
+enum ArchiveRestoreEncoding {
+    static func encoder() -> JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return encoder
+    }
+}
+
 /// PREP ONLY. No production call sites; component participant, not the full outer.
 /// Raw before-images for the archive-owned UserDefaults keys: settings, timer prefs
 /// and sync metadata. Sync meta is snapshotted and guarded but never written here:
@@ -28,7 +39,7 @@ final class ArchiveDefaultsParticipant {
     private var attempted = false
 
     /// Captures raw bytes and pre-encodes replacements. No write happens in init.
-    /// Encoding uses the same plain JSONEncoder as production saveDefaults.
+    /// Encoding uses a deterministic JSONEncoder for byte-exact recovery images.
     init(defaults: UserDefaults, settings: AppSettings, timerPrefs: TimerPrefs,
          checkpoint: @escaping (Boundary) throws -> Void = { _ in },
          validate: @escaping () throws -> Void = {}) throws {
@@ -36,8 +47,8 @@ final class ArchiveDefaultsParticipant {
         oldSettings = defaults.data(forKey: Self.settingsKey)
         oldTimer = defaults.data(forKey: Self.timerKey)
         oldSyncMeta = defaults.data(forKey: Self.syncMetaKey)
-        newSettings = try JSONEncoder().encode(settings)
-        newTimer = try JSONEncoder().encode(timerPrefs)
+        newSettings = try ArchiveRestoreEncoding.encoder().encode(settings)
+        newTimer = try ArchiveRestoreEncoding.encoder().encode(timerPrefs)
     }
 
     func participant() -> ArchiveRestoreParticipant {

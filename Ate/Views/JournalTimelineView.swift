@@ -100,7 +100,9 @@ struct JournalTimelineView: View {
                     Section {
                         ForEach(section.items) { item in
                             if item.kind == .reflection {
-                                NavigationLink(value: Route.journalEntry(item.id)) {
+                                NavigationLink {
+                                    JournalEntryDetailView(entryID: item.id)
+                                } label: {
                                     JournalTimelineRow(item: item)
                                 }
                                 .accessibilityIdentifier("journal.timeline.row")

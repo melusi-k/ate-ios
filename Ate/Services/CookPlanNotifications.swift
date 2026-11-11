@@ -64,22 +64,39 @@ final class CookPlanNotifications {
 
     /// Every new intent invalidates older adds, including an add suspended inside the OS.
     /// Queue ordering then ensures cleanup completes after that add before returning success.
-    private func enqueue(_ work: @escaping @MainActor (Int) async throws -> Void) async throws {
+    private func enqueue(_ work: @escaping @MainActor (Int) async throws -> Void) -> Task<Void, Error> {
         generation += 1
         let token = generation
         let previous = tail
         let task = Task { @MainActor in
+            defer { if token == self.generation { self.tail = nil } }
             _ = try? await previous?.value
             try await work(token)
         }
         tail = task
-        do {
-            try await task.value
-            if token == generation { tail = nil }
-        } catch {
-            if token == generation { tail = nil }
-            throw error
+        return task
+    }
+
+    /// Saving an OFF plan is local and synchronous. Register cleanup in the SAME
+    /// ordered queue before returning, so a later re-enable cannot be cancelled by
+    /// a task that only starts after the sheet is gone. Never claim OS removal yet.
+    @discardableResult
+    func saveWithoutReminder(_ plan: CookPlan, store: CookPlanStore,
+                             onRemovalFailure: @escaping @MainActor () -> Void) throws -> Task<Void, Never> {
+        guard !plan.reminderRequested else { throw CookPlanError.invalidPlan }
+        try store.save(plan)
+        let removal = enqueue { _ in try await self.removeAndVerify(recipeID: plan.recipeID) }
+        return Task { @MainActor in
+            do { try await removal.value }
+            catch { onRemovalFailure() }
         }
+    }
+
+    private func removeAndVerify(recipeID: String) async throws {
+        let ids = [CookPlan.reminderID(recipeID: recipeID)]
+        await client.remove(ids)
+        let remaining = await client.pendingIDs()
+        guard remaining.isDisjoint(with: ids) else { throw CookPlanError.verificationFailed }
     }
 
     func reconcile(plans: [CookPlan], recipes: [RecipeCard], now: Date = Date()) async throws {
@@ -99,16 +116,11 @@ final class CookPlanNotifications {
                     return
                 }
             }
-        }
+        }.value
     }
 
     func cancel(recipeID: String) async throws {
-        try await enqueue { _ in
-            let ids = [CookPlan.reminderID(recipeID: recipeID)]
-            await self.client.remove(ids)
-            let remaining = await self.client.pendingIDs()
-            guard remaining.isDisjoint(with: ids) else { throw CookPlanError.verificationFailed }
-        }
+        try await enqueue { _ in try await self.removeAndVerify(recipeID: recipeID) }.value
     }
     func cancelAll() async throws {
         try await enqueue { _ in
@@ -120,6 +132,6 @@ final class CookPlanNotifications {
             guard remaining.allSatisfy({ !$0.hasPrefix(CookPlan.reminderPrefix) }) else {
                 throw CookPlanError.verificationFailed
             }
-        }
+        }.value
     }
 }

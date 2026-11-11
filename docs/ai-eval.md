@@ -30,10 +30,11 @@ improvement when this golden set says so.
 | F9 | rewrite | Existing card + "make it vegan" | Only the asked change; id/createdAt/favorite preserved |
 | F10 | retry | An input known to fail the quality bar once (thin card) | The retry repairs the listed gaps instead of re-rolling; second card passes `shortfall` with fewer gaps |
 | F11 | journal reflection | "Reflect on your day" on a day with health data | Generated prompt is under 25 words and ends with a question mark; otherwise templates show |
+| F12 | prompt, then screenshot-regression review | "Mutton bunny chow for 6"; compare with Melusi's 11 Nov 2026 screenshot (1.5 kg mutton, 2 onions, 3 cloves garlic, 2 tsp curry powder, 500 ml stock; salted-water simmer 150 min, fry 8 min, sauce simmer 30 min; total 198) | Curry served inside measured hollowed bread portions, not kota or curry with pap; every used staple listed; coherent cooking order with pre-boil liquid handling if used; total equals step sum plus explicit Prep: N min (198 may be valid as 188 + 10 prep); varied spice blends allowed, no forced browning. Human reviewer checks taste, portions and food safety. |
 
 ## Results log
 
-| Date | Build SHA | By | F1-F11 scores | Notes |
+| Date | Build SHA | By | F1-F12 scores | Notes |
 |------|-----------|----|---------------|-------|
 | pending | baseline on main before the generation-pipeline PR | | | First run establishes the baseline |
 
@@ -51,3 +52,16 @@ improvement when this golden set says so.
   ("make it vegan by...") and negations never become hard constraints, and an explicit user
   instruction overrides a conflicting scraped identity. Loosening beyond stated identity needs
   fixture evidence.
+
+## F12 regression provenance and status
+
+- Screenshot was inspected, not executed as a model eval. The deterministic regression is
+  `GeneratedRecipeConsistencyTests.screenshot`. It is a failing-output fixture, not the desired
+  answer, and no private image is bundled. Its cooked timings sum to 188 minutes; an unexplained
+  extra 10 minutes is a transparency gap, not proof that 198 is wrong.
+- The old structured Mogodu example reproduced the screenshot's ingredients and 150/8/30
+  sequence with missing staples. The revised example lists its staples, explains draining,
+  removes the unlisted pap serving claim and states Prep: 12 min for its 200-minute total.
+- Before/after device F12 plus F1-F11 regression review: NOT RUN. Prompt construction and
+  deterministic gap checks do not prove better live model output. Preserve source quantities
+  and order for extraction; do not silently add a guessed source ingredient to pass a check.

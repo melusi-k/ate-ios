@@ -12,34 +12,65 @@ import XCTest
 final class AppStoreWriterBoundaryTests: XCTestCase {
     private var suite: String!
     private var defaults: UserDefaults!
+    // These legacy AppStore inputs are not covered by nutrition repository injection.
+    // Preserve only the keys this graph uses; never erase the host's whole domain.
+    private let legacyKeys = ["ate.cookSession.v1", "ate.settings.v1", "ate.timerprefs.v1",
+                              "ate.sync.v1", RecipeFilter.key, LibraryLayout.key, AppStore.onboardedKey]
+    private var legacyValues: [String: Any] = [:]
+    private var savedAuthBytes: Data?
+    private var stores: [AppStore] = []
 
     override func setUpWithError() throws {
         try super.setUpWithError()
         suite = "AppStoreWriterBoundaryTests-\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
+        legacyValues = [:]
+        for key in legacyKeys {
+            legacyValues[key] = UserDefaults.standard.object(forKey: key)
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        savedAuthBytes = Keychain.load(account: "session")
+        Keychain.save(nil, account: "session")
     }
 
     override func tearDown() {
         defaults.removePersistentDomain(forName: suite)
         defaults = nil
+        // Delayed/unstructured sync from a test must not write restored host state.
+        for store in stores {
+            store.session = nil
+            store.journalWriterEffect = { _ in throw StubError.boundaryRefused }
+            store.journalWriterValidator = { throw StubError.boundaryRefused }
+        }
+        stores = []
+        for key in legacyKeys {
+            if let value = legacyValues[key] { UserDefaults.standard.set(value, forKey: key) }
+            else { UserDefaults.standard.removeObject(forKey: key) }
+        }
+        Keychain.save(savedAuthBytes, account: "session")
+        savedAuthBytes = nil; legacyValues = [:]
         super.tearDown()
     }
 
     private enum StubError: Error { case boundaryRefused }
 
     private func makeStore(auth: AuthService? = nil, sync: SyncService? = nil) -> AppStore {
-        AppStore(context: nil, backend: MockBackend(),
+        let store = AppStore(context: nil, backend: MockBackend(),
                  nutritionDiaryRepository: NutritionDiaryRepository(defaults: defaults),
                  nutritionGoalsRepository: NutritionGoalsRepository(defaults: defaults,
                      storage: FileNutritionGoalsStorage(fileURL: FileManager.default.temporaryDirectory
                         .appendingPathComponent(UUID().uuidString))),
                  foodJournalRuntime: nil,
                  injectedAuth: auth, injectedSync: sync)
+        stores.append(store)
+        return store
     }
 
     private func card(_ id: String, _ title: String = "Bean stew") -> RecipeCard {
-        RecipeCard(id: id, title: title)
+        RecipeCard(id: id, title: title,
+                   ingredients: [Ingredient(name: "Beans", quantity: 1, unit: "cup")],
+                   steps: [Step(order: 1, instruction: "Simmer the beans.")])
     }
 
     // MARK: bound boundary is entered before mutating
@@ -73,6 +104,7 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
 
     func testRefusalBlocksPublishAndShowsHonestFailure() {
         let store = makeStore()
+        XCTAssertNil(store.cookSession, "Refusal fixture must start without a persisted cook")
         store.journalWriterEffect = { _ in throw StubError.boundaryRefused }
 
         store.add(card("r1"))
@@ -123,6 +155,7 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
     func testDormantLegacyImportStillWorks() throws {
         let store = makeStore()
         let data = try JSONEncoder().encode([card("r1")])
+        XCTAssertTrue(store.recipes.isEmpty)
         let summary = try store.importJSON(data)
         XCTAssertEqual(summary.recipesAdded, 1)
         XCTAssertEqual(store.recipes.map(\.id), ["r1"])
@@ -189,11 +222,16 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
     func testSyncMergesNormallyWhileDormant() async throws {
         let sync = MockSync()
         let store = makeStore(auth: MockAuth(), sync: sync)   // no bindings: guard is inert
+        XCTAssertTrue(store.recipes.isEmpty)
         await signIn(store)
         await store.syncNow()
+        guard case .synced = store.syncState else { return XCTFail("Isolated dormant baseline sync must succeed") }
         let session = try XCTUnwrap(store.session)
         try await seedRemoteRecipe(sync, session: session, id: "remote-1")
+        let remote = try await sync.pull(session: session)
+        XCTAssertEqual(remote.map(\.id), ["remote-1"])
         await store.syncNow()
+        guard case .synced = store.syncState else { return XCTFail("Dormant sync must publish success") }
         XCTAssertTrue(store.recipes.contains { $0.id == "remote-1" },
                       "without a bound boundary the legacy merge publishes exactly as before")
     }

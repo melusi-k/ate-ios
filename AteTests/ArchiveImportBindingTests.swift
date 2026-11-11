@@ -470,7 +470,15 @@ final class ArchiveImportBindingTests: XCTestCase {
         try journal.transition(record.transactionID, to: .applying)
         try journal.transition(record.transactionID, to: .committed)
         try journal.retire(record.transactionID)
-        try boundary.withNestedLease { }
-        XCTAssertEqual(check.generation, 1)
+        var performed = false
+        try boundary.withNestedLease { performed = true }
+        XCTAssertTrue(performed, "Resolved recovery must admit the covered writer")
+        // generation is the lease's captured value, not a live directory counter.
+        // A separate writer advanced the disk chain; the old lease must now refuse.
+        XCTAssertThrowsError(try check.validate(), "Pre-write lease must detect the changed generation")
+        let committed = try POSIXArchiveWriterLease(nestedDirectory: root)
+        defer { committed.release() }
+        XCTAssertEqual(committed.generation, 1, "Fresh disk read proves exactly one committed generation")
+        XCTAssertNoThrow(try committed.validate())
     }
 }

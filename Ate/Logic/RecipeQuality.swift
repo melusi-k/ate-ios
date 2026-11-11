@@ -69,6 +69,7 @@ enum RecipeQuality {
         // Structural output checks apply only to generated cards. Imported JSON-LD and
         // user-authored recipes retain their existing, deliberately lenient semantics.
         if isGenerated(c) {
+            out += GeneratedRecipeConsistency.issues(c)
             let title = c.title.trimmingCharacters(in: .whitespacesAndNewlines)
             if title.isEmpty || title == "Untitled recipe" {
                 out.append("The generated recipe needs a specific, non-empty title.")

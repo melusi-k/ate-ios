@@ -76,8 +76,10 @@ final class SystemSurfaceCleanup: ClearAllSystemSurfaceCleaning {
         if await !cleanSpotlight() { failed.append(Surface.spotlight) }
         guard fence(&failed) else { return failed }
 
-        // Widget/control snapshots and queues in the shared container: removed, then
-        // verified by read-back; the reload forces every widget to re-render empty.
+        // Only the three widget/control snapshot keys are handled here. WidgetInbox
+        // and SharedInbox queues need separate erase inventory before activation;
+        // this cleanup does not claim they were cleared.
+        // Read-back verifies strict absence, regardless of the stored value's type.
         if !cleanWidgetSnapshots() { failed.append(Surface.widgetSnapshots) }
 
         // Live Activity diagnostic log: cleared, then verified by read-back.
@@ -117,13 +119,18 @@ final class SystemSurfaceCleanup: ClearAllSystemSurfaceCleaning {
     }
 
     private func cleanWidgetSnapshots() -> Bool {
-        sharedDefaults.removeObject(forKey: WidgetSnapshot.key)
-        sharedDefaults.removeObject(forKey: WidgetKinds.heartbeatKey)
-        sharedDefaults.removeObject(forKey: TimerSnapshot.key)
-        let clean = sharedDefaults.data(forKey: WidgetSnapshot.key) == nil
-            && sharedDefaults.data(forKey: WidgetKinds.heartbeatKey) == nil
-            && sharedDefaults.data(forKey: TimerSnapshot.key) == nil
+        let clean = Self.removeSnapshotKeys(from: sharedDefaults)
         WidgetKinds.reloadAll()
         return clean
+    }
+
+    /// Internal seam tests a retained value after failed removal without system APIs.
+    static func removeSnapshotKeys(from defaults: UserDefaults,
+                                   remove: ((String) -> Void)? = nil) -> Bool {
+        let keys = [WidgetSnapshot.key, WidgetKinds.heartbeatKey, TimerSnapshot.key]
+        for key in keys {
+            if let remove { remove(key) } else { defaults.removeObject(forKey: key) }
+        }
+        return keys.allSatisfy { defaults.object(forKey: $0) == nil }
     }
 }

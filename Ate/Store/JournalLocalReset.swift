@@ -147,19 +147,29 @@ struct JournalLocalReset {
             }
             return ["", "-wal", "-shm"].map { storeFileURL.path + $0 }
         }
+        // lstat does not follow a leaf symlink. Only ENOENT proves absence;
+        // access, traversal and I/O failures must never become a successful wipe.
+        func regularFileExists(at path: String) throws -> Bool {
+            var metadata = stat()
+            guard lstat(path, &metadata) == 0 else {
+                let code = errno
+                if code == ENOENT { return false }
+                throw NSError(domain: NSPOSIXErrorDomain, code: Int(code))
+            }
+            guard (metadata.st_mode & S_IFMT) == S_IFREG else {
+                throw ClearAllLocalData.Error.unsafeDirectory
+            }
+            return true
+        }
         return ClearAllLocalData.Component(name: "journal-store-files", erase: {
             for path in try paths() {
                 try validateWriterGate()
-                var metadata = stat()
-                guard lstat(path, &metadata) == 0 else { continue }   // absent is the goal
-                guard (metadata.st_mode & S_IFMT) == S_IFREG else {
-                    throw ClearAllLocalData.Error.unsafeDirectory
-                }
+                guard try regularFileExists(at: path) else { continue }
                 try fm.removeItem(atPath: path)
             }
         }, verifyEmpty: {
             for path in try paths() {
-                guard !fm.fileExists(atPath: path) else { throw ClearAllLocalData.Error.notEmpty }
+                guard try !regularFileExists(at: path) else { throw ClearAllLocalData.Error.notEmpty }
             }
         })
     }

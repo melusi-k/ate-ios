@@ -68,13 +68,14 @@ final class LibraryLayoutTests: XCTestCase {
         XCTAssertFalse(l.canReorder(showingCount: 4, recipeCount: 4, hasSearch: false, hasFilter: true), "filter reorder must be disabled")
     }
 
-    @MainActor func testStoreMoveAssignsSortIndexAndUndoDelete() {
-        let store = AppStore(context: nil, backend: MockBackend())
+    @MainActor func testStoreMoveAssignsSortIndexAndUndoDelete() async {
+        let store = AppStore(context: nil, backend: MockBackend(),
+            cookPlanNotifications: CookPlanNotifications(client: CookPlanFakeNotificationClient()))
         store.recipes = [card("A"), card("B"), card("C")]
         store.move("C", before: "A", in: store.recipes)
         XCTAssertEqual(store.layout.sort, .myOrder)
         XCTAssertEqual(store.layout.sorted(store.recipes).map(\.title), ["C", "A", "B"])
-        store.deleteWithUndo("A")
+        await store.deleteWithUndo("A")
         XCTAssertNil(store.recipe("A"))
         store.runToastAction()
         XCTAssertNotNil(store.recipe("A"))

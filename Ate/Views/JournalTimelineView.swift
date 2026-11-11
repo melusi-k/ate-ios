@@ -160,7 +160,12 @@ struct JournalTimelineView: View {
     private func timelineRow(_ item: JournalTimelineItem) -> some View {
         switch Self.destination(for: item, canonicalAvailable: store.foodJournalRuntime != nil) {
         case .reflection(let id):
-            NavigationLink(value: Route.journalEntry(id)) { JournalTimelineRow(item: item) }
+            // Timeline can itself be an inline destination from Journal history.
+            // Keep this destination local: a value link here cannot rely on a
+            // Route registration attached to the ancestor stack's root view.
+            NavigationLink {
+                JournalEntryDetailView(entryID: id)
+            } label: { JournalTimelineRow(item: item) }
         case .mealDay(let dayKey):
             if let runtime = store.foodJournalRuntime {
                 // Open the retained local meal day, never today's diary or the current time zone's day.

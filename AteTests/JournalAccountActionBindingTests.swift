@@ -45,7 +45,8 @@ final class JournalAccountActionBindingTests: XCTestCase {
         AppStore(context: nil, backend: MockBackend(),
                  nutritionDiaryRepository: NutritionDiaryRepository(defaults: defaults),
                  nutritionGoalsRepository: goalsRepo(),
-                 foodJournalRuntime: runtime)
+                 foodJournalRuntime: runtime,
+                 cookPlanNotifications: CookPlanNotifications(client: CookPlanFakeNotificationClient()))
     }
 
     private func sampleMeal(id: UUID = UUID(), name: String = "Pap and wors") -> NutritionDiaryEntry {
@@ -72,15 +73,16 @@ final class JournalAccountActionBindingTests: XCTestCase {
 
     // MARK: clear-library
 
-    func testClearLibraryUnifiedClearsThroughRuntimeStores() throws {
+    func testClearLibraryUnifiedClearsThroughRuntimeStores() async throws {
         let runtime = makeRuntime()
         let store = makeStore(runtime: runtime)
         store.journalWriterEffect = { work in try work() }
+        store.journalWriterValidator = {}
         store.recipes = [RecipeCard(id: "recipe-1", title: "Bean stew")]
         runtime.cookingHistory.record(recipeID: "recipe-1", date: Date(timeIntervalSince1970: 1_790_000_000))
         defaults.set(Data("outbox".utf8), forKey: "ate.cook.completionOutbox.v1")
 
-        store.clearLibrary()
+        _ = await store.clearLibrary()
 
         XCTAssertTrue(store.recipes.isEmpty)
         XCTAssertFalse(runtime.cookingHistory.cooked(on: Date(timeIntervalSince1970: 1_790_000_000)),
@@ -88,12 +90,39 @@ final class JournalAccountActionBindingTests: XCTestCase {
         XCTAssertNil(defaults.object(forKey: "ate.cook.completionOutbox.v1"))
     }
 
-    func testClearLibraryUnifiedRefusesWhileBoundaryUnbound() {
+    func testClearLibraryUnifiedRefusesWhileBoundaryUnbound() async {
         let store = makeStore(runtime: makeRuntime())
         store.recipes = [RecipeCard(id: "recipe-1", title: "Bean stew")]
-        store.clearLibrary()
+        _ = await store.clearLibrary()
         XCTAssertEqual(store.recipes.map(\.id), ["recipe-1"], "An unbound boundary must refuse the wipe")
         XCTAssertEqual(store.toast?.message, "The unified Journal reset is not ready. Nothing was cleared.")
+    }
+
+    func testClearLibraryBoundaryRefusalDoesNotClaimSuccessOrEraseRecipes() async {
+        enum Refusal: Error { case denied }
+        let store = makeStore(runtime: makeRuntime())
+        store.recipes = [RecipeCard(id: "kept", title: "Retained")]
+        store.journalWriterEffect = { _ in throw Refusal.denied }
+        store.journalWriterValidator = {}
+        let cleared = await store.clearLibrary()
+        XCTAssertFalse(cleared)
+        XCTAssertEqual(store.recipes.map(\.id), ["kept"])
+    }
+
+    func testClearLibraryReprovesBoundaryAfterNotificationCleanup() async {
+        enum Refusal: Error { case stale }
+        let store = makeStore(runtime: makeRuntime())
+        store.recipes = [RecipeCard(id: "kept", title: "Retained")]
+        store.journalWriterEffect = { work in try work() }
+        var validations = 0
+        store.journalWriterValidator = {
+            validations += 1
+            if validations > 1 { throw Refusal.stale }
+        }
+        let cleared = await store.clearLibrary()
+        XCTAssertFalse(cleared)
+        XCTAssertEqual(validations, 2)
+        XCTAssertEqual(store.recipes.map(\.id), ["kept"])
     }
 
     // MARK: Settings export
@@ -162,8 +191,19 @@ final class JournalAccountActionBindingTests: XCTestCase {
         let runtime = makeRuntime()
         let store = makeStore(runtime: runtime)
         var effectCalls = 0
+        var generation = 0
+        var depth = 0
+        var nestedCalls = 0
         var validatorCalls = 0
-        store.journalWriterEffect = { work in effectCalls += 1; return try work() }
+        // Honest reentrant boundary spy: nested persistence shares the outer effect.
+        store.journalWriterEffect = { work in
+            if depth > 0 { nestedCalls += 1; return try work() }
+            effectCalls += 1
+            depth += 1
+            defer { depth -= 1 }
+            try work()
+            generation += 1
+        }
         store.journalWriterValidator = { validatorCalls += 1 }
         try runtime.coordinator.saveMeal(sampleMeal())
         defaults.set(Data("legacy diary".utf8), forKey: "ate.nutritionDiary.v1")
@@ -177,6 +217,9 @@ final class JournalAccountActionBindingTests: XCTestCase {
         XCTAssertNotNil(defaults.object(forKey: "ate.foodJournal.diaryMigration.v1"),
                         "Migration markers are non-personal control state and must survive a wipe")
         XCTAssertEqual(effectCalls, 1, "The wipe is ONE covered effect, not one per component")
+        XCTAssertEqual(generation, 1, "The complete nested wipe advances exactly one generation")
+        XCTAssertGreaterThan(nestedCalls, 0, "Nested clear/persist calls must share the active effect")
+        XCTAssertEqual(depth, 0, "The outer effect is released after completion")
         XCTAssertGreaterThan(validatorCalls, 0,
                              "Per-component re-proof uses the validator, never an empty effect")
     }

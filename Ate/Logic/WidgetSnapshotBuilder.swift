@@ -3,14 +3,14 @@ import Foundation
 /// Builds the App Group snapshot the widgets read. Pure, so the rules are unit-tested.
 enum WidgetSnapshotBuilder {
     static func build(recipes: [RecipeCard], shopping: [ShoppingItem], health: HealthState?, now: Date = Date(),
-                      calendar: Calendar = .current) -> WidgetSnapshot {
+                      calendar: Calendar = .current, history: CookingHistory = .shared) -> WidgetSnapshot {
         var s = WidgetSnapshot(updatedAt: now)
         s.recipeCount = recipes.count
         s.favourites = favourites(recipes).prefix(WidgetSnapshot.maxFavourites).map(lite)
         s.shopping = shopping.filter { !$0.done }.prefix(WidgetSnapshot.maxShopping).map { .init(id: $0.id, name: label($0), done: false) }
         s.pick = pick(recipes: recipes, health: health, now: now, calendar: calendar)
-        s.cookingStreak = CookingHistory.shared.streak(asOf: now)
-        s.cookedToday = CookingHistory.shared.cooked(on: now)
+        s.cookingStreak = history.streak(asOf: now)
+        s.cookedToday = history.cooked(on: now)
         return s
     }
 

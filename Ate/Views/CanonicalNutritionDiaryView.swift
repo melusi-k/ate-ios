@@ -22,10 +22,11 @@ struct CanonicalNutritionDiaryView: View {
          goalsRepository: NutritionGoalsRepository = NutritionGoalsRepository(),
          repair: LegacyDiaryRepair,
          associationStore: NutritionRecipeAssociationStore? = nil,
+         selectedDayKey: String? = nil,
          calendar: Calendar = .autoupdatingCurrent) {
         _controller = State(initialValue: NutritionDiaryController(
             coordinator: coordinator, goalsRepository: goalsRepository, repair: repair,
-            associationStore: associationStore, calendar: calendar))
+            associationStore: associationStore, selectedDayKey: selectedDayKey, calendar: calendar))
     }
 
     private var selectedDateBinding: Binding<Date> {

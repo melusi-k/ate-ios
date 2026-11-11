@@ -106,7 +106,7 @@ struct RecipeFilter: Codable, Equatable {
     }
 
     /// Within a group values are OR'd (e.g. chicken OR beef); groups are AND'd.
-    func matches(_ r: RecipeCard) -> Bool {
+    func matches(_ r: RecipeCard, history: CookingHistory = .shared) -> Bool {
         if let m = maxMinutes { guard let t = r.timeMinutes, t > 0, t <= m else { return false } }
         if !origins.isEmpty { guard let o = Self.origin(of: r), origins.contains(o) else { return false } }
         if !servings.isEmpty, !servings.contains(where: { $0.matches(r.servings) }) { return false }
@@ -116,7 +116,7 @@ struct RecipeFilter: Codable, Equatable {
         case .quick?: guard let t = r.timeMinutes, t > 0, t < 30 else { return false }
         case .favourites?: if !r.favorite { return false }
         case .recentlyCooked?: if r.lastCookedAt == nil { return false }
-        case .cookedMeals?: if !CookingHistory.shared.events.values.contains(where: { $0.contains(r.id) }) { return false }
+        case .cookedMeals?: if !history.events.values.contains(where: { $0.contains(r.id) }) { return false }
         case .ingredient(let t)?: if IngredientTags.main(for: r) != t && !IngredientTags.tags(for: r).contains(t) { return false }
         case .recentlyAdded?, nil: break
         }
@@ -124,8 +124,8 @@ struct RecipeFilter: Codable, Equatable {
     }
 
     /// Filter + collection ordering + text search.
-    func apply(_ recipes: [RecipeCard], query: String = "") -> [RecipeCard] {
-        let base = recipes.filter { matches($0) && RecipeLogic.matches($0, query: query) }
+    func apply(_ recipes: [RecipeCard], query: String = "", history: CookingHistory = .shared) -> [RecipeCard] {
+        let base = recipes.filter { matches($0, history: history) && RecipeLogic.matches($0, query: query) }
         switch collection {
         case .recentlyAdded?:
             return Array(base.sorted {
@@ -134,8 +134,8 @@ struct RecipeFilter: Codable, Equatable {
             }.prefix(20))
         case .cookedMeals?:
             return base.sorted { lhs, rhs in
-                let a = CookingHistory.shared.events.filter { $0.value.contains(lhs.id) }.keys.compactMap { CookingHistory.shared.date(for: $0) }.max() ?? .distantPast
-                let b = CookingHistory.shared.events.filter { $0.value.contains(rhs.id) }.keys.compactMap { CookingHistory.shared.date(for: $0) }.max() ?? .distantPast
+                let a = history.events.filter { $0.value.contains(lhs.id) }.keys.compactMap { history.date(for: $0) }.max() ?? .distantPast
+                let b = history.events.filter { $0.value.contains(rhs.id) }.keys.compactMap { history.date(for: $0) }.max() ?? .distantPast
                 if a != b { return a > b }
                 return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
             }

@@ -28,13 +28,15 @@ enum JournalTimelineContent: Equatable {
     }
 }
 
-/// Read-only unified Food Journal timeline (#245 step 4): meals and reflections in one day-grouped list.
-/// Reads through `FoodJournalStore.timelineItems`; it never writes. Reached from the Journal screen.
+/// Unified Food Journal timeline: meals and reflections in one day-grouped list.
+/// Reads through the bound runtime; editing stays in each entry's existing owner.
 struct JournalTimelineView: View {
     @Environment(AppStore.self) private var store
     /// Tests inject items or a failure; nil reads the shared store.
     var stateOverride: JournalTimelineScreenState? = nil
     var openStateOverride: JournalOpenState? = nil
+    /// The canonical tab uses this same timeline, not a second reflection-only list.
+    var isTabRoot = false
     @State private var loaded: JournalTimelineScreenState = .loading
     /// Private picker selection (the #272 filter enum stays untouched); mapped to `JournalTimelineFilter` below.
     private enum Show: Hashable, CaseIterable {
@@ -67,6 +69,18 @@ struct JournalTimelineView: View {
         let openState = openStateOverride ?? store.journalStore.openState
         let content = JournalTimelineContent.make(state: state, filter: filter, query: query)
         List {
+            if isTabRoot {
+                PendingCookedReflectionSection()
+                Section {
+                    NavigationLink(value: Route.insights) {
+                        Label("Insights & Cooking History", systemImage: "heart.text.square")
+                    }.accessibilityIdentifier("journal.insightsHistory")
+                    NavigationLink(value: Route.nutritionDiary) {
+                        Label("Log food and view meals", systemImage: "fork.knife")
+                    }.accessibilityIdentifier("journal.meals")
+                }
+                Section { JournalReflectionCard() }
+            }
             if openState != .ok {
                 Section { JournalOpenStateBanner(state: openState) }
             }
@@ -99,18 +113,8 @@ struct JournalTimelineView: View {
                 ForEach(sections) { section in
                     Section {
                         ForEach(section.items) { item in
-                            if item.kind == .reflection {
-                                NavigationLink {
-                                    JournalEntryDetailView(entryID: item.id)
-                                } label: {
-                                    JournalTimelineRow(item: item)
-                                }
+                            timelineRow(item)
                                 .accessibilityIdentifier("journal.timeline.row")
-                            } else {
-                                // Meal editing waits for the complete canonical graph.
-                                JournalTimelineRow(item: item)
-                                    .accessibilityIdentifier("journal.timeline.row")
-                            }
                         }
                     } header: {
                         Text(Self.dayTitle(section.dayKey)).accessibilityAddTraits(.isHeader)
@@ -120,11 +124,61 @@ struct JournalTimelineView: View {
         }
         .searchableWhenReadable(Self.controlsVisible(for: state), text: $query)
         .navigationTitle("Food Journal")
+        .ateRootNavigationChrome(logoID: "journal.logo", enabled: isTabRoot)
+        .toolbar {
+            if isTabRoot {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { store.beginManualJournal() } label: {
+                        Label("New journal entry", systemImage: "square.and.pencil")
+                    }.accessibilityIdentifier("journal.newEntry")
+                }
+            }
+        }
+        .onChange(of: store.journalRevision) { _, _ in
+            if stateOverride == nil, Self.qaState() == nil { reload() }
+        }
         .onChange(of: Self.controlsVisible(for: state)) { _, readable in
             // A failed or superseded read carries no query into the next successful one.
             if !readable { query = "" }
         }
         .onAppear { if stateOverride == nil, Self.qaState() == nil { reload() } }
+    }
+
+    enum EntryDestination: Equatable {
+        case reflection(String)
+        case mealDay(String)
+        case unavailable
+    }
+
+    static func destination(for item: JournalTimelineItem, canonicalAvailable: Bool) -> EntryDestination {
+        if item.kind == .reflection { return .reflection(item.id) }
+        guard canonicalAvailable, item.meal != nil else { return .unavailable }
+        return .mealDay(item.dayKey)
+    }
+
+    @ViewBuilder
+    private func timelineRow(_ item: JournalTimelineItem) -> some View {
+        switch Self.destination(for: item, canonicalAvailable: store.foodJournalRuntime != nil) {
+        case .reflection(let id):
+            // Timeline can itself be an inline destination from Journal history.
+            // Keep this destination local: a value link here cannot rely on a
+            // Route registration attached to the ancestor stack's root view.
+            NavigationLink {
+                JournalEntryDetailView(entryID: id)
+            } label: { JournalTimelineRow(item: item) }
+        case .mealDay(let dayKey):
+            if let runtime = store.foodJournalRuntime {
+                // Open the retained local meal day, never today's diary or the current time zone's day.
+                NavigationLink {
+                    CanonicalNutritionDiaryView(coordinator: runtime.coordinator,
+                        goalsRepository: runtime.goalsRepository, repair: runtime.repair,
+                        selectedDayKey: dayKey)
+                } label: { JournalTimelineRow(item: item) }
+            }
+        case .unavailable:
+            // A missing meal payload is visible but never guessed into an editable meal.
+            JournalTimelineRow(item: item)
+        }
     }
 
     private var filter: JournalTimelineFilter {

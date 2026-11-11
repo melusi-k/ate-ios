@@ -439,9 +439,9 @@ final class AppStore {
     }
 
     /// Delete with a 5-second Undo toast.
-    func deleteWithUndo(_ id: String) {
+    func deleteWithUndo(_ id: String) async {
         guard let r = recipe(id), let idx = recipes.firstIndex(where: { $0.id == id }) else { return }
-        delete(id); Haptics.warning()
+        guard await delete(id) else { return }; Haptics.warning()
         show("Deleted “\(r.title)”", action: "Undo", perform: { [weak self] in
             guard let self else { return }
             self.performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
@@ -530,6 +530,27 @@ final class AppStore {
         didSet {
             performOrdinaryWrite(Self.ordinaryWriteFailureMessage) { saveDefaults(timerPrefs, key: "ate.timerprefs.v1") }
         }
+    }
+
+    /// Local-only plans use this store's defaults, never sync payloads or Journal rows.
+    var cookPlanStore: CookPlanStore { CookPlanStore(defaults: cookJournalDefaults) }
+    let cookPlanNotifications: CookPlanNotifications
+    private let clearCookPlansOverride: (() throws -> Void)?
+    private func clearCookPlans() throws {
+        if let clearCookPlansOverride { try clearCookPlansOverride() }
+        else { try cookPlanStore.clear() }
+    }
+
+    func refreshCookPlanReminders() async {
+        guard !AppConfig.isUITesting else { return }
+        do { try await cookPlanNotifications.reconcile(plans: cookPlanStore.plans(), recipes: recipes) }
+        catch { show("Cooking reminders could not be updated. Your plans are still saved.", error: true) }
+    }
+
+    func openPendingCookPlanReminder() {
+        guard !showOnboarding, let id = CookPlanNotificationRouter.shared.takePendingRecipeID() else { return }
+        select(.library); cookTarget = nil
+        path = [.recipe(id)]
     }
 
     var cookTarget: CookTarget?
@@ -679,7 +700,12 @@ final class AppStore {
          foodJournalRuntime: FoodJournalRuntime? = nil,
          journalWriterEffect: ((() throws -> Void) throws -> Void)? = nil,
          journalWriterValidator: (() throws -> Void)? = nil,
-         injectedAuth: AuthService? = nil, injectedSync: SyncService? = nil) {
+         injectedAuth: AuthService? = nil, injectedSync: SyncService? = nil,
+         cookPlanNotifications: CookPlanNotifications? = nil,
+         clearCookPlans: (() throws -> Void)? = nil,
+         authOverride: AuthService? = nil, syncOverride: SyncService? = nil) {
+        self.cookPlanNotifications = cookPlanNotifications ?? CookPlanNotifications()
+        self.clearCookPlansOverride = clearCookPlans
         self.context = context
         self.foodJournalRuntime = foodJournalRuntime
         // The ordinary-writer boundary is bound BEFORE load() and any launch normalization
@@ -701,10 +727,11 @@ final class AppStore {
             ProcessInfo.processInfo.arguments.contains("-qaResetInsightLifecycle") {
             InsightLifecycleStore.clearAll()
         }
-        if let injectedAuth {
+        // New injected names win; retain CookPlan's existing test call-site aliases.
+        if let injectedAuth = injectedAuth ?? authOverride {
             // Test/focused-graph injection: an explicit auth service carries its sync service
             // with it and skips the environment-based construction below.
-            auth = injectedAuth; sync = injectedSync
+            auth = injectedAuth; sync = injectedSync ?? syncOverride
         } else if AppConfig.isUITesting {
             auth = MockAuth(); sync = MockSync()
         } else if let url = AppConfig.supabaseURL, !AppConfig.supabasePublishableKey.isEmpty {
@@ -897,11 +924,25 @@ final class AppStore {
         }
     }
 
-    func delete(_ id: String) {
-        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
-            CoverStore.shared.removeFiles(recipeID: id)
-            recipes.removeAll { $0.id == id }
-            persistRecipes()
+    @discardableResult
+    func delete(_ id: String) async -> Bool {
+        let capturedSession = session
+        do {
+            try performOrdinaryWriteThrowing { try cookPlanStore.cancel(recipeID: id) }
+            try await cookPlanNotifications.cancel(recipeID: id)
+            guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                show("Recipe cleanup paused because this iPhone's data changed. Review the recipe and try again.", error: true)
+                return false
+            }
+            try performOrdinaryWriteThrowing {
+                CoverStore.shared.removeFiles(recipeID: id)
+                recipes.removeAll { $0.id == id }
+                persistRecipes()
+            }
+            return true
+        } catch {
+            show("Recipe cleanup could not be verified. Review the recipe and try again.", error: true)
+            return false
         }
     }
 
@@ -920,15 +961,33 @@ final class AppStore {
         }
     }
 
-    func clearLibrary() {
-        // Unified graph: the bound action routes through the runtime's own stores.
-        if foodJournalRuntime != nil { clearLibraryUnified(); return }
-        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
-            clearCookCompletionContext()
-            recipes = []; CookingHistory.shared.clear()
-            path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
-            persistRecipes()
+    @discardableResult
+    func clearLibrary() async -> Bool {
+        if foodJournalRuntime != nil && (journalWriterEffect == nil || journalWriterValidator == nil) {
+            show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return false
         }
+        let capturedSession = session
+        do { try await removeCookPlansBeforeErase(capturedSession: capturedSession) }
+        catch { show("Cooking plan cleanup could not be verified. Other local data was kept. Try again.", error: true); return false }
+        if foodJournalRuntime != nil { return clearLibraryUnified() }
+        do {
+            try performOrdinaryWriteThrowing {
+                clearCookCompletionContext()
+                recipes = []; CookingHistory.shared.clear()
+                path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
+                persistRecipes()
+            }
+            return true
+        } catch { show(Self.ordinaryWriteFailureMessage, error: true); return false }
+    }
+
+    /// Await notification cleanup outside any writer lease, then re-prove ownership
+    /// before the synchronous local erase. Both legacy and unified callers use this.
+    private func removeCookPlansBeforeErase(capturedSession: AuthSession?) async throws {
+        guard validatePostAwaitPublish(capturedSession: capturedSession) else { throw OrdinaryWriteSeamError.effectNotPerformed }
+        try performOrdinaryWriteThrowing { try clearCookPlans() }
+        try await cookPlanNotifications.cancelAll()
+        guard validatePostAwaitPublish(capturedSession: capturedSession) else { throw OrdinaryWriteSeamError.effectNotPerformed }
     }
 
     func importJSON(_ data: Data) throws -> DataImportSummary {
@@ -1273,13 +1332,23 @@ final class AppStore {
                 }
             }
             let remote = try await sync.pull(session: s)
-            accountSwitchPullSucceeded = true
             BetaQA.shared.syncPulled(rows: remote.count)
             // The pulled snapshot publishes only while the session and writer epoch captured
             // before the await are still current.
             guard validatePostAwaitPublish(capturedSession: capturedSession) else {
                 syncState = .failed(Self.syncInterruptedMessage); return
             }
+            if switchingAccounts {
+                // Keep failure classified as an incomplete switch until cleanup succeeds.
+                do { try await removeCookPlansBeforeErase(capturedSession: capturedSession) }
+                catch {
+                    guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                        syncState = .failed(Self.syncInterruptedMessage); return
+                    }
+                    throw error
+                }
+            }
+            accountSwitchPullSucceeded = true
             let out: [SyncRecord]
             do {
                 out = try performOrdinaryWriteThrowing {
@@ -1503,11 +1572,17 @@ final class AppStore {
         syncState = .signedOut
         var partial: [String] = []
         if removeLocalData {
+            do { try await removeCookPlansBeforeErase(capturedSession: nil) }
+            catch {
+                show("Signed out, but this iPhone's data cleanup failed. Review retained data and try removing it again.", error: true)
+                return
+            }
             if foodJournalRuntime != nil {
                 let report = wipeLocalDataUnified()
                 partial = report.complete ? [] : report.failures.map(\.component)
-            } else {
-                wipeLocalData()
+            } else if !wipeLocalData() {
+                show("Signed out, but this iPhone's data cleanup failed. Review retained data and try again.", error: true)
+                return
             }
         }
         BetaQA.shared.signedOut(removeLocalData: removeLocalData, remaining: recipes.count)
@@ -1547,12 +1622,19 @@ final class AppStore {
             return AuthError(message: "Your account was deleted on the server, but this iPhone couldn't finish updating its sign-in or removing its local copy. Check Settings and use Clear all.")
         }
         syncState = .signedOut
+        do { try await removeCookPlansBeforeErase(capturedSession: nil) }
+        catch {
+            let error = AuthError(message: "The server account was deleted, but this iPhone's cleanup failed. Review retained data and retry local removal.")
+            show(error.message, error: true)
+            BetaQA.shared.fail("A-AUTH-08", error: error.message)
+            return error
+        }
         var partial: [String] = []
         if foodJournalRuntime != nil {
             let report = wipeLocalDataUnified()
             partial = report.complete ? [] : report.failures.map(\.component)
-        } else {
-            wipeLocalData()
+        } else if !wipeLocalData() {
+            return AuthError(message: "The server account was deleted, but this iPhone's cleanup failed. Review retained data and retry local removal.")
         }
         path.removeAll()
         if !AppConfig.isUITesting { UserDefaults.standard.removeObject(forKey: Self.onboardedKey) }
@@ -1567,7 +1649,8 @@ final class AppStore {
     }
 
     // Internal (not private) for AppStore+JournalAccountActions.
-    func wipeLocalData() {
+    @discardableResult
+    func wipeLocalData() -> Bool {
         performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
             InsightLifecycleStore.clearAll()
             clearCookCompletionContext()
@@ -1580,7 +1663,8 @@ final class AppStore {
             meta = SyncMeta(); saveDefaults(meta, key: "ate.sync.v1")
             recipeSnapshot = [:]; shopSnapshot = [:]
             for t in timers.timers { timers.stop(t.id) }
-        }
+            return true
+        } == true
     }
 
     // MARK: deep links

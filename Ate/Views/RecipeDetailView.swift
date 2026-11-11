@@ -5,6 +5,7 @@ struct RecipeDetailView: View {
     @Environment(AppStore.self) private var store
     @State private var factor: Double = 1
     @State private var editing = false
+    @State private var planning = false
     @State private var ask = ""
     @State private var asking = false
     @State private var confirmDelete = false
@@ -46,6 +47,11 @@ struct RecipeDetailView: View {
                                 store.show("Added to your shopping list")
                             } label: { Label("Add to shopping list", systemImage: "text.badge.plus") }
                                 .buttonStyle(.ate(.secondary, full: true))
+                            Button { planning = true } label: {
+                                Label("Cook this on...", systemImage: "calendar.badge.plus")
+                            }
+                            .buttonStyle(.ate(.secondary, full: true))
+                            .accessibilityIdentifier("recipe.plan")
                             askCard(recipe)
                         }
                     }
@@ -96,9 +102,9 @@ struct RecipeDetailView: View {
             .confirmationDialog("Delete this recipe?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete recipe", role: .destructive) {
                     store.timers.stopAll(recipeID: recipeID)
-                    store.delete(recipeID)
-                    store.show("Recipe deleted")
-                    goBack()
+                    Task { @MainActor in
+                        if await store.delete(recipeID) { store.show("Recipe deleted"); goBack() }
+                    }
                 }
             }
 
@@ -119,6 +125,7 @@ struct RecipeDetailView: View {
                 }
             }
         }
+        .sheet(isPresented: $planning) { CookPlanSheet(recipeID: recipeID).environment(store) }
         .sheet(item: $share) { items in
             ActivityView(items: items.items)
                 .presentationDetents([.medium, .large])

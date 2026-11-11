@@ -295,6 +295,46 @@ final class SharedWriterGateTests: XCTestCase {
         }
     }
 
+    func testDirectSameLeaseNestingCommitsOneRealArchiveGeneration() throws {
+        try fixture { directory in
+            let archive = SharedArchiveNestedLeaseBoundary { work in
+                try SharedArchiveNestedUnit.run(directory: directory, work)
+            }
+            let gate = try makeGate(directory, archive: archive)
+            let epoch = try gate.captureEpoch()
+            var innerRan = false
+            try gate.withWriterEffect(epoch) {
+                try gate.withWriterEffect(epoch) { innerRan = true }
+                let inspection = try POSIXArchiveWriterLease(nestedDirectory: directory)
+                defer { inspection.release() }
+                XCTAssertEqual(inspection.generation, 0, "Inner work must not commit before outer completion")
+            }
+            XCTAssertTrue(innerRan)
+            let inspection = try POSIXArchiveWriterLease(nestedDirectory: directory)
+            defer { inspection.release() }
+            XCTAssertEqual(inspection.generation, 1, "Exactly one real durable generation per committed unit")
+        }
+    }
+
+    func testDirectSameLeaseInnerSuccessThenOuterThrowCommitsZeroGenerations() throws {
+        try fixture { directory in
+            let archive = SharedArchiveNestedLeaseBoundary { work in
+                try SharedArchiveNestedUnit.run(directory: directory, work)
+            }
+            let gate = try makeGate(directory, archive: archive)
+            let epoch = try gate.captureEpoch()
+            var innerRan = false
+            XCTAssertThrowsError(try gate.withWriterEffect(epoch) {
+                try gate.withWriterEffect(epoch) { innerRan = true }
+                throw TestError.unresolvedArchive
+            })
+            XCTAssertTrue(innerRan)
+            let inspection = try POSIXArchiveWriterLease(nestedDirectory: directory)
+            defer { inspection.release() }
+            XCTAssertEqual(inspection.generation, 0, "No generation may survive a failed outer unit")
+        }
+    }
+
     func testUnresolvedArchiveRefusesBeforeTheEffectRuns() throws {
         try fixture { directory in
             let archive = SharedArchiveNestedLeaseBoundary { _ in throw TestError.unresolvedArchive }
@@ -343,19 +383,26 @@ final class SharedWriterGateTests: XCTestCase {
     // MARK: Composition
 
     func testControlDirectoryFollowsTheResolvedGroup() throws {
-        let resolution = AppGroupResolver.current
-        if resolution.available {
-            let directory = try SharedWriterGateComposition.controlDirectory()
-            defer { try? FileManager.default.removeItem(at: directory) }
-            XCTAssertEqual(directory.lastPathComponent, SharedWriterControl.directoryName)
+        try fixture { isolatedContainer in
+            let resolution = AppGroupResolver.Resolution(id: "group.test.isolated", source: "test", available: true)
+            var requestedID: String?
+            let directory = try SharedWriterGateComposition.controlDirectory(resolution: resolution,
+                containerURL: { id in requestedID = id; return isolatedContainer })
+            XCTAssertEqual(requestedID, resolution.id)
+            XCTAssertEqual(directory, isolatedContainer.appendingPathComponent(SharedWriterControl.directoryName,
+                                                                               isDirectory: true))
             var isDirectory: ObjCBool = false
             XCTAssertTrue(FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory))
             XCTAssertTrue(isDirectory.boolValue)
-        } else {
-            XCTAssertThrowsError(try SharedWriterGateComposition.controlDirectory()) {
-                XCTAssertEqual($0 as? SharedWriterGateComposition.ResolutionError, .appGroupUnavailable)
-            }
+            // Only fixture() removes its unique temporary root. Never resolve or
+            // remove the host app's real AteStateControl directory in this test.
         }
+    }
+
+    func testInjectedMissingContainerDoesNotFallBackToTheRealGroup() {
+        let resolution = AppGroupResolver.Resolution(id: "group.test.isolated", source: "test", available: true)
+        XCTAssertThrowsError(try SharedWriterGateComposition.controlDirectory(resolution: resolution,
+                                                                               containerURL: { _ in nil }))
     }
 
     func testControlDirectoryFailsClosedForUnavailableResolution() {

@@ -22,7 +22,11 @@ final class CookPlanUITests: XCTestCase {
         plan.tap()
         let reminder = app.switches["cookPlan.reminder"]
         XCTAssertTrue(reminder.waitForExistence(timeout: 10))
-        if reminder.value as? String == "1" { reminder.tap() }
+        if reminder.value as? String == "1" {
+            // SwiftUI exposes the whole Form row as Switch. Its center is blank;
+            // touch the actual trailing switch pill, not the row's midpoint.
+            reminder.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        }
         XCTAssertEqual(reminder.value as? String, "0", "Turn the reminder off before saving the no-reminder plan")
         app.buttons["cookPlan.save"].tap()
         XCTAssertTrue(reminder.waitForNonExistence(timeout: 10), "Save must dismiss the cooking plan sheet before reopening")

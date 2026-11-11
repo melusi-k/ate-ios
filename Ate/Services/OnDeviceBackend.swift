@@ -129,6 +129,9 @@ final class OnDeviceBackend: BackendService {
         var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx)
         // Never show a confident recipe for an object the camera saw instead of food.
         // Send the user back through the dish question so the next pass is grounded by a human label.
+        // The structured card defaults to .manual; quality guards need the actual
+        // provisional generation source BEFORE both initial and repaired comparisons.
+        card.source = source
         if source == .photoGuess && RecipeQuality.isNonFoodTitle(card) {
             throw PhotoNeedsDishError(suggestions: PhotoGuess.suggestions(labels: visionLabels, ocrText: photoOCR), spread: false)
         }
@@ -149,8 +152,10 @@ final class OnDeviceBackend: BackendService {
                 fix = prompt + "\nPrevious draft (JSON):\n" + draft + "\n" + retryText
                 retryReviseID = nil
             }
-            if let again = try? await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx),
-               RecipeQuality.shortfall(again, labels: visibleLabels).count < gaps.count { card = again }
+            if var again = try? await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx) {
+                again.source = source
+                if RecipeQuality.shortfall(again, labels: visibleLabels).count < gaps.count { card = again }
+            }
         }
         if source == .photoGuess {
             card.servings = RecipeQuality.inferredServings(card, fromPhoto: true)
@@ -594,7 +599,7 @@ struct GenRecipe {
     @Guide(description: "Short lowercase tags, include the dish type (main, side, dessert, drink)", .maximumCount(5)) var tags: [String]
     @Guide(description: "Ingredients for the identified dish, copied from the text when given; a main dish has at least 4 with amounts", .count(1...30)) var ingredients: [GenIngredient]
     @Guide(description: "Steps in order; timed steps carry minutes, oven steps carry temperatureC", .count(1...20)) var steps: [GenStep]
-    @Guide(description: "Short note when the recipe is best-effort (advert/menu, unknown dish), otherwise empty") var note: String
+    @Guide(description: "Best-effort or uncertainty note; include Prep: N min when total time adds prep beyond the step sum") var note: String
 
     var card: RecipeCard {
         var c = baseCard
@@ -625,17 +630,20 @@ struct GenRecipe {
     /// One-shot example for the Prompt (format only; the prompt says not to copy its content).
     static let exampleMogodu = GenRecipe(
         dish: DishIdentification(name: "Mogodu", cuisine: "South African", confidence: 0.95, alternatives: ["Ulusu"]),
-        title: "Mogodu", description: "Slow-simmered beef tripe with onion and curry, served with pap.",
+        title: "Mogodu", description: "Slow-simmered beef tripe in an onion and curry sauce.",
         servings: 6, timeMinutes: 200, tags: ["main", "south african", "slow cook"],
         ingredients: [GenIngredient(quantity: 1.5, unit: "kg", name: "beef tripe", prep: "cleaned and cut into strips"),
                       GenIngredient(quantity: 2, unit: "pcs", name: "onions", prep: "chopped"),
                       GenIngredient(quantity: 3, unit: "cloves", name: "garlic", prep: "crushed"),
                       GenIngredient(quantity: 2, unit: "tsp", name: "curry powder", prep: nil),
-                      GenIngredient(quantity: 500, unit: "ml", name: "beef stock", prep: nil)],
-        steps: [GenStep(instruction: "Cover the tripe with salted water and simmer, covered, until tender", minutes: 150, temperatureC: nil),
+                      GenIngredient(quantity: 500, unit: "ml", name: "beef stock", prep: nil),
+                      GenIngredient(quantity: 1.5, unit: "l", name: "water", prep: "for the first simmer; drain afterwards"),
+                      GenIngredient(quantity: 1, unit: "tsp", name: "salt", prep: nil),
+                      GenIngredient(quantity: 2, unit: "tbsp", name: "oil", prep: nil)],
+        steps: [GenStep(instruction: "Cover the tripe with the water and salt. Simmer covered until tender, then drain the cooking liquid", minutes: 150, temperatureC: nil),
                 GenStep(instruction: "Fry the onion and garlic in oil over medium heat until golden", minutes: 8, temperatureC: nil),
-                GenStep(instruction: "Stir in the curry powder, tripe and stock and simmer until thick", minutes: 30, temperatureC: nil)],
-        note: "")
+                GenStep(instruction: "Stir in the curry powder without burning it, then add the drained tripe and stock and simmer until thick", minutes: 30, temperatureC: nil)],
+        note: "Prep: 12 min. Tripe is pre-boiled and drained before finishing in the sauce; this method is not a template for every dish.")
 
     static func instruction(_ text: String, temperatureC: Int?) -> String {
         guard let t = temperatureC, !RecipeQuality.hasTemperature(text) else { return text }

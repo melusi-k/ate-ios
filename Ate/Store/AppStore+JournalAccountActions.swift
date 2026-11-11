@@ -17,6 +17,7 @@ import Foundation
 /// AppStore only routes to them; with no callbacks injected the canonical refusal stands.
 @MainActor
 extension AppStore {
+    private enum JournalAccountActionError: Error { case localWipeNotPerformed }
 
     /// Unified "Clear all" (Settings): recipes plus the cook-completion context and
     /// cooking history THROUGH the runtime's stores - never the legacy singletons.
@@ -24,13 +25,16 @@ extension AppStore {
     /// The account-wide Clear-all inventory (journal rows, media, goals, backups,
     /// adoption-preservation copies) is installed separately: central binds
     /// JournalLocalReset.components(validateWriterGate:) into the Clear-all coordinator.
-    func clearLibraryUnified() {
+    @discardableResult
+    func clearLibraryUnified() -> Bool {
         guard let runtime = foodJournalRuntime, let effect = journalWriterEffect else {
             show("The unified Journal reset is not ready. Nothing was cleared.", error: true)
-            return
+            return false
         }
+        var performed = false
         do {
             try effect {
+                performed = true
                 self.clearCookCompletionContext()   // cookJournalDefaults is runtime-aware
                 runtime.cookingHistory.clear()
                 self.recipes = []
@@ -38,9 +42,12 @@ extension AppStore {
                 self.morePath = []; self.searchPath = []
                 self.persistRecipes()
             }
+            guard performed else { throw JournalAccountActionError.localWipeNotPerformed }
+            return true
         } catch {
             // The boundary refused or failed mid-effect; never claim a clean wipe either way.
             show("ate couldn't clear the library safely. Try again in a moment.", error: true)
+            return false
         }
     }
 
@@ -63,7 +70,8 @@ extension AppStore {
         var report: ClearAllLocalData.Report?
         do {
             try effect {
-                self.wipeLocalData()            // legacy stores + non-journal surfaces
+                guard self.wipeLocalData() else { throw JournalAccountActionError.localWipeNotPerformed }
+                // legacy stores + non-journal surfaces completed under the outer effect
                 runtime.cookingHistory.clear()  // the unified history, not the legacy singleton
                 report = try JournalLocalReset(runtime: runtime,
                                                preservationDirectory: self.journalResetPreservationDirectory)

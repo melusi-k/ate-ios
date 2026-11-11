@@ -42,6 +42,22 @@ enum TimerAlerts {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["ate.timer." + id])
     }
 
+    /// Clear-all (lane 3): removes pending AND delivered notifications, then verifies
+    /// once after the system's asynchronous removal settles. No retry loop: a non-empty
+    /// read-back is reported to the caller, never hidden. Covers the "ate.timer."
+    /// requests scheduled here and by the widget extension - the only requests the app
+    /// family creates.
+    static func removeAllAndVerify() async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        center.removeAllPendingNotificationRequests()
+        center.removeAllDeliveredNotifications()
+        // The removals run asynchronously on the system side; settle once, then verify.
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        let pending = await center.pendingNotificationRequests()
+        let delivered = await center.deliveredNotifications()
+        return pending.isEmpty && delivered.isEmpty
+    }
+
     /// Foreground finish: chime + haptics (the scheduled notification covers background).
     @MainActor static func timerFinished(prefs: TimerPrefs) {
         if prefs.sound && !isQuiet(prefs) { Haptics.chime(); if AppConfig.isUITesting { Task { @MainActor in QAProbe.shared.chimes += 1 } } }

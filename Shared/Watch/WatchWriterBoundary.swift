@@ -64,4 +64,21 @@ final class WatchWriterBoundary {
         defer { lock.unlock() }
         if performsEpochChecks, captured != epoch { throw Failure.staleEpoch }
     }
+
+    /// Token refresh may legitimately advance the session epoch. Fence the GET
+    /// against the epoch AFTER obtaining that token, not its superseded epoch.
+    @MainActor
+    func publishAfterToken<Token, Value>(
+        token: () async -> Token?,
+        isCurrentToken: (Token) -> Bool,
+        fetch: (Token) async throws -> Value,
+        publish: (Value) throws -> Void
+    ) async throws {
+        guard let token = await token(), isCurrentToken(token) else { return }
+        let captured = captureEpoch()
+        let value = try await fetch(token)
+        try validateEpoch(captured)
+        try withEffect { try publish(value) }
+    }
+
 }

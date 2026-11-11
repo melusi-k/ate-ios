@@ -469,15 +469,35 @@ final class SharedWriterGateTests: XCTestCase {
         XCTAssertTrue(publisher.publish(snap, defaults: d, boundary: .legacy, reload: { reloaded.append($0) }))
         XCTAssertEqual(WidgetSnapshot.load(d)?.recipeCount, 3)
         XCTAssertEqual(reloaded.count, 1)
-        let newer = WidgetSnapshot(recipeCount: 4)
+        var newer = WidgetSnapshot(recipeCount: 4)
+        // recipeCount alone is metadata, not a timeline dependency. Exercise a
+        // real displayed change so an ordinary retry is supposed to publish.
+        newer.shopping = [.init(id: "milk", name: "Milk", done: false)]
         XCTAssertFalse(publisher.publish(newer, force: true, defaults: d, boundary: refusing, reload: { reloaded.append($0) }))
         // Nothing committed: the persisted snapshot and the reloads are unchanged.
         XCTAssertEqual(WidgetSnapshot.load(d)?.recipeCount, 3)
         XCTAssertEqual(reloaded.count, 1)
+        XCTAssertEqual(WidgetSnapshot.load(d)?.shopping, [])
         // The publisher did not mark the refused value as published: a later retry
         // with a working boundary still commits and reloads.
         XCTAssertTrue(publisher.publish(newer, defaults: d, boundary: .legacy, reload: { reloaded.append($0) }))
         XCTAssertEqual(WidgetSnapshot.load(d)?.recipeCount, 4)
         XCTAssertEqual(reloaded.count, 2)
+        XCTAssertEqual(WidgetSnapshot.load(d)?.shopping, newer.shopping)
+        XCTAssertEqual(Set(reloaded.last ?? []), Set([WidgetKinds.shopping, WidgetKinds.shoppingInline]))
+    }
+
+    func testPublisherMetadataOnlyChangeDoesNotRequestTimelineReload() throws {
+        let (d, suite) = try defaults()
+        defer { d.removePersistentDomain(forName: suite) }
+        var publisher = WidgetSnapshotPublisher()
+        var reloads = 0
+        let first = WidgetSnapshot(recipeCount: 3)
+        XCTAssertTrue(publisher.publish(first, defaults: d, boundary: .legacy, reload: { _ in reloads += 1 }))
+        var metadataOnly = first
+        metadataOnly.recipeCount = 4
+        XCTAssertFalse(publisher.publish(metadataOnly, defaults: d, boundary: .legacy, reload: { _ in reloads += 1 }))
+        XCTAssertEqual(WidgetSnapshot.load(d), first)
+        XCTAssertEqual(reloads, 1, "No displayed timeline input changed")
     }
 }

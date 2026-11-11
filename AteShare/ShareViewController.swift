@@ -58,8 +58,12 @@ final class ShareViewController: UIViewController {
         }
         let what = item.imageFile != nil ? "Photo" : (item.url.flatMap { URL(string: $0)?.host } ?? "Text")
         if SharedContainer.isAvailable {
-            SharedInbox.push(item)
-            state = .saved(what)
+            if SharedInbox.push(item) {
+                state = .saved(what)
+            } else {
+                // The writer boundary refused: nothing was queued, so never claim a save.
+                state = .failed("ate couldn't queue this just now. Please try again.")
+            }
         } else {
             // No App Group (free-account sideload): fall back to the clipboard.
             UIPasteboard.general.string = item.url ?? item.text

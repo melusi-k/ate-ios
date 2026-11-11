@@ -27,7 +27,14 @@ struct TimerSnapshot: Codable, Equatable {
     static func load() -> [TimerSnapshot] {
         SharedContainer.defaults.data(forKey: key).flatMap { try? JSONDecoder().decode([TimerSnapshot].self, from: $0) } ?? []
     }
-    static func save(_ s: [TimerSnapshot]) {
-        SharedContainer.defaults.set(try? JSONEncoder().encode(s), forKey: key)
+    /// Persists the whole list inside the writer boundary's effect, so a gated
+    /// read-modify-write (see SharedTimerOps) stays atomic against extension
+    /// writers. Returns false when the boundary refused the effect; nothing was
+    /// written and the caller must leave notifications and UI unchanged.
+    @discardableResult
+    static func save(_ s: [TimerSnapshot], boundary: SharedWriterBoundary = .current) -> Bool {
+        (try? boundary.withEffect { () -> Void in
+            SharedContainer.defaults.set(try? JSONEncoder().encode(s), forKey: key)
+        }) != nil
     }
 }

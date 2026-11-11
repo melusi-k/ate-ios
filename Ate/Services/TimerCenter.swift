@@ -29,6 +29,11 @@ struct ActiveTimer: Identifiable, Equatable {
 @Observable
 @MainActor
 final class TimerCenter {
+    /// Writer seam (#245, lane 3): production composition injects the shared boundary;
+    /// the default preserves today's behavior exactly. TimerCenter itself never awaits,
+    /// so it holds no validator: post-await fencing lives in LiveActivities.
+    @ObservationIgnored var writerBoundary: FoodJournalWriterBoundary = .legacy
+
     private(set) var timers: [ActiveTimer] = [] { didSet { persist() } }
 
     init() {
@@ -56,48 +61,57 @@ final class TimerCenter {
     /// Widget buttons / controls that ran in the extension changed the App Group copy: adopt it, then fix up
     /// Live Activities (their notifications were already rescheduled by the extension).
     func reloadFromShared() {
-        if AppConfig.isUITesting && !ProcessInfo.processInfo.arguments.contains("-qaSharedTimers") { return }
-        let shared = TimerSnapshot.load()
-        guard shared != snapshots else { return }
-        let old = timers
-        suppressPersist = true
-        timers = shared.map {
-            ActiveTimer(recipeID: $0.recipeID, recipeTitle: $0.recipeTitle, stepIndex: $0.stepIndex, stepCount: $0.stepCount,
-                        stepText: $0.stepText, total: $0.total, endDate: $0.endDate, pausedRemaining: $0.pausedRemaining)
+        // The whole read-modify-write plus the republish is one gated effect.
+        try? writerBoundary.withEffect {
+            if AppConfig.isUITesting && !ProcessInfo.processInfo.arguments.contains("-qaSharedTimers") { return }
+            let shared = TimerSnapshot.load()
+            guard shared != snapshots else { return }
+            let old = timers
+            suppressPersist = true
+            timers = shared.map {
+                ActiveTimer(recipeID: $0.recipeID, recipeTitle: $0.recipeTitle, stepIndex: $0.stepIndex, stepCount: $0.stepCount,
+                            stepText: $0.stepText, total: $0.total, endDate: $0.endDate, pausedRemaining: $0.pausedRemaining)
+            }
+            suppressPersist = false
+            PhoneWatchBridge.shared.update(timers: timers)
+            for t in old where !timers.contains(where: { $0.id == t.id }) { LiveActivities.end(t.id) }
+            for t in timers { LiveActivities.startOrUpdate(t) }
         }
-        suppressPersist = false
-        PhoneWatchBridge.shared.update(timers: timers)
-        for t in old where !timers.contains(where: { $0.id == t.id }) { LiveActivities.end(t.id) }
-        for t in timers { LiveActivities.startOrUpdate(t) }
     }
 
     /// Runs a widget / Siri / Control Center command against the live timers.
     func run(_ cmd: TimerMath.Command, id: String) {
-        switch cmd {
-        case .pause: pause(id)
-        case .resume: resume(id)
-        case .toggle: toggle(id)
-        case .stop: stop(id)
+        try? writerBoundary.withEffect {
+            switch cmd {
+            case .pause: pause(id)
+            case .resume: resume(id)
+            case .toggle: toggle(id)
+            case .stop: stop(id)
+            }
         }
     }
 
     /// Kitchen timer control: pause the running timer, else resume a paused one, else start a 5-minute timer.
     @discardableResult
     func kitchenToggle(seconds: Int = TimerMath.quickSeconds) -> String {
-        if let r = timers.first(where: { $0.isRunning }) { pause(r.id); return "paused" }
-        if let p = timers.first { resume(p.id); return "resumed" }
-        startQuick(seconds: seconds); return "started"
+        (try? writerBoundary.withEffect { () -> String in
+            if let r = timers.first(where: { $0.isRunning }) { pause(r.id); return "paused" }
+            if let p = timers.first { resume(p.id); return "resumed" }
+            startQuick(seconds: seconds); return "started"
+        }) ?? "unavailable"
     }
 
     func startQuick(seconds: Int = TimerMath.quickSeconds) {
-        let total = AppConfig.qaFastTimers ? max(2, seconds / 30) : seconds
-        var t = ActiveTimer(recipeID: TimerMath.quickRecipeID, recipeTitle: "Kitchen timer", stepIndex: 0, stepCount: 1,
-                            stepText: "Kitchen timer", total: total, endDate: nil, pausedRemaining: total)
-        if let existing = timer(TimerMath.quickRecipeID, 0) { t = existing; if t.isRunning { return } }
-        t.endDate = Date().addingTimeInterval(TimeInterval(t.pausedRemaining > 0 ? t.pausedRemaining : total))
-        upsert(t)
-        TimerAlerts.schedule(id: t.id, step: 1, recipeTitle: t.recipeTitle, at: t.endDate!, prefs: prefsProvider())
-        LiveActivities.startOrUpdate(t)
+        try? writerBoundary.withEffect {
+            let total = AppConfig.qaFastTimers ? max(2, seconds / 30) : seconds
+            var t = ActiveTimer(recipeID: TimerMath.quickRecipeID, recipeTitle: "Kitchen timer", stepIndex: 0, stepCount: 1,
+                                stepText: "Kitchen timer", total: total, endDate: nil, pausedRemaining: total)
+            if let existing = timer(TimerMath.quickRecipeID, 0) { t = existing; if t.isRunning { return } }
+            t.endDate = Date().addingTimeInterval(TimeInterval(t.pausedRemaining > 0 ? t.pausedRemaining : total))
+            upsert(t)
+            TimerAlerts.schedule(id: t.id, step: 1, recipeTitle: t.recipeTitle, at: t.endDate!, prefs: prefsProvider())
+            LiveActivities.startOrUpdate(t)
+        }
     }
     var now = Date()
     var prefsProvider: @MainActor () -> TimerPrefs = { TimerPrefs() }
@@ -108,33 +122,38 @@ final class TimerCenter {
     }
 
     func start(recipe: RecipeCard, stepIndex: Int) {
-        guard recipe.steps.indices.contains(stepIndex) else { return }
-        let step = recipe.steps[stepIndex]
-        var total = step.timeSeconds ?? 0
-        guard total > 0 else { return }
-        if AppConfig.qaFastTimers { total = max(2, total / 30) }
-        if !permissionAsked, prefsProvider().stepAlerts {
-            permissionAsked = true
-            Task { _ = await TimerAlerts.requestPermission() }
+        try? writerBoundary.withEffect {
+            guard recipe.steps.indices.contains(stepIndex) else { return }
+            let step = recipe.steps[stepIndex]
+            var total = step.timeSeconds ?? 0
+            guard total > 0 else { return }
+            if AppConfig.qaFastTimers { total = max(2, total / 30) }
+            if !permissionAsked, prefsProvider().stepAlerts {
+                permissionAsked = true
+                // Escapes the effect before suspending: no lock is ever held across an await.
+                Task { _ = await TimerAlerts.requestPermission() }
+            }
+            var t = timer(recipe.id, stepIndex) ?? ActiveTimer(recipeID: recipe.id, recipeTitle: recipe.title, stepIndex: stepIndex,
+                                                             stepCount: recipe.steps.count, stepText: step.instruction,
+                                                             total: total, endDate: nil, pausedRemaining: total)
+            if t.isRunning { return }
+            if t.pausedRemaining <= 0 { t.pausedRemaining = total }
+            t.endDate = Date().addingTimeInterval(TimeInterval(t.pausedRemaining))
+            upsert(t)
+            TimerAlerts.schedule(id: t.id, step: stepIndex + 1, recipeTitle: t.recipeTitle, at: t.endDate!, prefs: prefsProvider())
+            LiveActivities.startOrUpdate(t)
         }
-        var t = timer(recipe.id, stepIndex) ?? ActiveTimer(recipeID: recipe.id, recipeTitle: recipe.title, stepIndex: stepIndex,
-                                                         stepCount: recipe.steps.count, stepText: step.instruction,
-                                                         total: total, endDate: nil, pausedRemaining: total)
-        if t.isRunning { return }
-        if t.pausedRemaining <= 0 { t.pausedRemaining = total }
-        t.endDate = Date().addingTimeInterval(TimeInterval(t.pausedRemaining))
-        upsert(t)
-        TimerAlerts.schedule(id: t.id, step: stepIndex + 1, recipeTitle: t.recipeTitle, at: t.endDate!, prefs: prefsProvider())
-        LiveActivities.startOrUpdate(t)
     }
 
     func pause(_ id: String) {
-        guard var t = timers.first(where: { $0.id == id }), t.isRunning else { return }
-        t.pausedRemaining = t.remaining()
-        t.endDate = nil
-        upsert(t)
-        TimerAlerts.cancel(id: id)
-        LiveActivities.startOrUpdate(t)
+        try? writerBoundary.withEffect {
+            guard var t = timers.first(where: { $0.id == id }), t.isRunning else { return }
+            t.pausedRemaining = t.remaining()
+            t.endDate = nil
+            upsert(t)
+            TimerAlerts.cancel(id: id)
+            LiveActivities.startOrUpdate(t)
+        }
     }
 
     func toggle(_ id: String) {
@@ -143,27 +162,33 @@ final class TimerCenter {
     }
 
     func resume(_ id: String) {
-        guard var t = timers.first(where: { $0.id == id }), !t.isRunning else { return }
-        if t.pausedRemaining <= 0 { t.pausedRemaining = t.total }
-        t.endDate = Date().addingTimeInterval(TimeInterval(t.pausedRemaining))
-        upsert(t)
-        TimerAlerts.schedule(id: t.id, step: t.stepIndex + 1, recipeTitle: t.recipeTitle, at: t.endDate!, prefs: prefsProvider())
-        LiveActivities.startOrUpdate(t)
+        try? writerBoundary.withEffect {
+            guard var t = timers.first(where: { $0.id == id }), !t.isRunning else { return }
+            if t.pausedRemaining <= 0 { t.pausedRemaining = t.total }
+            t.endDate = Date().addingTimeInterval(TimeInterval(t.pausedRemaining))
+            upsert(t)
+            TimerAlerts.schedule(id: t.id, step: t.stepIndex + 1, recipeTitle: t.recipeTitle, at: t.endDate!, prefs: prefsProvider())
+            LiveActivities.startOrUpdate(t)
+        }
     }
 
     func reset(_ id: String) {
-        guard var t = timers.first(where: { $0.id == id }) else { return }
-        t.endDate = nil
-        t.pausedRemaining = t.total
-        upsert(t)
-        TimerAlerts.cancel(id: id)
-        LiveActivities.startOrUpdate(t)
+        try? writerBoundary.withEffect {
+            guard var t = timers.first(where: { $0.id == id }) else { return }
+            t.endDate = nil
+            t.pausedRemaining = t.total
+            upsert(t)
+            TimerAlerts.cancel(id: id)
+            LiveActivities.startOrUpdate(t)
+        }
     }
 
     func stop(_ id: String) {
-        timers.removeAll { $0.id == id }
-        TimerAlerts.cancel(id: id)
-        LiveActivities.end(id)
+        try? writerBoundary.withEffect {
+            timers.removeAll { $0.id == id }
+            TimerAlerts.cancel(id: id)
+            LiveActivities.end(id)
+        }
     }
 
     /// Called when cook mode exits: drop timers that aren't running (their Live Activities end too).
@@ -175,16 +200,22 @@ final class TimerCenter {
 
     /// Timers restored from persistence (or running when we come back to the foreground) get their Live Activity back.
     func ensureLiveActivities() {
-        for t in timers where t.isRunning { LiveActivities.startOrUpdate(t) }
+        try? writerBoundary.withEffect {
+            for t in timers where t.isRunning { LiveActivities.startOrUpdate(t) }
+        }
     }
 
     func tick(_ date: Date = Date()) {
+        // Wall-clock redraws are not durable writes and must not stamp generations.
         now = date
-        for t in timers where t.isRunning && t.remaining(at: date) == 0 {
-            timers.removeAll { $0.id == t.id }
-            TimerAlerts.timerFinished(prefs: prefsProvider())
-            BetaQA.shared.pass("A-TIMER-01", note: "Timer for step \(t.stepIndex + 1) finished")
-            LiveActivities.end(t.id, finished: t)
+        guard timers.contains(where: { $0.isRunning && $0.remaining(at: date) == 0 }) else { return }
+        try? writerBoundary.withEffect {
+            for t in timers where t.isRunning && t.remaining(at: date) == 0 {
+                timers.removeAll { $0.id == t.id }
+                TimerAlerts.timerFinished(prefs: prefsProvider())
+                BetaQA.shared.pass("A-TIMER-01", note: "Timer for step \(t.stepIndex + 1) finished")
+                LiveActivities.end(t.id, finished: t)
+            }
         }
     }
 
@@ -200,13 +231,26 @@ import os
 @Observable
 final class LiveActivityLog {
     static let shared = LiveActivityLog()
-    private static let key = "ate.liveactivity.log.v1"
+    static let key = "ate.liveactivity.log.v1"
+    /// Writer seam (#245, lane 3): production composition injects the shared boundary.
+    @ObservationIgnored var writerBoundary: FoodJournalWriterBoundary = .legacy
     private(set) var entries: [String] = UserDefaults.standard.stringArray(forKey: LiveActivityLog.key) ?? []
+    /// One gated effect covers the read-modify-write of the entries plus the publish.
     func add(_ s: String) {
-        entries.insert("\(Date().formatted(date: .omitted, time: .standard)) \(s)", at: 0)
-        if entries.count > 20 { entries.removeLast(entries.count - 20) }
-        UserDefaults.standard.set(entries, forKey: Self.key)
+        try? writerBoundary.withEffect {
+            entries.insert("\(Date().formatted(date: .omitted, time: .standard)) \(s)", at: 0)
+            if entries.count > 20 { entries.removeLast(entries.count - 20) }
+            UserDefaults.standard.set(entries, forKey: Self.key)
+        }
     }
+    /// Clear-all (lane 3): wipes the log. `isCleared` is the verifier's read-back.
+    func clear() {
+        try? writerBoundary.withEffect {
+            entries = []
+            UserDefaults.standard.removeObject(forKey: Self.key)
+        }
+    }
+    var isCleared: Bool { entries.isEmpty && UserDefaults.standard.data(forKey: Self.key) == nil }
 }
 
 @MainActor
@@ -258,6 +302,11 @@ enum LiveActivityDiagnostics {
 
 @MainActor
 enum LiveActivities {
+    /// Writer seam (#245, lane 3): central composition installs the shared validator so
+    /// a completion arriving after an await is fenced off when the writer epoch moved.
+    /// The default always passes, preserving today's behavior.
+    static var validateWriter: () throws -> Void = {}
+
     static var enabled: Bool {
         #if canImport(ActivityKit)
         if AppConfig.isUITesting { return false }
@@ -294,7 +343,13 @@ enum LiveActivities {
         }
         let content = ActivityContent(state: state(t), staleDate: t.endDate?.addingTimeInterval(60))
         if let a = activity(t.id) {
-            Task { await a.update(content); LiveActivityDiagnostics.record("updated \(a.id.prefix(8)) state=\(String(describing: a.activityState))") }
+            Task {
+                await a.update(content)
+                // Post-await completion fence: the record is a write; a stale completion
+                // (writer epoch moved during the await) is dropped, never written.
+                guard (try? validateWriter()) != nil else { return }
+                LiveActivityDiagnostics.record("updated \(a.id.prefix(8)) state=\(String(describing: a.activityState))")
+            }
         } else {
             let attrs = CookTimerAttributes(recipeID: t.recipeID, recipeTitle: t.recipeTitle, timerID: t.id)
             do {
@@ -317,6 +372,8 @@ enum LiveActivities {
         Task {
             await a.end(ActivityContent(state: st, staleDate: nil),
                         dismissalPolicy: finished == nil ? .immediate : .after(Date().addingTimeInterval(120)))
+            // Post-await completion fence: nothing may publish after the epoch moved.
+            guard (try? validateWriter()) != nil else { return }
         }
         #endif
     }

@@ -16,8 +16,20 @@ final class CoverStore {
     /// Recipe ids with a cover being fetched/generated (drives the shimmer).
     private(set) var loading: Set<String> = []
     @ObservationIgnored private var attempted: Set<String> = []
+    /// Writer seam (#245, lane 3): production composition injects the shared boundary
+    /// and a post-await validator; the defaults preserve today's behavior exactly.
+    @ObservationIgnored var writerBoundary: FoodJournalWriterBoundary = .legacy
+    @ObservationIgnored var validateWriter: () throws -> Void = {}
 
     // MARK: files
+
+    /// Where covers live. The App Group container is shared with the widgets; a sideload
+    /// without the group runs in a declared `.appOnly` mode rather than silently
+    /// pretending the widgets can see the files.
+    nonisolated enum ContainerMode: String { case shared, appOnly }
+    nonisolated static var containerMode: ContainerMode {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: SharedContainer.groupID) != nil ? .shared : .appOnly
+    }
 
     nonisolated static var folder: URL {
         let base = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: SharedContainer.groupID)
@@ -53,20 +65,26 @@ final class CoverStore {
     /// Writes a cover and returns its file name (old covers for the recipe are removed).
     @discardableResult
     func save(_ image: UIImage, recipeID: String, source: CoverLogic.Source) -> String? {
-        guard let data = Self.process(image) else { return nil }
-        let name = CoverLogic.fileName(for: recipeID, source: source)
-        removeFiles(recipeID: recipeID, except: name)
-        do { try data.write(to: Self.url(name), options: .atomic) } catch { return nil }
-        cache[name] = UIImage(data: data)
-        return name
+        // One gated effect covers the whole mutation: process, remove old covers, write
+        // the file and publish the cache entry.
+        try? writerBoundary.withEffect {
+            guard let data = Self.process(image) else { return nil }
+            let name = CoverLogic.fileName(for: recipeID, source: source)
+            removeFiles(recipeID: recipeID, except: name)
+            do { try data.write(to: Self.url(name), options: .atomic) } catch { return nil }
+            cache[name] = UIImage(data: data)
+            return name
+        }
     }
 
     func removeFiles(recipeID: String, except keep: String? = nil) {
-        for s in CoverLogic.Source.allCases {
-            let n = CoverLogic.fileName(for: recipeID, source: s)
-            if n == keep { continue }
-            cache[n] = nil
-            try? FileManager.default.removeItem(at: Self.url(n))
+        try? writerBoundary.withEffect {
+            for s in CoverLogic.Source.allCases {
+                let n = CoverLogic.fileName(for: recipeID, source: s)
+                if n == keep { continue }
+                cache[n] = nil
+                try? FileManager.default.removeItem(at: Self.url(n))
+            }
         }
     }
 
@@ -86,7 +104,12 @@ final class CoverStore {
             guard CoverLogic.httpsURL(r.imageURL) != nil || CoverLogic.httpsURL(r.sourceURL) != nil || shouldAutoGenerate(r) else {
                 attempted.remove(r.id); return
             }
-            if let res = await resolve(r) { store.setCover(r.id, file: res.file, imageURL: res.imageURL) }
+            if let res = await resolve(r) {
+                // Late async completion: re-prove the writer boundary after the awaits
+                // before publishing into the store; a reset in between drops the result.
+                guard (try? validateWriter()) != nil else { return }
+                store.setCover(r.id, file: res.file, imageURL: res.imageURL)
+            }
         }
     }
 
@@ -95,8 +118,12 @@ final class CoverStore {
         loading.insert(r.id); defer { loading.remove(r.id) }
         var imageURL = CoverLogic.httpsURL(r.imageURL)
         if imageURL == nil, let page = CoverLogic.httpsURL(r.sourceURL) { imageURL = await Self.findPageImage(page) }
-        if let u = imageURL, let img = await Self.download(u),
-           let name = save(img, recipeID: r.id, source: .pageImage) { return (name, u.absoluteString) }
+        if let u = imageURL, let img = await Self.download(u) {
+            // Epoch re-check after the network await: never write a cover fetched for a
+            // store state that a reset or account change has since replaced.
+            guard (try? validateWriter()) != nil else { return nil }
+            if let name = save(img, recipeID: r.id, source: .pageImage) { return (name, u.absoluteString) }
+        }
         if allowGenerate, shouldAutoGenerate(r), let name = await generate(for: r) { return (name, nil) }
         return nil
     }
@@ -153,7 +180,10 @@ final class CoverStore {
 
     /// Generates an illustration from the title + main ingredients. Returns nil on any error.
     func generate(for r: RecipeCard) async -> String? {
-        UserDefaults.standard.set(true, forKey: "ate.cover.gen.\(r.id)")
+        // The attempted marker is a mutation and goes through the writer boundary.
+        try? writerBoundary.withEffect {
+            UserDefaults.standard.set(true, forKey: "ate.cover.gen.\(r.id)")
+        }
         #if canImport(ImagePlayground)
         if #available(iOS 18.4, *) {
             let wasLoading = loading.contains(r.id)
@@ -164,6 +194,9 @@ final class CoverStore {
                 guard let style = styles.contains(.illustration) ? ImagePlaygroundStyle.illustration : styles.first else { return nil }
                 let text = CoverLogic.concept(title: r.title, ingredients: r.ingredients.map(\.name))
                 for try await img in creator.images(for: [.text(text)], style: style, limit: 1) {
+                    // Epoch re-check after the generator await: a cover produced for a
+                    // pre-reset state is dropped, never written.
+                    guard (try? validateWriter()) != nil else { return nil }
                     return save(UIImage(cgImage: img.cgImage), recipeID: r.id, source: .generated)
                 }
             } catch { return nil }

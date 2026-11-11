@@ -1,9 +1,9 @@
 import XCTest
 @testable import Ate
 
-/// #245 lane 1: AppStore's ordinary writers enter the bound writer boundary BEFORE
-/// mutating (recipes, shopping, cook session, settings, legacy import, local wipe), and
-/// async flows re-prove session + epoch after each await before publishing. While the
+/// #245 lane 1: action writers enter the boundary before mutating; direct SwiftUI-bound
+/// property edits are intentionally memory-first and gate durability in didSet. Async
+/// flows re-prove session + epoch after each await before publishing. While the
 /// boundary is unbound the dormant legacy graph keeps today's behavior exactly. Boundary
 /// mechanics themselves (flock, epoch, nested archive lease) are covered by
 /// AccountWriterGateTests and the archive lane tests; here the boundary is an injected
@@ -227,6 +227,187 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
         store.loadPersistedCookSession(defaults: defaults)
         XCTAssertNil(store.cookSession)
         XCTAssertEqual(defaults.data(forKey: "ate.cookSession.v1"), raw)
+    }
+
+
+    private final class AuthSpy: AuthService {
+        let base = MockAuth()
+        var signOuts = 0
+        var deletes = 0
+        var refreshes = 0
+        func signIn(email: String, password: String) async throws -> AuthSession { base.make(email) }
+        func signUp(email: String, password: String) async throws -> AuthSession? { base.make(email) }
+        func sendMagicLink(email: String) async throws {}
+        func resendConfirmation(email: String) async throws {}
+        func recoverPassword(email: String) async throws {}
+        func updatePassword(_ session: AuthSession, to password: String) async throws {}
+        func refresh(_ session: AuthSession) async throws -> AuthSession {
+            refreshes += 1
+            var value = session; value.expiresAt = Date().timeIntervalSince1970 + 3600
+            return value
+        }
+        func session(fromCallback url: URL) async throws -> AuthCallback? {
+            url.query == "recovery" ? .recovery(base.make("recovery@example.com")) : .signedIn(base.make("callback@example.com"))
+        }
+        func signOut(_ session: AuthSession) async { signOuts += 1 }
+        func deleteAccount(_ session: AuthSession) async throws { deletes += 1 }
+    }
+
+    private final class SyncSpy: SyncService {
+        var pulls = 0
+        var pushes = 0
+        func pull(session: AuthSession) async throws -> [SyncRecord] { pulls += 1; return [] }
+        func push(_ records: [SyncRecord], session: AuthSession) async throws { pushes += 1 }
+    }
+
+    private func refuseSessionPublish(_ store: AppStore, afterWork: Bool,
+                                      reached: XCTestExpectation? = nil) {
+        var depth = 0
+        store.journalWriterValidator = {}
+        store.journalWriterEffect = { work in
+            if depth > 0 { return try work() }
+            depth += 1
+            defer { depth -= 1; reached?.fulfill() }
+            if afterWork { try work() }
+            throw StubError.boundaryRefused
+        }
+    }
+
+    func testSignInAndSignUpReportDeniedAndPostWorkPublishFailure() async {
+        for afterWork in [false, true] {
+            let auth = AuthSpy(); let sync = SyncSpy()
+            let store = makeStore(auth: auth, sync: sync)
+            store.session = nil
+            store.pendingConfirmation = "still-pending@example.com"
+            refuseSessionPublish(store, afterWork: afterWork)
+            let error = await store.signIn(email: "signed-in@example.com", password: "unused")
+            XCTAssertEqual(error?.message, AppStore.sessionWriteFailureMessage)
+            XCTAssertEqual(store.toast?.isError, true)
+            XCTAssertEqual(store.toast?.message, AppStore.sessionWriteFailureMessage)
+            XCTAssertEqual(store.pendingConfirmation, "still-pending@example.com")
+            XCTAssertEqual(store.session?.email, afterWork ? "signed-in@example.com" : nil,
+                           "Post-work failure may have published; no rollback is claimed")
+            let outcome = await store.signUp(email: "signed-up@example.com", password: "unused")
+            XCTAssertEqual(outcome, .failed(AuthError(message: AppStore.sessionWriteFailureMessage)))
+            XCTAssertEqual(store.toast?.message, AppStore.sessionWriteFailureMessage)
+            await Task.yield()
+            XCTAssertEqual(sync.pulls, 0, "Failed publication must not schedule sync")
+            XCTAssertEqual(sync.pushes, 0)
+        }
+    }
+
+    func testHalfBoundPostAwaitPublicationFailsClosed() async {
+        for effectOnly in [true, false] {
+            let sync = SyncSpy()
+            let store = makeStore(auth: AuthSpy(), sync: sync)
+            store.session = nil
+            var effects = 0
+            if effectOnly { store.journalWriterEffect = { work in effects += 1; try work() } }
+            else { store.journalWriterValidator = {} }
+            let error = await store.signIn(email: "half@example.com", password: "unused")
+            XCTAssertNotNil(error)
+            XCTAssertNil(store.session)
+            XCTAssertEqual(effects, 0)
+            XCTAssertEqual(sync.pulls, 0)
+        }
+    }
+
+    func testCallbacksDoNotFinishOnDeniedOrPostWorkSessionPublish() async {
+        for afterWork in [false, true] {
+            for recovery in [false, true] {
+                let sync = SyncSpy()
+                let store = makeStore(auth: AuthSpy(), sync: sync)
+                store.session = nil
+                store.showOnboarding = true
+                store.authSheet = .signIn
+                store.pendingConfirmation = "pending@example.com"
+                let reached = expectation(description: "callback session effect")
+                refuseSessionPublish(store, afterWork: afterWork, reached: reached)
+                store.handle(url: URL(string: "ate://auth-callback" + (recovery ? "?recovery" : ""))!)
+                await fulfillment(of: [reached], timeout: 2)
+                XCTAssertEqual(store.toast?.message, AppStore.sessionWriteFailureMessage)
+                XCTAssertTrue(store.showOnboarding)
+                XCTAssertEqual(store.pendingConfirmation, "pending@example.com")
+                guard case .signIn? = store.authSheet else { return XCTFail("No auth-sheet completion on refusal") }
+                XCTAssertEqual(sync.pulls, 0)
+            }
+        }
+    }
+
+    func testSignOutAndDeleteStopLocalCompletionAfterSessionEffectFailure() async {
+        for afterWork in [false, true] {
+            for deleting in [false, true] {
+                let auth = AuthSpy()
+                let store = makeStore(auth: auth)
+                let original = auth.base.make("owner@example.com")
+                store.session = original
+                store.recipes = [card("keep")]
+                store.showOnboarding = false
+                refuseSessionPublish(store, afterWork: afterWork)
+                if deleting {
+                    let error = await store.deleteAccount()
+                    XCTAssertNotNil(error)
+                    XCTAssertTrue(error?.message.contains("deleted on the server") == true)
+                    XCTAssertEqual(auth.deletes, 1)
+                } else {
+                    await store.signOut(removeLocalData: true)
+                    XCTAssertEqual(auth.signOuts, 1)
+                    XCTAssertTrue(store.toast?.message.contains("Signed out on the server") == true)
+                    XCTAssertEqual(store.toast?.isError, true)
+                }
+                XCTAssertEqual(store.recipes.map(\.id), ["keep"], "No dependent wipe after an unproved session publish")
+                XCTAssertFalse(store.showOnboarding)
+                XCTAssertEqual(store.session, afterWork ? nil : original)
+            }
+        }
+    }
+
+    func testSyncRefreshStopsBeforePullWhenSessionPublishFails() async {
+        for afterWork in [false, true] {
+            let auth = AuthSpy(); let sync = SyncSpy()
+            let store = makeStore(auth: auth, sync: sync)
+            var expired = auth.base.make("owner@example.com"); expired.expiresAt = 0
+            store.session = expired
+            refuseSessionPublish(store, afterWork: afterWork)
+            await store.syncNow()
+            XCTAssertEqual(auth.refreshes, 1)
+            XCTAssertEqual(sync.pulls, 0)
+            XCTAssertEqual(sync.pushes, 0)
+            guard case .failed(let message) = store.syncState else { return XCTFail("No synced claim") }
+            XCTAssertEqual(message, AppStore.sessionWriteFailureMessage)
+            XCTAssertEqual(store.toast?.message, AppStore.sessionWriteFailureMessage)
+        }
+    }
+
+    func testMemoryFirstBoundPropertiesKeepEditButRefusePersistenceHonestly() {
+        let keys = ["ate.settings.v1", "ate.timerprefs.v1", RecipeFilter.key,
+                    LibraryLayout.key, "ate.cookSession.v1"]
+        let previous = keys.map { UserDefaults.standard.object(forKey: $0) }
+        defer {
+            for (key, value) in zip(keys, previous) {
+                if let value { UserDefaults.standard.set(value, forKey: key) }
+                else { UserDefaults.standard.removeObject(forKey: key) }
+            }
+        }
+        let store = makeStore()
+        for key in keys { UserDefaults.standard.set(Data("last durable bytes".utf8), forKey: key) }
+        store.journalWriterEffect = { _ in throw StubError.boundaryRefused }
+        store.settings.units = .imperial
+        XCTAssertEqual(store.settings.units, .imperial)
+        XCTAssertEqual(store.toast?.message, AppStore.ordinaryWriteFailureMessage)
+        store.timerPrefs.sound = false
+        XCTAssertFalse(store.timerPrefs.sound)
+        store.filter.favouritesOnly = true
+        XCTAssertTrue(store.filter.favouritesOnly)
+        store.layout.sort = .az
+        XCTAssertEqual(store.layout.sort, .az)
+        store.cookSession = CookSession(recipeID: "memory-only", stepIndex: 2)
+        XCTAssertEqual(store.cookSession?.recipeID, "memory-only")
+        XCTAssertEqual(store.toast?.isError, true)
+        for key in keys {
+            XCTAssertEqual(UserDefaults.standard.data(forKey: key), Data("last durable bytes".utf8),
+                           "Memory-first editing does not claim durable persistence")
+        }
     }
 
 }

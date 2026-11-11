@@ -39,8 +39,8 @@ final class ArchiveNutritionParticipant {
         }
         var ids = Set(existing.map(\.id))
         let additions = incomingDiary.filter { ids.insert($0.id).inserted }
-        newDiary = try JSONEncoder().encode(existing + additions)
-        newGoalFile = incomingGoals.isEmpty ? nil : try JSONEncoder().encode(incomingGoals)
+        newDiary = try ArchiveRestoreEncoding.encoder().encode(existing + additions)
+        newGoalFile = incomingGoals.isEmpty ? nil : try ArchiveRestoreEncoding.encoder().encode(incomingGoals)
     }
 
     func participant() -> ArchiveRestoreParticipant {

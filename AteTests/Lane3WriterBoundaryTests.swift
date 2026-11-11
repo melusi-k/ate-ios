@@ -45,6 +45,50 @@ import XCTest
         }
     }
 
+    func testHealthyExpiredTokenRefreshPublishesUnderTheNewEpoch() async throws {
+        let boundary = WatchWriterBoundary { try $0() }
+        let oldEpoch = boundary.captureEpoch()
+        var currentToken = "expired"
+        var fetchedToken: String?
+        var published: String?
+        try await boundary.publishAfterToken(token: {
+            // Same transition as validToken -> setSession after a healthy refresh.
+            try? boundary.withEffect { boundary.invalidateEpoch(); currentToken = "refreshed" }
+            return currentToken
+        }, isCurrentToken: { $0 == currentToken }, fetch: { token in
+            fetchedToken = token
+            return "fresh rows"
+        }, publish: { published = $0 })
+        XCTAssertThrowsError(try boundary.validateEpoch(oldEpoch))
+        XCTAssertEqual(fetchedToken, "refreshed")
+        XCTAssertEqual(published, "fresh rows")
+    }
+
+    func testSessionRaceDuringGETDoesNotPublishForeignRows() async {
+        let boundary = WatchWriterBoundary { try $0() }
+        var currentToken = "account-A"
+        var published = false
+        do {
+            try await boundary.publishAfterToken(token: { currentToken },
+                isCurrentToken: { $0 == currentToken }, fetch: { _ in
+                    // Deterministic awaited response seam: B owns the session before A returns.
+                    boundary.invalidateEpoch(); currentToken = "account-B"
+                    return "account-A rows"
+                }, publish: { _ in published = true })
+            XCTFail("Stale GET must be refused")
+        } catch { XCTAssertEqual(error as? WatchWriterBoundary.Failure, .staleEpoch) }
+        XCTAssertFalse(published)
+    }
+
+    func testTokenNoLongerOwnedAfterAwaitDoesNotStartGET() async throws {
+        let boundary = WatchWriterBoundary { try $0() }
+        var fetched = false
+        try await boundary.publishAfterToken(token: { "account-A" },
+            isCurrentToken: { $0 == "account-B" }, fetch: { _ in fetched = true; return 1 },
+            publish: { _ in XCTFail("Foreign token must not publish") })
+        XCTAssertFalse(fetched)
+    }
+
     // MARK: WatchTimerStore
 
     func testWatchTimerStoreSaveIsOneGatedEffect() {
@@ -87,6 +131,48 @@ import XCTest
         XCTAssertTrue(center.timers.isEmpty)
     }
 
+    func testReadOnlyTicksCommitZeroAndExpiryCommitsOneGeneration() throws {
+        let saved = SharedContainer.defaults.object(forKey: TimerSnapshot.key)
+        defer {
+            SharedContainer.defaults.set(saved, forKey: TimerSnapshot.key)
+            LiveActivityLog.shared.clear()
+        }
+        TimerSnapshot.save([])
+        let center = TimerCenter()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let directory = root.resolvingSymlinksInPath().standardizedFileURL
+        func generation() throws -> UInt64 {
+            let lease = try POSIXArchiveWriterLease(nestedDirectory: directory)
+            defer { lease.release() }
+            return lease.generation
+        }
+        center.writerBoundary = FoodJournalWriterBoundary { work in
+            try SharedArchiveNestedUnit.run(directory: directory, work)
+        }
+        let idle = Date(timeIntervalSince1970: 1)
+        center.tick(idle)
+        XCTAssertEqual(center.now, idle)
+        XCTAssertEqual(try generation(), 0)
+        // Set up the running timer outside the measured archive generation chain.
+        center.writerBoundary = .legacy
+        center.startQuick(seconds: 60)
+        center.writerBoundary = FoodJournalWriterBoundary { work in
+            try SharedArchiveNestedUnit.run(directory: directory, work)
+        }
+        let running = Date()
+        for _ in 0..<60 { center.tick(running) }
+        XCTAssertEqual(try generation(), 0)
+        XCTAssertEqual(center.timers.count, 1)
+        let expiry = center.timers[0].endDate!.addingTimeInterval(1)
+        center.tick(expiry)
+        XCTAssertTrue(center.timers.isEmpty)
+        XCTAssertEqual(try generation(), 1)
+        center.tick(expiry.addingTimeInterval(1))
+        XCTAssertEqual(try generation(), 1)
+    }
+
     // MARK: LiveActivityLog
 
     func testLiveActivityLogWriteIsGatedAndClearIsVerifiable() {
@@ -123,12 +209,29 @@ import XCTest
         let failed = await cleanup.cleanupAfterLocalErase()
 
         XCTAssertTrue(center.timers.isEmpty)
-        XCTAssertNil(shared.data(forKey: WidgetSnapshot.key))
-        XCTAssertNil(shared.data(forKey: WidgetKinds.heartbeatKey))
-        XCTAssertNil(shared.data(forKey: TimerSnapshot.key))
+        XCTAssertNil(shared.object(forKey: WidgetSnapshot.key))
+        XCTAssertNil(shared.object(forKey: WidgetKinds.heartbeatKey))
+        XCTAssertNil(shared.object(forKey: TimerSnapshot.key))
         XCTAssertTrue(log.isCleared)
         XCTAssertFalse(failed.contains(SystemSurfaceCleanup.Surface.widgetSnapshots))
         XCTAssertFalse(failed.contains(SystemSurfaceCleanup.Surface.activityLog))
+    }
+
+    func testSnapshotVerificationRejectsRetainedNonDataValuesAfterFailedRemoval() throws {
+        let suite = "ate.cleanup.test.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let keys = [WidgetSnapshot.key, WidgetKinds.heartbeatKey, TimerSnapshot.key]
+        for retainedKey in keys {
+            defaults.set(["heartbeat": 1.0], forKey: retainedKey)
+            XCTAssertNil(defaults.data(forKey: retainedKey), "The old typed read falsely looked absent")
+            XCTAssertFalse(SystemSurfaceCleanup.removeSnapshotKeys(from: defaults, remove: { key in
+                if key != retainedKey { defaults.removeObject(forKey: key) }
+            }), "Any retained object must fail strict absence verification")
+            XCTAssertNotNil(defaults.object(forKey: retainedKey))
+            XCTAssertTrue(SystemSurfaceCleanup.removeSnapshotKeys(from: defaults))
+            XCTAssertNil(defaults.object(forKey: retainedKey))
+        }
     }
 
     /// A writer fence that fails mid-cleanup is reported, and later surfaces are not

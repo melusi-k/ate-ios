@@ -34,13 +34,15 @@ final class WatchStore: NSObject {
 
     var signedIn: Bool { session != nil }
 
-    private func setSession(_ s: WatchBridgePayload.Session?) {
-        try? writerBoundary.withEffect {
+    @discardableResult
+    private func setSession(_ s: WatchBridgePayload.Session?) -> Bool {
+        (try? writerBoundary.withEffect {
             // A session change invalidates every in-flight network result (epoch fence).
             writerBoundary.invalidateEpoch()
             session = s
             UserDefaults.standard.set(s.flatMap { try? JSONEncoder().encode($0) }, forKey: "ate.watch.session")
-        }
+            return true
+        }) == true
     }
     private func saveCache() {
         try? writerBoundary.withEffect {
@@ -105,30 +107,26 @@ final class WatchStore: NSObject {
         if WatchAuthRequests.needsRefresh(expiresAt: s.expiresAt) {
             let epoch = writerBoundary.captureEpoch()
             guard let d = try? await send(WatchAuthRequests.refreshURL(base: base), body: ["refresh_token": s.refreshToken]),
-                  let n = parseSession(d) else { status = "Session expired — sign in again."; return nil }
+                  let n = parseSession(d), n.userID == s.userID else { status = "Session expired - sign in again."; return nil }
             // Epoch re-check after the network await: only the current session may be written.
             guard (try? writerBoundary.validateEpoch(epoch)) != nil else { return nil }
-            s = n; setSession(n)
+            guard setSession(n) else { status = "Couldn't update your sign-in. Try again."; return nil }
+            s = n
         }
         return s.accessToken
     }
 
     // MARK: Sync
     func refresh() async {
-        let epoch = writerBoundary.captureEpoch()
-        guard let base, let token = await validToken() else { return }
+        guard let base else { return }
         loading = true; defer { loading = false }
         do {
-            let d = try await send(WatchAuthRequests.rowsURL(base: base), method: "GET", body: nil, bearer: token)
-            let rows = try JSONDecoder().decode([WatchRow].self, from: d)
-            let out = WatchRows.decode(rows)
-            // Epoch re-check after the network await: a session change mid-flight owns
-            // the state via its own refresh; the stale result is dropped, and the UI
-            // must not claim the cache is merely offline.
-            try writerBoundary.validateEpoch(epoch)
-            try writerBoundary.withEffect {
+            try await writerBoundary.publishAfterToken(token: { await validToken() }, isCurrentToken: { session?.accessToken == $0 }, fetch: { token in
+                let d = try await send(WatchAuthRequests.rowsURL(base: base), method: "GET", body: nil, bearer: token)
+                return WatchRows.decode(try JSONDecoder().decode([WatchRow].self, from: d))
+            }, publish: { out in
                 recipes = out.recipes; shopping = out.shopping; saveCache(); status = nil
-            }
+            })
         } catch WatchWriterBoundary.Failure.staleEpoch {
             // Dropped stale result: the current session's refresh owns the state.
         } catch WatchWriterBoundary.Failure.effectNotPerformed, WatchWriterBoundary.Failure.repeatedEffect {

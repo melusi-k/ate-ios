@@ -53,9 +53,13 @@ enum CookCompletionOutboxError: Error, Equatable {
 final class CookCompletionOutbox {
     static let defaultsKey = "ate.cook.completionOutbox.v1"
     static let unreadableKeyPrefix = "ate.cook.completionOutbox.v1.unreadable."
+    private let writerBoundary: FoodJournalWriterBoundary
     private let defaults: UserDefaults
 
-    init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+    init(defaults: UserDefaults = .standard, writerBoundary: FoodJournalWriterBoundary = .legacy) {
+        self.defaults = defaults
+        self.writerBoundary = writerBoundary
+    }
 
     /// Throws `.unreadable` when something is stored that cannot be decoded; returns [] only when nothing is stored.
     func load() throws -> [CookCompletionEvent] {
@@ -75,35 +79,44 @@ final class CookCompletionOutbox {
     /// writing, then reads back and compares the whole queued array; throws without a silent change otherwise.
     @discardableResult
     func enqueue(_ event: CookCompletionEvent) throws -> CookCompletionEvent {
-        guard !event.id.isEmpty else { throw CookCompletionOutboxError.invalidEvent }
-        let events = try load()
-        if let stored = events.first(where: { $0.id == event.id }) { return stored }
-        try write(events + [event])
-        return event
+        return try writerBoundary.withEffect {
+            guard !event.id.isEmpty else { throw CookCompletionOutboxError.invalidEvent }
+            let events = try load()
+            if let stored = events.first(where: { $0.id == event.id }) { return stored }
+            try write(events + [event])
+            return event
+
+        }
     }
 
     func acknowledge(id: String) throws {
-        let events = try load()
-        let kept = events.filter { $0.id != id }
-        guard kept.count != events.count else { return }
-        try write(kept)
+        return try writerBoundary.withEffect {
+            let events = try load()
+            let kept = events.filter { $0.id != id }
+            guard kept.count != events.count else { return }
+            try write(kept)
+
+        }
     }
 
     /// Copies the unreadable bytes to a fresh key, verifies the copy, and only then clears the main key.
     /// Returns the key that holds the original bytes. Does nothing when the store is readable.
     @discardableResult
     func setUnreadableAside() throws -> String? {
-        do { _ = try load(); return nil } catch CookCompletionOutboxError.unreadable {}
-        guard let raw = defaults.object(forKey: Self.defaultsKey) else { return nil }
-        let key = Self.unreadableKeyPrefix + UUID().uuidString
-        defaults.set(raw, forKey: key)
-        guard let copy = defaults.object(forKey: key), (copy as? NSObject)?.isEqual(raw) == true else {
-            defaults.removeObject(forKey: key)
-            throw CookCompletionOutboxError.verifyFailed
+        return try writerBoundary.withEffect {
+            do { _ = try load(); return nil } catch CookCompletionOutboxError.unreadable {}
+            guard let raw = defaults.object(forKey: Self.defaultsKey) else { return nil }
+            let key = Self.unreadableKeyPrefix + UUID().uuidString
+            defaults.set(raw, forKey: key)
+            guard let copy = defaults.object(forKey: key), (copy as? NSObject)?.isEqual(raw) == true else {
+                defaults.removeObject(forKey: key)
+                throw CookCompletionOutboxError.verifyFailed
+            }
+            defaults.removeObject(forKey: Self.defaultsKey)
+            guard defaults.object(forKey: Self.defaultsKey) == nil else { throw CookCompletionOutboxError.verifyFailed }
+            return key
+
         }
-        defaults.removeObject(forKey: Self.defaultsKey)
-        guard defaults.object(forKey: Self.defaultsKey) == nil else { throw CookCompletionOutboxError.verifyFailed }
-        return key
     }
 
     private func write(_ events: [CookCompletionEvent]) throws {
@@ -123,9 +136,12 @@ final class CookCompletionOutbox {
 final class CookReflectionOfferPolicy {
     static let defaultsKey = "ate.cook.reflectionOffer.v1"
     private let calendar: Calendar
+    private let writerBoundary: FoodJournalWriterBoundary
     private let defaults: UserDefaults
 
-    init(calendar: Calendar = .autoupdatingCurrent, defaults: UserDefaults = .standard) {
+    init(calendar: Calendar = .autoupdatingCurrent, defaults: UserDefaults = .standard,
+         writerBoundary: FoodJournalWriterBoundary = .legacy) {
+        self.writerBoundary = writerBoundary
         self.calendar = calendar
         self.defaults = defaults
     }
@@ -142,7 +158,10 @@ final class CookReflectionOfferPolicy {
 
     /// Call when the invitation is on screen, not when it is decided.
     func markShown(on date: Date) {
-        defaults.set(dayKey(date), forKey: Self.defaultsKey)
+        _ = try? writerBoundary.withEffect {
+            defaults.set(dayKey(date), forKey: Self.defaultsKey)
+
+        }
     }
 }
 

@@ -13,3 +13,7 @@ Evidence:
 - https://github.com/melusi-k/ate-ios/commit/d663b966457a632b4a43460f14fe2a253d2adb99/checks/129303228594/logs/6
 
 Offline tests do not establish a hosted repaired build, native About rendering, or device acceptance. Ordinary CI on the repair's final head is still required. No manual dispatch or retry is part of this repair.
+
+## Reflection deletion promotion to core writers
+
+Source a6e45b5a2a57942b76a6fb54512eb5b29cdc2d36 promotes the frozen truthful reflection-delete guard and tests into #432. The focus evidence is re-anchored at this actual published runtime commit with the current JournalViews blob. The focus title and summary remain accurate and unchanged. This metadata repair does not claim a native pass or that :233 is fixed. Activation remains OFF. The strict ancestry and blob validator remains unchanged.

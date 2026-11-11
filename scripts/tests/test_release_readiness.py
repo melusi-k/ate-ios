@@ -9,6 +9,26 @@ SPEC.loader.exec_module(readiness)
 
 
 class ReadinessEvidenceTests(unittest.TestCase):
+    def test_pilot_display_preserves_existing_rolling_issue_key(self):
+        key, title = readiness.rolling_identity("0.1.x", "Internal beta")
+        self.assertEqual(key, "rolling|0.1.x|Tier A|Internal beta")
+        self.assertEqual(title, "Candidate evidence: 0.1.x Pilot candidate (Internal beta)")
+
+    def test_rolling_identity_keeps_release_lines_distinct(self):
+        self.assertNotEqual(readiness.rolling_identity("0.1.x", "Internal beta")[0],
+                            readiness.rolling_identity("0.2.x", "Internal beta")[0])
+
+    def test_candidate_report_keeps_evidence_inventory_and_no_second_approval(self):
+        key, title = readiness.rolling_identity("0.1.x", "Internal beta")
+        body, _, _ = readiness.build_body(key, title, "Internal beta", "0.1.0 (build 0)",
+                                          {}, {}, "fixture", None, None)
+        self.assertIn("readiness-key: rolling|0.1.x|Tier A|Internal beta", body)
+        self.assertIn("#45 owns the Pilot/Launch decision", body)
+        self.assertIn("/59 verified", body)
+        self.assertNotIn("- [x] Approved", body)
+        self.assertNotIn("- [ ] Approved for beta", body)
+        self.assertIn("no completed Build IPA run", body)
+
     def test_older_completed_run_cannot_replace_newer_snapshot(self):
         existing = "<!-- readiness-evidence: run_id=900 run_number=300 created_at=2026-10-31T01:00:00Z sha=abc -->"
         incoming = {"id": 899, "run_number": 299}

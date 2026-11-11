@@ -1,16 +1,18 @@
 ---
 name: Release readiness
-about: Go / No-Go tracker for an ate-ios beta or public launch
-title: "Release readiness: <version>"
+about: Exact-candidate evidence feeding the Pilot/Launch decision in issue 45
+title: "Candidate evidence: <version>"
 labels: release, readiness
 assignees: melusi-k
 ---
 
-This issue tracks whether ate-ios is ready for beta launch or public launch.
+This is the exact-candidate evidence report, not the release decision. [#45](https://github.com/melusi-k/ate-ios/issues/45) owns the Pilot/Launch checklist under [LAUNCH_GATES.md](https://github.com/melusi-k/ate-ios/blob/main/docs/LAUNCH_GATES.md); #30 retains history.
 
-## Decision target
-- [ ] Beta launch
-- [ ] Public launch
+The broad sections below preserve mapped acceptance evidence while per-ID stage scope is reconciled. They are not an instruction to enable optional account/cloud/Health features for Pilot. Missing full-validation evidence remains missing; owner-authorized runner-stall exceptions stay disclosed, not passed. No percentage grants stage approval. Internal beta/Public beta/Public launch are compatibility automation inputs, not extra stages. Build publication is not approval.
+
+## Candidate stage (human records in #45)
+- [ ] Pilot candidate
+- [ ] Launch candidate
 - [ ] Not yet ready
 
 ## Release target
@@ -147,11 +149,12 @@ List all blockers that are either fixed, accepted, or unresolved.
 - Blocker 2:
 - Blocker 3:
 
-## Release decision
-- [ ] Approved for beta
-- [ ] Approved for public launch
-- [ ] Not approved
-- [ ] Conditional approval with follow-up items
+## Owner decision reference (record the decision in #45)
+- Decision link in #45:
+- Candidate SHA/build covered by that decision:
+- Unmet criteria and explicit owner exceptions, if any:
+
+Automation leaves this reference empty. It does not create a second approval checklist.
 
 Reason:
 - Blockers remaining:
@@ -160,7 +163,7 @@ Reason:
   - [ ] Medium
   - [ ] High
 
-## Final signoff
+## Owner signoff reference (record signoff in #45)
 - Product signoff:
 - Engineering signoff:
 - QA signoff:

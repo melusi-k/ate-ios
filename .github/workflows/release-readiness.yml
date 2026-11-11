@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       release_type:
-        description: "Release type (Internal beta updates the rolling issue; others open a per-RC issue)"
+        description: "Compatibility input: Internal beta updates candidate evidence #33; others open per-RC evidence. Stage decisions live in #45."
         type: choice
         options: ["Internal beta", "Public beta", "Public launch"]
         default: "Internal beta"

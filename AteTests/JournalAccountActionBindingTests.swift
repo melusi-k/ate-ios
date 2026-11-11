@@ -45,7 +45,8 @@ final class JournalAccountActionBindingTests: XCTestCase {
         AppStore(context: nil, backend: MockBackend(),
                  nutritionDiaryRepository: NutritionDiaryRepository(defaults: defaults),
                  nutritionGoalsRepository: goalsRepo(),
-                 foodJournalRuntime: runtime)
+                 foodJournalRuntime: runtime,
+                 cookPlanNotifications: CookPlanNotifications(client: CookPlanFakeNotificationClient()))
     }
 
     private func sampleMeal(id: UUID = UUID(), name: String = "Pap and wors") -> NutritionDiaryEntry {
@@ -72,15 +73,16 @@ final class JournalAccountActionBindingTests: XCTestCase {
 
     // MARK: clear-library
 
-    func testClearLibraryUnifiedClearsThroughRuntimeStores() throws {
+    func testClearLibraryUnifiedClearsThroughRuntimeStores() async throws {
         let runtime = makeRuntime()
         let store = makeStore(runtime: runtime)
         store.journalWriterEffect = { work in try work() }
+        store.journalWriterValidator = {}
         store.recipes = [RecipeCard(id: "recipe-1", title: "Bean stew")]
         runtime.cookingHistory.record(recipeID: "recipe-1", date: Date(timeIntervalSince1970: 1_790_000_000))
         defaults.set(Data("outbox".utf8), forKey: "ate.cook.completionOutbox.v1")
 
-        store.clearLibrary()
+        _ = await store.clearLibrary()
 
         XCTAssertTrue(store.recipes.isEmpty)
         XCTAssertFalse(runtime.cookingHistory.cooked(on: Date(timeIntervalSince1970: 1_790_000_000)),
@@ -88,12 +90,39 @@ final class JournalAccountActionBindingTests: XCTestCase {
         XCTAssertNil(defaults.object(forKey: "ate.cook.completionOutbox.v1"))
     }
 
-    func testClearLibraryUnifiedRefusesWhileBoundaryUnbound() {
+    func testClearLibraryUnifiedRefusesWhileBoundaryUnbound() async {
         let store = makeStore(runtime: makeRuntime())
         store.recipes = [RecipeCard(id: "recipe-1", title: "Bean stew")]
-        store.clearLibrary()
+        _ = await store.clearLibrary()
         XCTAssertEqual(store.recipes.map(\.id), ["recipe-1"], "An unbound boundary must refuse the wipe")
         XCTAssertEqual(store.toast?.message, "The unified Journal reset is not ready. Nothing was cleared.")
+    }
+
+    func testClearLibraryBoundaryRefusalDoesNotClaimSuccessOrEraseRecipes() async {
+        enum Refusal: Error { case denied }
+        let store = makeStore(runtime: makeRuntime())
+        store.recipes = [RecipeCard(id: "kept", title: "Retained")]
+        store.journalWriterEffect = { _ in throw Refusal.denied }
+        store.journalWriterValidator = {}
+        let cleared = await store.clearLibrary()
+        XCTAssertFalse(cleared)
+        XCTAssertEqual(store.recipes.map(\.id), ["kept"])
+    }
+
+    func testClearLibraryReprovesBoundaryAfterNotificationCleanup() async {
+        enum Refusal: Error { case stale }
+        let store = makeStore(runtime: makeRuntime())
+        store.recipes = [RecipeCard(id: "kept", title: "Retained")]
+        store.journalWriterEffect = { work in try work() }
+        var validations = 0
+        store.journalWriterValidator = {
+            validations += 1
+            if validations > 1 { throw Refusal.stale }
+        }
+        let cleared = await store.clearLibrary()
+        XCTAssertFalse(cleared)
+        XCTAssertEqual(validations, 2)
+        XCTAssertEqual(store.recipes.map(\.id), ["kept"])
     }
 
     // MARK: Settings export

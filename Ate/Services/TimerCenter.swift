@@ -206,8 +206,10 @@ final class TimerCenter {
     }
 
     func tick(_ date: Date = Date()) {
+        // Wall-clock redraws are not durable writes and must not stamp generations.
+        now = date
+        guard timers.contains(where: { $0.isRunning && $0.remaining(at: date) == 0 }) else { return }
         try? writerBoundary.withEffect {
-            now = date
             for t in timers where t.isRunning && t.remaining(at: date) == 0 {
                 timers.removeAll { $0.id == t.id }
                 TimerAlerts.timerFinished(prefs: prefsProvider())

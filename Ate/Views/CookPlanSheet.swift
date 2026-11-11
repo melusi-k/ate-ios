@@ -88,6 +88,14 @@ struct CookPlanSheet: View {
     private func save() {
         let plan = CookPlan(recipeID: recipeID, scheduledAt: when, timeZoneID: zoneID, reminderRequested: reminder)
         do {
+            if !plan.reminderRequested {
+                try store.cookPlanNotifications.saveWithoutReminder(plan, store: store.cookPlanStore) {
+                    store.show("Cooking plan saved, but reminder removal could not be verified. Reopen the plan and try Save again.")
+                }
+                store.show("Cooking plan saved")
+                dismiss()
+                return
+            }
             try store.cookPlanStore.save(plan)
             existing = plan
         } catch {

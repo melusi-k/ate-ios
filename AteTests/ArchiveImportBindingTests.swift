@@ -137,7 +137,7 @@ final class ArchiveImportBindingTests: XCTestCase {
         XCTAssertEqual(try f.binding.goals.load().energyKcal, 2500)
         XCTAssertNil(f.defaults.data(forKey: DailyNutritionGoals.defaultsKey), "legacy goals key removed")
         XCTAssertEqual(f.defaults.data(forKey: ArchiveDefaultsParticipant.settingsKey),
-                       try JSONEncoder().encode(AppSettings(onDeviceOnly: true)))
+                       try ArchiveRestoreEncoding.encoder().encode(AppSettings(onDeviceOnly: true)))
         let journalContext = ModelContext(try XCTUnwrap(f.journalStore.container))
         let rows = try journalContext.fetch(FetchDescriptor<Ate.JournalEntry>())
         XCTAssertEqual(Set(rows.map(\.id)), Set(["j-new", mealID.uuidString]))

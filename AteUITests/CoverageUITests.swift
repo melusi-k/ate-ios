@@ -245,7 +245,7 @@ final class CoverageUITests: XCTestCase {
         // iPhone landscape uses LandscapeSplitView's sidebar, not a TabBar.
         let librarySidebar = app.buttons["sidebar.Library"]
         XCTAssertTrue(librarySidebar.isSelected)
-        let shoppingSidebar = app.buttons["sidebar.Shopping"]
+        let shoppingSidebar = app.buttons["sidebar.Shopping list"]
         wait(shoppingSidebar, 5)
         shoppingSidebar.tap()
         XCTAssertTrue(shoppingSidebar.isSelected)

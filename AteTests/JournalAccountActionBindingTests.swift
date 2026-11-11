@@ -162,8 +162,19 @@ final class JournalAccountActionBindingTests: XCTestCase {
         let runtime = makeRuntime()
         let store = makeStore(runtime: runtime)
         var effectCalls = 0
+        var generation = 0
+        var depth = 0
+        var nestedCalls = 0
         var validatorCalls = 0
-        store.journalWriterEffect = { work in effectCalls += 1; return try work() }
+        // Honest reentrant boundary spy: nested persistence shares the outer effect.
+        store.journalWriterEffect = { work in
+            if depth > 0 { nestedCalls += 1; return try work() }
+            effectCalls += 1
+            depth += 1
+            defer { depth -= 1 }
+            try work()
+            generation += 1
+        }
         store.journalWriterValidator = { validatorCalls += 1 }
         try runtime.coordinator.saveMeal(sampleMeal())
         defaults.set(Data("legacy diary".utf8), forKey: "ate.nutritionDiary.v1")
@@ -177,6 +188,9 @@ final class JournalAccountActionBindingTests: XCTestCase {
         XCTAssertNotNil(defaults.object(forKey: "ate.foodJournal.diaryMigration.v1"),
                         "Migration markers are non-personal control state and must survive a wipe")
         XCTAssertEqual(effectCalls, 1, "The wipe is ONE covered effect, not one per component")
+        XCTAssertEqual(generation, 1, "The complete nested wipe advances exactly one generation")
+        XCTAssertGreaterThan(nestedCalls, 0, "Nested clear/persist calls must share the active effect")
+        XCTAssertEqual(depth, 0, "The outer effect is released after completion")
         XCTAssertGreaterThan(validatorCalls, 0,
                              "Per-component re-proof uses the validator, never an empty effect")
     }

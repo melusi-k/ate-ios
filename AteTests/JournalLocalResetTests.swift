@@ -1,4 +1,5 @@
 import XCTest
+import Darwin
 import SwiftData
 @testable import Ate
 
@@ -161,4 +162,75 @@ final class JournalLocalResetTests: XCTestCase {
         XCTAssertFalse(report.complete, "A directory at the store path must refuse, not be recursed into")
         XCTAssertTrue(FileManager.default.fileExists(atPath: storeURL.path))
     }
+
+    func testStoreFileComponentRejectsInaccessibleAncestorInEraseAndVerification() throws {
+        let ancestor = root.appendingPathComponent("private", isDirectory: true)
+        try FileManager.default.createDirectory(at: ancestor, withIntermediateDirectories: false)
+        let storeURL = ancestor.appendingPathComponent("AteJournal.store")
+        let personalBytes = Data("personal durable bytes".utf8)
+        try personalBytes.write(to: storeURL)
+        let component = JournalLocalReset.storeFilesComponent(storeFileURL: storeURL,
+                                                              validateWriterGate: {})
+        XCTAssertEqual(chmod(ancestor.path, 0), 0)
+        defer { _ = chmod(ancestor.path, 0o700) }
+        var metadata = stat()
+        let result = lstat(storeURL.path, &metadata)
+        let code = errno
+        XCTAssertEqual(result, -1, "Fixture must actually deny traversal")
+        XCTAssertEqual(code, EACCES)
+        for operation in [component.erase, component.verifyEmpty] {
+            XCTAssertThrowsError(try operation()) { error in
+                let posix = error as NSError
+                XCTAssertEqual(posix.domain, NSPOSIXErrorDomain)
+                XCTAssertEqual(posix.code, Int(EACCES))
+            }
+        }
+        let report = try ClearAllLocalData.execute([component], requiredNames: [component.name],
+                                                   validateWriterGate: {})
+        XCTAssertFalse(report.complete)
+        XCTAssertFalse(report.verifiedEmpty.contains(component.name))
+        XCTAssertTrue(report.failures.contains { $0.component == component.name && $0.operation == "erase" })
+        XCTAssertEqual(chmod(ancestor.path, 0o700), 0)
+        XCTAssertEqual(try Data(contentsOf: storeURL), personalBytes)
+    }
+
+    func testStoreFileComponentRejectsNonDirectoryAncestorInEraseAndVerification() throws {
+        let ancestor = root.appendingPathComponent("not-a-directory")
+        try Data("personal bytes".utf8).write(to: ancestor)
+        let component = JournalLocalReset.storeFilesComponent(
+            storeFileURL: ancestor.appendingPathComponent("AteJournal.store"), validateWriterGate: {})
+        for operation in [component.erase, component.verifyEmpty] {
+            XCTAssertThrowsError(try operation()) { error in
+                let posix = error as NSError
+                XCTAssertEqual(posix.domain, NSPOSIXErrorDomain)
+                XCTAssertEqual(posix.code, Int(ENOTDIR))
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: ancestor), Data("personal bytes".utf8))
+    }
+
+    func testStoreFileVerificationRefusesDanglingSymlinkAtEveryExpectedPath() throws {
+        let storeURL = root.appendingPathComponent("AteJournal.store")
+        let component = JournalLocalReset.storeFilesComponent(storeFileURL: storeURL,
+                                                              validateWriterGate: {})
+        try component.erase()
+        try component.verifyEmpty() // ENOENT alone is an accepted absence.
+        for suffix in ["", "-wal", "-shm"] {
+            let path = storeURL.path + suffix
+            try FileManager.default.createSymbolicLink(atPath: path,
+                                                        withDestinationPath: root.appendingPathComponent("missing-target").path)
+            XCTAssertThrowsError(try component.verifyEmpty()) { error in
+                guard let resetError = error as? ClearAllLocalData.Error,
+                      case .unsafeDirectory = resetError else {
+                    return XCTFail("Dangling symlink must refuse, got \(error)")
+                }
+            }
+            var metadata = stat()
+            XCTAssertEqual(lstat(path, &metadata), 0, "Verification must not remove the symlink")
+            XCTAssertEqual(metadata.st_mode & S_IFMT, S_IFLNK)
+            try FileManager.default.removeItem(atPath: path)
+        }
+        try component.verifyEmpty()
+    }
+
 }

@@ -142,35 +142,9 @@ jobs:
             echo "::error::Full AteTests suite reported no execution: ${total:-missing}"
             exit 1
           fi
-          # Keep every named unit-pass assertion formerly enforced in focused lanes.
-          for evidence in \
-            "CatalogueIntegrityTests testCatalogueRecordsVerifiedWithRightsAndFiniteValues]' passed" \
-            "CatalogueIntegrityTests testCatalogueIDsAndNormalizedNamesAndAliasesUnique]' passed" \
-            "CatalogueIntegrityTests testAliasesPreserveAllMaterialQualifiers]' passed" \
-            "CatalogueIntegrityTests testCalculatorMatchesStateQualifiedAlias]' passed" \
-            "CatalogueIntegrityTests testCalculatorSurfacesUnmappedSADishNameAsIncomplete]' passed" \
-            "NutritionDiaryTests testDiaryRoundTripsEntryDateMealQuantityServingsAndProvenance]' passed" \
-            "NutritionDiaryTests testEditingEntryReplacesByIdentityKeepsDayAndLeavesOthersUntouched]' passed" \
-            "NutritionDiaryTests testDayTotalsReflectEditedEntrySnapshot]' passed" \
-            "NutritionDiaryTests testWeekIntervalUsesTheCalendarWeekContainingTheGivenDate]' passed" \
-            "NutritionDiaryTests testWeekTotalsIncludeOnlyCurrentCalendarWeekEntries]' passed" \
-            "NutritionDiaryTests testWeekTotalsExcludeEntriesWithoutParseableDay]' passed" \
-            "NutritionDiaryTests testWeekTotalsEmptyWeekReportsNoValues]' passed" \
-            "CookSessionTests testLegacySessionWithoutFactorDecodesWithDefaults]' passed" \
-            "CookSessionTests testSessionRoundTripsFactorAndChecked]' passed" \
-            "CookSessionTests testToggleCheckedAddsAndRemoves]' passed" \
-            "CookSessionTests testScaledIngredientAmountsFollowSessionFactor]' passed" \
-            "CookSessionTests testScaledAmountsRenderForArbitraryFactor]' passed" \
-            "CookSessionTests testEditingIngredientsClearsGatheredChecks]' passed" \
-            "CookSessionTests testNonIngredientEditKeepsGatheredChecks]' passed" \
-            "CookSessionTests testToggleAfterExternalChangeResetsThenApplies]' passed" \
-            "CookSessionTests testBeginCookSessionResetsChecksWhenIngredientsChanged]' passed" \
-            "CookSessionTests testWholesaleRecipeReplacementClearsChecksPreservesFactorAndStep]' passed" \
-            "CookSessionTests testIngredientSignatureResistsSeparatorCollisions]' passed" \
-            "CookSessionTests testReenteringSameRecipeKeepsSessionFactor]' passed" \
-            "CookSessionTests testChecklistAmountsRenderMetricAndImperial]' passed"; do
-            grep -qF "$evidence" full-unit-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 full-unit-tests.log; exit 1; }
-          done
+          # Structured results preserve exact named passes when app stderr splits console rows.
+          xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/ate-test-results/full-unit-tests.xcresult" > full-unit-tests.json
+          python3 scripts/verify-full-unit-required.py full-unit-tests.json scripts/full-unit-required.txt
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" full-unit-tests.log | tail -60
 
       - name: Retain full unit diagnostics before UI acceptance
@@ -181,6 +155,7 @@ jobs:
           if-no-files-found: error
           path: |
             full-unit-tests.log
+            full-unit-tests.json
             ${{ runner.temp }}/ate-test-results/full-unit-tests.xcresult
 
       # Keep normal-size audits required; retain cross-size cases in the optional lane.
@@ -424,6 +399,9 @@ jobs:
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
             CODE_SIGNING_ALLOWED=NO > expandable-recipe-sheet-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" expandable-recipe-sheet-tests.log || true; tail -100 expandable-recipe-sheet-tests.log; exit 1; }
+          # Require the actual strengthened journey, not a zero-test green selection.
+          if grep -q "Executed 0 tests" expandable-recipe-sheet-tests.log; then echo "::error::expandable recipe selection executed 0 tests"; exit 1; fi
+          grep -qF "CoverageUITests test32c_ExpandableRecipeSheetOpensExpandsAndDismisses]' passed" expandable-recipe-sheet-tests.log || { echo "::error::missing expandable recipe named-pass evidence"; tail -80 expandable-recipe-sheet-tests.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" expandable-recipe-sheet-tests.log | tail -40
 
       - name: Settings-tab key-flow regression test

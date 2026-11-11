@@ -281,7 +281,9 @@ final class SharedFileWriterGate {
         defer { processLock.unlock() }
         if let active = activeLease {
             guard active == lease else { throw Error.staleLease }
-            return try archive.withNestedLease { try effect() }
+            // The outer effect already owns the archive unit. A second nested
+            // lease would commit early, even if this outer unit later throws.
+            return try effect()
         }
         let fd = try lock(directory!)
         defer { unlock(fd) }
@@ -339,10 +341,15 @@ enum SharedWriterGateComposition {
     /// app-only mode instead of pretending extensions share a container.
     static func controlDirectory(
         resolution: AppGroupResolver.Resolution = AppGroupResolver.current,
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        containerURL: ((String) -> URL?)? = nil
     ) throws -> URL {
-        guard resolution.available,
-              let container = fileManager.containerURL(forSecurityApplicationGroupIdentifier: resolution.id) else {
+        // Injection keeps path-resolution tests entirely outside the real App Group.
+        guard resolution.available else { throw ResolutionError.appGroupUnavailable }
+        let container: URL?
+        if let containerURL { container = containerURL(resolution.id) }
+        else { container = fileManager.containerURL(forSecurityApplicationGroupIdentifier: resolution.id) }
+        guard let container else {
             throw ResolutionError.appGroupUnavailable
         }
         let directory = container.appendingPathComponent(SharedWriterControl.directoryName, isDirectory: true)

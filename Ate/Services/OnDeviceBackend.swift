@@ -12,7 +12,14 @@ import FoundationModels
 final class OnDeviceBackend: BackendService {
     let fallback: BackendService
     let sharing: BackendService
-    init(fallback: BackendService, sharing: BackendService? = nil) { self.fallback = fallback; self.sharing = sharing ?? fallback }
+    private let loadPageHTML: (String) async throws -> String
+    private let modelAvailable: () -> Bool
+    init(fallback: BackendService, sharing: BackendService? = nil,
+         loadPageHTML: @escaping (String) async throws -> String = OnDeviceBackend.fetchHTML,
+         modelAvailable: @escaping () -> Bool = { OnDeviceBackend.isModelAvailable }) {
+        self.fallback = fallback; self.sharing = sharing ?? fallback
+        self.loadPageHTML = loadPageHTML; self.modelAvailable = modelAvailable
+    }
 
     static var isModelAvailable: Bool {
         #if canImport(FoundationModels)
@@ -38,6 +45,8 @@ final class OnDeviceBackend: BackendService {
 
     func parseRecipe(_ request: ParseRequest) async throws -> RecipeCard {
         // Links: structured schema.org/Recipe data first (no AI needed), then the model.
+        try Task.checkCancellation()
+        if request.mode == .url { _ = try Self.recipeURL(request.text ?? "") }
         var pageHTML: String?
         var socialCaption: String?
         if request.mode == .url, let u = URL(string: (request.text ?? "").trimmingCharacters(in: .whitespaces)),
@@ -50,15 +59,18 @@ final class OnDeviceBackend: BackendService {
             }
             socialCaption = caption
         } else if request.mode == .url {
-            if let html = try? await Self.fetchHTML(request.text ?? "") {
-                pageHTML = html
-                if var card = JSONLD.recipe(fromHTML: html, sourceURL: request.text) {
-                    card.source = .jsonLD; card.generatedAt = Date().timeIntervalSince1970 * 1000
-                    return RecipeLogic.normalize(card)
-                }
+            // A failed source is not a prompt: preserve its offline/timeout/cancel
+            // failure, never silently generate a Demo or fetch it a second time.
+            let html = try await loadPageHTML(request.text ?? "")
+            try Task.checkCancellation()
+            pageHTML = html
+            if var card = JSONLD.recipe(fromHTML: html, sourceURL: request.text) {
+                card.source = .jsonLD; card.generatedAt = Date().timeIntervalSince1970 * 1000
+                return RecipeLogic.normalize(card)
             }
         }
-        guard Self.isModelAvailable else { return try await fallback.parseRecipe(request) }
+        try Task.checkCancellation()
+        guard modelAvailable() else { return try await fallback.parseRecipe(request) }
         var source: RecipeSource = .appleIntelligence
         let prompt: String
         var input: RecipePrompt.Input = .prompt
@@ -270,10 +282,17 @@ final class OnDeviceBackend: BackendService {
         String(htmlToText(try await fetchHTML(link)).prefix(3500))
     }
 
-    static func fetchHTML(_ link: String) async throws -> String {
-        guard let url = URL(string: link.trimmingCharacters(in: .whitespaces)), url.scheme?.hasPrefix("http") == true else {
-            throw BackendError(message: "That doesn't look like a link.")
+    static func recipeURL(_ link: String) throws -> URL {
+        guard let url = URL(string: link.trimmingCharacters(in: .whitespacesAndNewlines)),
+              let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
+              let host = url.host, !host.isEmpty else {
+            throw BackendError(message: "That doesn't look like a recipe link. Paste a full http or https link and try again.")
         }
+        return url
+    }
+
+    static func fetchHTML(_ link: String) async throws -> String {
+        let url = try recipeURL(link)
         var r = URLRequest(url: url)
         r.timeoutInterval = 10
         r.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 ate/1.0", forHTTPHeaderField: "User-Agent")

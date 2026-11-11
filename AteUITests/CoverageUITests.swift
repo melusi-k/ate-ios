@@ -176,14 +176,51 @@ final class CoverageUITests: XCTestCase {
         tab("Library")
         defer { XCUIDevice.shared.orientation = .portrait }
 
-        // Smoke test the Library card tap paths. Avoid asserting internal sheet controls:
-        // their accessibility exposure varies by presentation and device orientation.
         let listCard = app.buttons["listCard"].firstMatch
         wait(listCard, 10)
         scrollTo(listCard)
         XCTAssertTrue(listCard.isHittable, "A Library list row must be visible before it is tapped")
         listCard.tap()
         XCTAssertTrue(app.exists, "App should remain running after tapping a Library list row")
+
+        let title = app.staticTexts["recipeQuickLookTitle"]
+        wait(title, 5)
+        XCTAssertTrue(title.label.localizedCaseInsensitiveContains("Miso salmon"), "Preview must show the selected recipe")
+        let expand = app.buttons["expandRecipeDetails"]
+        wait(expand, 5)
+        shot("recipe-sheet-compact-portrait")
+        expand.tap()
+        let servings = app.segmentedControls["servingsPicker"]
+        wait(servings, 5)
+        XCTAssertTrue(servings.isHittable, "Expanded recipe must expose actual detail content")
+        servings.buttons["2×"].tap()
+        let fully = app.buttons["recipeSheet.expandFully"]
+        wait(fully, 3)
+        fully.tap()
+        let detailScroll = app.scrollViews["recipe.detail.scroll"]
+        wait(detailScroll, 5)
+        let steps = detailScroll.staticTexts["recipe.steps.heading"]
+        // Overline text is exposed as uppercase STEPS. Use the stable identifier,
+        // and scroll only the mounted detail rather than the sheet or Library.
+        wait(steps, 5)
+        for _ in 0..<5 where !steps.isHittable { detailScroll.swipeUp() }
+        shot("recipe-sheet-expanded-steps-portrait")
+        XCTAssertTrue(steps.exists && steps.isHittable, "Full recipe must allow scrolling to steps")
+        app.buttons["recipeSheet.collapse"].tap()
+        wait(expand, 3)
+        XCTAssertTrue(title.exists, "Collapse must restore the compact preview")
+        expand.tap()
+        wait(servings, 5)
+        // The preserved hierarchy must keep detail state, not reconstruct a new recipe view.
+        // Scroll upward within the visible detail if expansion preserved a lower position.
+        for _ in 0..<5 where !servings.isHittable { detailScroll.swipeDown() }
+        XCTAssertTrue(servings.isHittable, "Retained detail must allow scrolling back to servings")
+        XCTAssertTrue(servings.buttons["2×"].isSelected, "Collapsing and expanding must retain servings")
+        app.buttons["recipeSheet.close"].tap()
+        XCTAssertTrue(expand.waitForNonExistence(timeout: 3), "Close must dismiss the recipe sheet")
+        wait(listCard, 5)
+        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected, "Dismissal must return to the original Library tab")
+        shot("recipe-sheet-return-library-portrait")
 
         XCUIDevice.shared.orientation = .landscapeLeft
         let card = app.buttons["gridCard"].firstMatch
@@ -192,6 +229,31 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(card.isHittable, "A Library grid card must be visible before it is tapped")
         card.tap()
         XCTAssertTrue(app.exists, "App should remain running after tapping a Library grid card")
+        wait(title, 5)
+        XCTAssertTrue(title.label.localizedCaseInsensitiveContains("Miso salmon"), "Landscape preview must show the selected recipe")
+        wait(expand, 3)
+        expand.tap()
+        wait(servings, 5)
+        XCTAssertTrue(servings.isHittable, "Compact-height expansion must expose recipe details")
+        XCTAssertFalse(app.buttons["recipeSheet.expandFully"].exists, "Landscape must expand directly to the supported large detent")
+        shot("recipe-sheet-expanded-landscape")
+        app.buttons["recipeSheet.collapse"].tap()
+        wait(expand, 3)
+        app.buttons["recipeSheet.close"].tap()
+        XCTAssertTrue(expand.waitForNonExistence(timeout: 3))
+        wait(card, 5)
+        // iPhone landscape uses LandscapeSplitView's sidebar, not a TabBar.
+        let librarySidebar = app.buttons["sidebar.Library"]
+        XCTAssertTrue(librarySidebar.isSelected)
+        let shoppingSidebar = app.buttons["sidebar.Shopping list"]
+        wait(shoppingSidebar, 5)
+        shoppingSidebar.tap()
+        XCTAssertTrue(shoppingSidebar.isSelected)
+        librarySidebar.tap()
+        XCTAssertTrue(librarySidebar.isSelected)
+        wait(card, 5)
+        XCTAssertFalse(app.buttons["recipeSheet.close"].exists, "A dismissed sheet must not reappear after changing tabs")
+
     }
 
     func test32_MoreCollectionsToolsAbout() {

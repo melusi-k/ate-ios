@@ -51,10 +51,10 @@ enum RecipePrompt {
     3. If the text is a menu or an advert that names a dish but has no recipe, write a best-effort traditional recipe for that NAMED dish and say so in note.
     4. If no dish is named (text) or the item cannot be established from visible evidence and image labels (photo), title the card "Unknown dish", set confidence below 0.2 and explain in note. Never turn an ambiguous colour, glass or object into a specific ingredient or recipe.
     5. Use realistic home quantities in metric units (g, kg, ml, l, tbsp, tsp, cloves, pcs). Servings must suit the dish (stews and braises usually 4 to 6).
-    6. Give minutes for every waiting or cooking step, matching the time written in the step ("simmer 20 minutes" is 20; "2 to 3 h" is 180). timeMinutes is the sum of all steps plus prep: tripe takes 2 to 3 h, steamed bread over 1 h, samp and beans 2 to 3 h.
+    6. Give minutes for waiting/cooking, matching written times ("2 to 3 h" is 180). timeMinutes = step sum + prep; put "Prep: N min" in note for any added prep. tripe takes 2 to 3 h, steamed bread over 1 h, samp and beans 2 to 3 h.
     7. Respect regional cuisines (South African, Southern African, West African). For any regional or unfamiliar dish name, call lookupRegionalDish before writing ingredients. Never replace them with an unrelated Western dish.
     8. A main dish needs at least 4 real ingredients with quantities. Oven steps give the temperature in °C. Every step says how (heat, cue), never just "cook the ribs". Times must be realistic: simmer/stew 20+ min, braise 1 h+, pap 15+ min, browning 5+ min. Start each step with a specific verb. Never invent steps or ingredients the source contradicts.
-    9. Ingredient–step consistency is mandatory: every named food, wrapper, sauce, fat or binder used in a step must appear as a measured ingredient. Conversely, do not list ingredients that the steps never use. For a photo, account for the dish's structure (for example, a spring roll needs a wrapper and a named filling); do not turn a generic vegetable mixture into a complete recipe.
+    9. Reconcile ingredients and steps both ways, including salt, oil, water, bread, wrappers and filling. Measure every item used; use every item listed. Preserve dish-defining structure, not just its name. Order dependencies: aromatics/spices before simmering a generated curry; explain any pre-boil liquid. Preserve source order; flag gaps, don't invent missing source facts.
     Example 1 (South African), input "chakalaka": dish Chakalaka, South African, confidence 0.95. Ingredients: 2 tbsp oil; 1 onion, diced; 2 carrots, grated; 1 green pepper, diced; 2 tsp curry powder; 400 g tinned baked beans. Steps: Sauté the onion in the oil over medium heat until soft, 5 min. Stir in the carrot, pepper and curry powder and fry 3 min. Add the beans and simmer uncovered until thick, 15 min.
     Example 2, input "sticky oven ribs": dish Sticky pork ribs, American, confidence 0.9. Ingredients: 1.2 kg pork ribs; 3 tbsp brown sugar; 2 tsp smoked paprika; 3 cloves garlic, crushed; 125 ml barbecue sauce. Steps: Rub the ribs with sugar, paprika and garlic. Wrap in foil and bake at 160°C until tender, 120 min. Unwrap, brush with sauce and roast at 220°C until sticky, 15 min.
     """
@@ -243,7 +243,7 @@ enum RecipePrompt {
     static func retryInstruction(gaps: [String], visibleLabels: [String]) -> String {
         var s = "The previous draft fell short: " + gaps.joined(separator: " ")
         if !visibleLabels.isEmpty { s += " Include every visible component: \(visibleLabels.prefix(8).joined(separator: ", "))." }
-        return s + " Return the corrected card."
+        return s + " Keep the named dish and source facts. Reconcile all ingredients with their uses, including staples and structural components. Check cooking dependencies and explain retained or drained liquid. Recalculate step sum plus prep; put Prep: N min in note for added prep. Do not fix missing bread by renaming bunny chow as curry. Return the corrected card."
     }
 
     /// A/B switch for code-along 205 step 3: with the one-shot GenRecipe example in the prompt, the schema can be left out.
@@ -346,4 +346,3 @@ struct PhotoNeedsDishError: LocalizedError, Equatable {
                : "Not sure what this dish is. Tell ate what it is for a better recipe."
     }
 }
-

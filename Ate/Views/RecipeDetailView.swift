@@ -53,6 +53,7 @@ struct RecipeDetailView: View {
                     .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 16)
                     .pageWidth()
                 }
+                .accessibilityIdentifier("recipe.detail.scroll")
             } else {
                 RecipeNotFoundView(title: "Recipe not found")
             }

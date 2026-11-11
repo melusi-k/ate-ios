@@ -1,6 +1,6 @@
 # Ate unified product backlog
 
-**Status:** migration in progress, 22 October 2026  
+**Status:** Pilot/Launch policy approved, 10 November 2026; criterion-level inventory triage remains open
 **Purpose:** one product backlog, organised by feature area. Release commitments and delivery priority are separate classifications; Tier A/B/C are no longer the working backlog taxonomy.
 
 ## Source of truth
@@ -18,7 +18,7 @@ Every issue and pull request should have exactly one label from each family:
 | Dimension | Labels | Meaning |
 |---|---|---|
 | Feature area | `area:recipes`, `area:library-discovery`, `area:cooking-timers-widgets`, `area:accessibility-navigation`, `area:health-journal`, `area:shopping-settings`, `area:sharing-security-reliability`, `area:future-platforms`, `area:product-infrastructure` | Where the work belongs |
-| Release gate | `gate:pilot`, `gate:public-launch`, `gate:uncommitted` | The earliest committed release gate for the issue; not a completion status |
+| Release gate | `gate:mvp`, `gate:pilot`, `gate:public-launch`, `gate:uncommitted` | The earliest committed release gate for the issue; not a completion status |
 | Priority | `priority:p0`, `priority:p1`, `priority:p2`, `priority:p3` | Delivery urgency independent of release gate |
 
 ### Priority definitions
@@ -32,11 +32,16 @@ Do not derive priority solely from a former tier label. Review priority when use
 
 ### Release-gate rules
 
-- **Pilot:** preserves work already committed as a pilot/internal-beta requirement, including existing Tier A acceptance.
-- **Public launch:** preserves requirements explicitly committed for wider/public launch, including existing Tier B acceptance.
+- **MVP (`gate:mvp`):** required to enter the cooking Pilot. Current issues #35/#89/#72/#73/#477 plus dependencies such as #253. Completion means scoped criteria evidenced, not only issue closure.
+- **Pilot (`gate:pilot`):** older commitment classification pending individual reconciliation against the approved cooking Pilot; not an automatic claim that every old requirement blocks entry.
+- **Launch (`gate:public-launch` compatibility label):** general-user release requirements plus carried-forward Pilot safety requirements. Optional features are not mandatory simply because they exist.
 - **No committed release gate:** work not currently tied to a committed launch gate, including explicitly deferred work. It is not synonymous with unimportant.
 - Former Tier C items are not automatically low priority. Accessibility, reliability, or other work can be promoted by an explicit product decision; do not silently change an existing release commitment.
 - When an issue spans several acceptance IDs with different gates, its issue label represents the **earliest committed gate**. Each acceptance ID keeps its own original ID and evidence; the issue body should call out mixed-gate scope.
+
+## Approved stage decisions
+
+See [LAUNCH_GATES.md](LAUNCH_GATES.md). #45 owns the Pilot/Launch checklist, #33 exact-candidate evidence and #30 history. Review each older gate assignment, record moves and rationale in its issue, preserve IDs/results, and keep mixed-gate scope visible. The index below is historical classification, not a fresh release verdict or automatic scope migration. No bulk checkbox ticking. Machine channels and historical tags stay unchanged.
 
 ## Unified backlog by feature area
 

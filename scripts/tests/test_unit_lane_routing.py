@@ -21,9 +21,10 @@ class UnitLaneRoutingTests(unittest.TestCase):
     def test_all_25_previous_named_unit_assertions_are_retained(self):
         names = json.loads((ROOT / 'docs/unit-named-pass-ledger.json').read_text())
         self.assertEqual(len(names), 25)
-        for name in names:
-            self.assertIn('"' + name + '"', self.full)
-        self.assertIn('grep -qF "$evidence" full-unit-tests.log', self.full)
+        expected = [name.removesuffix("]' passed").replace(' ', '/') for name in names]
+        self.assertEqual((ROOT / 'scripts/full-unit-required.txt').read_text().splitlines(), expected)
+        self.assertIn('xcrun xcresulttool get test-results tests --path', self.full)
+        self.assertIn('python3 scripts/verify-full-unit-required.py full-unit-tests.json scripts/full-unit-required.txt', self.full)
 
     def test_full_units_reject_failures_and_zero_or_missing_count(self):
         self.assertNotIn('continue-on-error', self.full)

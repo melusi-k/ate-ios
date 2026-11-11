@@ -242,9 +242,15 @@ final class CoverageUITests: XCTestCase {
         app.buttons["recipeSheet.close"].tap()
         XCTAssertTrue(expand.waitForNonExistence(timeout: 3))
         wait(card, 5)
-        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected)
-        tab("Shopping")
-        tab("Library")
+        // iPhone landscape uses LandscapeSplitView's sidebar, not a TabBar.
+        let librarySidebar = app.buttons["sidebar.Library"]
+        XCTAssertTrue(librarySidebar.isSelected)
+        let shoppingSidebar = app.buttons["sidebar.Shopping"]
+        wait(shoppingSidebar, 5)
+        shoppingSidebar.tap()
+        XCTAssertTrue(shoppingSidebar.isSelected)
+        librarySidebar.tap()
+        XCTAssertTrue(librarySidebar.isSelected)
         wait(card, 5)
         XCTAssertFalse(app.buttons["recipeSheet.close"].exists, "A dismissed sheet must not reappear after changing tabs")
 

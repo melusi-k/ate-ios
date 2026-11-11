@@ -4,6 +4,7 @@ import Foundation
 /// reset and all ordinary writer routes have been reviewed together.
 @MainActor
 final class FoodJournalRuntime {
+    let writerBoundary: FoodJournalWriterBoundary
     let defaults: UserDefaults
     let cookingHistory: CookingHistory
     let journal: JournalStore
@@ -14,20 +15,23 @@ final class FoodJournalRuntime {
     let goalsRepository: NutritionGoalsRepository
 
     init(journal: JournalStore, goalsRepository: NutritionGoalsRepository, defaults: UserDefaults = .standard,
+         writerBoundary: FoodJournalWriterBoundary = .legacy,
          migrationBackupDirectory: URL? = nil, repairBackupDirectory: URL? = nil,
          afterRestoreCommit: @escaping () throws -> Void = {}) {
+        self.writerBoundary = writerBoundary
         self.journal = journal
         self.defaults = defaults
         self.cookingHistory = CookingHistory(defaults: defaults)
-        self.cookOfferPolicy = CookReflectionOfferPolicy(defaults: defaults)
-        self.cookOutbox = CookCompletionOutbox(defaults: defaults)
-        self.goalsRepository = goalsRepository
+        self.cookOfferPolicy = CookReflectionOfferPolicy(defaults: defaults, writerBoundary: writerBoundary)
+        self.cookOutbox = CookCompletionOutbox(defaults: defaults, writerBoundary: writerBoundary)
+        self.goalsRepository = NutritionGoalsRepository(defaults: goalsRepository.defaults,
+            storage: goalsRepository.storage, writerBoundary: writerBoundary)
         let legacy = NutritionDiaryRepository(defaults: defaults, backupDirectory: repairBackupDirectory)
-        coordinator = FoodJournalCoordinator(journal: journal, legacy: legacy,
+        coordinator = FoodJournalCoordinator(journal: journal, legacy: legacy, writerBoundary: writerBoundary,
                                               markerDefaults: defaults,
                                               backupDirectory: migrationBackupDirectory,
                                               afterRestoreCommit: afterRestoreCommit)
-        repair = LegacyDiaryRepair(repository: legacy, backupDirectory: legacy.backupDirectory)
+        repair = LegacyDiaryRepair(repository: legacy, backupDirectory: legacy.backupDirectory, writerBoundary: writerBoundary)
     }
 
     /// Explicit host query. Never acknowledges a pending cook just because it was read or offered.
@@ -38,7 +42,7 @@ final class FoodJournalRuntime {
         guard let event = try cookOutbox.load().first(where: { $0.id == eventID }) else {
             throw CookedJournalReflectionError.invalidContext
         }
-        return CookedJournalReflectionSession(event: event, reflections: CookedJournalReflectionStore(journal: journal),
+        return CookedJournalReflectionSession(event: event, reflections: CookedJournalReflectionStore(journal: journal, writerBoundary: writerBoundary),
                                               outbox: cookOutbox, existingDraft: existingDraft)
     }
 

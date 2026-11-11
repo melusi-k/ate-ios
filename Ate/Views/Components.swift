@@ -58,6 +58,7 @@ struct RecipeCardView: View {
                 }
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Steps").overline()
+                        .accessibilityIdentifier("recipe.steps.heading")
                     ForEach(Array(r.steps.enumerated()), id: \.offset) { idx, s in
                         HStack(alignment: .top, spacing: 12) {
                             Text("\(idx + 1)").font(AteFont.body(12, .bold)).foregroundStyle(.white)

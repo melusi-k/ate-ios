@@ -594,15 +594,18 @@ final class AppStore {
     /// names the failed action and never claims nothing changed or that a rollback ran.
     static let ordinaryWriteFailureMessage = "ate couldn't save this change safely. Try again in a moment."
     static let sessionWriteFailureMessage = "ate couldn't update your sign-in on this iPhone safely. Try again in a moment."
-    static let syncInterruptedMessage = "Sync paused because this iPhone's data changed while syncing. The recipes on this iPhone were not changed - sync again in a moment."
+    static let syncInterruptedMessage = "Sync paused because this iPhone could not finish updating its data safely. Review your recipes, then sync again."
     static let syncPushedButInterruptedMessage = "Sync reached the server, but this iPhone's data changed before the app could finish. Review your recipes, then sync again."
 
-    /// Every ordinary read-modify-write below (recipes, shopping, cook session, settings,
-    /// filter/layout, sync bookkeeping, legacy import, local wipe) enters the bound writer
-    /// boundary BEFORE mutating, so the in-memory publish and the save run inside the same
-    /// effect. While the boundary is unbound (#245 dormant) the work runs exactly as before.
-    /// A refusal surfaces an honest failure and leaves the pre-write state visible; it never
-    /// claims a rollback (the effect may have partially run before throwing). The boundary is
+    /// Action-based read-modify-writes enter the boundary before mutating. The public
+    /// SwiftUI-bound settings, timerPrefs, filter, layout and cookSession properties are
+    /// intentionally memory-first edits: didSet gates persistence only, after the value is
+    /// visible in this process. Refused persistence leaves that in-memory edit visible and
+    /// reports a save error; it does not promise rollback, durability or unchanged memory.
+    /// A later edit can retry persistence; relaunch reads the last durable value.
+    /// While the boundary is unbound (#245 dormant), work runs exactly as before.
+    /// A refusal surfaces an honest failure; it never claims unchanged state or a rollback
+    /// (the effect may have partially run before throwing). The boundary is
     /// reentrant (NSRecursiveLock + active effect), so callers nested inside an outer effect
     /// (didSet observers, persist helpers, B's account actions) do not re-lock or stamp a
     /// second archive generation.
@@ -639,7 +642,8 @@ final class AppStore {
     /// (journalWriterValidator only - validation, never a generation-committing empty effect).
     /// Inert while the boundary is unbound, so the dormant legacy graph keeps today's behavior.
     private func validatePostAwaitPublish(capturedSession: AuthSession?) -> Bool {
-        guard journalWriterEffect != nil, let validate = journalWriterValidator else { return true }
+        if journalWriterEffect == nil && journalWriterValidator == nil { return true }
+        guard journalWriterEffect != nil, let validate = journalWriterValidator else { return false }
         guard session == capturedSession else { return false }
         do { try validate() } catch { return false }
         return true
@@ -1248,7 +1252,9 @@ final class AppStore {
                     guard validatePostAwaitPublish(capturedSession: capturedSession) else {
                         syncState = .failed(Self.syncInterruptedMessage); return
                     }
-                    setSession(s)
+                    guard setSession(s) else {
+                        syncState = .failed(Self.sessionWriteFailureMessage); return
+                    }
                     capturedSession = session
                     BetaQA.shared.pass("A-AUTH-06", note: "Session refreshed before sync")
                 }
@@ -1358,7 +1364,9 @@ final class AppStore {
     /// A failed initial pull during an account switch must not leave account B active over
     /// account A's local library. Keep the local data intact and require a retry when online.
     private func signOutAfterFailedAccountSwitch() {
-        setSession(nil)
+        guard setSession(nil) else {
+            syncState = .failed(Self.sessionWriteFailureMessage); return
+        }
         let message = "Account switch couldn't be completed. Your previous library is safe on this iPhone. Reconnect and sign in again."
         syncState = .failed(message)
         show(message, error: true, seconds: 5)
@@ -1367,20 +1375,25 @@ final class AppStore {
     /// Session can't be refreshed: sign out locally (keep recipes) and say so plainly.
     var sessionExpired = false
     func expireSession() {
-        setSession(nil)
+        guard setSession(nil) else {
+            syncState = .failed(Self.sessionWriteFailureMessage); return
+        }
         sessionExpired = true
         syncState = .failed(Self.sessionExpiredMessage)
         show(Self.sessionExpiredMessage, error: true)
     }
     static let sessionExpiredMessage = "Your session expired — sign in again to keep syncing. Your recipes are safe on this iPhone."
 
-    private func setSession(_ s: AuthSession?) {
+    /// True only when the whole bounded effect returns successfully. False does not
+    /// imply rollback: the session/keychain/watch publish may already have partly run.
+    private func setSession(_ s: AuthSession?) -> Bool {
         performOrdinaryWrite(Self.sessionWriteFailureMessage) {
             if s != nil { sessionExpired = false }
             session = s
             Keychain.save(s.flatMap { try? JSONEncoder().encode($0) }, account: "session")
             PhoneWatchBridge.shared.update(session: s)
-        }
+            return true
+        } == true
     }
 
     // MARK: onboarding
@@ -1406,7 +1419,7 @@ final class AppStore {
             guard validatePostAwaitPublish(capturedSession: capturedSession) else {
                 return AuthError(message: "This iPhone's data changed while signing in. Sign in again.")
             }
-            setSession(new)
+            guard setSession(new) else { return AuthError(message: Self.sessionWriteFailureMessage) }
             pendingConfirmation = nil
             BetaQA.shared.pass("A-AUTH-03", note: "Signed in as \(new.email)")
             show("Signed in")
@@ -1429,7 +1442,8 @@ final class AppStore {
                 guard validatePostAwaitPublish(capturedSession: capturedSession) else {
                     return .failed(AuthError(message: "This iPhone's data changed while creating your account. Sign in instead."))
                 }
-                setSession(s); show("Account created"); Task { await syncNow() }
+                guard setSession(s) else { return .failed(AuthError(message: Self.sessionWriteFailureMessage)) }
+                show("Account created"); Task { await syncNow() }
                 BetaQA.shared.pass("A-AUTH-01", note: "Signed up and signed in")
                 return .signedIn
             }
@@ -1482,7 +1496,10 @@ final class AppStore {
             return
         }
         syncTask?.cancel()
-        setSession(nil)
+        guard setSession(nil) else {
+            show("Signed out on the server, but this iPhone couldn't finish updating its sign-in. Check Settings, then try again.", error: true)
+            return
+        }
         syncState = .signedOut
         var partial: [String] = []
         if removeLocalData {
@@ -1525,9 +1542,10 @@ final class AppStore {
         guard validatePostAwaitPublish(capturedSession: capturedSession) else {
             return AuthError(message: "Your account was deleted on the server, but this iPhone's data changed before its local copy could be removed. Use Clear all in Settings to remove it.")
         }
-        BetaQA.shared.pass("A-AUTH-08", note: "Account deleted on the server and locally")
         syncTask?.cancel()
-        setSession(nil)
+        guard setSession(nil) else {
+            return AuthError(message: "Your account was deleted on the server, but this iPhone couldn't finish updating its sign-in or removing its local copy. Check Settings and use Clear all.")
+        }
         syncState = .signedOut
         var partial: [String] = []
         if foodJournalRuntime != nil {
@@ -1542,6 +1560,7 @@ final class AppStore {
         if !partial.isEmpty {
             show("Your account was deleted, but some data on this device could not be removed: \(partial.joined(separator: ", "))", error: true)
         } else {
+            BetaQA.shared.pass("A-AUTH-08", note: "Account deleted on the server and locally")
             show("Your account and data were deleted")
         }
         return nil
@@ -1609,7 +1628,8 @@ final class AppStore {
                             show("This iPhone's data changed while signing in. Open the link again.", error: true)
                             return
                         }
-                        setSession(s); pendingConfirmation = nil; authSheet = nil
+                        guard setSession(s) else { return }
+                        pendingConfirmation = nil; authSheet = nil
                         BetaQA.shared.authLinkSignedIn(email: s.email)
                         if showOnboarding { finishOnboarding() }
                         show("Signed in"); await syncNow()
@@ -1618,7 +1638,8 @@ final class AppStore {
                             show("This iPhone's data changed while opening the reset link. Open the link again.", error: true)
                             return
                         }
-                        setSession(s); if showOnboarding { finishOnboarding() }
+                        guard setSession(s) else { return }
+                        if showOnboarding { finishOnboarding() }
                         authSheet = .newPassword
                     case .confirmedNeedsSignIn?:
                         pendingConfirmation = nil

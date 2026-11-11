@@ -174,6 +174,30 @@ extension JournalOpenStateUITests {
         shot("manual-03-detail-actions")
     }
 
+    func testTimelineOpensSavedReflectionDetailAndRetainsBackRoute() {
+        composeFromHistory()
+        let editor = app.textViews["journal.compose.text"]
+        editor.tap()
+        editor.typeText("Timeline reflection navigation proof")
+        app.buttons["journal.compose.save"].tap()
+        wait(app.navigationBars["Journal"])
+        wait(app.buttons["journal.timelineLink"])
+        app.buttons["journal.timelineLink"].tap()
+        wait(app.navigationBars["Food Journal"])
+        let reflection = row("Timeline reflection navigation proof")
+        wait(reflection)
+        reflection.tap()
+        let detail = any("journal.detail.text")
+        wait(detail)
+        XCTAssertEqual(detail.label, "Timeline reflection navigation proof")
+        wait(app.buttons["journal.detail.menu"])
+        shot("timeline-saved-reflection-detail")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        wait(app.navigationBars["Food Journal"])
+        wait(row("Timeline reflection navigation proof"))
+        shot("timeline-saved-reflection-back")
+    }
+
     func testManualReflectionEditSaveCancelAndConfirmedDelete() {
         composeFromHistory()
         let original = "Manual CRUD " + UUID().uuidString

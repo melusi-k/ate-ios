@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import SwiftData
 import CryptoKit
 
@@ -246,6 +247,21 @@ enum UnifiedArchiveStartupRecovery {
         }
     }
 
+    /// Never follow a leaf link or turn access/traversal/I/O failures into absence.
+    /// The held writer lease still supplies the existing cooperative race boundary.
+    private static func entryExists(_ url: URL, type: mode_t) throws -> Bool {
+        var metadata = stat()
+        guard lstat(url.path, &metadata) == 0 else {
+            let code = errno
+            if code == ENOENT { return false }
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(code))
+        }
+        guard metadata.st_mode & S_IFMT == type else {
+            throw ArchiveRestoreFailure.verificationFailed
+        }
+        return true
+    }
+
     static func compensateMedia(_ media: [String: String], directory: URL) throws {
         var failures: [String] = []
         for name in media.keys.sorted() {
@@ -254,14 +270,10 @@ enum UnifiedArchiveStartupRecovery {
                 continue
             }
             let url = directory.appendingPathComponent(name)
-            guard let values = try? url.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey]) else {
-                continue // never published or already gone: both are the intended before-state.
-            }
-            guard values.isSymbolicLink == false, values.isRegularFile == true else {
-                failures.append("\(name): unexpected file type, preserved")
-                continue
-            }
             do {
+                // Check the directory too: a link must not redirect compensation.
+                guard try entryExists(directory, type: S_IFDIR),
+                      try entryExists(url, type: S_IFREG) else { continue }
                 let data = try Data(contentsOf: url)
                 guard sha256Hex(data) == media[name] else {
                     // Content this transaction did not write: preserve it, surface it.
@@ -288,9 +300,14 @@ enum UnifiedArchiveStartupRecovery {
               try ctx.fetch(FetchDescriptor<JournalMealPayload>()).allSatisfy({ !expected.contains($0.entryID) }) else {
             throw ArchiveRestoreFailure.verificationFailed
         }
-        for name in payload.media.keys
-        where FileManager.default.fileExists(atPath: mediaDirectory.appendingPathComponent(name).path) {
-            throw ArchiveRestoreFailure.verificationFailed
+        for name in payload.media.keys {
+            guard JournalArchiveValidation.safeMediaName(name) else {
+                throw ArchiveRestoreFailure.verificationFailed
+            }
+            if try entryExists(mediaDirectory, type: S_IFDIR),
+               try entryExists(mediaDirectory.appendingPathComponent(name), type: S_IFREG) {
+                throw ArchiveRestoreFailure.verificationFailed
+            }
         }
     }
 
@@ -312,9 +329,10 @@ enum UnifiedArchiveStartupRecovery {
         }
         for (name, digest) in payload.media {
             let url = mediaDirectory.appendingPathComponent(name)
-            guard let values = try? url.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey]),
-                  values.isSymbolicLink == false, values.isRegularFile == true,
-                  let data = try? Data(contentsOf: url), sha256Hex(data) == digest else {
+            guard JournalArchiveValidation.safeMediaName(name),
+                  try entryExists(mediaDirectory, type: S_IFDIR),
+                  try entryExists(url, type: S_IFREG),
+                  sha256Hex(try Data(contentsOf: url)) == digest else {
                 throw ArchiveRestoreFailure.verificationFailed
             }
         }
@@ -325,13 +343,11 @@ enum UnifiedArchiveStartupRecovery {
     /// restore path: when startup recovery runs, any `.ate-restore-*` directory belongs to
     /// the transaction being recovered.
     static func removeStagingDirectories(in directory: URL) throws {
-        guard FileManager.default.fileExists(atPath: directory.path) else { return }
+        guard try entryExists(directory, type: S_IFDIR) else { return }
         for name in try FileManager.default.contentsOfDirectory(atPath: directory.path)
         where name.hasPrefix(".ate-restore-") {
-            var isDirectory: ObjCBool = false
             let url = directory.appendingPathComponent(name)
-            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
-                  isDirectory.boolValue else { continue }
+            guard try entryExists(url, type: S_IFDIR) else { continue }
             try FileManager.default.removeItem(at: url)
         }
     }

@@ -1,4 +1,5 @@
 import XCTest
+import Darwin
 import SwiftData
 import CryptoKit
 @testable import Ate
@@ -331,4 +332,111 @@ final class ArchiveStartupRecoveryBindingTests: XCTestCase {
         XCTAssertEqual(r.lease.generation, 0)
         XCTAssertTrue(try r.journal.transactions().isEmpty)
     }
+
+    private func verifyAbsentMedia(_ r: Rig, directory: URL, name: String = "m-1.jpg") throws {
+        let payload = JournalMediaRecoveryPayload(version: 1, entries: [],
+                                                  media: [name: sha(Data("ours".utf8))])
+        try UnifiedArchiveStartupRecovery.verifyJournalBefore(JSONEncoder().encode(payload),
+            journalContainer: { try XCTUnwrap(r.journalStore.container) }, mediaDirectory: directory)
+    }
+
+    func testFilesystemErrorsNeverProveAbsentDuringCompensationVerificationOrCleanup() throws {
+        let r = try rig(); defer { cleanup(r) }
+        let ancestor = r.root.appendingPathComponent("inaccessible")
+        let directory = ancestor.appendingPathComponent("media")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let file = directory.appendingPathComponent("m-1.jpg")
+        let bytes = Data("ours".utf8)
+        try bytes.write(to: file)
+        XCTAssertEqual(chmod(ancestor.path, 0), 0)
+        defer { _ = chmod(ancestor.path, 0o700) }
+        var metadata = stat()
+        XCTAssertEqual(lstat(directory.path, &metadata), -1, "Fixture must actually deny traversal")
+        XCTAssertEqual(errno, EACCES)
+        XCTAssertThrowsError(try UnifiedArchiveStartupRecovery.compensateMedia(["m-1.jpg": sha(bytes)],
+                                                                              directory: directory))
+        XCTAssertThrowsError(try verifyAbsentMedia(r, directory: directory))
+        XCTAssertThrowsError(try UnifiedArchiveStartupRecovery.removeStagingDirectories(in: directory))
+        XCTAssertEqual(chmod(ancestor.path, 0o700), 0)
+        XCTAssertEqual(try Data(contentsOf: file), bytes, "Failed recovery preserves personal bytes")
+
+        let notDirectory = r.root.appendingPathComponent("ordinary-file")
+        try bytes.write(to: notDirectory)
+        let invalidDirectory = notDirectory.appendingPathComponent("media")
+        XCTAssertEqual(lstat(invalidDirectory.path, &metadata), -1)
+        XCTAssertEqual(errno, ENOTDIR)
+        XCTAssertThrowsError(try UnifiedArchiveStartupRecovery.compensateMedia(["m-1.jpg": sha(bytes)],
+                                                                              directory: invalidDirectory))
+        XCTAssertThrowsError(try verifyAbsentMedia(r, directory: invalidDirectory))
+        XCTAssertThrowsError(try UnifiedArchiveStartupRecovery.removeStagingDirectories(in: invalidDirectory))
+        XCTAssertEqual(try Data(contentsOf: notDirectory), bytes)
+    }
+
+    func testDanglingAndNonRegularMediaRefuseCompensationAndBeforeVerification() throws {
+        let r = try rig(); defer { cleanup(r) }
+        let file = r.mediaDir.appendingPathComponent("m-1.jpg")
+        for isLink in [true, false] {
+            if isLink {
+                try FileManager.default.createSymbolicLink(at: file,
+                    withDestinationURL: r.root.appendingPathComponent("missing-target"))
+            } else {
+                try FileManager.default.createDirectory(at: file, withIntermediateDirectories: false)
+            }
+            XCTAssertThrowsError(try UnifiedArchiveStartupRecovery.compensateMedia(
+                ["m-1.jpg": sha(Data("ours".utf8))], directory: r.mediaDir))
+            XCTAssertThrowsError(try verifyAbsentMedia(r, directory: r.mediaDir))
+            var metadata = stat()
+            XCTAssertEqual(lstat(file.path, &metadata), 0, "Unsafe entry must be preserved")
+            XCTAssertEqual(metadata.st_mode & S_IFMT, isLink ? S_IFLNK : S_IFDIR)
+            try FileManager.default.removeItem(at: file)
+        }
+        try verifyAbsentMedia(r, directory: r.mediaDir) // Only ENOENT proves absent.
+    }
+
+    func testCleanupRefusesDanglingRootsAndUnsafeStagingEntries() throws {
+        let r = try rig(); defer { cleanup(r) }
+        let danglingRoot = r.root.appendingPathComponent("dangling-root")
+        try FileManager.default.createSymbolicLink(at: danglingRoot,
+            withDestinationURL: r.root.appendingPathComponent("missing-target"))
+        XCTAssertThrowsError(try UnifiedArchiveStartupRecovery.removeStagingDirectories(in: danglingRoot))
+        XCTAssertThrowsError(try verifyAbsentMedia(r, directory: danglingRoot))
+        XCTAssertThrowsError(try UnifiedArchiveStartupRecovery.compensateMedia(
+            ["m-1.jpg": sha(Data("ours".utf8))], directory: danglingRoot))
+        let staging = r.mediaDir.appendingPathComponent(".ate-restore-unsafe")
+        for isLink in [true, false] {
+            if isLink {
+                try FileManager.default.createSymbolicLink(at: staging,
+                    withDestinationURL: r.root.appendingPathComponent("missing-staging"))
+            } else {
+                try Data("recovery receipt".utf8).write(to: staging)
+            }
+            XCTAssertThrowsError(try UnifiedArchiveStartupRecovery.removeStagingDirectories(in: r.mediaDir))
+            var metadata = stat()
+            XCTAssertEqual(lstat(staging.path, &metadata), 0, "Unsafe receipt evidence must remain")
+            try FileManager.default.removeItem(at: staging)
+        }
+        try UnifiedArchiveStartupRecovery.removeStagingDirectories(in: r.root.appendingPathComponent("absent"))
+    }
+
+    func testInaccessibleMediaBlocksStartupAndKeepsRecoveryRecord() throws {
+        let r = try rig(); defer { cleanup(r) }
+        let before = try currentImages(r)
+        let bytes = Data("ours".utf8)
+        let id = try prepareRecord(r, images: outerImages(r, before: before, after: before),
+            payload: JournalMediaRecoveryPayload(version: 1, entries: [], media: ["m-1.jpg": sha(bytes)]))
+        try r.journal.transition(id, to: .applying)
+        let file = r.mediaDir.appendingPathComponent("m-1.jpg")
+        try bytes.write(to: file)
+        XCTAssertEqual(chmod(r.mediaDir.path, 0), 0)
+        defer { _ = chmod(r.mediaDir.path, 0o700) }
+        var metadata = stat()
+        XCTAssertEqual(lstat(file.path, &metadata), -1)
+        XCTAssertEqual(errno, EACCES)
+        XCTAssertThrowsError(try recover(r))
+        XCTAssertEqual(try r.journal.transactions(), [id], "Unresolved recovery must not retire")
+        XCTAssertEqual(r.lease.generation, 0, "Failed recovery must not advance generation")
+        XCTAssertEqual(chmod(r.mediaDir.path, 0o700), 0)
+        XCTAssertEqual(try Data(contentsOf: file), bytes)
+    }
+
 }

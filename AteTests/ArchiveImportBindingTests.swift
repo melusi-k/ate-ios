@@ -137,7 +137,7 @@ final class ArchiveImportBindingTests: XCTestCase {
         XCTAssertEqual(try f.binding.goals.load().energyKcal, 2500)
         XCTAssertNil(f.defaults.data(forKey: DailyNutritionGoals.defaultsKey), "legacy goals key removed")
         XCTAssertEqual(f.defaults.data(forKey: ArchiveDefaultsParticipant.settingsKey),
-                       try JSONEncoder().encode(AppSettings(onDeviceOnly: true)))
+                       try ArchiveRestoreEncoding.encoder().encode(AppSettings(onDeviceOnly: true)))
         let journalContext = ModelContext(try XCTUnwrap(f.journalStore.container))
         let rows = try journalContext.fetch(FetchDescriptor<Ate.JournalEntry>())
         XCTAssertEqual(Set(rows.map(\.id)), Set(["j-new", mealID.uuidString]))
@@ -470,7 +470,15 @@ final class ArchiveImportBindingTests: XCTestCase {
         try journal.transition(record.transactionID, to: .applying)
         try journal.transition(record.transactionID, to: .committed)
         try journal.retire(record.transactionID)
-        try boundary.withNestedLease { }
-        XCTAssertEqual(check.generation, 1)
+        var performed = false
+        try boundary.withNestedLease { performed = true }
+        XCTAssertTrue(performed, "Resolved recovery must admit the covered writer")
+        // generation is the lease's captured value, not a live directory counter.
+        // A separate writer advanced the disk chain; the old lease must now refuse.
+        XCTAssertThrowsError(try check.validate(), "Pre-write lease must detect the changed generation")
+        let committed = try POSIXArchiveWriterLease(nestedDirectory: root)
+        defer { committed.release() }
+        XCTAssertEqual(committed.generation, 1, "Fresh disk read proves exactly one committed generation")
+        XCTAssertNoThrow(try committed.validate())
     }
 }

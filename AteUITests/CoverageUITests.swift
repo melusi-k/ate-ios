@@ -74,7 +74,17 @@ final class CoverageUITests: XCTestCase {
         let b = app.tabBars.buttons[name]
         if name == "Journal" {
             XCTAssertTrue(b.waitForExistence(timeout: 5), "Journal must be selected through its tab, not a pushed-screen back button")
+            let hittable = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "exists == true AND hittable == true"), object: b)
+            XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed,
+                           "Journal tab must be hittable before its single tap")
             b.tap()
+            let selected = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "selected == true"), object: b)
+            XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 5), .completed,
+                           "Journal tab tap must land before looking for Journal content")
+            XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 5),
+                          "Selected Journal tab must show the Journal root before looking for its routes")
         } else if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
     }
     func startPrompt(_ s: String) {

@@ -27,17 +27,17 @@ enum WidgetBridge {
         }
     }
 
-    static func publishNow(_ store: AppStore, force: Bool = false) {
-        let snap = WidgetSnapshotBuilder.build(recipes: store.recipes, shopping: store.shopping, health: lastHealthState)
-        guard publisher.publish(snap, force: force, reload: WidgetKinds.reload) else { return }
+    static func publishNow(_ store: AppStore, force: Bool = false, boundary: SharedWriterBoundary = .current) {
+        let snap = WidgetSnapshotBuilder.build(recipes: store.recipes, shopping: store.shopping, health: lastHealthState, history: store.journalCookingHistory)
+        guard publisher.publish(snap, force: force, boundary: boundary, reload: WidgetKinds.reload) else { return }
         if AppConfig.isUITesting { QAProbe.shared.widgetPublishes += 1 }
         index(store.recipes)
     }
 
     /// Applies ticks / adds / deep links queued by widgets and intents that ran outside the app.
-    static func drainInbox(_ store: AppStore) {
+    static func drainInbox(_ store: AppStore, boundary: SharedWriterBoundary = .current) {
         store.timers.reloadFromShared()
-        let q = WidgetInbox.drain()
+        let q = WidgetInbox.drain(boundary: boundary)
         for (id, done) in q.shopping { store.setShoppingDone(id, done) }
         for n in q.adds { store.addManual(n) }
         if !q.shopping.isEmpty { BetaQA.shared.pass("A-WIDGET-03", note: "Ticked \(q.shopping.count) item(s) from the widget") }

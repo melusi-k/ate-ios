@@ -2,6 +2,11 @@
 """Generate build-specific About notes from the checked-out Git history."""
 from pathlib import Path
 import subprocess
+import importlib.util
+
+spec = importlib.util.spec_from_file_location("build_focus", Path(__file__).with_name("build-focus.py"))
+focus_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(focus_module)
 
 OUTPUT = Path("Ate/Resources/BuildNotes.md")
 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
@@ -29,6 +34,7 @@ lines = [line.strip() for line in subjects.splitlines() if line.strip()]
 if not lines:
     lines = ["Build notes are not available for this build."]
 
-content = "Changes in this build\n\n" + "\n".join(f"- {line}" for line in lines) + "\n"
+focus = focus_module.build_focus(sha)
+content = "Build notes\n\nMain feature focus\n\n" + focus + "\n\nChanges in this build\n\n" + "\n".join(f"- {line}" for line in lines) + "\n"
 OUTPUT.write_text(content, encoding="utf-8")
 print(f"Generated {OUTPUT} with {len(lines)} note(s).")

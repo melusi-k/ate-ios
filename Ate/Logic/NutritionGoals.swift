@@ -177,103 +177,115 @@ struct FileNutritionGoalsStorage: NutritionGoalsStorage {
 }
 
 struct NutritionGoalsRepository {
+    let writerBoundary: FoodJournalWriterBoundary
     let defaults: UserDefaults
     let storage: NutritionGoalsStorage
 
-    init(defaults: UserDefaults = .standard, storage: NutritionGoalsStorage? = nil) {
+    init(defaults: UserDefaults = .standard, storage: NutritionGoalsStorage? = nil,
+         writerBoundary: FoodJournalWriterBoundary = .legacy) {
+        self.writerBoundary = writerBoundary
         self.defaults = defaults
         self.storage = storage ?? FileNutritionGoalsStorage()
     }
 
     func load() throws -> DailyNutritionGoals {
-        let empty = DailyNutritionGoals(
-            energyKcal: nil, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil
-        )
-        let legacyData = defaults.data(forKey: DailyNutritionGoals.defaultsKey)
-        let legacyGoals = legacyData.flatMap {
-            try? JSONDecoder().decode(DailyNutritionGoals.self, from: $0)
-        }
-
-        let storedData: Data?
-        do {
-            storedData = try storage.read()
-        } catch {
-            // Do not report a transient read failure as an empty configuration or permit an overwrite.
-            throw NutritionGoalsLoadError.storageReadFailed(fallback: legacyGoals)
-        }
-
-        if let storedData {
-            do {
-                return try JSONDecoder().decode(DailyNutritionGoals.self, from: storedData)
-            } catch {
-                // Keep a recoverable legacy copy visible, but require a successful reload before saving.
-                throw NutritionGoalsLoadError.storedDataInvalid(fallback: legacyGoals)
+        return try writerBoundary.withEffect {
+            let empty = DailyNutritionGoals(
+                energyKcal: nil, proteinGrams: nil, carbohydratesGrams: nil, fatGrams: nil, fibreGrams: nil
+            )
+            let legacyData = defaults.data(forKey: DailyNutritionGoals.defaultsKey)
+            let legacyGoals = legacyData.flatMap {
+                try? JSONDecoder().decode(DailyNutritionGoals.self, from: $0)
             }
-        }
 
-        guard let legacyData else { return empty }
-        guard let legacyGoals else { throw NutritionGoalsLoadError.legacyDataInvalid }
+            let storedData: Data?
+            do {
+                storedData = try storage.read()
+            } catch {
+                // Do not report a transient read failure as an empty configuration or permit an overwrite.
+                throw NutritionGoalsLoadError.storageReadFailed(fallback: legacyGoals)
+            }
 
-        do {
-            try storage.write(legacyData)
-        } catch {
-            // The legacy copy is the only known-good value; require a retry before allowing a save/clear.
-            throw NutritionGoalsLoadError.migrationWriteFailed(fallback: legacyGoals)
+            if let storedData {
+                do {
+                    return try JSONDecoder().decode(DailyNutritionGoals.self, from: storedData)
+                } catch {
+                    // Keep a recoverable legacy copy visible, but require a successful reload before saving.
+                    throw NutritionGoalsLoadError.storedDataInvalid(fallback: legacyGoals)
+                }
+            }
+
+            guard let legacyData else { return empty }
+            guard let legacyGoals else { throw NutritionGoalsLoadError.legacyDataInvalid }
+
+            do {
+                try storage.write(legacyData)
+            } catch {
+                // The legacy copy is the only known-good value; require a retry before allowing a save/clear.
+                throw NutritionGoalsLoadError.migrationWriteFailed(fallback: legacyGoals)
+            }
+            defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
+            return legacyGoals
+
         }
-        defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
-        return legacyGoals
     }
     /// Backs up every corrupt copy before removing any original bytes. A valid configuration is never reset.
     func recoverCorruptData() throws {
-        let legacyData = defaults.data(forKey: DailyNutritionGoals.defaultsKey)
-        let storedData = try storage.read()
+        return try writerBoundary.withEffect {
+            let legacyData = defaults.data(forKey: DailyNutritionGoals.defaultsKey)
+            let storedData = try storage.read()
 
-        var corruptStoredData: Data?
-        if let storedData {
-            if (try? JSONDecoder().decode(DailyNutritionGoals.self, from: storedData)) != nil {
-                throw NutritionGoalsRecoveryError.dataIsValid
+            var corruptStoredData: Data?
+            if let storedData {
+                if (try? JSONDecoder().decode(DailyNutritionGoals.self, from: storedData)) != nil {
+                    throw NutritionGoalsRecoveryError.dataIsValid
+                }
+                corruptStoredData = storedData
             }
-            corruptStoredData = storedData
-        }
 
-        var corruptLegacyData: Data?
-        if let legacyData {
-            if (try? JSONDecoder().decode(DailyNutritionGoals.self, from: legacyData)) == nil {
-                corruptLegacyData = legacyData
-            } else if storedData == nil {
-                throw NutritionGoalsRecoveryError.dataIsValid
+            var corruptLegacyData: Data?
+            if let legacyData {
+                if (try? JSONDecoder().decode(DailyNutritionGoals.self, from: legacyData)) == nil {
+                    corruptLegacyData = legacyData
+                } else if storedData == nil {
+                    throw NutritionGoalsRecoveryError.dataIsValid
+                }
             }
-        }
 
-        guard corruptStoredData != nil || corruptLegacyData != nil else {
-            throw NutritionGoalsRecoveryError.noCorruptData
-        }
+            guard corruptStoredData != nil || corruptLegacyData != nil else {
+                throw NutritionGoalsRecoveryError.noCorruptData
+            }
 
-        // Complete all fallible backup writes first. If any backup fails, every original remains in place.
-        if let corruptStoredData {
-            try storage.preserveCorruptData(corruptStoredData)
-        }
-        if let corruptLegacyData {
-            try storage.preserveCorruptData(corruptLegacyData)
-        }
+            // Complete all fallible backup writes first. If any backup fails, every original remains in place.
+            if let corruptStoredData {
+                try storage.preserveCorruptData(corruptStoredData)
+            }
+            if let corruptLegacyData {
+                try storage.preserveCorruptData(corruptLegacyData)
+            }
 
-        if corruptStoredData != nil {
-            try storage.remove()
-        }
-        if corruptLegacyData != nil {
-            defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
+            if corruptStoredData != nil {
+                try storage.remove()
+            }
+            if corruptLegacyData != nil {
+                defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
+            }
+
         }
     }
 
     func save(_ goals: DailyNutritionGoals) throws {
-        if goals.isEmpty {
-            try storage.remove()
+        return try writerBoundary.withEffect {
+            if goals.isEmpty {
+                try storage.remove()
+                defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
+                return
+            }
+            let data = try JSONEncoder().encode(goals)
+            try storage.write(data)
+            // Remove the legacy copy only after the new atomic write succeeded.
             defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
-            return
+
         }
-        let data = try JSONEncoder().encode(goals)
-        try storage.write(data)
-        // Remove the legacy copy only after the new atomic write succeeded.
-        defaults.removeObject(forKey: DailyNutritionGoals.defaultsKey)
     }
 }

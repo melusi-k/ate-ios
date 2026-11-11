@@ -19,23 +19,34 @@ enum IntentRelay {
 
 @MainActor
 enum SharedTimerOps {
-    static func run(_ cmd: TimerMath.Command, id: String) {
+    /// The whole load/apply/save runs inside the writer boundary, so a timer
+    /// command from a widget, control or Siri can never interleave with the app's
+    /// own timer writes. Notification rescheduling and the widget reload are hints
+    /// computed from the committed before/after and run after the boundary.
+    static func run(_ cmd: TimerMath.Command, id: String,
+                    boundary: SharedWriterBoundary = .current) {
         if let r = IntentRelay.timer { r(cmd, id); return }
-        let before = TimerSnapshot.load()
-        let after = TimerMath.apply(cmd, id: id, to: before)
-        TimerSnapshot.save(after)
-        reschedule(before: before, after: after)
+        guard let pair = try? boundary.withEffect({ () -> (before: [TimerSnapshot], after: [TimerSnapshot]) in
+            let before = TimerSnapshot.load()
+            let after = TimerMath.apply(cmd, id: id, to: before)
+            TimerSnapshot.save(after, boundary: boundary)
+            return (before, after)
+        }) else { return } // boundary refused: leave state, notifications and UI unchanged
+        reschedule(before: pair.before, after: pair.after)
         WidgetKinds.reload([WidgetKinds.timers])
     }
 
-    static func kitchenToggle() -> String {
+    static func kitchenToggle(boundary: SharedWriterBoundary = .current) -> String {
         if let r = IntentRelay.kitchenToggle { return r() }
-        let before = TimerSnapshot.load()
-        let res = TimerMath.kitchenToggle(before)
-        TimerSnapshot.save(res.list)
-        reschedule(before: before, after: res.list)
+        guard let result = try? boundary.withEffect({ () -> (before: [TimerSnapshot], after: [TimerSnapshot], action: String) in
+            let before = TimerSnapshot.load()
+            let res = TimerMath.kitchenToggle(before)
+            TimerSnapshot.save(res.list, boundary: boundary)
+            return (before, res.list, res.action)
+        }) else { return "unavailable" } // boundary refused: nothing changed
+        reschedule(before: result.before, after: result.after)
         WidgetKinds.reload([WidgetKinds.timers])
-        return res.action
+        return result.action
     }
 
     /// Keeps the "timer done" notifications right when the app isn't running (same ids as TimerAlerts).
@@ -125,8 +136,13 @@ struct ToggleShoppingItemIntent: AppIntent {
     init(itemID: String, done: Bool) { self.itemID = itemID; self.done = done }
     @MainActor func perform() async throws -> some IntentResult {
         if let r = IntentRelay.toggleShopping { r(itemID, done) } else {
-            WidgetInbox.setDone(itemID, done)
-            if var s = WidgetSnapshot.load() { s.setDone(itemID, done); s.save() }
+            // The inbox entry and the widget snapshot are one unit: a reader must
+            // never see the tick in one place but not the other.
+            let boundary = SharedWriterBoundary.current
+            try? boundary.withEffect {
+                WidgetInbox.setDone(itemID, done, boundary: boundary)
+                if var s = WidgetSnapshot.load() { s.setDone(itemID, done); s.save(boundary: boundary) }
+            }
         }
         WidgetKinds.reload([WidgetKinds.shopping, WidgetKinds.shoppingInline])
         return .result()

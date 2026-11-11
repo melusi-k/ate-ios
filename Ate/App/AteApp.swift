@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import SwiftData
+import UserNotifications
 
 @main
 struct AteApp: App {
@@ -8,13 +9,14 @@ struct AteApp: App {
     @State private var store: AppStore
 
     init() {
+        UNUserNotificationCenter.current().delegate = CookPlanNotificationRouter.shared
         SentryBootstrap.start()
         TabBarStyle.apply()
         #if DEBUG
         LiveDTProbe.installIfRequested()
         #endif
         if AppConfig.isUITesting {
-            for k in ["ate.timerprefs.v1", "ate.cookSession.v1", CookCompletionOutbox.defaultsKey, CookReflectionOfferPolicy.defaultsKey] { UserDefaults.standard.removeObject(forKey: k) }
+            for k in ["ate.timerprefs.v1", "ate.cookSession.v1", CookCompletionOutbox.defaultsKey, CookReflectionOfferPolicy.defaultsKey, CookPlanStore.storageKey] { UserDefaults.standard.removeObject(forKey: k) }
             if !ProcessInfo.processInfo.arguments.contains("-qaPreserveSettings") {
                 UserDefaults.standard.removeObject(forKey: "ate.settings.v1")
             }
@@ -194,6 +196,12 @@ struct RootView: View {
             guard store.timers.timers.contains(where: \.isRunning) else { return }
             store.timers.tick(date)
         }
+        .onReceive(NotificationCenter.default.publisher(for: CookPlanNotificationRouter.tapped)) { _ in
+            store.openPendingCookPlanReminder()
+        }
+        .onChange(of: store.showOnboarding) { _, showing in
+            if !showing { store.openPendingCookPlanReminder() }
+        }
         .onChange(of: phase) { _, p in
             if !AppConfig.isUITesting {
                 if p == .active { DiagnosticHistory.shared.record(.appForegrounded) }
@@ -202,6 +210,8 @@ struct RootView: View {
             if p == .active {
                 store.timers.tick(); store.timers.ensureLiveActivities(); store.scheduleSync(delay: 0.2); store.checkInbox()
                 WidgetBridge.drainInbox(store)
+                store.openPendingCookPlanReminder()
+                Task { await store.refreshCookPlanReminders() }
             // Re-register App Shortcut phrases + parameter values on every launch (Siri learns them after first launch).
             if !AppConfig.isUITesting { AteShortcuts.updateAppShortcutParameters() }
                 BetaQA.shared.returnedToForeground(runningTimers: store.timers.timers.filter(\.isRunning).count)
@@ -212,6 +222,8 @@ struct RootView: View {
         .task {
             if !AppConfig.isUITesting { DiagnosticHistory.shared.record(.appLaunched) }
             WidgetBridge.drainInbox(store)
+            store.openPendingCookPlanReminder()
+            await store.refreshCookPlanReminders()
             store.timers.ensureLiveActivities()
             BetaQA.shared.launched(recipeCount: store.recipes.count, restoredTimers: store.timers.timers.count)
             if store.session != nil { await store.syncNow() }

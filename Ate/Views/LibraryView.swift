@@ -65,7 +65,7 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        let filtered = store.filter.apply(store.recipes, query: searchPlacement == .none ? "" : query)
+        let filtered = store.filter.apply(store.recipes, query: searchPlacement == .none ? "" : query, history: store.journalCookingHistory)
         ZStack {
             Theme.background.ignoresSafeArea()
             if useGrid { grid(filtered) } else { list(filtered) }
@@ -257,7 +257,7 @@ struct LibraryView: View {
             .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
             .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                Button(role: .destructive) { store.deleteWithUndo(r.id) } label: { Label("Delete", systemImage: "trash") }
+                Button(role: .destructive) { Task { await store.deleteWithUndo(r.id) } } label: { Label("Delete", systemImage: "trash") }
                     .tint(Theme.destructive)
             }
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
@@ -501,7 +501,7 @@ struct LibraryView: View {
         Button { store.addToShopping(r, factor: 1); store.show("Added to your shopping list") } label: {
             Label("Add to shopping list", systemImage: "basket")
         }
-        let visible = store.filter.apply(store.recipes, query: searchPlacement == .none ? "" : query)
+        let visible = store.filter.apply(store.recipes, query: searchPlacement == .none ? "" : query, history: store.journalCookingHistory)
         if canReorder(visible) {
             let ordered = store.layout.sorted(visible)
             if let i = ordered.firstIndex(where: { $0.id == r.id }) {
@@ -512,7 +512,7 @@ struct LibraryView: View {
             }
         }
         Divider()
-        Button(role: .destructive) { store.deleteWithUndo(r.id) } label: { Label("Delete", systemImage: "trash") }
+        Button(role: .destructive) { Task { await store.deleteWithUndo(r.id) } } label: { Label("Delete", systemImage: "trash") }
     }
 }
 
@@ -537,7 +537,7 @@ private struct LibrarySheets: ViewModifier {
         .confirmationDialog("Delete “\(confirmDelete?.title ?? "")”?", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
                             titleVisibility: .visible) {
             Button("Delete recipe", role: .destructive) {
-                if let r = confirmDelete { store.delete(r.id); store.show("Recipe deleted"); Haptics.warning() }
+                if let r = confirmDelete { Task { if await store.delete(r.id) { store.show("Recipe deleted"); Haptics.warning() } } }
                 confirmDelete = nil
             }
         }

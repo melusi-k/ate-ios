@@ -11,7 +11,7 @@ on:
         type: boolean
         default: true
       channel:
-        description: "Release channel: Production (default) or TierA/TierB/TierC for tester builds."
+        description: "Compatibility channel: Production (default) or TierA/TierB/TierC for tester builds. TierA displays as Pilot candidate; channel is not approval."
         type: string
         default: "Production"
 
@@ -659,7 +659,7 @@ jobs:
           echo -e "\n**Channel:** Internal build. This rolling release is not a validated beta candidate. A validated candidate is published separately as \`latest-beta\` only after unit tests, key-flow QA, all UI test shards, and backend E2E pass." >> build/notes.md
           cat build/notes.md >> "$GITHUB_STEP_SUMMARY"
           # Immutable per-build prerelease.
-          CH_TITLE=""; [ -n "$ATE_CHANNEL" ] && CH_TITLE=" — ${ATE_CHANNEL/TierA/Tier A}"
+          CH_TITLE=""; [ -n "$ATE_CHANNEL" ] && CH_TITLE=" — ${ATE_CHANNEL/TierA/Pilot candidate}"
           # Tags are pushed over git first and releases created WITHOUT --target: when main moves mid-run and the
           # workflow files at GITHUB_SHA differ from the tip, POST /releases with --target needs workflows:write,
           # which GITHUB_TOKEN can't have (HTTP 403 "Resource not accessible by integration", builds 65 and 67).
@@ -850,7 +850,7 @@ jobs:
           path: build/UITests.xcresult
           if-no-files-found: warn
 
-      - name: Report simulator Tier A items to qa_results
+      - name: Report simulator Pilot inventory items to qa_results
         if: always() && matrix.shard == 'CoverageUITests'
         continue-on-error: true
         env:

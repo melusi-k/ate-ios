@@ -3,7 +3,7 @@ import OSLog
 
 struct CookingTrackerView: View {
     @Environment(AppStore.self) private var store
-    @State private var history = CookingHistory.shared
+    private var history: CookingHistory { store.journalCookingHistory }
     @State private var selectedDate: Date?
     /// Recipe chosen in the day sheet. The day sheet is dismissed first and the recipe sheet is
     /// presented from its onDismiss, so only one sheet is ever up: RecipeSheet's Cook mode
@@ -263,7 +263,12 @@ private struct CookingDaySheet: View {
 /// Journal tab root: the Journal, with one named route to Insights & Cooking History (calendar, Health
 /// insights and the journal card keep their existing behaviour there).
 struct CookingTrackerScreen: View {
+    @Environment(AppStore.self) private var store
     var body: some View {
-        JournalListView(isTabRoot: true)
+        if store.foodJournalRuntime != nil {
+            JournalTimelineView(isTabRoot: true)
+        } else {
+            JournalListView(isTabRoot: true)
+        }
     }
 }

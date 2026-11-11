@@ -32,6 +32,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Select Xcode 27.1
         uses: maxim-lobanov/setup-xcode@v1
@@ -58,10 +59,10 @@ jobs:
           xcodegen generate
           mkdir -p build
           xcodebuild -version
-          echo "Qualification commit: $GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Qualification commit: $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: CI telemetry unit tests
-        run: python3 -m unittest discover -s scripts/tests -v
+      # Python scripts are tested once on the exact candidate head in Compile.
+      # Separate merge-ref Python coverage is intentionally removed.
 
       - name: Select iPhone 18 Pro simulator (iOS 27.0)
         id: select_simulator
@@ -83,19 +84,8 @@ jobs:
           xcrun simctl boot "$SIM_ID" || true
           xcrun simctl bootstatus "$SIM_ID" -b
 
-      - name: Required unit tests
-        id: unit_tests
-        timeout-minutes: 20
-        run: |
-          set -o pipefail
-          SIM_ID="${{ steps.select_simulator.outputs.id }}"
-          xcrun simctl boot "$SIM_ID" || true
-          xcrun simctl bootstatus "$SIM_ID" -b
-          xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
-            -only-testing:AteTests -resultBundlePath build/DogfoodUnitTests.xcresult \
-            -parallel-testing-enabled NO -test-timeouts-enabled YES CODE_SIGNING_ALLOWED=NO > dogfood-unit-tests.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" dogfood-unit-tests.log || true; tail -100 dogfood-unit-tests.log; exit 1; }
-          grep -E "Executed|TEST SUCCEEDED" dogfood-unit-tests.log | tail -5
-
+      # Full AteTests executes once in Compile/build-nutrition on the exact head.
+      # This workflow qualifies critical flows only, not the removed unit execution.
       - name: Required critical flows and Library popup journeys
         id: critical_flows
         timeout-minutes: 30
@@ -162,17 +152,16 @@ jobs:
       - name: Summarize qualification and quarantine honestly
         if: always()
         env:
-          UNIT_OUTCOME: ${{ steps.unit_tests.outcome }}
           CRITICAL_FLOWS_OUTCOME: ${{ steps.critical_flows.outcome }}
           SYNC_QUARANTINE_OUTCOME: ${{ steps.sync_quarantine.outcome }}
         run: |
           {
             echo '### Dogfood qualification status'
             echo
-            echo "- Commit: \`$GITHUB_SHA\`."
-            printf '%s\n' "- Unit tests: ${UNIT_OUTCOME:-unknown}."
+            echo "- Commit: \`$(git rev-parse HEAD)\`."
+            echo '- Unit tests: NOT RUN HERE. Required separately by Compile/build-nutrition on the exact candidate head.'
             printf '%s\n' "- Critical flows and Library popup journeys: ${CRITICAL_FLOWS_OUTCOME:-unknown}."
-            echo '- Required: `AteTests` unit suite and seven non-quarantined critical flows plus named Library group/sort/menu and reorder journeys.'
+            echo '- Required here: seven non-quarantined critical flows plus named Library group/sort/menu and reorder journeys. The full unit suite remains required by Compile.'
             echo '- Settings/account-sync (`testQA7_SyncAccount`, issue #76): **QUARANTINED / NOT A QUALIFICATION PASS**.'
             printf '%s\n' "- Diagnostic execution outcome: ${SYNC_QUARANTINE_OUTCOME:-not run}; this never changes the quarantine status."
             echo '- Full UI shards and backend E2E remain part of deliberate pre-production validation.'
@@ -184,11 +173,9 @@ jobs:
         with:
           name: dogfood-qualification-${{ github.run_number }}
           path: |
-            dogfood-unit-tests.log
             dogfood-critical-flows.log
             dogfood-photo-import-phases.log
             dogfood-sync-quarantine.log
-            build/DogfoodUnitTests.xcresult
             build/DogfoodCriticalFlows.xcresult
             build/DogfoodSyncQuarantine.xcresult
           if-no-files-found: warn

@@ -257,8 +257,14 @@ final class AppStore {
         pendingSearch = term.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     /// Persisted independently from timers so exiting Cook Mode never loses an untimed step.
+    @ObservationIgnored private var adoptingPersistedCookSession = false
     var cookSession: CookSession? = nil {
-        didSet { Self.saveCookSession(cookSession, defaults: foodJournalRuntime?.defaults ?? .standard) }
+        didSet {
+            guard !adoptingPersistedCookSession else { return }
+            performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+                Self.saveCookSession(cookSession, defaults: foodJournalRuntime?.defaults ?? .standard)
+            }
+        }
     }
     private static let cookSessionDefaultsKey = "ate.cookSession.v1"
     private static func loadCookSession(defaults: UserDefaults = .standard) -> CookSession? {
@@ -283,69 +289,83 @@ final class AppStore {
     /// One actual session snapshot, persisted and verified before any completion queue/history change.
     /// Separate queue/store fsync and cross-process reset fencing remain integration gates.
     func prepareCookCompletion(recipeID: String) throws -> CookSession {
-        let defaults = foodJournalRuntime?.defaults ?? .standard
-        guard let session = cookSession, session.recipeID == recipeID else {
-            throw CookCompletionPreparationError.missingSession
+        try performOrdinaryWriteThrowing {
+            let defaults = foodJournalRuntime?.defaults ?? .standard
+            guard let session = cookSession, session.recipeID == recipeID else {
+                throw CookCompletionPreparationError.missingSession
+            }
+            guard UUID(uuidString: session.sessionID) != nil else { throw CookCompletionPreparationError.invalidIdentity }
+            let raw: Data
+            do { raw = try JSONEncoder().encode(session) }
+            catch { throw CookCompletionPreparationError.persistenceFailed }
+            defaults.set(raw, forKey: Self.cookSessionDefaultsKey)
+            guard defaults.data(forKey: Self.cookSessionDefaultsKey) == raw,
+                  let verified = try? JSONDecoder().decode(CookSession.self, from: raw), verified == session else {
+                throw CookCompletionPreparationError.persistenceFailed
+            }
+            return session
         }
-        guard UUID(uuidString: session.sessionID) != nil else { throw CookCompletionPreparationError.invalidIdentity }
-        let raw: Data
-        do { raw = try JSONEncoder().encode(session) }
-        catch { throw CookCompletionPreparationError.persistenceFailed }
-        defaults.set(raw, forKey: Self.cookSessionDefaultsKey)
-        guard defaults.data(forKey: Self.cookSessionDefaultsKey) == raw,
-              let verified = try? JSONDecoder().decode(CookSession.self, from: raw), verified == session else {
-            throw CookCompletionPreparationError.persistenceFailed
-        }
-        return session
     }
 
     /// Delayed completion cannot clear a replacement cook, even for the same recipe.
     func clearCompletedCookSession(sessionID: String) throws {
-        let defaults = foodJournalRuntime?.defaults ?? .standard
-        guard cookSession?.sessionID == sessionID else { throw CookCompletionPreparationError.sessionChanged }
-        defaults.removeObject(forKey: Self.cookSessionDefaultsKey)
-        guard defaults.object(forKey: Self.cookSessionDefaultsKey) == nil else {
-            throw CookCompletionPreparationError.persistenceFailed
+        try performOrdinaryWriteThrowing {
+            let defaults = foodJournalRuntime?.defaults ?? .standard
+            guard cookSession?.sessionID == sessionID else { throw CookCompletionPreparationError.sessionChanged }
+            defaults.removeObject(forKey: Self.cookSessionDefaultsKey)
+            guard defaults.object(forKey: Self.cookSessionDefaultsKey) == nil else {
+                throw CookCompletionPreparationError.persistenceFailed
+            }
+            cookSession = nil
         }
-        cookSession = nil
     }
     func updateCookSession(recipeID: String, stepIndex: Int) {
-        // Moving between steps keeps the session's servings factor and gathered checks.
-        if var s = cookSession, s.recipeID == recipeID {
-            s.stepIndex = max(0, stepIndex)
-            cookSession = s
-        } else {
-            cookSession = CookSession(recipeID: recipeID, stepIndex: max(0, stepIndex))
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            // Moving between steps keeps the session's servings factor and gathered checks.
+            if var s = cookSession, s.recipeID == recipeID {
+                s.stepIndex = max(0, stepIndex)
+                cookSession = s
+            } else {
+                cookSession = CookSession(recipeID: recipeID, stepIndex: max(0, stepIndex))
+            }
         }
     }
     /// Opening Cook Mode from the recipe detail carries the chosen servings factor into the session.
     /// Re-entering the same recipe keeps gathered checks; a different recipe starts fresh.
     func beginCookSession(recipeID: String, factor: Double) {
-        let sig = recipe(recipeID).map(RecipeLogic.ingredientSignature) ?? ""
-        if var s = cookSession, s.recipeID == recipeID {
-            // The active session owns its servings factor: re-entering the same recipe keeps
-            // it; only a genuinely new session adopts the caller's detail selection.
-            if s.ingredientSignature != sig { s.checked = []; s.ingredientSignature = sig }
-            cookSession = s
-        } else {
-            cookSession = CookSession(recipeID: recipeID, stepIndex: 0, factor: factor, ingredientSignature: sig)
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            let sig = recipe(recipeID).map(RecipeLogic.ingredientSignature) ?? ""
+            if var s = cookSession, s.recipeID == recipeID {
+                // The active session owns its servings factor: re-entering the same recipe keeps
+                // it; only a genuinely new session adopts the caller's detail selection.
+                if s.ingredientSignature != sig { s.checked = []; s.ingredientSignature = sig }
+                cookSession = s
+            } else {
+                cookSession = CookSession(recipeID: recipeID, stepIndex: 0, factor: factor, ingredientSignature: sig)
+            }
         }
     }
     func setCookFactor(_ factor: Double) {
-        guard var s = cookSession else { return }
-        s.factor = factor
-        cookSession = s
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            guard var s = cookSession else { return }
+            s.factor = factor
+            cookSession = s
+        }
     }
     func toggleCookIngredientChecked(_ index: Int) {
-        guard var s = cookSession else { return }
-        let sig = recipe(s.recipeID).map(RecipeLogic.ingredientSignature) ?? ""
-        if s.ingredientSignature != sig { s.checked = []; s.ingredientSignature = sig }
-        s.toggleChecked(index)
-        cookSession = s
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            guard var s = cookSession else { return }
+            let sig = recipe(s.recipeID).map(RecipeLogic.ingredientSignature) ?? ""
+            if s.ingredientSignature != sig { s.checked = []; s.ingredientSignature = sig }
+            s.toggleChecked(index)
+            cookSession = s
+        }
     }
     func clearCookSession(recipeID: String? = nil) {
-        guard recipeID == nil || cookSession?.recipeID == recipeID else { return }
-        cookSession = nil
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            guard recipeID == nil || cookSession?.recipeID == recipeID else { return }
+            cookSession = nil
+        }
     }
 
     var recipes: [RecipeCard] = [] {
@@ -353,9 +373,13 @@ final class AppStore {
             // Gathered checks in an active cook session are positional: any write that changes
             // the session recipe's ingredient list (editor, add replace-by-id, sync merge) resets
             // them. Signature-equal writes (title-only edits, reorders) keep them.
-            guard var s = cookSession, let current = recipes.first(where: { $0.id == s.recipeID }) else { return }
-            let sig = RecipeLogic.ingredientSignature(current)
-            if s.ingredientSignature != sig { s.checked = []; s.ingredientSignature = sig; cookSession = s }
+            guard var session = cookSession,
+                  let current = recipes.first(where: { $0.id == session.recipeID }) else { return }
+            let signature = RecipeLogic.ingredientSignature(current)
+            guard session.ingredientSignature != signature else { return }
+            performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+                session.checked = []; session.ingredientSignature = signature; cookSession = session
+            }
         }
     }
     var shopping: [ShoppingItem] = []
@@ -398,7 +422,11 @@ final class AppStore {
     var pendingShoppingCount: Int { shopping.filter { !$0.done }.count }
     /// Library chip-row / sidebar filter, persisted between launches (UI tests start clean).
     var filter: RecipeFilter = AppConfig.isUITesting ? RecipeFilter() : RecipeFilter.load() {
-        didSet { if !AppConfig.isUITesting { filter.save() } }
+        didSet {
+            if !AppConfig.isUITesting {
+                performOrdinaryWrite(Self.ordinaryWriteFailureMessage) { filter.save() }
+            }
+        }
     }
 
     /// Sidebar/tab selection of a collection applies its filter; Library clears it.
@@ -411,21 +439,27 @@ final class AppStore {
     }
 
     /// Delete with a 5-second Undo toast.
-    func deleteWithUndo(_ id: String) {
+    func deleteWithUndo(_ id: String) async {
         guard let r = recipe(id), let idx = recipes.firstIndex(where: { $0.id == id }) else { return }
-        delete(id); Haptics.warning()
+        guard await delete(id) else { return }; Haptics.warning()
         show("Deleted “\(r.title)”", action: "Undo", perform: { [weak self] in
             guard let self else { return }
-            self.recipes.insert(r, at: min(idx, self.recipes.count)); self.persistRecipes()
-            BetaQA.shared.pass("A-EDIT-04", note: "Deleted “\(r.title)” and restored it with Undo")
-            self.toast = nil
+            self.performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+                self.recipes.insert(r, at: min(idx, self.recipes.count)); self.persistRecipes()
+                BetaQA.shared.pass("A-EDIT-04", note: "Deleted “\(r.title)” and restored it with Undo")
+                self.toast = nil
+            }
         }, seconds: 5)
     }
 
     func runToastAction() { let a = toastAction; toastAction = nil; a?() }
 
     var layout: LibraryLayout = AppConfig.isUITesting ? LibraryLayout() : LibraryLayout.load() {
-        didSet { if !AppConfig.isUITesting { layout.save() } }
+        didSet {
+            if !AppConfig.isUITesting {
+                performOrdinaryWrite(Self.ordinaryWriteFailureMessage) { layout.save() }
+            }
+        }
     }
 
     /// Reorder for "My order": `ordered` is the full current display order; moves `id` to `target`'s slot.
@@ -441,44 +475,83 @@ final class AppStore {
         applyOrder(ids)
     }
     private func applyOrder(_ ids: [String]) {
-        for (i, id) in ids.enumerated() {
-            if let k = recipes.firstIndex(where: { $0.id == id }) { recipes[k].sortIndex = Double(i) }
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            for (i, id) in ids.enumerated() {
+                if let k = recipes.firstIndex(where: { $0.id == id }) { recipes[k].sortIndex = Double(i) }
+            }
+            persistRecipes()
+            layout.sort = .myOrder
+            Haptics.step()
         }
-        persistRecipes()
-        layout.sort = .myOrder
-        Haptics.step()
     }
 
     func toggleFavourite(_ id: String) {
-        guard var r = recipe(id) else { return }
-        r.favorite.toggle(); update(r)
-        show(r.favorite ? "Added to Favourites" : "Removed from Favourites")
-        Haptics.toggle()
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            guard var r = recipe(id) else { return }
+            r.favorite.toggle(); update(r)
+            show(r.favorite ? "Added to Favourites" : "Removed from Favourites")
+            Haptics.toggle()
+        }
     }
 
     /// The sheet's history claim is allowed only after the exact day/recipe payload reads back.
     /// Retry uses the retained event date and identity, not the current clock.
     func recordCompletedCook(_ event: CookCompletionEvent) throws {
-        guard recipe(event.recipeID) != nil else { throw CookCompletionOutboxError.session }
-        let history = foodJournalRuntime?.cookingHistory ?? CookingHistory.shared
-        try history.recordVerified(recipeID: event.recipeID, date: event.completedAt, dayKey: event.cookedDayKey)
-        markCooked(event.recipeID, at: event.completedAt)
+        try performOrdinaryWriteThrowing {
+            guard recipe(event.recipeID) != nil else { throw CookCompletionOutboxError.session }
+            let history = foodJournalRuntime?.cookingHistory ?? CookingHistory.shared
+            try history.recordVerified(recipeID: event.recipeID, date: event.completedAt, dayKey: event.cookedDayKey)
+            markCooked(event.recipeID, at: event.completedAt)
+        }
     }
 
     func markCooked(_ id: String, at date: Date = .now) {
-        guard var r = recipe(id) else { return }
-        r.lastCookedAt = (date.timeIntervalSince1970 * 1000).rounded(); update(r)
-        (foodJournalRuntime?.cookingHistory ?? CookingHistory.shared).record(recipeID: id, date: date)
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            guard var r = recipe(id) else { return }
+            r.lastCookedAt = (date.timeIntervalSince1970 * 1000).rounded(); update(r)
+            (foodJournalRuntime?.cookingHistory ?? CookingHistory.shared).record(recipeID: id, date: date)
+        }
     }
 
     /// Picks up the next item queued by the share extension (called when the app becomes active).
     func checkInbox() {
-        guard pendingImport == nil, let item = SharedInbox.pop() else { return }
-        tab = .library; path = []; pendingImport = item
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            guard pendingImport == nil, let item = SharedInbox.pop() else { return }
+            tab = .library; path = []; pendingImport = item
+        }
     }
     var toast: Toast?
-    var settings: AppSettings { didSet { saveDefaults(settings, key: "ate.settings.v1") } }
-    var timerPrefs: TimerPrefs { didSet { saveDefaults(timerPrefs, key: "ate.timerprefs.v1") } }
+    var settings: AppSettings {
+        didSet {
+            performOrdinaryWrite(Self.ordinaryWriteFailureMessage) { saveDefaults(settings, key: "ate.settings.v1") }
+        }
+    }
+    var timerPrefs: TimerPrefs {
+        didSet {
+            performOrdinaryWrite(Self.ordinaryWriteFailureMessage) { saveDefaults(timerPrefs, key: "ate.timerprefs.v1") }
+        }
+    }
+
+    /// Local-only plans use this store's defaults, never sync payloads or Journal rows.
+    var cookPlanStore: CookPlanStore { CookPlanStore(defaults: cookJournalDefaults) }
+    let cookPlanNotifications: CookPlanNotifications
+    private let clearCookPlansOverride: (() throws -> Void)?
+    private func clearCookPlans() throws {
+        if let clearCookPlansOverride { try clearCookPlansOverride() }
+        else { try cookPlanStore.clear() }
+    }
+
+    func refreshCookPlanReminders() async {
+        guard !AppConfig.isUITesting else { return }
+        do { try await cookPlanNotifications.reconcile(plans: cookPlanStore.plans(), recipes: recipes) }
+        catch { show("Cooking reminders could not be updated. Your plans are still saved.", error: true) }
+    }
+
+    func openPendingCookPlanReminder() {
+        guard !showOnboarding, let id = CookPlanNotificationRouter.shared.takePendingRecipeID() else { return }
+        select(.library); cookTarget = nil
+        path = [.recipe(id)]
+    }
 
     var cookTarget: CookTarget?
     let timers = TimerCenter()
@@ -511,6 +584,96 @@ final class AppStore {
         foodJournalRuntime?.goalsRepository ?? nutritionGoalsRepository
     }
 
+    /// Central's consumer binding point (#245): the runtime's cooking history while the
+    /// unified graph is injected; the legacy app-lifetime singleton only before activation.
+    var journalCookingHistory: CookingHistory { foodJournalRuntime?.cookingHistory ?? CookingHistory.shared }
+
+    /// Central binds the composed writer boundary at activation (FoodJournalWriterBoundary
+    /// via JournalWriterBoundaryComposition). While nil, unified account actions keep
+    /// refusing - no ungated wipe or transfer of the unified Journal.
+    @ObservationIgnored var journalWriterEffect: ((() throws -> Void) throws -> Void)?
+    /// Non-mutating re-proof of the same boundary: gate.validateWriter only, NEVER a
+    /// generation-committing empty effect through the archive's nested lease. Central
+    /// binds JournalWriterBoundaryComposition.makeValidator. Required together with
+    /// journalWriterEffect for any wipe.
+    @ObservationIgnored var journalWriterValidator: (() throws -> Void)?
+    /// Unified Settings export, backed by A's UnifiedArchiveCapture service
+    /// (snapshot() plus finish(stillCurrent:) before the bytes are published). The
+    /// archive format and capture discipline are A's; AppStore only routes. While nil,
+    /// the canonical refusal stands.
+    @ObservationIgnored var journalArchiveExport: (() async throws -> Data)?
+    /// Unified Settings import, backed by A's standalone ArchiveStandaloneImportSession.
+    /// While nil, the canonical refusal stands.
+    @ObservationIgnored var journalArchiveImport: ((Data) throws -> DataImportSummary)?
+    /// Central supplies the adoption-preservation directory at composition
+    /// (JournalInstallReconciliation); it joins the unified wipe's erase inventory.
+    @ObservationIgnored var journalResetPreservationDirectory: URL?
+
+    // MARK: ordinary-writer boundary seam (#245, lane 1)
+
+    /// Honest failure copy for ordinary writes refused by the bound writer boundary:
+    /// names the failed action and never claims nothing changed or that a rollback ran.
+    static let ordinaryWriteFailureMessage = "ate couldn't save this change safely. Try again in a moment."
+    static let sessionWriteFailureMessage = "ate couldn't update your sign-in on this iPhone safely. Try again in a moment."
+    static let syncInterruptedMessage = "Sync paused because this iPhone could not finish updating its data safely. Review your recipes, then sync again."
+    static let syncPushedButInterruptedMessage = "Sync reached the server, but this iPhone's data changed before the app could finish. Review your recipes, then sync again."
+
+    /// Action-based read-modify-writes enter the boundary before mutating. The public
+    /// SwiftUI-bound settings, timerPrefs, filter, layout and cookSession properties are
+    /// intentionally memory-first edits: didSet gates persistence only, after the value is
+    /// visible in this process. Refused persistence leaves that in-memory edit visible and
+    /// reports a save error; it does not promise rollback, durability or unchanged memory.
+    /// A later edit can retry persistence; relaunch reads the last durable value.
+    /// While the boundary is unbound (#245 dormant), work runs exactly as before.
+    /// A refusal surfaces an honest failure; it never claims unchanged state or a rollback
+    /// (the effect may have partially run before throwing). The boundary is
+    /// reentrant (NSRecursiveLock + active effect), so callers nested inside an outer effect
+    /// (didSet observers, persist helpers, B's account actions) do not re-lock or stamp a
+    /// second archive generation.
+    @discardableResult
+    private func performOrdinaryWrite<T>(_ failureMessage: String, _ work: () -> T) -> T? {
+        guard let effect = journalWriterEffect else { return work() }
+        var performed = false
+        var result: T?
+        do {
+            try effect { performed = true; result = work() }
+        } catch {
+            show(failureMessage, error: true)
+            return nil
+        }
+        guard performed else { show(failureMessage, error: true); return nil }
+        return result
+    }
+
+    /// Throwing form for writers that already report failure through `throws`
+    /// (cook-completion prepare/clear, completed-cook recording, legacy import, sync publish).
+    private func performOrdinaryWriteThrowing<T>(_ work: () throws -> T) throws -> T {
+        guard let effect = journalWriterEffect else { return try work() }
+        var performed = false
+        var result: T?
+        try effect { performed = true; result = try work() }
+        guard performed, let result else { throw OrdinaryWriteSeamError.effectNotPerformed }
+        return result
+    }
+
+    /// Post-await publish guard for async flows (sync, auth callbacks, sign-out,
+    /// delete-account). The boundary is NEVER held across an await: the flow captures the
+    /// session before suspending and, after the await, re-proves that the current session is
+    /// still the captured one and that the bound boundary still validates
+    /// (journalWriterValidator only - validation, never a generation-committing empty effect).
+    /// Inert while the boundary is unbound, so the dormant legacy graph keeps today's behavior.
+    private func validatePostAwaitPublish(capturedSession: AuthSession?) -> Bool {
+        if journalWriterEffect == nil && journalWriterValidator == nil { return true }
+        guard journalWriterEffect != nil, let validate = journalWriterValidator else { return false }
+        guard session == capturedSession else { return false }
+        do { try validate() } catch { return false }
+        return true
+    }
+
+    /// The bound effect returned without performing the write and without throwing - a
+    /// boundary contract violation surfaced as an ordinary failure, never a crash.
+    private enum OrdinaryWriteSeamError: Error { case effectNotPerformed }
+
     /// Shortcuts must use the live app composition, not open a second singleton owner.
     /// Background execution without that composition fails visibly until the app is open.
     static func journalStoreForIntent() throws -> JournalStore {
@@ -534,15 +697,25 @@ final class AppStore {
     init(context: ModelContext?, backend: BackendService = AppConfig.makeBackend(),
          nutritionDiaryRepository: NutritionDiaryRepository = NutritionDiaryRepository(),
          nutritionGoalsRepository: NutritionGoalsRepository = NutritionGoalsRepository(),
-         foodJournalRuntime: FoodJournalRuntime? = nil) {
+         foodJournalRuntime: FoodJournalRuntime? = nil,
+         journalWriterEffect: ((() throws -> Void) throws -> Void)? = nil,
+         journalWriterValidator: (() throws -> Void)? = nil,
+         injectedAuth: AuthService? = nil, injectedSync: SyncService? = nil,
+         cookPlanNotifications: CookPlanNotifications? = nil,
+         clearCookPlans: (() throws -> Void)? = nil,
+         authOverride: AuthService? = nil, syncOverride: SyncService? = nil) {
+        self.cookPlanNotifications = cookPlanNotifications ?? CookPlanNotifications()
+        self.clearCookPlansOverride = clearCookPlans
         self.context = context
         self.foodJournalRuntime = foodJournalRuntime
+        // The ordinary-writer boundary is bound BEFORE load() and any launch normalization
+        // writes; setting it as a property only after construction would leave the first
+        // writes ungated.
+        self.journalWriterEffect = journalWriterEffect
+        self.journalWriterValidator = journalWriterValidator
         self.backend = backend
         self.nutritionDiaryRepository = nutritionDiaryRepository
         self.nutritionGoalsRepository = nutritionGoalsRepository
-        if !AppConfig.isUITesting {
-            cookSession = Self.loadCookSession(defaults: foodJournalRuntime?.defaults ?? .standard)
-        }
         // UI tests opt into a clean local cooking timeline per test launch so one test's
         // completed recipe cannot make another test's empty-history assertions flaky.
         if ProcessInfo.processInfo.arguments.contains("-qaResetCookingHistory") {
@@ -554,7 +727,12 @@ final class AppStore {
             ProcessInfo.processInfo.arguments.contains("-qaResetInsightLifecycle") {
             InsightLifecycleStore.clearAll()
         }
-        if AppConfig.isUITesting {
+        // New injected names win; retain CookPlan's existing test call-site aliases.
+        if let injectedAuth = injectedAuth ?? authOverride {
+            // Test/focused-graph injection: an explicit auth service carries its sync service
+            // with it and skips the environment-based construction below.
+            auth = injectedAuth; sync = injectedSync ?? syncOverride
+        } else if AppConfig.isUITesting {
             auth = MockAuth(); sync = MockSync()
         } else if let url = AppConfig.supabaseURL, !AppConfig.supabasePublishableKey.isEmpty {
             auth = SupabaseAuth(baseURL: url, key: AppConfig.supabasePublishableKey)
@@ -575,6 +753,12 @@ final class AppStore {
         syncState = session == nil ? .signedOut : .idle
         showOnboarding = AppConfig.isUITesting ? ProcessInfo.processInfo.arguments.contains("-showOnboarding")
                                                : !UserDefaults.standard.bool(forKey: Self.onboardedKey)
+        // The launch cook-session load is gated like every other ordinary write (older
+        // snapshots are re-saved with an assigned identity by the loader). It runs late in
+        // init so the bound boundary and every stored property are fully initialized.
+        if !AppConfig.isUITesting {
+            loadPersistedCookSession()
+        }
         load()
         // UI tests opt into an empty shopping list per test launch so one journey's items
         // cannot leak into the next test's assertions (same rationale as -qaResetCookingHistory).
@@ -598,51 +782,93 @@ final class AppStore {
         if !AppConfig.isUITesting { AteShortcuts.updateAppShortcutParameters() }
     }
 
+    /// Launch load of the persisted cook session, gated like every other ordinary write
+    /// (older snapshots are re-saved with an assigned identity by the loader).
+    func loadPersistedCookSession(defaults suppliedDefaults: UserDefaults? = nil) {
+        let defaults = suppliedDefaults ?? foodJournalRuntime?.defaults ?? .standard
+        if journalWriterEffect == nil {
+            // Preserve the dormant production graph's established load/save behavior.
+            cookSession = Self.loadCookSession(defaults: defaults)
+            return
+        }
+        guard let raw = defaults.data(forKey: Self.cookSessionDefaultsKey),
+              let decoded = try? JSONDecoder().decode(CookSession.self, from: raw) else { return }
+        let fields = (try? JSONSerialization.jsonObject(with: raw)) as? [String: Any]
+        if fields?["sessionID"] is String {
+            // Existing identity: memory-only adoption is not a committed write.
+            adoptingPersistedCookSession = true
+            defer { adoptingPersistedCookSession = false }
+            cookSession = decoded
+        } else {
+            // Persist the identity assigned by the legacy decoder exactly once.
+            performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+                guard defaults.data(forKey: Self.cookSessionDefaultsKey) == raw else { return }
+                Self.saveCookSession(decoded, defaults: defaults)
+                adoptingPersistedCookSession = true
+                defer { adoptingPersistedCookSession = false }
+                cookSession = decoded
+            }
+        }
+    }
+
     // MARK: persistence
     private func load() {
         guard let context else { return }
         let dec = JSONDecoder()
-        let r = (try? context.fetch(FetchDescriptor<RecipeEntity>(sortBy: [SortDescriptor(\.position)]))) ?? []
-        let loaded = r.compactMap { try? dec.decode(RecipeCard.self, from: $0.json) }
-        // Repairs saved recipes: blank steps, implausible times (flagged), duplicate saves (P0, build 81).
-        let dd = RecipeLogic.dedupe(loaded.map(RecipeLogic.normalize))
-        recipes = dd.cards
-        if recipes != loaded {
-            let t = nowMs(), before = Dictionary(loaded.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-            for c in recipes where before[c.id] != c { meta.recipeStamps[c.id] = t }          // repaired copies sync up
-            for id in dd.removedIDs where !recipes.contains(where: { $0.id == id }) { meta.recipeTombs[id] = t; meta.recipeStamps[id] = nil }
-            saveDefaults(meta, key: "ate.sync.v1")
-            persistRecipes(stamp: false)
+        let rows = (try? context.fetch(FetchDescriptor<RecipeEntity>(sortBy: [SortDescriptor(\.position)]))) ?? []
+        let loaded = rows.compactMap { try? dec.decode(RecipeCard.self, from: $0.json) }
+        let repaired = RecipeLogic.dedupe(loaded.map(RecipeLogic.normalize))
+        if repaired.cards == loaded {
+            // No durable repair is needed. Read-only loading is not a committed unit.
+            recipes = loaded
+        } else {
+            performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+                recipes = repaired.cards
+                let stamp = nowMs()
+                let before = Dictionary(loaded.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                for card in recipes where before[card.id] != card { meta.recipeStamps[card.id] = stamp }
+                for id in repaired.removedIDs where !recipes.contains(where: { $0.id == id }) {
+                    meta.recipeTombs[id] = stamp; meta.recipeStamps[id] = nil
+                }
+                saveDefaults(meta, key: "ate.sync.v1")
+                persistRecipes(stamp: false)
+            }
         }
-        let s = (try? context.fetch(FetchDescriptor<ShoppingEntity>(sortBy: [SortDescriptor(\.position)]))) ?? []
-        shopping = s.compactMap { try? dec.decode(ShoppingItem.self, from: $0.json) }
+        let shoppingRows = (try? context.fetch(FetchDescriptor<ShoppingEntity>(sortBy: [SortDescriptor(\.position)]))) ?? []
+        shopping = shoppingRows.compactMap { try? dec.decode(ShoppingItem.self, from: $0.json) }
     }
 
-    private func persistRecipes(stamp: Bool = true) {
-        BetaQA.shared.recipeCountChanged(recipes.count)
-        if stamp { stampChanges() }
-        WidgetBridge.publish(self)
-        // Recipe names/synonyms feed the "Cook <recipe> in ate" phrases.
-        if !AppConfig.isUITesting { AteShortcuts.updateAppShortcutParameters() }
-        guard let context else { return }
-        try? context.delete(model: RecipeEntity.self)
-        let enc = JSONEncoder()
-        for (i, c) in recipes.enumerated() {
-            if let d = try? enc.encode(c) { context.insert(RecipeEntity(id: c.id, createdAt: c.createdAt, position: i, json: d)) }
+    // Internal (not private) for AppStore+JournalAccountActions, the unified account-action binding.
+    func persistRecipes(stamp: Bool = true) {
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            BetaQA.shared.recipeCountChanged(recipes.count)
+            if stamp { stampChanges() }
+            WidgetBridge.publish(self)
+            // Recipe names/synonyms feed the "Cook <recipe> in ate" phrases.
+            if !AppConfig.isUITesting { AteShortcuts.updateAppShortcutParameters() }
+            guard let context else { return }
+            try? context.delete(model: RecipeEntity.self)
+            let enc = JSONEncoder()
+            for (i, c) in recipes.enumerated() {
+                if let d = try? enc.encode(c) { context.insert(RecipeEntity(id: c.id, createdAt: c.createdAt, position: i, json: d)) }
+            }
+            StoreSaver.save(context, what: "recipes")
         }
-        StoreSaver.save(context, what: "recipes")
     }
 
-    private func persistShopping(stamp: Bool = true) {
-        if stamp { stampChanges() }
-        WidgetBridge.publish(self)
-        guard let context else { return }
-        try? context.delete(model: ShoppingEntity.self)
-        let enc = JSONEncoder()
-        for (i, it) in shopping.enumerated() {
-            if let d = try? enc.encode(it) { context.insert(ShoppingEntity(id: it.id, position: i, json: d)) }
+    // Internal (not private) for AppStore+JournalAccountActions.
+    func persistShopping(stamp: Bool = true) {
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            if stamp { stampChanges() }
+            WidgetBridge.publish(self)
+            guard let context else { return }
+            try? context.delete(model: ShoppingEntity.self)
+            let enc = JSONEncoder()
+            for (i, it) in shopping.enumerated() {
+                if let d = try? enc.encode(it) { context.insert(ShoppingEntity(id: it.id, position: i, json: d)) }
+            }
+            StoreSaver.save(context, what: "shopping list")
         }
-        StoreSaver.save(context, what: "shopping list")
     }
 
     private func saveDefaults<T: Encodable>(_ v: T, key: String) {
@@ -671,106 +897,158 @@ final class AppStore {
 
     /// Idempotent: saving the same draft id again (restored draft, double tap) replaces instead of copying.
     func add(_ card: RecipeCard) {
-        let c = RecipeLogic.normalize(card)
-        if let i = recipes.firstIndex(where: { $0.id == c.id }) { recipes[i] = c } else { recipes.insert(c, at: 0) }
-        DraftStore.shared.clear()
-        persistRecipes()
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            let c = RecipeLogic.normalize(card)
+            if let i = recipes.firstIndex(where: { $0.id == c.id }) { recipes[i] = c } else { recipes.insert(c, at: 0) }
+            DraftStore.shared.clear()
+            persistRecipes()
+        }
     }
 
     func update(_ card: RecipeCard) {
-        guard let i = recipes.firstIndex(where: { $0.id == card.id }) else { return }
-        recipes[i] = RecipeLogic.normalize(card)
-        persistRecipes()
-        BetaQA.shared.pass("A-EDIT-03", note: "Edited “\(card.title)” without a crash")
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            guard let i = recipes.firstIndex(where: { $0.id == card.id }) else { return }
+            recipes[i] = RecipeLogic.normalize(card)
+            persistRecipes()
+            BetaQA.shared.pass("A-EDIT-03", note: "Edited “\(card.title)” without a crash")
+        }
     }
 
     /// Cover changed (file and/or remote URL). Not an "edit" for QA purposes.
     func setCover(_ id: String, file: String?, imageURL: String?, keepURL: Bool = true) {
-        guard let i = recipes.firstIndex(where: { $0.id == id }) else { return }
-        recipes[i].coverImage = file
-        if let imageURL { recipes[i].imageURL = imageURL } else if !keepURL { recipes[i].imageURL = nil }
-        persistRecipes()
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            guard let i = recipes.firstIndex(where: { $0.id == id }) else { return }
+            recipes[i].coverImage = file
+            if let imageURL { recipes[i].imageURL = imageURL } else if !keepURL { recipes[i].imageURL = nil }
+            persistRecipes()
+        }
     }
 
-    func delete(_ id: String) {
-        CoverStore.shared.removeFiles(recipeID: id)
-        recipes.removeAll { $0.id == id }
-        persistRecipes()
+    @discardableResult
+    func delete(_ id: String) async -> Bool {
+        let capturedSession = session
+        do {
+            try performOrdinaryWriteThrowing { try cookPlanStore.cancel(recipeID: id) }
+            try await cookPlanNotifications.cancel(recipeID: id)
+            guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                show("Recipe cleanup paused because this iPhone's data changed. Review the recipe and try again.", error: true)
+                return false
+            }
+            try performOrdinaryWriteThrowing {
+                CoverStore.shared.removeFiles(recipeID: id)
+                recipes.removeAll { $0.id == id }
+                persistRecipes()
+            }
+            return true
+        } catch {
+            show("Recipe cleanup could not be verified. Review the recipe and try again.", error: true)
+            return false
+        }
     }
 
     /// New cooking context and retained drafts must not survive an explicit local-data wipe.
-    private func clearCookCompletionContext() {
-        for key in cookJournalDefaults.dictionaryRepresentation().keys
-            where key == CookCompletionOutbox.defaultsKey || key.hasPrefix(CookCompletionOutbox.unreadableKeyPrefix) || key == CookReflectionOfferPolicy.defaultsKey {
-            cookJournalDefaults.removeObject(forKey: key)
+    // Internal (not private) for AppStore+JournalAccountActions.
+    func clearCookCompletionContext() {
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            for key in cookJournalDefaults.dictionaryRepresentation().keys
+                where key == CookCompletionOutbox.defaultsKey || key.hasPrefix(CookCompletionOutbox.unreadableKeyPrefix) || key == CookReflectionOfferPolicy.defaultsKey {
+                cookJournalDefaults.removeObject(forKey: key)
+            }
+            cookedReflectionSessions.removeAll()
+            cookedReflectionPendingID = nil
+            cookedReflectionPresentedID = nil
+            clearCookSession()
         }
-        cookedReflectionSessions.removeAll()
-        cookedReflectionPendingID = nil
-        cookedReflectionPresentedID = nil
-        clearCookSession()
     }
 
-    func clearLibrary() {
-        guard foodJournalRuntime == nil else { show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return }
-        clearCookCompletionContext()
-        recipes = []; CookingHistory.shared.clear()
-        path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
-        persistRecipes()
+    @discardableResult
+    func clearLibrary() async -> Bool {
+        if foodJournalRuntime != nil && (journalWriterEffect == nil || journalWriterValidator == nil) {
+            show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return false
+        }
+        let capturedSession = session
+        do { try await removeCookPlansBeforeErase(capturedSession: capturedSession) }
+        catch { show("Cooking plan cleanup could not be verified. Other local data was kept. Try again.", error: true); return false }
+        if foodJournalRuntime != nil { return clearLibraryUnified() }
+        do {
+            try performOrdinaryWriteThrowing {
+                clearCookCompletionContext()
+                recipes = []; CookingHistory.shared.clear()
+                path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
+                persistRecipes()
+            }
+            return true
+        } catch { show(Self.ordinaryWriteFailureMessage, error: true); return false }
+    }
+
+    /// Await notification cleanup outside any writer lease, then re-prove ownership
+    /// before the synchronous local erase. Both legacy and unified callers use this.
+    private func removeCookPlansBeforeErase(capturedSession: AuthSession?) async throws {
+        guard validatePostAwaitPublish(capturedSession: capturedSession) else { throw OrdinaryWriteSeamError.effectNotPerformed }
+        try performOrdinaryWriteThrowing { try clearCookPlans() }
+        try await cookPlanNotifications.cancelAll()
+        guard validatePostAwaitPublish(capturedSession: capturedSession) else { throw OrdinaryWriteSeamError.effectNotPerformed }
     }
 
     func importJSON(_ data: Data) throws -> DataImportSummary {
-        guard foodJournalRuntime == nil else { throw CanonicalConsumerBindingError.archiveBindingRequired }
-        let decoder = JSONDecoder()
-        if let legacyCards = try? decoder.decode([RecipeCard].self, from: data) {
-            let result = importRecipesPreservingExisting(legacyCards)
-            recipes = result.result.map(RecipeLogic.normalize)
+        // Unified graph: import routes whole-file to A's standalone import session.
+        if foodJournalRuntime != nil { return try importJSONUnified(data) }
+        return try performOrdinaryWriteThrowing {
+            let decoder = JSONDecoder()
+            if let legacyCards = try? decoder.decode([RecipeCard].self, from: data) {
+                let result = importRecipesPreservingExisting(legacyCards)
+                recipes = result.result.map(RecipeLogic.normalize)
+                persistRecipes()
+                return DataImportSummary(recipesAdded: result.added)
+            }
+
+            let archive = try decoder.decode(AteDataArchive.self, from: data)
+            guard archive.format == AteDataArchive.formatName else { throw AteDataArchiveError.unsupportedFormat }
+            guard archive.version == AteDataArchive.currentVersion else {
+                throw AteDataArchiveError.unsupportedVersion(archive.version)
+            }
+            guard archive.nutritionDiaryEntries.allSatisfy(NutritionDiaryValidation.isValid) else {
+                throw AteDataArchiveError.invalidNutritionEntry
+            }
+            // An unreadable local diary must never be overwritten by imported data:
+            // refuse the whole import before any archive-backed store is written.
+            if case .corrupt = nutritionDiaryRepository.loadState() { throw AteDataArchiveError.localDiaryUnreadable }
+
+            let recipeResult = importRecipesPreservingExisting(archive.recipes)
+            var shoppingIDs = Set(shopping.map(\.id))
+            let newShoppingItems = archive.shoppingItems.filter { shoppingIDs.insert($0.id).inserted }
+            var diaryIDs = Set(nutritionDiaryRepository.load().map(\.id))
+            let newDiaryEntries = archive.nutritionDiaryEntries.filter { diaryIDs.insert($0.id).inserted }
+
+            // Prepare the only encoding that can fail before writing either archive-backed store.
+            // Goals storage is the fallible commit; diary data is committed only after it succeeds.
+            let preparedDiary = try nutritionDiaryRepository.prepare(nutritionDiaryRepository.load() + newDiaryEntries)
+            try nutritionGoalsRepository.save(archive.nutritionGoals)
+            nutritionDiaryRepository.savePrepared(preparedDiary)
+            recipes = recipeResult.result.map(RecipeLogic.normalize)
+            shopping.append(contentsOf: newShoppingItems)
+            settings = archive.appSettings
+            timerPrefs = archive.timerPreferences
             persistRecipes()
-            return DataImportSummary(recipesAdded: result.added)
+            persistShopping()
+            return DataImportSummary(recipesAdded: recipeResult.added, shoppingItemsAdded: newShoppingItems.count,
+                                     nutritionEntriesAdded: newDiaryEntries.count)
         }
-
-        let archive = try decoder.decode(AteDataArchive.self, from: data)
-        guard archive.format == AteDataArchive.formatName else { throw AteDataArchiveError.unsupportedFormat }
-        guard archive.version == AteDataArchive.currentVersion else {
-            throw AteDataArchiveError.unsupportedVersion(archive.version)
-        }
-        guard archive.nutritionDiaryEntries.allSatisfy(NutritionDiaryValidation.isValid) else {
-            throw AteDataArchiveError.invalidNutritionEntry
-        }
-        // An unreadable local diary must never be overwritten by imported data:
-        // refuse the whole import before any archive-backed store is written.
-        if case .corrupt = nutritionDiaryRepository.loadState() { throw AteDataArchiveError.localDiaryUnreadable }
-
-        let recipeResult = importRecipesPreservingExisting(archive.recipes)
-        var shoppingIDs = Set(shopping.map(\.id))
-        let newShoppingItems = archive.shoppingItems.filter { shoppingIDs.insert($0.id).inserted }
-        var diaryIDs = Set(nutritionDiaryRepository.load().map(\.id))
-        let newDiaryEntries = archive.nutritionDiaryEntries.filter { diaryIDs.insert($0.id).inserted }
-
-        // Prepare the only encoding that can fail before writing either archive-backed store.
-        // Goals storage is the fallible commit; diary data is committed only after it succeeds.
-        let preparedDiary = try nutritionDiaryRepository.prepare(nutritionDiaryRepository.load() + newDiaryEntries)
-        try nutritionGoalsRepository.save(archive.nutritionGoals)
-        nutritionDiaryRepository.savePrepared(preparedDiary)
-        recipes = recipeResult.result.map(RecipeLogic.normalize)
-        shopping.append(contentsOf: newShoppingItems)
-        settings = archive.appSettings
-        timerPrefs = archive.timerPreferences
-        persistRecipes()
-        persistShopping()
-        return DataImportSummary(recipesAdded: recipeResult.added, shoppingItemsAdded: newShoppingItems.count,
-                                 nutritionEntriesAdded: newDiaryEntries.count)
     }
 
     /// Imports are additive. A matching ID on this device wins so an older archive
     /// cannot silently replace a newer local recipe.
-    private func importRecipesPreservingExisting(_ incoming: [RecipeCard]) -> (result: [RecipeCard], added: Int) {
+    // Internal (not private) for AppStore+JournalAccountActions.
+    func importRecipesPreservingExisting(_ incoming: [RecipeCard]) -> (result: [RecipeCard], added: Int) {
         var seenIDs = Set(recipes.map(\.id))
         let newCards = incoming.filter { seenIDs.insert($0.id).inserted }
         return RecipeLogic.importCards(newCards, into: recipes)
     }
 
     func exportJSON() throws -> Data {
-        guard foodJournalRuntime == nil else { throw CanonicalConsumerBindingError.archiveBindingRequired }
+        // Unified graph: sync export refuses unconditionally; the canonical export is
+        // the async exportUserData() through A's capture service - never a local v1 fallback.
+        if foodJournalRuntime != nil { return try exportJSONUnified() }
         // An unreadable local diary must not be exported as an ordinary empty diary:
         // fail visibly instead of producing an archive that claims nothing was logged.
         if case .corrupt = nutritionDiaryRepository.loadState() { throw AteDataArchiveError.localDiaryUnreadableOnExport }
@@ -795,41 +1073,51 @@ final class AppStore {
 
     // MARK: shopping
     func addToShopping(_ card: RecipeCard, factor: Double) {
-        shopping = ShoppingLogic.merge(RecipeLogic.scaled(card, factor: factor).ingredients, source: card.title, into: shopping)
-        persistShopping()
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            shopping = ShoppingLogic.merge(RecipeLogic.scaled(card, factor: factor).ingredients, source: card.title, into: shopping)
+            persistShopping()
+        }
     }
     func addManual(_ name: String) {
-        let n = name.trimmingCharacters(in: .whitespaces)
-        guard !n.isEmpty else { return }
-        shopping.append(ShoppingItem(name: n, quantity: 0, unit: "", aisle: ShoppingLogic.guessAisle(n)))
-        persistShopping()
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            let n = name.trimmingCharacters(in: .whitespaces)
+            guard !n.isEmpty else { return }
+            shopping.append(ShoppingItem(name: n, quantity: 0, unit: "", aisle: ShoppingLogic.guessAisle(n)))
+            persistShopping()
+        }
     }
     func toggle(_ id: String) {
-        guard let i = shopping.firstIndex(where: { $0.id == id }) else { return }
-        shopping[i].done.toggle(); persistShopping()
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            guard let i = shopping.firstIndex(where: { $0.id == id }) else { return }
+            shopping[i].done.toggle(); persistShopping()
+        }
     }
     /// Widget checkbox (idempotent: carries the wanted state, not a toggle).
     func setShoppingDone(_ id: String, _ done: Bool) {
-        guard let i = shopping.firstIndex(where: { $0.id == id }), shopping[i].done != done else { return }
-        shopping[i].done = done; persistShopping()
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            guard let i = shopping.firstIndex(where: { $0.id == id }), shopping[i].done != done else { return }
+            shopping[i].done = done; persistShopping()
+        }
     }
     /// Update in place so completion, recipe sources, notes, unit and the stable item identity survive.
     /// The aisle is re-derived only when the name actually changed; a quantity-only edit keeps it.
     /// Setting the quantity to 0 ("no amount") also clears the unit so no dangling unit renders.
     @discardableResult func editShoppingItem(_ id: String, name: String, quantity: Double) -> Bool {
-        guard let trimmed = ShoppingEdit.trimmedName(name), quantity.isFinite, quantity >= 0,
-              let index = shopping.firstIndex(where: { $0.id == id }) else { return false }
-        if shopping[index].name != trimmed {
-            shopping[index].name = trimmed
-            shopping[index].aisle = ShoppingLogic.guessAisle(trimmed)
-        }
-        if quantity == 0 {
-            // "No amount" keeps no dangling unit, or the row would render "l Milk".
-            shopping[index].unit = ""
-        }
-        shopping[index].quantity = quantity
-        persistShopping()
-        return true
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            guard let trimmed = ShoppingEdit.trimmedName(name), quantity.isFinite, quantity >= 0,
+                  let index = shopping.firstIndex(where: { $0.id == id }) else { return false }
+            if shopping[index].name != trimmed {
+                shopping[index].name = trimmed
+                shopping[index].aisle = ShoppingLogic.guessAisle(trimmed)
+            }
+            if quantity == 0 {
+                // "No amount" keeps no dangling unit, or the row would render "l Milk".
+                shopping[index].unit = ""
+            }
+            shopping[index].quantity = quantity
+            persistShopping()
+            return true
+        } ?? false
     }
 
     private struct PendingShoppingRemoval {
@@ -861,20 +1149,22 @@ final class AppStore {
     /// as text") shown during the window replaces the Undo affordance; the batch still
     /// finalizes on schedule. Full recovery would need a toast queue - not claimed here.
     func removeShoppingItemWithUndo(_ id: String) {
-        guard let index = shopping.firstIndex(where: { $0.id == id }) else { return }
-        let item = shopping[index]
-        pendingShoppingRemovals.append(PendingShoppingRemoval(item: item, index: index, owner: insightLifecycleAccountID))
-        removeItem(id)
-        let count = pendingShoppingRemovals.count
-        shoppingUndoToken &+= 1
-        let token = shoppingUndoToken
-        show(count == 1 ? "Removed “\(item.name)”" : "Removed \(count) items",
-             action: "Undo", perform: { [weak self] in self?.undoShoppingRemovals() },
-             seconds: Self.shoppingUndoSeconds)
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(Self.shoppingUndoSeconds * 1_000_000_000))
-            guard let self, self.shoppingUndoToken == token else { return }
-            self.finalizeShoppingUndo()
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            guard let index = shopping.firstIndex(where: { $0.id == id }) else { return }
+            let item = shopping[index]
+            pendingShoppingRemovals.append(PendingShoppingRemoval(item: item, index: index, owner: insightLifecycleAccountID))
+            removeItem(id)
+            let count = pendingShoppingRemovals.count
+            shoppingUndoToken &+= 1
+            let token = shoppingUndoToken
+            show(count == 1 ? "Removed “\(item.name)”" : "Removed \(count) items",
+                 action: "Undo", perform: { [weak self] in self?.undoShoppingRemovals() },
+                 seconds: Self.shoppingUndoSeconds)
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(Self.shoppingUndoSeconds * 1_000_000_000))
+                guard let self, self.shoppingUndoToken == token else { return }
+                self.finalizeShoppingUndo()
+            }
         }
     }
 
@@ -886,79 +1176,99 @@ final class AppStore {
     /// original positions exactly. (Ascending-index insertion misplaces items whose index had
     /// already shifted under earlier removals in the same batch.)
     func undoShoppingRemovals() {
-        let batch = pendingShoppingRemovals
-        pendingShoppingRemovals = []
-        shoppingUndoToken &+= 1
-        toast = nil
-        guard !batch.isEmpty else { return }
-        var blockedByAccountChange = false
-        for pending in batch.reversed() {
-            guard pending.owner == insightLifecycleAccountID else { blockedByAccountChange = true; continue }
-            guard !shopping.contains(where: { $0.id == pending.item.id }) else { continue }
-            shopping.insert(pending.item, at: min(pending.index, shopping.count))
-        }
-        persistShopping()
-        if blockedByAccountChange {
-            show("Couldn’t restore — your account changed since removal.", error: true)
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            let batch = pendingShoppingRemovals
+            pendingShoppingRemovals = []
+            shoppingUndoToken &+= 1
+            toast = nil
+            guard !batch.isEmpty else { return }
+            var blockedByAccountChange = false
+            for pending in batch.reversed() {
+                guard pending.owner == insightLifecycleAccountID else { blockedByAccountChange = true; continue }
+                guard !shopping.contains(where: { $0.id == pending.item.id }) else { continue }
+                shopping.insert(pending.item, at: min(pending.index, shopping.count))
+            }
+            persistShopping()
+            if blockedByAccountChange {
+                show("Couldn’t restore — your account changed since removal.", error: true)
+            }
         }
     }
 
     /// The Undo window closed without Undo (toast timer, or a test): removals become permanent.
     func finalizeShoppingUndo() {
-        pendingShoppingRemovals = []
-        shoppingUndoToken &+= 1
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            pendingShoppingRemovals = []
+            shoppingUndoToken &+= 1
+        }
     }
 
-    func removeItem(_ id: String) { shopping.removeAll { $0.id == id }; persistShopping() }
-    func clearTicked() { shopping.removeAll { $0.done }; persistShopping() }
+    func removeItem(_ id: String) {
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            shopping.removeAll { $0.id == id }; persistShopping()
+        }
+    }
+    func clearTicked() {
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            shopping.removeAll { $0.done }; persistShopping()
+        }
+    }
     /// One tap puts every bought item back on the to-buy list. The toast offers Undo, which
     /// re-marks exactly the items that were moved and leaves anything added, edited or removed
     /// since untouched. Item ids can match across synced accounts, so Undo only acts for the
     /// account that moved them (same rule as the removal Undo). Returns how many items moved.
     @discardableResult func moveBoughtBackToList() -> Int {
-        let ids = shopping.filter(\.done).map(\.id)
-        guard !ids.isEmpty else { return 0 }
-        let owner = insightLifecycleAccountID
-        for i in shopping.indices where shopping[i].done { shopping[i].done = false }
-        persistShopping()
-        show(ids.count == 1 ? "1 item back on the list" : "\(ids.count) items back on the list",
-             action: "Undo", perform: { [weak self] in self?.markBought(ids, owner: owner) },
-             seconds: Self.shoppingUndoSeconds)
-        return ids.count
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            let ids = shopping.filter(\.done).map(\.id)
+            guard !ids.isEmpty else { return 0 }
+            let owner = insightLifecycleAccountID
+            for i in shopping.indices where shopping[i].done { shopping[i].done = false }
+            persistShopping()
+            show(ids.count == 1 ? "1 item back on the list" : "\(ids.count) items back on the list",
+                 action: "Undo", perform: { [weak self] in self?.markBought(ids, owner: owner) },
+                 seconds: Self.shoppingUndoSeconds)
+            return ids.count
+        } ?? 0
     }
     private func markBought(_ ids: [String], owner: String?) {
-        guard owner == insightLifecycleAccountID else {
-            show("Couldn't undo - your account changed since the items were moved back.", error: true)
-            return
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            guard owner == insightLifecycleAccountID else {
+                show("Couldn't undo - your account changed since the items were moved back.", error: true)
+                return
+            }
+            let wanted = Set(ids)
+            var changed = false
+            for i in shopping.indices where wanted.contains(shopping[i].id) && !shopping[i].done {
+                shopping[i].done = true; changed = true
+            }
+            if changed { persistShopping() }
         }
-        let wanted = Set(ids)
-        var changed = false
-        for i in shopping.indices where wanted.contains(shopping[i].id) && !shopping[i].done {
-            shopping[i].done = true; changed = true
-        }
-        if changed { persistShopping() }
     }
     func clearShopping() {
         // Clearing shopping data must not reset navigation in unrelated tabs.
-        shopping = []
-        persistShopping()
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            shopping = []
+            persistShopping()
+        }
     }
 
     // MARK: sync bookkeeping (last-write-wins)
     private func nowMs() -> Double { (Date().timeIntervalSince1970 * 1000).rounded() }
 
     private func stampChanges() {
-        let t = nowMs()
-        var changed = false
-        let rNow = Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        for (id, c) in rNow where recipeSnapshot[id] != c { meta.recipeStamps[id] = t; meta.recipeTombs[id] = nil; changed = true }
-        for id in recipeSnapshot.keys where rNow[id] == nil { meta.recipeTombs[id] = t; meta.recipeStamps[id] = nil; changed = true }
-        recipeSnapshot = rNow
-        let sNow = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        for (id, it) in sNow where shopSnapshot[id] != it { meta.shopStamps[id] = t; meta.shopTombs[id] = nil; changed = true }
-        for id in shopSnapshot.keys where sNow[id] == nil { meta.shopTombs[id] = t; meta.shopStamps[id] = nil; changed = true }
-        shopSnapshot = sNow
-        if changed { saveDefaults(meta, key: "ate.sync.v1"); scheduleSync() }
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            let t = nowMs()
+            var changed = false
+            let rNow = Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            for (id, c) in rNow where recipeSnapshot[id] != c { meta.recipeStamps[id] = t; meta.recipeTombs[id] = nil; changed = true }
+            for id in recipeSnapshot.keys where rNow[id] == nil { meta.recipeTombs[id] = t; meta.recipeStamps[id] = nil; changed = true }
+            recipeSnapshot = rNow
+            let sNow = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            for (id, it) in sNow where shopSnapshot[id] != it { meta.shopStamps[id] = t; meta.shopTombs[id] = nil; changed = true }
+            for id in shopSnapshot.keys where sNow[id] == nil { meta.shopTombs[id] = t; meta.shopStamps[id] = nil; changed = true }
+            shopSnapshot = sNow
+            if changed { saveDefaults(meta, key: "ate.sync.v1"); scheduleSync() }
+        }
     }
 
     func scheduleSync(delay: Double = 1.5) {
@@ -991,64 +1301,115 @@ final class AppStore {
         // the previous account's local library must never remain visible under the new session.
         let switchingAccounts = SyncMerge.isAccountSwitch(lastSyncedUser: meta.userID, newUser: s.userID)
         var accountSwitchPullSucceeded = false
+        // The writer boundary is never held across an await: capture the session before
+        // suspending and re-prove session + epoch after each await, before publishing.
+        var capturedSession = session
         do {
             if s.expiresAt < Date().timeIntervalSince1970 + 60 {
-                do { s = try await auth.refresh(s); setSession(s); BetaQA.shared.pass("A-AUTH-06", note: "Session refreshed before sync") }
+                do {
+                    s = try await auth.refresh(s)
+                    guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                        syncState = .failed(Self.syncInterruptedMessage); return
+                    }
+                    guard setSession(s) else {
+                        syncState = .failed(Self.sessionWriteFailureMessage); return
+                    }
+                    capturedSession = session
+                    BetaQA.shared.pass("A-AUTH-06", note: "Session refreshed before sync")
+                }
                 catch let e as AuthError where e.kind == .unauthorized { expireSession(); return }
             }
             // Persist ownership on first sign-in before network I/O. If the first pull fails, a
             // later sign-in after relaunch must not merge this user's local library into another.
             if meta.userID == nil {
-                meta.userID = s.userID
-                saveDefaults(meta, key: "ate.sync.v1")
+                do {
+                    try performOrdinaryWriteThrowing {
+                        meta.userID = s.userID
+                        saveDefaults(meta, key: "ate.sync.v1")
+                    }
+                } catch {
+                    syncState = .failed(Self.syncInterruptedMessage); return
+                }
             }
             let remote = try await sync.pull(session: s)
-            accountSwitchPullSucceeded = true
             BetaQA.shared.syncPulled(rows: remote.count)
+            // The pulled snapshot publishes only while the session and writer epoch captured
+            // before the await are still current.
+            guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                syncState = .failed(Self.syncInterruptedMessage); return
+            }
             if switchingAccounts {
-                // Keep the previous account's local copy until the new account's pull succeeds.
-                // A failed request must not erase recipes or change their account ownership.
-                recipes = []; shopping = []; recipeSnapshot = [:]; shopSnapshot = [:]
-                persistRecipes(stamp: false); persistShopping(stamp: false)
-                meta = SyncMeta()
-                meta.userID = s.userID
-                BetaQA.shared.pass("A-SYNC-05", note: "Account switch detected; previous account's copy removed")
-                show("Switched accounts — the other account's recipes were removed from this iPhone (they're still in that account).")
+                // Keep failure classified as an incomplete switch until cleanup succeeds.
+                do { try await removeCookPlansBeforeErase(capturedSession: capturedSession) }
+                catch {
+                    guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                        syncState = .failed(Self.syncInterruptedMessage); return
+                    }
+                    throw error
+                }
             }
-            meta.userID = s.userID
-            let enc = JSONEncoder()
-            let dec = JSONDecoder()
+            accountSwitchPullSucceeded = true
+            let out: [SyncRecord]
+            do {
+                out = try performOrdinaryWriteThrowing {
+                    if switchingAccounts {
+                        // Keep the previous account's local copy until the new account's pull succeeds.
+                        // A failed request must not erase recipes or change their account ownership.
+                        recipes = []; shopping = []; recipeSnapshot = [:]; shopSnapshot = [:]
+                        persistRecipes(stamp: false); persistShopping(stamp: false)
+                        meta = SyncMeta()
+                        meta.userID = s.userID
+                        BetaQA.shared.pass("A-SYNC-05", note: "Account switch detected; previous account's copy removed")
+                        show("Switched accounts — the other account's recipes were removed from this iPhone (they're still in that account).")
+                    }
+                    meta.userID = s.userID
+                    let enc = JSONEncoder()
+                    let dec = JSONDecoder()
 
-            let r = SyncMerge.merge(local: .init(data: recipes.reduce(into: [:]) { $0[$1.id] = try? enc.encode($1) },
-                                                 stamps: meta.recipeStamps, tombstones: meta.recipeTombs),
-                                    remote: remote.filter { $0.kind == "recipe" })
-            let sh = SyncMerge.merge(local: .init(data: shopping.reduce(into: [:]) { $0[$1.id] = try? enc.encode($1) },
-                                                  stamps: meta.shopStamps, tombstones: meta.shopTombs),
-                                     remote: remote.filter { $0.kind == "shopping" })
+                    let r = SyncMerge.merge(local: .init(data: recipes.reduce(into: [:]) { $0[$1.id] = try? enc.encode($1) },
+                                                         stamps: meta.recipeStamps, tombstones: meta.recipeTombs),
+                                            remote: remote.filter { $0.kind == "recipe" })
+                    let sh = SyncMerge.merge(local: .init(data: shopping.reduce(into: [:]) { $0[$1.id] = try? enc.encode($1) },
+                                                          stamps: meta.shopStamps, tombstones: meta.shopTombs),
+                                             remote: remote.filter { $0.kind == "shopping" })
 
-            recipes = r.data.values.compactMap { try? dec.decode(RecipeCard.self, from: $0) }.map(RecipeLogic.normalize).sorted { $0.createdAt > $1.createdAt }
-            let dd = RecipeLogic.dedupe(recipes); recipes = dd.cards
-            let newShop = sh.data.compactMapValues { try? dec.decode(ShoppingItem.self, from: $0) }
-            var ordered = shopping.compactMap { newShop[$0.id] }
-            for (id, it) in newShop where !ordered.contains(where: { $0.id == id }) { ordered.append(it) }
-            shopping = ordered
-            meta.recipeStamps = r.stamps; meta.recipeTombs = r.tombstones
-            for id in dd.removedIDs { meta.recipeTombs[id] = nowMs(); meta.recipeStamps[id] = nil }   // merged duplicates delete remotely too
-            meta.shopStamps = sh.stamps; meta.shopTombs = sh.tombstones
-            recipeSnapshot = Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-            shopSnapshot = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-            persistRecipes(stamp: false); persistShopping(stamp: false)
-            saveDefaults(meta, key: "ate.sync.v1")
+                    recipes = r.data.values.compactMap { try? dec.decode(RecipeCard.self, from: $0) }.map(RecipeLogic.normalize).sorted { $0.createdAt > $1.createdAt }
+                    let dd = RecipeLogic.dedupe(recipes); recipes = dd.cards
+                    let newShop = sh.data.compactMapValues { try? dec.decode(ShoppingItem.self, from: $0) }
+                    var ordered = shopping.compactMap { newShop[$0.id] }
+                    for (id, it) in newShop where !ordered.contains(where: { $0.id == id }) { ordered.append(it) }
+                    shopping = ordered
+                    meta.recipeStamps = r.stamps; meta.recipeTombs = r.tombstones
+                    for id in dd.removedIDs { meta.recipeTombs[id] = nowMs(); meta.recipeStamps[id] = nil }   // merged duplicates delete remotely too
+                    meta.shopStamps = sh.stamps; meta.shopTombs = sh.tombstones
+                    recipeSnapshot = Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+                    shopSnapshot = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+                    persistRecipes(stamp: false); persistShopping(stamp: false)
+                    saveDefaults(meta, key: "ate.sync.v1")
 
-            func rec(_ kind: String, _ id: String, _ data: Data?, _ stamp: Double, _ del: Bool) -> SyncRecord {
-                SyncRecord(user_id: s.userID, kind: kind, id: id, data: data.map { AnyJSON($0) }, stampMs: stamp, deleted: del)
+                    func rec(_ kind: String, _ id: String, _ data: Data?, _ stamp: Double, _ del: Bool) -> SyncRecord {
+                        SyncRecord(user_id: s.userID, kind: kind, id: id, data: data.map { AnyJSON($0) }, stampMs: stamp, deleted: del)
+                    }
+                    var records: [SyncRecord] = []
+                    records += r.push.map { rec("recipe", $0, r.data[$0], r.stamps[$0] ?? nowMs(), false) }
+                    records += r.pushDeletes.map { rec("recipe", $0, nil, r.tombstones[$0] ?? nowMs(), true) }
+                    records += sh.push.map { rec("shopping", $0, sh.data[$0], sh.stamps[$0] ?? nowMs(), false) }
+                    records += sh.pushDeletes.map { rec("shopping", $0, nil, sh.tombstones[$0] ?? nowMs(), true) }
+                    return records
+                }
+            } catch {
+                // The boundary refused the merge publish: the local library kept its pre-sync
+                // state and the remote rows stay on the server for the next sync.
+                syncState = .failed(Self.syncInterruptedMessage)
+                return
             }
-            var out: [SyncRecord] = []
-            out += r.push.map { rec("recipe", $0, r.data[$0], r.stamps[$0] ?? nowMs(), false) }
-            out += r.pushDeletes.map { rec("recipe", $0, nil, r.tombstones[$0] ?? nowMs(), true) }
-            out += sh.push.map { rec("shopping", $0, sh.data[$0], sh.stamps[$0] ?? nowMs(), false) }
-            out += sh.pushDeletes.map { rec("shopping", $0, nil, sh.tombstones[$0] ?? nowMs(), true) }
             try await sync.push(out, session: s)
+            // The push landed on the server; only the local completion publish is abandoned
+            // when the session or epoch moved during it.
+            guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                syncState = .failed(Self.syncPushedButInterruptedMessage)
+                return
+            }
             syncState = .synced(Date())
             BetaQA.shared.syncSucceeded(pushed: out.count)
         } catch SyncError.tableMissing {
@@ -1072,7 +1433,9 @@ final class AppStore {
     /// A failed initial pull during an account switch must not leave account B active over
     /// account A's local library. Keep the local data intact and require a retry when online.
     private func signOutAfterFailedAccountSwitch() {
-        setSession(nil)
+        guard setSession(nil) else {
+            syncState = .failed(Self.sessionWriteFailureMessage); return
+        }
         let message = "Account switch couldn't be completed. Your previous library is safe on this iPhone. Reconnect and sign in again."
         syncState = .failed(message)
         show(message, error: true, seconds: 5)
@@ -1081,18 +1444,25 @@ final class AppStore {
     /// Session can't be refreshed: sign out locally (keep recipes) and say so plainly.
     var sessionExpired = false
     func expireSession() {
-        setSession(nil)
+        guard setSession(nil) else {
+            syncState = .failed(Self.sessionWriteFailureMessage); return
+        }
         sessionExpired = true
         syncState = .failed(Self.sessionExpiredMessage)
         show(Self.sessionExpiredMessage, error: true)
     }
     static let sessionExpiredMessage = "Your session expired — sign in again to keep syncing. Your recipes are safe on this iPhone."
 
-    private func setSession(_ s: AuthSession?) {
-        if s != nil { sessionExpired = false }
-        session = s
-        Keychain.save(s.flatMap { try? JSONEncoder().encode($0) }, account: "session")
-        PhoneWatchBridge.shared.update(session: s)
+    /// True only when the whole bounded effect returns successfully. False does not
+    /// imply rollback: the session/keychain/watch publish may already have partly run.
+    private func setSession(_ s: AuthSession?) -> Bool {
+        performOrdinaryWrite(Self.sessionWriteFailureMessage) {
+            if s != nil { sessionExpired = false }
+            session = s
+            Keychain.save(s.flatMap { try? JSONEncoder().encode($0) }, account: "session")
+            PhoneWatchBridge.shared.update(session: s)
+            return true
+        } == true
     }
 
     // MARK: onboarding
@@ -1110,9 +1480,15 @@ final class AppStore {
     func signIn(email: String, password: String) async -> AuthError? {
         guard let auth else { return AuthError(message: "Accounts aren't configured in this build.") }
         let email = email.trimmingCharacters(in: .whitespaces)
+        let capturedSession = session
         do {
             let new = try await auth.signIn(email: email, password: password)
-            setSession(new)
+            // Post-await guard: a reset or account change while the request was in flight
+            // abandons the publish instead of signing this iPhone in under a stale epoch.
+            guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                return AuthError(message: "This iPhone's data changed while signing in. Sign in again.")
+            }
+            guard setSession(new) else { return AuthError(message: Self.sessionWriteFailureMessage) }
             pendingConfirmation = nil
             BetaQA.shared.pass("A-AUTH-03", note: "Signed in as \(new.email)")
             show("Signed in")
@@ -1129,9 +1505,14 @@ final class AppStore {
     func signUp(email: String, password: String) async -> SignUpOutcome {
         guard let auth else { return .failed(AuthError(message: "Accounts aren't configured in this build.")) }
         let email = email.trimmingCharacters(in: .whitespaces)
+        let capturedSession = session
         do {
             if let s = try await auth.signUp(email: email, password: password) {
-                setSession(s); show("Account created"); Task { await syncNow() }
+                guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                    return .failed(AuthError(message: "This iPhone's data changed while creating your account. Sign in instead."))
+                }
+                guard setSession(s) else { return .failed(AuthError(message: Self.sessionWriteFailureMessage)) }
+                show("Account created"); Task { await syncNow() }
                 BetaQA.shared.pass("A-AUTH-01", note: "Signed up and signed in")
                 return .signedIn
             }
@@ -1170,52 +1551,120 @@ final class AppStore {
     }
 
     func signOut(removeLocalData: Bool = false) async {
-        guard foodJournalRuntime == nil || !removeLocalData else {
+        // Unified graph: refuse an unbound wipe exactly as before; bound wipes report
+        // per-component partial failure honestly instead of claiming a clean wipe.
+        if foodJournalRuntime != nil && removeLocalData && (journalWriterEffect == nil || journalWriterValidator == nil) {
             show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return
         }
+        let capturedSession = session
         if let s = session { await auth?.signOut(s) }
+        // Post-await guard: a reset or account change during the server sign-out abandons the
+        // local publish instead of wiping under a stale session or epoch.
+        guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+            show("Signed out on the server, but this iPhone's data changed before the app could finish. Check Settings, then try again.", error: true)
+            return
+        }
         syncTask?.cancel()
-        setSession(nil)
+        guard setSession(nil) else {
+            show("Signed out on the server, but this iPhone couldn't finish updating its sign-in. Check Settings, then try again.", error: true)
+            return
+        }
         syncState = .signedOut
-        if removeLocalData { wipeLocalData() }
+        var partial: [String] = []
+        if removeLocalData {
+            do { try await removeCookPlansBeforeErase(capturedSession: nil) }
+            catch {
+                show("Signed out, but this iPhone's data cleanup failed. Review retained data and try removing it again.", error: true)
+                return
+            }
+            if foodJournalRuntime != nil {
+                let report = wipeLocalDataUnified()
+                partial = report.complete ? [] : report.failures.map(\.component)
+            } else if !wipeLocalData() {
+                show("Signed out, but this iPhone's data cleanup failed. Review retained data and try again.", error: true)
+                return
+            }
+        }
         BetaQA.shared.signedOut(removeLocalData: removeLocalData, remaining: recipes.count)
-        show(removeLocalData ? "Signed out and removed this iPhone's copy" : "Signed out — your recipes stay on this device")
+        if !partial.isEmpty {
+            show("Signed out, but some data on this device could not be removed: \(partial.joined(separator: ", "))", error: true)
+        } else {
+            show(removeLocalData ? "Signed out and removed this iPhone's copy" : "Signed out — your recipes stay on this device")
+        }
     }
 
     /// Permanently deletes the account on the server, then all local data, then shows onboarding.
     func deleteAccount() async -> AuthError? {
-        guard foodJournalRuntime == nil else {
+        // Unified graph: refuse only while the writer boundary is unbound. Once bound,
+        // the account is deleted server-side first; a partial local wipe is reported
+        // honestly and cannot resurrect the account.
+        if foodJournalRuntime != nil && (journalWriterEffect == nil || journalWriterValidator == nil) {
             return AuthError(message: "The unified Journal reset is not ready. Your account has not been deleted.")
         }
         guard let auth, var s = session else { return AuthError(.unauthorized, "Sign in again to delete your account.") }
+        let capturedSession = session
         do {
-            if s.expiresAt < Date().timeIntervalSince1970 + 60 { s = try await auth.refresh(s) }
+            if s.expiresAt < Date().timeIntervalSince1970 + 60 {
+                s = try await auth.refresh(s)
+                guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                    return AuthError(message: "This iPhone's data changed while your account was being deleted. Your account has not been deleted - try again.")
+                }
+            }
             try await auth.deleteAccount(s)
         } catch { let e = AuthError.network(error); BetaQA.shared.fail("A-AUTH-08", error: e.message); return e }
-        BetaQA.shared.pass("A-AUTH-08", note: "Account deleted on the server and locally")
+        // The account is gone on the server; the local wipe publishes only while the session
+        // and epoch captured above are still current.
+        guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+            return AuthError(message: "Your account was deleted on the server, but this iPhone's data changed before its local copy could be removed. Use Clear all in Settings to remove it.")
+        }
         syncTask?.cancel()
-        setSession(nil)
+        guard setSession(nil) else {
+            return AuthError(message: "Your account was deleted on the server, but this iPhone couldn't finish updating its sign-in or removing its local copy. Check Settings and use Clear all.")
+        }
         syncState = .signedOut
-        wipeLocalData()
+        do { try await removeCookPlansBeforeErase(capturedSession: nil) }
+        catch {
+            let error = AuthError(message: "The server account was deleted, but this iPhone's cleanup failed. Review retained data and retry local removal.")
+            show(error.message, error: true)
+            BetaQA.shared.fail("A-AUTH-08", error: error.message)
+            return error
+        }
+        var partial: [String] = []
+        if foodJournalRuntime != nil {
+            let report = wipeLocalDataUnified()
+            partial = report.complete ? [] : report.failures.map(\.component)
+        } else if !wipeLocalData() {
+            return AuthError(message: "The server account was deleted, but this iPhone's cleanup failed. Review retained data and retry local removal.")
+        }
         path.removeAll()
         if !AppConfig.isUITesting { UserDefaults.standard.removeObject(forKey: Self.onboardedKey) }
         showOnboarding = true
-        show("Your account and data were deleted")
+        if !partial.isEmpty {
+            show("Your account was deleted, but some data on this device could not be removed: \(partial.joined(separator: ", "))", error: true)
+        } else {
+            BetaQA.shared.pass("A-AUTH-08", note: "Account deleted on the server and locally")
+            show("Your account and data were deleted")
+        }
         return nil
     }
 
-    private func wipeLocalData() {
-        InsightLifecycleStore.clearAll()
-        clearCookCompletionContext()
-        recipes = []; shopping = []
-        nutritionDiaryRepository.clear()
-        try? nutritionGoalsRepository.save(DailyNutritionGoals())
-        CookingHistory.shared.clear()
-        tab = .library; path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
-        persistRecipes(stamp: false); persistShopping(stamp: false)
-        meta = SyncMeta(); saveDefaults(meta, key: "ate.sync.v1")
-        recipeSnapshot = [:]; shopSnapshot = [:]
-        for t in timers.timers { timers.stop(t.id) }
+    // Internal (not private) for AppStore+JournalAccountActions.
+    @discardableResult
+    func wipeLocalData() -> Bool {
+        performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
+            InsightLifecycleStore.clearAll()
+            clearCookCompletionContext()
+            recipes = []; shopping = []
+            nutritionDiaryRepository.clear()
+            try? nutritionGoalsRepository.save(DailyNutritionGoals())
+            CookingHistory.shared.clear()
+            tab = .library; path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []
+            persistRecipes(stamp: false); persistShopping(stamp: false)
+            meta = SyncMeta(); saveDefaults(meta, key: "ate.sync.v1")
+            recipeSnapshot = [:]; shopSnapshot = [:]
+            for t in timers.timers { timers.stop(t.id) }
+            return true
+        } == true
     }
 
     // MARK: deep links
@@ -1254,16 +1703,27 @@ final class AppStore {
         }
         if url.scheme == "ate", url.host == "auth-callback" {
             tab = .settings
+            let capturedSession = session
             Task {
                 do {
                     switch try await auth?.session(fromCallback: url) {
                     case .signedIn(let s)?:
-                        setSession(s); pendingConfirmation = nil; authSheet = nil
+                        guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                            show("This iPhone's data changed while signing in. Open the link again.", error: true)
+                            return
+                        }
+                        guard setSession(s) else { return }
+                        pendingConfirmation = nil; authSheet = nil
                         BetaQA.shared.authLinkSignedIn(email: s.email)
                         if showOnboarding { finishOnboarding() }
                         show("Signed in"); await syncNow()
                     case .recovery(let s)?:
-                        setSession(s); if showOnboarding { finishOnboarding() }
+                        guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                            show("This iPhone's data changed while opening the reset link. Open the link again.", error: true)
+                            return
+                        }
+                        guard setSession(s) else { return }
+                        if showOnboarding { finishOnboarding() }
                         authSheet = .newPassword
                     case .confirmedNeedsSignIn?:
                         pendingConfirmation = nil

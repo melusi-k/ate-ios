@@ -10,6 +10,17 @@ final class JournalTimelineViewTests: XCTestCase {
                             meal: meal, hasRecipeLink: false, searchText: summary, summary: summary)
     }
 
+    func testEntryNavigationPreservesReflectionIdentityAndStoredMealDay() {
+        let reflection = item("reflection-id", .reflection, day: "2026-11-02")
+        XCTAssertEqual(JournalTimelineView.destination(for: reflection, canonicalAvailable: true), .reflection("reflection-id"))
+        XCTAssertEqual(JournalTimelineView.destination(for: reflection, canonicalAvailable: false), .reflection("reflection-id"))
+        let meal = item("meal-id", .meal, day: "2026-11-01", meal: .dinner)
+        XCTAssertEqual(JournalTimelineView.destination(for: meal, canonicalAvailable: true), .mealDay("2026-11-01"))
+        XCTAssertEqual(JournalTimelineView.destination(for: meal, canonicalAvailable: false), .unavailable)
+        let missing = item("orphan", .meal, day: "2026-11-01")
+        XCTAssertEqual(JournalTimelineView.destination(for: missing, canonicalAvailable: true), .unavailable)
+    }
+
     func testLoadingShowsLoading() {
         XCTAssertEqual(JournalTimelineContent.make(state: .loading, filter: .all, query: ""), .loading)
     }

@@ -1,0 +1,170 @@
+[
+  {
+    "workflow": ".github/workflows/ai-model-lane.yml",
+    "job": "ai-model-preflight",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/beta-status-qualification.yml",
+    "job": "beta-ui",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/build-ipa.yml",
+    "job": "release",
+    "old_depth": 0,
+    "new_depth": 0,
+    "action": "unchanged"
+  },
+  {
+    "workflow": ".github/workflows/build-ipa.yml",
+    "job": "ui-suite",
+    "old_depth": 0,
+    "new_depth": 0,
+    "action": "unchanged"
+  },
+  {
+    "workflow": ".github/workflows/codeql.yml",
+    "job": "analyze-swift",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/compile-check.yml",
+    "job": "build-nutrition",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/compile-check.yml",
+    "job": "regression-suites",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/dogfood-qualification.yml",
+    "job": "dogfood-qualification",
+    "old_depth": 0,
+    "new_depth": 0,
+    "action": "unchanged"
+  },
+  {
+    "workflow": ".github/workflows/issue-73-ui-qualification.yml",
+    "job": "ui-journeys",
+    "old_depth": 0,
+    "new_depth": 0,
+    "action": "unchanged"
+  },
+  {
+    "workflow": ".github/workflows/journal-foundation-qualification.yml",
+    "job": "journal-foundation",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/journal-menu-qualification.yml",
+    "job": "menu-ui",
+    "old_depth": 0,
+    "new_depth": 0,
+    "action": "unchanged"
+  },
+  {
+    "workflow": ".github/workflows/journal-open-state-ui.yml",
+    "job": "open-state-ui",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/library-explore-removal-qualification.yml",
+    "job": "menu-ui",
+    "old_depth": 0,
+    "new_depth": 0,
+    "action": "unchanged"
+  },
+  {
+    "workflow": ".github/workflows/menu-qualification.yml",
+    "job": "menu-ui",
+    "old_depth": 0,
+    "new_depth": 0,
+    "action": "unchanged"
+  },
+  {
+    "workflow": ".github/workflows/nightly.yml",
+    "job": "qa-gate",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/nutrition-179-foundation-qualification.yml",
+    "job": "nutrition-179-foundation",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/optional-dynamic-type.yml",
+    "job": "optional-dynamic-type",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/optional-settings-dynamic-type.yml",
+    "job": "optional-settings-dynamic-type",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/preproduction-qa.yml",
+    "job": "compile",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/preproduction-qa.yml",
+    "job": "full-ui-suite",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/settings-ui-qualification.yml",
+    "job": "settings-ui-qualification",
+    "old_depth": 1,
+    "new_depth": 0,
+    "action": "set fetch-depth: 0"
+  },
+  {
+    "workflow": ".github/workflows/shopping-completion-qualification.yml",
+    "job": "menu-ui",
+    "old_depth": 0,
+    "new_depth": 0,
+    "action": "unchanged"
+  },
+  {
+    "workflow": ".github/workflows/shopping-edit-undo-qualification.yml",
+    "job": "shopping-edit-undo-ui",
+    "old_depth": 0,
+    "new_depth": 0,
+    "action": "unchanged"
+  },
+  {
+    "workflow": ".github/workflows/tracker-history-qualification.yml",
+    "job": "menu-ui",
+    "old_depth": 0,
+    "new_depth": 0,
+    "action": "unchanged"
+  }
+]

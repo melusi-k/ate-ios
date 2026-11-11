@@ -74,6 +74,7 @@ PYHISTORY
 log=$(git log --no-merges --format='%s' "$range")
 echo "## ate $VERSION (build $BUILD)"
 echo
+python3 "$(dirname "$0")/build-focus.py" "$SOURCE"
 printf '### Source changes in this build\n'
 if [ -n "$prev" ]; then
   printf 'Baseline: `%s` (same channel, lower build number, ancestor of this source).\n\n' "$prev"

@@ -2,6 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
+    @State private var exporting = false
     @AppStorage(JournalingSuggestionsGate.settingKey) private var journalingEnabled = false
     @Environment(AppStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
@@ -145,19 +146,26 @@ struct SettingsView: View {
                     }
                     Section {
                         Button {
-                            do {
-                                let data = try store.exportJSON()
-                                guard let url = writeTemp("ate-data.json", data) else {
-                                    store.show("Your data export couldn’t be created. Please try again.", error: true)
-                                    return
+                            guard !exporting else { return }
+                            exporting = true
+                            Task { @MainActor in
+                                defer { exporting = false }
+                                do {
+                                    let data = try await store.exportUserData()
+                                    guard let url = writeTemp("ate-data.json", data) else {
+                                        store.show("Your data export couldn't be created. Please try again.", error: true)
+                                        return
+                                    }
+                                    activeSheet = .share(ShareItems(items: [url]))
+                                } catch {
+                                    store.show("Your data couldn't be exported. Please try again.", error: true)
                                 }
-                                activeSheet = .share(ShareItems(items: [url]))
-                            } catch {
-                                store.show("Your data couldn’t be exported. Please try again.", error: true)
                             }
                         } label: {
-                            Label("Export data", systemImage: "arrow.down.doc")
-                        }.accessibilityIdentifier("settings.export")
+                            Label(exporting ? "Preparing export..." : "Export data", systemImage: "arrow.down.doc")
+                        }
+                        .disabled(exporting)
+                        .accessibilityIdentifier("settings.export")
                         Button { importing = true } label: {
                             Label("Import data", systemImage: "square.and.arrow.down")
                         }.accessibilityIdentifier("settings.import")
@@ -201,6 +209,7 @@ struct SettingsView: View {
                             .accessibilityIdentifier("aboutVersion")
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Changes in this build").font(AteFont.body(12, .semibold))
+                                .accessibilityIdentifier("aboutBuildNotesHeading")
                             Text(BuildNotes.current)
                                 .font(AteFont.body(12))
                                 .foregroundStyle(Theme.mutedForeground)
@@ -208,7 +217,9 @@ struct SettingsView: View {
                                 .accessibilityIdentifier("aboutBuildNotes")
                         }
                         .textSelection(.enabled)
-                        .accessibilityElement(children: .combine)
+                        // Keep the short heading independently addressable when notes span
+                        // more than one screen. The full selectable body remains unchanged.
+                        .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("aboutBuildNotesSection")
                         VStack(alignment: .leading, spacing: 2) {
                             Text("AI diagnostics").font(AteFont.body(12, .semibold))
@@ -280,7 +291,7 @@ struct SettingsView: View {
             Text("New recipes, shopping items and diary entries will be added. Existing matching items stay on this iPhone. If this archive contains nutrition goals and app preferences, they replace the current ones.")
         }
         .confirmationDialog("Clear your whole library?", isPresented: $confirmClear, titleVisibility: .visible) {
-            Button("Clear all", role: .destructive) { store.clearLibrary(); store.show("Library cleared") }
+            Button("Clear all", role: .destructive) { Task { if await store.clearLibrary() { store.show("Library cleared") } } }
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {

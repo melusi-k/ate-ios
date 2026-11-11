@@ -104,7 +104,7 @@ struct CookModeView: View {
             let session = try store.prepareCookCompletion(recipeID: recipeID)
             let now = Date()
             let event = CookCompletionEvent(recipeID: recipeID, recipeTitle: recipe.title, completedAt: now,
-                                            dayKey: CookingHistory.shared.key(for: now),
+                                            dayKey: store.journalCookingHistory.key(for: now),
                                             id: "cook-" + session.sessionID)
             let stored = try completionOutbox.enqueue(event)
             try store.recordCompletedCook(stored)

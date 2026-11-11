@@ -58,4 +58,26 @@ final class JournalReflectionConsumerTests: XCTestCase {
         XCTAssertTrue(try journal.readReflections().isEmpty)
     }
 
+    func testCommittedDeletionDisappearsFromPreviouslyLoadedReflectionHistory() throws {
+        let journal = JournalStore(inMemory: true)
+        let id = try journal.saveManual(text: "Delete only this reflection")
+        let loaded = try journal.readReflections()
+        let row = try XCTUnwrap(loaded.first { $0.id == id })
+        XCTAssertTrue(journal.delete(row))
+        XCTAssertFalse(try journal.readReflections().contains { $0.id == id })
+        XCTAssertNil(journal.entry(id))
+    }
+
+    func testFailedDeletionReportsFailureAndKeepsReflection() throws {
+        let original = JournalStore(inMemory: true)
+        let id = try original.saveManual(text: "Keep after failed save")
+        let row = try XCTUnwrap(try original.readReflections().first { $0.id == id })
+        enum Injected: Error { case save }
+        let failing = JournalStore(container: original.container, openState: .ok,
+            writeReflectionContext: { _ in throw Injected.save })
+        XCTAssertFalse(failing.delete(row))
+        XCTAssertEqual(try original.readReflections().first { $0.id == id }?.text,
+                       "Keep after failed save")
+    }
+
 }

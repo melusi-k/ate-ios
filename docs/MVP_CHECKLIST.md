@@ -1,5 +1,10 @@
 # Ate MVP acceptance checklist — unified product backlog
 
+## Pilot/Launch policy - 10 November 2026
+
+[LAUNCH_GATES.md](LAUNCH_GATES.md) defines the approved two-stage policy. `gate:mvp` is the entry-to-Pilot work queue; existing per-ID Pilot/Public launch values are retained pending explicit criterion-level reconciliation. `Public launch` is the inventory compatibility name for Launch. No IDs, acceptance results or checkboxes are changed by this policy update. Optional or disabled account/cloud/Health features are not silently promoted into the cooking pilot. No percentage score approves a stage. #45 owns the decision, #33 candidate evidence, #30 history.
+
+
 ## Current progress snapshot — 2026-10-24
 
 This is a **status index**, not a substitute for each acceptance row's evidence. Status reflects the latest tracked evidence available in the repository; older device passes do not prove the current build passes. Use 🟢 Completed only where implementation and required acceptance evidence are recorded, 🟡 Partial where implementation exists but acceptance/device evidence remains, 🔴 Outstanding/Failing where a gate fails or has not been delivered, and ⚪ Not verified where evidence is missing.
@@ -39,7 +44,7 @@ _Acceptance inventory reorganised by feature area on 2026-10-22; existing eviden
 
 **Honesty notes (build 36):** UI tests are optional (`run_tests` workflow input) and have **not** run on the build 35/36 changes. "Pass" in the simulator means the last full run before build 35. Landscape rotation was only enabled in build 36 and is **unverified**. The web share page still reads the **old Lovable backend**.
 
-Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-verified · ❌ not done · ⛔ blocked. Only ✅ scores (1 point); everything else scores 0. Existing gate policy and proposed scoring rules are separated in [LAUNCH_GATES.md](LAUNCH_GATES.md); its thresholds and must-pass list await owner approval.
+Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-verified · ❌ not done · ⛔ blocked. Only ✅ scores (1 point); everything else scores 0. The approved stage criteria and evidence rules are in [LAUNCH_GATES.md](LAUNCH_GATES.md); no percentage threshold applies.
 
 ## Platform constraints
 

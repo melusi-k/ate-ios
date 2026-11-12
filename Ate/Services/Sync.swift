@@ -188,7 +188,11 @@ enum SyncMerge {
             remoteStamp[r.id] = Double(r.updated_at)
             // Stamps travel as whole ms (bigint); compare rounded so a re-sync is a no-op.
             let localStamp = max(stamps[r.id] ?? -1, tomb[r.id] ?? -1).rounded()
-            guard Double(r.updated_at) > localStamp else { continue }
+            // Shopping's server row is authoritative on an equal millisecond.
+            // This converges clients rather than each keeping a different local
+            // payload forever. Recipe conflict semantics remain unchanged.
+            let serverWinsShoppingTie = r.kind == "shopping" && Double(r.updated_at) == localStamp
+            guard Double(r.updated_at) > localStamp || serverWinsShoppingTie else { continue }
             if r.deleted {
                 data[r.id] = nil; stamps[r.id] = nil; tomb[r.id] = Double(r.updated_at)
             } else if let raw = r.data?.raw {

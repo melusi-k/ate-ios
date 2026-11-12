@@ -245,7 +245,10 @@ struct AddRecipeSheet: View {
         }
         if let d = draft, RecipeQuality.needsInput(d), !didEdit, !confirmedDraft {
             VStack(alignment: .leading, spacing: 6) {
+                // An identifier on the enclosing VStack propagates to its Buttons
+                // on iOS 27, hiding their distinct repair/confirm identifiers.
                 Label("Draft, needs your input", systemImage: "exclamationmark.bubble").font(AteFont.body(14, .semibold))
+                    .accessibilityIdentifier("draftNeedsInput")
                 if (d.aiConfidence ?? 1) < RecipeQuality.threshold {
                     Text("Ate is only \(d.aiConfidence ?? 0, format: .percent.precision(.fractionLength(0))) sure this is \(d.title).").font(AteFont.body(13))
                 }
@@ -270,7 +273,6 @@ struct AddRecipeSheet: View {
             }
             .padding(12).frame(maxWidth: .infinity, alignment: .leading)
             .sheetCard(Theme.warm.opacity(0.5))
-            .accessibilityIdentifier("draftNeedsInput")
         }
         if let n = draft?.aiNote { Text(n).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aiNote") }
         Text("Fix anything the AI got wrong, then save it to your library.")

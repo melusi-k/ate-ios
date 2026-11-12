@@ -22,10 +22,14 @@ final class ExploreUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["explore.source"].exists)
     }
     private func libraryFromDetail() {
-        let back = app.buttons["backBar"]
+        // RecipeDetailView uses NavigationStack's system Back, not the legacy
+        // BackBar component. Match the existing system-back regression journey.
+        let back = app.navigationBars.buttons.element(boundBy: 0)
         XCTAssertTrue(back.waitForExistence(timeout: 5))
+        XCTAssertTrue(back.isHittable)
         back.tap()
         XCTAssertTrue(app.buttons["library.explore"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["Cook mode"].exists, "System Back must leave recipe detail")
     }
     private func saveRecipe() {
         app.buttons["Add recipe"].tap()

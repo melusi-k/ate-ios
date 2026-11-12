@@ -1,15 +1,23 @@
 {
-  "title": "Journal navigation and cooking reflections",
-  "summary": "Focus: the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log.",
-  "source_commit": "7c3f7d0265e58ea124c0bf55140a90fe76df45b3",
+  "title": "Shared Cook step and bottom actions",
+  "summary": "Focus: Cook Mode reads the matching shared session step, and pushed Cook Finish and recipe-detail Cook actions reserve measured bottom chrome. Journal navigation and cooking reflections remain included; cooking is not an eaten-food log. Source inclusion is not native, widget or device acceptance; portrait/landscape accessory spacing and controls still need pixel checks. Unified Food Journal activation remains OFF.",
+  "source_commit": "d488db36ee4095c05e807d60fa9f5a456d491188",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "56f838b904b24a8d88ba3409638d7dc434aaa57e"
+      "blob": "5d58d722270c3295842b1d9dbe318dcc242d4b2c"
     },
     {
       "path": "Ate/Views/JournalViews.swift",
       "blob": "61c2d7df9cf3b780cf809b779efef40b0daeb3d2"
+    },
+    {
+      "path": "Ate/Views/CookModeView.swift",
+      "blob": "203f46cec2a7b69e8f17a11f1c771a982441b9bc"
+    },
+    {
+      "path": "Ate/Views/RecipeDetailView.swift",
+      "blob": "8fdff1bcb5670a1da59cc47ea410e85389767fb9"
     }
   ]
 }

@@ -509,41 +509,74 @@ jobs:
           sentry-cli upload-dif --org "$SENTRY_ORG" --project "$SENTRY_PROJECT" build/Ate.xcarchive/dSYMs --wait || { echo "::error::Sentry dSYM upload/processing failed"; exit 1; }
           echo "Sentry symbol upload server-confirmed for this archive"
 
-      - name: Release smoke test (A-CI-03) — simulator build, install, launch, alive after 10 s
-        id: simsmoke
+      - name: Simulator Release cache provenance
+        id: simcache
+        run: |
+          mkdir -p smoke
+          xcodebuild -version | tee smoke/xcode-version.txt
+          echo "xcode=$(shasum -a 256 smoke/xcode-version.txt | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "key=$(python3 scripts/release/simulator-cache-key.py)" >> "$GITHUB_OUTPUT"
+
+      # Separate from the device archive cache; exact Xcode/project/source identity only.
+      - name: Cache simulator Release DerivedData
+        id: simderived
+        uses: actions/cache@v6
+        with:
+          path: build/sim
+          key: ${{ steps.simcache.outputs.key }}
+
+      - name: Simulator Release build (A-CI-03)
+        id: simbuild
         timeout-minutes: 20
         run: |
-          set -o pipefail
-          profile() {
-            local label="$1"; shift
-            local start end status
-            start=$(date +%s)
-            "$@"
-            status=$?
-            end=$(date +%s)
-            echo "::notice::PROFILE step=\"$label\" duration_seconds=$((end-start)) exit_code=$status"
-            return "$status"
-          }
-          profile_sim_start=$(date +%s)
-          SIM_ID=$(python3 scripts/select-ios-simulator.py)
-          # Ingestion-proof runs start from a fresh simulator so no prior app state survives.
-          if [ -n "${SENTRY_CANARY:-}" ]; then xcrun simctl shutdown "$SIM_ID" || true; xcrun simctl erase "$SIM_ID"; fi
-          profile_sim_end=$(date +%s); echo "::notice::PROFILE step=select_simulator duration_seconds=$((profile_sim_end-profile_sim_start))"
-          profile_sim_boot_start=$(date +%s)
-          xcrun simctl boot "$SIM_ID" || true
-          profile_sim_boot_end=$(date +%s); echo "::notice::PROFILE step=simulator_boot duration_seconds=$((profile_sim_boot_end-profile_sim_boot_start))"
+          set -e -o pipefail
+          mkdir -p smoke
           profile_build_start=$(date +%s)
+          finish_build() {
+            status=$?
+            trap - EXIT
+            echo "simulator_build duration_seconds=$(($(date +%s)-profile_build_start)) exit_code=$status" | tee -a smoke/timing-summary.txt
+            exit "$status"
+          }
+          trap finish_build EXIT
+          trap 'exit 143' TERM
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "SENTRY_PROOF_SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
           # Bash 3.2 empty-array expansion is safe here because this smoke step does not enable set -u.
           SYMBOL_ARGS=()
           if [ "$SENTRY_FATAL_PROOF" = true ]; then SYMBOL_ARGS+=(DEBUG_INFORMATION_FORMAT=dwarf-with-dsym); fi
+          set +e
           xcodebuild build -project Ate.xcodeproj -scheme "$SCHEME" -configuration Release \
-            -destination "id=$SIM_ID" -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO "${SYMBOL_ARGS[@]}" -quiet 2>&1 | tail -20
+            -destination "id=$SIM_ID" -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO "${SYMBOL_ARGS[@]}" 2>&1 | tee smoke/simulator-build.log
           profile_build_status=$?
+          set -e
           profile_build_end=$(date +%s); echo "::notice::PROFILE step=simulator_build duration_seconds=$((profile_build_end-profile_build_start)) exit_code=$profile_build_status"
           [ "$profile_build_status" -eq 0 ] || exit "$profile_build_status"
           APP=$(ls -d build/sim/Build/Products/Release-iphonesimulator/Ate.app)
-          echo "SENTRY_PROOF_SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
           [ "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "$BUILD_NUMBER" ] || { echo "::error::sim build number mismatch"; exit 1; }
+
+      - name: Release smoke test (A-CI-03) - install, launch, alive after 10 s
+        id: simsmoke
+        if: ${{ success() && steps.simbuild.outcome == 'success' }}
+        timeout-minutes: 20
+        run: |
+          set -e -o pipefail
+          mkdir -p smoke
+          profile_start=$(date +%s)
+          finish_launch() {
+            status=$?
+            trap - EXIT
+            echo "simulator_install_launch duration_seconds=$(($(date +%s)-profile_start)) exit_code=$status" | tee -a smoke/timing-summary.txt
+            exit "$status"
+          }
+          trap finish_launch EXIT
+          trap 'exit 143' TERM
+          SIM_ID="$SENTRY_PROOF_SIM_ID"
+          APP=build/sim/Build/Products/Release-iphonesimulator/Ate.app
+          [ -d "$APP" ] || { echo "::error::simulator build product missing"; exit 1; }
+          # Ingestion-proof runs start from a fresh simulator so no prior app state survives.
+          if [ -n "${SENTRY_CANARY:-}" ]; then xcrun simctl shutdown "$SIM_ID" || true; xcrun simctl erase "$SIM_ID"; fi
+          xcrun simctl boot "$SIM_ID" || true
           profile_bootstatus_start=$(date +%s)
           xcrun simctl bootstatus "$SIM_ID" -b
           profile_bootstatus_end=$(date +%s); echo "::notice::PROFILE step=simulator_bootstatus duration_seconds=$((profile_bootstatus_end-profile_bootstatus_start))"
@@ -551,8 +584,11 @@ jobs:
           xcrun simctl install "$SIM_ID" "$APP"
           profile_install_end=$(date +%s); echo "::notice::PROFILE step=simulator_install duration_seconds=$((profile_install_end-profile_install_start))"
           profile_launch_start=$(date +%s)
-          OUT=$(xcrun simctl launch "$SIM_ID" com.melusik.ate); echo "$OUT"
+          set +e
+          OUT=$(xcrun simctl launch "$SIM_ID" com.melusik.ate)
           profile_launch_status=$?
+          set -e
+          echo "$OUT"
           profile_launch_end=$(date +%s); echo "::notice::PROFILE step=simulator_launch duration_seconds=$((profile_launch_end-profile_launch_start)) exit_code=$profile_launch_status"
           [ "$profile_launch_status" -eq 0 ] || exit "$profile_launch_status"
           PID=$(echo "$OUT" | awk -F': ' '{print $NF}')
@@ -617,6 +653,35 @@ jobs:
           print('Recovery survived 30 seconds; stored fatal event and symbolicated in-app frames still require independent inspection', flush=True)
           PYFATAL
 
+      - name: Collect simulator smoke diagnostics
+        if: always()
+        run: |
+          mkdir -p smoke
+          {
+            echo "simulator_build=${{ steps.simbuild.outcome }}"
+            echo "simulator_install_launch=${{ steps.simsmoke.outcome }}"
+            echo "source=$GITHUB_SHA"
+            echo "checked_in_input_key=${{ steps.simcache.outputs.key }}"
+            echo "xcode_hash=${{ steps.simcache.outputs.xcode }}"
+            echo "cache_key=${{ steps.simderived.outputs.cache-primary-key }}"
+            echo "cache_hit=${{ steps.simderived.outputs.cache-hit }}"
+          } | tee smoke/provenance.txt
+          { echo '### Simulator Release smoke timing'; cat smoke/timing-summary.txt 2>/dev/null || true; cat smoke/provenance.txt; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.simbuild.outcome }}" != success ] || [ "${{ steps.simsmoke.outcome }}" != success ]; then
+            xcrun simctl list devices > smoke/devices.txt 2>&1 || true
+            if [ -n "${SENTRY_PROOF_SIM_ID:-}" ]; then
+              xcrun simctl spawn "$SENTRY_PROOF_SIM_ID" log show --last 5m --predicate 'process == "Ate"' > smoke/simulator.log 2>&1 || true
+            fi
+          fi
+
+      - name: Upload simulator smoke diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: simulator-release-smoke-diagnostics
+          path: smoke/
+          if-no-files-found: warn
+
       - name: Upload smoke screenshot
         if: always()
         uses: actions/upload-artifact@v7
@@ -633,11 +698,13 @@ jobs:
         run: |
           ST=pass; NOTE="ipa plist+codesign OK; simulator install+launch alive after 10 s"
           [ "${{ steps.ipacheck.outcome }}" = success ] || { ST=fail; NOTE="ipa plist/codesign check failed"; }
+          [ "${{ steps.simbuild.outcome }}" = success ] || { ST=fail; NOTE="$NOTE; simulator build ${{ steps.simbuild.outcome }}"; }
           [ "${{ steps.simsmoke.outcome }}" = success ] || { ST=fail; NOTE="$NOTE; simulator smoke ${{ steps.simsmoke.outcome }}"; }
           python3 -c "import json,sys; json.dump({'A-CI-03': {'status': sys.argv[1], 'note': sys.argv[2]}}, open('ci03.json','w'))" "$ST" "$NOTE"
           python3 scripts/e2e/backend_e2e.py --no-checks --extra ci03.json --upload --build "$APP_VERSION ($BUILD_NUMBER)${ATE_CHANNEL:+ $ATE_CHANNEL}" --out build/ci03 || true
 
       - name: Upload artifact
+        if: ${{ success() && steps.simbuild.outcome == 'success' && steps.simsmoke.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.IPA_NAME }}
@@ -645,7 +712,7 @@ jobs:
           if-no-files-found: error
 
       - name: Update rolling 'latest-build' prerelease
-        if: ${{ env.SENTRY_PROOF != 'true' }}
+        if: ${{ success() && steps.simbuild.outcome == 'success' && steps.simsmoke.outcome == 'success' && env.SENTRY_PROOF != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -689,7 +756,7 @@ jobs:
           echo "IPA URL: $BASE/build-${BUILD_NUMBER}${CH_SUFFIX}/$IPA_NAME"
 
       - name: Published artifact smoke test (A-CI-06) — download, checksum, contents
-        if: ${{ env.SENTRY_PROOF != 'true' }}
+        if: ${{ success() && steps.simbuild.outcome == 'success' && steps.simsmoke.outcome == 'success' && env.SENTRY_PROOF != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

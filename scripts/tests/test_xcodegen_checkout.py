@@ -24,7 +24,8 @@ class XcodeGenCheckoutTests(unittest.TestCase):
                 checkout = re.search(r'^\s+(?:- )?uses: actions/checkout@[^\n]+\n(.*?)(?=^      - |\Z)', block, re.M | re.S)
                 self.assertIsNotNone(checkout, (path.name, match[1]))
                 self.assertRegex(checkout[1], r'(?m)^          fetch-depth: 0\s*$')
-        self.assertEqual(checked, 24, 'Update this reviewed caller inventory if an XcodeGen job is added or removed')
+        # Added manual Duo exploration, with its own full-history checkout.
+        self.assertEqual(checked, 25, 'Update this reviewed caller inventory if an XcodeGen job is added or removed')
 
     def test_pre_generation_keeps_strict_source_validation(self):
         helper = (ROOT / 'scripts/build-focus.py').read_text()

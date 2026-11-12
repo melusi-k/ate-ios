@@ -665,9 +665,11 @@ struct GenRecipe {
                       GenIngredient(quantity: 1.5, unit: "l", name: "water", prep: "for the first simmer; drain afterwards"),
                       GenIngredient(quantity: 1, unit: "tsp", name: "salt", prep: nil),
                       GenIngredient(quantity: 2, unit: "tbsp", name: "oil", prep: nil)],
-        steps: [GenStep(instruction: "Cover the tripe with the water and salt. Simmer covered until tender, then drain the cooking liquid", minutes: 150, temperatureC: nil),
+        steps: [GenStep(instruction: "Cut the cleaned tripe into strips, chop the onions and crush the garlic", minutes: nil, temperatureC: nil),
+                GenStep(instruction: "Cover the tripe with the water and salt. Simmer covered until tender, then drain the cooking liquid", minutes: 150, temperatureC: nil),
                 GenStep(instruction: "Fry the onion and garlic in oil over medium heat until golden", minutes: 8, temperatureC: nil),
-                GenStep(instruction: "Stir in the curry powder without burning it, then add the drained tripe and stock and simmer until thick", minutes: 30, temperatureC: nil)],
+                GenStep(instruction: "Stir in the curry powder without burning it, then add the drained tripe and stock and simmer gently until thick and the tripe is tender", minutes: 30, temperatureC: nil),
+                GenStep(instruction: "Divide the tripe and sauce between six bowls and serve hot", minutes: nil, temperatureC: nil)],
         note: "Prep: 12 min. Tripe is pre-boiled and drained before finishing in the sauce; this method is not a template for every dish.")
 
     static func instruction(_ text: String, temperatureC: Int?) -> String {

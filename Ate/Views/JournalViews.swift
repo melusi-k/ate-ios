@@ -189,6 +189,7 @@ struct JournalEntryDetailView: View {
     @State private var entryReadFailed = false
     @State private var editing = false
     @State private var draft = ""
+    @State private var editProblem: String?
     @State private var confirmDelete = false
     @State private var openRecipe: RecipeSheetTarget?
 
@@ -250,7 +251,7 @@ struct JournalEntryDetailView: View {
                         ShareLink(item: shareText(e)) { Label("Share", systemImage: "square.and.arrow.up") }
                             .accessibilityIdentifier("journal.detail.share")
                         Menu {
-                            Button { draft = e.text; editing = true } label: { Label("Edit", systemImage: "pencil") }
+                            Button { draft = e.text; editProblem = nil; editing = true } label: { Label("Edit", systemImage: "pencil") }
                             Button(role: .destructive) { confirmDelete = true } label: { Label("Delete", systemImage: "trash") }
                         } label: { Label("More", systemImage: "ellipsis.circle") }
                         .accessibilityIdentifier("journal.detail.menu")
@@ -275,13 +276,27 @@ struct JournalEntryDetailView: View {
                 } message: { Text("This can't be undone. It's only stored on this iPhone.") }
                 .sheet(isPresented: $editing) {
                     NavigationStack {
-                        TextEditor(text: $draft).padding().font(AteFont.body(16)).accessibilityIdentifier("journal.edit.text")
+                        VStack(alignment: .leading, spacing: 8) {
+                            TextEditor(text: $draft).font(AteFont.body(16)).accessibilityIdentifier("journal.edit.text")
+                            if let editProblem {
+                                Text(editProblem).font(AteFont.body(14)).foregroundStyle(Theme.destructive)
+                                    .accessibilityIdentifier("journal.edit.error")
+                            }
+                        }
+                            .padding()
                             .navigationTitle("Edit entry").navigationBarTitleDisplayMode(.inline)
                             .toolbar {
                                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { editing = false } }
                                 ToolbarItem(placement: .confirmationAction) {
                                     Button("Save") {
-                                        store.journalStore.update(e, text: draft); editing = false; reloadEntry()
+                                        guard store.journalStore.update(e, text: draft) else {
+                                            editProblem = "Your entry could not be saved. Your draft is still here. Try again."
+                                            return
+                                        }
+                                        editProblem = nil
+                                        store.journalRevision += 1
+                                        editing = false
+                                        reloadEntry()
                                         BetaQA.shared.pass("C-JRN-03", note: "Edited an entry")
                                     }.disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                                 }

@@ -8,7 +8,7 @@ Pull requests targeting `main` run Dogfood qualification before merge. Every pus
 2. **Dogfood qualification** — `.github/workflows/dogfood-qualification.yml` runs against the exact PR or main commit SHA and requires:
    - the complete `AteTests` unit-test suite;
    - seven stable critical flows: add from URL, add from photo, generate/edit, save, share, open shared recipe, and timers.
-   - a retained diagnostics run of `testQA7_SyncAccount`, tracked by [issue #76](https://github.com/melusi-k/ate-ios/issues/76). That test is explicitly **QUARANTINED / NOT A QUALIFICATION PASS** while the Done-button selector issue is unresolved. Its result is recorded but does not change qualification.
+   - a retained diagnostics run of `testQA7_SyncAccount`. [Issue #76](https://github.com/melusi-k/ate-ios/issues/76) is closed: the Done-button selector repair and a separate diagnostic pass are recorded there, including [Dogfood 42610132944](https://github.com/melusi-k/ate-ios/actions/runs/42610132944) on source `740f81ada5471b05493b0009699f125e7793d958`. The test remains **QUARANTINED / NOT A QUALIFICATION PASS**; closing the repair issue does not re-admit it to required qualification. Re-admission and repeated-determinism evidence remain tracked by [#78](https://github.com/melusi-k/ate-ios/issues/78). Its diagnostic result is recorded but does not change qualification.
 
 A failed required unit or critical-flow check fails the qualification job, not the independent fast IPA build. A green qualification job means only the named unit/critical-flow checks passed; it does not imply that every UI shard, backend E2E, physical-device acceptance or App Store/TestFlight distribution passed.
 
@@ -30,7 +30,7 @@ Do not reuse `BUILD_PROVISION_PROFILE_BASE64` or assume its current development/
 - [ ] Every pull request targeting `main` runs unit tests and the seven required critical flows against the exact PR SHA.
 - [ ] A manual post-merge qualification run can validate an exact main SHA when explicitly requested.
 - [ ] Failure of a required check fails qualification while leaving the fast IPA/release artifact path independent.
-- [ ] The Settings/account-sync quarantine remains visible as **QUARANTINED / NOT A QUALIFICATION PASS**, with logs and xcresult retained.
+- [ ] The Settings/account-sync quarantine remains visible as **QUARANTINED / NOT A QUALIFICATION PASS**, with logs and xcresult retained; re-admission stays open under #78, separately from the closed #76 selector repair.
 - [ ] Job summary includes commit SHA, required-check status and quarantine status.
 - [ ] README and QA policy agree with the actual workflow triggers and gates.
 - [ ] Before TestFlight is enabled: validate App Store signing/profile mapping, API-key authentication, archive export, upload response and internal tester availability.

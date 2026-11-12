@@ -26,3 +26,30 @@ The strict ancestry/blob validator and all qualification requirements remain unc
 
 This split re-anchors the reviewed focus to the destination runtime commit above,
 not to the frozen aggregate branch. Activation remains OFF.
+
+## Shared Cook state and bottom actions on #518
+
+Reviewed source d488db36ee4095c05e807d60fa9f5a456d491188 changes the guarded
+AteApp.swift: the pushed Resume and timer siblings now form one VStack. The
+unchanged renderer rejects that source because its old evidence blob no longer
+matches. CookModeView reads/writes the matching shared session step, no longer
+restores an older parallel timer step over that session, and reserves measured
+bottom chrome. RecipeDetailView reserves measured chrome for its Cook action.
+
+The focus now names those source changes. Its anchor is that exact runtime
+commit, its evidence covers all three changed app paths, and unchanged
+JournalViews evidence remains to support the retained Journal wording. Strict
+source ancestry and exact blob validation remain unchanged. No runtime,
+workflow, selector, timeout, assertion or activation switch is changed here.
+
+The original source still fails the guard. The docs-only child passes it and
+can render build notes. Neither result is a native build/test pass or proof of
+spacing, reachability, physical widget behavior or native About rendering.
+Portrait/landscape Resume+timer pixels and exact-head native checks remain
+required. Unified Food Journal activation stays OFF.
+
+Comparison: #517 source 7ee50cada9f61832385dfa2cc335dfbebc2f8658 passes the
+existing guard because neither of its two listed evidence paths changed. That
+is not generation-quality qualification, and its old Journal focus does not
+describe that PR's new generation paths. No rerun or record update on #517 is
+part of this #518 repair.

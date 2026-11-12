@@ -82,7 +82,11 @@ final class OnDeviceBackend: BackendService {
             }
         }
         try Task.checkCancellation()
-        guard modelAvailable() else { return try await fallback.parseRecipe(request) }
+        guard modelAvailable() else {
+            let card = try await fallback.parseRecipe(request)
+            try GenerationCancellation.check()
+            return card
+        }
         var source: RecipeSource = .appleIntelligence
         let prompt: String
         var input: RecipePrompt.Input = .prompt

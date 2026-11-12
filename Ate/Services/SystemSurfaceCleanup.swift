@@ -35,6 +35,8 @@ final class SystemSurfaceCleanup: ClearAllSystemSurfaceCleaning {
     private let activityLog: LiveActivityLog
     private let sharedDefaults: UserDefaults
     private let validateWriter: () throws -> Void
+    private let deleteSpotlight: (@escaping @Sendable (Bool) -> Void) -> Void
+    private let spotlightTimeout: TimeInterval
 
     /// Real dependencies are required (no fabricated empty implementation): the factory
     /// passes the live graph's timer center, bridge and log. `validateWriter` defaults
@@ -43,12 +45,20 @@ final class SystemSurfaceCleanup: ClearAllSystemSurfaceCleaning {
          bridge: PhoneWatchBridge = .shared,
          activityLog: LiveActivityLog = .shared,
          sharedDefaults: UserDefaults = SharedContainer.defaults,
-         validateWriter: @escaping () throws -> Void = {}) {
+         validateWriter: @escaping () throws -> Void = {},
+         spotlightTimeout: TimeInterval = 5,
+         deleteSpotlight: @escaping (@escaping @Sendable (Bool) -> Void) -> Void = { completion in
+             CSSearchableIndex.default().deleteAllSearchableItems { error in
+                 completion(error == nil)
+             }
+         }) {
         self.timers = timers
         self.bridge = bridge
         self.activityLog = activityLog
         self.sharedDefaults = sharedDefaults
         self.validateWriter = validateWriter
+        self.spotlightTimeout = spotlightTimeout
+        self.deleteSpotlight = deleteSpotlight
     }
 
     func cleanupAfterLocalErase() async -> [String] {
@@ -110,12 +120,10 @@ final class SystemSurfaceCleanup: ClearAllSystemSurfaceCleaning {
     }
 
     private func cleanSpotlight() async -> Bool {
-        do {
-            try await CSSearchableIndex.default().deleteAllSearchableItems()
-            return true
-        } catch {
-            return false
-        }
+        // Service invalidation has left this callback unreturned on repeated CI
+        // runs. Deadline/cancellation is UNVERIFIED, never successful erasure.
+        // A late callback may not retire reset control or mutate later state.
+        await SystemCleanupCompletion.wait(timeout: spotlightTimeout, start: deleteSpotlight)
     }
 
     private func cleanWidgetSnapshots() -> Bool {

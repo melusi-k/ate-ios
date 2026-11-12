@@ -1011,9 +1011,18 @@ extension CoverageUITests {
         app.swipeUp()
         XCTAssertTrue(settingsTitle.exists, "The navigation bar must remain present while Settings scrolls")
 
+        // The product intentionally minimizes tab chrome on scroll-down. The
+        // preceding Settings swipe can leave only the selected tab exposed even
+        // though a TabBar still exists. Reveal it with a real reverse content
+        // gesture, not a back-button fallback, extra tap or longer wait.
+        XCTAssertTrue(app.tabBars.buttons["Settings"].isSelected,
+                      "Settings must remain selected after its scroll")
+        shot("82-settings-after-scroll-before-tab-reveal")
+        settingsContent().swipeDown()
+        shot("82-settings-tab-chrome-revealed")
         // #82 uses the current Journal root, not the historical Tracker title or
-        // pushed Cooking History route. Keep this in the existing focused header
-        // method so its exact named-pass gate also covers the requested root.
+        // pushed Cooking History route. Keep every strict tab/arrival/header
+        // assertion; the reveal gesture is setup, never a substitute destination.
         tab("Journal")
         let journalTitle = app.navigationBars["Journal"]
         wait(journalTitle)

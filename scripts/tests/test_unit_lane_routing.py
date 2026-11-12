@@ -22,7 +22,8 @@ class UnitLaneRoutingTests(unittest.TestCase):
         names = json.loads((ROOT / 'docs/unit-named-pass-ledger.json').read_text())
         self.assertEqual(len(names), 25)
         expected = [name.removesuffix("]' passed").replace(' ', '/') for name in names]
-        self.assertEqual((ROOT / 'scripts/full-unit-required.txt').read_text().splitlines(), expected)
+        reminders = ['CookPlanNotificationTests/testDeniedPermissionCannotClaimReconciledWhenOldReminderRemovalFails', 'CookPlanNotificationTests/testDeletedRecipeReminderRemovalMustVerifyBeforeOtherReminderAdds']
+        self.assertEqual((ROOT / 'scripts/full-unit-required.txt').read_text().splitlines(), expected + reminders)
         self.assertIn('xcrun xcresulttool get test-results tests --path', self.full)
         self.assertIn('python3 scripts/verify-full-unit-required.py full-unit-tests.json scripts/full-unit-required.txt', self.full)
 

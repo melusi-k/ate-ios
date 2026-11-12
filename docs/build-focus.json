@@ -1,7 +1,7 @@
 {
-  "title": "Shared Cook step and bottom actions",
-  "summary": "Focus: Cook Mode reads the matching shared session step, and pushed Cook Finish and recipe-detail Cook actions reserve measured bottom chrome. Journal navigation and cooking reflections remain included; cooking is not an eaten-food log. Source inclusion is not native, widget or device acceptance; portrait/landscape accessory spacing and controls still need pixel checks. Unified Food Journal activation remains OFF.",
-  "source_commit": "d488db36ee4095c05e807d60fa9f5a456d491188",
+  "title": "Shared Cook actions and safe reflection edits",
+  "summary": "Focus: Cook Mode reads shared session steps; Cook Finish and recipe-detail Cook actions reserve measured bottom chrome. Reflection edits retain draft and retry error on failed save, and refresh history only after commit. Journal navigation and cooking reflections remain included, not eaten-food logs. Native, widget, device and pixel proof remain pending. Unified Food Journal activation stays OFF.",
+  "source_commit": "144b076bb313ac42c98270d08543c8d3632cf195",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/Views/JournalViews.swift",
-      "blob": "61c2d7df9cf3b780cf809b779efef40b0daeb3d2"
+      "blob": "bb88af5fe4b5454124c143ecb02223acaeeb8b45"
     },
     {
       "path": "Ate/Views/CookModeView.swift",
@@ -18,6 +18,10 @@
     {
       "path": "Ate/Views/RecipeDetailView.swift",
       "blob": "8fdff1bcb5670a1da59cc47ea410e85389767fb9"
+    },
+    {
+      "path": "Ate/Services/JournalSuggestionService.swift",
+      "blob": "a1b645b49733179fcd55fb631ae715f8f2bebedd"
     }
   ]
 }

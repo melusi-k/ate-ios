@@ -72,6 +72,7 @@ final class JournalStore {
     static let shared = JournalStore()
     private let writerBoundary: FoodJournalWriterBoundary
     private var writeReflectionContext: (ModelContext) throws -> Void = { try $0.save() }
+    private var didInjectDeleteFailure = false
     let container: ModelContainer?
     private(set) var openState: JournalOpenState
     convenience init(inMemory: Bool = AppConfig.isUITesting,
@@ -223,9 +224,16 @@ final class JournalStore {
     }
     @discardableResult
     func delete(_ entry: JournalEntry) -> Bool {
+        guard entry.kindRaw == JournalEntryKind.reflection.rawValue else { return false }
+        return deleteReflection(id: entry.id)
+    }
+
+    /// A confirmation owns stable route identity, not a retained SwiftData reader
+    /// model. Resolve and verify the transaction from the authoritative container.
+    @discardableResult
+    func deleteReflection(id: String) -> Bool {
         (try? writerBoundary.withEffect { () -> Bool in
-            guard entry.kindRaw == JournalEntryKind.reflection.rawValue, let container else { return false }
-            let id = entry.id
+            guard !id.isEmpty, let container else { return false }
             let ctx = ModelContext(container)
             ctx.autosaveEnabled = false
             guard let stored = try ctx.fetch(FetchDescriptor<JournalEntry>(predicate: #Predicate { $0.id == id })).first,
@@ -233,7 +241,16 @@ final class JournalStore {
             let media = stored.mediaFileNames
             do {
                 ctx.delete(stored)
+                if AppConfig.isUITesting, ProcessInfo.processInfo.arguments.contains("-qaReflectionDeleteFailureOnce"), !didInjectDeleteFailure {
+                    didInjectDeleteFailure = true
+                    throw ManualJournalSaveError.failed
+                }
                 try writeReflectionContext(ctx)
+                let verifier = ModelContext(container)
+                verifier.autosaveEnabled = false
+                guard try verifier.fetch(FetchDescriptor<JournalEntry>(predicate: #Predicate { $0.id == id })).isEmpty else {
+                    throw ManualJournalSaveError.failed
+                }
             } catch { ctx.rollback(); throw error }
             // Keep media until the record deletion commits. A failed cleanup leaves
             // removable orphan bytes, never a live reflection with missing media.

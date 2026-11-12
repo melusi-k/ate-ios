@@ -22,15 +22,13 @@ enum PhotoGuess {
             .map { $0.replacingOccurrences(of: "_", with: " ") }
     }
 
-    /// Prompt for the model, or nil when nothing food-like was recognised.
-    static func prompt(labels: [(String, Float)], ocrText: String) -> String? {
+    /// True when the labels contain something food-like enough to draft from.
+    /// (Was `prompt(labels:ocrText:) != nil` - the prompt string it built was never sent to a model;
+    /// MockBackend only used it as this nil-check.)
+    static func canDraft(from labels: [(String, Float)]) -> Bool {
         let d = dishes(from: labels)
         let foodish = labels.contains { ["food", "dish", "meal", "cuisine", "baked_goods", "dessert", "fruit", "vegetable"].contains($0.0.lowercased()) }
-        guard !d.isEmpty, foodish || d.count >= 2 else { return nil }
-        var p = "A photo of a dish was recognised as: \(d.prefix(5).joined(separator: ", ")). "
-        p += "Draft the most likely home-cook recipe for the main dish (title it by the dish name), with realistic quantities and timed steps."
-        let hint = ocrText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !hint.isEmpty { p += " Text visible in the photo: \(hint.prefix(200))" }
-        return p
+        return !d.isEmpty && (foodish || d.count >= 2)
     }
 }
+

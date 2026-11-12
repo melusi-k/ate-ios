@@ -399,15 +399,31 @@ struct AddRecipeSheet: View {
     }
     static let interruptedMessage = "Your last recipe was interrupted when ate closed. Tap Try again to retry."
 
+    struct PreparedImage {
+        let previewAndCover: Data
+        let requestAndRecovery: Data
+    }
+
+    static func prepareImage(_ original: Data) -> PreparedImage {
+        PreparedImage(previewAndCover: original,
+                      requestAndRecovery: recoverableJPEG(from: original) ?? original)
+    }
+
     /// Keep recoverable image input small enough for DraftStore/UserDefaults while retaining useful visual detail.
-    private static func recoverableJPEG(from data: Data) -> Data? {
+    static func recoverableJPEG(from data: Data) -> Data? {
         guard let image = UIImage(data: data) else { return nil }
         let longest = max(image.size.width, image.size.height)
         // Try progressively smaller, lower-quality encodings to stay below DraftStore's 1.5 MB safety limit.
-        for maxDimension in [CGFloat(1280), CGFloat(1024), CGFloat(768), CGFloat(640)] {
+        // Preserve small text in tall recipe screenshots at the first tier. The byte
+        // limit still bounds draft storage, with smaller tiers as fallbacks.
+        for maxDimension in [CGFloat(2048), CGFloat(1600), CGFloat(1280), CGFloat(1024), CGFloat(768), CGFloat(640)] {
             let scale = min(1, maxDimension / max(longest, 1))
             let size = CGSize(width: max(1, image.size.width * scale), height: max(1, image.size.height * scale))
-            let renderer = UIGraphicsImageRenderer(size: size)
+            // Dimensions above are pixel bounds, not points. The default renderer uses
+            // the device scale (3x), silently expanding an 800px fixture to 2400px for OCR.
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let renderer = UIGraphicsImageRenderer(size: size, format: format)
             for quality in [CGFloat(0.72), CGFloat(0.55), CGFloat(0.4)] {
                 let encoded = renderer.jpegData(withCompressionQuality: quality) { _ in
                     image.draw(in: CGRect(origin: .zero, size: size))
@@ -427,6 +443,7 @@ struct AddRecipeSheet: View {
         let diagnostic = mode == .image ? PhotoImportDiagnostics.begin() : nil
         diagnostic?.mark(.generationStarted)
         var req: ParseRequest
+        var recoveryImageData: Data?
         switch mode {
         case _ where mode != .image && dishQuestion != nil && !dishAnswer.trimmingCharacters(in: .whitespaces).isEmpty:
             // Low-confidence card: regenerate conditioned on the confirmed name (+ glossary via RecipePrompt.prompt).
@@ -443,9 +460,13 @@ struct AddRecipeSheet: View {
         case .image:
             guard let d = imageData else { store.show("Upload a screenshot first.", error: true); return }
             diagnostic?.mark(.imagePreparationStarted)
-            let jpeg = Self.recoverableJPEG(from: d) ?? d
+            let prepared = Self.prepareImage(d)
+            // Preview and chooseInitialCover keep the original bytes. Only the request
+            // and persisted recovery input use the bounded image.
+            imageData = prepared.previewAndCover
+            let jpeg = prepared.requestAndRecovery
+            recoveryImageData = jpeg
             diagnostic?.mark(.imagePreparationCompleted)
-            imageData = jpeg
             var dishes = spreadPicks.sorted()
             for d in dishAnswer.split(separator: ",").map({ $0.trimmingCharacters(in: .whitespaces) }) where !d.isEmpty && !dishes.contains(d) { dishes.append(d) }
             if dishQuestion != nil, let f = dishes.first { confirmedDish = f }
@@ -468,7 +489,7 @@ struct AddRecipeSheet: View {
         live = nil
         OnDeviceBackend.partialSink = { p in live = p }
         DraftStore.shared.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""),
-                                imageData: mode == .image ? imageData : nil)
+                                imageData: recoveryImageData)
         // Keep pending input on failure or while asking the user to identify an uncertain dish.
         // DraftStore.saveDraft clears it on success; Cancel/Discard clears it explicitly.
         defer {

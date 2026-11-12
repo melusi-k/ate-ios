@@ -65,3 +65,31 @@ improvement when this golden set says so.
 - Before/after device F12 plus F1-F11 regression review: NOT RUN. Prompt construction and
   deterministic gap checks do not prove better live model output. Preserve source quantities
   and order for extraction; do not silently add a guessed source ingredient to pass a check.
+
+## Step-completeness review (12 November follow-up)
+
+F12 and F8 before/after device runs must now include ingredient-to-step tracing: mark where each
+listed ingredient is prepared and used, and check every named step food against the list.
+Cooking actions need a time/range, heat guidance and a doneness cue, with any drain/retain
+transition explained. Check serving/assembly and rest only when the dish needs them. More
+numbered steps alone earns no credit; a cold salad should not gain a cooking/resting step.
+Do not invent missing source details during extraction. Record an unresolved source gap instead.
+
+`GeneratedStepQuality` supplies bounded repair hints for known food nouns and explicit thermal
+actions. It handles common plurals and explicit collective usage, but is NOT a general ingredient
+parser, dependency planner, food-safety verifier or proof every ingredient/heat level is correct.
+Unknown names, aliases, pronouns, and complex sequencing require model/human review.
+The same one-repair limit and remaining-quality draft review stay in place.
+
+The structured Mogodu example now shows prep and serving explicitly without changing its
+188-minute timed cooking sum plus 12-minute prep. Deterministic tests cover missing ingredients
+in both directions, absent time/cue, oven-setting versus checked internal temperature, collective
+usage, cold dishes, source exclusions and the screenshot regression. Native tests and actual
+F1-F12 before/after device outputs: NOT RUN for this step-quality slice.
+
+Step-quality review revision: ingredient head aliases accept ribs/wings/stock without requiring
+full compound names, and the full instruction is scanned for later heat actions (including
+cover-and-bake). Existing native good-ribs acceptance with time + oven temperature stays accepted;
+explicit doneness is still requested by the prompt. A bare oven setting without time still fails.
+The validator cannot disambiguate a separate meat use from a stock descriptor; human review remains
+required. Existing prompt phrase "at least 4 real ingredients" is preserved without changing tests.

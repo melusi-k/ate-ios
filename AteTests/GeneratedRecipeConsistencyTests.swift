@@ -79,7 +79,7 @@ final class GeneratedRecipeConsistencyTests: XCTestCase {
         card.source = .appleIntelligence
         XCTAssertTrue(GeneratedRecipeConsistency.issues(card).isEmpty)
         XCTAssertFalse(card.description?.contains("pap") == true)
-        XCTAssertTrue(card.steps[0].instruction.contains("drain"))
+        XCTAssertTrue(card.steps[1].instruction.contains("drain"))
     }
     #endif
 }

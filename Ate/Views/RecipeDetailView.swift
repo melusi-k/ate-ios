@@ -13,6 +13,7 @@ struct RecipeDetailView: View {
     @State private var shareChoice = false
     @State private var shareFallbackRecipe: RecipeCard?
     @State private var shareFallbackAlertPresented = false
+    @State private var shareFallbackRetry = ShareFallbackRetry()
     @Environment(\.dismiss) private var dismiss
     /// Pops whichever stack (or sheet) presented this screen. Never touches store.path directly: the recipe may have been
     /// pushed from More/Settings/Insights while Library has its own path, which made the old custom Back a dead tap.
@@ -138,27 +139,42 @@ struct RecipeDetailView: View {
                     }
                 }
         }
-        .alert("Could not create a share link", isPresented: $shareFallbackAlertPresented) {
-            Button("Try again") {
-                guard let recipe = shareFallbackRecipe else { return }
-                shareFallbackAlertPresented = false
-                shareFallbackRecipe = nil
+        .sheet(isPresented: $shareFallbackAlertPresented, onDismiss: {
+            // Wait for the real dismissal callback. An immediate publish failure
+            // must not race the old presentation's closing animation.
+            switch shareFallbackRetry.presentationDidDismiss() {
+            case .retry(let recipe):
                 Task { await doShare(recipe, asText: false) }
-            }
-            Button("Share as text") {
-                guard let recipe = shareFallbackRecipe else { return }
-                shareFallbackAlertPresented = false
-                // Keep the fallback marker until the activity sheet actually appears.
+            case .text(let recipe):
                 share = ShareItems(items: [
                     RecipeLogic.text(for: recipe, factor: factor, units: store.settings.units)
                 ])
-            }
-            Button("Cancel", role: .cancel) {
-                shareFallbackAlertPresented = false
+            case nil:
                 shareFallbackRecipe = nil
             }
-        } message: {
-            Text("Ate couldn't publish the link. You can retry or share the recipe as text instead.")
+        }) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Could not create a share link").font(.headline)
+                Text("Ate couldn't publish the link. You can retry or share the recipe as text instead.")
+                Button("Try again") {
+                    guard let recipe = shareFallbackRecipe else { return }
+                    shareFallbackRetry.request(recipe)
+                    shareFallbackAlertPresented = false
+                }
+                .buttonStyle(.ate(.primary, full: true))
+                Button("Share as text") {
+                    guard let recipe = shareFallbackRecipe else { return }
+                    shareFallbackRetry.requestText(recipe)
+                    shareFallbackAlertPresented = false
+                }
+                .buttonStyle(.ate(.secondary, full: true))
+                Button("Cancel", role: .cancel) {
+                    shareFallbackAlertPresented = false
+                    shareFallbackRecipe = nil
+                }
+            }
+            .padding(24)
+            .presentationDetents([.medium, .large])
         }
     }
 

@@ -1370,6 +1370,9 @@ final class AppStore {
             guard syncOwnerStillCurrent() else {
                 syncState = .failed(Self.syncInterruptedMessage); return
             }
+            // Validate the complete receipt before account cleanup, merge, stamps
+            // or local persistence. A bad remote row must not erase a good copy.
+            try SyncPayloadSafety.validate(remote, owner: s.userID)
             if switchingAccounts {
                 // Keep failure classified as an incomplete switch until cleanup succeeds.
                 do { try await removeCookPlansBeforeErase(capturedSession: capturedSession) }

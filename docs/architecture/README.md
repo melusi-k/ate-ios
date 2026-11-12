@@ -1,5 +1,9 @@
 # Ate architecture and design records
 
+Status: Current
+
+Scope: navigation only, not approval of the linked Draft records. Status definitions: [Draft / Current / Archived](../design/DOCUMENT_STATUS.md).
+
 Designs explain intent and boundaries. They do not certify implementation or acceptance. Read their status, source baseline and unresolved decisions before using them as a build plan.
 
 | Document | Scope | State |

@@ -1,6 +1,9 @@
 # Design title
 
-Status: Draft / Proposed / In review / Human-approved (record the decision).
+Status: Draft
+
+Use Draft / Current / Archived as defined in [document status](../design/DOCUMENT_STATUS.md). Keep review stage and approval evidence separate from status. Promotion requires an owner decision for the exact revision; a template is not approval.
+Review stage: Proposed / In review / Approved (record the decision).
 Owning issue:
 Owner: To confirm.
 Source baseline SHA and document revision:

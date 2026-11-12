@@ -1,6 +1,9 @@
 # Design review above existing delivery gates
 
-Status: Proposed, draft adoption. No change to CI, release policy or permission to implement.
+Status: Draft
+
+Adoption: Proposed process; this label does not adopt the process or change CI, release policy or permission to implement.
+Status convention: [Draft / Current / Archived](design/DOCUMENT_STATUS.md).
 
 This process adds design checks to the Plan/Build boundary in [PRODUCT_LIFECYCLE.md](../PRODUCT_LIFECYCLE.md). It does not replace that lifecycle, [stack review](STACKED_PULL_REQUESTS.md), the QA matrix, exact-candidate verification or human release decisions. A clean design review is not compile, test, model-quality or physical-device evidence.
 

@@ -7,6 +7,7 @@ This map links canonical contracts rather than duplicating them. Check each docu
 | Start contributing | [Contributor start](CONTRIBUTOR_START.md), [repository guidelines](../AGENTS.md) |
 | Product purpose and acceptance inventory | [PRD](PRD.md), [MVP checklist](MVP_CHECKLIST.md) |
 | Plan, Build, Verify, Observe | [Product Lifecycle](../PRODUCT_LIFECYCLE.md), [outcomes](../PRODUCT_OUTCOMES.md) |
+| Design tokens and interaction patterns | [Token baseline](design/DESIGN_TOKENS.md), [document statuses](design/DOCUMENT_STATUS.md), [patterns](design/patterns/README.md) |
 | Design a substantial change | [Design review](DESIGN_REVIEW.md), [architecture index](architecture/README.md) |
 | Review and delivery order | [Stacked PR policy](STACKED_PULL_REQUESTS.md), [contribution policy](../AI_POLICY.md) |
 | Automated and device evidence | [QA matrix](QA_MATRIX.md), [QA procedure](QA.md), [CI policy](CI.md) |

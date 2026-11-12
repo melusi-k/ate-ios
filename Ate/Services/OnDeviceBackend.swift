@@ -168,10 +168,13 @@ final class OnDeviceBackend: BackendService {
                 fix = prompt + "\nPrevious draft (JSON):\n" + draft + "\n" + retryText
                 retryReviseID = nil
             }
-            if var again = try? await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx) {
+            card = try await GenerationCancellation.optionalRepair(original: card, operation: {
+                var again = try await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx)
                 again.source = source
-                if RecipeQuality.shortfall(again, labels: visibleLabels).count < gaps.count { card = again }
-            }
+                return again
+            }, prefer: { again, previous in
+                RecipeQuality.shortfall(again, labels: visibleLabels).count < RecipeQuality.shortfall(previous, labels: visibleLabels).count
+            })
         }
         try GenerationCancellation.check()
         if source == .photoGuess {

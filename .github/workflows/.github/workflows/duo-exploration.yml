@@ -1,0 +1,87 @@
+name: Duo exploration (manual, non-gating)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: duo-exploration-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  duo-screenshots:
+    # Same existing macOS runner label as the app workflows. No paid/larger
+    # runner, matrix, scheduled trigger, PR dependency or gate replacement.
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Record exact source and available simulator inventory
+        run: |
+          mkdir -p duo-diagnostics
+          git rev-parse HEAD > duo-diagnostics/source-sha.txt
+          xcodebuild -version > duo-diagnostics/xcode.txt
+          xcrun simctl list devices available -j > duo-diagnostics/devices.json
+          xcrun simctl list runtimes -j > duo-diagnostics/runtimes.json
+          SIM_ID=$(python3 scripts/select-duo-simulator.py)
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+          echo "$SIM_ID" > duo-diagnostics/selected-device.txt
+      - name: Generate project
+        run: brew install xcodegen && xcodegen generate
+      - name: Build dedicated Duo test products
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate \
+            -destination "platform=iOS Simulator,id=$SIM_ID" \
+            -derivedDataPath "$RUNNER_TEMP/ate-duo-derived" \
+            CODE_SIGNING_ALLOWED=NO > duo-diagnostics/build.log 2>&1
+      - name: Boot strict Duo destination and capture root and Cook Mode
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          xcrun simctl bootstatus "$SIM_ID" -b > duo-diagnostics/boot.log 2>&1
+          XCTESTRUN=$(find "$RUNNER_TEMP/ate-duo-derived/Build/Products" -maxdepth 1 -name '*.xctestrun' -print)
+          test -n "$XCTESTRUN"
+          test "$(printf '%s\n' "$XCTESTRUN" | wc -l | tr -d ' ')" = 1
+          python3 scripts/enable-duo-exploration.py "$XCTESTRUN"
+          xcodebuild test-without-building -xctestrun "$XCTESTRUN" \
+            -destination "platform=iOS Simulator,id=$SIM_ID" \
+            -only-testing:AteUITests/DuoExplorationUITests \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 90 -maximum-test-execution-time-allowance 120 \
+            -resultBundlePath "$RUNNER_TEMP/duo-exploration.xcresult" \
+            CODE_SIGNING_ALLOWED=NO > duo-diagnostics/exploration.log 2>&1
+          # A missing runner environment must fail, never green-light three skips.
+          python3 scripts/verify-duo-capture.py duo-diagnostics/exploration.log
+      - name: Export screenshots and record honest outcome
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/duo-exploration.xcresult" ]; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/duo-exploration.xcresult" \
+              --output-path duo-diagnostics/attachments
+          fi
+          {
+            echo '## Optional Duo exploration only'
+            echo "Source: $(cat duo-diagnostics/source-sha.txt)"
+            echo 'Destination: iPhone Duo / iOS 27.1. iPhone 18 Pro / iOS 27.0 gate unchanged.'
+            echo 'Root and synthetic one-step Cook Mode, modal and pushed, portrait/landscape.'
+            echo 'Inspect retained screenshots before making layout claims. No fold/posture continuity proof.'
+            echo 'No widget/Live Activity, model-quality, pilot or release acceptance. See #430 and Discussion #492.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: duo-exploration-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          path: |
+            duo-diagnostics
+            ${{ runner.temp }}/duo-exploration.xcresult

@@ -244,22 +244,35 @@ final class JournalStore {
     /// Non-throwing single lookup kept for intents and internal maintenance; user-facing detail
     /// uses `readEntry(_:)` so a read failure cannot look like a deleted entry.
     func entry(_ id: String) -> JournalEntry? { try? readEntry(id) }
-    func update(_ entry: JournalEntry, text: String) {
-        _ = try? writerBoundary.withEffect {
-            guard entry.kindRaw == JournalEntryKind.reflection.rawValue, let container else { return }
+    private var didInjectEditFailure = false
+
+    /// True only after this isolated context committed. A false result must not
+    /// dismiss an editor, mutate the retained reader or refresh parent history.
+    @discardableResult
+    func update(_ entry: JournalEntry, text: String) -> Bool {
+        return (try? writerBoundary.withEffect {
+            guard entry.kindRaw == JournalEntryKind.reflection.rawValue, let container else { return false }
+            if case .unavailable = openState { return false }
             let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !text.isEmpty else { return }
+            guard !text.isEmpty else { return false }
             let id = entry.id
             let ctx = ModelContext(container)
             ctx.autosaveEnabled = false
             guard let stored = try ctx.fetch(FetchDescriptor<JournalEntry>(predicate: #Predicate { $0.id == id })).first,
-                  stored.kindRaw == JournalEntryKind.reflection.rawValue else { return }
+                  stored.kindRaw == JournalEntryKind.reflection.rawValue else { return false }
             let editedAt = Date()
             stored.text = text; stored.editedAt = editedAt
-            do { try writeReflectionContext(ctx) }
+            do {
+                if AppConfig.isUITesting, ProcessInfo.processInfo.arguments.contains("-qaReflectionEditFailureOnce"), !didInjectEditFailure {
+                    didInjectEditFailure = true
+                    throw ManualJournalSaveError.failed
+                }
+                try writeReflectionContext(ctx)
+            }
             catch { ctx.rollback(); throw error }
             entry.text = text; entry.editedAt = editedAt
-        }
+            return true
+        }) ?? false
     }
     /// Entry saved from Siri/Shortcuts, keeping location and media (media files live in Application Support/JournalMedia).
     @discardableResult

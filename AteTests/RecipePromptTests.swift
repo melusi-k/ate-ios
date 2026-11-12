@@ -88,7 +88,14 @@ final class RecipePromptTests: XCTestCase {
         ]
         XCTAssertEqual(briefs.count, 6, "one brief per input mode")
         for (input, brief) in briefs {
-            XCTAssertEqual(RecipePrompt.instructions(for: input), RecipePrompt.instructions + "\n" + brief, "\(input)")
+            if input == .rewrite {
+                let scoped = RecipePrompt.instructions(for: input)
+                XCTAssertTrue(scoped.contains("Follow only the exact requested change"))
+                XCTAssertTrue(scoped.contains("return the original unchanged"))
+                XCTAssertFalse(scoped.contains("Example 1"))
+            } else {
+                XCTAssertEqual(RecipePrompt.instructions(for: input), RecipePrompt.instructions + "\n" + brief, "\(input)")
+            }
         }
     }
 
@@ -208,4 +215,3 @@ final class RecipePromptTests: XCTestCase {
         XCTAssertEqual(RecipePrompt.context(for: "make it vegan, actually not vegan").dietary, ["vegan"])
     }
 }
-

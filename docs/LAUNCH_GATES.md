@@ -4,6 +4,8 @@ Approved by the owner on 10 November 2026. Two stages describe who the product i
 
 ## Pilot: prove the cooking loop with a small invited group
 
+Until TestFlight (#489) is enabled, Pilot means owner-device sideload builds only, and TestFlight-dependent evidence is N/A by the owner's 12 November 2026 decision.
+
 ### Entry criteria
 
 - The agreed MVP scope is usable: import a recipe, review/save it, find it again, plan a cooking day, shop, cook and explicitly finish. Current MVP issues are #35, #89, #72, #73 and #477, plus required import dependencies including #253. Each scoped criterion needs evidence or an explicit scope decision, not merely a closed issue.

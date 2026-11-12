@@ -572,6 +572,8 @@ final class AppStore {
     private var recipeSnapshot: [String: RecipeCard] = [:]
     private var shopSnapshot: [String: ShoppingItem] = [:]
     private var syncTask: Task<Void, Never>?
+    private var syncInFlight = false
+    private var syncRequestedWhileBusy = false
 
     let backend: BackendService
     private let context: ModelContext?
@@ -1264,20 +1266,26 @@ final class AppStore {
             for id in recipeSnapshot.keys where rNow[id] == nil { meta.recipeTombs[id] = t; meta.recipeStamps[id] = nil; changed = true }
             recipeSnapshot = rNow
             let sNow = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-            for (id, it) in sNow where shopSnapshot[id] != it { meta.shopStamps[id] = t; meta.shopTombs[id] = nil; changed = true }
-            for id in shopSnapshot.keys where sNow[id] == nil { meta.shopTombs[id] = t; meta.shopStamps[id] = nil; changed = true }
+            for (id, it) in sNow where shopSnapshot[id] != it {
+                meta.shopStamps[id] = ShoppingSyncCadence.nextStamp(now: t, prior: max(meta.shopStamps[id] ?? -1, meta.shopTombs[id] ?? -1))
+                meta.shopTombs[id] = nil; changed = true
+            }
+            for id in shopSnapshot.keys where sNow[id] == nil {
+                meta.shopTombs[id] = ShoppingSyncCadence.nextStamp(now: t, prior: max(meta.shopStamps[id] ?? -1, meta.shopTombs[id] ?? -1))
+                meta.shopStamps[id] = nil; changed = true
+            }
             shopSnapshot = sNow
             if changed { saveDefaults(meta, key: "ate.sync.v1"); scheduleSync() }
         }
     }
 
-    func scheduleSync(delay: Double = 1.5) {
+    func scheduleSync(delay: Double = 1.5, reconcileShoppingPush: Bool = true) {
         guard session != nil else { return }
         syncTask?.cancel()
         syncTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             if Task.isCancelled { return }
-            await syncNow()
+            await syncNow(reconcileShoppingPush: reconcileShoppingPush)
         }
     }
 
@@ -1294,7 +1302,23 @@ final class AppStore {
         recovery = r
     }
 
-    func syncNow() async {
+    func syncNow(reconcileShoppingPush: Bool = true) async {
+        // MainActor is reentrant across network awaits. Serialize pull/merge/push
+        // so a slower old snapshot cannot overwrite a newer sync's local result.
+        if syncInFlight { syncRequestedWhileBusy = true; return }
+        syncInFlight = true
+        var needsShoppingReconciliation = false
+        defer {
+            syncInFlight = false
+            if syncRequestedWhileBusy {
+                syncRequestedWhileBusy = false
+                scheduleSync(delay: 0.2)
+            } else if needsShoppingReconciliation {
+                // One automatic receipt pull only. Missing/stale server rows must
+                // not create a self-sustaining fast upload loop.
+                scheduleSync(delay: 0.2, reconcileShoppingPush: false)
+            }
+        }
         guard var s = session, let sync, let auth else { syncState = .signedOut; return }
         syncState = .syncing
         // Determine account ownership before any refresh or pull can fail. If this is a switch,
@@ -1304,11 +1328,16 @@ final class AppStore {
         // The writer boundary is never held across an await: capture the session before
         // suspending and re-prove session + epoch after each await, before publishing.
         var capturedSession = session
+        func syncOwnerStillCurrent() -> Bool {
+            // Even the legacy/unbound graph must reject an account switch while
+            // a network await is suspended. Canonical epoch checks remain extra.
+            session == capturedSession && validatePostAwaitPublish(capturedSession: capturedSession)
+        }
         do {
             if s.expiresAt < Date().timeIntervalSince1970 + 60 {
                 do {
                     s = try await auth.refresh(s)
-                    guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                    guard syncOwnerStillCurrent() else {
                         syncState = .failed(Self.syncInterruptedMessage); return
                     }
                     guard setSession(s) else {
@@ -1317,7 +1346,10 @@ final class AppStore {
                     capturedSession = session
                     BetaQA.shared.pass("A-AUTH-06", note: "Session refreshed before sync")
                 }
-                catch let e as AuthError where e.kind == .unauthorized { expireSession(); return }
+                catch let e as AuthError where e.kind == .unauthorized {
+                    guard syncOwnerStillCurrent() else { syncState = .failed(Self.syncInterruptedMessage); return }
+                    expireSession(); return
+                }
             }
             // Persist ownership on first sign-in before network I/O. If the first pull fails, a
             // later sign-in after relaunch must not merge this user's local library into another.
@@ -1335,18 +1367,21 @@ final class AppStore {
             BetaQA.shared.syncPulled(rows: remote.count)
             // The pulled snapshot publishes only while the session and writer epoch captured
             // before the await are still current.
-            guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+            guard syncOwnerStillCurrent() else {
                 syncState = .failed(Self.syncInterruptedMessage); return
             }
             if switchingAccounts {
                 // Keep failure classified as an incomplete switch until cleanup succeeds.
                 do { try await removeCookPlansBeforeErase(capturedSession: capturedSession) }
                 catch {
-                    guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+                    guard syncOwnerStillCurrent() else {
                         syncState = .failed(Self.syncInterruptedMessage); return
                     }
                     throw error
                 }
+            }
+            guard syncOwnerStillCurrent() else {
+                syncState = .failed(Self.syncInterruptedMessage); return
             }
             accountSwitchPullSucceeded = true
             let out: [SyncRecord]
@@ -1377,7 +1412,9 @@ final class AppStore {
                     let dd = RecipeLogic.dedupe(recipes); recipes = dd.cards
                     let newShop = sh.data.compactMapValues { try? dec.decode(ShoppingItem.self, from: $0) }
                     var ordered = shopping.compactMap { newShop[$0.id] }
-                    for (id, it) in newShop where !ordered.contains(where: { $0.id == id }) { ordered.append(it) }
+                    for id in newShop.keys.sorted() where !ordered.contains(where: { $0.id == id }) {
+                        if let item = newShop[id] { ordered.append(item) }
+                    }
                     shopping = ordered
                     meta.recipeStamps = r.stamps; meta.recipeTombs = r.tombstones
                     for id in dd.removedIDs { meta.recipeTombs[id] = nowMs(); meta.recipeStamps[id] = nil }   // merged duplicates delete remotely too
@@ -1406,21 +1443,27 @@ final class AppStore {
             try await sync.push(out, session: s)
             // The push landed on the server; only the local completion publish is abandoned
             // when the session or epoch moved during it.
-            guard validatePostAwaitPublish(capturedSession: capturedSession) else {
+            guard syncOwnerStillCurrent() else {
                 syncState = .failed(Self.syncPushedButInterruptedMessage)
                 return
             }
+            // An accepted upsert is not a receipt that our shopping value won a
+            // server-side conflict. Reconcile once more when we submitted rows.
+            if reconcileShoppingPush && out.contains(where: { $0.kind == "shopping" }) { needsShoppingReconciliation = true }
             syncState = .synced(Date())
             BetaQA.shared.syncSucceeded(pushed: out.count)
         } catch SyncError.tableMissing {
+            guard syncOwnerStillCurrent() else { syncState = .failed(Self.syncInterruptedMessage); return }
             if switchingAccounts && !accountSwitchPullSucceeded {
                 signOutAfterFailedAccountSwitch()
             } else {
                 syncState = .unavailable(SyncError.tableMissing.errorDescription ?? "")
             }
         } catch SyncError.unauthorized {
+            guard syncOwnerStillCurrent() else { syncState = .failed(Self.syncInterruptedMessage); return }
             expireSession()
         } catch {
+            guard syncOwnerStillCurrent() else { syncState = .failed(Self.syncInterruptedMessage); return }
             if switchingAccounts && !accountSwitchPullSucceeded {
                 signOutAfterFailedAccountSwitch()
             } else {

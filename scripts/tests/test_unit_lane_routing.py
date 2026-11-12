@@ -22,7 +22,16 @@ class UnitLaneRoutingTests(unittest.TestCase):
         names = json.loads((ROOT / 'docs/unit-named-pass-ledger.json').read_text())
         self.assertEqual(len(names), 25)
         expected = [name.removesuffix("]' passed").replace(' ', '/') for name in names]
-        self.assertEqual((ROOT / 'scripts/full-unit-required.txt').read_text().splitlines(), expected)
+        # Preserve the exact original ordered25 and separately require the
+        # additive generation lifetime names; accepting an arbitrary superset
+        # would silently lose the intended snapshot guarantee.
+        generation = [
+            'DraftGenerationAttemptTests/testDiscardSuppressesLateDraftPreviewErrorAndFinishEvenWhenBackendIgnoresCancellation',
+            'DraftGenerationAttemptTests/testDisappearKeepsRetryInputButLateResultCannotReplaceIt',
+            'DraftGenerationAttemptTests/testDuplicateStartRefusesAndOldCompletionCannotAdmitEffectsDuringNewAttempt',
+            'DraftGenerationAttemptTests/testSpreadChildCannotWriteLibraryAfterInvalidation',
+        ]
+        self.assertEqual((ROOT / 'scripts/full-unit-required.txt').read_text().splitlines(), expected + generation)
         self.assertIn('xcrun xcresulttool get test-results tests --path', self.full)
         self.assertIn('python3 scripts/verify-full-unit-required.py full-unit-tests.json scripts/full-unit-required.txt', self.full)
 

@@ -1010,5 +1010,28 @@ extension CoverageUITests {
         wait(app.images["settings.logo"])
         app.swipeUp()
         XCTAssertTrue(settingsTitle.exists, "The navigation bar must remain present while Settings scrolls")
+
+        // #82 uses the current Journal root, not the historical Tracker title or
+        // pushed Cooking History route. Keep this in the existing focused header
+        // method so its exact named-pass gate also covers the requested root.
+        tab("Journal")
+        let journalTitle = app.navigationBars["Journal"]
+        wait(journalTitle)
+        wait(app.images["journal.logo"])
+        XCTAssertEqual(app.navigationBars.count, 1, "Journal must have one navigation header")
+        let timeline = any("journal.timelineLink")
+        wait(timeline)
+        XCTAssertGreaterThanOrEqual(timeline.frame.minY, journalTitle.frame.minY,
+                                    "Journal root content must begin below its shared navigation title")
+        let addEntry = app.buttons["journal.newEntry"]
+        wait(addEntry)
+        XCTAssertTrue(addEntry.isHittable, "Journal New entry must be reachable initially")
+        shot("82-journal-root-header-initial")
+        app.swipeUp()
+        XCTAssertTrue(journalTitle.exists, "Journal navigation header must remain present after scrolling")
+        XCTAssertTrue(app.images["journal.logo"].exists, "Journal keeps the shared root logo after scrolling")
+        XCTAssertEqual(app.navigationBars.count, 1, "Scrolling Journal must not introduce a duplicate header")
+        XCTAssertTrue(addEntry.isHittable, "Journal New entry must stay reachable after scrolling")
+        shot("82-journal-root-header-after-scroll")
     }
 }

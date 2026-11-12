@@ -53,3 +53,7 @@ existing guard because neither of its two listed evidence paths changed. That
 is not generation-quality qualification, and its old Journal focus does not
 describe that PR's new generation paths. No rerun or record update on #517 is
 part of this #518 repair.
+
+## Cook and reflection edit union (#482 on #518)
+
+Reviewed hosted runtime 144b076bb313ac42c98270d08543c8d3632cf195 preserves all four Cook/shared-step evidence paths and adds JournalSuggestionService for committed reflection edits. JournalViews has its freshly reviewed edit blob. This record unions the focus, never replaces Cook work with reflection-only claims. Native save-failure, Resume/timer spacing, widget, physical-device and pixel evidence remain pending. Strict ancestry/blob validation is unchanged; Food Journal remains OFF.

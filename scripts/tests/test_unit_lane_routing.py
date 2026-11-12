@@ -23,7 +23,8 @@ class UnitLaneRoutingTests(unittest.TestCase):
         self.assertEqual(len(names), 25)
         expected = [name.removesuffix("]' passed").replace(' ', '/') for name in names]
         reminders = ['CookPlanNotificationTests/testDeniedPermissionCannotClaimReconciledWhenOldReminderRemovalFails', 'CookPlanNotificationTests/testDeletedRecipeReminderRemovalMustVerifyBeforeOtherReminderAdds']
-        self.assertEqual((ROOT / 'scripts/full-unit-required.txt').read_text().splitlines(), expected + reminders)
+        deletes = ['JournalReflectionConsumerTests/testStableIdentityDeleteAfterEditVerifiesCommittedAbsenceAndPreservesSibling', 'JournalReflectionConsumerTests/testStableIdentityDeleteRejectsUncommittedWriterThenExplicitRetrySucceeds', 'JournalReflectionConsumerTests/testStableIdentityDeleteCannotRemoveUnknownKindOrMissingID']
+        self.assertEqual((ROOT / 'scripts/full-unit-required.txt').read_text().splitlines(), expected + reminders + deletes)
         self.assertIn('xcrun xcresulttool get test-results tests --path', self.full)
         self.assertIn('python3 scripts/verify-full-unit-required.py full-unit-tests.json scripts/full-unit-required.txt', self.full)
 

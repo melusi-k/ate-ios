@@ -107,4 +107,23 @@ final class GeneratedTotalTimeTests: XCTestCase {
         XCTAssertNil(GeneratedRecipeConsistency.prepMinutes(in: "Prep: 10 min. Prep: 12 min"))
         XCTAssertNil(GeneratedRecipeConsistency.prepMinutes(in: "Prep: 10-12 min"))
     }
+    func testLegacyPhotoTotalKeepsBoundedPrepGapWithoutInventingPrepNote() {
+        var original = RecipeCard(title: "Sandwich", timeMinutes: 30,
+            ingredients: [.init(name: "cheese", quantity: 2, unit: "slices"),
+                          .init(name: "polony", quantity: 3, unit: "slices")],
+            steps: [.init(order: 1, instruction: "Layer cheese and polony", timeSeconds: 120),
+                    .init(order: 2, instruction: "Toast sandwich in pan", timeSeconds: 300)],
+            source: .photoGuess)
+        let bounded = Durations.sanitize(original).card
+        XCTAssertEqual(bounded.timeMinutes, 12)
+        XCTAssertNil(bounded.aiNote, "Do not fabricate an exact Prep statement")
+        XCTAssertTrue(GeneratedRecipeConsistency.issues(bounded).contains { $0.contains("Explain the extra 5 minutes") })
+        XCTAssertEqual(Durations.sanitize(bounded).card.timeMinutes, 12)
+        original.aiNote = "Prep: 12 min"
+        XCTAssertEqual(Durations.sanitize(original).card.timeMinutes, 19, "Explicit photo prep must not be legacy-capped")
+        original.aiNote = "Prep: 10-15 min"
+        XCTAssertEqual(Durations.sanitize(original).card.timeMinutes, 30, "Malformed photo prep stays a visible gap")
+        XCTAssertTrue(GeneratedRecipeConsistency.issues(original).contains { $0.contains("Clarify one explicit") })
+    }
+
 }

@@ -2,13 +2,19 @@
 
 ## Status
 
-**Phase:** 1 — Token foundation  
-**Status:** Provisional baseline; not yet approved as the canonical design system  
-**Source baseline:** Existing SwiftUI implementation on `main`  
-**Figma workspace:** Created — [Ate — Design System](https://www.figma.com/design/rnBsUzukcZYENdHahlj3zO) (Add Colour Agency team).  
+**Phase:** 1 — Token foundation
+**Status:** Draft
+**Review state:** Provisional baseline; not yet approved as the canonical design system
+**Document status convention:** [Draft / Current / Archived](DOCUMENT_STATUS.md)
+**Source baseline:** Existing SwiftUI implementation on `main`
+**Figma workspace:** Created — [Ate — Design System](https://www.figma.com/design/rnBsUzukcZYENdHahlj3zO) (Add Colour Agency team).
 **Figma status:** Provisional variables and foundation reference pages created; pending design/product review.
 
 This phase establishes a safe, reviewable token contract without changing the app's appearance or mass-refactoring consumers. The current repository is the evidence baseline, not a substitute for the design source of truth.
+
+## Decision addendum - 12 November 2026
+
+[Discussion #487](https://github.com/melusi-k/ate-ios/discussions/487) approved the next direction: a fixed 4pt-base spacing scale seeded from observed values; one Light/Dark multi-mode Figma collection when plan support allows; widget primary alignment to #B9481F unless contrast evidence justifies an exception; the document-status convention; and [text-first patterns](patterns/README.md). This supersedes older undecided/audit-only direction below, not the observed implementation inventory. Implementation and verification remain open in the dated comments on #360/#366. No tokens, Swift consumers or Figma content change in this docs slice.
 
 ## Ownership and flow
 

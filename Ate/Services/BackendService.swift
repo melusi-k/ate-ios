@@ -7,6 +7,8 @@ struct ParseRequest: Codable {
     var text: String?
     var imageDataUrl: String?
     var currentRecipe: RecipeCard?
+    /// Explicit quality-panel repair, not a user-requested rewrite or re-roll.
+    var repairQuality: Bool? = nil
 }
 
 struct BackendError: LocalizedError {
@@ -128,6 +130,26 @@ final class MockBackend: BackendService {
         }
         Self.parses += 1
         try await Task.sleep(nanoseconds: 900_000_000)
+        if AppConfig.isUITesting, Self.args.contains("-qaDraftQualityRepair") {
+            var fixture = RecipeCard(title: "Tomato bread salad", servings: 2,
+                ingredients: [.init(name: "onion", quantity: 1, unit: "pcs"),
+                              .init(name: "tomato", quantity: 2, unit: "pcs"),
+                              .init(name: "oil", quantity: 1, unit: "tbsp")],
+                steps: [.init(order: 1, instruction: "Chop the onion and tomato.", timeSeconds: nil),
+                        .init(order: 2, instruction: "Cut the bread into cubes.", timeSeconds: nil),
+                        .init(order: 3, instruction: "Toss the onion, tomato and bread with oil.", timeSeconds: nil)],
+                source: .appleIntelligence)
+            fixture.aiConfidence = 0.95
+            if request.repairQuality == true, let original = request.currentRecipe {
+                var repair = original
+                repair.ingredients.append(.init(name: "bread", quantity: 2, unit: "slice"))
+                return try RecipeDraftRepair.accept(repair, replacing: original)
+            }
+            return fixture
+        }
+        if request.repairQuality == true {
+            throw BackendError(message: "Demo AI cannot verify a quality repair. Your draft is unchanged; edit it manually.")
+        }
         if request.mode == .rewrite, var card = request.currentRecipe {
             let ask = request.text ?? ""
             card.title = card.title + (ask.isEmpty ? "" : " (\(ask.lowercased()))")
@@ -312,4 +334,3 @@ final class SupabaseBackend: BackendService {
         return try JSONDecoder().decode(CardEnvelope.self, from: data).card
     }
 }
-

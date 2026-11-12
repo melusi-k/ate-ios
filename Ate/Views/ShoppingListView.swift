@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ShoppingListView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.scenePhase) private var scenePhase
     @State private var newItem = ""
     @FocusState private var addFieldFocused: Bool
     @State private var share: ShareItems?
@@ -26,6 +27,20 @@ struct ShoppingListView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("\(pending.count) to buy" + (done.isEmpty ? "" : " · \(done.count) in the basket"))
                         .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
+                    if store.session != nil {
+                        HStack {
+                            Text(store.syncState.label).font(.footnote)
+                                .accessibilityIdentifier("shopping.syncStatus")
+                            Spacer()
+                            Button("Sync now") { Task { await store.syncNow() } }
+                                .disabled(store.syncState == .syncing)
+                                .accessibilityIdentifier("shopping.syncNow")
+                        }
+                    } else {
+                        Text("Saved on this iPhone. Sign in from Settings to sync your shopping list.")
+                            .font(.footnote).foregroundStyle(Theme.mutedForeground)
+                            .accessibilityIdentifier("shopping.localOnly")
+                    }
                     if !store.shopping.isEmpty { progressRow(bought: done.count, total: store.shopping.count) }
                     HStack(spacing: 8) {
                         TextField("Add something else…", text: $newItem).font(AteFont.body(15))
@@ -64,6 +79,19 @@ struct ShoppingListView: View {
                 .foregroundStyle(Theme.foreground)
                 .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 96)
                 .pageWidth()
+            }
+        }
+        .refreshable { await store.syncNow() }
+        .task(id: ShoppingSyncIdentity(owner: store.session?.userID, active: scenePhase == .active)) {
+            // No polling during ordinary UI tests. This task is cancelled when
+            // the screen disappears, the scene backgrounds or the owner changes.
+            guard !AppConfig.isUITesting, scenePhase == .active, let owner = store.session?.userID else { return }
+            var failures = 0
+            while !Task.isCancelled && scenePhase == .active && store.session?.userID == owner {
+                await store.syncNow()
+                if case .synced = store.syncState { failures = 0 } else { failures += 1 }
+                do { try await Task.sleep(nanoseconds: ShoppingSyncCadence.seconds(consecutiveFailures: failures) * 1_000_000_000) }
+                catch { return }
             }
         }
         .navigationTitle("Shopping list")
@@ -272,4 +300,9 @@ private struct ShoppingItemEditor: View {
             }
         }
     }
+}
+
+private struct ShoppingSyncIdentity: Equatable {
+    let owner: String?
+    let active: Bool
 }

@@ -45,6 +45,8 @@ struct AddRecipeSheet: View {
     @State private var saving = false
     @State private var live: RecipeStreamPreview?
     @State private var confirmedDraft = false
+    @State private var repairError: String?
+    @State private var repairAttempt = DraftRepairAttempt()
     /// Name the user confirmed in "What dish is this?" (C-AI-01); the regenerated card is not asked about again.
     @State private var confirmedDish: String?
     @Environment(\.dismiss) private var dismiss
@@ -73,12 +75,19 @@ struct AddRecipeSheet: View {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { if hasUnsaved { confirmDiscard = true } else { dismiss() } }.accessibilityIdentifier("addCancel")
                     .confirmationDialog("Discard this recipe?", isPresented: $confirmDiscard, titleVisibility: .visible) {
-                        Button("Discard", role: .destructive) { DraftStore.shared.clear(); dismiss() }
+                        Button("Discard", role: .destructive) {
+                            invalidateRepair()
+                            DraftStore.shared.clear()
+                            dismiss()
+                        }
                         Button("Keep editing", role: .cancel) {}
                     }
             }
         }
-        .onDisappear { if !loading && !hasUnsaved { DraftStore.shared.clear() } }
+        .onDisappear {
+            invalidateRepair()
+            if !loading && !hasUnsaved { DraftStore.shared.clear() }
+        }
         .task {
             OnDeviceBackend.prewarm()
             if let m = initialMode, draft == nil {
@@ -241,6 +250,20 @@ struct AddRecipeSheet: View {
                     Text("Ate is only \(d.aiConfidence ?? 0, format: .percent.precision(.fractionLength(0))) sure this is \(d.title).").font(AteFont.body(13))
                 }
                 ForEach(RecipeQuality.issues(d), id: \.self) { Text("• " + $0).font(AteFont.body(13)) }
+                if RecipeQuality.isGenerated(d), !RecipeQuality.shortfall(d).isEmpty {
+                    Button(loading ? "Repairing draft…" : "Repair these gaps") {
+                        repairDraft()
+                    }
+                    .buttonStyle(.ate(.secondary, height: 44))
+                    .disabled(loading || saving)
+                    .accessibilityIdentifier("repairDraftQuality")
+                    Text("Repairs this draft using the listed gaps. It does not choose a different dish.")
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                }
+                if let repairError {
+                    Text(repairError).font(AteFont.body(13)).foregroundStyle(Theme.destructive)
+                        .accessibilityIdentifier("repairDraftError")
+                }
                 Text("Edit the card, or confirm it's right, before saving.").font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                 Button("It's right, let me save") { confirmedDraft = true }.buttonStyle(.ate(.secondary, height: 36))
                     .accessibilityIdentifier("confirmDraft")
@@ -269,7 +292,7 @@ struct AddRecipeSheet: View {
                 DiagnosticHistory.shared.record(.recipeSaved)
             }
                 .buttonStyle(.ate(.primary, full: true)).accessibilityIdentifier("saveRecipe")
-                .disabled(saving || (draft.map { RecipeQuality.needsInput($0) } ?? false) && !didEdit && !confirmedDraft)
+                .disabled(saving || loading || (draft.map { RecipeQuality.needsInput($0) } ?? false) && !didEdit && !confirmedDraft)
             Button(editing ? "Preview" : "Edit") { editing.toggle(); didEdit = true }.buttonStyle(.ate(.secondary))
             Button { Task { await generate() } } label: {
                 Image(systemName: "arrow.clockwise").rotationEffect(.degrees(loading ? 360 : 0))
@@ -432,6 +455,42 @@ struct AddRecipeSheet: View {
             }
         }
         return nil
+    }
+
+    private func invalidateRepair() {
+        guard repairAttempt.isRunning else { return }
+        repairAttempt.invalidate()
+        loading = false
+    }
+
+    private func repairDraft() {
+        guard !loading, !saving, let original = draft else { return }
+        if store.settings.onDeviceOnly {
+            store.show("Private mode is on - turn it off in Settings to use AI.", error: true)
+            return
+        }
+        loading = true
+        repairError = nil
+        let request = ParseRequest(mode: .rewrite, text: mode == .prompt ? prompt : nil,
+            currentRecipe: original, repairQuality: true)
+        repairAttempt.start(operation: {
+            try await store.backend.parseRecipe(request)
+        }, apply: { result in
+            // Admission has already been rechecked after await. Also refuse
+            // edits made during repair before any state or DraftStore write.
+            guard draft == original else {
+                throw BackendError(message: "Your draft changed during repair. The repair was not applied.")
+            }
+            let repaired = try RecipeDraftRepair.accept(result, replacing: original)
+            draft = repaired
+            didEdit = false
+            confirmedDraft = false
+            DraftStore.shared.saveDraft(repaired)
+        }, failed: { error in
+            repairError = error.localizedDescription
+        }, finished: {
+            loading = false
+        })
     }
 
     private func generate() async {

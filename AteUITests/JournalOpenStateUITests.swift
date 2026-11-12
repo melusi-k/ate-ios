@@ -198,6 +198,38 @@ extension JournalOpenStateUITests {
         shot("timeline-saved-reflection-back")
     }
 
+    func testReflectionEditFailureRetainsDraftThenRetryCommitsAndRefreshesHistory() {
+        composeFromHistory(extra: ["-qaReflectionEditFailureOnce"])
+        let original = "Reflection failure " + UUID().uuidString
+        let compose = app.textViews["journal.compose.text"]
+        compose.tap(); compose.typeText(original)
+        app.buttons["journal.compose.save"].tap()
+        wait(app.navigationBars["Journal"])
+        let saved = app.descendants(matching: .any).matching(identifier: "journal.entry")
+            .matching(NSPredicate(format: "label CONTAINS %@", original)).firstMatch
+        wait(saved); saved.tap()
+        let detail = any("journal.detail.text")
+        wait(detail); XCTAssertEqual(detail.label, original)
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Edit"].tap()
+        let editor = app.textViews["journal.edit.text"]
+        wait(editor); editor.tap(); editor.typeText(" retained draft")
+        let intended = editor.value as? String
+        app.navigationBars["Edit entry"].buttons["Save"].tap()
+        wait(any("journal.edit.error"))
+        XCTAssertTrue(editor.exists, "Failed commit must not dismiss editor")
+        XCTAssertEqual(editor.value as? String, intended, "Failed commit must keep exact draft")
+        shot("reflection-edit-failure-retained-draft")
+        app.navigationBars["Edit entry"].buttons["Save"].tap()
+        waitUntilGone(editor)
+        wait(detail); XCTAssertEqual(detail.label, intended)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        wait(app.navigationBars["Journal"])
+        let edited = app.descendants(matching: .any).matching(identifier: "journal.entry")
+            .matching(NSPredicate(format: "label CONTAINS %@", intended ?? "missing")).firstMatch
+        wait(edited)
+        shot("reflection-edit-retry-refreshed-history")
+    }
+
     func testManualReflectionEditSaveCancelAndConfirmedDelete() {
         composeFromHistory()
         let original = "Manual CRUD " + UUID().uuidString

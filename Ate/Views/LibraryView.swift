@@ -10,6 +10,9 @@ struct LibraryView: View {
     /// iOS 26: the Library tab has no field (.none); the search tab hosts it in the tab bar (.tabBar).
     var searchPlacement: SearchPlacement = .drawer
     @State private var showAdd = false
+    @State private var showExplore = false
+    @State private var exploreSelection: String?
+    @State private var exploreAddRequested = false
     @State private var addMode: WidgetLinks.AddMode?
     @State private var addPrompt: String?
     @State private var confirmDelete: RecipeCard?
@@ -77,6 +80,23 @@ struct LibraryView: View {
             ExpandableRecipeDetailSheet(recipe: recipe, detent: $recipeSheetDetent)
                 .environment(store)
         }
+        .sheet(isPresented: $showExplore, onDismiss: {
+            // Sequence presentations through the actual dismissal callback, not a delay.
+            if let id = exploreSelection {
+                exploreSelection = nil
+                quickLookRecipe = store.recipe(id)
+            } else if exploreAddRequested {
+                exploreAddRequested = false
+                addMode = nil; addPrompt = nil; showAdd = true
+            }
+        }) {
+            NavigationStack {
+                ExploreView(onSelect: { id in exploreSelection = id; showExplore = false },
+                            onAdd: { exploreAddRequested = true; showExplore = false })
+            }
+            .environment(store)
+            .presentationDetents([.large])
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Same bottom system as recipe detail: sits directly above the stack's timer bar.
             // iOS 26: the tab bar's bottom accessory carries "Add recipe" instead (C-TAB-01).
@@ -92,7 +112,15 @@ struct LibraryView: View {
         .navigationTitle(store.filter.collection?.title ?? L10n.libraryTitle)
         .onAppear { store.bottomAddContext = .recipe }
         .ateRootNavigationChrome(logoID: "libraryLogo")
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { trailingMenu } }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if searchPlacement != .tabBar {
+                    Button { showExplore = true } label: { Label("Explore", systemImage: "safari") }
+                        .accessibilityIdentifier("library.explore")
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) { trailingMenu }
+        }
         .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd, initialMode: addMode, initialPrompt: addPrompt, pushesToSearchStack: searchPlacement == .tabBar, global: searchPlacement != .tabBar))
         .onChange(of: store.pendingSearch) { _, _ in adoptPendingSearch() }
         .onAppear { adoptPendingSearch() }

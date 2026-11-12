@@ -37,6 +37,18 @@ final class OnDeviceBackend: BackendService {
     }
 
     func parseRecipe(_ request: ParseRequest) async throws -> RecipeCard {
+        try GenerationCancellation.check()
+        do {
+            let card = try await parseRecipeResult(request)
+            try GenerationCancellation.check()
+            return card
+        } catch {
+            try GenerationCancellation.check(error)
+            throw error
+        }
+    }
+
+    private func parseRecipeResult(_ request: ParseRequest) async throws -> RecipeCard {
         // Links: structured schema.org/Recipe data first (no AI needed), then the model.
         var pageHTML: String?
         var socialCaption: String?
@@ -58,7 +70,11 @@ final class OnDeviceBackend: BackendService {
                 }
             }
         }
-        guard Self.isModelAvailable else { return try await fallback.parseRecipe(request) }
+        guard Self.isModelAvailable else {
+            let card = try await fallback.parseRecipe(request)
+            try GenerationCancellation.check()
+            return card
+        }
         var source: RecipeSource = .appleIntelligence
         let prompt: String
         var input: RecipePrompt.Input = .prompt
@@ -157,6 +173,7 @@ final class OnDeviceBackend: BackendService {
                 if RecipeQuality.shortfall(again, labels: visibleLabels).count < gaps.count { card = again }
             }
         }
+        try GenerationCancellation.check()
         if source == .photoGuess {
             card.servings = RecipeQuality.inferredServings(card, fromPhoto: true)
             card.aiConfidence = PhotoGuess.calibratedConfidence(model: card.aiConfidence, title: card.title, labels: visionLabels)
@@ -231,6 +248,7 @@ final class OnDeviceBackend: BackendService {
     @MainActor
     static func generate(_ prompt: String, input: RecipePrompt.Input = .prompt, photoDataURL: String? = nil,
                          reviseID: String? = nil, context: RecipePrompt.Context = .init()) async throws -> RecipeCard {
+        try GenerationCancellation.check()
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
             var tools: [any Tool] = [RegionalDishTool()]
@@ -258,16 +276,20 @@ final class OnDeviceBackend: BackendService {
                                                     includeSchemaInPrompt: RecipePrompt.includeSchemaInPrompt || isRevision,
                                                     options: GenerationOptions(sampling: .greedy))
                 for try await snap in stream {
+                    try GenerationCancellation.check()
                     partialSink?(RecipeStreamPreview(snap.content))
                 }
                 let res = try await stream.collect()
+                try GenerationCancellation.check()
                 let card = res.content.card
                 sessions[card.id] = session
                 if sessions.count > 8, let k = sessions.keys.first(where: { $0 != card.id }) { sessions[k] = nil }
                 return card
-            } catch let e as LanguageModelSession.GenerationError {
-                throw BackendError(message: GenerationFailure(e).message)
             } catch {
+                try GenerationCancellation.check(error)
+                if let generationError = error as? LanguageModelSession.GenerationError {
+                    throw BackendError(message: GenerationFailure(generationError).message)
+                }
                 throw BackendError(message: GenerationFailure.decoding.message)
             }
         }

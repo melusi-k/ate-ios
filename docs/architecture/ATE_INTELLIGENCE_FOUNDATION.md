@@ -1,6 +1,9 @@
 # Ate Intelligence Foundation: design-review pilot
 
-Status: Proposed discovery/design document, not approved architecture or implementation.
+Status: Draft
+
+Scope: Proposed discovery/design document, not approved architecture or implementation.
+Status convention: [Draft / Current / Archived](../design/DOCUMENT_STATUS.md).
 Owning initiative: [#316](https://github.com/melusi-k/ate-ios/issues/316).
 Baseline: main `351c7f18170272112dfaf1a609b8519c31205008`, inspected 2026-11-05.
 Engineering/review owners: To confirm. No delivery date, implementation branch or release gate is committed.

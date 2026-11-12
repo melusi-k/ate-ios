@@ -93,6 +93,41 @@ final class ShoppingSyncLifecycleTests: XCTestCase {
         stores.append(store)
         return store
     }
+    func testIncompatibleReceiptPreservesBothDomainsAndMetadataWithoutPush() async throws {
+        let transport = ControlledSync()
+        let store = make(transport)
+        let recipe = RecipeCard(id: "recipe-local", title: "Keep soup")
+        let item = ShoppingItem(id: "shopping-local", name: "Beans", quantity: 1, unit: "bag")
+        store.recipes = [recipe]; store.shopping = [item]
+        // A valid deletion plus a malformed update must not partially apply.
+        transport.rows = [
+            SyncRecord(user_id: "owner-a", kind: "recipe", id: recipe.id, data: nil, updated_at: 9_000_000_000_000, deleted: true),
+            SyncRecord(user_id: "owner-a", kind: "shopping", id: item.id, data: AnyJSON(Data("[]".utf8)), updated_at: 9_000_000_000_000, deleted: false)
+        ]
+        var before: Data?
+        transport.duringPull = { before = UserDefaults.standard.data(forKey: "ate.sync.v1") }
+        await store.syncNow()
+        XCTAssertEqual(store.recipes, [recipe]); XCTAssertEqual(store.shopping, [item])
+        XCTAssertEqual(UserDefaults.standard.data(forKey: "ate.sync.v1"), before)
+        XCTAssertEqual(transport.pushes, 0)
+        guard case .failed(let message) = store.syncState else { return XCTFail("Must surface incompatible count") }
+        XCTAssertTrue(message.contains("1 incompatible server row"))
+    }
+    func testOfflineServerFailureAndCancelledPullPreserveLocalData() async {
+        for failure in [URLError(.notConnectedToInternet) as Error, SyncError.http(503, "Unavailable"), CancellationError()] {
+            let transport = ControlledSync()
+            let store = make(transport)
+            let recipe = RecipeCard(id: "r", title: "Local soup")
+            let item = ShoppingItem(id: "s", name: "Beans", quantity: 1, unit: "bag")
+            store.recipes = [recipe]; store.shopping = [item]
+            transport.failure = failure
+            await store.syncNow()
+            XCTAssertEqual(store.recipes, [recipe]); XCTAssertEqual(store.shopping, [item])
+            XCTAssertEqual(transport.pushes, 0)
+            guard case .failed = store.syncState else { return XCTFail("Failure must not claim synced") }
+            store.session = nil
+        }
+    }
     func testReentrantRequestDoesNotStartOverlappingPull() async {
         let transport = ControlledSync()
         let tested = make(transport)

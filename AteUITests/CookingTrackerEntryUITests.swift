@@ -7,9 +7,9 @@ final class CookingTrackerEntryUITests: XCTestCase {
         a.lifetime = .keepAlways
         add(a)
     }
-    private func launchTracker() -> XCUIApplication {
+    private func launchTracker(_ extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
+        app.launchArguments = ["-UITesting", "-qaResetCookingHistory"] + extra
         app.launch()
         let journalTab = app.tabBars.buttons["Journal"]
         XCTAssertTrue(journalTab.waitForExistence(timeout: 10), "Journal should be a first-class tab")
@@ -84,4 +84,18 @@ final class CookingTrackerEntryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Nothing recorded for this day."].waitForExistence(timeout: 5))
         shot("tracker-day-details")
     }
+    func testEmptyMonthSummaryFollowsCalendarAtNormalText() {
+        let app = launchTracker(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
+        let summary = app.staticTexts["tracker.monthSummary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        XCTAssertEqual(summary.label, "Recorded this month: 0 cooking days · 0 distinct recipes")
+        shot("tracker-month-summary-current-normal")
+        app.buttons["tracker.previousMonth"].tap()
+        XCTAssertEqual(summary.label, "Recorded this month: 0 cooking days · 0 distinct recipes")
+        shot("tracker-month-summary-previous-normal")
+        app.buttons["tracker.nextMonth"].tap()
+        XCTAssertTrue(summary.exists)
+        XCTAssertFalse(app.buttons["tracker.nextMonth"].isEnabled)
+    }
+
 }

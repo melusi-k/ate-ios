@@ -70,3 +70,31 @@ final class TabBadgeTests: XCTestCase {
         XCTAssertEqual(store.pendingShoppingCount, 2)
     }
 }
+
+extension SharedInboxTests {
+    func testImageAndQueueUseSameBoundaryAndRefusalCreatesNoDirectory() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let suite = "inbox-image-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }
+        enum Refused: Error { case stale }
+        let blocked = SharedWriterBoundary { _ in throw Refused.stale }
+        XCTAssertFalse(SharedInbox.pushImage(Data([1,2,3]), item: .init(), directory: root, defaults: defaults, boundary: blocked))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.path))
+        XCTAssertTrue(SharedInbox.load(defaults).isEmpty)
+        var effects = 0
+        let admitted = SharedWriterBoundary { work in effects += 1; try work() }
+        let bytes = Data([1,2,3])
+        XCTAssertTrue(SharedInbox.pushImage(bytes, item: .init(text: "Synthetic photo"), directory: root, defaults: defaults, boundary: admitted))
+        XCTAssertEqual(effects, 1, "image and queue share one retained effect, no fresh lease")
+        let item = try XCTUnwrap(SharedInbox.load(defaults).first)
+        let name = try XCTUnwrap(item.imageFile)
+        let file = try XCTUnwrap(SharedInbox.safeImageURL(name, in: root))
+        XCTAssertEqual(try Data(contentsOf: file), bytes)
+        XCTAssertEqual(item.text, "Synthetic photo")
+        XCTAssertNil(SharedInbox.imageData(item, directory: root, boundary: blocked))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file.path), "refused consume must not delete the source")
+        XCTAssertEqual(SharedInbox.imageData(item, directory: root, boundary: admitted), bytes)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
+}

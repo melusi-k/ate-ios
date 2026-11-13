@@ -13,6 +13,7 @@ enum FoodJournalRuntimeFactory {
         let defaults: UserDefaults
         let goals: NutritionGoalsRepository
         let writerBoundary: FoodJournalWriterBoundary
+        let mediaDirectory: URL
         let migrationBackupDirectory: URL
         let repairBackupDirectory: URL
         let afterRestoreCommit: () throws -> Void
@@ -29,14 +30,14 @@ enum FoodJournalRuntimeFactory {
             guard required.isSubset(of: Set(container.schema.entities.map(\.name))) else { throw Failure.incompatibleSchema }
             guard !container.mainContext.hasChanges else { throw Failure.pendingChanges }
             guard bindings.goals.defaults === bindings.defaults else { throw Failure.defaultsMismatch }
-            let paths = [bindings.migrationBackupDirectory, bindings.repairBackupDirectory]
+            let paths = [bindings.mediaDirectory, bindings.migrationBackupDirectory, bindings.repairBackupDirectory]
             guard paths.allSatisfy({ $0.isFileURL && $0.path.hasPrefix("/") && $0.path != "/" }),
-                  paths[0].standardizedFileURL != paths[1].standardizedFileURL else { throw Failure.invalidBackupPaths }
+                  Set(paths.map(\.standardizedFileURL)).count == paths.count else { throw Failure.invalidBackupPaths }
             // Validate committed data through isolated readers, never save, repair or
             // clear pending work. Corrupt meal pairing must not become an empty diary.
             _ = try FoodJournalStore(container: container).readMeals()
             let journal = JournalStore(container: container, openState: .ok,
-                                       writerBoundary: bindings.writerBoundary)
+                                       writerBoundary: bindings.writerBoundary, mediaDirectory: bindings.mediaDirectory)
             _ = try journal.readReflections()
             container.mainContext.autosaveEnabled = false
             return FoodJournalRuntime(journal: journal, goalsRepository: bindings.goals,

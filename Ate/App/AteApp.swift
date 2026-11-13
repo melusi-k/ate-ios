@@ -104,7 +104,7 @@ struct TimerBarInset: ViewModifier {
         content.safeAreaInset(edge: .bottom, spacing: 0) {
             // iOS 26: at tab roots the timer lives in the tab bar's bottom accessory, so the inset only shows on pushed screens.
             if store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot) {
-                Group {
+                VStack(spacing: 0) {
                     if let session = store.cookSession { CookSessionMiniPlayer(session: session) }
                     if !store.timers.timers.isEmpty { TimerBar() }
                 }
@@ -428,7 +428,11 @@ extension RootView {
             store.bottomAddContext = store.rootAddContext ?? .recipe
         }
         .tabViewStyle(.tabBarOnly)
-        .tabBarMinimizeBehavior(.onScrollDown)
+        // Settings is a root destination switchboard: its Form scroll must not
+        // leave only the selected tab exposed. A reverse Form gesture did not
+        // reliably restore Journal on the native runtime (#526). Keep native
+        // minimization elsewhere without rebuilding this TabView or its stacks.
+        .tabBarMinimizeBehavior(store.tab == .settings ? .never : .onScrollDown)
         base.modify { view in
             if #available(iOS 26.2, *) {
                 view.tabViewBottomAccessory(isEnabled: showBottomAccessory) {

@@ -1,7 +1,7 @@
 {
   "title": "Journal navigation and cooking reflections",
-  "summary": "Focus: the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log.",
-  "source_commit": "7c3f7d0265e58ea124c0bf55140a90fe76df45b3",
+  "summary": "Focus: the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Confirmed reflection deletion uses stable identity, verifies committed absence before retiring detail and refreshes history only on success. Failure retains detail and an explicit retry error. Native and pixel acceptance remain pending; cooking must not create an eaten-food log. Food Journal activation is a separate composition workstream.",
+  "source_commit": "2534358fdbd207813504d33934dd0eb826cc7676",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/Views/JournalViews.swift",
-      "blob": "61c2d7df9cf3b780cf809b779efef40b0daeb3d2"
+      "blob": "6afc7baee6f74989112679c9f46953e6e4a6cc0e"
     }
   ]
 }

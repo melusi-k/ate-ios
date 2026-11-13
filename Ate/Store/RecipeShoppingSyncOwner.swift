@@ -188,6 +188,13 @@ final class RecipeShoppingSyncOwner: SyncService {
         }
     }
 
+    /// Lifecycle retirement is terminal for this original lease, including other
+    /// processes with a captured epoch. A replacement owner must snapshot-admit.
+    func retireForSessionTransition() throws {
+        invalidateCycle()
+        try gate.invalidateWriters()
+    }
+
     /// Invalidates in-flight adapter validation as well as returned captures.
     /// Concurrent-cycle refusal alone preserves the current cycle; every other
     /// refusal/cancellation/abandonment revokes admitted local writer capability.

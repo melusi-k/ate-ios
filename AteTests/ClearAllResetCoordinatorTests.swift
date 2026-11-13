@@ -500,3 +500,33 @@ private extension AuthSession {
                     expiresAt: expiresAt, userID: userID, email: email)
     }
 }
+
+extension ClearAllResetCoordinatorTests {
+    func testPermissionDeniedNeverExpiresSessionErasesOrReplacesRetainedRequest() async throws {
+        for resuming in [false, true] {
+            defaults.removeObject(forKey: ClearAllResetCoordinator.controlKey)
+            let retained = record(phase: .requested)
+            if resuming { seed(retained) }
+            var calls = 0, componentsConstructed = false, receiptPublished = false
+            let coordinator = makeCoordinator(transport: { _ in
+                calls += 1; return self.http(403, #"{"code":"42501"}"#)
+            }, receiptSink: { _ in receiptPublished = true }, components: {
+                componentsConstructed = true; return self.fixtureComponents()
+            })
+            let state: AppStore.ClearAllState?
+            if resuming { state = await coordinator.resumeIfPending() }
+            else { state = await coordinator.start() }
+            guard case .unavailable(let message)? = state else { return XCTFail("permission refusal misclassified") }
+            XCTAssertTrue(message.lowercased().contains("permission"))
+            XCTAssertFalse(message.lowercased().contains("sign in"))
+            XCTAssertFalse(componentsConstructed); XCTAssertFalse(receiptPublished)
+            XCTAssertEqual(calls, 1)
+            if resuming {
+                let bytes = try XCTUnwrap(defaults.data(forKey: ClearAllResetCoordinator.controlKey))
+                let after = try JSONDecoder().decode(ClearAllResetCoordinator.ControlRecord.self, from: bytes)
+                XCTAssertEqual(after.requestID, retained.requestID)
+                XCTAssertEqual(after.expectedGeneration, retained.expectedGeneration)
+            } else { XCTAssertNil(defaults.data(forKey: ClearAllResetCoordinator.controlKey)) }
+        }
+    }
+}

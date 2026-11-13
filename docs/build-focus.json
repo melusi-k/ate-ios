@@ -1,7 +1,7 @@
 {
-  "title": "Journal navigation and cooking reflections",
-  "summary": "Focus: the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log.",
-  "source_commit": "7c3f7d0265e58ea124c0bf55140a90fe76df45b3",
+  "title": "Food Journal preparation: retained ownership and archive safety",
+  "summary": "This source includes dormant Food Journal owner admission, bound media and cooking reflections, consumer quiescence, and guarded archive import/export. Production Food Journal activation remains OFF; no production Supabase changes or anonymous sign-in are enabled. Native build and test qualification is still pending. Cooking records a cook, not eaten food.",
+  "source_commit": "4a92f74e87b5b11cda3f0cd143e531f8dfa1e4c4",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,27 @@
     },
     {
       "path": "Ate/Views/JournalViews.swift",
-      "blob": "61c2d7df9cf3b780cf809b779efef40b0daeb3d2"
+      "blob": "9345ba421ec2573fb9c1d08b855d7d9ef5c617a8"
+    },
+    {
+      "path": "Ate/Store/FoodJournalProductionAdmission.swift",
+      "blob": "0d8e3081f7492ca40eb8bd0a0f2163b94de0d57b"
+    },
+    {
+      "path": "Ate/Store/FoodJournalLocalOwner.swift",
+      "blob": "4204b29393ce8a5c29c362f2ea33be930b08cfe5"
+    },
+    {
+      "path": "Ate/Store/FoodJournalConsumerLifecycle.swift",
+      "blob": "a712f0092a2ee6f112fab175c2f60c09858a069c"
+    },
+    {
+      "path": "Ate/Store/FoodJournalArchiveImport.swift",
+      "blob": "3d4c02a5c123947311605b6805dca5542dac04f6"
+    },
+    {
+      "path": "Ate/Store/FoodJournalArchiveExport.swift",
+      "blob": "3b431e5845ef898cd0087bc1076f81e64a798795"
     }
   ]
 }

@@ -36,8 +36,12 @@ final class TimerCenter {
 
     private(set) var timers: [ActiveTimer] = [] { didSet { persist() } }
 
-    init() {
-        if AppConfig.isUITesting { TimerSnapshot.save([]); return }
+    init(writerBoundary: FoodJournalWriterBoundary = .legacy) {
+        self.writerBoundary = writerBoundary
+        if AppConfig.isUITesting {
+            try? writerBoundary.withEffect { TimerSnapshot.save([]) }
+            return
+        }
         timers = TimerSnapshot.load().map {
             ActiveTimer(recipeID: $0.recipeID, recipeTitle: $0.recipeTitle, stepIndex: $0.stepIndex, stepCount: $0.stepCount,
                         stepText: $0.stepText, total: $0.total, endDate: $0.endDate, pausedRemaining: $0.pausedRemaining)

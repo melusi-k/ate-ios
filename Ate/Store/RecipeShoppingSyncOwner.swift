@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// Dormant slice1. No ordinary launch call site until staged publication, auth/error
 /// handling, legacy preservation/adoption and all writer bindings are reviewed.
@@ -158,6 +159,33 @@ final class RecipeShoppingSyncOwner: SyncService {
     }
     private func invalidateCycle() {
         cycle.token = nil; pending = nil; admitted = nil
+    }
+
+    /// Only constructs against the retained admitted capability, never a fresh gate
+    /// or receipt inferred from defaults. Startup must replay before AppStore load.
+    func makeCommitJournal(directory: URL, container: ModelContainer, defaults: UserDefaults,
+                           validateWriterRouting: @escaping () throws -> Void) throws -> RecipeShoppingSyncCommitJournal {
+        try withAdmittedWriterEffect {
+            try RecipeShoppingSyncCommitJournal(directory: directory, gate: gate, writerLease: lease,
+                container: container, defaults: defaults, authorize: { [self] candidate in
+                    try withAdmittedWriterEffect {
+                        guard admitted == candidate else { throw Refusal.generationMismatch }
+                    }
+                }, validateWriterRouting: validateWriterRouting)
+        }
+    }
+
+    func validateBoundSession(_ candidate: AuthSession) throws {
+        try withAdmittedWriterEffect {
+            guard candidate == session, currentSession() == session else { throw Refusal.sessionChanged }
+        }
+    }
+
+    func admittedReceipt() throws -> AccountGenerationPolicy.Receipt {
+        try withAdmittedWriterEffect {
+            guard let admitted else { throw Refusal.admissionRequired }
+            return admitted
+        }
     }
 
     /// Invalidates in-flight adapter validation as well as returned captures.

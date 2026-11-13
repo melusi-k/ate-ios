@@ -6,7 +6,7 @@ import Foundation
 @MainActor
 final class RecipeShoppingSessionRemount<Graph> {
     enum State { case idle, checking, signedOut, failed(String), ready(Graph) }
-    enum Refusal: Error { case retired, sessionChanged, foreignOwner, persistenceUnverified }
+    enum Refusal: Error { case retired, sessionChanged, foreignOwner, persistenceUnverified, invalidRefreshedSession }
     private(set) var state: State = .idle
     private let auth: AuthService
     private let currentSession: () -> AuthSession?
@@ -36,47 +36,70 @@ final class RecipeShoppingSessionRemount<Graph> {
         try owner?.retireForSessionTransition()
         owner = nil
     }
-    func start(now: Date = Date()) async {
+    private func refreshedSession(_ previous: AuthSession, run: UUID, now: Date) async throws -> AuthSession? {
+        do {
+            let refreshed = try await auth.refresh(previous)
+            try validate(run, session: previous)
+            guard refreshed.userID == previous.userID, !refreshed.userID.isEmpty else { throw Refusal.foreignOwner }
+            guard refreshed.expiresAt > now.timeIntervalSince1970 + 30 else { throw Refusal.invalidRefreshedSession }
+            try persistSession(refreshed)
+            guard currentSession() == refreshed else { throw Refusal.persistenceUnverified }
+            return refreshed
+        } catch let error as AuthError where error.kind == .unauthorized {
+            try validate(run, session: previous)
+            try persistSession(nil)
+            guard currentSession() == nil else { throw Refusal.persistenceUnverified }
+            return nil // local data untouched; no erase/reset
+        }
+    }
+    private func admit(_ session: AuthSession, run: UUID) async throws -> RecipeShoppingSyncOwner {
+        try validate(run, session: session)
+        let candidate = try makeOwner(session)
+        owner = candidate // retained so retire() invalidates suspended admission
+        _ = try await candidate.pull(session: session)
+        try validate(run, session: session)
+        // Consume snapshot capture without uploading data. No put retry/replay.
+        try await candidate.push([], session: session)
+        try validate(run, session: session)
+        return candidate
+    }
+    func start(now: Date = Date(), forceRefresh: Bool = false) async {
         guard !running, !terminal else { return }
         running = true
         defer { running = false }
         let run = UUID(); token = run; state = .checking
-        var expected = currentSession()
+        let expected = currentSession()
         do {
             try validate(run, session: expected)
-            // No replacement can reuse the old epoch, including same-owner refresh.
             try owner?.retireForSessionTransition(); owner = nil
             guard var session = expected else { state = .signedOut; return }
-            if session.expiresAt < now.timeIntervalSince1970 + 60 {
-                do {
-                    let refreshed = try await auth.refresh(session)
-                    try validate(run, session: expected)
-                    guard refreshed.userID == session.userID, !refreshed.userID.isEmpty else { throw Refusal.foreignOwner }
-                    try persistSession(refreshed)
-                    guard currentSession() == refreshed else { throw Refusal.persistenceUnverified }
-                    expected = refreshed; session = refreshed
-                } catch let error as AuthError where error.kind == .unauthorized {
-                    try validate(run, session: expected)
-                    try persistSession(nil)
-                    guard currentSession() == nil else { throw Refusal.persistenceUnverified }
-                    state = .signedOut // local data is untouched; no erase or reset
-                    return
+            var didRefresh = false
+            if forceRefresh || session.expiresAt < now.timeIntervalSince1970 + 60 {
+                guard let refreshed = try await refreshedSession(session, run: run, now: now) else {
+                    state = .signedOut; return
                 }
+                session = refreshed; didRefresh = true
             }
-            try validate(run, session: session)
-            let candidate = try makeOwner(session)
-            owner = candidate // retained so retire() invalidates suspended admission
-            _ = try await candidate.pull(session: session)
-            try validate(run, session: session)
-            // Consume snapshot capture without uploading data; keep admission proof.
-            try await candidate.push([], session: session)
-            try validate(run, session: session)
+            let candidate: RecipeShoppingSyncOwner
+            do {
+                candidate = try await admit(session, run: run)
+            } catch ResetRPCError.unauthorized {
+                // A still-unexpired token can be rejected. Exactly one explicit
+                // refresh and a wholly NEW owner/snapshot, never reuse its capture.
+                // 403/42501/PT409 do not enter this branch. A second401 stops.
+                try validate(run, session: session)
+                try owner?.retireForSessionTransition(); owner = nil
+                guard !didRefresh else { throw ResetRPCError.unauthorized }
+                guard let refreshed = try await refreshedSession(session, run: run, now: now) else {
+                    state = .signedOut; return
+                }
+                session = refreshed
+                candidate = try await admit(session, run: run)
+            }
             let graph = try buildGraph(candidate, session)
             try validate(run, session: session)
             state = .ready(graph)
         } catch {
-            // A retire call already owns the terminal state. Do not overwrite it
-            // with a late cancelled/failed result from this run.
             try? owner?.retireForSessionTransition(); owner = nil
             if token == run && !terminal { state = .failed(error.localizedDescription) }
         }

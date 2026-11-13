@@ -100,3 +100,28 @@ extension DraftStoreTests {
         XCTAssertEqual(replacement.draft?.title, "New admitted work")
     }
 }
+
+
+extension DraftStoreTests {
+    func testSuccessfulVoidEffectsReturnTrueAndRunOncePerCall() throws {
+        var effects = 0
+        let boundary = FoodJournalWriterBoundary { work in
+            effects += 1
+            try work()
+        }
+        let bound = DraftStore(defaults: defaults, enabled: true, writerBoundary: boundary)
+        XCTAssertTrue(bound.begin(mode: "Prompt", text: "Retained input"))
+        XCTAssertEqual(effects, 1)
+        XCTAssertNotNil(bound.pending)
+        XCTAssertTrue(bound.end())
+        XCTAssertEqual(effects, 2)
+        XCTAssertNil(bound.pending)
+        XCTAssertTrue(bound.saveDraft(RecipeCard(title: "Admitted draft")))
+        XCTAssertEqual(effects, 3)
+        XCTAssertEqual(bound.draft?.title, "Admitted draft")
+        XCTAssertTrue(bound.clear())
+        XCTAssertEqual(effects, 4)
+        XCTAssertNil(bound.pending)
+        XCTAssertNil(bound.draft)
+    }
+}

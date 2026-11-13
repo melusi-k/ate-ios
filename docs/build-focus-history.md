@@ -57,3 +57,7 @@ part of this #518 repair.
 ## Cook and reflection edit union (#482 on #518)
 
 Reviewed hosted runtime 144b076bb313ac42c98270d08543c8d3632cf195 preserves all four Cook/shared-step evidence paths and adds JournalSuggestionService for committed reflection edits. JournalViews has its freshly reviewed edit blob. This record unions the focus, never replaces Cook work with reflection-only claims. Native save-failure, Resume/timer spacing, widget, physical-device and pixel evidence remain pending. Strict ancestry/blob validation is unchanged; Food Journal remains OFF.
+
+## Confirmed deletion and reflection retry union (#527)
+
+Reviewed hosted runtime d88f6cad310226aa8f32ba69d45009a428d2b50d preserves all four Cook/shared-step evidence paths. JournalViews and JournalSuggestionService have freshly reviewed combined edit/delete blobs. Failed edits keep the exact raw draft; successful retry uses the existing committed trim contract. Stable-identity deletion verifies committed absence before detail retires and parent history reloads. Reminder verification and bounded cleanup are present, but this record guards only its listed paths. Native checks and post-tap/history/Resume/timer pixels must qualify the exact final union. Physical-device, widget and Files-picker behavior remain pending. No activation or release approval is implied; Food Journal remains OFF.

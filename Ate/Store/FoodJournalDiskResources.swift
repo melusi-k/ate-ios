@@ -78,14 +78,15 @@ final class FoodJournalDiskResources {
     /// the returned owner retains exactly the recovered container and original lease.
     func bindOwner(gate: AccountWriterGate, admittedLease: UUID, ownerIdentity: String,
                    archive: ArchiveNestedLeaseBoundary, authorizeBinding: () throws -> Void,
-                   afterRestoreCommit: @escaping () throws -> Void) throws -> FoodJournalLocalOwner {
+                   afterRestoreCommit: @escaping () throws -> Void,
+                   validateConsumers: @escaping () throws -> Void = {}) throws -> FoodJournalLocalOwner {
         try gate.withWriterEffect(admittedLease) {
             try authorizeBinding()
             guard recoveredOwner == ownerIdentity, recoveredGate === gate,
                   recoveredLease == admittedLease, let journal else { throw Failure.admissionRequired }
             return try FoodJournalLocalOwner.bind(container: journal, openState: .ok, defaults: defaults,
                 goalsStorage: goalsStorage, locations: locations, gate: gate, admittedLease: admittedLease,
-                archive: archive, afterRestoreCommit: afterRestoreCommit)
+                archive: archive, afterRestoreCommit: afterRestoreCommit, validateConsumers: validateConsumers)
         }
     }
     func recipeContainer(gate: AccountWriterGate, admittedLease: UUID) throws -> ModelContainer {

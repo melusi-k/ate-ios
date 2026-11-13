@@ -42,3 +42,19 @@ struct JournalStartupGateView<Graph, Ready: View>: View {
             .accessibilityIdentifier("journal.startup.blocked")
     }
 }
+
+/// Candidate presentation only. Do not mount over an editable old graph: activation
+/// must quiesce writers first. No fake status-check, legacy-sync or retry action.
+@MainActor
+struct AccountGenerationConflictView: View {
+    let state: AccountGenerationConflictState
+    var body: some View {
+        ContentUnavailableView {
+            Label(state.title, systemImage: "exclamationmark.arrow.triangle.2.circlepath")
+        } description: {
+            Text(state.message)
+            Text(state.recoveryStatus)
+        }
+        .accessibilityIdentifier("account.generationConflict")
+    }
+}

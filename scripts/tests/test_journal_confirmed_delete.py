@@ -7,7 +7,9 @@ class ConfirmedDeleteTests(unittest.TestCase):
     def test_stable_owner_and_commit_before_dismissal(self):
         s = (ROOT / 'Ate/Views/JournalViews.swift').read_text()
         self.assertIn('.navigationTitle("Journal entry")\n        // The confirmation', s)
-        self.assertIn('.accessibilityIdentifier("journal.delete.confirm")', s)
+        self.assertIn('JournalDeleteConfirmation(isPresented: $confirmDelete, onDelete: deleteConfirmedEntry)', s)
+        native = (ROOT / 'Ate/Views/JournalDeleteConfirmation.swift').read_text()
+        self.assertIn('delete.accessibilityIdentifier = "journal.delete.confirm"', native)
         d = s.split('private func deleteConfirmedEntry()', 1)[1].split('private func reloadEntry()', 1)[0]
         self.assertLess(d.index('deleteReflection(id: entryID)'), d.index('entry = nil'))
         self.assertLess(d.index('entry = nil'), d.index('store.journalRevision += 1'))

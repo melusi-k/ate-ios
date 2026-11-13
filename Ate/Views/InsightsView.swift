@@ -8,12 +8,24 @@ import FoundationModels
 final class InsightsModel {
     static let shared = InsightsModel()
     private(set) var health: HealthKitServicing
+    @ObservationIgnored private var refreshGeneration = UUID()
+    @ObservationIgnored private let makePrompts: @MainActor (HealthInsight) async -> [JournalPrompt]
+    @ObservationIgnored private let publishHealthState: @MainActor (HealthState) -> Void
+    private func invalidateRefresh() {
+        refreshGeneration = UUID()
+        loading = false
+        context = nil
+    }
     var access: HealthAccess
     /// Beta debug picker: swap to a mock scenario ("" = live Apple Health).
     func useScenario(_ s: String, recipes: [RecipeCard]) async {
+        invalidateRefresh()
         UserDefaults.standard.set(s, forKey: HealthServiceFactory.debugKey)
         health = HealthServiceFactory.make(arguments: AppConfig.isUITesting ? ["-qaMockHealth", s] : [])
-        if health is MockHealthKitService { _ = await health.requestAccess() }
+        let generation = refreshGeneration
+        let source = health
+        if source is MockHealthKitService { _ = await source.requestAccess() }
+        guard generation == refreshGeneration, !Task.isCancelled else { return }
         await refresh(recipes: recipes)
     }
     var context: HealthContext?
@@ -22,7 +34,17 @@ final class InsightsModel {
     private(set) var loadedOnce = false
     /// UI tests (`-qaHealthPrompt`): stand-in for the system Health sheet so a refactor that stops asking is caught.
     var mockPromptShown = false
-    init(health: HealthKitServicing) { self.health = health; access = health.access }
+    init(health: HealthKitServicing,
+         makePrompts: @escaping @MainActor (HealthInsight) async -> [JournalPrompt] = { await JournalSuggestionService.prompts(for: $0) },
+         publishHealthState: @escaping @MainActor (HealthState) -> Void = { state in
+             if WidgetBridge.lastHealthState != state {
+                 WidgetBridge.lastHealthState = state
+                 if let store = AppStore.current { WidgetBridge.publish(store, delay: 0) }
+             }
+         }) {
+        self.health = health; access = health.access
+        self.makePrompts = makePrompts; self.publishHealthState = publishHealthState
+    }
     convenience init() { self.init(health: HealthServiceFactory.make()) }
 
     func loadIfNeeded(recipes: [RecipeCard]) async { guard !loadedOnce else { return }; loadedOnce = true; await refresh(recipes: recipes) }
@@ -35,23 +57,38 @@ final class InsightsModel {
     /// True when Beta testing › Health data is a mock scenario: show a "Sample data" badge, never a red entitlement error.
     var isSample: Bool { health is MockHealthKitService }
     func connect(recipes: [RecipeCard]) async {
-        access = await health.requestAccess(); requestError = health.lastError
+        invalidateRefresh()
+        let generation = refreshGeneration
+        let source = health
+        let requestedAccess = await source.requestAccess()
+        guard generation == refreshGeneration, !Task.isCancelled else { return }
+        access = requestedAccess; requestError = source.lastError
         await refresh(recipes: recipes)
     }
     func useSampleData(recipes: [RecipeCard]) async { await useScenario("recovery", recipes: recipes) }
     func refresh(recipes: [RecipeCard]) async {
-        access = health.access
-        guard access == .requested else { context = nil; return }
-        loading = true; defer { loading = false }
-        let s = await health.summary(days: 7)
-        guard let i = HealthInsightEngine.insight(for: s) else { context = nil; return }
-        if WidgetBridge.lastHealthState != i.state {
-            WidgetBridge.lastHealthState = i.state
-            if let st = AppStore.current { WidgetBridge.publish(st, delay: 0) }
+        let generation = UUID(); refreshGeneration = generation
+        let source = health
+        access = source.access
+        guard access == .requested, !Task.isCancelled else {
+            context = nil; loading = false; return
         }
-        context = HealthContext(summary: s, insight: i,
-                                suggestions: RecipeHealthMatcher.suggestions(for: i.state, recipes: recipes),
-                                prompts: await JournalSuggestionService.prompts(for: i))
+        loading = true
+        defer { if generation == refreshGeneration { loading = false } }
+        let summary = await source.summary(days: 7)
+        guard generation == refreshGeneration, !Task.isCancelled else { return }
+        access = source.access
+        guard access == .requested else { context = nil; return }
+        guard let insight = HealthInsightEngine.insight(for: summary) else { context = nil; return }
+        let prompts = await makePrompts(insight)
+        guard generation == refreshGeneration, !Task.isCancelled else { return }
+        access = source.access
+        guard access == .requested else { context = nil; return }
+        // Single synchronous publication after BOTH await boundaries. Stale summary
+        // or wording may neither replace context nor publish a widget state.
+        context = HealthContext(summary: summary, insight: insight,
+            suggestions: RecipeHealthMatcher.suggestions(for: insight.state, recipes: recipes), prompts: prompts)
+        publishHealthState(insight.state)
     }
 }
 

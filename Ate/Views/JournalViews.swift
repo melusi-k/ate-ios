@@ -191,12 +191,17 @@ struct JournalEntryDetailView: View {
     @State private var draft = ""
     @State private var editProblem: String?
     @State private var confirmDelete = false
+    @State private var deleteProblem: String?
     @State private var openRecipe: RecipeSheetTarget?
 
     var body: some View {
         Group {
             if let e = entry {
                 List {
+                    if let deleteProblem {
+                        Text(deleteProblem).foregroundStyle(Theme.destructive)
+                            .accessibilityIdentifier("journal.delete.error")
+                    }
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
                             if let state = e.recordedHealthState {
@@ -252,28 +257,11 @@ struct JournalEntryDetailView: View {
                             .accessibilityIdentifier("journal.detail.share")
                         Menu {
                             Button { draft = e.text; editProblem = nil; editing = true } label: { Label("Edit", systemImage: "pencil") }
-                            Button(role: .destructive) { confirmDelete = true } label: { Label("Delete", systemImage: "trash") }
+                            Button(role: .destructive) { deleteProblem = nil; confirmDelete = true } label: { Label("Delete", systemImage: "trash") }
                         } label: { Label("More", systemImage: "ellipsis.circle") }
                         .accessibilityIdentifier("journal.detail.menu")
                     }
                 }
-                // Destructive deletion always needs an explicit, accessible Cancel action.
-                // A confirmation popover may omit its cancel row; an alert keeps both choices.
-                .alert("Delete this journal entry?", isPresented: $confirmDelete) {
-                    Button("Delete", role: .destructive) {
-                        guard store.journalStore.delete(e) else {
-                            store.show("Ate couldn't delete this journal entry. Try again.", error: true)
-                            return
-                        }
-                        // The history retains its loaded array while detail is pushed.
-                        // Refresh it only after the deletion's context has saved.
-                        store.journalRevision += 1
-                        store.show("Journal entry deleted")
-                        BetaQA.shared.pass("C-JRN-04", note: "Deleted an entry after confirming")
-                        entry = nil; dismiss()
-                    }
-                    Button("Cancel", role: .cancel) {}
-                } message: { Text("This can't be undone. It's only stored on this iPhone.") }
                 .sheet(isPresented: $editing) {
                     NavigationStack {
                         VStack(alignment: .leading, spacing: 8) {
@@ -320,10 +308,34 @@ struct JournalEntryDetailView: View {
             }
         }
         .navigationTitle("Journal entry")
+        // The confirmation belongs to the stable detail owner, not the conditional
+        // List/model being removed. Its action uses route identity, never a captured
+        // reader model from an earlier render or an edit sheet.
+        .alert("Delete this journal entry?", isPresented: $confirmDelete) {
+            Button("Delete", role: .destructive) { deleteConfirmedEntry() }
+                .accessibilityIdentifier("journal.delete.confirm")
+            Button("Cancel", role: .cancel) {}
+                .accessibilityIdentifier("journal.delete.cancel")
+        } message: { Text("This can't be undone. It's only stored on this iPhone.") }
         .onAppear {
             reloadEntry()
             if entry != nil { BetaQA.shared.pass("C-JRN-01", note: "Opened an entry on its own") }
         }
+    }
+
+    private func deleteConfirmedEntry() {
+        guard store.journalStore.deleteReflection(id: entryID) else {
+            deleteProblem = "Ate couldn't verify deletion of this journal entry. Your entry is still shown. Try again."
+            return
+        }
+        // Retire this detail before notifying its loaded parent history. A parent
+        // reload must not race a child alert's captured List/model presentation.
+        deleteProblem = nil
+        entry = nil
+        dismiss()
+        store.journalRevision += 1
+        store.show("Journal entry deleted")
+        BetaQA.shared.pass("C-JRN-04", note: "Deleted an entry after confirming")
     }
 
     private func reloadEntry() {

@@ -23,7 +23,7 @@ Food Journal activation stays OFF. Cooking is not an eaten-food log. The Setting
 ## How to Test
 
 1. Reviewer publishes the runtime union, confirms its hosted destination commit, then applies the full focus-only pin against that ancestor. Keep the source branches.
-2. Build IPA uses the artifact-only route: run_tests=false, Production channel. This is a test build, not qualified, validation lanes skipped; exact-head native gates still running. The artifact is not evidence that standard unit/UI gates passed. Retain the independently running exact-head gates, both separately required AX/Settings invocations and their exact logs.
+2. Run the existing Build IPA workflow on the final reviewed branch without waivers. Retain standard compile/unit/UI gates and both separately required AX/Settings invocations and their exact logs.
 3. Install the resulting candidate on the intended normal-text iPhone18Pro. Exercise the journeys above and capture post-action screenshots, not only launch images. Native, VoiceOver and physical-device acceptance must refer to the final built source.
 4. Compare tracker-root and Cook Exit/bottom-bars behavior with earlier run evidence before proposing any fix. Those investigations are queued, not fixed by this union.
 
@@ -33,7 +33,7 @@ Local source checks:207 Python tests pass; build-focus ancestry/blob guard and b
 
 Unrun here: Xcode compilation, native XCTest/XCUITest, IPA production/install, VoiceOver, pixels, device timing/performance, widgets, Files picker, backend SQL/HTTP/auth and full end-to-end graph qualification. No production migration or activation was performed. Existing tracker-root and Cook Exit idle failures remain unresolved.
 
-Packet2 pins twelve combined runtime evidence paths to hosted67ec3bc25fcfaf9865c7865cba5e83b7d528349d, tree76aa007b9b393ffcfeaa48e86e74e369f6f7df74. This ancestry/blob check is source binding, not native qualification.
+The interim focus in packet1 truthfully guards unchanged Journal owner paths at hosted4415c15f only. It does not certify all combined files. Packet2 must pin the full combined runtime after publication and before Build IPA.
 
 ## Cloud sync limitation and isolated403 correction
 

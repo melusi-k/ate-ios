@@ -288,13 +288,53 @@ extension JournalOpenStateUITests {
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
         wait(app.staticTexts["Delete this journal entry?"])
         shot("manual-crud-delete-confirmation")
-        app.buttons["Delete"].tap()
+        let confirmation = app.alerts["Delete this journal entry?"]
+        wait(confirmation)
+        let confirmButton = confirmation.buttons["journal.delete.confirm"]
+        wait(confirmButton)
+        confirmButton.tap()
+        // Capture the post-confirmation state even when the unchanged detail
+        // dismissal assertion fails. No back navigation or retry hides failure.
+        shot("manual-crud-after-confirmed-delete")
+        XCTAssertFalse(app.staticTexts["journal.delete.error"].exists,
+                       "Confirmed deletion must commit and verify, not only dismiss an alert")
         waitUntilGone(detail)
         wait(app.navigationBars["Journal"])
         XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "journal.entry")
             .matching(NSPredicate(format: "label CONTAINS %@", original)).firstMatch.exists,
             "Confirmed deletion must remove the created reflection from history")
         shot("manual-crud-confirmed-deleted-history")
+    }
+
+    func testConfirmedDeleteFailureKeepsDetailAndExplicitRetryRemovesEntry() {
+        launch(extra: ["-qaReflectionDeleteFailureOnce"])
+        app.tabBars.buttons["Journal"].tap()
+        wait(app.buttons["journal.newEntry"])
+        app.buttons["journal.newEntry"].tap()
+        let original = "Delete retry " + UUID().uuidString
+        let compose = app.textViews["journal.compose.text"]
+        wait(compose); compose.tap(); compose.typeText(original)
+        app.buttons["journal.compose.save"].tap()
+        wait(app.navigationBars["Journal"])
+        let row = app.descendants(matching: .any).matching(identifier: "journal.entry")
+            .matching(NSPredicate(format: "label CONTAINS %@", original)).firstMatch
+        wait(row); row.tap()
+        let detail = any("journal.detail.text")
+        wait(detail)
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
+        let alert = app.alerts["Delete this journal entry?"]
+        wait(alert); alert.buttons["journal.delete.confirm"].tap()
+        let error = app.staticTexts["journal.delete.error"]
+        wait(error)
+        XCTAssertEqual(detail.label, original, "Failed commit must not discard the detail")
+        XCTAssertTrue(app.navigationBars["Journal entry"].exists)
+        shot("manual-delete-failure-retained-detail")
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
+        wait(alert); alert.buttons["journal.delete.confirm"].tap()
+        shot("manual-delete-explicit-retry-result")
+        waitUntilGone(detail)
+        wait(app.navigationBars["Journal"])
+        XCTAssertFalse(row.exists, "Only successful explicit retry may remove the target from history")
     }
 
     func testManualCancelKeepsDraftUntilExplicitDiscard() {

@@ -1,7 +1,7 @@
 {
-  "title": "Shared Cook actions and safe reflection edits",
-  "summary": "Focus: Cook Mode reads shared session steps; Cook Finish and recipe-detail Cook actions reserve measured bottom chrome. Reflection edits retain draft and retry error on failed save, and refresh history only after commit. Journal navigation and cooking reflections remain included, not eaten-food logs. Native, widget, device and pixel proof remain pending. Unified Food Journal activation stays OFF.",
-  "source_commit": "144b076bb313ac42c98270d08543c8d3632cf195",
+  "title": "Shared Cook actions and committed reflection changes",
+  "summary": "Focus: Cook Mode reads shared session steps; Cook Finish and recipe-detail Cook actions reserve measured bottom chrome. Failed reflection edits retain the raw draft and retry error; successful retry refreshes committed history. Confirmed deletion uses stable entry identity and verifies committed absence before retiring detail. Journal navigation and cooking reflections remain included, not eaten-food logs. Native, widget, device and pixel proof remain pending. Unified Food Journal activation stays OFF.",
+  "source_commit": "d88f6cad310226aa8f32ba69d45009a428d2b50d",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/Views/JournalViews.swift",
-      "blob": "bb88af5fe4b5454124c143ecb02223acaeeb8b45"
+      "blob": "8003a16e9a2702b6abddb4a3cac7c0b4d64951da"
     },
     {
       "path": "Ate/Views/CookModeView.swift",
@@ -21,7 +21,7 @@
     },
     {
       "path": "Ate/Services/JournalSuggestionService.swift",
-      "blob": "a1b645b49733179fcd55fb631ae715f8f2bebedd"
+      "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
     }
   ]
 }

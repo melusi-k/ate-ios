@@ -40,8 +40,9 @@ class FoodJournalRuntimeFactoryGuardTests(unittest.TestCase):
         self.assertIn('gate.withWriterEffect(admittedLease)', source)
         self.assertIn('writerLease: admittedLease, archive: archive', source)
         self.assertIn('preservationDirectory: locations.preservationDirectory', source)
-        self.assertIn('func validate() throws { try gate.validateWriter(lease) }', source)
-        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name not in {'FoodJournalLocalOwner.swift', 'FoodJournalDiskResources.swift', 'FoodJournalProductionAdmission.swift', 'FoodJournalArchiveExport.swift'}
+        self.assertIn('func validate() throws {', source)
+        self.assertIn('try gate.withWriterEffect(lease) { try validateConsumers() }', source)
+        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name not in {'FoodJournalLocalOwner.swift', 'FoodJournalDiskResources.swift', 'FoodJournalProductionAdmission.swift', 'FoodJournalArchiveExport.swift', 'FoodJournalArchiveImport.swift', 'FoodJournalProductionGraph.swift'}
                    and 'FoodJournalLocalOwner' in p.read_text()]
         self.assertEqual(callers, [])
 
@@ -94,7 +95,7 @@ class FoodJournalRuntimeFactoryGuardTests(unittest.TestCase):
         self.assertIn('withWriterEffect(lease)', section)
         self.assertIn('POSIXArchiveWriterLease(nestedDirectory: directory)', section)
         self.assertNotIn('captureWriter(', section)
-        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name not in {'FoodJournalDiskResources.swift', 'FoodJournalProductionAdmission.swift', 'FoodJournalArchiveExport.swift'}
+        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name not in {'FoodJournalDiskResources.swift', 'FoodJournalProductionAdmission.swift', 'FoodJournalArchiveExport.swift', 'FoodJournalArchiveImport.swift', 'FoodJournalProductionGraph.swift'}
                    and 'FoodJournalDiskResources' in p.read_text()]
         self.assertEqual(callers, [])
 
@@ -108,7 +109,7 @@ class FoodJournalRuntimeFactoryGuardTests(unittest.TestCase):
         self.assertLess(source.index('try resources.recover('), source.index('reconciliation.reconcile()'))
         for forbidden in ['.clear(', 'captureWriter(', 'StoreRecovery', '.shared', 'remote = AccountSnapshot']:
             self.assertNotIn(forbidden, source)
-        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name != 'FoodJournalProductionAdmission.swift'
+        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name not in {'FoodJournalProductionAdmission.swift', 'FoodJournalProductionGraph.swift'}
                    and 'FoodJournalProductionAdmission' in p.read_text()]
         self.assertEqual(callers, [])
 
@@ -123,3 +124,45 @@ class FoodJournalRuntimeFactoryGuardTests(unittest.TestCase):
         self.assertNotIn('commitGeneration(', source)
         self.assertLess(source.index('try await afterSnapshot()'), source.index('let result = try await capture.finish'))
         self.assertIn('gate.withArchiveRecoveryLease(admittedLease)', source)
+
+    def test_consumer_lifecycle_closes_before_original_epoch_revocation_and_drains(self):
+        source = (ROOT / 'Ate/Store/FoodJournalConsumerLifecycle.swift').read_text()
+        self.assertIn('currentSession() == session', source)
+        self.assertLess(source.index('state = .quiescing'), source.index('gate.invalidateWriters(expectedLease: admittedLease)'))
+        self.assertLess(source.index('consumer.cancel()'), source.index('try await consumer.drain()'))
+        self.assertLess(source.index('if let failure { throw failure }'), source.index('state = .quiesced'))
+        self.assertNotIn('captureWriter(', source)
+        gate = (ROOT / 'Ate/Store/AccountWriterGate.swift').read_text().split('func invalidateWriters(expectedLease:', 1)[1].split('/// Explicit auth lifecycle', 1)[0]
+        self.assertLess(gate.index('readEpoch() == expectedLease'), gate.index('saveEpoch(replacement)'))
+        owner = (ROOT / 'Ate/Store/FoodJournalLocalOwner.swift').read_text()
+        self.assertLess(owner.index('try validateConsumers()', owner.index('let boundary =')), owner.index('try perform(effect)'))
+        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name not in {'FoodJournalConsumerLifecycle.swift', 'FoodJournalArchiveImport.swift', 'FoodJournalLocalOwner.swift', 'FoodJournalProductionAdmission.swift'} and 'FoodJournalConsumerLifecycle' in p.read_text()]
+        self.assertEqual(callers, [])
+
+    def test_quiesced_import_uses_its_revoked_epoch_handoff_and_exact_generation_order(self):
+        source = (ROOT / 'Ate/Store/FoodJournalArchiveImport.swift').read_text()
+        self.assertLess(source.index('UnifiedArchiveImportBinding.validate(archive)'), source.index('try await lifecycle.quiesce()'))
+        self.assertLess(source.index('try await lifecycle.quiesce()'), source.index('withQuiescedArchiveOperation'))
+        self.assertLess(source.index('binding.importArchive'), source.index('lease.commitGeneration'))
+        self.assertLess(source.index('lease.commitGeneration'), source.index('recovery.retire'))
+        for forbidden in ['captureWriter(', 'ArchiveStandaloneImportSession(', 'UserDefaults.standard', 'JournalStore.shared']:
+            self.assertNotIn(forbidden, source)
+        lifecycle = (ROOT / 'Ate/Store/FoodJournalConsumerLifecycle.swift').read_text()
+        self.assertIn('quiescedOperationLease = try gate.invalidateWriters(expectedLease: admittedLease)', lifecycle)
+        self.assertIn('operationConsumed = true', lifecycle)
+        self.assertIn('try authorize()', lifecycle)
+        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name != 'FoodJournalArchiveImport.swift' and p.name != 'FoodJournalProductionAdmission.swift' and 'FoodJournalArchiveImport' in p.read_text()]
+        self.assertEqual(callers, [])
+
+    def test_retained_graph_comes_from_original_admission_proof_without_activation(self):
+        source = (ROOT / 'Ate/Store/FoodJournalProductionAdmission.swift').read_text().split('func buildGraph(', 1)[1].split('func bindOwner(', 1)[0]
+        self.assertIn('session: captured.session, currentSession: currentSession', source)
+        self.assertIn('validateConsumers: lifecycle.validate', source)
+        self.assertIn('ownerIdentity: captured.receipt.ownerID', source)
+        self.assertIn('self.currentSession() == captured.session', source)
+        self.assertIn('try self.receipts.read() == captured.receipt', source)
+        self.assertIn('try self.control.read() == nil', source)
+        self.assertNotIn('captureWriter(', source)
+        self.assertNotIn('AppStore(', source)
+        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name not in {'FoodJournalProductionAdmission.swift', 'FoodJournalProductionGraph.swift'} and 'FoodJournalProductionGraph' in p.read_text()]
+        self.assertEqual(callers, [])

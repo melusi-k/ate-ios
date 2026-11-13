@@ -82,6 +82,13 @@ struct ProductWhatsNewView: View {
                         ForEach(Array(release.slides.enumerated()), id: \.element.id) { index, slide in
                             ScrollView {
                                 VStack(alignment: .leading, spacing: 16) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(release.title).font(AteFont.body(14, .semibold))
+                                        Text("Version \(release.version)" + (release.channel == "beta" ? " · Beta" : ""))
+                                            .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                                    }
+                                    .accessibilityElement(children: .combine)
+                                    .accessibilityIdentifier("whatsNew.releaseContext.\(index)")
                                     if let image = UIImage(named: slide.imageAsset) {
                                         Image(uiImage: image).resizable().scaledToFit()
                                             .clipShape(RoundedRectangle(cornerRadius: Theme.radius))

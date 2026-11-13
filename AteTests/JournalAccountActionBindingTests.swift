@@ -1,4 +1,5 @@
 import XCTest
+import SwiftData
 @testable import Ate
 
 /// #245 slice B: bound account actions under the unified Journal graph - clear-library,
@@ -36,7 +37,10 @@ final class JournalAccountActionBindingTests: XCTestCase {
     }
 
     private func makeRuntime(journal: JournalStore? = nil) -> FoodJournalRuntime {
-        FoodJournalRuntime(journal: journal ?? JournalStore(inMemory: true), goalsRepository: goalsRepo(), defaults: defaults,
+        let owned = journal ?? JournalStore(container: try! ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)), openState: .ok,
+            mediaDirectory: root.appendingPathComponent("media"))
+        return FoodJournalRuntime(journal: owned, goalsRepository: goalsRepo(), defaults: defaults,
                            migrationBackupDirectory: root.appendingPathComponent("NutritionDiaryLegacyBackups", isDirectory: true),
                            repairBackupDirectory: root.appendingPathComponent("NutritionDiaryCorruptBackups", isDirectory: true))
     }
@@ -47,6 +51,15 @@ final class JournalAccountActionBindingTests: XCTestCase {
                  nutritionGoalsRepository: goalsRepo(),
                  foodJournalRuntime: runtime,
                  cookPlanNotifications: CookPlanNotifications(client: CookPlanFakeNotificationClient()))
+    }
+
+    private func bindInventory(_ store: AppStore, runtime: FoodJournalRuntime) {
+        store.journalLocalResetInventory = JournalLocalReset(journal: runtime.journal, defaults: defaults,
+            goalsStorage: runtime.goalsRepository.storage, mediaDirectory: runtime.journal.mediaDirectory,
+            migrationBackupDirectory: root.appendingPathComponent("migration"),
+            repairBackupDirectory: root.appendingPathComponent("repair"),
+            preservationDirectory: root.appendingPathComponent("preservation"),
+            storeFileURL: root.appendingPathComponent("journal.store"))
     }
 
     private func sampleMeal(id: UUID = UUID(), name: String = "Pap and wors") -> NutritionDiaryEntry {
@@ -190,6 +203,7 @@ final class JournalAccountActionBindingTests: XCTestCase {
     func testWipeUnifiedErasesJournalAndPreservesLifecycleMarkers() throws {
         let runtime = makeRuntime()
         let store = makeStore(runtime: runtime)
+        bindInventory(store, runtime: runtime)
         var effectCalls = 0
         var generation = 0
         var depth = 0
@@ -227,6 +241,7 @@ final class JournalAccountActionBindingTests: XCTestCase {
     func testWipeUnifiedReportsFailureInsteadOfClaimingSuccess() {
         let runtime = makeRuntime(journal: JournalStore(container: nil, openState: .ok))
         let store = makeStore(runtime: runtime)
+        bindInventory(store, runtime: runtime)
         store.journalWriterEffect = { work in try work() }
         store.journalWriterValidator = { }
         let report = store.wipeLocalDataUnified()
@@ -244,6 +259,35 @@ final class JournalAccountActionBindingTests: XCTestCase {
         XCTAssertTrue(report.failures.contains { $0.component == "writer-boundary" },
                       "A missing validator binding is a boundary failure, never a skipped re-proof")
         XCTAssertEqual(try runtime.readMeals().count, 1, "Nothing is erased when the boundary is incomplete")
+    }
+
+    func testWipeUnifiedRefusesMissingInventoryBeforeAnyPersonalEffect() throws {
+        let runtime = makeRuntime()
+        let store = makeStore(runtime: runtime)
+        var effects = 0
+        store.journalWriterEffect = { work in effects += 1; try work() }
+        store.journalWriterValidator = {}
+        try runtime.coordinator.saveMeal(sampleMeal())
+        let report = store.wipeLocalDataUnified()
+        XCTAssertFalse(report.complete)
+        XCTAssertTrue(report.failures.contains { $0.component == "reset-inventory" })
+        XCTAssertEqual(effects, 0)
+        XCTAssertEqual(try runtime.readMeals().count, 1)
+    }
+
+    func testWipeUnifiedRefusesForeignInventoryBeforeAnyPersonalEffect() throws {
+        let runtime = makeRuntime()
+        let store = makeStore(runtime: runtime)
+        bindInventory(store, runtime: makeRuntime())
+        var effects = 0
+        store.journalWriterEffect = { work in effects += 1; try work() }
+        store.journalWriterValidator = {}
+        try runtime.coordinator.saveMeal(sampleMeal())
+        let report = store.wipeLocalDataUnified()
+        XCTAssertFalse(report.complete)
+        XCTAssertTrue(report.failures.contains { $0.component == "reset-inventory" })
+        XCTAssertEqual(effects, 0)
+        XCTAssertEqual(try runtime.readMeals().count, 1)
     }
 
     // MARK: sign-out / delete-account guards

@@ -1,39 +1,51 @@
 {
-  "title": "Bundle B: live Shopping sync, local durability and offline Explore",
-  "summary": "Focus: live Shopping sync status and manual refresh, immutable payload safety and local durability, offline Explore through the existing Library, source-faithful explicit draft repair and bounded system cleanup. Source inclusion is not native, pixel or device acceptance. Existing Journal reflection/navigation behavior is retained; cooking must not create an eaten-food log. FJ-union image-boundary and termination failures are distinct evidence, not proven failures on these input heads.",
-  "source_commit": "603073583fb1c5fa36033a328475a38ff1fdcd6e",
+  "title": "Bundle A: Settings, Insights, Cook, generation and Journal",
+  "summary": "Focus: Settings release notes and replay tour, owned Insights destinations, recorded cooking history, shared Cook steps and measured bottom chrome, owned photo/generation inputs, onboarding navigation, and native Journal delete confirmation with retained reflection drafts. All source folds are included, not native or device acceptance. Nutrition termination awaits fresh exact-head evidence. Cooking is not an eaten-food log; Food Journal activation is not enabled by this bundle.",
+  "source_commit": "0a625c23aaacc4713c7bb3a45cc45506c2f350c7",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "56f838b904b24a8d88ba3409638d7dc434aaa57e"
+      "blob": "e636e5eccd67e31dcb8ac7f8b155c9f278bb9f6a"
     },
     {
       "path": "Ate/Views/JournalViews.swift",
-      "blob": "61c2d7df9cf3b780cf809b779efef40b0daeb3d2"
+      "blob": "7e0375d362867507e781901318e32fde459f0e85"
     },
     {
-      "path": "Ate/Views/ShoppingListView.swift",
-      "blob": "031df522bdb2bae02452fe99f535835dae0d7c08"
+      "path": "Ate/Views/ProductUpdatesViews.swift",
+      "blob": "3de31c5f54026a0a5b3b8a3c83c36e5c3244d03e"
     },
     {
-      "path": "Ate/Store/AppStore.swift",
-      "blob": "3a01dadb89d69065a439766d5fd83026912c7d38"
+      "path": "Ate/Views/InsightsView.swift",
+      "blob": "3f38057fb07a065197672fab9c6f219ea06c17f1"
     },
     {
-      "path": "Ate/Logic/SyncPayloadSafety.swift",
-      "blob": "a97407346934598d82dda7ffda52eed0c29aa46a"
+      "path": "Ate/Views/CookingTrackerView.swift",
+      "blob": "6b209b692702c03311ec3feba3bf3632202e9bc1"
     },
     {
-      "path": "Ate/Views/ExploreView.swift",
-      "blob": "1049ba938a741b92dc0656e8d372fddc4b2f2f73"
+      "path": "Ate/Views/CookModeView.swift",
+      "blob": "203f46cec2a7b69e8f17a11f1c771a982441b9bc"
     },
     {
-      "path": "Ate/Views/LibraryView.swift",
-      "blob": "28101234a51b76e746ff2ed90931b04a4560fcd0"
+      "path": "Ate/Views/RecipeDetailView.swift",
+      "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
+    },
+    {
+      "path": "Ate/Services/JournalSuggestionService.swift",
+      "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
+    },
+    {
+      "path": "Ate/Views/JournalDeleteConfirmation.swift",
+      "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
+    },
+    {
+      "path": "Ate/Views/OnboardingView.swift",
+      "blob": "ae031e11f4c03dfbdb810c8290aa0fb3329a036b"
     },
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "79177a543f5bcd48bb7564f8053d0e02ac5c1467"
+      "blob": "e25f2c8a67877b5a6d362d8b64a0d9a0da52f5f9"
     }
   ]
 }

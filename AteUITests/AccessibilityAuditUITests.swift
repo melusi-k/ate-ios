@@ -14,6 +14,14 @@ final class AccessibilityAuditUITests: XCTestCase {
 
     func audit(_ screen: String, strict: Bool = true, types: XCUIAccessibilityAuditType = .all) throws {
         var log: [String] = []
+        // Keep pixels even when a native audit throws or records an issue. These
+        // captures are evidence for review, never an inferred visual pass.
+        defer {
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screenshot.name = "a11y-screen-" + screen
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
         try app.performAccessibilityAudit(for: types) { issue in
             let who = issue.element.map { "\($0.elementType.rawValue) '\($0.label)' [\($0.identifier)]" } ?? "system element"
             log.append("\(issue.auditType.rawValue) · \(issue.compactDescription) · \(who)")
@@ -90,10 +98,15 @@ final class AccessibilityAuditUITests: XCTestCase {
     func testAuditOnboarding() throws {
         launch(["-showOnboarding"])
         let dots = app.descendants(matching: .any)["onboardingDots"]
-        if dots.waitForExistence(timeout: 5) {
-            XCTAssertTrue((dots.value as? String)?.contains("of") == true, "page dots announce 'x of y'")
-            try audit("onboarding")
+        guard dots.waitForExistence(timeout: 5) else {
+            throw fail("Onboarding did not appear; the audit must not pass without running")
         }
+        XCTAssertTrue((dots.value as? String)?.contains("of") == true, "page dots announce 'x of y'")
+        let skip = app.buttons["onboardingSkip"]
+        XCTAssertTrue(skip.exists)
+        XCTAssertGreaterThanOrEqual(skip.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(skip.frame.height, 44)
+        try audit("onboarding")
     }
 
     /// Reveal a Settings form entry before tapping it. The previous up-only loop could push

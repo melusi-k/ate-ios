@@ -101,6 +101,16 @@ final class GeneratedTotalTimeTests: XCTestCase {
         XCTAssertTrue(GeneratedRecipeConsistency.issues(nearLimit).contains { $0.contains("Step time sum") })
     }
 
+    func testMissingTotalCannotHideMalformedOrOverflowPrepGap() {
+        for note in ["Prep:10-15min", "Prep:10min plus30seconds", "Prep:\(Int.max)min"] {
+            var original = card(stepMinutes: 20, prep: nil, total: nil)
+            original.aiNote = note
+            let normalized = RecipeLogic.normalize(original)
+            XCTAssertNil(normalized.timeMinutes)
+            XCTAssertTrue(GeneratedRecipeConsistency.issues(normalized).contains { $0.contains("Clarify one explicit") })
+        }
+    }
+
     func testPrepParserRequiresOneExplicitStatement() {
         XCTAssertEqual(GeneratedRecipeConsistency.prepMinutes(in: "Prep: 12 min. Rest as directed."), 12)
         XCTAssertEqual(GeneratedRecipeConsistency.prepMinutes(in: "Prep: 0 min"), 0)

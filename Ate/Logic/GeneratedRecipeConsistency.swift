@@ -66,14 +66,18 @@ enum GeneratedRecipeConsistency {
             }
             seconds += duration
         }
+        let note = card.aiNote ?? ""
+        let prep = prepMinutes(in: note)
+        let hasPrep = note.range(of: #"\bprep\s*:"#, options: [.regularExpression, .caseInsensitive]) != nil
+        // Missing total must not make an invalid/overflowing Prep declaration
+        // vanish from the quality path after sanitizer correctly refused it.
+        if hasPrep && prep == nil {
+            gaps.append("Clarify one explicit Prep: N min value before total time can be verified.")
+            return gaps
+        }
         if seconds > 0, let total = card.timeMinutes {
             let stepMinutes = (seconds + 59) / 60
-            let note = card.aiNote ?? ""
-            let prep = prepMinutes(in: note)
-            let hasPrep = note.range(of: #"\bprep\s*:"#, options: [.regularExpression, .caseInsensitive]) != nil
-            if hasPrep && prep == nil {
-                gaps.append("Clarify one explicit Prep: N min value before total time can be verified.")
-            } else if let prep {
+            if let prep {
                 guard let expected = totalMinutes(stepMinutes: stepMinutes, prepMinutes: prep) else {
                     gaps.append("Total time plus stated prep exceeds the supported limit; clarify cooking times.")
                     return gaps

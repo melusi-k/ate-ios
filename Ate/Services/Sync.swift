@@ -82,11 +82,12 @@ indirect enum JSONValue: Codable, Equatable {
 }
 
 enum SyncError: LocalizedError {
-    case tableMissing, unauthorized, http(Int, String?)
+    case tableMissing, unauthorized, permissionDenied, http(Int, String?)
     var errorDescription: String? {
         switch self {
         case .tableMissing: return "Cloud sync isn't set up on the server yet (user_recipes table missing)."
         case .unauthorized: return "Your session expired. Sign in again."
+        case .permissionDenied: return "Cloud sync was denied by the server. Your local data is still on this iPhone."
         case .http(let c, let detail): return "HTTP \(c)" + (detail.map { " — \($0)" } ?? "")
         }
     }
@@ -114,12 +115,13 @@ final class SupabaseSync: SyncService {
         return r
     }
 
-    private func check(_ data: Data, _ resp: URLResponse) throws {
+    func check(_ data: Data, _ resp: URLResponse) throws {
         let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
         if (200..<300).contains(code) { return }
         let text = String(decoding: data, as: UTF8.self)
         if code == 404 || text.contains("PGRST205") || text.contains("42P01") { throw SyncError.tableMissing }
-        if code == 401 || code == 403 { throw SyncError.unauthorized }
+        if code == 401 { throw SyncError.unauthorized }
+        if code == 403 { throw SyncError.permissionDenied }
         // Surface PostgREST's code + message (e.g. "22P02: invalid input syntax for type bigint").
         let j = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         let detail = [j?["code"] as? String, j?["message"] as? String].compactMap { $0 }.joined(separator: ": ")

@@ -39,6 +39,9 @@ final class ShareViewController: UIViewController {
     @Published var state: State = .loading
 
     func load(_ items: [NSExtensionItem]) async {
+        let boundary = SharedWriterBoundary.current // retained before ANY provider await
+        let inboxDirectory = SharedInbox.folder
+        var imageData: Data?
         let providers = items.flatMap { $0.attachments ?? [] }
         var item = SharedInbox.Item()
         for p in providers {
@@ -49,39 +52,42 @@ final class ShareViewController: UIViewController {
                       let t = try? await p.loadItem(forTypeIdentifier: UTType.plainText.identifier) as? String {
                 item.text = t
                 if item.url == nil { item.url = SharedInbox.firstURL(in: t) }
-            } else if item.imageFile == nil, p.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
-                item.imageFile = await saveImage(p)
+            } else if imageData == nil, p.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                imageData = await loadImageData(p)
             }
         }
-        guard item.url != nil || item.text != nil || item.imageFile != nil else {
+        guard item.url != nil || item.text != nil || imageData != nil else {
             state = .failed("Nothing ate can read here. Try sharing a link or a photo."); return
         }
-        let what = item.imageFile != nil ? "Photo" : (item.url.flatMap { URL(string: $0)?.host } ?? "Text")
+        let what = imageData != nil ? "Photo" : (item.url.flatMap { URL(string: $0)?.host } ?? "Text")
         if SharedContainer.isAvailable {
-            if SharedInbox.push(item) {
+            let queued: Bool
+            if let imageData {
+                queued = SharedInbox.pushImage(imageData, item: item, directory: inboxDirectory, boundary: boundary)
+            } else { queued = SharedInbox.push(item, boundary: boundary) }
+            if queued {
                 state = .saved(what)
             } else {
                 // The writer boundary refused: nothing was queued, so never claim a save.
                 state = .failed("ate couldn't queue this just now. Please try again.")
             }
         } else {
-            // No App Group (free-account sideload): fall back to the clipboard.
+            // No App Group (free-account sideload): only text/link can use clipboard.
+            guard item.url != nil || item.text != nil else {
+                state = .failed("Nothing ate can read here. Try sharing a link or a photo."); return
+            }
             UIPasteboard.general.string = item.url ?? item.text
             state = .copied(what)
         }
     }
 
-    private func saveImage(_ p: NSItemProvider) async -> String? {
-        guard let dir = SharedInbox.folder else { return nil }
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    private func loadImageData(_ p: NSItemProvider) async -> Data? {
         let raw = try? await p.loadItem(forTypeIdentifier: UTType.image.identifier)
         var data: Data?
         if let u = raw as? URL { data = try? Data(contentsOf: u) }
         else if let img = raw as? UIImage { data = img.jpegData(compressionQuality: 0.85) }
         else if let d = raw as? Data { data = d }
-        guard let data else { return nil }
-        let name = UUID().uuidString + ".jpg"
-        return (try? data.write(to: dir.appendingPathComponent(name))) != nil ? name : nil
+        return data
     }
 }
 

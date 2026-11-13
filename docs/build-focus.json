@@ -1,7 +1,7 @@
 {
-  "title": "Journal navigation and cooking reflections",
-  "summary": "Focus: the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log.",
-  "source_commit": "7c3f7d0265e58ea124c0bf55140a90fe76df45b3",
+  "title": "Journal navigation, cooking reflections and bounded Cook performance candidate",
+  "summary": "Focus: Journal navigation and reflection-only cooking remain included. Cook countdown clock reads now belong to small leaf views; recipe static rows combine their spoken content. Native compile, VoiceOver, pixels and before/after timing remain unqualified. Cooking must not create an eaten-food log. Unified Food Journal activation stays OFF.",
+  "source_commit": "aaaf34f11fd8101b63ec13aad7c37b99d0a4883a",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -10,6 +10,14 @@
     {
       "path": "Ate/Views/JournalViews.swift",
       "blob": "61c2d7df9cf3b780cf809b779efef40b0daeb3d2"
+    },
+    {
+      "path": "Ate/Views/CookModeView.swift",
+      "blob": "4aecafd603a65090ffc4863bb21e9e2ad43e5255"
+    },
+    {
+      "path": "Ate/Views/Components.swift",
+      "blob": "9d71811effbdc4627ef9c2b94fe9423bb8319c05"
     }
   ]
 }

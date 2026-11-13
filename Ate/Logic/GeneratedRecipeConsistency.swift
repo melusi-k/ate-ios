@@ -7,6 +7,33 @@ enum GeneratedRecipeConsistency {
         words.contains { CoverLogic.matches(text.lowercased(), $0) }
     }
 
+    /// One explicit nonnegative prep statement, shared by normalization and the
+    /// validator. Ambiguous/multiple statements are not permission to guess.
+    static func prepMinutes(in note: String) -> Int? {
+        let text = note as NSString
+        guard let declarations = try? NSRegularExpression(pattern: #"\bprep\s*:"#, options: .caseInsensitive),
+              let value = try? NSRegularExpression(
+                pattern: #"^\s*(\d+)\s*min\s*(?:$|[.!](?=\s|$)(?!\s*(?:plus|and)\b)|[\r\n])"#,
+                options: .caseInsensitive) else { return nil }
+        // Count ALL declarations, not only well-formed values. A valid value
+        // alongside a malformed second declaration is still ambiguous.
+        let matches = declarations.matches(in: note, range: NSRange(location: 0, length: text.length))
+        guard matches.count == 1, let declaration = matches.first else { return nil }
+        let tail = text.substring(from: NSMaxRange(declaration.range)) as NSString
+        guard let match = value.firstMatch(in: tail as String, range: NSRange(location: 0, length: tail.length)) else { return nil }
+        guard let minutes = Int(tail.substring(with: match.range(at: 1))),
+              (0...Durations.maxTotalMinutes).contains(minutes) else { return nil }
+        return minutes
+    }
+
+    /// Bound both operands before arithmetic. Invalid text and an excessive
+    /// combined total remain a quality gap, never an integer trap or silent cap.
+    static func totalMinutes(stepMinutes: Int, prepMinutes: Int) -> Int? {
+        guard (0...Durations.maxTotalMinutes).contains(stepMinutes),
+              prepMinutes >= 0, prepMinutes <= Durations.maxTotalMinutes - stepMinutes else { return nil }
+        return stepMinutes + prepMinutes
+    }
+
     static func issues(_ card: RecipeCard) -> [String] {
         guard RecipeQuality.isGenerated(card) else { return [] }
         var gaps: [String] = []
@@ -30,18 +57,31 @@ enum GeneratedRecipeConsistency {
                 gaps.append("Bunny chow needs a step to hollow the bread and fill it with curry.")
             }
         }
-        let seconds = RecipeLogic.nonBlank(card.steps).compactMap(\.timeSeconds).filter { $0 > 0 }.reduce(0, +)
+        var seconds = 0
+        let maxSeconds = Durations.maxTotalMinutes * 60
+        for duration in RecipeLogic.nonBlank(card.steps).compactMap(\.timeSeconds) where duration > 0 {
+            guard duration <= maxSeconds - seconds else {
+                gaps.append("Step time sum exceeds the supported total; clarify cooking times.")
+                return gaps
+            }
+            seconds += duration
+        }
         if seconds > 0, let total = card.timeMinutes {
-            let stepMinutes = Int(ceil(Double(seconds) / 60))
+            let stepMinutes = (seconds + 59) / 60
             let note = card.aiNote ?? ""
-            let expression = try? NSRegularExpression(pattern: #"\bprep:\s*(\d+)\s*min\b"#, options: .caseInsensitive)
-            let ns = note as NSString
-            let match = expression?.firstMatch(in: note, range: NSRange(location: 0, length: ns.length))
-            let prep = match.flatMap { Int(ns.substring(with: $0.range(at: 1))) }
-            let timingMismatch = prep.map { total != stepMinutes + $0 } ?? (total < stepMinutes)
-            if timingMismatch {
+            let prep = prepMinutes(in: note)
+            let hasPrep = note.range(of: #"\bprep\s*:"#, options: [.regularExpression, .caseInsensitive]) != nil
+            if hasPrep && prep == nil {
+                gaps.append("Clarify one explicit Prep: N min value before total time can be verified.")
+            } else if let prep {
+                guard let expected = totalMinutes(stepMinutes: stepMinutes, prepMinutes: prep) else {
+                    gaps.append("Total time plus stated prep exceeds the supported limit; clarify cooking times.")
+                    return gaps
+                }
+                if total != expected { gaps.append("Total time must equal the step sum plus stated prep minutes.") }
+            } else if total < stepMinutes {
                 gaps.append("Total time must equal the step sum plus stated prep minutes.")
-            } else if total > stepMinutes && prep == nil {
+            } else if total > stepMinutes {
                 gaps.append("Explain the extra \(total - stepMinutes) minutes as Prep: N min in the note; total time is steps plus prep.")
             }
         }

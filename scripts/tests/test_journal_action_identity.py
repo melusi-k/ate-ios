@@ -31,10 +31,17 @@ class JournalActionIdentityTests(unittest.TestCase):
 
     def test_crud_and_retry_keep_exact_uniqueness_and_saved_state_assertions(self):
         source = (ROOT / 'AteUITests/JournalOpenStateUITests.swift').read_text()
-        self.assertIn('cancelConfirmation.buttons["journal.delete.cancel"].tap()', source)
-        self.assertIn('XCTAssertEqual(cancelConfirmation.buttons.matching(identifier: "journal.delete.cancel").count, 1)', source)
-        self.assertIn('XCTAssertEqual(confirmation.buttons.matching(identifier: "journal.delete.confirm").count, 1)', source)
-        self.assertEqual(source.count('XCTAssertEqual(alert.buttons.matching(identifier: "journal.delete.confirm").count, 1)'), 2)
+        self.assertEqual(source.count('try uniqueDeleteAlertAction('), 8)
+        helper = source.split('private func uniqueDeleteAlertAction', 1)[1].split('private func any', 1)[0]
+        for check in ['XCTAssertEqual(app.alerts.count, 1', 'XCTAssertEqual(leaves.count, 1',
+                      'candidate.descendants(matching: .button)', 'XCTAssertEqual(descendants.count, nested.count', 'if nested.count == 0',
+                      'XCTAssertEqual(candidate.label, label', 'XCTAssertEqual(alias.frame, frame',
+                      'XCTAssertTrue(alert.frame.contains(frame)', 'XCTAssertTrue(action.isHittable',
+                      'guard leaves.count == 1 else']:
+            self.assertIn(check, helper)
+        self.assertNotIn('.firstMatch', helper)
+        self.assertIn('cancelAction.tap()', source)
+        self.assertIn('explicitRetryDelete.tap()', source)
         self.assertIn('"Cancel must keep the reflection"', source)
         self.assertIn('"Only successful explicit retry may remove the target from history"', source)
         self.assertIn('"Confirmed deletion must commit and verify, not only dismiss an alert"', source)

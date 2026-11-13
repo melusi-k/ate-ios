@@ -77,7 +77,7 @@ struct AddRecipeSheet: View {
                     .confirmationDialog("Discard this recipe?", isPresented: $confirmDiscard, titleVisibility: .visible) {
                         Button("Discard", role: .destructive) {
                             invalidateRepair()
-                            DraftStore.shared.clear()
+                            store.draftStore.clear()
                             dismiss()
                         }
                         Button("Keep editing", role: .cancel) {}
@@ -86,7 +86,7 @@ struct AddRecipeSheet: View {
         }
         .onDisappear {
             invalidateRepair()
-            if !loading && !hasUnsaved { DraftStore.shared.clear() }
+            if !loading && !hasUnsaved { store.draftStore.clear() }
         }
         .task {
             OnDeviceBackend.prewarm()
@@ -287,7 +287,7 @@ struct AddRecipeSheet: View {
             Button(saving ? "Saving…" : "Save recipe") {
                 guard !saving, let d = draft else { return }
                 saving = true                       // P0: one save per draft; double taps are ignored
-                DraftStore.shared.clear()           // the stored draft must not be restored (and saved again) later
+                store.draftStore.clear()           // the stored draft must not be restored (and saved again) later
                 BetaQA.shared.pass("A-EDIT-01", note: (didEdit ? "Edited and saved" : "Reviewed and saved") + " “\(d.title)”")
                 onSave(RecipeLogic.normalize(d))
                 // Record only after handing the normalized recipe to the owning save flow.
@@ -322,17 +322,17 @@ struct AddRecipeSheet: View {
                 if CoverStore.playgroundAvailable && !ProcessInfo.processInfo.arguments.contains("-qaNoPlayground") {
                     Button {
                         Task {
-                            guard let cur = draft, let name = await CoverStore.shared.generate(for: cur) else {
+                            guard let cur = draft, let name = await store.coverStore.generate(for: cur) else {
                                 store.show("Couldn't generate an image right now.", error: true); return
                             }
                             draft?.coverImage = name
                         }
                     } label: { Label("Generate cover", systemImage: "wand.and.sparkles") }
                         .buttonStyle(.ate(.secondary, height: 36)).accessibilityIdentifier("generateCover")
-                        .disabled(CoverStore.shared.isLoading(d.id))
+                        .disabled(store.coverStore.isLoading(d.id))
                 }
                 if d.coverImage != nil && d.coverImage != CoverStore.removed {
-                    Button { CoverStore.shared.removeFiles(recipeID: d.id); draft?.coverImage = CoverStore.removed } label: {
+                    Button { store.coverStore.removeFiles(recipeID: d.id); draft?.coverImage = CoverStore.removed } label: {
                         Label("Remove", systemImage: "xmark")
                     }.buttonStyle(.ate(.ghost, height: 36)).accessibilityIdentifier("removeCover")
                 }
@@ -342,18 +342,18 @@ struct AddRecipeSheet: View {
     }
 
     private func setUserCover(_ img: UIImage) {
-        guard let id = draft?.id, let name = CoverStore.shared.save(img, recipeID: id, source: .userPhoto) else { return }
+        guard (try? store.validateJournalTask()) != nil, let id = draft?.id, let name = store.coverStore.save(img, recipeID: id, source: .userPhoto) else { return }
         draft?.coverImage = name
     }
 
     /// Picks the initial cover for a fresh draft (async; saving never waits for it).
     private func chooseInitialCover(for card: RecipeCard) {
         if mode == .image, let d = imageData, let img = UIImage(data: d) {
-            draft?.coverImage = CoverStore.shared.save(img, recipeID: card.id, source: .userPhoto)
+            draft?.coverImage = store.coverStore.save(img, recipeID: card.id, source: .userPhoto)
             return
         }
         Task {
-            guard let res = await CoverStore.shared.resolve(card) else { return }
+            guard let res = await store.coverStore.resolve(card) else { return }
             if draft?.id == card.id, draft?.coverImage == nil {
                 draft?.coverImage = res.file
                 if let u = res.imageURL { draft?.imageURL = u }
@@ -402,12 +402,12 @@ struct AddRecipeSheet: View {
 
     /// A-CREATE-05: the app was closed mid-generation (or with an unsaved card) last time.
     private func restoreInterrupted() {
-        if let c = DraftStore.shared.draft, store.recipe(c.id) != nil {
-            DraftStore.shared.clear()   // P0: this draft was already saved; restoring it made duplicate copies
-        } else if let c = DraftStore.shared.draft {
+        if let c = store.draftStore.draft, store.recipe(c.id) != nil {
+            store.draftStore.clear()   // P0: this draft was already saved; restoring it made duplicate copies
+        } else if let c = store.draftStore.draft {
             draft = c; store.show("Restored your unsaved card")
             BetaQA.shared.pass("A-CREATE-05", note: "Restored unsaved draft “\(c.title)” after relaunch")
-        } else if let p = DraftStore.shared.pending {
+        } else if let p = store.draftStore.pending {
             if let m = Mode(rawValue: p.mode) { mode = m }
             switch mode {
             case .link: link = p.text
@@ -476,8 +476,13 @@ struct AddRecipeSheet: View {
         let request = ParseRequest(mode: .rewrite, text: mode == .prompt ? prompt : nil,
             currentRecipe: original, repairQuality: true)
         repairAttempt.start(operation: {
-            try await store.backend.parseRecipe(request)
+            try await store.performJournalTask {
+                let result = try await store.backend.parseRecipe(request)
+                try store.validateJournalTask()
+                return result
+            }
         }, apply: { result in
+            try store.validateJournalTask()
             // Admission has already been rechecked after await. Also refuse
             // edits made during repair before any state or DraftStore write.
             guard draft == original else {
@@ -487,7 +492,7 @@ struct AddRecipeSheet: View {
             draft = repaired
             didEdit = false
             confirmedDraft = false
-            DraftStore.shared.saveDraft(repaired)
+            store.draftStore.saveDraft(repaired)
         }, failed: { error in
             repairError = error.localizedDescription
         }, finished: {
@@ -496,6 +501,9 @@ struct AddRecipeSheet: View {
     }
 
     private func generate() async {
+        await store.runJournalTask { await generateOwned() }
+    }
+    private func generateOwned() async {
         // The UI disables generation while loading, but keep the lifecycle safe against rapid or programmatic duplicate taps.
         guard !loading else { return }
         if store.settings.onDeviceOnly {
@@ -535,13 +543,13 @@ struct AddRecipeSheet: View {
             if dishes.count > 1 {
                 let rest = Array(dishes.dropFirst())
                 let base = req
-                Task {
+                Task { await store.runJournalTask {
                     for d in rest {
                         var r = base; r.text = d
-                        if var c = try? await store.backend.parseRecipe(r) { c.origin = .photo; store.add(RecipeLogic.normalize(c)) }
+                        if var c = try? await store.backend.parseRecipe(r) { try store.validateJournalTask(); c.origin = .photo; store.add(RecipeLogic.normalize(c)) }
                     }
                     if !rest.isEmpty { store.show("Saved \(rest.count) more card\(rest.count == 1 ? "" : "s") from the spread") }
-                }
+                } }
             }
         }
         diagnostic?.mark(.generationLoading)
@@ -549,7 +557,7 @@ struct AddRecipeSheet: View {
         error = nil; socialError = nil; socialReason = nil
         live = nil
         OnDeviceBackend.partialSink = { p in live = p }
-        DraftStore.shared.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""),
+        store.draftStore.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""),
                                 imageData: recoveryImageData)
         // Keep pending input on failure or while asking the user to identify an uncertain dish.
         // DraftStore.saveDraft clears it on success; Cancel/Discard clears it explicitly.
@@ -560,6 +568,7 @@ struct AddRecipeSheet: View {
         do {
             let started = Date()
             var card = try await store.backend.parseRecipe(req)
+            try store.validateJournalTask()
             diagnostic?.mark(.backendReturned)
             card.origin = mode == .link ? .link : (mode == .image ? .photo : .prompt)
             if mode == .link, let u = URL(string: link.trimmingCharacters(in: .whitespaces)) { card.sourceURL = SocialLinks.clean(u).absoluteString }
@@ -579,7 +588,7 @@ struct AddRecipeSheet: View {
             draft = normalized
             diagnostic?.mark(.draftAssigned)
             confirmedDraft = false
-            if let d = draft { chooseInitialCover(for: d); DraftStore.shared.saveDraft(d) }
+            if let d = draft { chooseInitialCover(for: d); store.draftStore.saveDraft(d) }
             editing = false
             dishQuestion = nil; dishAnswer = ""; spreadPicks = []
             let src = "source \(card.source) in \(Int(Date().timeIntervalSince(started) * 1000)) ms"

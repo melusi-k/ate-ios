@@ -43,7 +43,7 @@ struct RecipeCardView: View {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Ingredients").overline()
-                    ForEach(Array(r.ingredients.enumerated()), id: \.offset) { _, ing in
+                    ForEach(Array(r.ingredients.enumerated()), id: \.offset) { idx, ing in
                         let (q, u) = Units.convert(quantity: ing.quantity, unit: ing.unit, to: units)
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text(Units.formatAmount(q, u)).font(AteFont.body(15, .medium)).monospacedDigit()
@@ -54,6 +54,10 @@ struct RecipeCardView: View {
                         }
                         .padding(.bottom, 8)
                         .overlay(alignment: .bottom) { Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1) }
+                        // Quantity and name are one spoken ingredient, not separate
+                        // targets. Keep all content while reducing static AX nodes.
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("recipe.ingredient.\(idx + 1)")
                     }
                 }
                 VStack(alignment: .leading, spacing: 12) {
@@ -68,6 +72,10 @@ struct RecipeCardView: View {
                                 .font(AteFont.body(15))
                                 .fixedSize(horizontal: false, vertical: true)
                         }
+                        // Read the step number and full instruction together. The
+                        // STEPS heading remains a distinct, mounted scroll target.
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("recipe.step.\(idx + 1)")
                     }
                 }
             }

@@ -36,22 +36,35 @@ final class TimerCenter {
 
     private(set) var timers: [ActiveTimer] = [] { didSet { persist() } }
 
-    init(writerBoundary: FoodJournalWriterBoundary = .legacy, readOnlyObserver: Bool = false) {
+    private let snapshotDefaults: UserDefaults?
+    private func loadSnapshots() -> [TimerSnapshot] {
+        guard let snapshotDefaults else { return TimerSnapshot.load() }
+        return snapshotDefaults.data(forKey: TimerSnapshot.key).flatMap { try? JSONDecoder().decode([TimerSnapshot].self, from: $0) } ?? []
+    }
+    @discardableResult private func saveSnapshots(_ snapshots: [TimerSnapshot]) -> Bool {
+        guard let snapshotDefaults else { return TimerSnapshot.save(snapshots) }
+        return (try? writerBoundary.withEffect {
+            snapshotDefaults.set(try JSONEncoder().encode(snapshots), forKey: TimerSnapshot.key)
+        }) != nil
+    }
+    init(writerBoundary: FoodJournalWriterBoundary = .legacy, readOnlyObserver: Bool = false,
+         snapshotDefaults: UserDefaults? = nil, resetForUITesting: Bool = true) {
+        self.snapshotDefaults = snapshotDefaults
         self.writerBoundary = writerBoundary
         if readOnlyObserver {
             suppressPersist = true
-            timers = TimerSnapshot.load().map {
+            timers = loadSnapshots().map {
                 ActiveTimer(recipeID: $0.recipeID, recipeTitle: $0.recipeTitle, stepIndex: $0.stepIndex, stepCount: $0.stepCount,
                     stepText: $0.stepText, total: $0.total, endDate: $0.endDate, pausedRemaining: $0.pausedRemaining)
             }
             // Keep persist suppressed for the whole lifetime of this observer.
             return
         }
-        if AppConfig.isUITesting {
-            try? writerBoundary.withEffect { TimerSnapshot.save([]) }
+        if resetForUITesting && AppConfig.isUITesting {
+            try? writerBoundary.withEffect { saveSnapshots([]) }
             return
         }
-        timers = TimerSnapshot.load().map {
+        timers = loadSnapshots().map {
             ActiveTimer(recipeID: $0.recipeID, recipeTitle: $0.recipeTitle, stepIndex: $0.stepIndex, stepCount: $0.stepCount,
                         stepText: $0.stepText, total: $0.total, endDate: $0.endDate, pausedRemaining: $0.pausedRemaining)
         }
@@ -61,7 +74,7 @@ final class TimerCenter {
     private func persist() {
         if suppressPersist { return }
         PhoneWatchBridge.shared.update(timers: timers)
-        TimerSnapshot.save(snapshots)
+        saveSnapshots(snapshots)
         WidgetKinds.reload([WidgetKinds.timers])
     }
     var snapshots: [TimerSnapshot] {
@@ -77,7 +90,7 @@ final class TimerCenter {
         // The whole read-modify-write plus the republish is one gated effect.
         try? writerBoundary.withEffect {
             if AppConfig.isUITesting && !ProcessInfo.processInfo.arguments.contains("-qaSharedTimers") { return }
-            let shared = TimerSnapshot.load()
+            let shared = loadSnapshots()
             guard shared != snapshots else { return }
             let old = timers
             suppressPersist = true

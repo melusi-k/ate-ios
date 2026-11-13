@@ -48,6 +48,8 @@ struct AddRecipeSheet: View {
     @State private var repairError: String?
     @State private var repairAttempt = DraftRepairAttempt()
     @State private var generationAttempt = DraftGenerationAttempt()
+    @State private var photoInputAttempt = DraftInputAttempt()
+    @State private var coverInputAttempt = DraftInputAttempt()
     /// Name the user confirmed in "What dish is this?" (C-AI-01); the regenerated card is not asked about again.
     @State private var confirmedDish: String?
     @Environment(\.dismiss) private var dismiss
@@ -79,6 +81,7 @@ struct AddRecipeSheet: View {
                         Button("Discard", role: .destructive) {
                             invalidateRepair()
                             invalidateGeneration()
+                            invalidateInputLoads()
                             DraftStore.shared.clear()
                             dismiss()
                         }
@@ -89,6 +92,7 @@ struct AddRecipeSheet: View {
         .onDisappear {
             invalidateRepair()
             invalidateGeneration()
+            invalidateInputLoads()
             if !loading && !hasUnsaved { DraftStore.shared.clear() }
         }
         .task {
@@ -109,16 +113,27 @@ struct AddRecipeSheet: View {
             startGeneration()
         }
         .fullScreenCover(isPresented: $showCamera) {
-            CameraPicker { img in imageData = img.jpegData(compressionQuality: 0.85) }.ignoresSafeArea()
+            CameraPicker { img in
+                photoInputAttempt.invalidate()
+                imageData = img.jpegData(compressionQuality: 0.85)
+            }.ignoresSafeArea()
         }
         .fullScreenCover(isPresented: $showCoverCamera) {
             CameraPicker { img in setUserCover(img) }.ignoresSafeArea()
         }
         .onChange(of: coverItem) { _, item in
-            Task { if let d = try? await item?.loadTransferable(type: Data.self), let img = UIImage(data: d) { setUserCover(img) } }
+            let recipeID = draft?.id
+            coverInputAttempt.start(load: { try? await item?.loadTransferable(type: Data.self) }) { data in
+                guard let recipeID, draft?.id == recipeID, !saving,
+                      let data, let image = UIImage(data: data) else { return }
+                setUserCover(image)
+            }
         }
         .onChange(of: photoItem) { _, item in
-            Task { imageData = try? await item?.loadTransferable(type: Data.self) }
+            photoInputAttempt.start(load: { try? await item?.loadTransferable(type: Data.self) }) { data in
+                guard !saving else { return }
+                imageData = data
+            }
         }
     }
 
@@ -252,7 +267,10 @@ struct AddRecipeSheet: View {
         }
         if let d = draft, RecipeQuality.needsInput(d), !didEdit, !confirmedDraft {
             VStack(alignment: .leading, spacing: 6) {
+                // An identifier on the enclosing VStack propagates to its Buttons
+                // on iOS 27, hiding their distinct repair/confirm identifiers.
                 Label("Draft, needs your input", systemImage: "exclamationmark.bubble").font(AteFont.body(14, .semibold))
+                    .accessibilityIdentifier("draftNeedsInput")
                 if (d.aiConfidence ?? 1) < RecipeQuality.threshold {
                     Text("Ate is only \(d.aiConfidence ?? 0, format: .percent.precision(.fractionLength(0))) sure this is \(d.title).").font(AteFont.body(13))
                 }
@@ -277,7 +295,6 @@ struct AddRecipeSheet: View {
             }
             .padding(12).frame(maxWidth: .infinity, alignment: .leading)
             .sheetCard(Theme.warm.opacity(0.5))
-            .accessibilityIdentifier("draftNeedsInput")
         }
         if let n = draft?.aiNote { Text(n).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aiNote") }
         Text("Fix anything the AI got wrong, then save it to your library.")
@@ -291,6 +308,7 @@ struct AddRecipeSheet: View {
         HStack(spacing: 8) {
             Button(saving ? "Saving…" : "Save recipe") {
                 guard !saving, let d = draft else { return }
+                invalidateInputLoads()
                 saving = true                       // P0: one save per draft; double taps are ignored
                 DraftStore.shared.clear()           // the stored draft must not be restored (and saved again) later
                 BetaQA.shared.pass("A-EDIT-01", note: (didEdit ? "Edited and saved" : "Reviewed and saved") + " “\(d.title)”")
@@ -337,7 +355,7 @@ struct AddRecipeSheet: View {
                         .disabled(CoverStore.shared.isLoading(d.id))
                 }
                 if d.coverImage != nil && d.coverImage != CoverStore.removed {
-                    Button { CoverStore.shared.removeFiles(recipeID: d.id); draft?.coverImage = CoverStore.removed } label: {
+                    Button { coverInputAttempt.invalidate(); CoverStore.shared.removeFiles(recipeID: d.id); draft?.coverImage = CoverStore.removed } label: {
                         Label("Remove", systemImage: "xmark")
                     }.buttonStyle(.ate(.ghost, height: 36)).accessibilityIdentifier("removeCover")
                 }
@@ -347,6 +365,7 @@ struct AddRecipeSheet: View {
     }
 
     private func setUserCover(_ img: UIImage) {
+        coverInputAttempt.invalidate()
         guard let id = draft?.id, let name = CoverStore.shared.save(img, recipeID: id, source: .userPhoto) else { return }
         draft?.coverImage = name
     }
@@ -509,8 +528,14 @@ struct AddRecipeSheet: View {
         loading = false
     }
 
+    private func invalidateInputLoads() {
+        photoInputAttempt.invalidate()
+        coverInputAttempt.invalidate()
+    }
+
     private func startGeneration() {
         guard !loading, !saving else { return }
+        invalidateInputLoads()
         generationAttempt.start { token in await generate(token: token) }
     }
 

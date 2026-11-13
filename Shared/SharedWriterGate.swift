@@ -24,9 +24,10 @@ enum SharedWriterControl {
 /// while activation is off; canonical production startup installs the real
 /// boundary in every process before ordinary use (see SharedWriterGateComposition).
 final class SharedWriterBoundary {
-    enum Failure: Error { case effectNotPerformed, repeatedEffect }
+    enum Failure: Error { case effectNotPerformed, repeatedEffect, retired, effectActive }
     private let lock = NSRecursiveLock()
     private var active = false
+    private var retired = false
     private let perform: (() throws -> Void) throws -> Void
 
     init(perform: @escaping (() throws -> Void) throws -> Void) {
@@ -70,6 +71,35 @@ final class SharedWriterBoundary {
         return true
     }
 
+    /// Explicit graph remount only. Initial install remains one-way. Retiring the
+    /// exact old object is irreversible and must happen before owner/epoch rotation.
+    /// Check boundary locks BEFORE installLock: an active effect may read current.
+    /// Since retirement is irreversible the checked old state cannot race back to
+    /// writable. A concurrently retired replacement is safe: writes simply refuse.
+    @discardableResult
+    static func replaceRetired(_ previous: SharedWriterBoundary, with next: SharedWriterBoundary) -> Bool {
+        guard previous !== next, previous.isRetired, !next.isRetired, next !== legacy else { return false }
+        installLock.lock()
+        defer { installLock.unlock() }
+        guard installed === previous else { return false }
+        installed = next
+        return true
+    }
+
+    var isRetired: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return retired
+    }
+
+    /// Waits for an existing synchronous effect to leave its lock. Calling from
+    /// inside that effect refuses rather than retiring while its work continues.
+    /// Does NOT rotate the durable account epoch or grant admission to a new graph.
+    func retire() throws {
+        lock.lock(); defer { lock.unlock() }
+        guard !active else { throw Failure.effectActive }
+        retired = true
+    }
+
     /// Test-only reset; production code must never call this.
     static func resetForTesting() {
         installLock.lock()
@@ -80,6 +110,7 @@ final class SharedWriterBoundary {
     func withEffect<T>(_ work: () throws -> T) throws -> T {
         lock.lock()
         defer { lock.unlock() }
+        guard !retired else { throw Failure.retired }
         if active { return try work() }
         var result: T?
         var performed = false

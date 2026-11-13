@@ -25,6 +25,7 @@ final class ResetAwareStartup<Graph> {
     private let validateAdmission: (UUID) throws -> Void
     private let buildGraph: (UUID) throws -> Graph
     private var started = false
+    private var runID = UUID()
 
     init(resume: @escaping () async -> AppStore.ClearAllState?,
          captureAdmission: @escaping () throws -> UUID,
@@ -38,13 +39,26 @@ final class ResetAwareStartup<Graph> {
         self.buildGraph = buildGraph
     }
 
+    /// Retires the mounted graph and invalidates all currently suspended admission
+    /// work. This is NOT writer quiescence: caller must block the durable gate first
+    /// and stop every producer. There is no restart API; a new owner must reconcile
+    /// afresh before admitting a replacement graph. Stale resume/snapshot completions
+    /// cannot overwrite this terminal block, even when their task ignores cancellation.
+    func retire(reason: AppStore.ClearAllState) {
+        runID = UUID()
+        started = true
+        state = .blocked(reason)
+    }
+
     func start() async {
         guard !started else { return }
         started = true
+        let capturedRun = runID
         state = .checkingReset
         // No TimerCenter, JournalStore.shared, StoreRecovery.open, AppStore.load,
         // intent relay, widget publish/drain or ordinary Root.task may precede this.
         let outcome = await resume()
+        guard runID == capturedRun else { return }
         if let outcome, outcome != .completed {
             state = .blocked(outcome)
             return
@@ -57,13 +71,17 @@ final class ResetAwareStartup<Graph> {
             // Remote reconciliation must not run under an OS flock. Its final
             // adoption write reacquires the common gate and rechecks every input.
             try await authorizeAdmission(lease)
+            guard runID == capturedRun else { return }
             try validateAdmission(lease)
             let graph = try buildGraph(lease)
             try validateAdmission(lease)
+            guard runID == capturedRun else { return }
             state = .ready(graph)
         } catch JournalStartupAuthorizationError.blocked(let reason) {
+            guard runID == capturedRun else { return }
             state = .blocked(.unavailable(reason))
         } catch {
+            guard runID == capturedRun else { return }
             state = .failed("Ate could not verify safe startup. Your data is not ready to use.")
         }
     }

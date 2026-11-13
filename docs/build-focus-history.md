@@ -61,3 +61,17 @@ Reviewed hosted runtime 144b076bb313ac42c98270d08543c8d3632cf195 preserves all f
 ## Confirmed deletion and reflection retry union (#527)
 
 Reviewed hosted runtime d88f6cad310226aa8f32ba69d45009a428d2b50d preserves all four Cook/shared-step evidence paths. JournalViews and JournalSuggestionService have freshly reviewed combined edit/delete blobs. Failed edits keep the exact raw draft; successful retry uses the existing committed trim contract. Stable-identity deletion verifies committed absence before detail retires and parent history reloads. Reminder verification and bounded cleanup are present, but this record guards only its listed paths. Native checks and post-tap/history/Resume/timer pixels must qualify the exact final union. Physical-device, widget and Files-picker behavior remain pending. No activation or release approval is implied; Food Journal remains OFF.
+
+## Journal action uniqueness metadata repair (#527)
+
+Reviewed source e68a017f265b20a0e2ace03d3c3ba3a3ca97aca1 contains the action
+uniqueness correction: Journal detail's full-size VStack owns one alert, editor
+Save/Cancel use dedicated IDs, and delete confirmation queries target unique alert
+actions. The previous focus anchor retained an older JournalViews blob, so hosted
+run 43366560488 stopped in metadata before compilation. No native tests ran there.
+
+The refreshed record names Journal action uniqueness and retains the included Cook,
+reflection retry and committed deletion work. Exact current blobs for all five
+existing runtime evidence paths are anchored to the corrected source. The renderer,
+strict ancestry/blob checks, runtime, tests, workflow and timeout budgets are
+unchanged. A successful metadata render is not a native pass or pixel acceptance.

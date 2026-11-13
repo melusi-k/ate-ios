@@ -339,6 +339,8 @@ jobs:
             -only-testing:AteUITests/InsightsAcceptanceUITests/testJournalRootReflectionFailedSaveKeepsDraftVisible \
             -only-testing:AteUITests/InsightsAcceptanceUITests/testCandidateCardsScrollSideBySideWithoutDismissing \
             -only-testing:AteUITests/InsightsAcceptanceUITests/testJournalRootReflectionLabelsSampleHealthPrompts \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testSeededShoppingInsightOpensRealListAndRetainsSuggestion \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testSeededDiaryInsightOpensRealDiaryAndRetainsSuggestion \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \

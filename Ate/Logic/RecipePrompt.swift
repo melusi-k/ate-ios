@@ -349,3 +349,4 @@ struct PhotoNeedsDishError: LocalizedError, Equatable {
                : "Not sure what this dish is. Tell ate what it is for a better recipe."
     }
 }
+

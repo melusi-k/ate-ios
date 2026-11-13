@@ -725,6 +725,7 @@ jobs:
           [ -f build/qa.md ] && { echo; cat build/qa.md; } >> build/notes.md
           echo -e "\n**Channel:** Internal build. This rolling release is not a validated beta candidate. A validated candidate is published separately as \`latest-beta\` only after unit tests, key-flow QA, all UI test shards, and backend E2E pass." >> build/notes.md
           cat build/notes.md >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/bound-release-body.py build/notes.md build/release-body.md
           # Immutable per-build prerelease.
           CH_TITLE=""; [ -n "$ATE_CHANNEL" ] && CH_TITLE=" — ${ATE_CHANNEL/TierA/Pilot candidate}"
           # Tags are pushed over git first and releases created WITHOUT --target: when main moves mid-run and the
@@ -733,9 +734,13 @@ jobs:
           git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           TAG="build-${BUILD_NUMBER}${CH_SUFFIX}"
           git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || { git tag "$TAG" "$GITHUB_SHA" && git push origin "refs/tags/$TAG"; }
-          gh release create "$TAG" "dist/$IPA_NAME" "dist/$IPA_NAME.sha256" --prerelease --verify-tag \
-            --title "Build ${APP_VERSION} (${BUILD_NUMBER})${CH_TITLE} @ ${GITHUB_SHA::7}" --notes-file build/notes.md \
-            || echo "$TAG already exists, leaving it untouched"
+          if gh release view "$TAG" --json url > build/existing-release.json; then
+            echo "$TAG release already exists, leaving it untouched"
+            cat build/existing-release.json
+          else
+            gh release create "$TAG" "dist/$IPA_NAME" "dist/$IPA_NAME.sha256" --prerelease --verify-tag \
+              --title "Build ${APP_VERSION} (${BUILD_NUMBER})${CH_TITLE} @ ${GITHUB_SHA::7}" --notes-file build/release-body.md
+          fi
           # Rolling latest-build: recreated so its ONLY asset is the current versioned .ipa (no plain Ate.ipa).
           # Eval/topic-branch builds must not repoint the rolling latest-build: normal delivery stays on main.
           if [ "$GITHUB_REF" = "refs/heads/main" ]; then
@@ -743,7 +748,7 @@ jobs:
             git push origin ":refs/tags/latest-build" 2>/dev/null || true
             git tag -f latest-build "$GITHUB_SHA" && git push origin "refs/tags/latest-build"
             gh release create latest-build "dist/$IPA_NAME" "dist/$IPA_NAME.sha256" --prerelease --verify-tag \
-              --title "Latest build ${APP_VERSION} (${BUILD_NUMBER})${CH_TITLE} — ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}" --notes-file build/notes.md
+              --title "Latest build ${APP_VERSION} (${BUILD_NUMBER})${CH_TITLE} — ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}" --notes-file build/release-body.md
             ASSETS=$(gh release view latest-build --json assets -q '[.assets[].name]|sort|join(" ")')
             [ "$ASSETS" = "$IPA_NAME $IPA_NAME.sha256" ] || { echo "::error::latest-build assets are: $ASSETS"; exit 1; }
           fi
@@ -1047,4 +1052,3 @@ jobs:
           path: ${{ runner.temp }}/ate-ci-telemetry.json
           if-no-files-found: warn
           retention-days: 30
-

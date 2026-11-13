@@ -84,3 +84,24 @@ final class GenerationFencedSyncTests: XCTestCase {
         XCTAssertEqual(calls, 1)
     }
 }
+
+extension GenerationFencedSyncTests {
+    func testPermanentConflictPresentationDistinguishesPendingReset() {
+        for operation in [AccountGenerationConflictState.Operation.snapshot, .put] {
+            XCTAssertEqual(AccountGenerationConflictState.failure(.staleGeneration,
+                during: operation, hasPendingReset: false), .staleLocalData)
+            XCTAssertEqual(AccountGenerationConflictState.failure(.staleGeneration,
+                during: operation, hasPendingReset: true), .pendingResetUnverified)
+        }
+        XCTAssertEqual(AccountGenerationConflictState.failure(.staleGeneration,
+            during: .clear, hasPendingReset: false), .pendingResetUnverified)
+    }
+    func testUncertainResponseIsNotLabelledResetElsewhere() {
+        for error in [ResetRPCError.outcomeUnverified("offline"), .unauthorized, .contractMissing] {
+            XCTAssertNil(AccountGenerationConflictState.failure(error, during: .put, hasPendingReset: false))
+        }
+        XCTAssertFalse(AccountGenerationConflictState.staleLocalData.message.contains("another device"))
+        XCTAssertTrue(AccountGenerationConflictState.pendingResetUnverified.message.contains("won't start another Clear all request"))
+        XCTAssertTrue(AccountGenerationConflictState.staleLocalData.recoveryStatus.contains("not available"))
+    }
+}

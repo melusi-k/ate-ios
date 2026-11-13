@@ -121,6 +121,12 @@ final class AccountWriterGate: ClearAllWriterGating {
         defer { activeEffectLease = nil }
         return try effect()
     }
+    /// Construction with failure-triggered epoch rotation cannot be nested inside
+    /// an ordinary effect: cleanup must run after that effect's flock has left.
+    func requireNoActiveWriterEffect() throws {
+        guard activeEffectLease == nil, resetFD == nil else { throw Error.busy }
+    }
+
     /// Explicit auth lifecycle binding must call this BEFORE a new session graph can
     /// publish. Invalidates same-owner logout/relogin work, not just account switches.
     func invalidateWriters() throws {

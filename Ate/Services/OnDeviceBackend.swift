@@ -59,6 +59,9 @@ final class OnDeviceBackend: BackendService {
         // Links: structured schema.org/Recipe data first (no AI needed), then the model.
         try Task.checkCancellation()
         if request.mode == .url { _ = try Self.recipeURL(request.text ?? "") }
+        // Pasted adverts must be refused before fallback, session allocation or
+        // streamed preview. A fabricated disambiguation name cannot bypass this.
+        if request.mode == .prompt { try SourceRecipeFidelity.rejectUngroundedText(request.text ?? "") }
         var pageHTML: String?
         var socialCaption: String?
         if request.mode == .url, let u = URL(string: (request.text ?? "").trimmingCharacters(in: .whitespaces)),
@@ -83,6 +86,9 @@ final class OnDeviceBackend: BackendService {
         }
         try Task.checkCancellation()
         guard modelAvailable() else {
+            if SourceRecipeFidelity.inlineCaption(socialCaption ?? request.text ?? "") != nil {
+                throw BackendError(message: "On-device AI isn't available to extract this recipe. No demo recipe was substituted; keep the source and enter it manually or try again when the model is ready.")
+            }
             let card = try await fallback.parseRecipe(request)
             try GenerationCancellation.check()
             return card
@@ -101,12 +107,24 @@ final class OnDeviceBackend: BackendService {
         var contextUser = request.text ?? ""
         var contextSource = ""
         var sourceIsLongForm = false
+        var fidelity: SourceRecipeFidelity.Contract? = request.repairQuality == true
+            ? SourceRecipeFidelity.inlineCaption(request.text ?? "") : nil
         switch request.mode {
         case .prompt:
-            prompt = RecipePrompt.prompt(request.text ?? "")
+            let text = request.text ?? ""
+            fidelity = SourceRecipeFidelity.inlineCaption(text)
+            if let fidelity {
+                // A full recipe pasted in Prompt is extraction, not a request to
+                // replace it with the shared creative example's quantities.
+                prompt = RecipePrompt.social(caption: fidelity.text); input = .social
+                contextSource = fidelity.text; contextUser = ""
+            } else {
+                prompt = RecipePrompt.prompt(text)
+            }
         case .url where socialCaption != nil:
             prompt = RecipePrompt.social(caption: socialCaption!); input = .social
             contextSource = socialCaption!  // short dish-defining source
+            fidelity = SourceRecipeFidelity.inlineCaption(socialCaption!)
         case .url:
             let page: String
             if let html = pageHTML { page = String(Self.htmlToText(html).prefix(3500)) }
@@ -115,6 +133,7 @@ final class OnDeviceBackend: BackendService {
             contextSource = page; sourceIsLongForm = true
         case .image:
             let text = try await Self.ocr(dataURL: request.imageDataUrl ?? "")
+            try SourceRecipeFidelity.rejectUngroundedText(text)
             photoOCR = text
             let hint = (request.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             if PhotoGuess.isScreenshotText(text) && hint.isEmpty {
@@ -150,11 +169,18 @@ final class OnDeviceBackend: BackendService {
             var c = request.currentRecipe ?? RecipeCard()
             c.imageURL = nil; c.sourceURL = nil
             let json = (try? String(data: JSONEncoder().encode(c), encoding: .utf8)) ?? ""
-            prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"; input = .rewrite
+            if request.repairQuality == true {
+                prompt = try RecipeDraftRepair.instruction(for: c)
+                source = c.source
+            } else {
+                prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"
+            }
+            input = .rewrite
             reviseID = c.id
         }
         let ctx = RecipePrompt.context(userText: contextUser, sourceText: contextSource, sourceIsLongForm: sourceIsLongForm)
-        var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx)
+        var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx,
+                                           emitPreview: fidelity == nil)
         // Never show a confident recipe for an object the camera saw instead of food.
         // Send the user back through the dish question so the next pass is grounded by a human label.
         // The structured card defaults to .manual; quality guards need the actual
@@ -164,7 +190,7 @@ final class OnDeviceBackend: BackendService {
             throw PhotoNeedsDishError(suggestions: PhotoGuess.suggestions(labels: visionLabels, ocrText: photoOCR), spread: false)
         }
         // Too thin, or missing what the photo shows: regenerate ONCE with the gaps spelled out.
-        let gaps = RecipeQuality.shortfall(card, labels: visibleLabels)
+        let gaps = RecipeQuality.shortfall(card, labels: visibleLabels) + (fidelity?.issues(card) ?? [])
         if request.mode != .rewrite, !gaps.isEmpty {
             // Repair, don't re-roll. Prefer the same session: generate() keys it by card.id, so the
             // failed draft is still in the transcript and the instruction prefix is not re-paid.
@@ -181,11 +207,15 @@ final class OnDeviceBackend: BackendService {
                 retryReviseID = nil
             }
             card = try await GenerationCancellation.optionalRepair(original: card, operation: {
-                var again = try await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx)
+                var again = try await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx, emitPreview: fidelity == nil)
                 again.source = source
                 return again
             }, prefer: { again, previous in
-                RecipeQuality.shortfall(again, labels: visibleLabels).count < RecipeQuality.shortfall(previous, labels: visibleLabels).count
+                let nextFidelity = fidelity?.issues(again) ?? []
+                let oldFidelity = fidelity?.issues(previous) ?? []
+                if !nextFidelity.isEmpty { return false }
+                if !oldFidelity.isEmpty { return true }
+                return RecipeDraftRepair.automaticImproves(again, over: previous, labels: visibleLabels)
             })
         }
         try GenerationCancellation.check()
@@ -205,7 +235,16 @@ final class OnDeviceBackend: BackendService {
         if request.mode == .rewrite, let cur = request.currentRecipe {
             card.id = cur.id; card.createdAt = cur.createdAt; card.favorite = cur.favorite; card.sortIndex = cur.sortIndex; card.lastCookedAt = cur.lastCookedAt; card.source = .appleIntelligence; card.imageURL = cur.imageURL; card.sourceURL = cur.sourceURL
         }
-        return RecipeLogic.normalize(card)
+        var normalized = RecipeLogic.normalize(card)
+        if request.repairQuality == true, let original = request.currentRecipe {
+            normalized = try RecipeDraftRepair.accept(normalized, replacing: original)
+        }
+        if let fidelity, !fidelity.issues(normalized).isEmpty {
+            // Never present an altered extraction as a 95%-confidence recipe or
+            // invent new source quantities in order to pass a quality check.
+            throw BackendError(message: "Ate couldn't preserve this recipe's source quantities, ingredients or times. No card was accepted. Try again or enter it manually.")
+        }
+        return normalized
     }
 
     func publish(_ card: RecipeCard) async throws -> String { try await sharing.publish(card) }
@@ -262,7 +301,8 @@ final class OnDeviceBackend: BackendService {
 
     @MainActor
     static func generate(_ prompt: String, input: RecipePrompt.Input = .prompt, photoDataURL: String? = nil,
-                         reviseID: String? = nil, context: RecipePrompt.Context = .init()) async throws -> RecipeCard {
+                         reviseID: String? = nil, context: RecipePrompt.Context = .init(),
+                         emitPreview: Bool = true) async throws -> RecipeCard {
         try GenerationCancellation.check()
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
@@ -292,7 +332,7 @@ final class OnDeviceBackend: BackendService {
                                                     options: GenerationOptions(sampling: .greedy))
                 for try await snap in stream {
                     try GenerationCancellation.check()
-                    partialSink?(RecipeStreamPreview(snap.content))
+                    if emitPreview { partialSink?(RecipeStreamPreview(snap.content)) }
                 }
                 let res = try await stream.collect()
                 try GenerationCancellation.check()

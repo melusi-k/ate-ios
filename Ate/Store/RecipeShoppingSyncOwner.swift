@@ -12,6 +12,7 @@ final class RecipeShoppingSyncOwner: SyncService {
     }
 
     @MainActor private final class CycleState { var token: UUID? }
+    private let controlDirectory: URL
     private let cycle: CycleState
     private let gate: AccountWriterGate
     private let receipts: AccountGenerationReceiptStore
@@ -28,6 +29,7 @@ final class RecipeShoppingSyncOwner: SyncService {
     /// after AppStore has already made ordinary launch writes. That wiring is pending.
     init(controlDirectory: URL, rpc: AccountDataResetService,
          session: AuthSession, currentSession: @escaping () -> AuthSession?) throws {
+        self.controlDirectory = controlDirectory
         let control = FileResetControlPersistence(directory: controlDirectory)
         _ = try control.read()
         let receipts = try AccountGenerationReceiptStore(directory: controlDirectory)
@@ -150,6 +152,31 @@ final class RecipeShoppingSyncOwner: SyncService {
         } catch {
             invalidateCycle()
             throw error
+        }
+    }
+
+    /// App shared adapter after strict resources replay and raw verification. This
+    /// is NOT initial install/replacement; final graph owns that explicit step.
+    func makeSharedWriterBoundary(resources: RecipeShoppingAdmittedResources) throws -> SharedWriterBoundary {
+        try withAdmittedWriterEffect {
+            guard resources.binding.owner === self, resources.binding.session == session else { throw Refusal.sessionChanged }
+            let control = try RecipeShoppingSharedWriterControl(directory: controlDirectory)
+            try resources.binding.journal.requireDirectory(control.commitDirectory)
+            let inventory = RecipeShoppingRawInventory(image: try UnifiedArchiveImportBinding.snapshotRecipeShopping(resources.container),
+                metadataBytes: resources.binding.defaults.data(forKey: "ate.sync.v1"))
+            _ = try inventory.validate(ownerID: session.userID)
+            try control.publishReady(epoch: lease)
+            return SharedWriterBoundary { work in
+                // Shared types are synchronous/nonisolated. App callers must hop
+                // to MainActor; background misuse refuses instead of actor-crashing.
+                guard Thread.isMainThread else { throw SharedWriterBoundary.Failure.effectNotPerformed }
+                try MainActor.assumeIsolated {
+                    try self.withAdmittedWriterEffect {
+                        try control.requireReady(epoch: self.lease)
+                        try work()
+                    }
+                }
+            }
         }
     }
 

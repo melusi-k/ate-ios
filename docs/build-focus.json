@@ -1,7 +1,7 @@
 {
-  "title": "Shared Cook actions and committed reflection changes",
-  "summary": "Focus: Cook Mode reads shared session steps; Cook Finish and recipe-detail Cook actions reserve measured bottom chrome. Failed reflection edits retain the raw draft and retry error; successful retry refreshes committed history. Confirmed deletion uses stable entry identity and verifies committed absence before retiring detail. Journal navigation and cooking reflections remain included, not eaten-food logs. Native, widget, device and pixel proof remain pending. Unified Food Journal activation stays OFF.",
-  "source_commit": "d88f6cad310226aa8f32ba69d45009a428d2b50d",
+  "title": "Journal action uniqueness with retained Cook and reflection changes",
+  "summary": "Focus: Journal detail has one alert presentation owner; editor Save/Cancel and delete confirmation actions have unique identifiers. Failed reflection edits retain the raw draft and retry error; confirmed deletion verifies committed absence before detail retires. Shared Cook session steps and measured bottom chrome remain included. Native Journal actions, Cook spacing, widget, device and pixel proof remain pending. Unified Food Journal activation stays OFF.",
+  "source_commit": "e68a017f265b20a0e2ace03d3c3ba3a3ca97aca1",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/Views/JournalViews.swift",
-      "blob": "8003a16e9a2702b6abddb4a3cac7c0b4d64951da"
+      "blob": "a54d8112ae7e27752626646cbb78f39fd5a04125"
     },
     {
       "path": "Ate/Views/CookModeView.swift",

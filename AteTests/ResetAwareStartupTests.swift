@@ -95,3 +95,60 @@ final class ResetAwareStartupTests: XCTestCase {
     }
 
 }
+
+extension ResetAwareStartupTests {
+    func testRetirementDropsReadyGraphAndCannotRestartOldOwner() async {
+        final class Graph {}
+        weak var retired: Graph?
+        var builds = 0
+        let startup = ResetAwareStartup<Graph>(resume: { nil }, captureAdmission: { UUID() },
+            validateAdmission: { _ in }, buildGraph: { _ in
+                builds += 1
+                let graph = Graph(); retired = graph; return graph
+            })
+        await startup.start()
+        XCTAssertNotNil(retired)
+        startup.retire(reason: .serverOutcomeUnverified)
+        XCTAssertNil(retired, "startup must not retain the editable graph")
+        await startup.start()
+        XCTAssertEqual(builds, 1, "old owner has no implicit refresh/restart")
+        guard case .blocked(.serverOutcomeUnverified) = startup.state else { return XCTFail("must stay closed") }
+    }
+
+    func testRetirementDuringResumeDoesNotAdmitAfterLateCompletion() async {
+        var release: CheckedContinuation<AppStore.ClearAllState?, Never>?
+        var captured = false
+        let startup = ResetAwareStartup<Int>(resume: {
+            await withCheckedContinuation { release = $0 }
+        }, captureAdmission: { captured = true; return UUID() }, validateAdmission: { _ in },
+            buildGraph: { _ in XCTFail("retired owner built graph"); return 1 })
+        let task = Task { await startup.start() }
+        while release == nil { await Task.yield() }
+        startup.retire(reason: .serverOutcomeUnverified)
+        release?.resume(returning: nil)
+        await task.value
+        XCTAssertFalse(captured)
+        guard case .blocked(.serverOutcomeUnverified) = startup.state else { return XCTFail("late resume reopened graph") }
+    }
+
+    func testRetirementDuringAdmissionIgnoresLateSuccessAndLateFailure() async {
+        for fail in [false, true] {
+            var release: CheckedContinuation<Void, Never>?
+            var built = false
+            let startup = ResetAwareStartup<Int>(resume: { nil }, captureAdmission: { UUID() },
+                validateAdmission: { _ in }, authorizeAdmission: { _ in
+                    await withCheckedContinuation { release = $0 }
+                    if fail { throw JournalStartupAuthorizationError.blocked("late error") }
+                }, buildGraph: { _ in built = true; return 1 })
+            let task = Task { await startup.start() }
+            while release == nil { await Task.yield() }
+            startup.retire(reason: .unavailable("identity changed"))
+            release?.resume()
+            await task.value
+            XCTAssertFalse(built)
+            guard case .blocked(.unavailable("identity changed")) = startup.state else {
+                return XCTFail("late admission overwrote retirement")
+            }
+        }
+    }
+}

@@ -39,3 +39,24 @@ class InsightDestinationQATests(unittest.TestCase):
         store = (ROOT / 'Ate/Store/AppStore.swift').read_text().split('func openInsightFoodDiary()', 1)[1].split('func handle(url:', 1)[0]
         self.assertIn('settingsPath = [.nutritionDiary]', store)
         self.assertLess(store.index('settingsPath = [.nutritionDiary]'), store.index('select(.settings)'))
+
+    def test_diary_scrolls_its_owned_lazy_list_before_exact_row_assertions(self):
+        source = (ROOT / 'AteUITests/InsightsAcceptanceUITests.swift').read_text()
+        journey = source.split('func testSeededDiaryInsightOpensRealDiaryAndRetainsSuggestion()', 1)[1].split('\n    func ', 1)[0]
+        self.assertIn('XCTAssertEqual(lists.count, 1', journey)
+        self.assertIn('list.swipeUp()', journey)
+        self.assertLess(journey.index('list.swipeUp()'), journey.index('wait(rows.firstMatch)'))
+        self.assertIn('XCTAssertEqual(rows.count, 3', journey)
+        self.assertIn('QA insight food 1', journey)
+        self.assertIn('returnToSeededInsight("nutrition-diary-coverage")', journey)
+
+    def test_header_journey_expands_native_minimized_bar_before_single_journal_tap(self):
+        source = (ROOT / 'AteUITests/CoverageUITests.swift').read_text()
+        journey = source.split('func testNavigationHeadersRemainStableOnShoppingAndSettings()', 1)[1].split('\n    func ', 1)[0]
+        self.assertEqual(journey.count('settingsTab.tap()'), 1)
+        self.assertEqual(journey.count('tab("Journal")'), 1)
+        self.assertLess(journey.index('settingsTab.tap()'), journey.index('tab("Journal")'))
+        self.assertIn('XCTAssertTrue(settingsTab.isHittable', journey)
+        self.assertIn('XCTAssertEqual(app.navigationBars.count, 1', journey)
+        self.assertIn('XCTAssertTrue(addEntry.isHittable', journey)
+        self.assertNotIn('settingsContent().swipeDown()', journey)

@@ -235,6 +235,16 @@ extension JournalOpenStateUITests {
         shot("reflection-edit-retry-refreshed-history")
     }
 
+    /// Keep actual alert evidence before a strict uniqueness failure stops the method.
+    /// Diagnostic only: does not choose/hide a match or change any assertion.
+    private func retainDeleteAlertEvidence(_ alert: XCUIElement, phase: String) {
+        shot("delete-alert-" + phase)
+        let hierarchy = XCTAttachment(string: alert.debugDescription + "\nAPP\n" + app.debugDescription)
+        hierarchy.name = "delete-alert-" + phase + "-AX"
+        hierarchy.lifetime = .keepAlways
+        add(hierarchy)
+    }
+
     func testManualReflectionEditSaveCancelAndConfirmedDelete() {
         composeFromHistory()
         let original = "Manual CRUD " + UUID().uuidString
@@ -283,6 +293,7 @@ extension JournalOpenStateUITests {
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
         wait(app.staticTexts["Delete this journal entry?"])
         let cancelConfirmation = app.alerts["Delete this journal entry?"]
+        retainDeleteAlertEvidence(cancelConfirmation, phase: "crud-cancel-before-count")
         XCTAssertEqual(cancelConfirmation.buttons.matching(identifier: "journal.delete.cancel").count, 1)
         cancelConfirmation.buttons["journal.delete.cancel"].tap()
         waitUntilGone(app.staticTexts["Delete this journal entry?"])
@@ -294,6 +305,7 @@ extension JournalOpenStateUITests {
         wait(confirmation)
         let confirmButton = confirmation.buttons["journal.delete.confirm"]
         wait(confirmButton)
+        retainDeleteAlertEvidence(confirmation, phase: "crud-confirm-before-count")
         XCTAssertEqual(confirmation.buttons.matching(identifier: "journal.delete.confirm").count, 1)
         confirmButton.tap()
         // Capture the post-confirmation state even when the unchanged detail
@@ -327,6 +339,7 @@ extension JournalOpenStateUITests {
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
         let alert = app.alerts["Delete this journal entry?"]
         wait(alert)
+        retainDeleteAlertEvidence(alert, phase: "failure-retry-before-count")
         XCTAssertEqual(alert.buttons.matching(identifier: "journal.delete.confirm").count, 1)
         XCTAssertEqual(alert.buttons.matching(identifier: "journal.delete.cancel").count, 1)
         alert.buttons["journal.delete.confirm"].tap()
@@ -337,6 +350,7 @@ extension JournalOpenStateUITests {
         shot("manual-delete-failure-retained-detail")
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
         wait(alert)
+        retainDeleteAlertEvidence(alert, phase: "failure-retry-before-count")
         XCTAssertEqual(alert.buttons.matching(identifier: "journal.delete.confirm").count, 1)
         XCTAssertEqual(alert.buttons.matching(identifier: "journal.delete.cancel").count, 1)
         alert.buttons["journal.delete.confirm"].tap()

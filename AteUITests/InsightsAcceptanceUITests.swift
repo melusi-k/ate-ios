@@ -513,6 +513,15 @@ final class InsightsAcceptanceUITests: XCTestCase {
         wait(diary)
         XCTAssertEqual(app.navigationBars.count, 1)
         let rows = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "nutritionDiary.entry."))
+        // Food diary is a lazy List: daily and weekly totals precede the meal rows.
+        // The final-head failure AX/pixels show those totals, not an empty diary.
+        // Scroll the one mounted diary list before asking for its three real records.
+        let lists = app.collectionViews
+        XCTAssertEqual(lists.count, 1, "Food diary must own one visible content list")
+        let list = lists.element(boundBy: 0)
+        wait(list)
+        seededShot("195-diary-destination-before-meal-scroll-normal")
+        for _ in 0..<4 where rows.count < 3 { list.swipeUp() }
         wait(rows.firstMatch)
         XCTAssertEqual(rows.count, 3, "The actual diary must read the three synthetic records")
         let food = rows.matching(NSPredicate(format: "label CONTAINS %@", "QA insight food 1")).firstMatch

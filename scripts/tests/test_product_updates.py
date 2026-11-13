@@ -25,3 +25,11 @@ class ProductUpdatesTests(unittest.TestCase):
             self.assertNotIn(forbidden, ui + model)
         for expected in ['Image unavailable', 'Button("Close")', 'Button("Back")', '"Done" : "Next"', 'whatsNew.page']:
             self.assertIn(expected, ui)
+
+    def test_tour_context_comes_from_selected_release_on_each_scrollable_page(self):
+        ui = (ROOT / 'Ate/Views/ProductUpdatesViews.swift').read_text().split('struct ProductWhatsNewView', 1)[1]
+        self.assertIn('Text(release.title).font(AteFont.body(14, .semibold))', ui)
+        self.assertIn('whatsNew.releaseContext.', ui)
+        self.assertLess(ui.index('whatsNew.releaseContext.'), ui.index('if let image = UIImage(named: slide.imageAsset)'))
+        journey = (ROOT / 'AteUITests/InsightsPresentationUITests.swift').read_text()
+        self.assertIn('XCTAssertEqual(secondContext.label, selectedReleaseContext', journey)

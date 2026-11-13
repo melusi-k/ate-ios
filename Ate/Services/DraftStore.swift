@@ -10,9 +10,10 @@ final class DraftStore {
     private let enabled: Bool
     private let writerBoundary: FoodJournalWriterBoundary
     private let pKey = "ate.draft.pending.v1", dKey = "ate.draft.card.v1"
-    init(defaults: UserDefaults, enabled: Bool, writerBoundary: FoodJournalWriterBoundary = .legacy) {
+    init(defaults: UserDefaults, enabled: Bool, writerBoundary: FoodJournalWriterBoundary = .legacy,
+         resetOnLaunch: Bool = ProcessInfo.processInfo.arguments.contains("-qaResetDraft")) {
         d = defaults; self.enabled = enabled; self.writerBoundary = writerBoundary
-        if ProcessInfo.processInfo.arguments.contains("-qaResetDraft") { clear() }
+        if resetOnLaunch { clear() }
     }
     var pending: Pending? { enabled ? d.data(forKey: pKey).flatMap { try? JSONDecoder().decode(Pending.self, from: $0) } : nil }
     var draft: RecipeCard? { enabled ? d.data(forKey: dKey).flatMap { try? JSONDecoder().decode(RecipeCard.self, from: $0) } : nil }

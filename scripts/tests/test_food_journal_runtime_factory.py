@@ -61,3 +61,24 @@ class FoodJournalRuntimeFactoryGuardTests(unittest.TestCase):
         self.assertLess(wipe.index('guard let inventory'), wipe.index('try effect {'))
         self.assertIn('inventory.eraseAll(validateWriterGate: validate)', wipe)
         self.assertNotIn('JournalLocalReset(runtime:', wipe)
+
+    def test_media_consumers_follow_actual_owner_not_legacy_global(self):
+        view = (ROOT / 'Ate/Views/JournalViews.swift').read_text()
+        intent = (ROOT / 'Ate/Intents/AteAppIntents.swift').read_text()
+        archive = (ROOT / 'Ate/Logic/JournalArchive.swift').read_text()
+        for source in [view, intent, archive]:
+            self.assertNotIn('JournalStore.mediaURL', source)
+            self.assertNotIn('JournalStore.mediaDir', source)
+        self.assertIn('store.journalStore.boundMediaURL($0).path', view)
+        self.assertIn('init(_ e: JournalEntry, journal: JournalStore)', intent)
+        self.assertEqual(intent.count('AteJournalEntryEntity($0, journal: journal)'), 3)
+        self.assertIn('AteJournalEntryEntity(saved, journal: journal)', intent)
+        self.assertIn('mediaDirectory ?? journal.mediaDirectory', archive)
+
+    def test_injected_app_reflection_session_uses_runtime_admission(self):
+        source = (ROOT / 'Ate/Store/AppStore.swift').read_text()
+        method = source.split('func requestCookedReflection(', 1)[1].split('func presentPendingCookedReflection()', 1)[0]
+        self.assertIn('if let runtime = foodJournalRuntime', method)
+        self.assertIn('try runtime.reflectionSession(for: event.id)', method)
+        self.assertIn('} else {', method)
+        self.assertLess(method.index('runtime.reflectionSession'), method.index('CookedJournalReflectionStore(journal: cookJournalStore)'))

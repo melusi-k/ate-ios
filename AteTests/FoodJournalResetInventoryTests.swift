@@ -6,15 +6,16 @@ final class FoodJournalResetInventoryTests: XCTestCase {
     private func fixture(_ run: (URL, UserDefaults, FoodJournalResetInventory) throws -> Void) throws {
         let suite = "ResetInventory-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(suite).resolvingSymlinksInPath().standardizedFileURL
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let requested = FileManager.default.temporaryDirectory.appendingPathComponent(suite)
+        try FileManager.default.createDirectory(at: requested, withIntermediateDirectories: true)
+        let root = requested.resolvingSymlinksInPath().standardizedFileURL
         defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }
-        let p = FoodJournalResetInventory.Paths(media: root.appendingPathComponent("media"),
-            legacyDiaryBackups: root.appendingPathComponent("legacy"), repairDiaryBackups: root.appendingPathComponent("repair"),
-            adoptionPreservation: root.appendingPathComponent("preservation"), covers: root.appendingPathComponent("covers"),
-            inboxMedia: root.appendingPathComponent("inbox"), recipeBackups: root.appendingPathComponent("backups"),
-            recoveredExports: root.appendingPathComponent("exports"), goalsDirectory: root.appendingPathComponent("goals"),
-            control: root.appendingPathComponent("control"))
+        let p = FoodJournalResetInventory.Paths(media: root.appendingPathComponent("media", isDirectory: true),
+            legacyDiaryBackups: root.appendingPathComponent("legacy", isDirectory: true), repairDiaryBackups: root.appendingPathComponent("repair", isDirectory: true),
+            adoptionPreservation: root.appendingPathComponent("preservation", isDirectory: true), covers: root.appendingPathComponent("covers", isDirectory: true),
+            inboxMedia: root.appendingPathComponent("inbox", isDirectory: true), recipeBackups: root.appendingPathComponent("backups", isDirectory: true),
+            recoveredExports: root.appendingPathComponent("exports", isDirectory: true), goalsDirectory: root.appendingPathComponent("goals", isDirectory: true),
+            control: root.appendingPathComponent("control", isDirectory: true))
         let inventory = FoodJournalResetInventory(stores: .unopened(recipeURL: root.appendingPathComponent("recipes.store"),
             journalURL: root.appendingPathComponent("journal.store")), defaults: defaults, sharedDefaults: defaults,
             goals: FileNutritionGoalsStorage(fileURL: p.goalsDirectory.appendingPathComponent("nutrition-goals-v1.json")), paths: p)

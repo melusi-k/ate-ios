@@ -129,6 +129,13 @@ final class BetaQA {
         if let r = results[id], Self.matchesCurrent(r), !r.auto, r.status != .untested { return }
         set(id, .fail, note: error, auto: true)
     }
+    /// Called only after account-reset local byte erasure, with old UI retired.
+    /// Drop retained personal notes so a later event cannot repersist erased history.
+    func clearPersonalCacheAfterReset() {
+        results = [:]; history = [:]; catalogueSnapshots = [:]
+        legacyPayloadUnreadable = false; persistenceWarning = nil
+        backgroundedAt = nil; backgroundTimers = 0
+    }
     func resetCurrentBuild() {
         guard !legacyPayloadUnreadable else { return }
         results = Self.retainingHistoryAfterCurrentReset(results, build: AppConfig.buildLabel, sha: AppConfig.gitSHAFull,

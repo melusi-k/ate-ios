@@ -219,12 +219,12 @@ extension JournalOpenStateUITests {
         let committedText = retainedDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         XCTAssertFalse(committedText.isEmpty)
         XCTAssertNotEqual(committedText, original, "Retry must commit an actual edit")
-        app.navigationBars["Edit entry"].buttons["Save"].tap()
+        app.navigationBars["Edit entry"].buttons["journal.edit.save"].tap()
         wait(any("journal.edit.error"))
         XCTAssertTrue(editor.exists, "Failed commit must not dismiss editor")
         XCTAssertEqual(editor.value as? String, retainedDraft, "Failed commit must keep exact draft")
         shot("reflection-edit-failure-retained-draft")
-        app.navigationBars["Edit entry"].buttons["Save"].tap()
+        app.navigationBars["Edit entry"].buttons["journal.edit.save"].tap()
         waitUntilGone(editor)
         wait(detail); XCTAssertEqual(detail.label, committedText)
         app.navigationBars.buttons.element(boundBy: 0).tap()
@@ -256,7 +256,7 @@ extension JournalOpenStateUITests {
         wait(editor)
         XCTAssertEqual(editor.value as? String, original)
         editor.tap(); editor.typeText(" discarded draft")
-        app.navigationBars["Edit entry"].buttons["Cancel"].tap()
+        app.navigationBars["Edit entry"].buttons["journal.edit.cancel"].tap()
         waitUntilGone(editor)
         XCTAssertEqual(detail.label, original, "Cancel must not save the draft")
 
@@ -268,7 +268,7 @@ extension JournalOpenStateUITests {
         editor.press(forDuration: 1.2)
         let selectAll = app.menuItems["Select All"]
         wait(selectAll); selectAll.tap(); editor.typeText(changed)
-        app.navigationBars["Edit entry"].buttons["Save"].tap()
+        app.navigationBars["Edit entry"].buttons["journal.edit.save"].tap()
         waitUntilGone(editor)
         app.navigationBars.buttons.element(boundBy: 0).tap()
         wait(app.navigationBars["Journal"])
@@ -282,7 +282,9 @@ extension JournalOpenStateUITests {
 
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
         wait(app.staticTexts["Delete this journal entry?"])
-        app.buttons["Cancel"].tap()
+        let cancelConfirmation = app.alerts["Delete this journal entry?"]
+        XCTAssertEqual(cancelConfirmation.buttons.matching(identifier: "journal.delete.cancel").count, 1)
+        cancelConfirmation.buttons["journal.delete.cancel"].tap()
         waitUntilGone(app.staticTexts["Delete this journal entry?"])
         XCTAssertEqual(detail.label, changed, "Cancel must keep the reflection")
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
@@ -292,6 +294,7 @@ extension JournalOpenStateUITests {
         wait(confirmation)
         let confirmButton = confirmation.buttons["journal.delete.confirm"]
         wait(confirmButton)
+        XCTAssertEqual(confirmation.buttons.matching(identifier: "journal.delete.confirm").count, 1)
         confirmButton.tap()
         // Capture the post-confirmation state even when the unchanged detail
         // dismissal assertion fails. No back navigation or retry hides failure.
@@ -323,14 +326,20 @@ extension JournalOpenStateUITests {
         wait(detail)
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
         let alert = app.alerts["Delete this journal entry?"]
-        wait(alert); alert.buttons["journal.delete.confirm"].tap()
+        wait(alert)
+        XCTAssertEqual(alert.buttons.matching(identifier: "journal.delete.confirm").count, 1)
+        XCTAssertEqual(alert.buttons.matching(identifier: "journal.delete.cancel").count, 1)
+        alert.buttons["journal.delete.confirm"].tap()
         let error = app.staticTexts["journal.delete.error"]
         wait(error)
         XCTAssertEqual(detail.label, original, "Failed commit must not discard the detail")
         XCTAssertTrue(app.navigationBars["Journal entry"].exists)
         shot("manual-delete-failure-retained-detail")
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
-        wait(alert); alert.buttons["journal.delete.confirm"].tap()
+        wait(alert)
+        XCTAssertEqual(alert.buttons.matching(identifier: "journal.delete.confirm").count, 1)
+        XCTAssertEqual(alert.buttons.matching(identifier: "journal.delete.cancel").count, 1)
+        alert.buttons["journal.delete.confirm"].tap()
         shot("manual-delete-explicit-retry-result")
         waitUntilGone(detail)
         wait(app.navigationBars["Journal"])

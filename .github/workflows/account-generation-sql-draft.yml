@@ -1,0 +1,38 @@
+name: Account generation SQL (draft manual lane)
+on:
+  workflow_dispatch:
+  push:
+    branches: [qualify/528-isolated-sql-smoke]
+    paths: [.github/workflows/account-generation-sql-draft.yml]
+permissions:
+  contents: read
+jobs:
+  disposable-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: local-fixture-only
+          POSTGRES_DB: reset_contract
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: local-fixture-only
+      PGDATABASE: reset_contract
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply minimal Supabase shims, table baseline, migration and fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/528_auth_shim.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261010000000_user_recipes.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261113063400_account_data_generation.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/528_account_data_generation.sql

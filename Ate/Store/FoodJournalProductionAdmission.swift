@@ -19,6 +19,7 @@ final class FoodJournalProductionAdmission {
     private let currentSession: () -> AuthSession?
     private let snapshot: (AuthSession) async throws -> AccountSnapshot
     private var proof: Proof?
+    private var graphBuilt = false
 
     init(gate: AccountWriterGate, control: FileResetControlPersistence,
          receipts: AccountGenerationReceiptStore, resources: FoodJournalDiskResources,
@@ -58,6 +59,7 @@ final class FoodJournalProductionAdmission {
     }
 
     func reconcile(admittedLease: UUID) async throws {
+        guard !graphBuilt else { throw JournalStartupAuthorizationError.blocked("retained graph already built") }
         proof = nil
         let session = currentSession()
         let receipt = try gate.withWriterEffect(admittedLease) {
@@ -112,11 +114,71 @@ final class FoodJournalProductionAdmission {
             }
         }
     }
-    func bindOwner(admittedLease: UUID, afterRestoreCommit: @escaping () throws -> Void) throws -> FoodJournalLocalOwner {
+    /// Build one dormant retained graph from this exact reconciled proof. None of
+    /// its resources or callbacks are installed in the application root here.
+    func buildGraph(admittedLease: UUID, afterRestoreCommit: @escaping () throws -> Void) throws -> FoodJournalProductionGraph {
+        guard !graphBuilt else { throw JournalStartupAuthorizationError.blocked("retained graph already built") }
+        try validate(admittedLease: admittedLease)
+        guard let captured = proof else { throw JournalStartupAuthorizationError.blocked("startup proof missing") }
+        let lifecycle = FoodJournalConsumerLifecycle(gate: gate, admittedLease: admittedLease,
+            session: captured.session, currentSession: currentSession)
+        let owner = try bindOwner(admittedLease: admittedLease, afterRestoreCommit: afterRestoreCommit,
+            validateConsumers: lifecycle.validate)
+        let recipes = try resources.recipeContainer(gate: gate, admittedLease: admittedLease)
+        // This proof remains valid for the closed graph's ONE archive operation.
+        // Its caller holds the replacement epoch under the same gate, so do not
+        // check the deliberately revoked ordinary writer lease here.
+        let retainedIdentity: () throws -> Void = {
+            guard self.proof?.lease == captured.lease,
+                  self.currentSession() == captured.session,
+                  try self.control.read() == nil,
+                  try self.receipts.read() == captured.receipt else {
+                throw JournalStartupAuthorizationError.blocked("retained owner identity changed")
+            }
+        }
+        let export = FoodJournalArchiveExport(owner: owner, recipes: recipes, gate: gate,
+            admittedLease: admittedLease, validateOwner: {
+                try self.validate(admittedLease: admittedLease)
+                try lifecycle.validate()
+            })
+        let importer = try FoodJournalArchiveImport(owner: owner, recipes: recipes, lifecycle: lifecycle,
+            ownerIdentity: captured.receipt.ownerID, authorizeOperation: retainedIdentity)
+        graphBuilt = true
+        return FoodJournalProductionGraph(owner: owner, lifecycle: lifecycle, export: export, importer: importer)
+    }
+
+    func bindOwner(admittedLease: UUID, afterRestoreCommit: @escaping () throws -> Void,
+                   validateConsumers: @escaping () throws -> Void = {}) throws -> FoodJournalLocalOwner {
         try validate(admittedLease: admittedLease)
         guard let proof else { throw JournalStartupAuthorizationError.blocked("startup proof missing") }
         return try resources.bindOwner(gate: gate, admittedLease: admittedLease, ownerIdentity: proof.recoveryOwner,
             archive: archive, authorizeBinding: { try self.validate(admittedLease: admittedLease) },
-            afterRestoreCommit: afterRestoreCommit)
+            afterRestoreCommit: afterRestoreCommit, validateConsumers: validateConsumers)
     }
+}
+
+
+/// Dormant graph value returned only by reconciled admission. Root integration
+/// still owns real consumer registration, visible-editor dismissal, async drain,
+/// auth transitions, post-import rebuild and UI publication. Activation stays OFF.
+@MainActor
+final class FoodJournalProductionGraph {
+    let owner: FoodJournalLocalOwner
+    let lifecycle: FoodJournalConsumerLifecycle
+    let archiveExport: FoodJournalArchiveExport
+    let archiveImport: FoodJournalArchiveImport
+
+    // Only admission in this source file constructs this value. Consumers use
+    // ProductionAdmission.buildGraph, never individually assemble storage roots.
+    fileprivate init(owner: FoodJournalLocalOwner, lifecycle: FoodJournalConsumerLifecycle,
+         export: FoodJournalArchiveExport, importer: FoodJournalArchiveImport) {
+        self.owner = owner; self.lifecycle = lifecycle
+        self.archiveExport = export; self.archiveImport = importer
+    }
+    var runtime: FoodJournalRuntime { owner.runtime }
+    var resetInventory: JournalLocalReset { owner.resetInventory }
+    func validate() throws {
+        try owner.requireLifecycle(lifecycle)
+    }
+    func quiesce() async throws { try await lifecycle.quiesce() }
 }

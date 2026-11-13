@@ -1,4 +1,5 @@
 import XCTest
+import SwiftData
 @testable import Ate
 
 @MainActor
@@ -162,6 +163,41 @@ final class CookedJournalReflectionSessionTests: XCTestCase {
         store.presentPendingCookedReflection()
         XCTAssertTrue(store.cookedReflectionSessions[captured.id] === session)
         XCTAssertTrue(session.save())
+    }
+
+    func testAppHostInjectedRuntimeRefusesReflectionAndAcknowledgementAfterOwnerRevoked() throws {
+        let name = "cook-host-boundary-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        var allowed = true
+        let boundary = FoodJournalWriterBoundary { effect in
+            guard allowed else { throw CookedJournalReflectionError.unavailable }
+            try effect()
+        }
+        let container = try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let journal = JournalStore(container: container, openState: .ok, writerBoundary: boundary)
+        let runtime = FoodJournalRuntime(journal: journal,
+            goalsRepository: NutritionGoalsRepository(defaults: defaults,
+                storage: FileNutritionGoalsStorage(fileURL: FileManager.default.temporaryDirectory
+                    .appendingPathComponent(name).appendingPathComponent("goals.json"))),
+            defaults: defaults, writerBoundary: boundary)
+        let captured = try runtime.cookOutbox.enqueue(event())
+        let store = AppStore(context: nil, backend: MockBackend(), foodJournalRuntime: runtime)
+        store.requestCookedReflection(captured)
+        let session = try XCTUnwrap(store.cookedReflectionSessions[captured.id])
+        session.draft = "Keep this retained note"
+        allowed = false
+        XCTAssertFalse(session.save())
+        XCTAssertFalse(session.isSaved)
+        XCTAssertEqual(session.draft, "Keep this retained note")
+        XCTAssertEqual(try runtime.cookOutbox.load(), [captured])
+        XCTAssertTrue(try journal.readReflections().isEmpty)
+        allowed = true
+        XCTAssertTrue(session.save())
+        XCTAssertEqual(try journal.readReflections().first?.text, "Keep this retained note")
+        XCTAssertTrue(try runtime.cookOutbox.load().isEmpty)
+        XCTAssertEqual(try runtime.coordinator.readMeals(), [], "Cooking and a reflection never imply an eaten meal")
     }
 
 }

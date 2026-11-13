@@ -1,15 +1,27 @@
 {
-  "title": "Journal navigation and cooking reflections",
-  "summary": "Focus: the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log.",
-  "source_commit": "7c3f7d0265e58ea124c0bf55140a90fe76df45b3",
+  "title": "Food Journal: real owner native qualification, shipping OFF",
+  "summary": "Full source-reviewed Food Journal owner chain is assembled for exact-head native qualification. Shipping activation stays OFF. A DEBUG-only explicit selector reaches the real owner without hermetic UITesting fixtures. Native compilation, account-wide reset/resume, shared extension ordering and watch account isolation remain unqualified. Food Journal is local-only; cooking is not an eaten meal. No production Supabase deployment or anonymous sign-in is enabled.",
+  "source_commit": "169bc606a7c2276d4abb14028b5159f092592e3a",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "56f838b904b24a8d88ba3409638d7dc434aaa57e"
+      "blob": "19352fe2a1627d5fbb2a68827dbe859f16fb3e5f"
     },
     {
-      "path": "Ate/Views/JournalViews.swift",
-      "blob": "61c2d7df9cf3b780cf809b779efef40b0daeb3d2"
+      "path": "Ate/Services/BackendService.swift",
+      "blob": "f2b19236e4901daa3939e6159f60e80e25fa3c7b"
+    },
+    {
+      "path": "Ate/Store/FoodJournalApplicationOwner.swift",
+      "blob": "232155a6de69be97759b03d0b96dad895f1ab974"
+    },
+    {
+      "path": "Ate/Store/FoodJournalProductionAdmission.swift",
+      "blob": "07828e344c49072ca94b16a85006fd82b9845bc2"
+    },
+    {
+      "path": "Ate/Store/FoodJournalConsumerLifecycle.swift",
+      "blob": "f38a3e7aa9bbf0ec96f9ae20a60b5e9670e3f5de"
     }
   ]
 }

@@ -1010,5 +1010,37 @@ extension CoverageUITests {
         wait(app.images["settings.logo"])
         app.swipeUp()
         XCTAssertTrue(settingsTitle.exists, "The navigation bar must remain present while Settings scrolls")
+
+        // The product intentionally minimizes tab chrome on scroll-down. The
+        // preceding Settings swipe can leave only the selected tab exposed even
+        // though a TabBar still exists. Reveal it with a real reverse content
+        // gesture, not a back-button fallback, extra tap or longer wait.
+        XCTAssertTrue(app.tabBars.buttons["Settings"].isSelected,
+                      "Settings must remain selected after its scroll")
+        shot("82-settings-after-scroll-before-tab-reveal")
+        settingsContent().swipeDown()
+        shot("82-settings-tab-chrome-revealed")
+        // #82 uses the current Journal root, not the historical Tracker title or
+        // pushed Cooking History route. Keep every strict tab/arrival/header
+        // assertion; the reveal gesture is setup, never a substitute destination.
+        tab("Journal")
+        let journalTitle = app.navigationBars["Journal"]
+        wait(journalTitle)
+        wait(app.images["journal.logo"])
+        XCTAssertEqual(app.navigationBars.count, 1, "Journal must have one navigation header")
+        let timeline = any("journal.timelineLink")
+        wait(timeline)
+        XCTAssertGreaterThanOrEqual(timeline.frame.minY, journalTitle.frame.minY,
+                                    "Journal root content must begin below its shared navigation title")
+        let addEntry = app.buttons["journal.newEntry"]
+        wait(addEntry)
+        XCTAssertTrue(addEntry.isHittable, "Journal New entry must be reachable initially")
+        shot("82-journal-root-header-initial")
+        app.swipeUp()
+        XCTAssertTrue(journalTitle.exists, "Journal navigation header must remain present after scrolling")
+        XCTAssertTrue(app.images["journal.logo"].exists, "Journal keeps the shared root logo after scrolling")
+        XCTAssertEqual(app.navigationBars.count, 1, "Scrolling Journal must not introduce a duplicate header")
+        XCTAssertTrue(addEntry.isHittable, "Journal New entry must stay reachable after scrolling")
+        shot("82-journal-root-header-after-scroll")
     }
 }

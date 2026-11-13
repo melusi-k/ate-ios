@@ -67,15 +67,19 @@ extension AppStore {
                 ClearAllLocalData.Failure(component: "writer-boundary", operation: "acquire",
                                           detail: "unified writer boundary is not bound")])
         }
+        guard let inventory = journalLocalResetInventory,
+              inventory.journal === runtime.journal, inventory.defaults === runtime.defaults else {
+            return ClearAllLocalData.Report(verifiedEmpty: [], failures: [
+                ClearAllLocalData.Failure(component: "reset-inventory", operation: "preflight",
+                    detail: "retained graph reset participants are not bound")])
+        }
         var report: ClearAllLocalData.Report?
         do {
             try effect {
                 guard self.wipeLocalData() else { throw JournalAccountActionError.localWipeNotPerformed }
                 // legacy stores + non-journal surfaces completed under the outer effect
                 runtime.cookingHistory.clear()  // the unified history, not the legacy singleton
-                report = try JournalLocalReset(runtime: runtime,
-                                               preservationDirectory: self.journalResetPreservationDirectory)
-                    .eraseAll(validateWriterGate: validate)
+                report = try inventory.eraseAll(validateWriterGate: validate)
             }
         } catch {
             return ClearAllLocalData.Report(verifiedEmpty: [], failures: [
@@ -118,6 +122,8 @@ extension AppStore {
         guard foodJournalRuntime != nil, let importSession = journalArchiveImport else {
             throw CanonicalConsumerBindingError.archiveBindingRequired
         }
-        return try importSession(data)
+        let result = try importSession(data)
+        try reloadAfterUnifiedImport()
+        return result
     }
 }

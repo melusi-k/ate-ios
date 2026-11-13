@@ -251,16 +251,24 @@ struct SearchRecipesIntent: ShowInAppSearchResultsIntent {
 struct AteJournalEntryEntity {
     struct Query: EntityStringQuery {
         func entities(for identifiers: [AteJournalEntryEntity.ID]) async throws -> [AteJournalEntryEntity] {
-            try await MainActor.run { try AppStore.journalStoreForIntent().readReflections().filter { identifiers.contains($0.id) }.map(AteJournalEntryEntity.init) }
+            try await MainActor.run {
+                let journal = try AppStore.journalStoreForIntent()
+                return try journal.readReflections().filter { identifiers.contains($0.id) }
+                    .map { AteJournalEntryEntity($0, journal: journal) }
+            }
         }
         func entities(matching string: String) async throws -> [AteJournalEntryEntity] {
             try await MainActor.run {
-                try AppStore.journalStoreForIntent().readReflections().filter { $0.text.localizedCaseInsensitiveContains(string) || $0.prompt.localizedCaseInsensitiveContains(string) }
-                    .prefix(20).map(AteJournalEntryEntity.init)
+                let journal = try AppStore.journalStoreForIntent()
+                return try journal.readReflections().filter { $0.text.localizedCaseInsensitiveContains(string) || $0.prompt.localizedCaseInsensitiveContains(string) }
+                    .prefix(20).map { AteJournalEntryEntity($0, journal: journal) }
             }
         }
         func suggestedEntities() async throws -> [AteJournalEntryEntity] {
-            try await MainActor.run { try AppStore.journalStoreForIntent().readReflections().prefix(10).map(AteJournalEntryEntity.init) }
+            try await MainActor.run {
+                let journal = try AppStore.journalStoreForIntent()
+                return try journal.readReflections().prefix(10).map { AteJournalEntryEntity($0, journal: journal) }
+            }
         }
     }
     static let defaultQuery = Query()
@@ -279,9 +287,9 @@ struct AteJournalEntryEntity {
     init(id: String, title: String?, message: AttributedString?, entryDate: Date?) {
         self.id = id; self.title = title; self.message = message; self.mediaItems = []; self.entryDate = entryDate; self.location = nil
     }
-    @MainActor init(_ e: JournalEntry) {
+    @MainActor init(_ e: JournalEntry, journal: JournalStore) {
         self.init(id: e.id, title: e.prompt, message: AttributedString(e.text), entryDate: e.createdAt)
-        self.mediaItems = e.mediaFileNames.map { IntentFile(fileURL: JournalStore.mediaURL($0)) }
+        self.mediaItems = e.mediaFileNames.map { IntentFile(fileURL: journal.boundMediaURL($0)) }
     }
 }
 
@@ -312,7 +320,7 @@ struct CreateAteJournalEntryIntent {
         guard let saved else { throw JournalIntentOwnerError.saveFailed }
         QAProbe.shared.lastIntent = "journal"
         BetaQA.shared.pass("A-INTENT-05", note: "Journal entry saved from Siri/Shortcuts")
-        return .result(value: AteJournalEntryEntity(saved))
+        return .result(value: AteJournalEntryEntity(saved, journal: journal))
     }
 }
 

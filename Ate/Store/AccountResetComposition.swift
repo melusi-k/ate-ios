@@ -48,6 +48,12 @@ final class AccountResetComposition {
             validateWriter: { try gate.validateWriter($0) })
     }
 
+    func admittedSyncService(lease: UUID) -> GenerationFencedSyncService {
+        GenerationFencedSyncService(adapter: sync, receipt: { [self] in
+            try gate.withWriterEffect(lease) { try receipt.read() }
+        }, invalidateWriters: { [self] in try gate.blockWritersForGenerationConflict() })
+    }
+
     /// This is the only candidate route that can build ordinary AppStore/Root graph.
     /// Factory must pass the same lease to EVERY writer and retain the gate. This API
     /// does not supply a factory using today's ungated production constructors.

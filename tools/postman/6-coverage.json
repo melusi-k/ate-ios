@@ -1,0 +1,489 @@
+[
+  {
+    "request": "Sign up (sends email)",
+    "method": "POST",
+    "endpoint": "/auth/v1/signup?redirect_to=ate%3A%2F%2Fauth-callback",
+    "source": "Ate/Services/Auth.swift (SupabaseAuth)",
+    "included": true
+  },
+  {
+    "request": "Password sign in",
+    "method": "POST",
+    "endpoint": "/auth/v1/token?grant_type=password",
+    "source": "Ate/Services/Auth.swift (SupabaseAuth)",
+    "included": true
+  },
+  {
+    "request": "Refresh token",
+    "method": "POST",
+    "endpoint": "/auth/v1/token?grant_type=refresh_token",
+    "source": "Ate/Services/Auth.swift (SupabaseAuth); AteWatch/WatchStore.swift",
+    "included": true
+  },
+  {
+    "request": "Magic email link (save verifier locally for later PKCE exchange)",
+    "method": "POST",
+    "endpoint": "/auth/v1/otp?redirect_to=ate%3A%2F%2Fauth-callback",
+    "source": "Ate/Services/Auth.swift (SupabaseAuth)",
+    "included": true
+  },
+  {
+    "request": "Resend signup email",
+    "method": "POST",
+    "endpoint": "/auth/v1/resend?redirect_to=ate%3A%2F%2Fauth-callback",
+    "source": "Ate/Services/Auth.swift (SupabaseAuth)",
+    "included": true
+  },
+  {
+    "request": "Recovery email (save verifier locally)",
+    "method": "POST",
+    "endpoint": "/auth/v1/recover?redirect_to=ate%3A%2F%2Fauth-callback",
+    "source": "Ate/Services/Auth.swift (SupabaseAuth)",
+    "included": true
+  },
+  {
+    "request": "PKCE exchange after email callback",
+    "method": "POST",
+    "endpoint": "/auth/v1/token?grant_type=pkce",
+    "source": "Ate/Services/Auth.swift (SupabaseAuth)",
+    "included": true
+  },
+  {
+    "request": "Read authenticated user",
+    "method": "GET",
+    "endpoint": "/auth/v1/user",
+    "source": "Ate/Services/Auth.swift (SupabaseAuth)",
+    "included": true
+  },
+  {
+    "request": "Update password (synthetic account only)",
+    "method": "PUT",
+    "endpoint": "/auth/v1/user",
+    "source": "Ate/Services/Auth.swift (SupabaseAuth)",
+    "included": true
+  },
+  {
+    "request": "Watch request email code",
+    "method": "POST",
+    "endpoint": "/auth/v1/otp",
+    "source": "Shared/Watch/WatchLogic.swift (WatchAuthRequests.otp)",
+    "included": true
+  },
+  {
+    "request": "Watch verify email code",
+    "method": "POST",
+    "endpoint": "/auth/v1/verify",
+    "source": "Shared/Watch/WatchLogic.swift (WatchAuthRequests.verify)",
+    "included": true
+  },
+  {
+    "request": "Logout (invalidates session)",
+    "method": "POST",
+    "endpoint": "/auth/v1/logout",
+    "source": "Ate/Services/Auth.swift (SupabaseAuth)",
+    "included": true
+  },
+  {
+    "request": "Recipe and shopping rows (iPhone)",
+    "method": "GET",
+    "endpoint": "/rest/v1/user_recipes?select=user_id,kind,id,data,updated_at,deleted&user_id=eq.{{user_id}}",
+    "source": "Ate/Services/Sync.swift (SupabaseSync.pull)",
+    "included": true
+  },
+  {
+    "request": "Watch rows",
+    "method": "GET",
+    "endpoint": "/rest/v1/user_recipes?select=kind,id,data,updated_at,deleted",
+    "source": "Shared/Watch/WatchLogic.swift (WatchAuthRequests.rowsURL)",
+    "included": true
+  },
+  {
+    "request": "CI results bound to owner/build/source",
+    "method": "GET",
+    "endpoint": "/rest/v1/qa_results?select=item_id,status,note,build,ts,commit_sha,run_id,run_url&source=eq.ci&user_id=eq.{{user_id}}&order=ts.desc&build=eq.{{qa_build}}&commit_sha=eq.{{commit_sha}}&run_id=eq.{{run_id}}&limit=500",
+    "source": "Ate/Services/BetaQA.swift (CIStatus.refresh)",
+    "included": true
+  },
+  {
+    "request": "Atomic account snapshot",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/account_data_snapshot",
+    "source": "Ate/Store/AccountDataResetService.swift (snapshot)",
+    "included": true
+  },
+  {
+    "request": "Legacy recipe direct write must be fenced after v6",
+    "method": "POST",
+    "endpoint": "/rest/v1/user_recipes?on_conflict=user_id,kind,id",
+    "source": "Ate/Services/Sync.swift; AteWatch/WatchStore.swift; v6 migration revokes writes",
+    "included": true
+  },
+  {
+    "request": "Generation-aware recipe put",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/put_user_recipe",
+    "source": "Ate/Store/AccountDataResetService.swift (putRecipe)",
+    "included": true
+  },
+  {
+    "request": "Legacy shopping direct write must be fenced after v6",
+    "method": "POST",
+    "endpoint": "/rest/v1/user_recipes?on_conflict=user_id,kind,id",
+    "source": "Ate/Services/Sync.swift; AteWatch/WatchStore.swift; v6 migration revokes writes",
+    "included": true
+  },
+  {
+    "request": "Generation-aware shopping put",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/put_user_recipe",
+    "source": "Ate/Store/AccountDataResetService.swift (putRecipe)",
+    "included": true
+  },
+  {
+    "request": "Upload synthetic QA device result",
+    "method": "POST",
+    "endpoint": "/rest/v1/qa_results?on_conflict=user_id,build,item_id,source",
+    "source": "Ate/Services/BetaQA.swift (BetaQA.upload): untested synthetic transport fixture, intentionally not uploadable qualification evidence",
+    "included": true
+  },
+  {
+    "request": "01 Capture snapshot before reset",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/account_data_snapshot",
+    "source": "AccountDataResetService.snapshot",
+    "included": true
+  },
+  {
+    "request": "02 Clear synthetic account data",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/clear_account_data",
+    "source": "AccountDataResetService.clearAccount",
+    "included": true
+  },
+  {
+    "request": "03 Retry SAME reset UUID and expected generation",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/clear_account_data",
+    "source": "clear_account_data idempotence",
+    "included": true
+  },
+  {
+    "request": "04 Put retained row at new generation",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/put_user_recipe",
+    "source": "put_user_recipe current epoch",
+    "included": true
+  },
+  {
+    "request": "05 Stale put must return PT409",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/put_user_recipe",
+    "source": "put_user_recipe stale epoch",
+    "included": true
+  },
+  {
+    "request": "06 Different reset UUID with stale epoch must conflict",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/clear_account_data",
+    "source": "clear_account_data stale expected epoch",
+    "included": true
+  },
+  {
+    "request": "07 Same UUID with wrong expected epoch must conflict",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/clear_account_data",
+    "source": "clear_account_data wrong retry",
+    "included": true
+  },
+  {
+    "request": "08 Verify no mutation after conflicts",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/account_data_snapshot",
+    "source": "account_data_snapshot conflict reconciliation",
+    "included": true
+  },
+  {
+    "request": "account_data_snapshot anon denied",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/account_data_snapshot",
+    "source": "v6 authenticated-only EXECUTE; PostgREST anon42501\u2192HTTP401",
+    "included": true
+  },
+  {
+    "request": "put_user_recipe anon denied",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/put_user_recipe",
+    "source": "v6 authenticated-only EXECUTE; PostgREST anon42501\u2192HTTP401",
+    "included": true
+  },
+  {
+    "request": "clear_account_data anon denied",
+    "method": "POST",
+    "endpoint": "/rest/v1/rpc/clear_account_data",
+    "source": "v6 authenticated-only EXECUTE; PostgREST anon42501\u2192HTTP401",
+    "included": true
+  },
+  {
+    "request": "Publish synthetic shared recipe",
+    "method": "POST",
+    "endpoint": "/functions/v1/publish-recipe",
+    "source": "Ate/Services/BackendService.swift (SupabaseBackend.publish); supabase/functions/publish-recipe",
+    "included": true
+  },
+  {
+    "request": "Read shared recipe (iPhone and Clip)",
+    "method": "GET",
+    "endpoint": "/functions/v1/get-shared-recipe?slug={{share_slug}}",
+    "source": "SupabaseBackend.fetchShared; AteClip/SharedRecipeClient.swift",
+    "included": true
+  },
+  {
+    "request": "Shared recipe invalid slug",
+    "method": "GET",
+    "endpoint": "/functions/v1/get-shared-recipe?slug=!",
+    "source": "supabase/functions/get-shared-recipe",
+    "included": true
+  },
+  {
+    "request": "AI parse prompt (not implemented in repo)",
+    "method": "POST",
+    "endpoint": "/functions/v1/parse-recipe",
+    "source": "SupabaseBackend.parseRecipe; no supabase/functions/parse-recipe implementation. Currently unavailable; opt-in only after staging implementation exists.",
+    "included": true
+  },
+  {
+    "request": "AI parse url (not implemented in repo)",
+    "method": "POST",
+    "endpoint": "/functions/v1/parse-recipe",
+    "source": "SupabaseBackend.parseRecipe; no supabase/functions/parse-recipe implementation. Currently unavailable; opt-in only after staging implementation exists.",
+    "included": true
+  },
+  {
+    "request": "AI parse image (not implemented in repo)",
+    "method": "POST",
+    "endpoint": "/functions/v1/parse-recipe",
+    "source": "SupabaseBackend.parseRecipe; no supabase/functions/parse-recipe implementation. Currently unavailable; opt-in only after staging implementation exists.",
+    "included": true
+  },
+  {
+    "request": "AI parse rewrite (not implemented in repo)",
+    "method": "POST",
+    "endpoint": "/functions/v1/parse-recipe",
+    "source": "SupabaseBackend.parseRecipe; no supabase/functions/parse-recipe implementation. Currently unavailable; opt-in only after staging implementation exists.",
+    "included": true
+  },
+  {
+    "request": "Send category-only synthetic telemetry",
+    "method": "POST",
+    "endpoint": "/functions/v1/telemetry",
+    "source": "Ate/Services/TelemetryClient.swift; supabase/functions/telemetry",
+    "included": true
+  },
+  {
+    "request": "Send synthetic beta feedback",
+    "method": "POST",
+    "endpoint": "/functions/v1/beta-feedback",
+    "source": "Ate/Services/BetaFeedbackService.swift; supabase/functions/beta-feedback",
+    "included": true
+  },
+  {
+    "request": "Delete synthetic test account (including shared recipes)",
+    "method": "POST",
+    "endpoint": "/functions/v1/delete-account",
+    "source": "Ate/Services/Auth.swift (deleteAccount); supabase/functions/delete-account",
+    "included": true
+  },
+  {
+    "request": "Import recipe HTML",
+    "method": "GET",
+    "endpoint": "{{recipe_page_url}}",
+    "source": "OnDeviceBackend.fetchHTML",
+    "included": true
+  },
+  {
+    "request": "Social caption HTML",
+    "method": "GET",
+    "endpoint": "{{social_page_url}}",
+    "source": "OnDeviceBackend.fetchSocialCaption",
+    "included": true
+  },
+  {
+    "request": "Cover source page",
+    "method": "GET",
+    "endpoint": "{{cover_page_url}}",
+    "source": "CoverStore.findPageImage",
+    "included": true
+  },
+  {
+    "request": "Cover image bytes",
+    "method": "GET",
+    "endpoint": "{{cover_image_url}}",
+    "source": "CoverStore.download",
+    "included": true
+  },
+  {
+    "request": "TikTok oEmbed",
+    "method": "GET",
+    "endpoint": "https://www.tiktok.com/oembed?url={{encoded_social_url}}",
+    "source": "SocialLinks.oEmbedURL; CoverStore.findPageImage",
+    "included": true
+  },
+  {
+    "request": "YouTube oEmbed",
+    "method": "GET",
+    "endpoint": "https://www.youtube.com/oembed?format=json&url={{encoded_social_url}}",
+    "source": "SocialLinks.oEmbedURL; CoverStore.findPageImage",
+    "included": true
+  },
+  {
+    "request": "Privacy page",
+    "method": "GET",
+    "endpoint": "{{privacy_url}}",
+    "source": "AuthSheet LegalWebView; AppConfig.privacyURL",
+    "included": true
+  },
+  {
+    "request": "Terms page",
+    "method": "GET",
+    "endpoint": "{{terms_url}}",
+    "source": "AuthSheet LegalWebView; AppConfig.termsURL",
+    "included": true
+  },
+  {
+    "request": "Share landing page",
+    "method": "GET",
+    "endpoint": "{{share_page_url}}",
+    "source": "ShareLinks.defaultTemplate; external browser share handoff",
+    "included": true
+  },
+  {
+    "request": "",
+    "endpoint": "SDK-derived Sentry ingestion",
+    "method": "SDK",
+    "source": "Ate/Services/SentryBootstrap.swift",
+    "included": false,
+    "why": "No raw endpoint fixture: DSN/envelope/session/crash mechanics are SDK-owned. In-app synthetic proof flow verifies privacy scrubbing; hand-written ingestion would bypass it."
+  },
+  {
+    "request": "",
+    "endpoint": "Foundation Models / Vision / Image Playground",
+    "method": "local framework",
+    "source": "Ate/Services/OnDeviceBackend.swift; CoverStore.swift",
+    "included": false,
+    "why": "No REST endpoint or remote AI provider in app source; device/native tests required."
+  },
+  {
+    "request": "",
+    "endpoint": "Supabase Storage",
+    "method": "none",
+    "source": "Repository outbound inventory",
+    "included": false,
+    "why": "No storage HTTP call in iPhone/Watch/Clip source; covers are local files or external image GET."
+  },
+  {
+    "request": "",
+    "endpoint": "GoTrue admin DELETE /auth/v1/admin/users/{id}",
+    "method": "DELETE server-only",
+    "source": "supabase/functions/delete-account/index.ts",
+    "included": false,
+    "why": "Server-only service-role call behind delete-account; never put service-role credentials in client Postman environment."
+  },
+  {
+    "request": "",
+    "endpoint": "GoTrue authenticated user lookup",
+    "method": "GET server-internal",
+    "source": "supabase/functions/publish-recipe/index.ts; delete-account/index.ts",
+    "included": false,
+    "why": "Already exercised indirectly through edge API; no separate server service-role identity fixture."
+  },
+  {
+    "request": "",
+    "endpoint": "shared_recipes SELECT/INSERT/DELETE",
+    "method": "GET/POST/DELETE server-only",
+    "source": "supabase/functions/get-shared-recipe; publish-recipe; delete-account",
+    "included": false,
+    "why": "Covered via edge entry points; table listing is intentionally not a public app API."
+  },
+  {
+    "request": "",
+    "endpoint": "beta_feedback INSERT and consume_beta_feedback_rate_limit RPC",
+    "method": "POST server-only",
+    "source": "supabase/functions/beta-feedback/index.ts",
+    "included": false,
+    "why": "Covered via edge; admin/rate-limit bypass templates excluded."
+  },
+  {
+    "request": "",
+    "endpoint": "app_telemetry_events INSERT and consume_telemetry_rate_limit RPC",
+    "method": "POST server-only",
+    "source": "supabase/functions/telemetry/index.ts",
+    "included": false,
+    "why": "Covered via edge; admin/rate-limit bypass templates excluded."
+  },
+  {
+    "request": "",
+    "endpoint": "HealthKit / WatchConnectivity / WidgetKit / notifications / Spotlight / App Intents",
+    "method": "local framework",
+    "source": "Ate/Services; AteWatch; Shared",
+    "included": false,
+    "why": "No Postman-replayable endpoint. Apple service traffic is OS-controlled and not an app endpoint contract."
+  },
+  {
+    "request": "",
+    "endpoint": "arbitrary redirects / CDN URLs / linked subresources",
+    "method": "dynamic",
+    "source": "CoverStore; OnDeviceBackend; AuthSheet WKWebView",
+    "included": false,
+    "why": "Parameterized initial requests included; cannot enumerate every external URL or simulate browser cookie/captcha/JS behavior."
+  },
+  {
+    "request": "",
+    "endpoint": "fixtures.ate.test and example URLs in tests/checklists",
+    "method": "fixture only",
+    "source": "Ate/Logic/QAFixtures.swift; test targets",
+    "included": false,
+    "why": "Mock/test data, not live endpoints; no external request generated."
+  },
+  {
+    "request": "Shared recipe POST alternate server contract",
+    "method": "POST",
+    "endpoint": "/functions/v1/get-shared-recipe",
+    "source": "supabase/functions/get-shared-recipe/index.ts, alternate supported method (not called by app)",
+    "included": true
+  },
+  {
+    "request": "OPTIONS publish-recipe",
+    "method": "OPTIONS",
+    "endpoint": "/functions/v1/publish-recipe",
+    "source": "supabase/functions/publish-recipe/index.ts CORS preflight",
+    "included": true
+  },
+  {
+    "request": "OPTIONS get-shared-recipe",
+    "method": "OPTIONS",
+    "endpoint": "/functions/v1/get-shared-recipe",
+    "source": "supabase/functions/get-shared-recipe/index.ts CORS preflight",
+    "included": true
+  },
+  {
+    "request": "OPTIONS delete-account",
+    "method": "OPTIONS",
+    "endpoint": "/functions/v1/delete-account",
+    "source": "supabase/functions/delete-account/index.ts CORS preflight",
+    "included": true
+  },
+  {
+    "request": "OPTIONS telemetry",
+    "method": "OPTIONS",
+    "endpoint": "/functions/v1/telemetry",
+    "source": "supabase/functions/telemetry/index.ts CORS preflight",
+    "included": true
+  },
+  {
+    "request": "OPTIONS beta-feedback",
+    "method": "OPTIONS",
+    "endpoint": "/functions/v1/beta-feedback",
+    "source": "supabase/functions/beta-feedback/index.ts CORS preflight",
+    "included": true
+  }
+]

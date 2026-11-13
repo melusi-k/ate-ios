@@ -1,0 +1,3528 @@
+{
+  "info": {
+    "name": "Ate API coverage - STAGING ONLY",
+    "description": "Source841c14ee. Manual synthetic staging requests only; no production/live execution performed. Import README first. Each mutation needs opt-in. Never run every folder blindly.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "item": [
+    {
+      "name": "01 Auth manual",
+      "item": [
+        {
+          "name": "Sign up (sends email)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/auth/v1/signup?redirect_to=ate%3A%2F%2Fauth-callback",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Auth.swift (SupabaseAuth)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"code_challenge\": \"{{code_challenge}}\",\n  \"code_challenge_method\": \"s256\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "const CryptoJS = require(\"crypto-js\"); const verifier=CryptoJS.lib.WordArray.random(32).toString(CryptoJS.enc.Hex); const challenge=CryptoJS.SHA256(verifier).toString(CryptoJS.enc.Base64).replace(/\\+/g,\"-\").replace(/\\//g,\"_\").replace(/=+$/,\"\"); pm.environment.set(\"code_verifier\",verifier);pm.environment.set(\"code_challenge\",challenge);",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Signup user\",()=>pm.expect(pm.response.json().user || pm.response.json()).to.have.property(\"id\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Password sign in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/auth/v1/token?grant_type=password",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Auth.swift (SupabaseAuth)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { const j=pm.response.json(); pm.test(\"Session shape\",()=>{pm.expect(j.access_token).to.be.a(\"string\");pm.expect(j.refresh_token).to.be.a(\"string\");pm.expect(j.user.id).to.be.a(\"string\");}); pm.environment.set(\"access_token\",j.access_token);pm.environment.set(\"refresh_token\",j.refresh_token);pm.environment.set(\"user_id\",j.user.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/auth/v1/token?grant_type=refresh_token",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Auth.swift (SupabaseAuth); AteWatch/WatchStore.swift\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { const j=pm.response.json(); pm.test(\"Session shape\",()=>{pm.expect(j.access_token).to.be.a(\"string\");pm.expect(j.refresh_token).to.be.a(\"string\");pm.expect(j.user.id).to.be.a(\"string\");}); pm.environment.set(\"access_token\",j.access_token);pm.environment.set(\"refresh_token\",j.refresh_token);pm.environment.set(\"user_id\",j.user.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Magic email link (save verifier locally for later PKCE exchange)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/auth/v1/otp?redirect_to=ate%3A%2F%2Fauth-callback",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Auth.swift (SupabaseAuth)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"create_user\": true,\n  \"code_challenge\": \"{{code_challenge}}\",\n  \"code_challenge_method\": \"s256\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "const CryptoJS = require(\"crypto-js\"); const verifier=CryptoJS.lib.WordArray.random(32).toString(CryptoJS.enc.Hex); const challenge=CryptoJS.SHA256(verifier).toString(CryptoJS.enc.Base64).replace(/\\+/g,\"-\").replace(/\\//g,\"_\").replace(/=+$/,\"\"); pm.environment.set(\"code_verifier\",verifier);pm.environment.set(\"code_challenge\",challenge);",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resend signup email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/auth/v1/resend?redirect_to=ate%3A%2F%2Fauth-callback",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Auth.swift (SupabaseAuth)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"signup\",\n  \"email\": \"{{test_email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Recovery email (save verifier locally)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/auth/v1/recover?redirect_to=ate%3A%2F%2Fauth-callback",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Auth.swift (SupabaseAuth)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"code_challenge\": \"{{code_challenge}}\",\n  \"code_challenge_method\": \"s256\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "const CryptoJS = require(\"crypto-js\"); const verifier=CryptoJS.lib.WordArray.random(32).toString(CryptoJS.enc.Hex); const challenge=CryptoJS.SHA256(verifier).toString(CryptoJS.enc.Base64).replace(/\\+/g,\"-\").replace(/\\//g,\"_\").replace(/=+$/,\"\"); pm.environment.set(\"code_verifier\",verifier);pm.environment.set(\"code_challenge\",challenge);",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PKCE exchange after email callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/auth/v1/token?grant_type=pkce",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Auth.swift (SupabaseAuth)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"auth_code\": \"{{auth_code}}\",\n  \"code_verifier\": \"{{code_verifier}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { const j=pm.response.json(); pm.test(\"Session shape\",()=>{pm.expect(j.access_token).to.be.a(\"string\");pm.expect(j.refresh_token).to.be.a(\"string\");pm.expect(j.user.id).to.be.a(\"string\");}); pm.environment.set(\"access_token\",j.access_token);pm.environment.set(\"refresh_token\",j.refresh_token);pm.environment.set(\"user_id\",j.user.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read authenticated user",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{supabase_url}}/auth/v1/user",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Auth.swift (SupabaseAuth)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Current user\",()=>pm.expect(pm.response.json().id).to.equal(pm.variables.get(\"user_id\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update password (synthetic account only)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/auth/v1/user",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Auth.swift (SupabaseAuth)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"{{replacement_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Watch request email code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/auth/v1/otp",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Shared/Watch/WatchLogic.swift (WatchAuthRequests.otp)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"create_user\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Watch verify email code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/auth/v1/verify",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Shared/Watch/WatchLogic.swift (WatchAuthRequests.verify)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"token\": \"{{email_code}}\",\n  \"type\": \"email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { const j=pm.response.json(); pm.test(\"Session shape\",()=>{pm.expect(j.access_token).to.be.a(\"string\");pm.expect(j.refresh_token).to.be.a(\"string\");pm.expect(j.user.id).to.be.a(\"string\");}); pm.environment.set(\"access_token\",j.access_token);pm.environment.set(\"refresh_token\",j.refresh_token);pm.environment.set(\"user_id\",j.user.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout (invalidates session)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{supabase_url}}/auth/v1/logout",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Auth.swift (SupabaseAuth)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Read-only Supabase",
+      "item": [
+        {
+          "name": "Recipe and shopping rows (iPhone)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/user_recipes?select=user_id,kind,id,data,updated_at,deleted&user_id=eq.{{user_id}}",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Sync.swift (SupabaseSync.pull)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Owner isolation\",()=>{const a=pm.response.json();pm.expect(a).to.be.an(\"array\");a.forEach(r=>pm.expect(r.user_id).to.equal(pm.variables.get(\"user_id\")));});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Watch rows",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/user_recipes?select=kind,id,data,updated_at,deleted",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Shared/Watch/WatchLogic.swift (WatchAuthRequests.rowsURL)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Array\",()=>pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CI results bound to owner/build/source",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/qa_results?select=item_id,status,note,build,ts,commit_sha,run_id,run_url&source=eq.ci&user_id=eq.{{user_id}}&order=ts.desc&build=eq.{{qa_build}}&commit_sha=eq.{{commit_sha}}&run_id=eq.{{run_id}}&limit=500",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/BetaQA.swift (CIStatus.refresh)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Array\",()=>pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Atomic account snapshot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/account_data_snapshot",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Store/AccountDataResetService.swift (snapshot)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Snapshot shape\",()=>{const j=pm.response.json();pm.expect(j.generation).to.be.a(\"number\").and.at.least(0);pm.expect(Number.isSafeInteger(j.generation)).to.equal(true);pm.expect(j.rows).to.be.an(\"array\");j.rows.forEach(r=>{pm.expect(r.user_id).to.equal(pm.variables.get(\"user_id\"));pm.expect(r).to.have.property(\"data\");pm.expect(r.deleted).to.be.a(\"boolean\");});}); if(pm.response.code===200)pm.environment.set(\"generation\",String(pm.response.json().generation));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Explicit writes",
+      "item": [
+        {
+          "name": "Legacy recipe direct write must be fenced after v6",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Prefer",
+                "value": "resolution=merge-duplicates,return=minimal"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/user_recipes?on_conflict=user_id,kind,id",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Sync.swift; AteWatch/WatchStore.swift; v6 migration revokes writes\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"user_id\": \"{{user_id}}\",\n    \"kind\": \"recipe\",\n    \"id\": \"postman-fixture-recipe\",\n    \"data\": {\n      \"title\": \"Synthetic fixture\"\n    },\n    \"updated_at\": 10,\n    \"deleted\": false\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Permission denied\",()=>pm.expect(pm.response.json().code).to.equal(\"42501\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generation-aware recipe put",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/put_user_recipe",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Store/AccountDataResetService.swift (putRecipe)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"p_caller_generation\": {{generation}},\n  \"p_kind\": \"recipe\",\n  \"p_id\": \"postman-fixture-recipe\",\n  \"p_data\": {\n    \"title\": \"Synthetic fixture\"\n  },\n  \"p_updated_at\": 10,\n  \"p_deleted\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Legacy shopping direct write must be fenced after v6",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Prefer",
+                "value": "resolution=merge-duplicates,return=minimal"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/user_recipes?on_conflict=user_id,kind,id",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Sync.swift; AteWatch/WatchStore.swift; v6 migration revokes writes\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"user_id\": \"{{user_id}}\",\n    \"kind\": \"shopping\",\n    \"id\": \"postman-fixture-shopping\",\n    \"data\": {\n      \"name\": \"Synthetic rice\",\n      \"checked\": false\n    },\n    \"updated_at\": 10,\n    \"deleted\": false\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Permission denied\",()=>pm.expect(pm.response.json().code).to.equal(\"42501\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generation-aware shopping put",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/put_user_recipe",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Store/AccountDataResetService.swift (putRecipe)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"p_caller_generation\": {{generation}},\n  \"p_kind\": \"shopping\",\n  \"p_id\": \"postman-fixture-shopping\",\n  \"p_data\": {\n    \"name\": \"Synthetic rice\"\n  },\n  \"p_updated_at\": 10,\n  \"p_deleted\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload synthetic QA device result",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Prefer",
+                "value": "resolution=merge-duplicates,return=minimal"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/qa_results?on_conflict=user_id,build,item_id,source",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/BetaQA.swift (BetaQA.upload): untested synthetic transport fixture, intentionally not uploadable qualification evidence\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"user_id\": \"{{user_id}}\",\n    \"build\": \"{{qa_build}}\",\n    \"item_id\": \"A-SYNC-02\",\n    \"status\": \"untested\",\n    \"note\": \"Synthetic API fixture, not qualification\",\n    \"auto\": false,\n    \"source\": \"device\",\n    \"commit_sha\": \"postman-synthetic-not-evidence\",\n    \"run_id\": 1000000000,\n    \"run_number\": 1,\n    \"ts\": \"{{$isoTimestamp}}\"\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Destructive reset scenario - synthetic only",
+      "item": [
+        {
+          "name": "01 Capture snapshot before reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/account_data_snapshot",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "AccountDataResetService.snapshot\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "if (pm.environment.get(\"allow_account_reset\") !== \"I_ACCEPT_SYNTHETIC_ACCOUNT_ERASURE\") deny(\"Reset/account deletion is separately disabled\");",
+                  "if(!pm.variables.get(\"reset_request_id\"))pm.environment.set(\"reset_request_id\",pm.variables.replaceIn(\"{{$guid}}\"));",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Snapshot shape\",()=>{const j=pm.response.json();pm.expect(j.generation).to.be.a(\"number\").and.at.least(0);pm.expect(Number.isSafeInteger(j.generation)).to.equal(true);pm.expect(j.rows).to.be.an(\"array\");j.rows.forEach(r=>{pm.expect(r.user_id).to.equal(pm.variables.get(\"user_id\"));pm.expect(r).to.have.property(\"data\");pm.expect(r.deleted).to.be.a(\"boolean\");});}); if(pm.response.code===200)pm.environment.set(\"generation\",String(pm.response.json().generation));\nif(pm.response.code===200)pm.environment.set(\"old_generation\",String(pm.response.json().generation));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Clear synthetic account data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/clear_account_data",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "AccountDataResetService.clearAccount\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"request_id\":\"{{reset_request_id}}\",\"expected_generation\":{{old_generation}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "if (pm.environment.get(\"allow_account_reset\") !== \"I_ACCEPT_SYNTHETIC_ACCOUNT_ERASURE\") deny(\"Reset/account deletion is separately disabled\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"One increment\",()=>pm.expect(pm.response.json()).to.equal(Number(pm.variables.get(\"old_generation\"))+1));if(pm.response.code===200)pm.environment.set(\"generation\",String(pm.response.json()));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Retry SAME reset UUID and expected generation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/clear_account_data",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "clear_account_data idempotence\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"request_id\":\"{{reset_request_id}}\",\"expected_generation\":{{old_generation}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "if (pm.environment.get(\"allow_account_reset\") !== \"I_ACCEPT_SYNTHETIC_ACCOUNT_ERASURE\") deny(\"Reset/account deletion is separately disabled\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Same receipt\",()=>pm.expect(pm.response.json()).to.equal(Number(pm.variables.get(\"generation\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Put retained row at new generation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/put_user_recipe",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "put_user_recipe current epoch\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"p_caller_generation\":{{generation}},\"p_kind\":\"recipe\",\"p_id\":\"postman-retained\",\"p_data\":{\"title\":\"Synthetic retained\"},\"p_updated_at\":20,\"p_deleted\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "if (pm.environment.get(\"allow_account_reset\") !== \"I_ACCEPT_SYNTHETIC_ACCOUNT_ERASURE\") deny(\"Reset/account deletion is separately disabled\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Stale put must return PT409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/put_user_recipe",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "put_user_recipe stale epoch\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"p_caller_generation\":{{old_generation}},\"p_kind\":\"recipe\",\"p_id\":\"postman-retained\",\"p_data\":{\"title\":\"must not win\"},\"p_updated_at\":99,\"p_deleted\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "if (pm.environment.get(\"allow_account_reset\") !== \"I_ACCEPT_SYNTHETIC_ACCOUNT_ERASURE\") deny(\"Reset/account deletion is separately disabled\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Permanent conflict\",()=>pm.expect(pm.response.json().code).to.equal(\"PT409\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Different reset UUID with stale epoch must conflict",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/clear_account_data",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "clear_account_data stale expected epoch\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"request_id\":\"{{$guid}}\",\"expected_generation\":{{old_generation}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "if (pm.environment.get(\"allow_account_reset\") !== \"I_ACCEPT_SYNTHETIC_ACCOUNT_ERASURE\") deny(\"Reset/account deletion is separately disabled\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Permanent conflict\",()=>pm.expect(pm.response.json().code).to.equal(\"PT409\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Same UUID with wrong expected epoch must conflict",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/clear_account_data",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "clear_account_data wrong retry\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"request_id\":\"{{reset_request_id}}\",\"expected_generation\":{{generation}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "if (pm.environment.get(\"allow_account_reset\") !== \"I_ACCEPT_SYNTHETIC_ACCOUNT_ERASURE\") deny(\"Reset/account deletion is separately disabled\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Permanent conflict\",()=>pm.expect(pm.response.json().code).to.equal(\"PT409\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Verify no mutation after conflicts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/account_data_snapshot",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "account_data_snapshot conflict reconciliation\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"allow_account_reset\") !== \"I_ACCEPT_SYNTHETIC_ACCOUNT_ERASURE\") deny(\"Reset/account deletion is separately disabled\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Unchanged generation and retained row\",()=>{const j=pm.response.json();pm.expect(j.generation).to.equal(Number(pm.variables.get(\"generation\")));pm.expect(j.rows).to.have.length(1);pm.expect(j.rows[0].id).to.equal(\"postman-retained\");pm.expect(j.rows[0].updated_at).to.equal(20);pm.expect(j.rows[0].data.title).to.equal(\"Synthetic retained\");});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Anon denial",
+      "item": [
+        {
+          "name": "account_data_snapshot anon denied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{legacy_anon_jwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/account_data_snapshot",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "v6 authenticated-only EXECUTE; PostgREST anon42501\u2192HTTP401\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "const t=pm.environment.get(\"legacy_anon_jwt\"); if (!t || JSON.parse(atob(t.split(\".\")[1])).role !== \"anon\") deny(\"Anon denial requires role=anon JWT, never service_role\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Denied by SQL\",()=>pm.expect(pm.response.json().code).to.equal(\"42501\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "put_user_recipe anon denied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{legacy_anon_jwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/put_user_recipe",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "v6 authenticated-only EXECUTE; PostgREST anon42501\u2192HTTP401\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"p_caller_generation\": 0,\n  \"p_kind\": \"recipe\",\n  \"p_id\": \"denied\",\n  \"p_data\": {},\n  \"p_updated_at\": 1,\n  \"p_deleted\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "const t=pm.environment.get(\"legacy_anon_jwt\"); if (!t || JSON.parse(atob(t.split(\".\")[1])).role !== \"anon\") deny(\"Anon denial requires role=anon JWT, never service_role\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Denied by SQL\",()=>pm.expect(pm.response.json().code).to.equal(\"42501\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "clear_account_data anon denied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{legacy_anon_jwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/rest/v1/rpc/clear_account_data",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "v6 authenticated-only EXECUTE; PostgREST anon42501\u2192HTTP401\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"request_id\": \"00000000-0000-4000-8000-000000000001\",\n  \"expected_generation\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "const t=pm.environment.get(\"legacy_anon_jwt\"); if (!t || JSON.parse(atob(t.split(\".\")[1])).role !== \"anon\") deny(\"Anon denial requires role=anon JWT, never service_role\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Denied by SQL\",()=>pm.expect(pm.response.json().code).to.equal(\"42501\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 Edge functions",
+      "item": [
+        {
+          "name": "Publish synthetic shared recipe",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/publish-recipe",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/BackendService.swift (SupabaseBackend.publish); supabase/functions/publish-recipe\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card\": {\n    \"id\": \"postman-synthetic\",\n    \"title\": \"Synthetic pancakes\",\n    \"description\": \"API-only synthetic fixture\",\n    \"servings\": 2,\n    \"ingredients\": [\n      {\n        \"name\": \"flour\",\n        \"quantity\": 200,\n        \"unit\": \"g\"\n      }\n    ],\n    \"steps\": [\n      {\n        \"instruction\": \"Mix flour and water.\"\n      }\n    ],\n    \"tags\": []\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Slug\",()=>pm.expect(pm.response.json().slug).to.match(/^[a-z0-9]{4,40}$/i));if(pm.response.code===200)pm.environment.set(\"share_slug\",pm.response.json().slug);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read shared recipe (iPhone and Clip)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/get-shared-recipe?slug={{share_slug}}",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "SupabaseBackend.fetchShared; AteClip/SharedRecipeClient.swift\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Card envelope\",()=>pm.expect(pm.response.json().card).to.have.property(\"title\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Shared recipe invalid slug",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/get-shared-recipe?slug=!",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "supabase/functions/get-shared-recipe\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Error body\",()=>pm.expect(pm.response.json().error).to.equal(\"Invalid slug\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AI parse prompt (not implemented in repo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/parse-recipe",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "SupabaseBackend.parseRecipe; no supabase/functions/parse-recipe implementation. Currently unavailable; opt-in only after staging implementation exists.\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"prompt\",\n  \"text\": \"{{parse_text}}\",\n  \"imageDataUrl\": null,\n  \"currentRecipe\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "if(pm.environment.get(\"parse_deployed\")!==\"true\") deny(\"parse-recipe is not implemented in this repo\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Recipe response\",()=>pm.expect(pm.response.json().card || pm.response.json()).to.have.property(\"title\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AI parse url (not implemented in repo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/parse-recipe",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "SupabaseBackend.parseRecipe; no supabase/functions/parse-recipe implementation. Currently unavailable; opt-in only after staging implementation exists.\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"url\",\n  \"text\": \"{{recipe_page_url}}\",\n  \"imageDataUrl\": null,\n  \"currentRecipe\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "if(pm.environment.get(\"parse_deployed\")!==\"true\") deny(\"parse-recipe is not implemented in this repo\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Recipe response\",()=>pm.expect(pm.response.json().card || pm.response.json()).to.have.property(\"title\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AI parse image (not implemented in repo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/parse-recipe",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "SupabaseBackend.parseRecipe; no supabase/functions/parse-recipe implementation. Currently unavailable; opt-in only after staging implementation exists.\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"image\",\n  \"text\": \"{{parse_text}}\",\n  \"imageDataUrl\": \"{{synthetic_image_data_url}}\",\n  \"currentRecipe\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "if(pm.environment.get(\"parse_deployed\")!==\"true\") deny(\"parse-recipe is not implemented in this repo\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Recipe response\",()=>pm.expect(pm.response.json().card || pm.response.json()).to.have.property(\"title\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AI parse rewrite (not implemented in repo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/parse-recipe",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "SupabaseBackend.parseRecipe; no supabase/functions/parse-recipe implementation. Currently unavailable; opt-in only after staging implementation exists.\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"rewrite\",\n  \"text\": \"{{parse_text}}\",\n  \"imageDataUrl\": null,\n  \"currentRecipe\": {\n    \"id\": \"postman-synthetic\",\n    \"title\": \"Synthetic pancakes\",\n    \"description\": \"API-only synthetic fixture\",\n    \"servings\": 2,\n    \"ingredients\": [\n      {\n        \"name\": \"flour\",\n        \"quantity\": 200,\n        \"unit\": \"g\"\n      }\n    ],\n    \"steps\": [\n      {\n        \"instruction\": \"Mix flour and water.\"\n      }\n    ],\n    \"tags\": []\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "if(pm.environment.get(\"parse_deployed\")!==\"true\") deny(\"parse-recipe is not implemented in this repo\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Recipe response\",()=>pm.expect(pm.response.json().card || pm.response.json()).to.have.property(\"title\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send category-only synthetic telemetry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/telemetry",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/TelemetryClient.swift; supabase/functions/telemetry\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"QA\",\n  \"appVersion\": \"0.0.0\",\n  \"buildNumber\": \"postman\",\n  \"gitSHA\": \"postman\",\n  \"events\": [\n    {\n      \"kind\": \"appLaunched\",\n      \"timestamp\": {{timestamp_ms}}\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "pm.environment.set(\"timestamp_ms\",Date.now());",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", () => pm.response.to.have.status(202));",
+                  "pm.test(\"One accepted\",()=>pm.expect(pm.response.json().accepted).to.equal(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send synthetic beta feedback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/beta-feedback",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/BetaFeedbackService.swift; supabase/functions/beta-feedback\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"general\",\n  \"message\": \"Synthetic staging API check only\",\n  \"contactEmail\": null,\n  \"channel\": \"QA\",\n  \"appVersion\": \"0.0.0\",\n  \"buildNumber\": \"postman\",\n  \"gitSHA\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", () => pm.response.to.have.status(202));",
+                  "pm.test(\"Accepted\",()=>pm.expect(pm.response.json().accepted).to.equal(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Shared recipe POST alternate server contract",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/get-shared-recipe",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "supabase/functions/get-shared-recipe/index.ts, alternate supported method (not called by app)\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"{{share_slug}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Card envelope\",()=>pm.expect(pm.response.json().card).to.have.property(\"title\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 Account deletion - LAST and separate",
+      "item": [
+        {
+          "name": "Delete synthetic test account (including shared recipes)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/delete-account",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Ate/Services/Auth.swift (deleteAccount); supabase/functions/delete-account\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "if (!pm.variables.get(\"access_token\") || !pm.variables.get(\"user_id\") || pm.environment.get(\"synthetic_account_confirmed\") !== \"true\") deny(\"Use a confirmed synthetic staging account only\");",
+                  "if (pm.environment.get(\"synthetic_account_confirmed\") !== \"true\" || pm.environment.get(\"allow_mutations\") !== \"true\") deny(\"Mutations are off; explicitly enable for staging synthetic data\");",
+                  "if (pm.environment.get(\"allow_account_reset\") !== \"I_ACCEPT_SYNTHETIC_ACCOUNT_ERASURE\") deny(\"Reset/account deletion is separately disabled\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Deleted synthetic account\",()=>pm.expect(pm.response.json().deleted).to.equal(true));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 External optional - no auth headers",
+      "item": [
+        {
+          "name": "Import recipe HTML",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html,application/xhtml+xml"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 ate/1.0"
+              }
+            ],
+            "url": "{{recipe_page_url}}",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "OnDeviceBackend.fetchHTML\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "if (u.protocol !== \"https:\" || u.hostname !== pm.environment.get(\"approved_external_host\")) deny(\"Approve this external HTTPS host locally first\");",
+                  "if (pm.request.headers.has(\"Authorization\") || pm.request.headers.has(\"apikey\")) deny(\"Never forward Supabase credentials to external hosts\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nonempty response\",()=>pm.expect(pm.response.text().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Social caption HTML",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html,application/json;q=0.9,*/*;q=0.8"
+              },
+              {
+                "key": "User-Agent",
+                "value": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "en-US,en;q=0.9"
+              }
+            ],
+            "url": "{{social_page_url}}",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "OnDeviceBackend.fetchSocialCaption\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "if (u.protocol !== \"https:\" || u.hostname !== pm.environment.get(\"approved_external_host\")) deny(\"Approve this external HTTPS host locally first\");",
+                  "if (pm.request.headers.has(\"Authorization\") || pm.request.headers.has(\"apikey\")) deny(\"Never forward Supabase credentials to external hosts\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nonempty response\",()=>pm.expect(pm.response.text().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cover source page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
+            "url": "{{cover_page_url}}",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "CoverStore.findPageImage\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "if (u.protocol !== \"https:\" || u.hostname !== pm.environment.get(\"approved_external_host\")) deny(\"Approve this external HTTPS host locally first\");",
+                  "if (pm.request.headers.has(\"Authorization\") || pm.request.headers.has(\"apikey\")) deny(\"Never forward Supabase credentials to external hosts\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nonempty response\",()=>pm.expect(pm.response.text().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cover image bytes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "image/*"
+              }
+            ],
+            "url": "{{cover_image_url}}",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "CoverStore.download\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "if (u.protocol !== \"https:\" || u.hostname !== pm.environment.get(\"approved_external_host\")) deny(\"Approve this external HTTPS host locally first\");",
+                  "if (pm.request.headers.has(\"Authorization\") || pm.request.headers.has(\"apikey\")) deny(\"Never forward Supabase credentials to external hosts\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nonempty response\",()=>pm.expect(pm.response.text().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TikTok oEmbed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "https://www.tiktok.com/oembed?url={{encoded_social_url}}",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "SocialLinks.oEmbedURL; CoverStore.findPageImage\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "if (u.protocol !== \"https:\" || u.hostname !== pm.environment.get(\"approved_external_host\")) deny(\"Approve this external HTTPS host locally first\");",
+                  "if (pm.request.headers.has(\"Authorization\") || pm.request.headers.has(\"apikey\")) deny(\"Never forward Supabase credentials to external hosts\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nonempty response\",()=>pm.expect(pm.response.text().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "YouTube oEmbed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "https://www.youtube.com/oembed?format=json&url={{encoded_social_url}}",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "SocialLinks.oEmbedURL; CoverStore.findPageImage\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "if (u.protocol !== \"https:\" || u.hostname !== pm.environment.get(\"approved_external_host\")) deny(\"Approve this external HTTPS host locally first\");",
+                  "if (pm.request.headers.has(\"Authorization\") || pm.request.headers.has(\"apikey\")) deny(\"Never forward Supabase credentials to external hosts\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nonempty response\",()=>pm.expect(pm.response.text().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Privacy page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
+            "url": "{{privacy_url}}",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "AuthSheet LegalWebView; AppConfig.privacyURL\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "if (u.protocol !== \"https:\" || u.hostname !== pm.environment.get(\"approved_external_host\")) deny(\"Approve this external HTTPS host locally first\");",
+                  "if (pm.request.headers.has(\"Authorization\") || pm.request.headers.has(\"apikey\")) deny(\"Never forward Supabase credentials to external hosts\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nonempty response\",()=>pm.expect(pm.response.text().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Terms page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
+            "url": "{{terms_url}}",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "AuthSheet LegalWebView; AppConfig.termsURL\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "if (u.protocol !== \"https:\" || u.hostname !== pm.environment.get(\"approved_external_host\")) deny(\"Approve this external HTTPS host locally first\");",
+                  "if (pm.request.headers.has(\"Authorization\") || pm.request.headers.has(\"apikey\")) deny(\"Never forward Supabase credentials to external hosts\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nonempty response\",()=>pm.expect(pm.response.text().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Share landing page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
+            "url": "{{share_page_url}}",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "ShareLinks.defaultTemplate; external browser share handoff\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "if (u.protocol !== \"https:\" || u.hostname !== pm.environment.get(\"approved_external_host\")) deny(\"Approve this external HTTPS host locally first\");",
+                  "if (pm.request.headers.has(\"Authorization\") || pm.request.headers.has(\"apikey\")) deny(\"Never forward Supabase credentials to external hosts\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nonempty response\",()=>pm.expect(pm.response.text().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "09 Edge CORS protocol",
+      "item": [
+        {
+          "name": "OPTIONS publish-recipe",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Origin",
+                "value": "https://fixture.invalid"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "POST"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/publish-recipe",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "supabase/functions/publish-recipe/index.ts CORS preflight\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"CORS methods\",()=>pm.expect(pm.response.headers.get(\"Access-Control-Allow-Methods\")).to.include(\"POST\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OPTIONS get-shared-recipe",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Origin",
+                "value": "https://fixture.invalid"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "POST"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/get-shared-recipe",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "supabase/functions/get-shared-recipe/index.ts CORS preflight\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"CORS methods\",()=>pm.expect(pm.response.headers.get(\"Access-Control-Allow-Methods\")).to.include(\"POST\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OPTIONS delete-account",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Origin",
+                "value": "https://fixture.invalid"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "POST"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/delete-account",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "supabase/functions/delete-account/index.ts CORS preflight\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"CORS methods\",()=>pm.expect(pm.response.headers.get(\"Access-Control-Allow-Methods\")).to.include(\"POST\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OPTIONS telemetry",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Origin",
+                "value": "https://fixture.invalid"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "POST"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/telemetry",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "supabase/functions/telemetry/index.ts CORS preflight\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"CORS methods\",()=>pm.expect(pm.response.headers.get(\"Access-Control-Allow-Methods\")).to.include(\"POST\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OPTIONS beta-feedback",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{anon_key}}"
+              },
+              {
+                "key": "Origin",
+                "value": "https://fixture.invalid"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "POST"
+              }
+            ],
+            "url": "{{supabase_url}}/functions/v1/beta-feedback",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "supabase/functions/beta-feedback/index.ts CORS preflight\nExpected status is strict, not an allowed error range. Templates never establish live deployment availability."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function deny(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  "try {",
+                  "const URL = require(\"url\").URL;",
+                  "const u = new URL(pm.variables.replaceIn(pm.request.url.toString()));",
+                  "const base = new URL(pm.environment.get(\"supabase_url\"));",
+                  "if (pm.environment.get(\"target_environment\") !== \"staging\" || u.protocol !== \"https:\" || u.origin !== base.origin || u.hostname !== pm.environment.get(\"approved_staging_host\") || u.hostname.endsWith(\".invalid\")) deny(\"Only the explicitly approved staging project is allowed\");",
+                  "const key=pm.environment.get(\"anon_key\"); if(key && key.split(\".\").length===3 && JSON.parse(atob(key.split(\".\")[1])).role!==\"anon\") deny(\"JWT API key must be anon, never privileged\");",
+                  "if (!pm.environment.get(\"anon_key\") || pm.environment.get(\"anon_key\").startsWith(\"sb_secret_\")) deny(\"Supply staging anon/publishable key locally\");",
+                  "} catch (e) { pm.execution.skipRequest(); throw e; }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"CORS methods\",()=>pm.expect(pm.response.headers.get(\"Access-Control-Allow-Methods\")).to.include(\"POST\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

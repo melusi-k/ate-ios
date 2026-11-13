@@ -83,3 +83,71 @@ final class GenerationFencedSync {
         }
     }
 }
+
+/// Retained pull/merge/push cycle for the admitted graph. No direct-table fallback.
+/// Completion/abandonment clears the capture, never promotes it to a new epoch.
+@MainActor
+final class GenerationFencedSyncService: SyncService {
+    enum CycleError: Swift.Error { case concurrentCycle, missingPull, sessionChanged, receiptChanged, blocked }
+    private let adapter: GenerationFencedSync
+    private let receipt: () throws -> AccountGenerationPolicy.Receipt?
+    private let invalidateWriters: () throws -> Void
+    private var pending: (AuthSession, GenerationFencedSync.Capture)?
+    private var inFlight = false
+    private(set) var conflict: AccountGenerationConflictState?
+
+    init(adapter: GenerationFencedSync,
+         receipt: @escaping () throws -> AccountGenerationPolicy.Receipt?,
+         invalidateWriters: @escaping () throws -> Void) {
+        self.adapter = adapter; self.receipt = receipt; self.invalidateWriters = invalidateWriters
+    }
+
+    private func validate(_ capture: GenerationFencedSync.Capture, session: AuthSession) throws {
+        guard capture.ownerID == session.userID,
+              let local = try receipt(), local.ownerID == session.userID,
+              local.generation == capture.generation else { throw CycleError.receiptChanged }
+    }
+    private func block() throws {
+        pending = nil
+        conflict = .staleLocalData
+        // Existing graph writers immediately fail their original lease. Do not fetch
+        // another lease or epoch here; activation host must keep this graph closed.
+        try invalidateWriters()
+    }
+    func abandonCycle() { pending = nil }
+
+    func pull(session: AuthSession) async throws -> [SyncRecord] {
+        guard conflict == nil else { throw CycleError.blocked }
+        guard !inFlight, pending == nil else { throw CycleError.concurrentCycle }
+        inFlight = true
+        defer { inFlight = false }
+        do {
+            let snapshot = try await adapter.snapshot()
+            try validate(snapshot.capture, session: session)
+            pending = (session, snapshot.capture)
+            return snapshot.rows
+        } catch ResetRPCError.staleGeneration {
+            try block(); throw ResetRPCError.staleGeneration
+        } catch CycleError.receiptChanged {
+            try block(); throw ResetRPCError.staleGeneration
+        }
+    }
+    func push(_ records: [SyncRecord], session: AuthSession) async throws {
+        guard conflict == nil else { throw CycleError.blocked }
+        guard !inFlight else { throw CycleError.concurrentCycle }
+        guard let (originalSession, capture) = pending else { throw CycleError.missingPull }
+        pending = nil // consumed even on a partial response; no implicit replay
+        guard session == originalSession else { throw CycleError.sessionChanged }
+        inFlight = true
+        defer { inFlight = false }
+        do {
+            try validate(capture, session: session)
+            try await adapter.push(records, capture: capture)
+            try validate(capture, session: session)
+        } catch ResetRPCError.staleGeneration {
+            try block(); throw ResetRPCError.staleGeneration
+        } catch CycleError.receiptChanged {
+            try block(); throw ResetRPCError.staleGeneration
+        }
+    }
+}

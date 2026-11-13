@@ -1,0 +1,34 @@
+"""Keep the dormant binding seam from becoming an alternate destructive open path."""
+from pathlib import Path
+import unittest
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+class FoodJournalRuntimeFactoryGuardTests(unittest.TestCase):
+    def test_factory_stays_dormant_and_no_fallback_maintenance_or_shared_domains(self):
+        source = (ROOT / 'Ate/Store/FoodJournalRuntimeFactory.swift').read_text()
+        for forbidden in ['StoreRecovery', '.shared', 'UserDefaults.standard', '= .standard', '.legacy', 'save()', 'removeItem',
+                          'migrateIfNeeded', 'JournalStore()', 'ModelContainer(for:', 'seedMomentEntry',
+                          'removeImagePromptEntriesOnce']:
+            self.assertNotIn(forbidden, source)
+        calls = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name != 'FoodJournalRuntimeFactory.swift'
+                 and 'FoodJournalRuntimeFactory' in p.read_text()]
+        self.assertEqual(calls, [])
+
+    def test_factory_checks_storage_and_schema_before_building_runtime(self):
+        source = (ROOT / 'Ate/Store/FoodJournalRuntimeFactory.swift').read_text()
+        checks = ['openState == .ok', '!$0.isStoredInMemoryOnly', '$0.allowsSave',
+                  'required.isSubset', '!container.mainContext.hasChanges',
+                  'bindings.goals.defaults === bindings.defaults', 'paths.allSatisfy',
+                  'FoodJournalStore(container: container).readMeals()', 'journal.readReflections()']
+        for check in checks:
+            self.assertIn(check, source)
+            self.assertLess(source.index(check), source.index('return FoodJournalRuntime('))
+
+    def test_runtime_cooking_history_uses_the_same_admission_boundary(self):
+        source = (ROOT / 'Ate/Store/FoodJournalRuntime.swift').read_text()
+        self.assertIn('CookingHistory(defaults: defaults, writerBoundary: writerBoundary)', source)
+        history = (ROOT / 'Ate/Logic/CookingHistory.swift').read_text()
+        self.assertEqual(history.count('writerBoundary.withEffect'), 3)
+        self.assertIn('try recordHeld(recipeID: recipeID, date: date, dayKey: dayKey)', history)

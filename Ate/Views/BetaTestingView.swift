@@ -52,7 +52,7 @@ struct BetaTestingView: View {
                     Text(HealthDiagnostics.line).font(AteFont.body(13)).foregroundStyle(Theme.foreground)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }.buttonStyle(.plain).accessibilityIdentifier("beta.healthDiagnostics")
-                .onChange(of: healthScenario) { _, v in Task { await InsightsModel.shared.useScenario(v, recipes: store.recipes) } }
+                .onChange(of: healthScenario) { _, v in Task { await store.insightsModel.useScenario(v, recipes: store.recipes) } }
                 NavigationLink { InsightsView() } label: { Label("Open Insights & journal", systemImage: "heart.text.square") }
                     .accessibilityIdentifier("beta.openInsights")
                 Text("Checks H-01…H-08: connect, state title, 3 meal ideas, prompts, save to journal, denied/unavailable/no-entitlement copy. Mock data never touches Apple Health.")

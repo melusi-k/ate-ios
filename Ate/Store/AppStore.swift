@@ -225,8 +225,12 @@ final class AppStore {
         do {
             if cookedReflectionSessions[event.id] == nil {
                 guard try cookJournalOutbox.load().contains(event) else { throw CookedJournalReflectionError.invalidContext }
-                cookedReflectionSessions[event.id] = CookedJournalReflectionSession(event: event,
-                    reflections: CookedJournalReflectionStore(journal: cookJournalStore), outbox: cookJournalOutbox)
+                if let runtime = foodJournalRuntime {
+                    cookedReflectionSessions[event.id] = try runtime.reflectionSession(for: event.id)
+                } else {
+                    cookedReflectionSessions[event.id] = CookedJournalReflectionSession(event: event,
+                        reflections: CookedJournalReflectionStore(journal: cookJournalStore), outbox: cookJournalOutbox)
+                }
             }
             cookedReflectionPendingID = event.id
         } catch { show("Ate could not open the note for this cook. The saved cook list was not changed.", error: true) }

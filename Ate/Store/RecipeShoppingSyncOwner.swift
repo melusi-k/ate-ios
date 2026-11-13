@@ -158,25 +158,31 @@ final class RecipeShoppingSyncOwner: SyncService {
     /// App shared adapter after strict resources replay and raw verification. This
     /// is NOT initial install/replacement; final graph owns that explicit step.
     func makeSharedWriterBoundary(resources: RecipeShoppingAdmittedResources) throws -> SharedWriterBoundary {
-        try withAdmittedWriterEffect {
-            guard resources.binding.owner === self, resources.binding.session == session else { throw Refusal.sessionChanged }
-            let control = try RecipeShoppingSharedWriterControl(directory: controlDirectory)
-            try resources.binding.journal.requireDirectory(control.commitDirectory)
-            let inventory = RecipeShoppingRawInventory(image: try UnifiedArchiveImportBinding.snapshotRecipeShopping(resources.container),
-                metadataBytes: resources.binding.defaults.data(forKey: "ate.sync.v1"))
-            _ = try inventory.validate(ownerID: session.userID)
-            try control.publishReady(epoch: lease)
-            return SharedWriterBoundary { work in
-                // Shared types are synchronous/nonisolated. App callers must hop
-                // to MainActor; background misuse refuses instead of actor-crashing.
-                guard Thread.isMainThread else { throw SharedWriterBoundary.Failure.effectNotPerformed }
-                try MainActor.assumeIsolated {
-                    try self.withAdmittedWriterEffect {
-                        try control.requireReady(epoch: self.lease)
-                        try work()
+        try gate.requireNoActiveWriterEffect()
+        do {
+            return try withAdmittedWriterEffect {
+                guard resources.binding.owner === self, resources.binding.session == session else { throw Refusal.sessionChanged }
+                let control = try RecipeShoppingSharedWriterControl(directory: controlDirectory)
+                try resources.binding.journal.requireDirectory(control.commitDirectory)
+                let inventory = RecipeShoppingRawInventory(image: try UnifiedArchiveImportBinding.snapshotRecipeShopping(resources.container),
+                    metadataBytes: resources.binding.defaults.data(forKey: "ate.sync.v1"))
+                _ = try inventory.validate(ownerID: session.userID)
+                try control.publishReady(epoch: lease)
+                return SharedWriterBoundary { work in
+                    guard Thread.isMainThread else { throw SharedWriterBoundary.Failure.effectNotPerformed }
+                    try MainActor.assumeIsolated {
+                        try self.withAdmittedWriterEffect {
+                            try control.requireReady(epoch: self.lease)
+                            try work()
+                        }
                     }
                 }
             }
+        } catch {
+            // Post-rename marker failure must not retain a writable ready epoch.
+            // A failed rotation propagates, never a cross-process success claim.
+            try retireForSessionTransition()
+            throw error
         }
     }
 

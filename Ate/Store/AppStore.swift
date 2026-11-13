@@ -1680,6 +1680,19 @@ final class AppStore {
         trackerPath = [.insights]
     }
 
+    /// Typed destinations do not depend on Settings already being mounted to
+    /// observe a transient boolean. Replace old paths so repeated opens are one push.
+    func openInsightFoodDiary() {
+        showNutritionDiary = false
+        settingsPath = [.nutritionDiary]
+        select(.settings)
+    }
+
+    func openInsightShoppingList() {
+        shoppingPath = []
+        select(.shopping)
+    }
+
     func handle(url: URL) {
         if url.scheme == "ate", url.host == "import" { checkInbox(); return }
         if url.scheme == "ate", url.host == "open", url.pathComponents.filter({ $0 != "/" }).isEmpty { return }   // "Open ate" placeholder

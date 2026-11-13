@@ -35,7 +35,13 @@ struct AteApp: App {
         container = c
         #if DEBUG
         let upgradeRuntime = CanonicalUpgradeQARoute.prepareIfRequested()
-        let st = AppStore(context: c?.mainContext, foodJournalRuntime: upgradeRuntime ?? CookJournalQARoute.runtime())
+        let st = AppStore(context: c?.mainContext,
+                          nutritionDiaryRepository: InsightDestinationQAFixtures.repository(),
+                          foodJournalRuntime: upgradeRuntime ?? CookJournalQARoute.runtime())
+        if InsightDestinationQAFixtures.requested {
+            precondition(st.foodJournalRuntime == nil, "Legacy Insights QA fixture cannot mix with canonical runtime")
+            st.shopping = InsightDestinationQAFixtures.shopping()
+        }
         CookJournalQARoute.prepare(st)
         #else
         let st = AppStore(context: c?.mainContext)
@@ -104,7 +110,7 @@ struct TimerBarInset: ViewModifier {
         content.safeAreaInset(edge: .bottom, spacing: 0) {
             // iOS 26: at tab roots the timer lives in the tab bar's bottom accessory, so the inset only shows on pushed screens.
             if store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot) {
-                Group {
+                VStack(spacing: 0) {
                     if let session = store.cookSession { CookSessionMiniPlayer(session: session) }
                     if !store.timers.timers.isEmpty { TimerBar() }
                 }
@@ -513,7 +519,11 @@ struct RouteView: View {
                                                goalsRepository: runtime.goalsRepository,
                                                repair: runtime.repair, associationStore: nil)
                 } else {
+#if DEBUG
+                    NutritionDiaryView(repository: InsightDestinationQAFixtures.repository(prepare: false))
+#else
                     NutritionDiaryView()
+#endif
                 }
             case .nutritionGoals: NutritionGoalsView(repository: store.journalGoalsRepository)
             }

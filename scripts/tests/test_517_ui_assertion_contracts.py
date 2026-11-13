@@ -16,7 +16,9 @@ class UIAssertionContractTests(unittest.TestCase):
     def test_header_reveal_retains_strict_journal_tab_and_header_assertions(self):
         source = (ROOT / 'AteUITests/CoverageUITests.swift').read_text()
         method = source.split('func testNavigationHeadersRemainStableOnShoppingAndSettings()', 1)[1]
-        self.assertLess(method.index('settingsContent().swipeDown()'), method.index('tab("Journal")'))
+        self.assertLess(method.index('settingsTab.tap()'), method.index('tab("Journal")'))
+        self.assertIn('XCTAssertTrue(settingsTab.isHittable', method)
+        self.assertEqual(method.count('settingsTab.tap()'), 1)
         for text in ['Journal must have one navigation header', 'Scrolling Journal must not introduce a duplicate header',
                      'Journal New entry must stay reachable after scrolling']:
             self.assertIn(text, method)

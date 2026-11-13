@@ -22,8 +22,30 @@ class UnitLaneRoutingTests(unittest.TestCase):
         names = json.loads((ROOT / 'docs/unit-named-pass-ledger.json').read_text())
         self.assertEqual(len(names), 25)
         expected = [name.removesuffix("]' passed").replace(' ', '/') for name in names]
+        additions = ['JournalReflectionConsumerTests/testStableIdentityDeleteAfterEditVerifiesCommittedAbsenceAndPreservesSibling', 'JournalReflectionConsumerTests/testStableIdentityDeleteRejectsUncommittedWriterThenExplicitRetrySucceeds', 'JournalReflectionConsumerTests/testStableIdentityDeleteCannotRemoveUnknownKindOrMissingID', 'SystemCleanupCompletionTests/testImmediateVerifiedSuccessAndFailureArePreserved', 'SystemCleanupCompletionTests/testDuplicateAndLateCallbacksCannotResumeTwice', 'SystemCleanupCompletionTests/testNeverReturningServiceReleasesWaitAsUnverified', 'SystemCleanupCompletionTests/testLateSuccessAfterDeadlineStaysUnverified', 'SystemCleanupCompletionTests/testCancellationReleasesUncooperativeWaitAndIgnoresLateReply', 'SystemCleanupCompletionTests/testAlreadyCancelledWaitDoesNotStartService', 'SystemCleanupCompletionTests/testInvalidDeadlineDoesNotStartService', 'SystemCleanupCompletionTests/testCleanupMissingSpotlightCallbackReportsSurfaceWithoutDiscardingSnapshotAssertions', 'CookPlanNotificationTests/testDeniedPermissionCannotClaimReconciledWhenOldReminderRemovalFails', 'CookPlanNotificationTests/testDeletedRecipeReminderRemovalMustVerifyBeforeOtherReminderAdds']
+        additions += ['JournalDeleteConfirmationTests/testNativeAlertHasExactlyTwoDistinctActionsWithOriginalCopyAndRoles', 'JournalDeleteConfirmationTests/testDistinctConfirmationsDoNotShareNativeActions', 'JournalDeleteConfirmationHostTests/testUpdateAndAppearDuringDismissKeepIdentityAndConsumeDeleteOnce', 'JournalDeleteConfirmationHostTests/testFalseTransitionInvalidatesPendingDeleteEvenIfTrueReturns', 'JournalDeleteConfirmationHostTests/testRetireDuringDismissInvalidatesLateCompletionAndNewUpdates', 'JournalDeleteConfirmationHostTests/testDetachDuringDismissInvalidatesLateCompletionAfterReattachment', 'JournalDeleteConfirmationHostTests/testCancelInvalidatesImmediatelyAndReopenUsesNewIdentity']
         root_regressions = ['GeneratedTotalTimeTests/testLegacyPhotoTotalKeepsBoundedPrepGapWithoutInventingPrepNote', 'SystemCleanupCompletionTests/testImmediateVerifiedSuccessAndFailureArePreserved', 'SystemCleanupCompletionTests/testDuplicateAndLateCallbacksCannotResumeTwice', 'SystemCleanupCompletionTests/testNeverReturningServiceReleasesWaitAsUnverified', 'SystemCleanupCompletionTests/testLateSuccessAfterDeadlineStaysUnverified', 'SystemCleanupCompletionTests/testCancellationReleasesUncooperativeWaitAndIgnoresLateReply', 'SystemCleanupCompletionTests/testAlreadyCancelledWaitDoesNotStartService', 'SystemCleanupCompletionTests/testInvalidDeadlineDoesNotStartService', 'SystemCleanupCompletionTests/testCleanupMissingSpotlightCallbackReportsSurfaceWithoutDiscardingSnapshotAssertions']
-        self.assertEqual((ROOT / 'scripts/full-unit-required.txt').read_text().splitlines(), expected + root_regressions)
+        root_regressions += ['ProductUpdatesTests/testEmptyAndOneReleaseWithZeroOrOneSlide', 'ProductUpdatesTests/testManyReleaseOrderingChannelAndFutureBuildFiltering', 'ProductUpdatesTests/testInvalidSchemaDuplicateReleaseChannelBuildAndCopyRefuse', 'ProductUpdatesTests/testDuplicateSlidesAndMoreThanFiveRefuseButMissingAssetDoesNotDropText', 'InsightsRefreshOwnershipTests/testLateOlderSummaryCannotReplaceNewContextOrWidgetState', 'InsightsRefreshOwnershipTests/testLatePromptCannotPublishAndOldDeferCannotStopNewLoading', 'InsightsRefreshOwnershipTests/testAccessLossAndCancellationDoNotPublishSuspendedSummary', 'InsightsRefreshOwnershipTests/testAccessLostDuringWordingAndNewEmptyEvidenceClearWithoutPublishing', 'CookingMonthSummaryTests/testCountsDaysAndDistinctRecipeIDsNotMealsOrRepeatedCooks', 'CookingMonthSummaryTests/testMonthYearAndLeapBoundariesDoNotCountMalformedOrEmptyDays', 'CookingMonthSummaryTests/testStoredLocalDayMonthStableAcrossTimeZonesAndEmptyHistoryExplicit', 'InsightDestinationQAFixturesTests/testSyntheticRecordsProduceRealShoppingAndDiaryCandidatesWithoutNutrientClaims']
+        root_regressions += ['InsightDestinationRoutingTests/testDiaryUsesOneTypedRouteWithoutSettingsObserverAndReplacesStalePath', 'InsightDestinationRoutingTests/testShoppingOpensRootAndDoesNotChangeDiaryOrJournalPaths']
+        generation = [
+            'DraftGenerationAttemptTests/testDiscardSuppressesLateDraftPreviewErrorAndFinishEvenWhenBackendIgnoresCancellation',
+            'DraftGenerationAttemptTests/testDisappearKeepsRetryInputButLateResultCannotReplaceIt',
+            'DraftGenerationAttemptTests/testDuplicateStartRefusesAndOldCompletionCannotAdmitEffectsDuringNewAttempt',
+            'DraftGenerationAttemptTests/testSpreadChildCannotWriteLibraryAfterInvalidation',
+        ]
+        inputs = ['DraftInputAttemptTests/testLaterPhotoSelectionWinsEvenWhenOldLoaderIgnoresCancellation', 'DraftInputAttemptTests/testDiscardSaveOrDisappearInvalidationRefusesLateInput', 'DraftInputAttemptTests/testCoverSelectionCannotWriteDifferentRegeneratedDraft']
+        # Both parents' named requirements remain independently explicit. Only
+        # shared entries are deduplicated; neither side can silently replace the other.
+        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs))
+        actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()
+        self.assertEqual(actual, union)
+        self.assertEqual(len(actual), len(set(actual)), "Required native names must be unique")
+        for required in expected + additions:
+            self.assertIn(required, actual, "PR branch requirement must survive main merge")
+        for required in expected + root_regressions:
+            self.assertIn(required, actual, "Main requirement must survive PR merge")
+        for required in expected + generation + inputs:
+            self.assertIn(required, actual, "Generation requirement must survive bundle fold")
         self.assertIn('xcrun xcresulttool get test-results tests --path', self.full)
         self.assertIn('python3 scripts/verify-full-unit-required.py full-unit-tests.json scripts/full-unit-required.txt', self.full)
 

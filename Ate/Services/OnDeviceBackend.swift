@@ -14,11 +14,14 @@ final class OnDeviceBackend: BackendService {
     let sharing: BackendService
     private let loadPageHTML: (String) async throws -> String
     private let modelAvailable: () -> Bool
+    private let readImageText: (String) async throws -> String
     init(fallback: BackendService, sharing: BackendService? = nil,
          loadPageHTML: @escaping (String) async throws -> String = OnDeviceBackend.fetchHTML,
-         modelAvailable: @escaping () -> Bool = { OnDeviceBackend.isModelAvailable }) {
+         modelAvailable: @escaping () -> Bool = { OnDeviceBackend.isModelAvailable },
+         readImageText: @escaping (String) async throws -> String = { try await OnDeviceBackend.ocr(dataURL: $0) }) {
         self.fallback = fallback; self.sharing = sharing ?? fallback
         self.loadPageHTML = loadPageHTML; self.modelAvailable = modelAvailable
+        self.readImageText = readImageText
     }
 
     static var isModelAvailable: Bool {
@@ -56,6 +59,11 @@ final class OnDeviceBackend: BackendService {
     }
 
     private func parseRecipeResult(_ request: ParseRequest) async throws -> RecipeCard {
+        if request.mode == .rewrite, request.repairQuality != true,
+           let original = request.currentRecipe,
+           RecipeRewriteScope.noOpMessage(for: original, request: request.text ?? "") != nil {
+            return original
+        }
         // Links: structured schema.org/Recipe data first (no AI needed), then the model.
         try Task.checkCancellation()
         if request.mode == .url { _ = try Self.recipeURL(request.text ?? "") }
@@ -84,6 +92,18 @@ final class OnDeviceBackend: BackendService {
                 return RecipeLogic.normalize(card)
             }
         }
+        // OCR source imports bypass both the creative model and Demo fallback.
+        // A dish hint cannot turn a detected recipe screenshot into a photo guess.
+        var imageText: String?
+        if request.mode == .image {
+            let text = try await readImageText(request.imageDataUrl ?? "")
+            try GenerationCancellation.check()
+            try SourceRecipeFidelity.rejectUngroundedText(text)
+            imageText = text
+            if PhotoGuess.isScreenshotText(text) {
+                return try ScreenshotRecipeImport.card(from: text)
+            }
+        }
         try Task.checkCancellation()
         guard modelAvailable() else {
             if SourceRecipeFidelity.inlineCaption(socialCaption ?? request.text ?? "") != nil {
@@ -91,6 +111,9 @@ final class OnDeviceBackend: BackendService {
             }
             let card = try await fallback.parseRecipe(request)
             try GenerationCancellation.check()
+            if request.mode == .rewrite, request.repairQuality != true, let original = request.currentRecipe {
+                return try RecipeRewriteScope.accept(card, original: original, request: request.text ?? "")
+            }
             return card
         }
         var source: RecipeSource = .appleIntelligence
@@ -132,7 +155,7 @@ final class OnDeviceBackend: BackendService {
             prompt = RecipePrompt.page(page); input = .link
             contextSource = page; sourceIsLongForm = true
         case .image:
-            let text = try await Self.ocr(dataURL: request.imageDataUrl ?? "")
+            let text = imageText ?? ""
             try SourceRecipeFidelity.rejectUngroundedText(text)
             photoOCR = text
             let hint = (request.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -180,7 +203,8 @@ final class OnDeviceBackend: BackendService {
         }
         let ctx = RecipePrompt.context(userText: contextUser, sourceText: contextSource, sourceIsLongForm: sourceIsLongForm)
         var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx,
-                                           emitPreview: fidelity == nil)
+                                           emitPreview: fidelity == nil,
+                                           reuseSession: request.mode != .rewrite || request.repairQuality == true)
         // Never show a confident recipe for an object the camera saw instead of food.
         // Send the user back through the dish question so the next pass is grounded by a human label.
         // The structured card defaults to .manual; quality guards need the actual
@@ -226,6 +250,7 @@ final class OnDeviceBackend: BackendService {
             let extra = PhotoGuess.suggestions(labels: visionLabels, ocrText: "")
             var seen = Set([card.title.lowercased()])
             card.aiAlternatives = ((card.aiAlternatives ?? []) + extra).filter { seen.insert($0.lowercased()).inserted }
+            card.aiNote = [card.aiNote, PhotoGuess.plateLimitNote].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n\n")
         }
         if let r = reviseID { await Self.rekeySession(from: card.id, to: r) }
         card.source = source; card.generatedAt = Date().timeIntervalSince1970 * 1000
@@ -238,6 +263,9 @@ final class OnDeviceBackend: BackendService {
         var normalized = RecipeLogic.normalize(card)
         if request.repairQuality == true, let original = request.currentRecipe {
             normalized = try RecipeDraftRepair.accept(normalized, replacing: original)
+        }
+        if request.mode == .rewrite, request.repairQuality != true, let original = request.currentRecipe {
+            normalized = try RecipeRewriteScope.accept(normalized, original: original, request: request.text ?? "")
         }
         if let fidelity, !fidelity.issues(normalized).isEmpty {
             // Never present an altered extraction as a 95%-confidence recipe or
@@ -302,14 +330,14 @@ final class OnDeviceBackend: BackendService {
     @MainActor
     static func generate(_ prompt: String, input: RecipePrompt.Input = .prompt, photoDataURL: String? = nil,
                          reviseID: String? = nil, context: RecipePrompt.Context = .init(),
-                         emitPreview: Bool = true) async throws -> RecipeCard {
+                         emitPreview: Bool = true, reuseSession: Bool = true) async throws -> RecipeCard {
         try GenerationCancellation.check()
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
             var tools: [any Tool] = [RegionalDishTool()]
             if let photoDataURL { tools.append(PhotoTextTool(dataURL: photoDataURL)) }
             let session: LanguageModelSession
-            if let id = reviseID, let s = sessions[id] { session = s }                       // Ask Ate: same session
+            if reuseSession, let id = reviseID, let s = sessions[id] { session = s }                       // Ask Ate: same session
             else if input == .prompt, photoDataURL == nil, let w = warm { session = w; warm = nil } // prewarmed
             else { session = makeSession(tools: tools, input: input) }
             do {
@@ -318,11 +346,11 @@ final class OnDeviceBackend: BackendService {
                 // Code-along 205: Prompt { } builder with conditional context lines and a one-shot GenRecipe example;
                 // with the example in place the JSON schema is left out of the prompt (A/B: -qaIncludeSchema).
                 let lines = RecipePrompt.contextLines(context)
-                let isRevision = reviseID != nil && sessions[reviseID!] != nil
+                let isRevision = reuseSession && reviseID != nil && sessions[reviseID!] != nil
                 let fullPrompt = Prompt {
                     prompt
                     if !lines.isEmpty { lines.joined(separator: "\n") }
-                    if !isRevision {
+                    if !isRevision && input != .rewrite {
                         RecipePrompt.exampleLead
                         GenRecipe.exampleMogodu
                     }

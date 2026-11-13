@@ -41,7 +41,7 @@ class FoodJournalRuntimeFactoryGuardTests(unittest.TestCase):
         self.assertIn('writerLease: admittedLease, archive: archive', source)
         self.assertIn('preservationDirectory: locations.preservationDirectory', source)
         self.assertIn('func validate() throws { try gate.validateWriter(lease) }', source)
-        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name != 'FoodJournalLocalOwner.swift'
+        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name not in {'FoodJournalLocalOwner.swift', 'FoodJournalDiskResources.swift', 'FoodJournalProductionAdmission.swift', 'FoodJournalArchiveExport.swift'}
                    and 'FoodJournalLocalOwner' in p.read_text()]
         self.assertEqual(callers, [])
 
@@ -82,3 +82,44 @@ class FoodJournalRuntimeFactoryGuardTests(unittest.TestCase):
         self.assertIn('try runtime.reflectionSession(for: event.id)', method)
         self.assertIn('} else {', method)
         self.assertLess(method.index('runtime.reflectionSession'), method.index('CookedJournalReflectionStore(journal: cookJournalStore)'))
+    def test_disk_resources_are_strict_recovery_before_ordinary_binding(self):
+        source = (ROOT / 'Ate/Store/FoodJournalDiskResources.swift').read_text()
+        for forbidden in ['StoreRecovery', 'UserDefaults.standard', '= .standard', '.shared', 'captureWriter(', 'JournalStore()', 'FoodJournalRuntime(']:
+            self.assertNotIn(forbidden, source)
+        self.assertLess(source.index('try authorizeRecovery()'), source.index('let recipes = try ModelContainer('))
+        self.assertLess(source.index('UnifiedArchiveStartupRecovery.recoverAtStartup'), source.index('self.recipes = recipes'))
+        self.assertIn('gate.withArchiveRecoveryLease(admittedLease)', source)
+        gate = (ROOT / 'Ate/Store/AccountWriterGate.swift').read_text()
+        section = gate.split('func withArchiveRecoveryLease', 1)[1].split('func invalidateWriters', 1)[0]
+        self.assertIn('withWriterEffect(lease)', section)
+        self.assertIn('POSIXArchiveWriterLease(nestedDirectory: directory)', section)
+        self.assertNotIn('captureWriter(', section)
+        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name not in {'FoodJournalDiskResources.swift', 'FoodJournalProductionAdmission.swift', 'FoodJournalArchiveExport.swift'}
+                   and 'FoodJournalDiskResources' in p.read_text()]
+        self.assertEqual(callers, [])
+
+    def test_production_admission_preserves_full_session_and_no_rpc_write(self):
+        source = (ROOT / 'Ate/Store/FoodJournalProductionAdmission.swift').read_text()
+        self.assertIn('currentSession() == session', source)
+        self.assertIn('candidate == session', source)
+        self.assertIn('try verifyOriginal()', source)
+        self.assertIn('gate.usesControlDirectory(control.directory)', source)
+        self.assertLess(source.index('remote = try await snapshot(session)'), source.index('try resources.recover('))
+        self.assertLess(source.index('try resources.recover('), source.index('reconciliation.reconcile()'))
+        for forbidden in ['.clear(', 'captureWriter(', 'StoreRecovery', '.shared', 'remote = AccountSnapshot']:
+            self.assertNotIn(forbidden, source)
+        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name != 'FoodJournalProductionAdmission.swift'
+                   and 'FoodJournalProductionAdmission' in p.read_text()]
+        self.assertEqual(callers, [])
+
+    def test_export_revalidates_owner_and_archive_generation_after_await(self):
+        source = (ROOT / 'Ate/Store/FoodJournalArchiveExport.swift').read_text()
+        self.assertIn('archive.generation == generation', source)
+        self.assertIn('try validateOwner()', source)
+        self.assertIn('recipeLinksNotArchived', source)
+        self.assertIn('mediaDirectory: owner.locations.mediaDirectory', source)
+        self.assertNotIn('JournalStore.mediaDir', source)
+        self.assertNotIn('controlDirectory:', source)
+        self.assertNotIn('commitGeneration(', source)
+        self.assertLess(source.index('try await afterSnapshot()'), source.index('let result = try await capture.finish'))
+        self.assertIn('gate.withArchiveRecoveryLease(admittedLease)', source)

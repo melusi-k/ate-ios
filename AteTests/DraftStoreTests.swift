@@ -74,3 +74,29 @@ final class DraftStoreTests: XCTestCase {
         XCTAssertNil(disabled.draft)
     }
 }
+
+extension DraftStoreTests {
+    func testRetiredDraftWriterCannotCreateOrRemoveRecoveryBytes() throws {
+        enum Stale: Error { case epoch }
+        var admitted = true, effects = 0
+        let boundary = FoodJournalWriterBoundary { work in
+            guard admitted else { throw Stale.epoch }
+            effects += 1; try work()
+        }
+        let old = DraftStore(defaults: defaults, enabled: true, writerBoundary: boundary)
+        XCTAssertTrue(old.begin(mode: "Prompt", text: "Synthetic retained input"))
+        admitted = false
+        let before = defaults.dictionaryRepresentation()
+        XCTAssertFalse(old.saveDraft(RecipeCard(title: "Late completion")))
+        XCTAssertFalse(old.end())
+        XCTAssertFalse(old.clear())
+        XCTAssertFalse(old.begin(mode: "Prompt", text: "Late request"))
+        XCTAssertEqual(defaults.data(forKey: "ate.draft.pending.v1"), before["ate.draft.pending.v1"] as? Data)
+        XCTAssertNil(defaults.object(forKey: "ate.draft.card.v1"))
+        XCTAssertEqual(effects, 1)
+        let replacement = DraftStore(defaults: defaults, enabled: true, writerBoundary: .legacy)
+        XCTAssertTrue(replacement.saveDraft(RecipeCard(title: "New admitted work")))
+        XCTAssertFalse(old.clear(), "old graph cannot clear the replacement's draft")
+        XCTAssertEqual(replacement.draft?.title, "New admitted work")
+    }
+}

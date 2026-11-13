@@ -52,9 +52,10 @@ enum SharedInbox {
                           load: () async -> Data?) async -> String? {
         guard let directory, let data = await load() else { return nil }
         let name = UUID().uuidString + ".jpg"
-        return (try? boundary.withEffect {
+        return (try? boundary.withEffect { () throws -> Void in
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try data.write(to: directory.appendingPathComponent(name))
+            return ()
         }) != nil ? name : nil
     }
 

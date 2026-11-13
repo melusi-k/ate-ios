@@ -69,10 +69,10 @@ class UnitLaneRoutingTests(unittest.TestCase):
 
     def test_dogfood_critical_flows_remain_required_on_exact_head(self):
         self.assertIn('ref: ${{ github.event.pull_request.head.sha || github.sha }}', self.dogfood)
-        for method in ('testQA1_AddFromURL_JSONLD', 'testQA1_AddFromURL_InstagramCaption', 'testQA1_AddFromURL_HiddenCaptionFallback', 'testQA2_AddFromPhoto', 'testQA3_GenerateAndEdit', 'testQA4_Save', 'testQA5_Share', 'testQA6_OpenShared', 'testQA8_Timers', 'test28_GroupSortAndMenus', 'test29_ReorderMyOrder'):
+        for method in ('testQA1_AddFromURL_JSONLD', 'testQA1_AddFromURL_InstagramCaption', 'testQA1_AddFromURL_HiddenCaptionFallback', 'testQA2_AddFromPhoto', 'testQA3_GenerateAndEdit', 'testQA4_Save', 'testQA5_Share', 'testQA6_OpenShared', 'testQA8_Timers', 'test28_GroupSortAndMenus', 'test28_GroupRecentlyAdded', 'test28_GroupCookTime', 'test28_FavouriteSwipeAndSort', 'test28_ContextMenuAddsShoppingAndShowsFeedback', 'test29_ReorderMyOrder', 'test29_DragMyOrder'):
             self.assertIn('/' + method, self.dogfood)
         self.assertIn('missing named Library pass', self.dogfood)
-        self.assertIn('"$total" -lt 9', self.dogfood)
+        self.assertIn('"$total" -lt 16', self.dogfood)
 
     def test_sync_quarantine_is_not_a_qualification_pass(self):
         q = self.dogfood.split('- name: Diagnose quarantined Settings/account-sync', 1)[1].split('- name: Summarize qualification', 1)[0]

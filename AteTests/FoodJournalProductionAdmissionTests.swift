@@ -37,8 +37,8 @@ final class FoodJournalProductionAdmissionTests: XCTestCase {
         let resources = try FoodJournalDiskResources(defaults: defaults,
             goalsStorage: FileNutritionGoalsStorage(fileURL: root.appendingPathComponent("goals.json")),
             locations: .init(storeFileURL: root.appendingPathComponent("journal.store"),
-                mediaDirectory: root.appendingPathComponent("media"), migrationBackupDirectory: root.appendingPathComponent("migration"),
-                repairBackupDirectory: root.appendingPathComponent("repair"), preservationDirectory: root.appendingPathComponent("preservation")),
+                mediaDirectory: root.appendingPathComponent("media", isDirectory: true), migrationBackupDirectory: root.appendingPathComponent("migration", isDirectory: true),
+                repairBackupDirectory: root.appendingPathComponent("repair", isDirectory: true), preservationDirectory: root.appendingPathComponent("preservation", isDirectory: true)),
             recipeConfiguration: ModelConfiguration(url: root.appendingPathComponent("recipes.store")),
             journalConfiguration: ModelConfiguration(url: root.appendingPathComponent("journal.store")))
         try await run(root, defaults, gate, gate.captureWriter(), control, receipts, resources)
@@ -53,7 +53,7 @@ final class FoodJournalProductionAdmissionTests: XCTestCase {
             try await admission.reconcile(admittedLease: lease)
             XCTAssertEqual(try receipts.read(), .init(ownerID: "local", generation: 0))
             XCTAssertEqual(defaults.data(forKey: NutritionDiaryRepository.storageKey), bytes)
-            XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("preservation").appendingPathComponent(JournalInstallReconciliation.preservationFileName).path))
+            XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("preservation", isDirectory: true).appendingPathComponent(JournalInstallReconciliation.preservationFileName).path))
             try admission.validate(admittedLease: lease)
             let owner = try admission.bindOwner(admittedLease: lease, afterRestoreCommit: {})
             XCTAssertTrue(owner.runtime.defaults === defaults)
@@ -202,7 +202,7 @@ final class FoodJournalProductionAdmissionTests: XCTestCase {
             do { try await admission.reconcile(admittedLease: lease); XCTFail("Missing contract is not generation zero") } catch { }
             XCTAssertNil(try receipts.read())
             XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("journal.store").path))
-            XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("preservation").path))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("preservation", isDirectory: true).path))
             XCTAssertThrowsError(try admission.validate(admittedLease: lease))
         }
     }

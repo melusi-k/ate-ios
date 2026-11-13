@@ -1,11 +1,11 @@
 {
-  "title": "Food Journal: real owner native qualification, shipping OFF",
-  "summary": "Full source-reviewed Food Journal owner chain is assembled for exact-head native qualification. Shipping activation stays OFF. A DEBUG-only explicit selector reaches the real owner without hermetic UITesting fixtures. Native compilation, account-wide reset/resume, shared extension ordering and watch account isolation remain unqualified. Food Journal is local-only; cooking is not an eaten meal. No production Supabase deployment or anonymous sign-in is enabled.",
-  "source_commit": "7ff8a0b20794613f0d212f7ed2b43afbfeb95a3a",
+  "title": "Food Journal owner qualification plus main Settings, Insights, Cook and Journal",
+  "summary": "Source union: bound Food Journal owners and stores, owner-registered generation and Health work, generation/input attempt invalidation, Health refresh-generation and access fencing, Settings release notes and tour, owned Insights destinations, recorded cooking history, shared Cook steps and bottom chrome, onboarding, and native Journal delete confirmation. Shipping Food Journal activation stays OFF. Native compilation and device acceptance remain unqualified. Cooking is not an eaten meal. OCR timing remains parked.",
+  "source_commit": "77d01b50cba6b4b093062489b94e00ac481f39e2",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "19352fe2a1627d5fbb2a68827dbe859f16fb3e5f"
+      "blob": "8443724abb1f8a1a90c590a094a2c84918bbc917"
     },
     {
       "path": "Ate/Services/BackendService.swift",
@@ -22,6 +22,46 @@
     {
       "path": "Ate/Store/FoodJournalConsumerLifecycle.swift",
       "blob": "f38a3e7aa9bbf0ec96f9ae20a60b5e9670e3f5de"
+    },
+    {
+      "path": "Ate/Views/JournalViews.swift",
+      "blob": "747fd4dbdc9db3c801d2adbbdbd2887e628379c3"
+    },
+    {
+      "path": "Ate/Views/ProductUpdatesViews.swift",
+      "blob": "3de31c5f54026a0a5b3b8a3c83c36e5c3244d03e"
+    },
+    {
+      "path": "Ate/Views/InsightsView.swift",
+      "blob": "2ed4eccabb8d4d91b8edfeebe15bdc1b1f086d32"
+    },
+    {
+      "path": "Ate/Views/CookingTrackerView.swift",
+      "blob": "6b209b692702c03311ec3feba3bf3632202e9bc1"
+    },
+    {
+      "path": "Ate/Views/CookModeView.swift",
+      "blob": "203f46cec2a7b69e8f17a11f1c771a982441b9bc"
+    },
+    {
+      "path": "Ate/Views/RecipeDetailView.swift",
+      "blob": "61d203cbc9476d6b6ee07c69fca06e9ddcbdc4f4"
+    },
+    {
+      "path": "Ate/Services/JournalSuggestionService.swift",
+      "blob": "8435d202b1b3b05603566f34831477dfd500730e"
+    },
+    {
+      "path": "Ate/Views/JournalDeleteConfirmation.swift",
+      "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
+    },
+    {
+      "path": "Ate/Views/OnboardingView.swift",
+      "blob": "ae031e11f4c03dfbdb810c8290aa0fb3329a036b"
+    },
+    {
+      "path": "Ate/Views/AddRecipeSheet.swift",
+      "blob": "1586924a1a7e231f5f0f1aac886288800f5d4b4a"
     }
   ]
 }

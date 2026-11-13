@@ -26,3 +26,17 @@ The strict ancestry/blob validator and all qualification requirements remain unc
 
 This split re-anchors the reviewed focus to the destination runtime commit above,
 not to the frozen aggregate branch. Activation remains OFF.
+
+## Confirmed delete evidence refresh on #526
+
+Reviewed runtime2534358fdbd207813504d33934dd0eb826cc7676 changes JournalViews
+for stable-identity deletion, committed-reader absence verification and retained
+failed-delete detail/error/retry. The old focus record still named its prior
+JournalViews blob. XcodeGen correctly rejected it before any native execution.
+Both Journal and Dogfood failures remain recorded as source/metadata integration
+failures, not runner stalls or product assertion passes. This docs-only refresh
+anchors the exact hosted runtime above and its unchanged AteApp plus current
+JournalViews blobs. Strict ancestry and blob validation stay unchanged. Native
+post-tap, delete error/retry/history pixels and normal qualification remain
+pending. Food Journal activation is a separate reviewed composition change,
+not implied by this source record.

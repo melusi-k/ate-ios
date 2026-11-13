@@ -31,7 +31,9 @@ class UnitLaneRoutingTests(unittest.TestCase):
             'DraftGenerationAttemptTests/testDuplicateStartRefusesAndOldCompletionCannotAdmitEffectsDuringNewAttempt',
             'DraftGenerationAttemptTests/testSpreadChildCannotWriteLibraryAfterInvalidation',
         ]
-        self.assertEqual((ROOT / 'scripts/full-unit-required.txt').read_text().splitlines(), expected + generation)
+        inputs = ['DraftInputAttemptTests/testLaterPhotoSelectionWinsEvenWhenOldLoaderIgnoresCancellation', 'DraftInputAttemptTests/testDiscardSaveOrDisappearInvalidationRefusesLateInput', 'DraftInputAttemptTests/testCoverSelectionCannotWriteDifferentRegeneratedDraft']
+        root_regressions = ['GeneratedTotalTimeTests/testLegacyPhotoTotalKeepsBoundedPrepGapWithoutInventingPrepNote', 'SystemCleanupCompletionTests/testImmediateVerifiedSuccessAndFailureArePreserved', 'SystemCleanupCompletionTests/testDuplicateAndLateCallbacksCannotResumeTwice', 'SystemCleanupCompletionTests/testNeverReturningServiceReleasesWaitAsUnverified', 'SystemCleanupCompletionTests/testLateSuccessAfterDeadlineStaysUnverified', 'SystemCleanupCompletionTests/testCancellationReleasesUncooperativeWaitAndIgnoresLateReply', 'SystemCleanupCompletionTests/testAlreadyCancelledWaitDoesNotStartService', 'SystemCleanupCompletionTests/testInvalidDeadlineDoesNotStartService', 'SystemCleanupCompletionTests/testCleanupMissingSpotlightCallbackReportsSurfaceWithoutDiscardingSnapshotAssertions']
+        self.assertEqual((ROOT / 'scripts/full-unit-required.txt').read_text().splitlines(), expected + generation + inputs + root_regressions)
         self.assertIn('xcrun xcresulttool get test-results tests --path', self.full)
         self.assertIn('python3 scripts/verify-full-unit-required.py full-unit-tests.json scripts/full-unit-required.txt', self.full)
 

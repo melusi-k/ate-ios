@@ -11,9 +11,23 @@ class JournalActionIdentityTests(unittest.TestCase):
         detail = source.split('struct JournalEntryDetailView: View', 1)[1].split('private func deleteConfirmedEntry()', 1)[0]
         self.assertIn('VStack(spacing: 0) {\n            if let e = entry {', detail)
         self.assertNotIn('Group {\n            if let e = entry {', detail)
-        self.assertEqual(detail.count('.alert("Delete this journal entry?"'), 1)
-        for action in ('journal.edit.cancel', 'journal.edit.save', 'journal.delete.confirm', 'journal.delete.cancel'):
+        self.assertNotIn('.alert("Delete this journal entry?"', detail)
+        self.assertEqual(detail.count("JournalDeleteConfirmation(isPresented: $confirmDelete"), 1)
+        for action in ('journal.edit.cancel', 'journal.edit.save'):
             self.assertEqual(detail.count('.accessibilityIdentifier("' + action + '")'), 1)
+
+    def test_native_action_identity_and_single_presenter(self):
+        native = (ROOT / 'Ate/Views/JournalDeleteConfirmation.swift').read_text()
+        for action in ('journal.delete.confirm', 'journal.delete.cancel'):
+            self.assertEqual(native.count('accessibilityIdentifier = "' + action + '"'), 1)
+        self.assertEqual(native.count('alert.addAction('), 2)
+        self.assertIn('activeAlert == nil', native)
+        self.assertIn('activeAlert = (token, alert)', native)
+        self.assertIn('validToken == token && pendingDelete == token', native)
+        self.assertIn('self?.completeDismiss(token: active.token)', native)
+        self.assertIn('retired = true', native)
+        self.assertNotIn('setValue(', native)
+        self.assertNotIn('DispatchQueue', native)
 
     def test_crud_and_retry_keep_exact_uniqueness_and_saved_state_assertions(self):
         source = (ROOT / 'AteUITests/JournalOpenStateUITests.swift').read_text()

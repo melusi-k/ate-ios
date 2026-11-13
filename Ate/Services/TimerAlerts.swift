@@ -24,9 +24,8 @@ enum TimerAlerts {
         return s < e ? (now >= s && now < e) : (now >= s || now < e)
     }
 
-    static func schedule(id: String, step: Int, recipeTitle: String, at end: Date, prefs: TimerPrefs) {
-        cancel(id: id)
-        guard prefs.stepAlerts else { return }
+    static func request(id: String, step: Int, recipeTitle: String, at end: Date, prefs: TimerPrefs) -> UNNotificationRequest? {
+        guard prefs.stepAlerts else { return nil }
         let content = UNMutableNotificationContent()
         content.title = "Step \(step) is done"
         content.body = recipeTitle
@@ -35,7 +34,7 @@ enum TimerAlerts {
         let interval = max(1, end.timeIntervalSinceNow)
         let req = UNNotificationRequest(identifier: "ate.timer." + id, content: content,
                                         trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false))
-        UNUserNotificationCenter.current().add(req)
+        return req
     }
 
     static func cancel(id: String) {

@@ -47,6 +47,9 @@ struct AddRecipeSheet: View {
     @State private var confirmedDraft = false
     @State private var repairError: String?
     @State private var repairAttempt = DraftRepairAttempt()
+    @State private var generationAttempt = DraftGenerationAttempt()
+    @State private var photoInputAttempt = DraftInputAttempt()
+    @State private var coverInputAttempt = DraftInputAttempt()
     /// Name the user confirmed in "What dish is this?" (C-AI-01); the regenerated card is not asked about again.
     @State private var confirmedDish: String?
     @Environment(\.dismiss) private var dismiss
@@ -77,6 +80,8 @@ struct AddRecipeSheet: View {
                     .confirmationDialog("Discard this recipe?", isPresented: $confirmDiscard, titleVisibility: .visible) {
                         Button("Discard", role: .destructive) {
                             invalidateRepair()
+                            invalidateGeneration()
+                            invalidateInputLoads()
                             store.drafts.clear()
                             dismiss()
                         }
@@ -86,6 +91,8 @@ struct AddRecipeSheet: View {
         }
         .onDisappear {
             invalidateRepair()
+            invalidateGeneration()
+            invalidateInputLoads()
             if !loading && !hasUnsaved { store.drafts.clear() }
         }
         .task {
@@ -103,19 +110,30 @@ struct AddRecipeSheet: View {
             if let d = SharedInbox.imageData(it) { mode = .image; imageData = d }
             else if let u = it.url { mode = .link; link = u }
             else if let t = it.text { mode = .prompt; prompt = t }
-            await generate()
+            startGeneration()
         }
         .fullScreenCover(isPresented: $showCamera) {
-            CameraPicker { img in imageData = img.jpegData(compressionQuality: 0.85) }.ignoresSafeArea()
+            CameraPicker { img in
+                photoInputAttempt.invalidate()
+                imageData = img.jpegData(compressionQuality: 0.85)
+            }.ignoresSafeArea()
         }
         .fullScreenCover(isPresented: $showCoverCamera) {
             CameraPicker { img in setUserCover(img) }.ignoresSafeArea()
         }
         .onChange(of: coverItem) { _, item in
-            Task { if let d = try? await item?.loadTransferable(type: Data.self), let img = UIImage(data: d) { setUserCover(img) } }
+            let recipeID = draft?.id
+            coverInputAttempt.start(load: { try? await item?.loadTransferable(type: Data.self) }) { data in
+                guard let recipeID, draft?.id == recipeID, !saving,
+                      let data, let image = UIImage(data: data) else { return }
+                setUserCover(image)
+            }
         }
         .onChange(of: photoItem) { _, item in
-            Task { imageData = try? await item?.loadTransferable(type: Data.self) }
+            photoInputAttempt.start(load: { try? await item?.loadTransferable(type: Data.self) }) { data in
+                guard !saving else { return }
+                imageData = data
+            }
         }
     }
 
@@ -142,7 +160,7 @@ struct AddRecipeSheet: View {
                     Image(systemName: "photo.badge.plus").font(.title).foregroundStyle(Theme.primary)
                     Text(imageData == nil ? "Upload a screenshot or a food photo" : "Image ready — tap to replace")
                         .font(AteFont.body(14, .medium))
-                    Text("Screenshots of a recipe are read word for word. A photo of a dish gets a guessed recipe you can edit.")
+                    Text("Recipe screenshots use detected text, not an AI rewrite. Check OCR wording against the original. Clear Ingredients and numbered Method sections are required. A dish photo gets a guessed recipe you can edit.")
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity).padding(32)
@@ -200,11 +218,11 @@ struct AddRecipeSheet: View {
                 Label(q.errorDescription ?? "", systemImage: "questionmark.circle").font(AteFont.body(14))
                     .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("photoDishQuestion")
                 Text("What dish is this?").font(AteFont.body(14, .semibold))
-                TextField(q.spread ? "e.g. mogodu, ujeqe, morogo" : "e.g. mogodu", text: $dishAnswer)
+                TextField(q.spread ? "e.g. mogodu, ujeqe, morogo" : (mode == .image ? "e.g. fish with butter sauce and fennel salad" : "e.g. mogodu"), text: $dishAnswer)
                     .textFieldStyle(.roundedBorder).accessibilityIdentifier("photoDishField")
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
-                        ForEach(q.suggestions, id: \.self) { s in
+                        ForEach(q.spread || mode != .image ? q.suggestions : PhotoGuess.questionSuggestions(q.suggestions), id: \.self) { s in
                             let on = spreadPicks.contains(s)
                             Button(s) {
                                 if q.spread { if on { spreadPicks.remove(s) } else { spreadPicks.insert(s) } } else { dishAnswer = s }
@@ -214,6 +232,10 @@ struct AddRecipeSheet: View {
                         }
                     }
                 }
+                if !q.spread && mode == .image {
+                    Text("These are choices, not confirmed identifications. You can name the dish and any sauce, garnish or side you want included.")
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                }
                 if q.spread {
                     Text("Pick one dish, or several to make a card for each (the first opens for review, the rest are saved).")
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
@@ -222,12 +244,12 @@ struct AddRecipeSheet: View {
             .padding(14).frame(maxWidth: .infinity, alignment: .leading)
             .sheetCard(Theme.secondary)
         } else if let error {
-            ErrorRetryCard(message: error, retryID: "generateRetry") { Task { await generate() } }
+            ErrorRetryCard(message: error, retryID: "generateRetry") { startGeneration() }
         }
 
         if loading, let p = live { StreamPreviewCard(preview: p) }
 
-        Button { Task { await generate() } } label: {
+        Button { startGeneration() } label: {
             HStack { if loading { ProgressView().tint(Theme.primaryForeground); Text("Cooking up your card…") }
                      else { Image(systemName: "sparkles"); Text(mode == .link ? "Import recipe" : mode == .image ? "Read image" : "Generate recipe") } }
         }
@@ -286,6 +308,7 @@ struct AddRecipeSheet: View {
         HStack(spacing: 8) {
             Button(saving ? "Saving…" : "Save recipe") {
                 guard !saving, let d = draft else { return }
+                invalidateInputLoads()
                 saving = true                       // P0: one save per draft; double taps are ignored
                 store.drafts.clear()           // the stored draft must not be restored (and saved again) later
                 BetaQA.shared.pass("A-EDIT-01", note: (didEdit ? "Edited and saved" : "Reviewed and saved") + " “\(d.title)”")
@@ -296,7 +319,7 @@ struct AddRecipeSheet: View {
                 .buttonStyle(.ate(.primary, full: true)).accessibilityIdentifier("saveRecipe")
                 .disabled(saving || loading || (draft.map { RecipeQuality.needsInput($0) } ?? false) && !didEdit && !confirmedDraft)
             Button(editing ? "Preview" : "Edit") { editing.toggle(); didEdit = true }.buttonStyle(.ate(.secondary))
-            Button { Task { await generate() } } label: {
+            Button { startGeneration() } label: {
                 Image(systemName: "arrow.clockwise").rotationEffect(.degrees(loading ? 360 : 0))
                     .animation(loading ? Motion.anim(.linear(duration: 1).repeatForever(autoreverses: false)) : Motion.anim(), value: loading)
             }
@@ -332,7 +355,7 @@ struct AddRecipeSheet: View {
                         .disabled(CoverStore.shared.isLoading(d.id))
                 }
                 if d.coverImage != nil && d.coverImage != CoverStore.removed {
-                    Button { CoverStore.shared.removeFiles(recipeID: d.id); draft?.coverImage = CoverStore.removed } label: {
+                    Button { coverInputAttempt.invalidate(); CoverStore.shared.removeFiles(recipeID: d.id); draft?.coverImage = CoverStore.removed } label: {
                         Label("Remove", systemImage: "xmark")
                     }.buttonStyle(.ate(.ghost, height: 36)).accessibilityIdentifier("removeCover")
                 }
@@ -342,6 +365,7 @@ struct AddRecipeSheet: View {
     }
 
     private func setUserCover(_ img: UIImage) {
+        coverInputAttempt.invalidate()
         guard let id = draft?.id, let name = CoverStore.shared.save(img, recipeID: id, source: .userPhoto) else { return }
         draft?.coverImage = name
     }
@@ -393,10 +417,12 @@ struct AddRecipeSheet: View {
                 .foregroundColor: UIColor.black
             ]
             ("Pancakes" as NSString).draw(at: CGPoint(x: 56, y: 36), withAttributes: title)
-            ("Ingredients" as NSString).draw(at: CGPoint(x: 56, y: 140), withAttributes: body)
+            ("Serves: 2" as NSString).draw(at: CGPoint(x: 56, y: 100), withAttributes: body)
+            ("Ingredients" as NSString).draw(at: CGPoint(x: 56, y: 160), withAttributes: body)
             ("200 g flour" as NSString).draw(at: CGPoint(x: 56, y: 245), withAttributes: body)
             ("2 eggs" as NSString).draw(at: CGPoint(x: 56, y: 350), withAttributes: body)
-            ("Cook for 2 minutes" as NSString).draw(at: CGPoint(x: 56, y: 455), withAttributes: body)
+            ("Method" as NSString).draw(at: CGPoint(x: 56, y: 440), withAttributes: body)
+            ("1. Cook for 2 minutes." as NSString).draw(at: CGPoint(x: 56, y: 510), withAttributes: body)
         }.pngData()
     }
 
@@ -497,12 +523,32 @@ struct AddRecipeSheet: View {
         })
     }
 
-    private func generate() async {
+    private func invalidateGeneration() {
+        generationAttempt.invalidate()
+        OnDeviceBackend.partialSink = nil
+        live = nil
+        loading = false
+    }
+
+    private func invalidateInputLoads() {
+        photoInputAttempt.invalidate()
+        coverInputAttempt.invalidate()
+    }
+
+    private func startGeneration() {
+        guard !loading, !saving else { return }
+        invalidateInputLoads()
+        generationAttempt.start { token in await generate(token: token) }
+    }
+
+    private func generate(token: UUID) async {
         // The UI disables generation while loading, but keep the lifecycle safe against rapid or programmatic duplicate taps.
         guard !loading else { return }
         if store.settings.onDeviceOnly {
             store.show("Private mode is on — turn it off in Settings to use AI.", error: true); return
         }
+        let mode = self.mode
+        let link = self.link
         let diagnostic = mode == .image ? PhotoImportDiagnostics.begin() : nil
         diagnostic?.mark(.generationStarted)
         var req: ParseRequest
@@ -537,12 +583,21 @@ struct AddRecipeSheet: View {
             if dishes.count > 1 {
                 let rest = Array(dishes.dropFirst())
                 let base = req
-                Task {
+                generationAttempt.startChild(token) {
+                    var saved = 0
                     for d in rest {
+                        guard generationAttempt.isCurrent(token) else { return }
                         var r = base; r.text = d
-                        if var c = try? await store.backend.parseRecipe(r) { c.origin = .photo; store.add(RecipeLogic.normalize(c)) }
+                        if var c = try? await store.backend.parseRecipe(r) {
+                            guard generationAttempt.isCurrent(token) else { return }
+                            c.origin = .photo
+                            store.add(RecipeLogic.normalize(c))
+                            saved += 1
+                        }
                     }
-                    if !rest.isEmpty { store.show("Saved \(rest.count) more card\(rest.count == 1 ? "" : "s") from the spread") }
+                    generationAttempt.publish(token) {
+                        if saved > 0 { store.show("Saved \(saved) more card\(saved == 1 ? "" : "s") from the spread") }
+                    }
                 }
             }
         }
@@ -550,18 +605,21 @@ struct AddRecipeSheet: View {
         loading = true
         error = nil; socialError = nil; socialReason = nil
         live = nil
-        OnDeviceBackend.partialSink = { p in live = p }
+        OnDeviceBackend.partialSink = { p in _ = generationAttempt.publish(token) { live = p } }
         store.drafts.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""),
                                 imageData: recoveryImageData)
         // Keep pending input on failure or while asking the user to identify an uncertain dish.
         // DraftStore.saveDraft clears it on success; Cancel/Discard clears it explicitly.
         defer {
-            loading = false; OnDeviceBackend.partialSink = nil; live = nil
-            diagnostic?.mark(.generationFinished)
+            generationAttempt.publish(token) {
+                loading = false; OnDeviceBackend.partialSink = nil; live = nil
+                diagnostic?.mark(.generationFinished)
+            }
         }
         do {
             let started = Date()
             var card = try await store.backend.parseRecipe(req)
+            guard generationAttempt.isCurrent(token) else { return }
             diagnostic?.mark(.backendReturned)
             card.origin = mode == .link ? .link : (mode == .image ? .photo : .prompt)
             if mode == .link, let u = URL(string: link.trimmingCharacters(in: .whitespaces)) { card.sourceURL = SocialLinks.clean(u).absoluteString }
@@ -599,21 +657,25 @@ struct AddRecipeSheet: View {
             case .prompt: BetaQA.shared.pass("A-CREATE-04", note: "Prompt → card, \(src)")
             }
         } catch let e as SocialCaptionError {
+            guard generationAttempt.isCurrent(token) else { return }
             diagnostic?.mark(.generationFailed)
             socialError = e.platform
             socialReason = e.reason
             BetaQA.shared.pass("A-CREATE-02", note: "No caption on \(e.platform): friendly Prompt offer shown")
             Haptics.warning()
         } catch let e as PhotoNeedsDishError {
+            guard generationAttempt.isCurrent(token) else { return }
             diagnostic?.mark(.dishQuestion)
             dishQuestion = e
             Haptics.warning()
         } catch is CancellationError {
+            guard generationAttempt.isCurrent(token) else { return }
             diagnostic?.mark(.generationFailed)
             // Cancellation is a terminal attempt outcome, not a model failure. Keep the
             // persisted request so the user can retry without re-entering their input.
             self.error = Self.interruptedMessage
         } catch let e {
+            guard generationAttempt.isCurrent(token) else { return }
             diagnostic?.mark(.generationFailed)
             let msg = (e is URLError) ? Net.friendly(e) : e.localizedDescription
             self.error = msg

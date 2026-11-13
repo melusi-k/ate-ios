@@ -42,7 +42,7 @@ class FoodJournalActivationRootTests(unittest.TestCase):
 
     def test_editor_and_health_work_are_captured_and_full_account_copy_is_honest(self):
         add = (ROOT / 'Ate/Views/AddRecipeSheet.swift').read_text()
-        self.assertIn('await store.runJournalTask { await generateOwned() }', add)
+        self.assertIn('await store.runJournalTask { await generateOwned(token: token) }', add)
         self.assertIn('try await store.performJournalTask', add)
         self.assertIn('try store.validateJournalTask()', add)
         self.assertNotIn('CoverStore.shared', add)
@@ -54,6 +54,36 @@ class FoodJournalActivationRootTests(unittest.TestCase):
         self.assertIn('Clear all your Ate account data?', settings)
         self.assertIn('Recipe links are not supported by this archive version', settings)
         self.assertIn('CookPlanStore.storageKey', (ROOT / 'Ate/Store/ClearAllDataKeys.swift').read_text())
+
+    def test_composed_generation_keeps_attempts_and_captured_owner_before_effects(self):
+        source = (ROOT / 'Ate/Views/AddRecipeSheet.swift').read_text()
+        self.assertIn('generationAttempt.start { token in await generate(token: token) }', source)
+        generation = source.split('private func generateOwned(token: UUID)', 1)[1]
+        self.assertIn('generationAttempt.startChild(token) {\n                    await store.runJournalTask {', generation)
+        self.assertIn('try store.validateJournalTask()\n            guard generationAttempt.isCurrent(token)', generation)
+        self.assertIn('guard (try? store.validateJournalTask()) != nil else { return }\n            _ = generationAttempt.publish(token)', generation)
+        self.assertEqual(generation.count('catch '), 4)
+        self.assertEqual(generation.count('guard generationAttempt.isCurrent(token), (try? store.validateJournalTask()) != nil else { return }'), 7)
+        self.assertNotIn('DraftStore.shared', source)
+        self.assertNotIn('CoverStore.shared', source)
+
+    def test_composed_insight_owner_refresh_checks_both_await_boundaries(self):
+        source = (ROOT / 'Ate/Views/InsightsView.swift').read_text()
+        self.assertEqual(source.count('private var model: InsightsModel { store.insightsModel }'), 2)
+        self.assertNotIn('@State private var model = InsightsModel.shared', source)
+        self.assertIn('@Bindable var model = model', source)
+        for entry in ['connect', 'refresh', 'useScenario']:
+            self.assertIn('await owner.runJournalTask { await self.' + entry + 'Owned(', source)
+        refresh = source.split('private func refreshOwned(recipes:', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('let validate = validateOwner', refresh)
+        self.assertIn('let originalOwner = owner', refresh)
+        self.assertIn('let source = health', refresh)
+        self.assertEqual(refresh.count('guard generation == refreshGeneration, !Task.isCancelled, (try? validate()) != nil else { return }'), 2)
+        self.assertEqual(refresh.count('guard access == .requested else { context = nil; return }'), 2)
+        self.assertLess(refresh.index('let prompts = await makePrompts(insight)'), refresh.index('context = HealthContext'))
+        self.assertLess(refresh.index('let prompts = await makePrompts(insight)'), refresh.index('originalOwner.capturedSharedBoundary.withEffect'))
+        self.assertIn('WidgetBridge.publish(originalOwner, delay: 0)', refresh)
+        self.assertNotIn('AppStore.current', refresh)
 
     def test_extensions_bootstrap_before_shared_writes_and_share_image_captures_owner(self):
         shared = (ROOT / 'Shared/SharedWriterGate.swift').read_text()

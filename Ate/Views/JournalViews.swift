@@ -319,12 +319,10 @@ struct JournalEntryDetailView: View {
         // The confirmation belongs to the stable detail owner, not the conditional
         // List/model being removed. Its action uses route identity, never a captured
         // reader model from an earlier render or an edit sheet.
-        .alert("Delete this journal entry?", isPresented: $confirmDelete) {
-            Button("Delete", role: .destructive) { deleteConfirmedEntry() }
-                .accessibilityIdentifier("journal.delete.confirm")
-            Button("Cancel", role: .cancel) {}
-                .accessibilityIdentifier("journal.delete.cancel")
-        } message: { Text("This can't be undone. It's only stored on this iPhone.") }
+        .background {
+            JournalDeleteConfirmation(isPresented: $confirmDelete, onDelete: deleteConfirmedEntry)
+                .frame(width: 0, height: 0)
+        }
         .onAppear {
             reloadEntry()
             if entry != nil { BetaQA.shared.pass("C-JRN-01", note: "Opened an entry on its own") }

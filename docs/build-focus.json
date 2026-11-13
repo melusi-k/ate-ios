@@ -1,15 +1,15 @@
 {
-  "title": "Journal navigation and cooking reflections",
-  "summary": "Focus: the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log.",
-  "source_commit": "7c3f7d0265e58ea124c0bf55140a90fe76df45b3",
+  "title": "Combined reviewed build candidate: Journal actions, Cook countdown and Settings tabs",
+  "summary": "Includes the reviewed OFF Food Journal graph union, native Journal delete owner, generation/input lifetime checks, Cook leaf countdown/static-row accessibility and Settings tab visibility. This interim hosted focus guards only unchanged Journal owner paths; the full combined-source focus follows publication. Native compilation, UI/AX, pixels, tracker and bottom-bars remain unqualified. Cooking is reflection-only. Food Journal activation stays OFF. The Settings community row is not in this build.",
+  "source_commit": "4415c15fb26fb38e3d0934f197e774dddbb631e8",
   "evidence": [
     {
-      "path": "Ate/App/AteApp.swift",
-      "blob": "56f838b904b24a8d88ba3409638d7dc434aaa57e"
+      "path": "Ate/Views/JournalViews.swift",
+      "blob": "7e0375d362867507e781901318e32fde459f0e85"
     },
     {
-      "path": "Ate/Views/JournalViews.swift",
-      "blob": "61c2d7df9cf3b780cf809b779efef40b0daeb3d2"
+      "path": "Ate/Views/JournalDeleteConfirmation.swift",
+      "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
     }
   ]
 }

@@ -12,7 +12,7 @@ class FoodJournalRuntimeFactoryGuardTests(unittest.TestCase):
                           'migrateIfNeeded', 'JournalStore()', 'ModelContainer(for:', 'seedMomentEntry',
                           'removeImagePromptEntriesOnce']:
             self.assertNotIn(forbidden, source)
-        calls = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name != 'FoodJournalRuntimeFactory.swift'
+        calls = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name not in {'FoodJournalRuntimeFactory.swift', 'FoodJournalLocalOwner.swift'}
                  and 'FoodJournalRuntimeFactory' in p.read_text()]
         self.assertEqual(calls, [])
 
@@ -32,3 +32,32 @@ class FoodJournalRuntimeFactoryGuardTests(unittest.TestCase):
         history = (ROOT / 'Ate/Logic/CookingHistory.swift').read_text()
         self.assertEqual(history.count('writerBoundary.withEffect'), 3)
         self.assertIn('try recordHeld(recipeID: recipeID, date: date, dayKey: dayKey)', history)
+
+    def test_local_owner_retains_original_lease_and_explicit_inventory(self):
+        source = (ROOT / 'Ate/Store/FoodJournalLocalOwner.swift').read_text()
+        for forbidden in ['.shared', '.legacy', 'captureWriter(', 'ModelContainer(for:', 'StoreRecovery', 'JournalStore.mediaDir']:
+            self.assertNotIn(forbidden, source)
+        self.assertIn('gate.withWriterEffect(admittedLease)', source)
+        self.assertIn('writerLease: admittedLease, archive: archive', source)
+        self.assertIn('preservationDirectory: locations.preservationDirectory', source)
+        self.assertIn('func validate() throws { try gate.validateWriter(lease) }', source)
+        callers = [p for p in (ROOT / 'Ate').rglob('*.swift') if p.name != 'FoodJournalLocalOwner.swift'
+                   and 'FoodJournalLocalOwner' in p.read_text()]
+        self.assertEqual(callers, [])
+
+    def test_journal_media_writers_use_bound_directory(self):
+        source = (ROOT / 'Ate/Services/JournalSuggestionService.swift').read_text()
+        self.assertIn('at: mediaDirectory, withIntermediateDirectories: true', source)
+        self.assertIn('removeItem(at: boundMediaURL(name))', source)
+        self.assertIn('let url = boundMediaURL(name)', source)
+        self.assertNotIn('Self.mediaURL(name)', source)
+
+    def test_unified_wipe_requires_retained_inventory_before_any_effect(self):
+        source = (ROOT / 'Ate/Store/AppStore+JournalAccountActions.swift').read_text()
+        wipe = source.split('func wipeLocalDataUnified()', 1)[1].split('func exportUserData()', 1)[0]
+        self.assertIn('inventory.journal === runtime.journal', wipe)
+        self.assertIn('inventory.defaults === runtime.defaults', wipe)
+        self.assertIn('inventory.mediaDirectory == runtime.journal.mediaDirectory', wipe)
+        self.assertLess(wipe.index('guard let inventory'), wipe.index('try effect {'))
+        self.assertIn('inventory.eraseAll(validateWriterGate: validate)', wipe)
+        self.assertNotIn('JournalLocalReset(runtime:', wipe)

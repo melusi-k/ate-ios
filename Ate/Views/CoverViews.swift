@@ -7,7 +7,7 @@ struct RecipeCover: View {
     var symbolSize: CGFloat = 26
     var autoBackfill = true
     @Environment(AppStore.self) private var store: AppStore?
-    private var covers: CoverStore { .shared }
+    private var covers: CoverStore { store?.coverStore ?? .shared }
 
     var body: some View {
         let img = covers.image(for: recipe)

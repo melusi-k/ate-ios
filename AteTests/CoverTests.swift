@@ -70,3 +70,43 @@ final class CoverTests: XCTestCase {
         XCTAssertEqual(c.coverImage, "cover-1-0.jpg")
     }
 }
+
+@MainActor
+final class CoverWriterCaptureTests: XCTestCase {
+    private enum Stale: Error { case epoch }
+
+    func testRetainedCaptureNeverUsesReboundSingletonAuthorityAfterAwait() async throws {
+        let covers = CoverStore()
+        var current = true, oldEffects = 0, replacementEffects = 0
+        covers.writerBoundary = FoodJournalWriterBoundary { work in oldEffects += 1; try work() }
+        covers.validateWriter = { if !current { throw Stale.epoch } }
+        let captured = covers.captureWriter()
+        try captured.withEffect {}
+        XCTAssertEqual(oldEffects, 1)
+        await Task.yield()
+        current = false
+        covers.writerBoundary = FoodJournalWriterBoundary { work in replacementEffects += 1; try work() }
+        covers.validateWriter = {}
+        XCTAssertThrowsError(try captured.withEffect { XCTFail("old operation published under replacement graph") })
+        XCTAssertEqual(oldEffects, 1)
+        XCTAssertEqual(replacementEffects, 0)
+        try covers.captureWriter().withEffect {}
+        XCTAssertEqual(replacementEffects, 1, "new work is distinct from retained old work")
+    }
+
+    func testRefusedGenerateDoesNotWriteAttemptMarkerOrInvokeGenerator() async {
+        let covers = CoverStore()
+        let recipe = RecipeCard(title: "Synthetic capture")
+        let key = "ate.cover.gen.\(recipe.id)"
+        let previous = UserDefaults.standard.object(forKey: key)
+        defer {
+            if let previous { UserDefaults.standard.set(previous, forKey: key) }
+            else { UserDefaults.standard.removeObject(forKey: key) }
+        }
+        UserDefaults.standard.removeObject(forKey: key)
+        covers.writerBoundary = FoodJournalWriterBoundary { _ in throw Stale.epoch }
+        let result = await covers.generate(for: recipe)
+        XCTAssertNil(result)
+        XCTAssertNil(UserDefaults.standard.object(forKey: key))
+    }
+}

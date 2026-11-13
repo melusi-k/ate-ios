@@ -4,8 +4,9 @@ import XCTest
 @MainActor
 final class FoodJournalConsumerTasksTests: XCTestCase {
     private func fixture(_ run: (FoodJournalConsumerLifecycle, FoodJournalConsumerTasks) async throws -> Void) async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("ConsumerTasks-\(UUID())")
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+        let requested = FileManager.default.temporaryDirectory.appendingPathComponent("ConsumerTasks-\(UUID())")
+        try FileManager.default.createDirectory(at: requested, withIntermediateDirectories: false)
+        let root = requested.resolvingSymlinksInPath().standardizedFileURL
         defer { try? FileManager.default.removeItem(at: root) }
         let gate = try AccountWriterGate(directory: root, resetControlExists: { false })
         let lifecycle = FoodJournalConsumerLifecycle(gate: gate, admittedLease: try gate.captureWriter(),

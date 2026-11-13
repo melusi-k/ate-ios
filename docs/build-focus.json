@@ -1,7 +1,7 @@
 {
   "title": "Bundle B: live Shopping sync, local durability and offline Explore",
   "summary": "Focus: live Shopping sync status and manual refresh, immutable payload safety and local durability, offline Explore through the existing Library, source-faithful explicit draft repair and bounded system cleanup. Source inclusion is not native, pixel or device acceptance. Existing Journal reflection/navigation behavior is retained; cooking must not create an eaten-food log. FJ-union image-boundary and termination failures are distinct evidence, not proven failures on these input heads.",
-  "source_commit": "539f721d19f8547787335433c30384cbae4ece7c",
+  "source_commit": "603073583fb1c5fa36033a328475a38ff1fdcd6e",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

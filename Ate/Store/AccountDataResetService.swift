@@ -20,8 +20,10 @@ enum ResetRPCError: LocalizedError, Equatable {
     /// The caller generation is not the account's current generation. Discard stale
     /// local data and fetch a fresh snapshot; for a reset retry, verify status first.
     case staleGeneration
-    /// 42501 / 401 / 403: not the account owner, or the session is not accepted.
+    /// 401: credentials are not accepted. Auth lifecycle may refresh or expire.
     case unauthorized
+    /// 403 / 42501: permission denial, not proof that the session expired.
+    case permissionDenied
     /// 22023 or a client-side contract violation: a programming error, not a user state.
     case invalidRequest(String)
     /// 404 / PGRST202: the RPC contract is not deployed on this backend.
@@ -35,6 +37,7 @@ enum ResetRPCError: LocalizedError, Equatable {
         switch self {
         case .staleGeneration: return "Account data was cleared elsewhere; fetch a fresh snapshot."
         case .unauthorized: return "Sign in again to continue."
+        case .permissionDenied: return "The server denied permission. Your local data has not been cleared."
         case .invalidRequest(let d): return "Invalid reset request: \(d)"
         case .contractMissing: return "This build needs an app update before account data can be cleared."
         case .outcomeUnverified(let d): return "The result couldn't be verified: \(d)"
@@ -71,7 +74,8 @@ final class AccountDataResetService {
         let pgcode = j?["code"] as? String ?? ""
         let message = j?["message"] as? String
         if code == 404 || pgcode == "PGRST202" { throw ResetRPCError.contractMissing }
-        if code == 401 || code == 403 || pgcode == "42501" { throw ResetRPCError.unauthorized }
+        if code == 401 { throw ResetRPCError.unauthorized }
+        if code == 403 || pgcode == "42501" { throw ResetRPCError.permissionDenied }
         if pgcode == "PT409" { throw ResetRPCError.staleGeneration }
         if pgcode == "22023" { throw ResetRPCError.invalidRequest(message ?? "") }
         if code >= 500 { throw ResetRPCError.outcomeUnverified(message ?? "HTTP \(code)") }

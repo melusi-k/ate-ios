@@ -54,11 +54,22 @@ final class FoodJournalArchiveImportTests: XCTestCase {
         try await fixture { owner, lifecycle, recipes, gate, root in
             var drained = false
             try lifecycle.register(cancel: {}, drain: { await Task.yield(); drained = true })
+            // Measure the import transaction AFTER its documented migration barriers.
+            // readMeals/goals.load are separately fenced units before this authorization.
+            let beforePreparation = try POSIXArchiveWriterLease(nestedDirectory: root)
+            let preparationGeneration = beforePreparation.generation
+            beforePreparation.release()
+            var importGeneration: UInt64?
             let importer = try FoodJournalArchiveImport(owner: owner, recipes: recipes, lifecycle: lifecycle,
-                ownerIdentity: "local", authorizeOperation: { XCTAssertTrue(drained) })
-            let before = try POSIXArchiveWriterLease(nestedDirectory: root)
-            let generation = before.generation; before.release()
+                ownerIdentity: "local", authorizeOperation: {
+                    XCTAssertTrue(drained)
+                    let before = try POSIXArchiveWriterLease(nestedDirectory: root)
+                    defer { before.release() }
+                    importGeneration = before.generation
+                })
             let result = try await importer.importData(self.data(reflection: true))
+            let generation = try XCTUnwrap(importGeneration, "Import must reach post-drain authorization")
+            XCTAssertEqual(generation, preparationGeneration + 2, "Meal and goals preparation are two separate fenced units, not import commits")
             XCTAssertEqual(result.journalEntriesAdded, 1)
             XCTAssertTrue(drained); XCTAssertEqual(lifecycle.state, .quiesced)
             XCTAssertEqual(try owner.runtime.journal.readReflections().map(\.text), ["Imported intact"])
@@ -93,16 +104,24 @@ final class FoodJournalArchiveImportTests: XCTestCase {
     }
     func testInterruptedImportRetainsRecoveryWithoutGenerationAdvanceOrReopeningOwner() async throws {
         try await fixture { owner, lifecycle, recipes, gate, root in
+            let beforePreparation = try POSIXArchiveWriterLease(nestedDirectory: root)
+            let preparationGeneration = beforePreparation.generation
+            beforePreparation.release()
+            var importGeneration: UInt64?
             let importer = try FoodJournalArchiveImport(owner: owner, recipes: recipes, lifecycle: lifecycle,
-                ownerIdentity: "local", authorizeOperation: {})
-            let before = try POSIXArchiveWriterLease(nestedDirectory: root)
-            let generation = before.generation; before.release()
+                ownerIdentity: "local", authorizeOperation: {
+                    let before = try POSIXArchiveWriterLease(nestedDirectory: root)
+                    defer { before.release() }
+                    importGeneration = before.generation
+                })
             do {
                 _ = try await importer.importData(self.data(reflection: true), checkpoint: { boundary in
                     if boundary == .afterDatabase { throw Injected.refuse }
                 })
                 XCTFail("Interrupted import cannot return success")
             } catch { }
+            let generation = try XCTUnwrap(importGeneration, "Interrupted import must reach post-drain authorization")
+            XCTAssertEqual(generation, preparationGeneration + 2, "Preparation must finish before the interrupted import transaction")
             let lease = try gate.captureWriter()
             try gate.withArchiveRecoveryLease(lease) { archive in
                 XCTAssertEqual(archive.generation, generation)

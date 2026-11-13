@@ -1,7 +1,7 @@
 {
   "title": "Settings release notes, Insights destinations and cooking history",
   "summary": "Focus: bundled Settings release notes and replay tour, owned Health refresh, synthetic shopping and diary destination acceptance, monthly recorded cooking days and distinct recipes, and native Back/edge-swipe coverage. Source inclusion is not device acceptance; cooking must not create an eaten-food log.",
-  "source_commit": "1644ee8517f88e9d5880f1363d3e256ba0ec5416",
+  "source_commit": "ddc1dd7576dd31bf3774577acd6d95549d3b20d0",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -13,11 +13,11 @@
     },
     {
       "path": "Ate/Views/ProductUpdatesViews.swift",
-      "blob": "9d936fd4c72a5ac09dd1df64d1a38c64b7001d15"
+      "blob": "3de31c5f54026a0a5b3b8a3c83c36e5c3244d03e"
     },
     {
       "path": "Ate/Views/InsightsView.swift",
-      "blob": "c192f91824cbfc37ab06f3386399d918fb668167"
+      "blob": "3f38057fb07a065197672fab9c6f219ea06c17f1"
     },
     {
       "path": "Ate/Views/CookingTrackerView.swift",

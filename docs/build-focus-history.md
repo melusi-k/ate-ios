@@ -92,3 +92,11 @@ not implied by this source record.
 ## Bundle A exact-head source fold
 
 Reviewed runtime 984b07a2385e278b35544eab3ed56aa910e72144 is the merge-commit union of #529 root32fe54fd, #518cfa8cd58, #525121ea356, #52299731deb and #5263a0b1afa. The later #518/#527 native Journal presenter and all exact uniqueness/error/history assertions are retained rather than reverting to #526's older projection. The record guards all previously listed evidence paths from both focus records, plus input/onboarding entry points. Metadata validation is not a native, pixel or device pass. Nutrition terminate remains unclassified pending fresh exact-head CI. OCR and all timeout budgets are unchanged. No activation change is made.
+
+## Food Journal #532 plus main 6c7e9b4b source union
+
+- Two-parent merge: `b5093242ad772d7c84bb2c9da0dec0bafe1a1fba` (parents `385521eacb8d9e2fcab2da6cec75a88468a0082e` and `6c7e9b4b3a3f5019c46b25b9919365bdd7e3fbef`).
+- AddRecipeSheet combines bound DraftStore/CoverStore, registered original-owner primary/spread tasks and revalidation with generation/photo/cover attempt invalidation.
+- Insights combines original-owner registration/validation and widget boundary with refresh-generation/access-loss fencing. Both view consumers retain the bound InsightsModel. Existing native injection hooks and all parent named gates remain. Two owner-revocation native cases are added using the existing suspension fixtures.
+- Python source suite: 242 passed. Swift grammar: 53 changed files parsed. Acceptance IDs: 181 consistent. Required native names: exact additive union of 107 and 67 parent names, plus two new cases, yielding 142 names. These are source checks, not native execution.
+- Native compilation, native tests, simulator/device visuals, account-wide reset/resume, extension ordering and watch isolation remain UNRUN on this tree. Shipping activation stays OFF; OCR timing is unchanged and parked. Branch-only packet, no remote publication.

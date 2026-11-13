@@ -7,8 +7,13 @@ final class FoodJournalDiskResourcesTests: XCTestCase {
     private func fixture(_ body: (FoodJournalDiskResources, AccountWriterGate, UUID) throws -> Void) throws {
         let suite = "FoodJournalDisk-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(suite)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+        // Canonicalize the actual created leaf, not just its temporary parent.
+        // Match AccountWriterGateTests; the production path guard stays strict.
+        let requested = FileManager.default.temporaryDirectory.appendingPathComponent(suite)
+        try FileManager.default.createDirectory(at: requested, withIntermediateDirectories: false)
+        let root = requested.resolvingSymlinksInPath().standardizedFileURL
+        XCTAssertEqual(root, root.standardizedFileURL)
+        XCTAssertEqual(root, root.resolvingSymlinksInPath())
         defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }
         let gate = try AccountWriterGate(directory: root, resetControlExists: { false })
         let lease = try gate.captureWriter()

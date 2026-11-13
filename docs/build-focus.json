@@ -1,7 +1,7 @@
 {
-  "title": "Journal action uniqueness with retained Cook and reflection changes",
-  "summary": "Focus: Journal detail has one alert presentation owner; editor Save/Cancel and delete confirmation actions have unique identifiers. Failed reflection edits retain the raw draft and retry error; confirmed deletion verifies committed absence before detail retires. Shared Cook session steps and measured bottom chrome remain included. Native Journal actions, Cook spacing, widget, device and pixel proof remain pending. Unified Food Journal activation stays OFF.",
-  "source_commit": "e68a017f265b20a0e2ace03d3c3ba3a3ca97aca1",
+  "title": "Native Journal delete confirmation with retained Cook and reflection changes",
+  "summary": "Focus: token-owned native Journal delete actions replace duplicated SwiftUI action projection. Failed reflection edits retain the raw draft and retry error; confirmed deletion verifies committed absence before detail retires. Shared Cook steps and measured bottom chrome remain included. Delete and Compile qualification is pending fresh exact-head CI; prior failing runs remain failures. No device or pixel acceptance. Unified Food Journal activation stays OFF.",
+  "source_commit": "01aab39d728f5e4f6eec1dd5cf4be420386d6745",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/Views/JournalViews.swift",
-      "blob": "a54d8112ae7e27752626646cbb78f39fd5a04125"
+      "blob": "7e0375d362867507e781901318e32fde459f0e85"
     },
     {
       "path": "Ate/Views/CookModeView.swift",
@@ -22,6 +22,10 @@
     {
       "path": "Ate/Services/JournalSuggestionService.swift",
       "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
+    },
+    {
+      "path": "Ate/Views/JournalDeleteConfirmation.swift",
+      "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
     }
   ]
 }

@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import os
+import Darwin
 
 /// SwiftData corruption recovery (R-DATA-01). Opening the store never crashes the app:
 /// 1. open normally; 2. on failure move the store files aside to Backups/ate-<timestamp>.store*, open a fresh store;
@@ -18,6 +19,30 @@ enum StoreRecovery {
     }
 
     static var defaultStoreURL: URL { ModelConfiguration().url }
+
+    enum ReadOnlyOpenRefusal: Error { case missingOrUnsafeStore }
+
+    /// Standalone pre-admission inventory only. No repair, move-aside, new store,
+    /// memory fallback, diagnostics singleton, receipt or defaults mutation.
+    /// Release this container before admitted resources opens a writable one.
+    /// SQLite may use bookkeeping sidecars during reads; allowsSave:false is a
+    /// SwiftData write refusal, not a claim that opening is a filesystem snapshot.
+    @MainActor
+    static func openExistingReadOnly(url: URL,
+        make: (ModelConfiguration) throws -> ModelContainer = {
+            try ModelContainer(for: RecipeEntity.self, ShoppingEntity.self, configurations: $0)
+        }) throws -> ModelContainer {
+        var st = stat()
+        guard url.isFileURL, url.standardizedFileURL == url,
+              url.resolvingSymlinksInPath().standardizedFileURL == url,
+              lstat(url.path, &st) == 0, (st.st_mode & S_IFMT) == S_IFREG else {
+            throw ReadOnlyOpenRefusal.missingOrUnsafeStore
+        }
+        let config = ModelConfiguration(url: url, allowsSave: false, cloudKitDatabase: .none)
+        let container = try make(config) // exactly one attempt, error retained by caller
+        container.mainContext.autosaveEnabled = false
+        return container
+    }
 
     static func open(url: URL? = nil, inMemory: Bool = false, now: Date = Date(),
                      make: (ModelConfiguration) throws -> ModelContainer = { try ModelContainer(for: RecipeEntity.self, ShoppingEntity.self, configurations: $0) })

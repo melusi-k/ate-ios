@@ -14,7 +14,7 @@ class JournalEditRetryExpectationTests(unittest.TestCase):
                          'XCTAssertNotEqual(committedText, original,',
                          'wait(any("journal.edit.error"))', 'waitUntilGone(editor)']:
             self.assertIn(expected, t)
-        self.assertEqual(t.count('buttons["Save"].tap()'), 2)
+        self.assertEqual(t.count('buttons["journal.edit.save"].tap()'), 2)
     def test_store_and_native_unit_already_require_trim(self):
         s = (ROOT / 'Ate/Services/JournalSuggestionService.swift').read_text()
         update = s.split('func update(_ entry:', 1)[1].split('func saveFromIntent', 1)[0]

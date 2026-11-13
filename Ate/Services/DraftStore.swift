@@ -22,18 +22,18 @@ final class DraftStore {
         guard enabled else { return true }
         // Persist a bounded, downsampled photo with the pending request so Retry can reconstruct image input after relaunch.
         let recoverableImage = imageData.flatMap { $0.count <= 1_500_000 ? $0 : nil }
-        return (try? writerBoundary.withEffect {
+        return (try? writerBoundary.withEffect { () throws -> Void in
             let data = try JSONEncoder().encode(Pending(mode: mode, text: String(text.prefix(4000)), startedAt: Date().timeIntervalSince1970, imageData: recoverableImage))
             d.set(data, forKey: pKey)
         }) != nil
     }
     @discardableResult
-    func end() -> Bool { (try? writerBoundary.withEffect { d.removeObject(forKey: pKey) }) != nil }
+    func end() -> Bool { (try? writerBoundary.withEffect { () throws -> Void in d.removeObject(forKey: pKey) }) != nil }
     @discardableResult
     func saveDraft(_ c: RecipeCard) -> Bool {
         // Deliberately disabled persistence (hermetic UI tests) accepts a no-op.
         guard enabled else { return true }
-        return (try? writerBoundary.withEffect {
+        return (try? writerBoundary.withEffect { () throws -> Void in
             let data = try JSONEncoder().encode(c) // encode before retiring recoverable input
             d.removeObject(forKey: pKey)
             d.set(data, forKey: dKey)
@@ -41,6 +41,6 @@ final class DraftStore {
     }
     @discardableResult
     func clear() -> Bool {
-        (try? writerBoundary.withEffect { d.removeObject(forKey: pKey); d.removeObject(forKey: dKey) }) != nil
+        (try? writerBoundary.withEffect { () throws -> Void in d.removeObject(forKey: pKey); d.removeObject(forKey: dKey) }) != nil
     }
 }

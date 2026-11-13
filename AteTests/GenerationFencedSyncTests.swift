@@ -105,3 +105,52 @@ extension GenerationFencedSyncTests {
         XCTAssertTrue(AccountGenerationConflictState.staleLocalData.recoveryStatus.contains("not available"))
     }
 }
+
+extension GenerationFencedSyncTests {
+    func testAdmittedServiceUsesOriginalCaptureAndConsumesCycle() async throws {
+        var calls: [String] = []
+        let adapter = make { request in
+            calls.append(request.url!.lastPathComponent)
+            if calls.count == 1 { return self.response(#"{"generation":7,"rows":[]}"#) }
+            let body = try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any]
+            XCTAssertEqual((body["p_caller_generation"] as! NSNumber).int64Value, 7)
+            return self.response("null")
+        }
+        let service = GenerationFencedSyncService(adapter: adapter,
+            receipt: { .init(ownerID: "owner-a", generation: 7) }, invalidateWriters: { XCTFail("not stale") })
+        _ = try await service.pull(session: current!)
+        try await service.push([row()], session: current!)
+        do { try await service.push([row()], session: current!); XCTFail("capture reused") }
+        catch GenerationFencedSyncService.CycleError.missingPull {}
+        XCTAssertEqual(calls, ["account_data_snapshot", "put_user_recipe"])
+    }
+    func testAdmittedServiceBlocksAdvancedSnapshotBeforeMergeOrPush() async {
+        var invalidations = 0, requests = 0
+        let adapter = make { _ in requests += 1; return self.response(#"{"generation":8,"rows":[]}"#) }
+        let service = GenerationFencedSyncService(adapter: adapter,
+            receipt: { .init(ownerID: "owner-a", generation: 7) }, invalidateWriters: { invalidations += 1 })
+        do { _ = try await service.pull(session: current!); XCTFail("advanced epoch accepted") }
+        catch ResetRPCError.staleGeneration {} catch { XCTFail("unexpected \(error)") }
+        XCTAssertEqual(service.conflict, .staleLocalData)
+        do { _ = try await service.pull(session: current!); XCTFail("blocked service retried") }
+        catch GenerationFencedSyncService.CycleError.blocked {} catch { XCTFail("unexpected \(error)") }
+        XCTAssertEqual(invalidations, 1)
+        XCTAssertEqual(requests, 1)
+    }
+    func testAdmittedServiceStalePutInvalidatesAndStopsBatch() async throws {
+        var invalidations = 0, requests = 0
+        let adapter = make { _ in
+            requests += 1
+            return requests == 1 ? self.response(#"{"generation":7,"rows":[]}"#)
+                : self.response(#"{"code":"PT409"}"#, status: 409)
+        }
+        let service = GenerationFencedSyncService(adapter: adapter,
+            receipt: { .init(ownerID: "owner-a", generation: 7) }, invalidateWriters: { invalidations += 1 })
+        _ = try await service.pull(session: current!)
+        do { try await service.push([row("a"), row("b")], session: current!); XCTFail("stale accepted") }
+        catch ResetRPCError.staleGeneration {} catch { XCTFail("unexpected \(error)") }
+        XCTAssertEqual(requests, 2)
+        XCTAssertEqual(invalidations, 1)
+        XCTAssertEqual(service.conflict, .staleLocalData)
+    }
+}

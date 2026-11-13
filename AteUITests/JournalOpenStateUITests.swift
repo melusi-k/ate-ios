@@ -198,7 +198,7 @@ extension JournalOpenStateUITests {
         shot("timeline-saved-reflection-back")
     }
 
-    func testReflectionEditFailureRetainsDraftThenRetryCommitsAndRefreshesHistory() {
+    func testReflectionEditFailureRetainsDraftThenRetryCommitsAndRefreshesHistory() throws {
         composeFromHistory(extra: ["-qaReflectionEditFailureOnce"])
         let original = "Reflection failure " + UUID().uuidString
         let compose = app.textViews["journal.compose.text"]
@@ -213,19 +213,24 @@ extension JournalOpenStateUITests {
         app.buttons["journal.detail.menu"].tap(); app.buttons["Edit"].tap()
         let editor = app.textViews["journal.edit.text"]
         wait(editor); editor.tap(); editor.typeText(" retained draft")
-        let intended = editor.value as? String
+        let retainedDraft = try XCTUnwrap(editor.value as? String)
+        // The editor retains exact user input after failure. A successful update
+        // follows JournalStore's existing whitespace/newline normalization.
+        let committedText = retainedDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertFalse(committedText.isEmpty)
+        XCTAssertNotEqual(committedText, original, "Retry must commit an actual edit")
         app.navigationBars["Edit entry"].buttons["Save"].tap()
         wait(any("journal.edit.error"))
         XCTAssertTrue(editor.exists, "Failed commit must not dismiss editor")
-        XCTAssertEqual(editor.value as? String, intended, "Failed commit must keep exact draft")
+        XCTAssertEqual(editor.value as? String, retainedDraft, "Failed commit must keep exact draft")
         shot("reflection-edit-failure-retained-draft")
         app.navigationBars["Edit entry"].buttons["Save"].tap()
         waitUntilGone(editor)
-        wait(detail); XCTAssertEqual(detail.label, intended)
+        wait(detail); XCTAssertEqual(detail.label, committedText)
         app.navigationBars.buttons.element(boundBy: 0).tap()
         wait(app.navigationBars["Journal"])
         let edited = app.descendants(matching: .any).matching(identifier: "journal.entry")
-            .matching(NSPredicate(format: "label CONTAINS %@", intended ?? "missing")).firstMatch
+            .matching(NSPredicate(format: "label CONTAINS %@", committedText)).firstMatch
         wait(edited)
         shot("reflection-edit-retry-refreshed-history")
     }

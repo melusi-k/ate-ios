@@ -107,6 +107,30 @@ import XCTest
 
     // MARK: Transport contract
 
+    func testPermanentGenerationConflictMapsWithoutTransportRetry() async {
+        for operation in ["snapshot", "put", "clear"] {
+            var calls = 0
+            let rpc = AccountDataResetService(baseURL: URL(string: "https://example.test")!, key: "anon",
+                perform: { _ in calls += 1; return self.http(409, #"{"code":"PT409","message":"generation conflict"}"#) })
+            do {
+                if operation == "snapshot" { _ = try await rpc.snapshot(session: self.session) }
+                else if operation == "put" {
+                    try await rpc.putRecipe(session: self.session, callerGeneration: 0, kind: "recipe",
+                        id: "x", data: Data("{}".utf8), updatedAt: 1, deleted: false)
+                } else { _ = try await rpc.clearAccount(session: self.session, requestID: UUID(), expectedGeneration: 0) }
+                XCTFail("permanent conflict accepted: \(operation)")
+            } catch ResetRPCError.staleGeneration {} catch { XCTFail("unexpected \(error)") }
+            XCTAssertEqual(calls, 1, "permanent generation conflict must not retry transport")
+        }
+    }
+
+    func testSerializationFailureIsNotPermanentGenerationConflict() async {
+        let rpc = AccountDataResetService(baseURL: URL(string: "https://example.test")!, key: "anon",
+            perform: { _ in self.http(409, #"{"code":"40001"}"#) })
+        do { _ = try await rpc.snapshot(session: self.session); XCTFail("error accepted") }
+        catch ResetRPCError.http(409, _) {} catch { XCTFail("unexpected \(error)") }
+    }
+
     func testMalformedSnapshotRowsAreUnverifiedNotFabricatedEmpty() async {
         let rpc = AccountDataResetService(baseURL: URL(string: "https://example.test")!, key: "anon",
                                           perform: { _ in self.http(200, #"{"generation":0,"rows":[{"broken":true}]}"#) })

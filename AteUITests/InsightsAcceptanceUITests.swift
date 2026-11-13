@@ -530,7 +530,20 @@ final class InsightsAcceptanceUITests: XCTestCase {
         let back = diary.buttons["Settings"]
         wait(back); back.tap()
         wait(app.navigationBars["Settings"])
-        XCTAssertTrue(app.tabBars.buttons["Settings"].isSelected)
+        let settingsTab = app.tabBars.buttons["Settings"]
+        XCTAssertEqual(app.tabBars.buttons.matching(identifier: "Settings").count, 1,
+                       "Back must expose exactly one selected Settings capsule")
+        XCTAssertTrue(settingsTab.isSelected)
+        XCTAssertTrue(settingsTab.isHittable, "The selected Settings capsule must be reachable")
+        seededShot("195-diary-settings-before-tab-expansion-normal")
+        // Diary's real-row scroll can minimize the system tab bar. Native Back
+        // returns to Settings but does not promise an expanded tab strip. Expand
+        // once through its selected capsule, just like the strict header journey;
+        // then retain the single Journal tap and all hub/evidence assertions.
+        settingsTab.tap()
+        wait(app.navigationBars["Settings"])
+        XCTAssertTrue(settingsTab.isSelected, "Expanding chrome must not switch destinations")
+        seededShot("195-diary-settings-after-tab-expansion-normal")
         returnToSeededInsight("nutrition-diary-coverage")
     }
 

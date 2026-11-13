@@ -11,6 +11,8 @@ enum WidgetBridge {
     private static var publishTask: Task<Void, Never>?
     private static var publisher = WidgetSnapshotPublisher()
     private(set) static var lastIndexed: Int = 0
+    private(set) static var publicationRequests = 0
+    private(set) static var relayInstallRequests = 0
 
     static var lastHealthState: HealthState? {
         get { UserDefaults.standard.string(forKey: healthKey).flatMap(HealthState.init(rawValue:)) }
@@ -19,6 +21,8 @@ enum WidgetBridge {
 
     /// Debounced: many edits in a row publish once.
     static func publish(_ store: AppStore, delay: Double = 0.4) {
+        guard store.permitsExternalPublication else { return }
+        publicationRequests += 1
         publishTask?.cancel()
         publishTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
@@ -28,6 +32,7 @@ enum WidgetBridge {
     }
 
     static func publishNow(_ store: AppStore, force: Bool = false, boundary: SharedWriterBoundary = .current) {
+        guard store.permitsExternalPublication else { return }
         let snap = WidgetSnapshotBuilder.build(recipes: store.recipes, shopping: store.shopping, health: lastHealthState, history: store.journalCookingHistory)
         guard publisher.publish(snap, force: force, boundary: boundary, reload: WidgetKinds.reload) else { return }
         if AppConfig.isUITesting { QAProbe.shared.widgetPublishes += 1 }
@@ -47,6 +52,8 @@ enum WidgetBridge {
 
     /// Intents that run inside the app act on the live store instead of the App Group copy.
     static func installRelays(_ store: AppStore) {
+        guard store.permitsExternalPublication else { return }
+        relayInstallRequests += 1
         IntentRelay.timer = { [weak store] cmd, id in
             store?.timers.run(cmd, id: id)
             BetaQA.shared.pass("A-WIDGET-01", note: "Timer \(cmd.rawValue) from a widget/control/Siri")

@@ -64,6 +64,9 @@ enum RecipePrompt {
     /// Per-input instructions ("profiles"): the shared rules plus a short mode-specific brief.
     /// (FoundationModels in Xcode 26.6 has no Dynamic Profiles API; a fresh session per input does the same job.)
     static func instructions(for input: Input) -> String {
+        if input == .rewrite {
+            return "You edit the supplied recipe JSON. Follow only the exact requested change, or the exact explicitly requested quality repair. Preserve all unrelated ingredients, quantities, notes, steps, timings, temperatures, title, description and servings. Do not improve unrelated validator gaps. If the request is already satisfied, return the original unchanged. Never add oven temperatures to stovetop steps. Do not copy a recipe example."
+        }
         let brief: String
         switch input {
         case .link: brief = "Input: text scraped from a recipe web page. Ignore navigation, ads and comments."
@@ -346,4 +349,3 @@ struct PhotoNeedsDishError: LocalizedError, Equatable {
                : "Not sure what this dish is. Tell ate what it is for a better recipe."
     }
 }
-

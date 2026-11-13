@@ -13,12 +13,36 @@ struct CookModeView: View {
     /// not navigate before its own dismissal completes. With no host closure, no offer is shown.
     var onReflect: ((CookCompletionEvent) -> Void)? = nil
     @Environment(AppStore.self) private var store
+    @Environment(\.bottomChromeMinY) private var bottomChromeMinY
+    @State private var hostBottomY: CGFloat?
+    private var footerChromeReserve: CGFloat {
+        // The pushed host may keep its resume/timer accessory while hiding tabs.
+        // Measure the obscured band, not a device-specific capsule height. Modal
+        // Cook owns its whole safe area and must not reserve the underlying root.
+        guard store.cookTarget == nil, !store.isAtTabRoot,
+              let hostBottomY, let bottomChromeMinY else { return 0 }
+        return max(0, hostBottomY - bottomChromeMinY) + 8
+    }
     @State private var finishState = CookFinishState()
     @State private var reflectionOffer: CookCompletionEvent?
     @State private var showReflectionNudge = false
     @State private var writeRequest: CookCompletionEvent?
     @State private var finishProblem: CookCompletionOutboxError?
-    @State private var index = 0
+    /// The shared session is the only current-step owner. Read on every render
+    /// so widget/timer/deep-link changes are visible while Cook Mode is open.
+    private var index: Int {
+        get {
+            let count = store.recipe(recipeID)?.steps.count ?? 0
+            guard count > 0, let session = store.cookSession, session.recipeID == recipeID else { return 0 }
+            return min(max(0, session.stepIndex), count - 1)
+        }
+        nonmutating set {
+            guard finishState.allowsSessionWrites, store.cookSession?.recipeID == recipeID else { return }
+            let count = store.recipe(recipeID)?.steps.count ?? 0
+            guard count > 0 else { return }
+            store.updateCookSession(recipeID: recipeID, stepIndex: min(max(0, newValue), count - 1))
+        }
+    }
     @State private var showIngredients = false
     @State private var voice = VoiceController()
     @State private var testUtterance = ""
@@ -43,6 +67,11 @@ struct CookModeView: View {
                 RecipeNotFoundView(title: "Nothing to cook here", onBack: exit)
             }
         }
+        .background(GeometryReader { geometry in
+            Color.clear.preference(key: CookHostBottomYKey.self,
+                                   value: geometry.frame(in: .global).maxY)
+        })
+        .onPreferenceChange(CookHostBottomYKey.self) { hostBottomY = $0 }
         .foregroundStyle(Theme.warmForeground)
         .toolbar(.hidden, for: .navigationBar)
         // A pushed cook is full-screen work too. The tab bar otherwise overlays
@@ -53,12 +82,11 @@ struct CookModeView: View {
             UIApplication.shared.isIdleTimerDisabled = true
             // Opening Cook Mode is intent, not evidence that a meal was cooked.
             // Record history only when the user explicitly finishes the final step.
-            // Resume at the running timer's step, else the saved step, never past the recipe's current last step.
-            let saved = store.cookSession.flatMap { $0.recipeID == recipeID ? $0.stepIndex : nil }
-            let timerStep = store.timers.timers.first(where: { $0.recipeID == recipeID && $0.isRunning })?.stepIndex
-            index = CookSessionRecovery.resumeStep(savedStep: saved, runningTimerStep: timerStep,
-                                                   stepCount: store.recipe(recipeID)?.steps.count ?? 0)
-            store.updateCookSession(recipeID: recipeID, stepIndex: index)
+            // A running timer can belong to an earlier parallel step. It must
+            // not override the shared current step when opening Cook Mode.
+            if store.cookSession?.recipeID != recipeID {
+                store.beginCookSession(recipeID: recipeID, factor: 1)
+            }
         }
         .alert("Could not save this cook", isPresented: Binding(get: { finishProblem != nil }, set: { if !$0 { finishProblem = nil } })) {
             Button("Try again", role: .cancel) { finishProblem = nil }
@@ -87,8 +115,8 @@ struct CookModeView: View {
         }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false; voice.stop() }
         .onChange(of: index) {
-            guard finishState.allowsSessionWrites else { return }
-            store.updateCookSession(recipeID: recipeID, stepIndex: index)
+            // Feedback only. Never mirror stale view state over a newer shared
+            // session, or recreate a session cleared by Finish.
             Haptics.step()
         }
     }
@@ -148,7 +176,6 @@ struct CookModeView: View {
         let n = recipe.steps.count
         let s = step(recipe)
         let active = store.timers.timer(recipeID, min(index, n - 1))
-        let remaining = active?.remaining(at: store.timers.now) ?? (s.timeSeconds ?? 0)
         let others = store.timers.timers.filter { $0.recipeID == recipeID && $0.stepIndex != index && $0.isRunning }
         VStack(spacing: 20) {
             HStack {
@@ -197,11 +224,7 @@ struct CookModeView: View {
             .accessibilityElement().accessibilityLabel("Progress").accessibilityValue("Step \(index + 1) of \(n)")
 
             ForEach(others) { t in
-                Button { index = t.stepIndex } label: {
-                    Label("Step \(t.stepIndex + 1) · \(format(t.remaining(at: store.timers.now)))", systemImage: "timer")
-                        .font(AteFont.body(13, .semibold)).monospacedDigit()
-                }.buttonStyle(.ate(.secondary, height: 44))
-                .accessibilityLabel("Go to step \(t.stepIndex + 1), \(Self.spoken(t.remaining(at: store.timers.now))) left")
+                CookOtherTimerButton(timer: t, clock: store.timers) { index = t.stepIndex }
             }
 
             Spacer()
@@ -221,10 +244,7 @@ struct CookModeView: View {
                 HStack(spacing: 14) {
                     HStack(spacing: 10) {
                         Image(systemName: "timer").foregroundStyle(Theme.primary).font(.title2)
-                        Text(format(remaining)).font(.largeTitle.weight(.bold)).fontDesign(.rounded).monospacedDigit()
-                            .accessibilityIdentifier("cookTimerValue")
-                            .accessibilityValue(Self.spoken(remaining) + (running ? " remaining" : ", paused"))
-                            .accessibilityAddTraits(.updatesFrequently)
+                        CookTimerCountdown(timer: active, fallback: secs, clock: store.timers)
                     }
                     .padding(.horizontal, 20).padding(.vertical, 12)
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
@@ -236,6 +256,11 @@ struct CookModeView: View {
                         .buttonStyle(.ate(.secondary, height: 52)).accessibilityLabel("Reset timer")
                 }
                 .foregroundStyle(Theme.foreground)
+            }
+            if AppConfig.isUITesting, ProcessInfo.processInfo.arguments.contains("-qaExternalCookStep") {
+                Button("Simulate external step change") {
+                    store.updateCookSession(recipeID: recipeID, stepIndex: n - 1)
+                }.accessibilityIdentifier("qaExternalCookStep")
             }
             Spacer()
         }
@@ -262,11 +287,10 @@ struct CookModeView: View {
                 }
             }
             .padding(.horizontal, 20).padding(.vertical, 12)
+            .padding(.bottom, footerChromeReserve)
             .background(Theme.warm)
         }
     }
-
-    private func format(_ s: Int) -> String { String(format: "%d:%02d", s / 60, s % 60) }
 
     private func handle(_ cmd: VoiceCommand, _ recipe: RecipeCard) {
         let n = recipe.steps.count
@@ -342,6 +366,42 @@ struct CookSessionMiniPlayer: View {
                     }
                 }
         }
+    }
+}
+
+/// Observation belongs to this leaf body, not CookModeView.content. A 500ms
+/// clock update must not rebuild step text, navigation, ingredient sheet or controls.
+struct CookTimerCountdown: View {
+    let timer: ActiveTimer?
+    let fallback: Int
+    let clock: TimerCenter
+
+    var body: some View {
+        let remaining = timer?.remaining(at: clock.now) ?? fallback
+        Text(TimerRow.mmss(remaining))
+            .font(.largeTitle.weight(.bold)).fontDesign(.rounded).monospacedDigit()
+            .accessibilityIdentifier("cookTimerValue")
+            .accessibilityValue(CookModeView.spoken(remaining) +
+                                (timer?.isRunning == true ? " remaining" : ", paused"))
+            .accessibilityAddTraits(.updatesFrequently)
+    }
+}
+
+/// A running sibling timer has changing spoken/visible text too. Keep its clock
+/// subscription here rather than evaluating it in the full Cook content builder.
+struct CookOtherTimerButton: View {
+    let timer: ActiveTimer
+    let clock: TimerCenter
+    let action: () -> Void
+
+    var body: some View {
+        let remaining = timer.remaining(at: clock.now)
+        Button(action: action) {
+            Label("Step \(timer.stepIndex + 1) · \(TimerRow.mmss(remaining))", systemImage: "timer")
+                .font(AteFont.body(13, .semibold)).monospacedDigit()
+        }
+        .buttonStyle(.ate(.secondary, height: 44))
+        .accessibilityLabel("Go to step \(timer.stepIndex + 1), \(CookModeView.spoken(remaining)) left")
     }
 }
 
@@ -425,5 +485,12 @@ struct TimerRow: View {
                 .background(Theme.card, in: Capsule()).overlay(Capsule().stroke(Theme.border))
                 .shadow(color: Theme.brown.opacity(0.15), radius: 10, y: 4)
         } else { row }
+    }
+}
+
+private struct CookHostBottomYKey: PreferenceKey {
+    static var defaultValue: CGFloat? { nil }
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
+        if let next = nextValue() { value = next }
     }
 }

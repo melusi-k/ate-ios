@@ -146,6 +146,7 @@ jobs:
           PYREADINESS
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/JournalOpenStateUITests \
+            -only-testing:AteTests/JournalReflectionEditTests \
             -only-testing:AteUITests/CanonicalUpgradeUITests \
             -skip-testing:AteUITests/CanonicalUpgradeUITests/testActualFilesPickerCancellationDoesNotShowImportErrorOrAddMeal \
             -skip-testing:AteUITests/JournalOpenStateUITests/testManualSaveFailureVisibleAtXXXL \
@@ -157,6 +158,12 @@ jobs:
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > journal-open-state-ui.log 2>&1 || \
             { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" journal-open-state-ui.log || true; tail -120 journal-open-state-ui.log; exit 1; }
+          for evidence in \
+            "JournalReflectionEditTests testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits]' passed" \
+            "JournalReflectionEditTests testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse]' passed" \
+            "JournalOpenStateUITests testReflectionEditFailureRetainsDraftThenRetryCommitsAndRefreshesHistory]' passed"; do
+            grep -qF "$evidence" journal-open-state-ui.log || { echo "::error::Missing reflection edit pass: $evidence"; exit 1; }
+          done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" journal-open-state-ui.log | tail -40
       - name: Qualify dormant reset composition on its exact candidate branch
         if: github.head_ref == 'prep/account-reset-composition'

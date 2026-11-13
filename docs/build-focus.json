@@ -1,7 +1,7 @@
 {
-  "title": "Shared Cook step and bottom actions",
-  "summary": "Focus: Cook Mode reads the matching shared session step, and pushed Cook Finish and recipe-detail Cook actions reserve measured bottom chrome. Journal navigation and cooking reflections remain included; cooking is not an eaten-food log. Source inclusion is not native, widget or device acceptance; portrait/landscape accessory spacing and controls still need pixel checks. Unified Food Journal activation remains OFF.",
-  "source_commit": "d488db36ee4095c05e807d60fa9f5a456d491188",
+  "title": "Native Journal delete confirmation with retained Cook and reflection changes",
+  "summary": "Focus: token-owned native Journal delete actions replace duplicated SwiftUI action projection. Failed reflection edits retain the raw draft and retry error; confirmed deletion verifies committed absence before detail retires. Shared Cook steps and measured bottom chrome remain included. Delete and Compile qualification is pending fresh exact-head CI; prior failing runs remain failures. No device or pixel acceptance. Unified Food Journal activation stays OFF.",
+  "source_commit": "01aab39d728f5e4f6eec1dd5cf4be420386d6745",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/Views/JournalViews.swift",
-      "blob": "61c2d7df9cf3b780cf809b779efef40b0daeb3d2"
+      "blob": "7e0375d362867507e781901318e32fde459f0e85"
     },
     {
       "path": "Ate/Views/CookModeView.swift",
@@ -18,6 +18,14 @@
     {
       "path": "Ate/Views/RecipeDetailView.swift",
       "blob": "8fdff1bcb5670a1da59cc47ea410e85389767fb9"
+    },
+    {
+      "path": "Ate/Services/JournalSuggestionService.swift",
+      "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
+    },
+    {
+      "path": "Ate/Views/JournalDeleteConfirmation.swift",
+      "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
     }
   ]
 }

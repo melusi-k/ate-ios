@@ -21,7 +21,7 @@ final class FoodJournalRuntime {
         self.writerBoundary = writerBoundary
         self.journal = journal
         self.defaults = defaults
-        self.cookingHistory = CookingHistory(defaults: defaults)
+        self.cookingHistory = CookingHistory(defaults: defaults, writerBoundary: writerBoundary)
         self.cookOfferPolicy = CookReflectionOfferPolicy(defaults: defaults, writerBoundary: writerBoundary)
         self.cookOutbox = CookCompletionOutbox(defaults: defaults, writerBoundary: writerBoundary)
         self.goalsRepository = NutritionGoalsRepository(defaults: goalsRepository.defaults,

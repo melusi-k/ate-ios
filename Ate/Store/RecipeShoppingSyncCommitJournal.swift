@@ -220,6 +220,11 @@ final class RecipeShoppingSyncCommitJournal {
         return false
     }
 
+    func requireDirectory(_ expected: URL) throws {
+        guard directory == expected else { throw Failure.unsafePath }
+        try validateDirectory()
+    }
+
     /// Personal intent/authority files must be erased by account-wide Clear all.
     /// This is the exact component to append to the standalone reset inventory.
     func clearAllComponent(validateResetGate: @escaping () throws -> Void) -> ClearAllLocalData.Component {

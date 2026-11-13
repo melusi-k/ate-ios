@@ -501,3 +501,36 @@ final class SharedWriterGateTests: XCTestCase {
         XCTAssertEqual(reloads, 1, "No displayed timeline input changed")
     }
 }
+
+extension SharedWriterGateTests {
+    func testAccountConflictMarkerBlocksExtensionOldAndFreshLeases() throws {
+        try fixture { directory in
+            let app = try AccountWriterGate(directory: directory, resetControlExists: { false })
+            let ext = try makeGate(directory)
+            let old = try ext.captureEpoch()
+            try app.blockWritersForGenerationConflict()
+            XCTAssertThrowsError(try ext.validate(old))
+            XCTAssertThrowsError(try ext.withWriterEffect(old) { XCTFail("extension wrote during generation conflict") })
+            XCTAssertThrowsError(try ext.captureEpoch())
+            XCTAssertThrowsError(try ext.makeBoundary())
+            let restarted = try makeGate(directory)
+            XCTAssertThrowsError(try restarted.captureEpoch())
+            XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent(SharedWriterControl.generationBlockFileName).path))
+        }
+    }
+
+    func testExtensionNeverIgnoresCorruptOrSymlinkConflictEntry() throws {
+        try fixture { directory in
+            let ext = try makeGate(directory)
+            let old = try ext.captureEpoch()
+            let marker = directory.appendingPathComponent(SharedWriterControl.generationBlockFileName)
+            try Data("not a UUID".utf8).write(to: marker)
+            XCTAssertThrowsError(try ext.captureEpoch())
+            XCTAssertThrowsError(try ext.withWriterEffect(old) { XCTFail("corrupt marker accepted") })
+            try FileManager.default.removeItem(at: marker)
+            try FileManager.default.createSymbolicLink(at: marker, withDestinationURL: directory.appendingPathComponent("absent"))
+            XCTAssertThrowsError(try ext.validate(old))
+            XCTAssertThrowsError(try ext.captureEpoch())
+        }
+    }
+}

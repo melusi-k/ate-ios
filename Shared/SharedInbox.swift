@@ -45,6 +45,19 @@ enum SharedInbox {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: SharedContainer.groupID)?
             .appendingPathComponent("Inbox", isDirectory: true)
     }
+    /// The actual extension provider seam. The caller captures its owner BEFORE
+    /// loading; neither directory nor image bytes are created until that same
+    /// original epoch is re-proven after the provider completes.
+    @MainActor static func saveImage(boundary: SharedWriterBoundary, directory: URL?,
+                          load: () async -> Data?) async -> String? {
+        guard let directory, let data = await load() else { return nil }
+        let name = UUID().uuidString + ".jpg"
+        return (try? boundary.withEffect {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try data.write(to: directory.appendingPathComponent(name))
+        }) != nil ? name : nil
+    }
+
     /// Resolve only the UUID-named JPEG files produced by the share extension.
     /// Inbox metadata is persisted in a shared container, so never trust a stored path.
     static func safeImageURL(_ filename: String, in directory: URL) -> URL? {

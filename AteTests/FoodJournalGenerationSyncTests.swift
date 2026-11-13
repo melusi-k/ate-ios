@@ -4,8 +4,9 @@ import XCTest
 @MainActor
 final class FoodJournalGenerationSyncTests: XCTestCase {
     func testReceiptMismatchRefusesRowsAndPushNeedsSuccessfulPull() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("SyncAdapter-\(UUID())")
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+        let requested = FileManager.default.temporaryDirectory.appendingPathComponent("SyncAdapter-\(UUID())")
+        try FileManager.default.createDirectory(at: requested, withIntermediateDirectories: false)
+        let root = requested.resolvingSymlinksInPath().standardizedFileURL
         defer { try? FileManager.default.removeItem(at: root) }
         let receipts = try AccountGenerationReceiptStore(directory: root)
         try receipts.save(.init(ownerID: "owner", generation: 0))
@@ -32,8 +33,9 @@ final class FoodJournalGenerationSyncTests: XCTestCase {
         XCTAssertEqual(try receipts.read()?.generation, 0, "No automatic fresh-epoch adoption")
     }
     func testSuccessfulPullAuthorizesOnlyOnePushAndSameOwnerTokenChangeRefuses() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("SyncAdapter-\(UUID())")
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+        let requested = FileManager.default.temporaryDirectory.appendingPathComponent("SyncAdapter-\(UUID())")
+        try FileManager.default.createDirectory(at: requested, withIntermediateDirectories: false)
+        let root = requested.resolvingSymlinksInPath().standardizedFileURL
         defer { try? FileManager.default.removeItem(at: root) }
         let receipts = try AccountGenerationReceiptStore(directory: root)
         try receipts.save(.init(ownerID: "owner", generation: 4))

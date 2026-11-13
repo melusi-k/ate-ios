@@ -385,11 +385,18 @@ jobs:
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/CoverageUITests/test36b_RecipeGenerationRetryRecoversAfterTransientFailure \
+            -only-testing:AteUITests/DraftQualityRepairUITests \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/transient-generation-retry.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
             CODE_SIGNING_ALLOWED=NO > transient-generation-retry.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" transient-generation-retry.log || true; tail -120 transient-generation-retry.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" transient-generation-retry.log | tail -40
+          grep -qF "DraftQualityRepairUITests testExplicitRepairKeepsTheDraftAndResolvesTheMissingBreadGap]' passed" transient-generation-retry.log || { echo "::error::missing explicit draft repair pass"; exit 1; }
+
+      - name: Retain explicit draft repair screenshots on every result
+        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
+        run: |
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/transient-generation-retry.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/draft-quality-repair-attachments" || { echo '::warning::Draft repair attachment export unavailable; no pixel acceptance'; }
 
       - name: Explore local discovery focused acceptance (#73)
         if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
@@ -404,13 +411,21 @@ jobs:
           for test in testExploreLocalSourceAndDismissPreservesLibrary testLandscapeExploreRemainsReadableAndDismisses testEmptyExploreAddHandoffUsesExistingAddRecipe testExploreSelectionOpensSavedRecipePreviewAndDetail testExploreDismissPreservesCollectionAndSearchQuery; do
             grep -qF "ExploreUITests $test]' passed" explore-discovery.log || { echo "::error::Missing named Explore pass: $test"; exit 1; }
           done
-      - name: Retain Explore screenshots and hierarchy on every outcome
+      - name: Retain Explore full log, failure details and console screenshot fallback
         if: ${{ matrix.suite == 'presentation-creation' && always() }}
         run: |
-          if [ -d "$RUNNER_TEMP/ate-test-results/explore-discovery.xcresult" ]; then
-            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/explore-discovery.xcresult" \
-              --output-path "$RUNNER_TEMP/ate-test-results/explore-attachments"
-          fi
+          python3 scripts/retain-explore-evidence.py --log explore-discovery.log \
+            --result "$RUNNER_TEMP/ate-test-results/explore-discovery.xcresult" \
+            --output "$RUNNER_TEMP/explore-evidence"
+      - name: Upload small independent Explore evidence before bulky results
+        if: ${{ matrix.suite == 'presentation-creation' && always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: explore-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/explore-evidence
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
 
       - name: Expandable recipe-detail sheet regression (#101)
         if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
@@ -678,6 +693,7 @@ jobs:
           if-no-files-found: warn
           path: |
             *.log
+            ${{ runner.temp }}/ate-test-results/draft-quality-repair-attachments
             build.log
             app-clip-build.log
             app-clip-tests.log

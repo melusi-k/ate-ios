@@ -164,7 +164,14 @@ final class MockSync: SyncService {
     func push(_ records: [SyncRecord], session: AuthSession) async throws {
         if down { throw SyncError.http(503, "Service unavailable") }
         pushCount += 1
-        for r in records { rows["\(r.user_id)/\(r.kind)/\(r.id)"] = r }
+        for r in records {
+            let key = "\(r.user_id)/\(r.kind)/\(r.id)"
+            if let old = rows[key] {
+                guard r.updated_at > old.updated_at ||
+                    (r.updated_at == old.updated_at && r.deleted && !old.deleted) else { continue }
+            }
+            rows[key] = r
+        }
         if AppConfig.qaPersistServer { try? JSONEncoder().encode(rows).write(to: Self.file) }
     }
 }
@@ -183,20 +190,26 @@ enum SyncMerge {
 
     static func merge(local: Local, remote: [SyncRecord]) -> Result {
         var data = local.data, stamps = local.stamps, tomb = local.tombstones
-        var remoteStamp: [String: Double] = [:]
+        var remoteRows: [String: SyncRecord] = [:]
         for r in remote {
-            remoteStamp[r.id] = Double(r.updated_at)
+            remoteRows[r.id] = r
             // Stamps travel as whole ms (bigint); compare rounded so a re-sync is a no-op.
             let localStamp = max(stamps[r.id] ?? -1, tomb[r.id] ?? -1).rounded()
-            guard Double(r.updated_at) > localStamp else { continue }
+            // Server is authoritative at equal stamp, including tombstone state.
+            // Never arbitrate equal-time payloads using local JSON encoding.
+            guard Double(r.updated_at) >= localStamp else { continue }
             if r.deleted {
                 data[r.id] = nil; stamps[r.id] = nil; tomb[r.id] = Double(r.updated_at)
             } else if let raw = r.data?.raw {
                 data[r.id] = raw; stamps[r.id] = Double(r.updated_at); tomb[r.id] = nil
             }
         }
-        let push = data.keys.filter { (stamps[$0] ?? 0).rounded() > (remoteStamp[$0] ?? -1) }
-        let pushDeletes = tomb.keys.filter { (tomb[$0] ?? 0).rounded() > (remoteStamp[$0] ?? -1) }
+        let push = data.keys.filter { id in
+            (stamps[id] ?? 0).rounded() > Double(remoteRows[id]?.updated_at ?? -1)
+        }
+        let pushDeletes = tomb.keys.filter { id in
+            (tomb[id] ?? 0).rounded() > Double(remoteRows[id]?.updated_at ?? -1)
+        }
         return Result(data: data, stamps: stamps, tombstones: tomb, push: push.sorted(), pushDeletes: pushDeletes.sorted())
     }
 }

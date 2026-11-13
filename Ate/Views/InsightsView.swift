@@ -654,8 +654,10 @@ struct InsightsView: View {
             cookingHistoryScrollRequest += 1
             return
         }
-        // Other presentation contexts still dismiss before switching destinations.
-        dismiss()
+        // The pushed Journal hub has an explicit typed path owner. Pop that path
+        // before switching tabs, without racing an environment dismissal animation.
+        if !isRoot { store.trackerPath = [] }
+        else { dismiss() }
         switch candidate.action {
         case .recipes:
             store.filter.clear()
@@ -663,11 +665,9 @@ struct InsightsView: View {
         case .cookingHistory:
             store.openInsightsHub()
         case .shoppingList:
-            store.shoppingPath = []
-            store.select(.shopping)
+            store.openInsightShoppingList()
         case .foodDiary:
-            store.select(.settings)
-            store.showNutritionDiary = true
+            store.openInsightFoodDiary()
         }
     }
 

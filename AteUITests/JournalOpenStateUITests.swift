@@ -43,6 +43,42 @@ final class JournalOpenStateUITests: XCTestCase {
                        "Still presented: \(element)", file: file, line: line)
     }
 
+    /// Final #527 AX contains one native action as an equal-frame parent/child
+    /// Button chain. Count distinct terminal actions, not framework wrappers.
+    /// Two sibling leaves still fail even if their frames happen to overlap.
+    private func uniqueDeleteAlertAction(_ alert: XCUIElement, identifier: String, label: String,
+                                         file: StaticString = #filePath, line: UInt = #line) throws -> XCUIElement {
+        XCTAssertEqual(app.alerts.count, 1, "Exactly one visible delete alert is allowed", file: file, line: line)
+        let matches = alert.buttons.matching(identifier: identifier)
+        XCTAssertGreaterThan(matches.count, 0, "The named action must exist", file: file, line: line)
+        XCTAssertEqual(alert.buttons.matching(NSPredicate(format: "label == %@", label)).count, matches.count,
+                       "No same-label action may escape the identity check", file: file, line: line)
+        var leaves: [XCUIElement] = []
+        for index in 0..<matches.count {
+            let candidate = matches.element(boundBy: index)
+            XCTAssertEqual(candidate.label, label, "Every alias must name the same decision", file: file, line: line)
+            let descendants = candidate.descendants(matching: .button)
+            let nested = descendants.matching(identifier: identifier)
+            XCTAssertEqual(descendants.count, nested.count, "An alias cannot contain a different action", file: file, line: line)
+            if nested.count == 0 { leaves.append(candidate) }
+        }
+        XCTAssertEqual(leaves.count, 1, "Exactly one distinct visible \(label) action is allowed", file: file, line: line)
+        guard leaves.count == 1 else {
+            throw NSError(domain: "JournalDeleteActionIdentity", code: 1)
+        }
+        let action = leaves[0]  // proven unique terminal action, never arbitrary firstMatch
+        let frame = action.frame
+        XCTAssertFalse(frame.isEmpty, "Action must have visible area", file: file, line: line)
+        XCTAssertTrue(alert.frame.contains(frame), "Action must be inside the one alert", file: file, line: line)
+        for index in 0..<matches.count {
+            let alias = matches.element(boundBy: index)
+            XCTAssertEqual(alias.frame, frame, "Nested aliases must occupy exactly the same action frame", file: file, line: line)
+            XCTAssertTrue(alias.isEnabled, "No disabled duplicate decision may be hidden", file: file, line: line)
+        }
+        XCTAssertTrue(action.isHittable, "The unique visible action must be tappable", file: file, line: line)
+        return action
+    }
+
     private func any(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch
     }
@@ -245,7 +281,7 @@ extension JournalOpenStateUITests {
         add(hierarchy)
     }
 
-    func testManualReflectionEditSaveCancelAndConfirmedDelete() {
+    func testManualReflectionEditSaveCancelAndConfirmedDelete() throws {
         composeFromHistory()
         let original = "Manual CRUD " + UUID().uuidString
         let changed = original + " edited"
@@ -294,8 +330,9 @@ extension JournalOpenStateUITests {
         wait(app.staticTexts["Delete this journal entry?"])
         let cancelConfirmation = app.alerts["Delete this journal entry?"]
         retainDeleteAlertEvidence(cancelConfirmation, phase: "crud-cancel-before-count")
-        XCTAssertEqual(cancelConfirmation.buttons.matching(identifier: "journal.delete.cancel").count, 1)
-        cancelConfirmation.buttons["journal.delete.cancel"].tap()
+        let cancelAction = try uniqueDeleteAlertAction(cancelConfirmation, identifier: "journal.delete.cancel", label: "Cancel")
+        _ = try uniqueDeleteAlertAction(cancelConfirmation, identifier: "journal.delete.confirm", label: "Delete")
+        cancelAction.tap()
         waitUntilGone(app.staticTexts["Delete this journal entry?"])
         XCTAssertEqual(detail.label, changed, "Cancel must keep the reflection")
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
@@ -303,10 +340,9 @@ extension JournalOpenStateUITests {
         shot("manual-crud-delete-confirmation")
         let confirmation = app.alerts["Delete this journal entry?"]
         wait(confirmation)
-        let confirmButton = confirmation.buttons["journal.delete.confirm"]
-        wait(confirmButton)
         retainDeleteAlertEvidence(confirmation, phase: "crud-confirm-before-count")
-        XCTAssertEqual(confirmation.buttons.matching(identifier: "journal.delete.confirm").count, 1)
+        let confirmButton = try uniqueDeleteAlertAction(confirmation, identifier: "journal.delete.confirm", label: "Delete")
+        _ = try uniqueDeleteAlertAction(confirmation, identifier: "journal.delete.cancel", label: "Cancel")
         confirmButton.tap()
         // Capture the post-confirmation state even when the unchanged detail
         // dismissal assertion fails. No back navigation or retry hides failure.
@@ -321,7 +357,7 @@ extension JournalOpenStateUITests {
         shot("manual-crud-confirmed-deleted-history")
     }
 
-    func testConfirmedDeleteFailureKeepsDetailAndExplicitRetryRemovesEntry() {
+    func testConfirmedDeleteFailureKeepsDetailAndExplicitRetryRemovesEntry() throws {
         launch(extra: ["-qaReflectionDeleteFailureOnce"])
         app.tabBars.buttons["Journal"].tap()
         wait(app.buttons["journal.newEntry"])
@@ -340,9 +376,9 @@ extension JournalOpenStateUITests {
         let alert = app.alerts["Delete this journal entry?"]
         wait(alert)
         retainDeleteAlertEvidence(alert, phase: "failure-retry-before-count")
-        XCTAssertEqual(alert.buttons.matching(identifier: "journal.delete.confirm").count, 1)
-        XCTAssertEqual(alert.buttons.matching(identifier: "journal.delete.cancel").count, 1)
-        alert.buttons["journal.delete.confirm"].tap()
+        let failedSaveDelete = try uniqueDeleteAlertAction(alert, identifier: "journal.delete.confirm", label: "Delete")
+        _ = try uniqueDeleteAlertAction(alert, identifier: "journal.delete.cancel", label: "Cancel")
+        failedSaveDelete.tap()
         let error = app.staticTexts["journal.delete.error"]
         wait(error)
         XCTAssertEqual(detail.label, original, "Failed commit must not discard the detail")
@@ -351,9 +387,9 @@ extension JournalOpenStateUITests {
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
         wait(alert)
         retainDeleteAlertEvidence(alert, phase: "failure-retry-before-count")
-        XCTAssertEqual(alert.buttons.matching(identifier: "journal.delete.confirm").count, 1)
-        XCTAssertEqual(alert.buttons.matching(identifier: "journal.delete.cancel").count, 1)
-        alert.buttons["journal.delete.confirm"].tap()
+        let explicitRetryDelete = try uniqueDeleteAlertAction(alert, identifier: "journal.delete.confirm", label: "Delete")
+        _ = try uniqueDeleteAlertAction(alert, identifier: "journal.delete.cancel", label: "Cancel")
+        explicitRetryDelete.tap()
         shot("manual-delete-explicit-retry-result")
         waitUntilGone(detail)
         wait(app.navigationBars["Journal"])

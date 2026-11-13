@@ -202,6 +202,8 @@ final class ClearAllResetCoordinator {
             switch e {
             case .unauthorized:
                 return finish(.unavailable("Sign in again to clear your ate account data. Nothing has been cleared."))
+            case .permissionDenied:
+                return finish(.unavailable("The server denied permission to clear account data. Nothing has been cleared."))
             case .contractMissing:
                 return finish(.unavailable("Clear all needs an app update before it can run safely. Nothing has been cleared."))
             default:
@@ -271,6 +273,9 @@ final class ClearAllResetCoordinator {
                 return finish(.serverOutcomeUnverified)
             case .unauthorized:
                 return finish(.unavailable("Sign in again to finish clearing your ate account data."))
+            case .permissionDenied:
+                // Keep the retained request: no auth expiry, new request or local erase.
+                return finish(.unavailable("The server denied permission to finish this account-data request. Its result still needs checking."))
             case .contractMissing:
                 if isResume {
                     // A prior attempt may have committed while the contract existed;

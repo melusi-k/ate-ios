@@ -491,6 +491,11 @@ final class InsightsAcceptanceUITests: XCTestCase {
         XCTAssertTrue(rice.isHittable, "Destination must contain the real seeded pending item")
         wait(app.staticTexts["3 to buy"])
         seededShot("195-shopping-real-seeded-destination-normal")
+        // Reaching lower Shopping content can minimize iOS 26 tab chrome. One
+        // reverse content gesture reveals it before the one Journal tap. No retry.
+        app.scrollViews.firstMatch.swipeDown()
+        XCTAssertTrue(app.tabBars.buttons["Journal"].exists)
+        seededShot("195-shopping-tab-chrome-revealed-normal")
         returnToSeededInsight("shopping-multi-recipe")
     }
 

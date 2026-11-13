@@ -38,8 +38,20 @@ final class FoodJournalConsumerLifecycleTests: XCTestCase {
             for _ in 0..<2 {
                 try lifecycle.register(cancel: {
                     XCTAssertEqual(lifecycle.state, .quiescing)
-                    XCTAssertThrowsError(try gate.validateWriter(lease))
-                    XCTAssertThrowsError(try lifecycle.register(cancel: {}, drain: {}))
+                    // cancel is deliberately non-throwing. Explicit catches keep
+                    // both failure assertions inside the cancellation boundary.
+                    do {
+                        try gate.validateWriter(lease)
+                        XCTFail("The admitted writer must be revoked before cancellation")
+                    } catch {
+                        XCTAssertEqual(error as? AccountWriterGate.Error, .staleLease)
+                    }
+                    do {
+                        _ = try lifecycle.register(cancel: {}, drain: {})
+                        XCTFail("Quiescing must refuse new consumers during cancellation")
+                    } catch {
+                        XCTAssertEqual(error as? FoodJournalConsumerLifecycle.Failure, .inactive)
+                    }
                     cancelled += 1
                 }, drain: {
                     await Task.yield()

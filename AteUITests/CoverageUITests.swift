@@ -595,8 +595,14 @@ final class CoverageUITests: XCTestCase {
         shot("backend-down-retry-card")
         app.buttons["generateRetry"].tap()
         wait(app.buttons["generateRetry"], 10)
-        app.swipeDown(velocity: .fast)  // close the sheet
-        sleep(1)
+        // Failed input is intentionally retained by interactiveDismissDisabled.
+        // Use the actual explicit discard route; a swipe leaves a blocking sheet
+        // and the historical tab taps then had hit point (-1,-1).
+        let cancel = app.buttons["addCancel"]
+        wait(cancel); cancel.tap()
+        let discard = app.buttons["Discard"]
+        wait(discard); discard.tap()
+        XCTAssertTrue(cancel.waitForNonExistence(timeout: 5), "Discard must actually close Add before tab navigation")
         tab("Library")
         wait(text("Keep this stew"), 5)
         // Signed-in sync against a failing server keeps the library too.
@@ -913,8 +919,13 @@ extension CoverageUITests {
         wait(app.buttons["Add recipe"])
         XCTAssertFalse(app.buttons["Cook mode"].exists)
         tab("Settings")
-        wait(app.buttons["settings.betaTesting"])
-        app.buttons["settings.betaTesting"].tap()
+        let beta = app.buttons["settings.betaTesting"]
+        // Beta & diagnostics is below everyday Settings. Lazy Form rows are not
+        // necessarily materialized at initial load; reveal before resolving.
+        scrollTo(beta, max: 6)
+        wait(beta)
+        XCTAssertTrue(beta.isHittable)
+        beta.tap()
         let back2 = app.navigationBars.buttons.element(boundBy: 0)
         wait(back2); back2.tap()
         wait(app.buttons["settings.betaTesting"])

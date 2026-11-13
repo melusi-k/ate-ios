@@ -20,10 +20,10 @@ final class FoodJournalLocalOwnerTests: XCTestCase {
     }
     private func locations(_ root: URL) -> FoodJournalLocalOwner.Locations {
         .init(storeFileURL: root.appendingPathComponent("journal.store"),
-              mediaDirectory: root.appendingPathComponent("media"),
-              migrationBackupDirectory: root.appendingPathComponent("migration"),
-              repairBackupDirectory: root.appendingPathComponent("repair"),
-              preservationDirectory: root.appendingPathComponent("preservation"))
+              mediaDirectory: root.appendingPathComponent("media", isDirectory: true),
+              migrationBackupDirectory: root.appendingPathComponent("migration", isDirectory: true),
+              repairBackupDirectory: root.appendingPathComponent("repair", isDirectory: true),
+              preservationDirectory: root.appendingPathComponent("preservation", isDirectory: true))
     }
     private func bind(_ root: URL, _ defaults: UserDefaults, _ container: ModelContainer,
                       _ gate: AccountWriterGate, _ lease: UUID, _ archive: OwnerNestedBoundary) throws -> FoodJournalLocalOwner {
@@ -37,7 +37,7 @@ final class FoodJournalLocalOwnerTests: XCTestCase {
             let owner = try bind(root, defaults, container, gate, lease, archive)
             XCTAssertTrue(owner.runtime.defaults === defaults)
             XCTAssertTrue(owner.runtime.journal.container === container)
-            XCTAssertEqual(owner.runtime.journal.mediaDirectory, root.appendingPathComponent("media"))
+            XCTAssertEqual(owner.runtime.journal.mediaDirectory, root.appendingPathComponent("media", isDirectory: true))
             XCTAssertEqual(owner.runtime.journal.boundMediaURL("retained.jpg"), root.appendingPathComponent("media/retained.jpg"))
             let inventory = owner.resetInventory
             XCTAssertTrue(inventory.journal === owner.runtime.journal)

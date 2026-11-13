@@ -42,11 +42,21 @@ final class JournalAccountActionBindingTests: XCTestCase {
     }
 
     private func makeStore(runtime: FoodJournalRuntime?) -> AppStore {
-        AppStore(context: nil, backend: MockBackend(),
+        let store = AppStore(context: nil, backend: MockBackend(),
                  nutritionDiaryRepository: NutritionDiaryRepository(defaults: defaults),
                  nutritionGoalsRepository: goalsRepo(),
                  foodJournalRuntime: runtime,
                  cookPlanNotifications: CookPlanNotifications(client: CookPlanFakeNotificationClient()))
+        if let runtime {
+            store.journalLocalResetInventory = JournalLocalReset(journal: runtime.journal,
+                defaults: defaults, goalsStorage: runtime.goalsRepository.storage,
+                mediaDirectory: root.appendingPathComponent("JournalMedia"),
+                migrationBackupDirectory: root.appendingPathComponent("NutritionDiaryLegacyBackups"),
+                repairBackupDirectory: root.appendingPathComponent("NutritionDiaryCorruptBackups"),
+                preservationDirectory: root.appendingPathComponent("AdoptionPreservation"),
+                storeFileURL: root.appendingPathComponent("AteJournal.store"))
+        }
+        return store
     }
 
     private func sampleMeal(id: UUID = UUID(), name: String = "Pap and wors") -> NutritionDiaryEntry {
@@ -269,5 +279,23 @@ final class JournalAccountActionBindingTests: XCTestCase {
         let store = makeStore(runtime: makeRuntime())
         let error = await store.deleteAccount()
         XCTAssertEqual(error?.message, "The unified Journal reset is not ready. Your account has not been deleted.")
+    }
+}
+
+extension JournalAccountActionBindingTests {
+    func testMissingRetainedResetInventoryRefusesBeforeAnyLocalWipe() throws {
+        let runtime = makeRuntime()
+        let store = makeStore(runtime: runtime)
+        store.journalWriterEffect = { try $0() }
+        store.journalWriterValidator = {}
+        store.journalLocalResetInventory = nil
+        try runtime.coordinator.saveMeal(sampleMeal())
+        let recipe = RecipeCard(title: "Must remain")
+        store.add(recipe)
+        let report = store.wipeLocalDataUnified()
+        XCTAssertFalse(report.complete)
+        XCTAssertTrue(report.failures.contains { $0.component == "reset-inventory" })
+        XCTAssertEqual(try runtime.readMeals().count, 1)
+        XCTAssertTrue(store.recipes.contains { $0.id == recipe.id })
     }
 }

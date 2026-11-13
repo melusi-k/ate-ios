@@ -608,6 +608,8 @@ final class AppStore {
     /// Central supplies the adoption-preservation directory at composition
     /// (JournalInstallReconciliation); it joins the unified wipe's erase inventory.
     @ObservationIgnored var journalResetPreservationDirectory: URL?
+    /// Required canonical inventory. Never reconstruct personal paths from globals.
+    @ObservationIgnored var journalLocalResetInventory: JournalLocalReset?
 
     // MARK: ordinary-writer boundary seam (#245, lane 1)
 

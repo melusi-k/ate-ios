@@ -243,3 +243,23 @@ import XCTest
         XCTAssertTrue(failed.contains(SystemSurfaceCleanup.Surface.writerFence))
     }
 }
+
+extension Lane3WriterBoundaryTests {
+    func testWatchActivationRepublishEntersGateAndRefusesRetiredWriter() {
+        enum Retired: Error { case epoch }
+        let bridge = PhoneWatchBridge()
+        var admitted = true, attempts = 0, performed = 0
+        bridge.writerBoundary = FoodJournalWriterBoundary { work in
+            attempts += 1
+            guard admitted else { throw Retired.epoch }
+            performed += 1; try work()
+        }
+        bridge.republish()
+        XCTAssertEqual(attempts, 1)
+        XCTAssertEqual(performed, 1)
+        admitted = false
+        bridge.republish()
+        XCTAssertEqual(attempts, 2)
+        XCTAssertEqual(performed, 1, "cached session cannot be handed off after retirement")
+    }
+}

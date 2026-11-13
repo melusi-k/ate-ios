@@ -20,7 +20,7 @@ final class FoodJournalRuntimeFactoryTests: XCTestCase {
                           boundary: FoodJournalWriterBoundary = .legacy) -> FoodJournalRuntimeFactory.Bindings {
         .init(defaults: defaults, goals: NutritionGoalsRepository(defaults: defaults,
             storage: FileNutritionGoalsStorage(fileURL: root.appendingPathComponent("goals.json"))),
-            writerBoundary: boundary, migrationBackupDirectory: root.appendingPathComponent("migration"),
+            writerBoundary: boundary, mediaDirectory: root.appendingPathComponent("media"), migrationBackupDirectory: root.appendingPathComponent("migration"),
             repairBackupDirectory: root.appendingPathComponent("repair"), afterRestoreCommit: {})
     }
     func testBindsExactContainerAndDefaultsWithoutMigratingLegacyOrRunningCleanup() throws {
@@ -74,14 +74,14 @@ final class FoodJournalRuntimeFactoryTests: XCTestCase {
             container.mainContext.rollback()
             let other = UserDefaults(suiteName: "Factory-other-\(UUID().uuidString)")!
             let mismatch = FoodJournalRuntimeFactory.Bindings(defaults: defaults, goals: NutritionGoalsRepository(defaults: other),
-                writerBoundary: .legacy, migrationBackupDirectory: root.appendingPathComponent("m"),
+                writerBoundary: .legacy, mediaDirectory: root.appendingPathComponent("media"), migrationBackupDirectory: root.appendingPathComponent("m"),
                 repairBackupDirectory: root.appendingPathComponent("r"), afterRestoreCommit: {})
             XCTAssertThrowsError(try FoodJournalRuntimeFactory.bind(container: container, openState: .ok, bindings: mismatch)) {
                 XCTAssertEqual($0 as? FoodJournalRuntimeFactory.Failure, .defaultsMismatch)
             }
             let samePath = root.appendingPathComponent("same")
             let invalid = FoodJournalRuntimeFactory.Bindings(defaults: defaults, goals: bindings(root, defaults).goals,
-                writerBoundary: .legacy, migrationBackupDirectory: samePath,
+                writerBoundary: .legacy, mediaDirectory: root.appendingPathComponent("media"), migrationBackupDirectory: samePath,
                 repairBackupDirectory: samePath, afterRestoreCommit: {})
             XCTAssertThrowsError(try FoodJournalRuntimeFactory.bind(container: container, openState: .ok, bindings: invalid))
         }

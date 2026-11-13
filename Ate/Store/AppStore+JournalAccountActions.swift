@@ -118,6 +118,8 @@ extension AppStore {
         guard foodJournalRuntime != nil, let importSession = journalArchiveImport else {
             throw CanonicalConsumerBindingError.archiveBindingRequired
         }
-        return try importSession(data)
+        let result = try importSession(data)
+        try reloadAfterUnifiedImport()
+        return result
     }
 }

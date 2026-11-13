@@ -116,6 +116,31 @@ enum Durations {
             return s
         }
         let stepMin = (c.steps.compactMap(\.timeSeconds).reduce(0, +) + 59) / 60
+        // Photo-guess cards predate the explicit generated Prep contract. Without
+        // a Prep declaration, preserve their existing bounded total (not invented
+        // exact prep); the consistency validator still asks to explain any gap.
+        // A stated photo Prep value uses the same strict path as all generated
+        // cards, including malformed declarations that must remain visible.
+        let hasPrepDeclaration = (c.aiNote ?? "").range(of: #"\bprep\s*:"#,
+            options: [.regularExpression, .caseInsensitive]) != nil
+        let legacyPhotoTotal = c.source == .photoGuess && !hasPrepDeclaration
+        if RecipeQuality.isGenerated(c), !legacyPhotoTotal, stepMin > 0, stepMin <= maxTotalMinutes {
+            // Generated total follows the SAME stated-prep rule as validation,
+            // after written step times have won above. Do not apply the legacy
+            // ingredient-count prep cap to an explicit model prep statement.
+            let note = c.aiNote ?? ""
+            let statedPrep = GeneratedRecipeConsistency.prepMinutes(in: note)
+            if note.range(of: #"\bprep\s*:"#, options: [.regularExpression, .caseInsensitive]) != nil,
+               statedPrep == nil { return (c, corrected) }
+            let prep = statedPrep ?? 0
+            if let total = GeneratedRecipeConsistency.totalMinutes(stepMinutes: stepMin, prepMinutes: prep) {
+                if c.timeMinutes != total { c.timeMinutes = total; corrected = true }
+                return (c, corrected)
+            }
+            // Implausible explicit prep is not silently replaced with a guessed
+            // total. Existing quality checks keep the disagreement visible.
+            return (c, corrected)
+        }
         if let total = c.timeMinutes, total > 0 {
             let implausible = total > maxTotalMinutes || (stepMin > 0 && total > stepMin * 2 + 60)
             // Total = step times + prep, with prep capped at ~2 min per ingredient (min 5): a 7-min sandwich isn't 30 min.

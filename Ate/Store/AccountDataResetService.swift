@@ -16,7 +16,8 @@ struct AccountSnapshot: Equatable {
 }
 
 enum ResetRPCError: LocalizedError, Equatable {
-    /// 40001: caller generation is not the account's current generation. Discard stale
+    /// PT409: permanent caller generation conflict, not a retryable serialization error.
+    /// The caller generation is not the account's current generation. Discard stale
     /// local data and fetch a fresh snapshot; for a reset retry, verify status first.
     case staleGeneration
     /// 42501 / 401 / 403: not the account owner, or the session is not accepted.
@@ -71,7 +72,7 @@ final class AccountDataResetService {
         let message = j?["message"] as? String
         if code == 404 || pgcode == "PGRST202" { throw ResetRPCError.contractMissing }
         if code == 401 || code == 403 || pgcode == "42501" { throw ResetRPCError.unauthorized }
-        if pgcode == "40001" { throw ResetRPCError.staleGeneration }
+        if pgcode == "PT409" { throw ResetRPCError.staleGeneration }
         if pgcode == "22023" { throw ResetRPCError.invalidRequest(message ?? "") }
         if code >= 500 { throw ResetRPCError.outcomeUnverified(message ?? "HTTP \(code)") }
         throw ResetRPCError.http(code, message)

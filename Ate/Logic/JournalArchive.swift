@@ -49,8 +49,7 @@ enum JournalArchiveError: Error, Equatable {
 enum JournalArchiveCapture {
     /// Refuse a recovered or fallback store: a fresh replacement isn't the user's complete history.
     /// A later recovery export may explicitly include the moved-aside store under a separate contract.
-    private static func capture(journal: JournalStore, mediaDirectory: URL = JournalStore.mediaDir,
-                        maximumMediaBytes: Int = 100 * 1024 * 1024) throws -> JournalArchive {
+    private static func capture(journal: JournalStore) throws -> JournalArchive {
         try requireCompleteStore(journal.openState)
         guard let container = journal.container else {
             throw JournalArchiveError.unavailable
@@ -82,10 +81,10 @@ enum JournalArchiveCapture {
 
     /// Managed rows are copied on MainActor above; only immutable value data and file URLs
     /// cross to the utility queue. Never block UI while reading a large JournalMedia folder.
-    static func captureWithMedia(journal: JournalStore, mediaDirectory: URL = JournalStore.mediaDir,
+    static func captureWithMedia(journal: JournalStore, mediaDirectory: URL? = nil,
                                  maximumMediaBytes: Int = 100 * 1024 * 1024) async throws -> JournalArchive {
-        let snapshot = try capture(journal: journal, mediaDirectory: mediaDirectory,
-                                   maximumMediaBytes: maximumMediaBytes)
+        let mediaDirectory = mediaDirectory ?? journal.mediaDirectory
+        let snapshot = try capture(journal: journal)
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 do { continuation.resume(returning: try JournalArchiveMedia.load(snapshot,

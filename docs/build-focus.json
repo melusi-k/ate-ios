@@ -1,12 +1,8 @@
 {
-  "title": "Combined test build: Journal actions, Cook countdown and Settings tabs",
-  "summary": "Reviewed union includes native Journal delete, Cook leaf countdown/static-row accessibility, generation/input lifetime checks, Settings root tabs and dormant Food Journal graph. Artifact-only test build, not qualified: validation lanes skipped; exact-head native gates still running. NOT API-compatible for cloud upload; local use only, do not rely on cloud sync. Food Journal activation stays OFF. Settings community row is absent. Native, AX, pixels, tracker and bottom-bars qualification remains pending.",
-  "source_commit": "67ec3bc25fcfaf9865c7865cba5e83b7d528349d",
+  "title": "Combined reviewed build candidate: Journal actions, Cook countdown and Settings tabs",
+  "summary": "Includes the reviewed OFF Food Journal graph union, native Journal delete owner, generation/input lifetime checks, Cook leaf countdown/static-row accessibility and Settings tab visibility. This interim hosted focus guards only unchanged Journal owner paths; the full combined-source focus follows publication. Native compilation, UI/AX, pixels, tracker and bottom-bars remain unqualified. Cooking is reflection-only. Food Journal activation stays OFF. The Settings community row is not in this build.",
+  "source_commit": "4415c15fb26fb38e3d0934f197e774dddbb631e8",
   "evidence": [
-    {
-      "path": "Ate/App/AteApp.swift",
-      "blob": "83e2b0e64b103d7fa1a288170b4b59697ed1064c"
-    },
     {
       "path": "Ate/Views/JournalViews.swift",
       "blob": "7e0375d362867507e781901318e32fde459f0e85"
@@ -14,42 +10,6 @@
     {
       "path": "Ate/Views/JournalDeleteConfirmation.swift",
       "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
-    },
-    {
-      "path": "Ate/Views/CookModeView.swift",
-      "blob": "cab960aab4d136ab3cbae37f050b5669dd639eec"
-    },
-    {
-      "path": "Ate/Views/Components.swift",
-      "blob": "9d71811effbdc4627ef9c2b94fe9423bb8319c05"
-    },
-    {
-      "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
-    },
-    {
-      "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "05ef5e22018d58abca44eb88759d5ee9f5e7eb79"
-    },
-    {
-      "path": "Ate/Services/JournalSuggestionService.swift",
-      "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
-    },
-    {
-      "path": "Ate/Services/Sync.swift",
-      "blob": "a208389a660fc4dfb869dd8d37004544d3063cf8"
-    },
-    {
-      "path": "Ate/Store/AppStore.swift",
-      "blob": "01b9371fefcbf54aac0e351e900137b1653ea809"
-    },
-    {
-      "path": "Ate/Store/FoodJournalAppGraph.swift",
-      "blob": "9d9c3850573652789f4f5e0026ab4ab25ad2a513"
-    },
-    {
-      "path": "Ate/Services/DraftStore.swift",
-      "blob": "bf1dba675f93ac8488a1a34dbe52b6b98d9d0d3d"
     }
   ]
 }

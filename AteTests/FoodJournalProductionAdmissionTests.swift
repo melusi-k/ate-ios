@@ -60,6 +60,66 @@ final class FoodJournalProductionAdmissionTests: XCTestCase {
             XCTAssertEqual(try owner.runtime.journal.readReflections().count, 0)
         }
     }
+    private func emptyArchiveData() throws -> Data {
+        try JSONEncoder().encode(AteUnifiedArchive(recipes: [], shoppingItems: [],
+            nutritionDiaryEntries: [], nutritionGoals: DailyNutritionGoals(), appSettings: AppSettings(),
+            timerPreferences: TimerPrefs(), journal: JournalArchive(entries: [], media: [:])))
+    }
+    func testRetainedGraphSharesActualDomainsAndQuiescedImportUsesReceiptProof() async throws {
+        try await fixture { root, defaults, gate, lease, control, receipts, resources in
+            let admission = try FoodJournalProductionAdmission(gate: gate, control: control, receipts: receipts,
+                resources: resources, archive: ArchiveNestedGenerationBoundary(directory: root), localIdentity: "local",
+                currentSession: { nil }, snapshot: { _ in throw ResetRPCError.contractMissing })
+            try await admission.reconcile(admittedLease: lease)
+            let graph = try admission.buildGraph(admittedLease: lease, afterRestoreCommit: {})
+            XCTAssertThrowsError(try admission.buildGraph(admittedLease: lease, afterRestoreCommit: {}))
+            XCTAssertTrue(graph.runtime.defaults === defaults)
+            XCTAssertTrue(graph.resetInventory.journal === graph.runtime.journal)
+            XCTAssertTrue(graph.resetInventory.defaults === defaults)
+            var drained = false
+            try graph.lifecycle.register(cancel: {}, drain: { await Task.yield(); drained = true })
+            _ = try await graph.archiveImport.importData(self.emptyArchiveData())
+            XCTAssertTrue(drained)
+            XCTAssertEqual(graph.lifecycle.state, .quiesced)
+            XCTAssertThrowsError(try graph.validate())
+            do { _ = try await graph.archiveExport.export(); XCTFail("Old graph cannot export after import") } catch { }
+            XCTAssertEqual(try receipts.read(), .init(ownerID: "local", generation: 0))
+        }
+    }
+    func testReceiptMutationDuringDrainRefusesImportBeforeTransaction() async throws {
+        try await fixture { root, _, gate, lease, control, receipts, resources in
+            let admission = try FoodJournalProductionAdmission(gate: gate, control: control, receipts: receipts,
+                resources: resources, archive: ArchiveNestedGenerationBoundary(directory: root), localIdentity: "local",
+                currentSession: { nil }, snapshot: { _ in throw ResetRPCError.contractMissing })
+            try await admission.reconcile(admittedLease: lease)
+            let graph = try admission.buildGraph(admittedLease: lease, afterRestoreCommit: {})
+            try graph.lifecycle.register(cancel: {}, drain: {
+                try receipts.save(.init(ownerID: "foreign", generation: 0))
+            })
+            do { _ = try await graph.archiveImport.importData(self.emptyArchiveData()); XCTFail("Changed receipt must refuse") } catch { }
+            XCTAssertEqual(graph.lifecycle.state, .quiesced)
+            let replacement = try gate.captureWriter()
+            try gate.withArchiveRecoveryLease(replacement) { archive in
+                XCTAssertFalse(try DiskArchiveRecoveryJournal(lease: archive).hasUnresolvedTransactions())
+            }
+        }
+    }
+    func testRetainedGraphRefusesSameOwnerTokenChangeBeforeExportOrImport() async throws {
+        try await fixture { root, _, gate, lease, control, receipts, resources in
+            var current: AuthSession? = self.session(token: "first")
+            let admission = try FoodJournalProductionAdmission(gate: gate, control: control, receipts: receipts,
+                resources: resources, archive: ArchiveNestedGenerationBoundary(directory: root), localIdentity: "local",
+                currentSession: { current }, snapshot: { _ in AccountSnapshot(generation: 0, rows: []) })
+            try await admission.reconcile(admittedLease: lease)
+            let graph = try admission.buildGraph(admittedLease: lease, afterRestoreCommit: {})
+            current = self.session(token: "second")
+            XCTAssertThrowsError(try graph.validate())
+            do { _ = try await graph.archiveExport.export(); XCTFail("Stale export must refuse") } catch { }
+            do { _ = try await graph.archiveImport.importData(self.emptyArchiveData()); XCTFail("Stale import must refuse") } catch { }
+            XCTAssertEqual(graph.lifecycle.state, .active, "Identity refusal occurs before quiescence")
+        }
+    }
+
     func testMissingSignedInContractBlocksBeforePersonalOpenOrReceiptStamp() async throws {
         try await fixture { root, _, gate, lease, control, receipts, resources in
             let admission = try FoodJournalProductionAdmission(gate: gate, control: control, receipts: receipts,

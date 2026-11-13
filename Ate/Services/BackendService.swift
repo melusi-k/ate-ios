@@ -334,3 +334,4 @@ final class SupabaseBackend: BackendService {
         return try JSONDecoder().decode(CardEnvelope.self, from: data).card
     }
 }
+

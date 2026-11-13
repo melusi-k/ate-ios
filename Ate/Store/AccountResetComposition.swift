@@ -74,3 +74,38 @@ final class AccountResetComposition {
             })
     }
 }
+
+/// Activation gate for generation-aware sync, not migration qualification.
+/// Deliberately has no retry or Refresh callback until recovery/quiescence is real.
+enum AccountGenerationConflictState: Equatable {
+    case staleLocalData
+    case pendingResetUnverified
+
+    enum Operation { case snapshot, put, clear }
+    static func failure(_ error: ResetRPCError, during operation: Operation,
+                        hasPendingReset: Bool) -> Self? {
+        guard error == .staleGeneration else { return nil }
+        if hasPendingReset { return .pendingResetUnverified }
+        switch operation {
+        case .clear: return .pendingResetUnverified
+        case .snapshot, .put: return .staleLocalData
+        }
+    }
+    var title: String {
+        switch self {
+        case .staleLocalData: return "Your account data changed"
+        case .pendingResetUnverified: return "Your account-data request needs checking"
+        }
+    }
+    var message: String {
+        switch self {
+        case .staleLocalData:
+            return "This iPhone has an older version of your account data. Sync is paused so it doesn't upload old data again. Ate needs to check the current account before you can continue."
+        case .pendingResetUnverified:
+            return "Ate couldn't confirm this request because your account data changed. Saved data is staying closed. Checking status won't start another Clear all request."
+        }
+    }
+    var recoveryStatus: String {
+        "Account status checking is not available in this build. Saved data must stay closed until safe recovery is available."
+    }
+}

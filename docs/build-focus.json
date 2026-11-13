@@ -1,15 +1,27 @@
 {
-  "title": "Journal navigation and cooking reflections",
-  "summary": "Focus: the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log.",
-  "source_commit": "7c3f7d0265e58ea124c0bf55140a90fe76df45b3",
+  "title": "Settings release notes, Insights destinations and cooking history",
+  "summary": "Focus: bundled Settings release notes and replay tour, owned Health refresh, synthetic shopping and diary destination acceptance, monthly recorded cooking days and distinct recipes, and native Back/edge-swipe coverage. Source inclusion is not device acceptance; cooking must not create an eaten-food log.",
+  "source_commit": "1644ee8517f88e9d5880f1363d3e256ba0ec5416",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "56f838b904b24a8d88ba3409638d7dc434aaa57e"
+      "blob": "822f194cbdab9536c4346070d5d6a554feb88171"
     },
     {
       "path": "Ate/Views/JournalViews.swift",
       "blob": "61c2d7df9cf3b780cf809b779efef40b0daeb3d2"
+    },
+    {
+      "path": "Ate/Views/ProductUpdatesViews.swift",
+      "blob": "9d936fd4c72a5ac09dd1df64d1a38c64b7001d15"
+    },
+    {
+      "path": "Ate/Views/InsightsView.swift",
+      "blob": "c192f91824cbfc37ab06f3386399d918fb668167"
+    },
+    {
+      "path": "Ate/Views/CookingTrackerView.swift",
+      "blob": "6b209b692702c03311ec3feba3bf3632202e9bc1"
     }
   ]
 }

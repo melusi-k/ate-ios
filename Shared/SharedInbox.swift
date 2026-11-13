@@ -30,6 +30,26 @@ enum SharedInbox {
             var all = load(d); all.append(item); save(Array(all.suffix(20)), d)
         }) != nil
     }
+    /// Image bytes and their queue reference publish under ONE original boundary.
+    /// Capture the boundary before loading an asynchronous NSItemProvider; do not
+    /// look up a fresh boundary/epoch after that await. No directory is created on
+    /// a refused effect. This does not install the extension's production gate.
+    @discardableResult
+    static func pushImage(_ data: Data, item: Item,
+                          directory: URL?, defaults: UserDefaults = SharedContainer.defaults,
+                          boundary: SharedWriterBoundary) -> Bool {
+        guard let directory else { return false }
+        return (try? boundary.withEffect { () throws -> Void in
+            let name = UUID().uuidString + ".jpg"
+            guard let url = safeImageURL(name, in: directory) else { throw ImageFailure.unsafePath }
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try data.write(to: url, options: .atomic)
+            var value = item; value.imageFile = name
+            guard push(value, defaults, boundary: boundary) else { throw ImageFailure.queueFailed }
+        }) != nil
+    }
+    private enum ImageFailure: Error { case unsafePath, queueFailed }
+
     /// Removes and returns the oldest item as one gated read-modify-write. A
     /// refused effect returns nil and leaves the inbox untouched.
     static func pop(_ d: UserDefaults = SharedContainer.defaults,
@@ -57,10 +77,13 @@ enum SharedInbox {
         return candidate
     }
 
-    static func imageData(_ item: Item) -> Data? {
-        guard let f = item.imageFile, let dir = folder, let u = safeImageURL(f, in: dir) else { return nil }
-        defer { try? FileManager.default.removeItem(at: u) }
-        return try? Data(contentsOf: u)
+    static func imageData(_ item: Item, directory: URL? = folder, boundary: SharedWriterBoundary = .current) -> Data? {
+        guard let f = item.imageFile, let dir = directory, let u = safeImageURL(f, in: dir) else { return nil }
+        return (try? boundary.withEffect { () throws -> Data in
+            let data = try Data(contentsOf: u)
+            try FileManager.default.removeItem(at: u)
+            return data
+        })
     }
 
     /// First http(s) URL in free text (e.g. a TikTok caption shared as text).

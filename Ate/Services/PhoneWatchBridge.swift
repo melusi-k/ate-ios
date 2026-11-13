@@ -41,6 +41,13 @@ final class PhoneWatchBridge: NSObject {
         }
     }
 
+    /// Activation callbacks are deferred onto MainActor. They must republish
+    /// inside the installed graph boundary, never bypass the gate. Production
+    /// remount must not rebind a bridge instance while old callbacks can still run.
+    func republish() {
+        try? writerBoundary.withEffect { push() }
+    }
+
     private func push() {
         #if canImport(WatchConnectivity)
         guard WCSession.isSupported(), WCSession.default.activationState == .activated, WCSession.default.isPaired,
@@ -56,9 +63,9 @@ final class PhoneWatchBridge: NSObject {
 #if canImport(WatchConnectivity)
 extension PhoneWatchBridge: WCSessionDelegate {
     nonisolated func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: Error?) {
-        // Read-only republish of the current in-memory mirror: not a mutation, so it
-        // deliberately stays outside the writer boundary (reads advance no generation).
-        Task { @MainActor in self.push() }
+        // A network handoff of cached session/personal timer data is an effect,
+        // even if no defaults row is written. The installed gate must allow it.
+        Task { @MainActor in self.republish() }
     }
     nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
     nonisolated func sessionDidDeactivate(_ session: WCSession) { session.activate() }

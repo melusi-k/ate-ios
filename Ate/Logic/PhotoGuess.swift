@@ -46,3 +46,4 @@ enum PhotoGuess {
         return !d.isEmpty && (foodish || d.count >= 2)
     }
 }
+

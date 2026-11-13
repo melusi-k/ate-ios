@@ -796,7 +796,7 @@ final class AppStore {
         }
         recipeSnapshot = Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         shopSnapshot = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        timers.prefsProvider = { [weak self] in self?.timerPrefs ?? TimerPrefs() }
+        self.timers.prefsProvider = { [weak self] in self?.timerPrefs ?? TimerPrefs() }
         // Shares are attributed to the signed-in user when the session is still valid; otherwise anonymous.
         SupabaseBackend.userAccessToken = {
             guard let d = Keychain.load(account: "session"),

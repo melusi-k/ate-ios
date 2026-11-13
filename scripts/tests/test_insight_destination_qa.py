@@ -60,3 +60,17 @@ class InsightDestinationQATests(unittest.TestCase):
         self.assertIn('XCTAssertEqual(app.navigationBars.count, 1', journey)
         self.assertIn('XCTAssertTrue(addEntry.isHittable', journey)
         self.assertNotIn('settingsContent().swipeDown()', journey)
+
+    def test_diary_return_expands_selected_settings_once_before_journal_navigation(self):
+        source = (ROOT / 'AteUITests/InsightsAcceptanceUITests.swift').read_text()
+        journey = source.split('func testSeededDiaryInsightOpensRealDiaryAndRetainsSuggestion()', 1)[1]
+        self.assertEqual(journey.count('settingsTab.tap()'), 1)
+        self.assertLess(journey.index('back.tap()'), journey.index('settingsTab.tap()'))
+        self.assertLess(journey.index('settingsTab.tap()'), journey.index('returnToSeededInsight('))
+        self.assertIn('XCTAssertTrue(settingsTab.isHittable', journey)
+        self.assertEqual(journey.count('XCTAssertTrue(settingsTab.isSelected'), 2)
+        self.assertIn('XCTAssertEqual(rows.count, 3', journey)
+        helper = source.split('private func returnToSeededInsight(', 1)[1].split('func testSeededShopping', 1)[0]
+        self.assertEqual(helper.count('journal.tap()'), 1)
+        self.assertIn('wait(journal)', helper)
+        self.assertIn('Opening a destination must not dismiss unchanged evidence', helper)

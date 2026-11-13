@@ -126,6 +126,19 @@ final class AccountWriterGate: ClearAllWriterGating {
         }
     }
 
+    /// A retained graph may revoke only its original epoch. A stale graph cannot
+    /// cancel a newer owner's writers, even for the same account identity.
+    @discardableResult
+    func invalidateWriters(expectedLease: UUID) throws -> UUID {
+        guard resetFD == nil else { throw Error.resetPending }
+        guard activeEffectLease == nil else { throw Error.busy }
+        let fd = try lock(); defer { unlock(fd) }
+        guard try readEpoch() == expectedLease else { throw Error.staleLease }
+        let replacement = UUID()
+        try saveEpoch(replacement)
+        return replacement
+    }
+
     /// Explicit auth lifecycle binding must call this BEFORE a new session graph can
     /// publish. Invalidates same-owner logout/relogin work, not just account switches.
     func invalidateWriters() throws {

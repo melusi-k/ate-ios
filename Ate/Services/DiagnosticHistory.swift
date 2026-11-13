@@ -6,6 +6,8 @@ import Foundation
 struct DiagnosticEvent: Codable, Identifiable, Equatable {
     enum Kind: String, Codable {
         case appLaunched
+        case sharedContainerMode
+        case appOnlyContainerMode
         case appForegrounded
         case appBackgrounded
         case storeOpenFailed
@@ -37,6 +39,8 @@ struct DiagnosticEvent: Codable, Identifiable, Equatable {
     var title: String {
         switch kind {
         case .appLaunched: return "App launched"
+        case .sharedContainerMode: return "Shared app and extension storage"
+        case .appOnlyContainerMode: return "App-only storage; extensions unavailable"
         case .appForegrounded: return "App became active"
         case .appBackgrounded: return "App entered background"
         case .storeOpenFailed: return "Local data store failed to open"

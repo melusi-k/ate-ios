@@ -77,7 +77,7 @@ struct AddRecipeSheet: View {
                     .confirmationDialog("Discard this recipe?", isPresented: $confirmDiscard, titleVisibility: .visible) {
                         Button("Discard", role: .destructive) {
                             invalidateRepair()
-                            DraftStore.shared.clear()
+                            store.drafts.clear()
                             dismiss()
                         }
                         Button("Keep editing", role: .cancel) {}
@@ -86,7 +86,7 @@ struct AddRecipeSheet: View {
         }
         .onDisappear {
             invalidateRepair()
-            if !loading && !hasUnsaved { DraftStore.shared.clear() }
+            if !loading && !hasUnsaved { store.drafts.clear() }
         }
         .task {
             OnDeviceBackend.prewarm()
@@ -287,7 +287,7 @@ struct AddRecipeSheet: View {
             Button(saving ? "Saving…" : "Save recipe") {
                 guard !saving, let d = draft else { return }
                 saving = true                       // P0: one save per draft; double taps are ignored
-                DraftStore.shared.clear()           // the stored draft must not be restored (and saved again) later
+                store.drafts.clear()           // the stored draft must not be restored (and saved again) later
                 BetaQA.shared.pass("A-EDIT-01", note: (didEdit ? "Edited and saved" : "Reviewed and saved") + " “\(d.title)”")
                 onSave(RecipeLogic.normalize(d))
                 // Record only after handing the normalized recipe to the owning save flow.
@@ -402,12 +402,12 @@ struct AddRecipeSheet: View {
 
     /// A-CREATE-05: the app was closed mid-generation (or with an unsaved card) last time.
     private func restoreInterrupted() {
-        if let c = DraftStore.shared.draft, store.recipe(c.id) != nil {
-            DraftStore.shared.clear()   // P0: this draft was already saved; restoring it made duplicate copies
-        } else if let c = DraftStore.shared.draft {
+        if let c = store.drafts.draft, store.recipe(c.id) != nil {
+            store.drafts.clear()   // P0: this draft was already saved; restoring it made duplicate copies
+        } else if let c = store.drafts.draft {
             draft = c; store.show("Restored your unsaved card")
             BetaQA.shared.pass("A-CREATE-05", note: "Restored unsaved draft “\(c.title)” after relaunch")
-        } else if let p = DraftStore.shared.pending {
+        } else if let p = store.drafts.pending {
             if let m = Mode(rawValue: p.mode) { mode = m }
             switch mode {
             case .link: link = p.text
@@ -487,7 +487,9 @@ struct AddRecipeSheet: View {
             draft = repaired
             didEdit = false
             confirmedDraft = false
-            DraftStore.shared.saveDraft(repaired)
+            guard store.drafts.saveDraft(repaired) else {
+                store.show("The repaired draft could not be saved safely.", error: true); return
+            }
         }, failed: { error in
             repairError = error.localizedDescription
         }, finished: {
@@ -549,7 +551,7 @@ struct AddRecipeSheet: View {
         error = nil; socialError = nil; socialReason = nil
         live = nil
         OnDeviceBackend.partialSink = { p in live = p }
-        DraftStore.shared.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""),
+        store.drafts.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""),
                                 imageData: recoveryImageData)
         // Keep pending input on failure or while asking the user to identify an uncertain dish.
         // DraftStore.saveDraft clears it on success; Cancel/Discard clears it explicitly.
@@ -579,7 +581,12 @@ struct AddRecipeSheet: View {
             draft = normalized
             diagnostic?.mark(.draftAssigned)
             confirmedDraft = false
-            if let d = draft { chooseInitialCover(for: d); DraftStore.shared.saveDraft(d) }
+            if let d = draft {
+                guard store.drafts.saveDraft(d) else {
+                    store.show("This draft could not be saved safely.", error: true); return
+                }
+                chooseInitialCover(for: d)
+            }
             editing = false
             dishQuestion = nil; dishAnswer = ""; spreadPicks = []
             let src = "source \(card.source) in \(Int(Date().timeIntervalSince(started) * 1000)) ms"

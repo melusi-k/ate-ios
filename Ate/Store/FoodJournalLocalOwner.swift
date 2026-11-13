@@ -19,23 +19,27 @@ final class FoodJournalLocalOwner {
     let locations: Locations
     private let gate: AccountWriterGate
     private let lease: UUID
+    private let validateConsumers: () throws -> Void
 
     private init(runtime: FoodJournalRuntime, locations: Locations,
-                 gate: AccountWriterGate, lease: UUID) {
+                 gate: AccountWriterGate, lease: UUID, validateConsumers: @escaping () throws -> Void) {
         self.runtime = runtime
         self.locations = locations
         self.gate = gate
         self.lease = lease
+        self.validateConsumers = validateConsumers
     }
 
     static func bind(container: ModelContainer?, openState: JournalOpenState,
                      defaults: UserDefaults, goalsStorage: NutritionGoalsStorage,
                      locations: Locations, gate: AccountWriterGate, admittedLease: UUID,
                      archive: ArchiveNestedLeaseBoundary,
-                     afterRestoreCommit: @escaping () throws -> Void) throws -> FoodJournalLocalOwner {
+                     afterRestoreCommit: @escaping () throws -> Void,
+                     validateConsumers: @escaping () throws -> Void = {}) throws -> FoodJournalLocalOwner {
         // Refuse before construction under the original admission, including pending
         // reset and stale identity epochs. No captureWriter or disk reopen here.
         try gate.withWriterEffect(admittedLease) {
+            try validateConsumers()
             let directories = [locations.mediaDirectory, locations.migrationBackupDirectory,
                                locations.repairBackupDirectory, locations.preservationDirectory]
             let all = directories + [locations.storeFileURL]
@@ -49,8 +53,14 @@ final class FoodJournalLocalOwner {
                   container.configurations.first?.url.standardizedFileURL == locations.storeFileURL else {
                 throw Failure.storeConfigurationMismatch
             }
-            let boundary = FoodJournalWriterBoundary(perform: JournalWriterBoundaryComposition.makePerform(
-                gate: gate, writerLease: admittedLease, archive: archive))
+            let perform = JournalWriterBoundaryComposition.makePerform(
+                gate: gate, writerLease: admittedLease, archive: archive)
+            let boundary = FoodJournalWriterBoundary(perform: { effect in
+                try gate.withWriterEffect(admittedLease) {
+                    try validateConsumers()
+                    try perform(effect)
+                }
+            })
             let runtime = try FoodJournalRuntimeFactory.bind(container: container, openState: openState,
                 bindings: .init(defaults: defaults,
                     goals: NutritionGoalsRepository(defaults: defaults, storage: goalsStorage, writerBoundary: boundary),
@@ -58,12 +68,20 @@ final class FoodJournalLocalOwner {
                     migrationBackupDirectory: locations.migrationBackupDirectory,
                     repairBackupDirectory: locations.repairBackupDirectory,
                     afterRestoreCommit: afterRestoreCommit))
-            return FoodJournalLocalOwner(runtime: runtime, locations: locations, gate: gate, lease: admittedLease)
+            return FoodJournalLocalOwner(runtime: runtime, locations: locations, gate: gate, lease: admittedLease, validateConsumers: validateConsumers)
         }
     }
 
+    func requireLifecycle(_ lifecycle: FoodJournalConsumerLifecycle) throws {
+        guard lifecycle.belongs(to: gate, lease: lease) else { throw AccountWriterGate.Error.staleLease }
+        try validate()
+        try lifecycle.validate()
+    }
+
     /// Validation does not enter archive mutation or advance its generation.
-    func validate() throws { try gate.validateWriter(lease) }
+    func validate() throws {
+        try gate.withWriterEffect(lease) { try validateConsumers() }
+    }
 
     /// Exact same storage inventory as this owner's runtime. The caller must separately
     /// quiesce all consumers and hold its authorized reset/account-action boundary.

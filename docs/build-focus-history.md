@@ -99,13 +99,3 @@ It is not evidence for the whole combined source. After Reviewer publishes this
 union, a focus-only record must anchor all combined runtime paths to that hosted
 ancestor before Build IPA runs. No ancestry/blob rule or test budget changed.
 Food Journal activation remains OFF. Settings community is absent, not ON.
-
-## Full combined hosted-source focus
-
-Packet2 binds twelve runtime evidence paths from the combined union to hosted
-67ec3bc25fcfaf9865c7865cba5e83b7d528349d, whose tree is
-76aa007b9b393ffcfeaa48e86e74e369f6f7df74. No runtime/workflow/test changes.
-Build IPA is artifact-only, run_tests=false, Production channel: test build,
-not qualified, validation lanes skipped; exact-head native gates still running.
-Cloud uploads remain incompatible on ordinary launch. Food Journal OFF;
-Settings community row absent. Source binding does not establish QA acceptance.

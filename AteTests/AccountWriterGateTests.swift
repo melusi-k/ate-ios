@@ -91,3 +91,40 @@ final class AccountWriterGateTests: XCTestCase {
     }
 
 }
+
+extension AccountWriterGateTests {
+    func testGenerationConflictBlocksOriginalAndNewLeasesAcrossInstancesAndRelaunch() throws {
+        try fixture { directory in
+            var first: AccountWriterGate? = try AccountWriterGate(directory: directory, resetControlExists: { false })
+            let sibling = try AccountWriterGate(directory: directory, resetControlExists: { false })
+            let old = try first!.captureWriter()
+            try first!.blockWritersForGenerationConflict()
+            XCTAssertThrowsError(try first!.validateWriter(old))
+            XCTAssertThrowsError(try first!.captureWriter())
+            XCTAssertThrowsError(try sibling.withWriterEffect(old) { XCTFail("sibling wrote after conflict") })
+            XCTAssertThrowsError(try sibling.captureWriter())
+            XCTAssertThrowsError(try sibling.acquireResetGate(), "ordinary reset cannot discard unresolved conflict")
+            first = nil
+            let relaunched = try AccountWriterGate(directory: directory, resetControlExists: { false })
+            XCTAssertThrowsError(try relaunched.captureWriter())
+            try relaunched.invalidateWriters() // rotating epoch does NOT clear the block
+            XCTAssertThrowsError(try relaunched.captureWriter())
+        }
+    }
+
+    func testCorruptOrSymlinkConflictMarkerIsNeverFreshAdmission() throws {
+        try fixture { directory in
+            let file = directory.appendingPathComponent("writer-generation-block-v1")
+            try Data("broken".utf8).write(to: file)
+            let gate = try AccountWriterGate(directory: directory, resetControlExists: { false })
+            XCTAssertThrowsError(try gate.captureWriter())
+            XCTAssertThrowsError(try gate.acquireResetGate())
+            try FileManager.default.removeItem(at: file)
+            let target = directory.appendingPathComponent("outside")
+            try Data(UUID().uuidString.utf8).write(to: target)
+            try FileManager.default.createSymbolicLink(at: file, withDestinationURL: target)
+            XCTAssertThrowsError(try gate.captureWriter())
+            XCTAssertThrowsError(try gate.blockWritersForGenerationConflict())
+        }
+    }
+}

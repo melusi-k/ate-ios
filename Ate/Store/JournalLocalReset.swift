@@ -45,17 +45,6 @@ struct JournalLocalReset {
     let preservationDirectory: URL?
     let storeFileURL: URL
 
-    static var defaultMigrationBackupDirectory: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent(FoodJournalMigration.legacyBackupDirectoryName, isDirectory: true)
-    }
-    static var defaultRepairBackupDirectory: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent(NutritionDiaryRepository.corruptBackupDirectoryName, isDirectory: true)
-    }
-    /// Matches JournalStore's durable open path ("AteJournal" in the default directory).
-    static var defaultStoreFileURL: URL { ModelConfiguration("AteJournal").url }
-
     init(journal: JournalStore, defaults: UserDefaults, goalsStorage: NutritionGoalsStorage,
          mediaDirectory: URL, migrationBackupDirectory: URL, repairBackupDirectory: URL,
          preservationDirectory: URL?, storeFileURL: URL) {
@@ -67,16 +56,6 @@ struct JournalLocalReset {
         self.repairBackupDirectory = repairBackupDirectory
         self.preservationDirectory = preservationDirectory
         self.storeFileURL = storeFileURL
-    }
-
-    init(runtime: FoodJournalRuntime, preservationDirectory: URL? = nil) {
-        self.init(journal: runtime.journal, defaults: runtime.defaults,
-                  goalsStorage: runtime.goalsRepository.storage,
-                  mediaDirectory: JournalStore.mediaDir,
-                  migrationBackupDirectory: Self.defaultMigrationBackupDirectory,
-                  repairBackupDirectory: Self.defaultRepairBackupDirectory,
-                  preservationDirectory: preservationDirectory,
-                  storeFileURL: Self.defaultStoreFileURL)
     }
 
     /// The same list feeds ClearAllResetCoordinator's components closure and direct wipes,

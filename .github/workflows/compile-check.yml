@@ -237,12 +237,14 @@ jobs:
             tracker-ui.log
             cook-mode-history.log
             navigation-header-tests.log
+            settings-root-tab-visibility-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log
             ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments
+            ${{ runner.temp }}/ate-test-results/cook-finish-accessory-attachments
 
   regression-suites:
     name: regression suite (${{ matrix.suite }})
@@ -260,9 +262,9 @@ jobs:
       matrix:
         include:
           - suite: presentation-creation
-            required_logs: insights-evidence-navigation.log share-publish-outage-tests.log interrupted-generation-retry-lifecycle.log transient-generation-retry.log expandable-recipe-sheet-tests.log
+            required_logs: insights-evidence-navigation.log share-publish-outage-tests.log interrupted-generation-retry-lifecycle.log transient-generation-retry.log expandable-recipe-sheet-tests.log recipe-static-row-accessibility-tests.log
           - suite: account-cooking
-            required_logs: settings-sync.log production-channel-production.log settings-about-145.log account-switch-sync-failure-library.log tracker-ui.log navigation-header-tests.log cook-mode-history.log cook-ingredients-tests.log
+            required_logs: settings-sync.log production-channel-production.log settings-about-145.log account-switch-sync-failure-library.log tracker-ui.log navigation-header-tests.log settings-root-tab-visibility-tests.log cook-mode-history.log cook-ingredients-tests.log
     env:
       ATE_SIGN_STYLE: Automatic
     steps:
@@ -413,6 +415,38 @@ jobs:
           grep -qF "CoverageUITests test32c_ExpandableRecipeSheetOpensExpandsAndDismisses]' passed" expandable-recipe-sheet-tests.log || { echo "::error::missing expandable recipe named-pass evidence"; tail -80 expandable-recipe-sheet-tests.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" expandable-recipe-sheet-tests.log | tail -40
 
+      - name: Static recipe row accessibility contract (#522)
+        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/recipe-static-row-accessibility.xcresult" \
+            -only-testing:AteUITests/RecipeStaticRowAccessibilityUITests/testCombinedRecipeRowsRetainQuantityNameStepNumberAndInstruction \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > recipe-static-row-accessibility-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" recipe-static-row-accessibility-tests.log || true; tail -100 recipe-static-row-accessibility-tests.log; exit 1; }
+          # Require the actual static row contract, not a zero-test green selection.
+          if grep -q "Executed 0 tests" recipe-static-row-accessibility-tests.log; then echo "::error::static recipe row selection executed 0 tests"; exit 1; fi
+          grep -qF "RecipeStaticRowAccessibilityUITests testCombinedRecipeRowsRetainQuantityNameStepNumberAndInstruction]' passed" recipe-static-row-accessibility-tests.log || { echo "::error::missing static recipe row named-pass evidence"; tail -80 recipe-static-row-accessibility-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" recipe-static-row-accessibility-tests.log | tail -40
+
+      - name: Settings root tab visibility contract (#526)
+        if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
+        run: |
+          set -o pipefail
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/settings-root-tab-visibility.xcresult" \
+            -only-testing:AteUITests/SettingsRootTabVisibilityUITests/testSettingsScrollKeepsJournalTabVisibleWithoutRevealGesture \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > settings-root-tab-visibility-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" settings-root-tab-visibility-tests.log || true; tail -100 settings-root-tab-visibility-tests.log; exit 1; }
+          # Require the actual Settings root tab journey, not a zero-test green selection.
+          if grep -q "Executed 0 tests" settings-root-tab-visibility-tests.log; then echo "::error::Settings root tab selection executed 0 tests"; exit 1; fi
+          grep -qF "SettingsRootTabVisibilityUITests testSettingsScrollKeepsJournalTabVisibleWithoutRevealGesture]' passed" settings-root-tab-visibility-tests.log || { echo "::error::missing Settings root tab named-pass evidence"; tail -80 settings-root-tab-visibility-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" settings-root-tab-visibility-tests.log | tail -40
+
       - name: Settings-tab key-flow regression test
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
@@ -548,6 +582,32 @@ jobs:
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" cook-mode-history.log | tail -n 30
 
+      - name: Cook Finish above retained resume accessory
+        if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CookFinishAccessoryUITests \
+            -only-testing:AteUITests/CookSharedStepUITests \
+            -only-testing:AteUITests/CoverageUITests/testBottomBarsDoNotOverlapRecipeDetail \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-finish-accessory.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > cook-finish-accessory.log 2>&1 || { tail -120 cook-finish-accessory.log; exit 1; }
+          for test in testPushedFinishAboveResumeAccessoryPortrait testPushedFinishAboveResumeAccessoryLandscape; do
+            grep -qF "CookFinishAccessoryUITests $test]' passed" cook-finish-accessory.log || { echo "::error::Missing named Cook Finish pass: $test"; exit 1; }
+          done
+          for test in "CookSharedStepUITests testExternalSharedStepChangeWhileCookIsOpenUpdatesCurrentStep" "CoverageUITests testBottomBarsDoNotOverlapRecipeDetail"; do
+            grep -qF "$test]' passed" cook-finish-accessory.log || { echo "::error::Missing named shared-state/detail-overlap pass: $test"; exit 1; }
+          done
+      - name: Retain Cook Finish accessory captures
+        if: ${{ matrix.suite == 'account-cooking' && always() }}
+        run: |
+          if [ -d "$RUNNER_TEMP/ate-test-results/cook-finish-accessory.xcresult" ]; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/cook-finish-accessory.xcresult" \
+              --output-path "$RUNNER_TEMP/ate-test-results/cook-finish-accessory-attachments"
+          fi
+
       - name: Cook Mode ingredient sheet (UI; session units in full unit lane)
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
@@ -678,12 +738,15 @@ jobs:
             tracker-ui.log
             cook-mode-history.log
             navigation-header-tests.log
+            settings-root-tab-visibility-tests.log
             share-publish-outage-tests.log
+            recipe-static-row-accessibility-tests.log
             nutrition-ui-tests.log
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log
             ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments
+            ${{ runner.temp }}/ate-test-results/cook-finish-accessory-attachments
 
   regressions:
     # Preserve the original required-check context. Matrix skips, cancellation or

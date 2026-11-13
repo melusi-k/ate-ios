@@ -36,8 +36,17 @@ final class TimerCenter {
 
     private(set) var timers: [ActiveTimer] = [] { didSet { persist() } }
 
-    init(writerBoundary: FoodJournalWriterBoundary = .legacy) {
+    init(writerBoundary: FoodJournalWriterBoundary = .legacy, readOnlyObserver: Bool = false) {
         self.writerBoundary = writerBoundary
+        if readOnlyObserver {
+            suppressPersist = true
+            timers = TimerSnapshot.load().map {
+                ActiveTimer(recipeID: $0.recipeID, recipeTitle: $0.recipeTitle, stepIndex: $0.stepIndex, stepCount: $0.stepCount,
+                    stepText: $0.stepText, total: $0.total, endDate: $0.endDate, pausedRemaining: $0.pausedRemaining)
+            }
+            // Keep persist suppressed for the whole lifetime of this observer.
+            return
+        }
         if AppConfig.isUITesting {
             try? writerBoundary.withEffect { TimerSnapshot.save([]) }
             return

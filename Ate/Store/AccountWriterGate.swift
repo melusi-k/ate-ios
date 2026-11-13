@@ -113,6 +113,19 @@ final class AccountWriterGate: ClearAllWriterGating {
         defer { activeEffectLease = nil }
         return try effect()
     }
+    func usesControlDirectory(_ candidate: URL) -> Bool { candidate == directory }
+
+    /// Raw startup recovery uses the SAME control root and held account flock.
+    /// Ordinary archive admission deliberately refuses unresolved transactions, so
+    /// recovery must run before constructing that ordinary boundary.
+    func withArchiveRecoveryLease<T>(_ lease: UUID, _ work: (POSIXArchiveWriterLease) throws -> T) throws -> T {
+        try withWriterEffect(lease) {
+            let archive = try POSIXArchiveWriterLease(nestedDirectory: directory)
+            defer { archive.release() }
+            return try work(archive)
+        }
+    }
+
     /// Explicit auth lifecycle binding must call this BEFORE a new session graph can
     /// publish. Invalidates same-owner logout/relogin work, not just account switches.
     func invalidateWriters() throws {

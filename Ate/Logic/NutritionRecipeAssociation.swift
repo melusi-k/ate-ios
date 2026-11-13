@@ -57,10 +57,11 @@ extension NutritionRecipeAssociationError: LocalizedError {
 /// remains an unactivated candidate sidecar, not a permanent parallel record.
 struct NutritionRecipeAssociationStore {
     let defaults: UserDefaults
+    let writerBoundary: FoodJournalWriterBoundary
     static let storageKey = "ate.nutritionRecipeAssociations.v1"
 
-    init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
+    init(defaults: UserDefaults = .standard, writerBoundary: FoodJournalWriterBoundary = .legacy) {
+        self.defaults = defaults; self.writerBoundary = writerBoundary
     }
 
     /// Distinguishes an absent link store from an unreadable one, mirroring the diary
@@ -124,7 +125,9 @@ struct NutritionRecipeAssociationStore {
     }
 
     private func save(_ links: [NutritionRecipeAssociation]) throws {
-        guard loadState() != .corrupt else { throw NutritionRecipeAssociationError.storeUnreadable }
-        defaults.set(try JSONEncoder().encode(links), forKey: Self.storageKey)
+        try writerBoundary.withEffect {
+            guard loadState() != .corrupt else { throw NutritionRecipeAssociationError.storeUnreadable }
+            defaults.set(try JSONEncoder().encode(links), forKey: Self.storageKey)
+        }
     }
 }

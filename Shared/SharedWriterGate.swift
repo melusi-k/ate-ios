@@ -14,6 +14,7 @@ enum SharedWriterControl {
     static let directoryName = "AteStateControl"
     static let lockFileName = "writer-gate-v1.lock"
     static let epochFileName = "writer-epoch-v1"
+    static let generationBlockFileName = "writer-generation-block-v1"
 }
 
 /// Synchronous effect boundary for the shared App Group writers compiled into the
@@ -146,7 +147,7 @@ struct SharedArchiveNestedLeaseBoundary {
 final class SharedFileWriterGate {
     enum Mode: Equatable { case appGroup, appOnly }
     enum Error: Swift.Error {
-        case unsafePath, busy, corruptEpoch, persistenceUnverified, resetPending, staleLease
+        case unsafePath, busy, corruptEpoch, persistenceUnverified, resetPending, staleLease, generationBlocked
     }
 
     private let directory: URL?
@@ -209,6 +210,17 @@ final class SharedFileWriterGate {
     private var epochFile: URL {
         directory!.appendingPathComponent(SharedWriterControl.epochFileName)
     }
+    /// Same permanent account-conflict marker the app writes. Presence of any
+    /// entry (including corrupt bytes or a link) is a block, never a reason to
+    /// manufacture a fresh epoch. Only called while holding the common flock.
+    private func requireNoGenerationBlock() throws {
+        guard let directory else { throw Error.unsafePath }
+        let file = directory.appendingPathComponent(SharedWriterControl.generationBlockFileName)
+        var metadata = stat()
+        guard lstat(file.path, &metadata) != 0 else { throw Error.generationBlocked }
+        guard errno == ENOENT else { throw Error.generationBlocked }
+    }
+
     private func readEpoch() throws -> UUID? {
         var metadata = stat()
         guard lstat(epochFile.path, &metadata) == 0 else {
@@ -259,6 +271,7 @@ final class SharedFileWriterGate {
         if let activeLease { return activeLease }
         let fd = try lock(directory!)
         defer { unlock(fd) }
+        try requireNoGenerationBlock()
         guard try !resetPending() else { throw Error.resetPending }
         if let epoch = try readEpoch() { return epoch }
         let epoch = UUID()
@@ -287,6 +300,7 @@ final class SharedFileWriterGate {
         }
         let fd = try lock(directory!)
         defer { unlock(fd) }
+        try requireNoGenerationBlock()
         guard try !resetPending() else { throw Error.resetPending }
         guard try readEpoch() == lease else { throw Error.staleLease }
         activeLease = lease
@@ -311,6 +325,7 @@ final class SharedFileWriterGate {
         }
         let fd = try lock(directory!)
         defer { unlock(fd) }
+        try requireNoGenerationBlock()
         guard try !resetPending() else { throw Error.resetPending }
         guard try readEpoch() == lease else { throw Error.staleLease }
     }

@@ -3,6 +3,24 @@ import XCTest
 
 /// A-SYNC-02/03 and A-SYNC-06: the same fixtures as scripts/e2e/backend_e2e.py, run against SyncMerge, plus an older-schema store.
 final class SyncFixtureTests: XCTestCase {
+    /// Native UNRUN here. Permission refusal must not sign the owner out as expired.
+    func testSync403IsPermissionDeniedAnd401KeepsSessionExpiryClassification() throws {
+        let url = URL(string: "https://sync.invalid")!
+        let sync = SupabaseSync(baseURL: url, key: "fixture")
+        let denial = HTTPURLResponse(url: url, statusCode: 403, httpVersion: nil, headerFields: nil)!
+        XCTAssertThrowsError(try sync.check(Data(), denial)) { error in
+            guard case SyncError.permissionDenied = error else { return XCTFail("unexpected \(error)") }
+            XCTAssertFalse(error.localizedDescription.lowercased().contains("expired"))
+            XCTAssertFalse(error.localizedDescription.lowercased().contains("sign in"))
+        }
+        let expired = HTTPURLResponse(url: url, statusCode: 401, httpVersion: nil, headerFields: nil)!
+        XCTAssertThrowsError(try sync.check(Data(), expired)) { error in
+            guard case SyncError.unauthorized = error else { return XCTFail("unexpected \(error)") }
+        }
+        let ok = HTTPURLResponse(url: url, statusCode: 204, httpVersion: nil, headerFields: nil)!
+        XCTAssertNoThrow(try sync.check(Data(), ok))
+    }
+
     private func fixture(_ name: String, file: StaticString = #filePath) throws -> Data {
         let dir = URL(fileURLWithPath: "\(file)").deletingLastPathComponent().appendingPathComponent("Fixtures")
         return try Data(contentsOf: dir.appendingPathComponent(name))

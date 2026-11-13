@@ -10,6 +10,30 @@ final class SyncFixtureTests: XCTestCase {
     private func raw(_ v: Any) -> Data { try! JSONSerialization.data(withJSONObject: v, options: [.sortedKeys]) }
     private func obj(_ d: Data) -> NSDictionary { (try? JSONSerialization.jsonObject(with: d)) as? NSDictionary ?? [:] }
 
+    func testEqualStampAlwaysAdoptsServerBothPayloadOrders() {
+        let a = raw(["title": "a"]), z = raw(["title": "z"])
+        for (local, remote) in [(a, z), (z, a)] {
+            let result = SyncMerge.merge(local: .init(data: ["r": local], stamps: ["r": 10], tombstones: [:]),
+                remote: [SyncRecord(user_id: "u", kind: "recipe", id: "r", data: AnyJSON(remote), updated_at: 10, deleted: false)])
+            XCTAssertEqual(obj(result.data["r"]!), obj(remote))
+            XCTAssertTrue(result.push.isEmpty && result.pushDeletes.isEmpty)
+        }
+    }
+
+    func testEqualStampAdoptsRemoteTombstoneOrLiveWithoutPush() {
+        let live = raw(["title": "z"])
+        let deletedRemote = SyncMerge.merge(local: .init(data: ["r": live], stamps: ["r": 10], tombstones: [:]),
+            remote: [SyncRecord(user_id: "u", kind: "recipe", id: "r", data: nil, updated_at: 10, deleted: true)])
+        XCTAssertNil(deletedRemote.data["r"])
+        XCTAssertEqual(deletedRemote.tombstones["r"], 10)
+        XCTAssertTrue(deletedRemote.pushDeletes.isEmpty)
+        let liveRemote = SyncMerge.merge(local: .init(data: [:], stamps: [:], tombstones: ["r": 10]),
+            remote: [SyncRecord(user_id: "u", kind: "recipe", id: "r", data: AnyJSON(live), updated_at: 10, deleted: false)])
+        XCTAssertEqual(obj(liveRemote.data["r"]!), obj(live))
+        XCTAssertNil(liveRemote.tombstones["r"])
+        XCTAssertTrue(liveRemote.push.isEmpty && liveRemote.pushDeletes.isEmpty)
+    }
+
     func testMergeFixtures() throws {
         let root = try JSONSerialization.jsonObject(with: fixture("sync_fixtures.json")) as! [String: Any]
         let scenarios = root["scenarios"] as! [[String: Any]]

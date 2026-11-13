@@ -10,13 +10,31 @@ final class InsightsModel {
     private(set) var health: HealthKitServicing
     @ObservationIgnored weak var owner: AppStore?
     @ObservationIgnored var validateOwner: () throws -> Void = {}
+    @ObservationIgnored private var refreshGeneration = UUID()
+    @ObservationIgnored private let makePrompts: @MainActor (HealthInsight) async -> [JournalPrompt]
+    @ObservationIgnored private let publishHealthState: (@MainActor (HealthState) -> Void)?
+    private func invalidateRefresh() {
+        refreshGeneration = UUID()
+        loading = false
+        context = nil
+    }
     var access: HealthAccess
     /// Beta debug picker: swap to a mock scenario ("" = live Apple Health).
     func useScenario(_ s: String, recipes: [RecipeCard]) async {
+        if let owner { await owner.runJournalTask { await self.useScenarioOwned(s, recipes: recipes) } }
+        else { await useScenarioOwned(s, recipes: recipes) }
+    }
+    private func useScenarioOwned(_ s: String, recipes: [RecipeCard]) async {
+        let validate = validateOwner
+        guard !Task.isCancelled, (try? validate()) != nil else { return }
+        invalidateRefresh()
         UserDefaults.standard.set(s, forKey: HealthServiceFactory.debugKey)
         health = HealthServiceFactory.make(arguments: AppConfig.isUITesting ? ["-qaMockHealth", s] : [])
-        if health is MockHealthKitService { _ = await health.requestAccess() }
-        await refresh(recipes: recipes)
+        let generation = refreshGeneration
+        let source = health
+        if source is MockHealthKitService { _ = await source.requestAccess() }
+        guard generation == refreshGeneration, !Task.isCancelled, (try? validate()) != nil else { return }
+        await refreshOwned(recipes: recipes)
     }
     var context: HealthContext?
     var loading = false
@@ -24,7 +42,12 @@ final class InsightsModel {
     private(set) var loadedOnce = false
     /// UI tests (`-qaHealthPrompt`): stand-in for the system Health sheet so a refactor that stops asking is caught.
     var mockPromptShown = false
-    init(health: HealthKitServicing) { self.health = health; access = health.access }
+    init(health: HealthKitServicing,
+         makePrompts: @escaping @MainActor (HealthInsight) async -> [JournalPrompt] = { await JournalSuggestionService.prompts(for: $0) },
+         publishHealthState: (@MainActor (HealthState) -> Void)? = nil) {
+        self.health = health; access = health.access
+        self.makePrompts = makePrompts; self.publishHealthState = publishHealthState
+    }
     convenience init() { self.init(health: HealthServiceFactory.make()) }
 
     func loadIfNeeded(recipes: [RecipeCard]) async { guard !loadedOnce else { return }; loadedOnce = true; await refresh(recipes: recipes) }
@@ -41,9 +64,14 @@ final class InsightsModel {
         else { await connectOwned(recipes: recipes) }
     }
     private func connectOwned(recipes: [RecipeCard]) async {
-        let result = await health.requestAccess()
-        guard !Task.isCancelled, (try? validateOwner()) != nil else { return }
-        access = result; requestError = health.lastError
+        let validate = validateOwner
+        guard !Task.isCancelled, (try? validate()) != nil else { return }
+        invalidateRefresh()
+        let generation = refreshGeneration
+        let source = health
+        let requestedAccess = await source.requestAccess()
+        guard generation == refreshGeneration, !Task.isCancelled, (try? validate()) != nil else { return }
+        access = requestedAccess; requestError = source.lastError
         await refreshOwned(recipes: recipes)
     }
     func useSampleData(recipes: [RecipeCard]) async { await useScenario("recovery", recipes: recipes) }
@@ -52,27 +80,41 @@ final class InsightsModel {
         else { await refreshOwned(recipes: recipes) }
     }
     private func refreshOwned(recipes: [RecipeCard]) async {
-        access = health.access
-        guard access == .requested else { context = nil; return }
-        loading = true; defer { loading = false }
         let validate = validateOwner
         let originalOwner = owner
         guard !Task.isCancelled, (try? validate()) != nil else { return }
-        let s = await health.summary(days: 7)
-        guard !Task.isCancelled, (try? validate()) != nil else { return }
-        guard let i = HealthInsightEngine.insight(for: s) else { context = nil; return }
-        if WidgetBridge.lastHealthState != i.state {
+        let generation = UUID(); refreshGeneration = generation
+        let source = health
+        access = source.access
+        guard access == .requested, !Task.isCancelled else {
+            context = nil; loading = false; return
+        }
+        loading = true
+        defer { if generation == refreshGeneration { loading = false } }
+        let summary = await source.summary(days: 7)
+        guard generation == refreshGeneration, !Task.isCancelled, (try? validate()) != nil else { return }
+        access = source.access
+        guard access == .requested else { context = nil; return }
+        guard let insight = HealthInsightEngine.insight(for: summary) else { context = nil; return }
+        let prompts = await makePrompts(insight)
+        guard generation == refreshGeneration, !Task.isCancelled, (try? validate()) != nil else { return }
+        access = source.access
+        guard access == .requested else { context = nil; return }
+        // Single synchronous publication after BOTH await boundaries. Stale summary
+        // or wording may neither replace context nor publish a widget state.
+        context = HealthContext(summary: summary, insight: insight,
+            suggestions: RecipeHealthMatcher.suggestions(for: insight.state, recipes: recipes), prompts: prompts)
+        if let publishHealthState { publishHealthState(insight.state) }
+        else if WidgetBridge.lastHealthState != insight.state {
             if let originalOwner {
-                try? originalOwner.capturedSharedBoundary.withEffect { WidgetBridge.lastHealthState = i.state }
+                guard (try? originalOwner.capturedSharedBoundary.withEffect {
+                    WidgetBridge.lastHealthState = insight.state
+                }) != nil else { return }
                 WidgetBridge.publish(originalOwner, delay: 0)
             } else if AppConfig.isUITesting {
-                WidgetBridge.lastHealthState = i.state
+                WidgetBridge.lastHealthState = insight.state
             }
         }
-        let prompts = await JournalSuggestionService.prompts(for: i)
-        guard !Task.isCancelled, (try? validate()) != nil else { return }
-        context = HealthContext(summary: s, insight: i,
-                                suggestions: RecipeHealthMatcher.suggestions(for: i.state, recipes: recipes), prompts: prompts)
     }
 }
 
@@ -639,8 +681,10 @@ struct InsightsView: View {
             cookingHistoryScrollRequest += 1
             return
         }
-        // Other presentation contexts still dismiss before switching destinations.
-        dismiss()
+        // The pushed Journal hub has an explicit typed path owner. Pop that path
+        // before switching tabs, without racing an environment dismissal animation.
+        if !isRoot { store.trackerPath = [] }
+        else { dismiss() }
         switch candidate.action {
         case .recipes:
             store.filter.clear()
@@ -648,11 +692,9 @@ struct InsightsView: View {
         case .cookingHistory:
             store.openInsightsHub()
         case .shoppingList:
-            store.shoppingPath = []
-            store.select(.shopping)
+            store.openInsightShoppingList()
         case .foodDiary:
-            store.select(.settings)
-            store.showNutritionDiary = true
+            store.openInsightFoodDiary()
         }
     }
 

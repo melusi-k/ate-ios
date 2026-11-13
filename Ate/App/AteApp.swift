@@ -6,7 +6,7 @@ import UserNotifications
 @main
 struct AteApp: App {
     let container: ModelContainer?
-    @State private var store: AppStore
+    @State private var store: AppStore?
 
     init() {
         UNUserNotificationCenter.current().delegate = CookPlanNotificationRouter.shared
@@ -15,6 +15,11 @@ struct AteApp: App {
         #if DEBUG
         LiveDTProbe.installIfRequested()
         #endif
+        if AppConfig.useFoodJournalProductionOwner {
+            container = nil
+            _store = State(initialValue: nil)
+            return // no ordinary constructors before production admission
+        }
         if AppConfig.isUITesting {
             for k in ["ate.timerprefs.v1", "ate.cookSession.v1", CookCompletionOutbox.defaultsKey, CookReflectionOfferPolicy.defaultsKey, CookPlanStore.storageKey] { UserDefaults.standard.removeObject(forKey: k) }
             if !ProcessInfo.processInfo.arguments.contains("-qaPreserveSettings") {
@@ -65,15 +70,18 @@ struct AteApp: App {
 
     /// One typed expression keeps the shared modifiers attached across DEBUG compilation.
     private var rootContent: AnyView {
+        guard let store else { return AnyView(FoodJournalApplicationRoot()) }
+
 #if DEBUG
-        CanonicalUpgradeQARoute.rootView() ?? CanonicalNutritionQARoute.rootView(store: store) ?? AnyView(RootView().modifier(CookJournalQAInspector()))
+        return CanonicalUpgradeQARoute.rootView() ?? CanonicalNutritionQARoute.rootView(store: store) ?? AnyView(RootView().modifier(CookJournalQAInspector()))
 #else
-        AnyView(RootView())
+        return AnyView(RootView())
 #endif
     }
 
     var body: some Scene {
         WindowGroup {
+            if let store {
             rootContent
                 .environment(store)
                 .preferredColorScheme(store.settings.appearance.preferredColorScheme)
@@ -91,6 +99,9 @@ struct AteApp: App {
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { a in
                     if let u = a.webpageURL { store.handle(url: u) }
                 }
+            } else {
+                FoodJournalApplicationRoot()
+            }
         }
     }
 }
@@ -511,7 +522,8 @@ struct RouteView: View {
                 if let runtime = store.foodJournalRuntime {
                     CanonicalNutritionDiaryView(coordinator: runtime.coordinator,
                                                goalsRepository: runtime.goalsRepository,
-                                               repair: runtime.repair, associationStore: nil)
+                                               repair: runtime.repair, associationStore: NutritionRecipeAssociationStore(
+                                                   defaults: runtime.defaults, writerBoundary: runtime.writerBoundary))
                 } else {
                     NutritionDiaryView()
                 }

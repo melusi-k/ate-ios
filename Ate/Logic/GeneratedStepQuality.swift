@@ -60,6 +60,11 @@ enum GeneratedStepQuality {
         }
         for step in steps {
             let tokens = words(step.instruction)
+            if !tokens.isDisjoint(with: ["sauté", "saute", "simmer"]),
+               tokens.isDisjoint(with: ["oven", "bake", "roast", "internal", "centre", "center"]),
+               RecipeQuality.hasTemperature(step.instruction) {
+                gaps.append("Step \(step.order) mixes a stovetop method with an oven-style temperature; clarify the heat cue.")
+            }
             // 'brown sugar' is an ingredient, not a command to brown it.
             let actionText = step.instruction.lowercased().replacingOccurrences(of: "brown sugar", with: "sugar")
             guard !words(actionText).isDisjoint(with: heatActions) else { continue }

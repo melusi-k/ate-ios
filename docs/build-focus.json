@@ -1,7 +1,7 @@
 {
   "title": "Food Journal: real owner native qualification, shipping OFF",
   "summary": "Full source-reviewed Food Journal owner chain is assembled for exact-head native qualification. Shipping activation stays OFF. A DEBUG-only explicit selector reaches the real owner without hermetic UITesting fixtures. Native compilation, account-wide reset/resume, shared extension ordering and watch account isolation remain unqualified. Food Journal is local-only; cooking is not an eaten meal. No production Supabase deployment or anonymous sign-in is enabled.",
-  "source_commit": "169bc606a7c2276d4abb14028b5159f092592e3a",
+  "source_commit": "7ff8a0b20794613f0d212f7ed2b43afbfeb95a3a",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

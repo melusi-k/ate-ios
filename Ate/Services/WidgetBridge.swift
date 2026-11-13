@@ -7,6 +7,17 @@ import AppIntents
 /// widget extension, installs the in-process intent relays and keeps Spotlight's recipe index current.
 @MainActor
 enum WidgetBridge {
+    static var consumerTasks: FoodJournalConsumerTasks?
+    static var validateWriter: () throws -> Void = {}
+
+    private static func launch(_ operation: @escaping @MainActor () async throws -> Void) -> Task<Void, Never> {
+        let owner = consumerTasks
+        return Task { @MainActor in
+            if let owner { try? await owner.run(operation) }
+            else { try? await operation() }
+        }
+    }
+
     static let healthKey = "ate.widgets.healthState"
     private static var publishTask: Task<Void, Never>?
     private static var publisher = WidgetSnapshotPublisher()
@@ -14,20 +25,24 @@ enum WidgetBridge {
 
     static var lastHealthState: HealthState? {
         get { UserDefaults.standard.string(forKey: healthKey).flatMap(HealthState.init(rawValue:)) }
-        set { UserDefaults.standard.set(newValue?.rawValue, forKey: healthKey) }
+        set { try? SharedWriterBoundary.current.withEffect { UserDefaults.standard.set(newValue?.rawValue, forKey: healthKey) } }
     }
 
     /// Debounced: many edits in a row publish once.
     static func publish(_ store: AppStore, delay: Double = 0.4) {
         publishTask?.cancel()
-        publishTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-            if Task.isCancelled { return }
-            publishNow(store)
+        let validate = validateWriter
+        let boundary = store.capturedSharedBoundary
+        publishTask = launch {
+            try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            try Task.checkCancellation()
+            try validate()
+            publishNow(store, boundary: boundary)
         }
     }
 
-    static func publishNow(_ store: AppStore, force: Bool = false, boundary: SharedWriterBoundary = .current) {
+    static func publishNow(_ store: AppStore, force: Bool = false, boundary: SharedWriterBoundary? = nil) {
+        let boundary = boundary ?? store.capturedSharedBoundary
         let snap = WidgetSnapshotBuilder.build(recipes: store.recipes, shopping: store.shopping, health: lastHealthState, history: store.journalCookingHistory)
         guard publisher.publish(snap, force: force, boundary: boundary, reload: WidgetKinds.reload) else { return }
         if AppConfig.isUITesting { QAProbe.shared.widgetPublishes += 1 }
@@ -35,7 +50,8 @@ enum WidgetBridge {
     }
 
     /// Applies ticks / adds / deep links queued by widgets and intents that ran outside the app.
-    static func drainInbox(_ store: AppStore, boundary: SharedWriterBoundary = .current) {
+    static func drainInbox(_ store: AppStore, boundary: SharedWriterBoundary? = nil) {
+        let boundary = boundary ?? store.capturedSharedBoundary
         store.timers.reloadFromShared()
         let q = WidgetInbox.drain(boundary: boundary)
         for (id, done) in q.shopping { store.setShoppingDone(id, done) }
@@ -89,12 +105,18 @@ enum WidgetBridge {
         guard !AppConfig.isUITesting else { lastIndexed = recipes.count; return }
         indexTask?.cancel()
         let entities = recipes.map(RecipeAppEntity.init)
-        indexTask = Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            if Task.isCancelled { return }
+        let validate = validateWriter
+        indexTask = launch {
+            try await Task.sleep(nanoseconds: 2_000_000_000)
+            try Task.checkCancellation()
+            try validate()
             AteShortcuts.updateAppShortcutParameters()
-            try? await CSSearchableIndex.default().deleteAllSearchableItems()
-            try? await CSSearchableIndex.default().indexAppEntities(entities)
+            try await CSSearchableIndex.default().deleteAllSearchableItems()
+            try Task.checkCancellation()
+            try validate()
+            try await CSSearchableIndex.default().indexAppEntities(entities)
+            try Task.checkCancellation()
+            try validate()
             lastIndexed = entities.count
         }
     }

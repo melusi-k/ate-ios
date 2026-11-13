@@ -148,7 +148,6 @@ struct CookModeView: View {
         let n = recipe.steps.count
         let s = step(recipe)
         let active = store.timers.timer(recipeID, min(index, n - 1))
-        let remaining = active?.remaining(at: store.timers.now) ?? (s.timeSeconds ?? 0)
         let others = store.timers.timers.filter { $0.recipeID == recipeID && $0.stepIndex != index && $0.isRunning }
         VStack(spacing: 20) {
             HStack {
@@ -197,11 +196,7 @@ struct CookModeView: View {
             .accessibilityElement().accessibilityLabel("Progress").accessibilityValue("Step \(index + 1) of \(n)")
 
             ForEach(others) { t in
-                Button { index = t.stepIndex } label: {
-                    Label("Step \(t.stepIndex + 1) · \(format(t.remaining(at: store.timers.now)))", systemImage: "timer")
-                        .font(AteFont.body(13, .semibold)).monospacedDigit()
-                }.buttonStyle(.ate(.secondary, height: 44))
-                .accessibilityLabel("Go to step \(t.stepIndex + 1), \(Self.spoken(t.remaining(at: store.timers.now))) left")
+                CookOtherTimerButton(timer: t, clock: store.timers) { index = t.stepIndex }
             }
 
             Spacer()
@@ -221,10 +216,7 @@ struct CookModeView: View {
                 HStack(spacing: 14) {
                     HStack(spacing: 10) {
                         Image(systemName: "timer").foregroundStyle(Theme.primary).font(.title2)
-                        Text(format(remaining)).font(.largeTitle.weight(.bold)).fontDesign(.rounded).monospacedDigit()
-                            .accessibilityIdentifier("cookTimerValue")
-                            .accessibilityValue(Self.spoken(remaining) + (running ? " remaining" : ", paused"))
-                            .accessibilityAddTraits(.updatesFrequently)
+                        CookTimerCountdown(timer: active, fallback: secs, clock: store.timers)
                     }
                     .padding(.horizontal, 20).padding(.vertical, 12)
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
@@ -265,8 +257,6 @@ struct CookModeView: View {
             .background(Theme.warm)
         }
     }
-
-    private func format(_ s: Int) -> String { String(format: "%d:%02d", s / 60, s % 60) }
 
     private func handle(_ cmd: VoiceCommand, _ recipe: RecipeCard) {
         let n = recipe.steps.count
@@ -342,6 +332,42 @@ struct CookSessionMiniPlayer: View {
                     }
                 }
         }
+    }
+}
+
+/// Observation belongs to this leaf body, not CookModeView.content. A 500ms
+/// clock update must not rebuild step text, navigation, ingredient sheet or controls.
+struct CookTimerCountdown: View {
+    let timer: ActiveTimer?
+    let fallback: Int
+    let clock: TimerCenter
+
+    var body: some View {
+        let remaining = timer?.remaining(at: clock.now) ?? fallback
+        Text(TimerRow.mmss(remaining))
+            .font(.largeTitle.weight(.bold)).fontDesign(.rounded).monospacedDigit()
+            .accessibilityIdentifier("cookTimerValue")
+            .accessibilityValue(CookModeView.spoken(remaining) +
+                                (timer?.isRunning == true ? " remaining" : ", paused"))
+            .accessibilityAddTraits(.updatesFrequently)
+    }
+}
+
+/// A running sibling timer has changing spoken/visible text too. Keep its clock
+/// subscription here rather than evaluating it in the full Cook content builder.
+struct CookOtherTimerButton: View {
+    let timer: ActiveTimer
+    let clock: TimerCenter
+    let action: () -> Void
+
+    var body: some View {
+        let remaining = timer.remaining(at: clock.now)
+        Button(action: action) {
+            Label("Step \(timer.stepIndex + 1) · \(TimerRow.mmss(remaining))", systemImage: "timer")
+                .font(AteFont.body(13, .semibold)).monospacedDigit()
+        }
+        .buttonStyle(.ate(.secondary, height: 44))
+        .accessibilityLabel("Go to step \(timer.stepIndex + 1), \(CookModeView.spoken(remaining)) left")
     }
 }
 

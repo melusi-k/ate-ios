@@ -1,11 +1,11 @@
 {
-  "title": "Journal navigation and cooking reflections",
-  "summary": "Focus: the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Confirmed reflection deletion uses stable identity, verifies committed absence before retiring detail and refreshes history only on success. Failure retains detail and an explicit retry error. Native and pixel acceptance remain pending; cooking must not create an eaten-food log. Food Journal activation is a separate composition workstream.",
-  "source_commit": "2534358fdbd207813504d33934dd0eb826cc7676",
+  "title": "Journal navigation, cooking reflections and Settings root tab visibility candidate",
+  "summary": "Focus: Settings keeps native root tabs visible while its Form scrolls; other modern tabs retain scroll minimization. Journal navigation and reflection-only cooking remain included. Native compile, scrolled Settings-to-Journal navigation and pixels are unqualified. Cooking must not create an eaten-food log. Unified Food Journal activation stays OFF.",
+  "source_commit": "7f33ccfd1d1181d9b272e387332ff99f3cee7d93",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "56f838b904b24a8d88ba3409638d7dc434aaa57e"
+      "blob": "45e2561b40f85de18c782613e3fd5a5a80eb767b"
     },
     {
       "path": "Ate/Views/JournalViews.swift",

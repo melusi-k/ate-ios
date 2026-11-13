@@ -215,3 +215,4 @@ final class RecipePromptTests: XCTestCase {
         XCTAssertEqual(RecipePrompt.context(for: "make it vegan, actually not vegan").dietary, ["vegan"])
     }
 }
+

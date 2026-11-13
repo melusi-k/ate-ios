@@ -222,7 +222,7 @@ struct JournalEntryDetailView: View {
                             }
                         }
                     }
-                    let images = e.mediaFileNames.compactMap { UIImage(contentsOfFile: JournalStore.mediaURL($0).path) }
+                    let images = e.mediaFileNames.compactMap { UIImage(contentsOfFile: store.journalStore.boundMediaURL($0).path) }
                     if !e.mediaFileNames.isEmpty {
                         Section("Media") {
                             ScrollView(.horizontal) {

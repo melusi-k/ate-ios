@@ -48,9 +48,20 @@ final class DuoExplorationUITests: XCTestCase {
         app.launch()
         let finish = app.buttons["cookFinish"]
         XCTAssertTrue(finish.waitForExistence(timeout: 20), "Cook Mode fixture must load before capture")
+        assertFinishClear(finish, app: app, pushed: navigation)
         shot(navigation ? "duo-cook-pushed-portrait" : "duo-cook-modal-portrait")
         XCUIDevice.shared.orientation = .landscapeLeft
         XCTAssertTrue(finish.waitForExistence(timeout: 10), "Cook Mode remains available after rotation")
+        assertFinishClear(finish, app: app, pushed: navigation)
         shot(navigation ? "duo-cook-pushed-landscape" : "duo-cook-modal-landscape")
     }
+    private func assertFinishClear(_ finish: XCUIElement, app: XCUIApplication, pushed: Bool) {
+        let mini = app.buttons["cookSessionMiniPlayer"]
+        let clear = NSPredicate { _, _ in
+            finish.isHittable && (!pushed || (mini.exists && finish.frame.maxY <= mini.frame.minY))
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: clear, object: finish)], timeout: 10), .completed,
+                       "Finish must be hittable and wholly above the retained resume accessory")
+    }
+
 }

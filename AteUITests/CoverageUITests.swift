@@ -595,8 +595,14 @@ final class CoverageUITests: XCTestCase {
         shot("backend-down-retry-card")
         app.buttons["generateRetry"].tap()
         wait(app.buttons["generateRetry"], 10)
-        app.swipeDown(velocity: .fast)  // close the sheet
-        sleep(1)
+        // Failed input is intentionally retained by interactiveDismissDisabled.
+        // Use the actual explicit discard route; a swipe leaves a blocking sheet
+        // and the historical tab taps then had hit point (-1,-1).
+        let cancel = app.buttons["addCancel"]
+        wait(cancel); cancel.tap()
+        let discard = app.buttons["Discard"]
+        wait(discard); discard.tap()
+        XCTAssertTrue(cancel.waitForNonExistence(timeout: 5), "Discard must actually close Add before tab navigation")
         tab("Library")
         wait(text("Keep this stew"), 5)
         // Signed-in sync against a failing server keeps the library too.
@@ -913,8 +919,13 @@ extension CoverageUITests {
         wait(app.buttons["Add recipe"])
         XCTAssertFalse(app.buttons["Cook mode"].exists)
         tab("Settings")
-        wait(app.buttons["settings.betaTesting"])
-        app.buttons["settings.betaTesting"].tap()
+        let beta = app.buttons["settings.betaTesting"]
+        // Beta & diagnostics is below everyday Settings. Lazy Form rows are not
+        // necessarily materialized at initial load; reveal before resolving.
+        scrollTo(beta, max: 6)
+        wait(beta)
+        XCTAssertTrue(beta.isHittable)
+        beta.tap()
         let back2 = app.navigationBars.buttons.element(boundBy: 0)
         wait(back2); back2.tap()
         wait(app.buttons["settings.betaTesting"])
@@ -1011,14 +1022,18 @@ extension CoverageUITests {
         app.swipeUp()
         XCTAssertTrue(settingsTitle.exists, "The navigation bar must remain present while Settings scrolls")
 
-        // The product intentionally minimizes tab chrome on scroll-down. The
-        // preceding Settings swipe can leave only the selected tab exposed even
-        // though a TabBar still exists. Reveal it with a real reverse content
-        // gesture, not a back-button fallback, extra tap or longer wait.
-        XCTAssertTrue(app.tabBars.buttons["Settings"].isSelected,
+        // The native tab bar minimizes on scroll-down. Apple documents two ways
+        // to expand it: tap its selected tab or scroll all the way to the top.
+        // One reverse swipe is not that contract: final #529 pixels still show
+        // Account & sync below the header and only the Settings/Search capsules.
+        // Expand through the visible selected Settings tab exactly once, then
+        // perform the existing single Journal navigation tap below.
+        let settingsTab = app.tabBars.buttons["Settings"]
+        XCTAssertTrue(settingsTab.isSelected,
                       "Settings must remain selected after its scroll")
         shot("82-settings-after-scroll-before-tab-reveal")
-        settingsContent().swipeDown()
+        XCTAssertTrue(settingsTab.isHittable, "The selected minimized Settings tab must be reachable")
+        settingsTab.tap()
         shot("82-settings-tab-chrome-revealed")
         // #82 uses the current Journal root, not the historical Tracker title or
         // pushed Cooking History route. Keep every strict tab/arrival/header

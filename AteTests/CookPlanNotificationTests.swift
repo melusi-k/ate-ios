@@ -160,4 +160,41 @@ final class CookPlanNotificationTests: XCTestCase {
         XCTAssertEqual(client.ids, ["ate.timer.keep"])
     }
 
+    func testDeniedPermissionCannotClaimReconciledWhenOldReminderRemovalFails() async throws {
+        let client = CookPlanFakeNotificationClient()
+        client.permitted = false; client.refuseRemoval = true
+        let p = plan()
+        client.ids.insert(p.reminderID)
+        let adapter = CookPlanNotifications(client: client)
+        do {
+            try await adapter.reconcile(plans: [p], recipes: [RecipeCard(id: p.recipeID, title: "Soup")])
+            XCTFail("A retained reminder is not verified absence")
+        } catch {
+            XCTAssertEqual(error as? CookPlanError, .verificationFailed)
+        }
+        XCTAssertTrue(client.ids.contains(p.reminderID))
+        XCTAssertTrue(client.ids.contains("ate.timer.keep"))
+        XCTAssertTrue(client.adds.isEmpty)
+    }
+
+    func testDeletedRecipeReminderRemovalMustVerifyBeforeOtherReminderAdds() async throws {
+        let client = CookPlanFakeNotificationClient(); client.refuseRemoval = true
+        let p = plan()
+        let deleted = CookPlan.reminderID(recipeID: "deleted")
+        client.ids.insert(deleted)
+        let adapter = CookPlanNotifications(client: client)
+        do {
+            try await adapter.reconcile(plans: [p], recipes: [RecipeCard(id: p.recipeID, title: "Soup")])
+            XCTFail("Failed obsolete cleanup must stop before adding desired reminders")
+        } catch {
+            XCTAssertEqual(error as? CookPlanError, .verificationFailed)
+        }
+        XCTAssertTrue(client.ids.contains(deleted))
+        XCTAssertTrue(client.adds.isEmpty)
+        client.refuseRemoval = false
+        try await adapter.reconcile(plans: [p], recipes: [RecipeCard(id: p.recipeID, title: "Soup")])
+        XCTAssertEqual(client.ids, ["ate.timer.keep", p.reminderID])
+        XCTAssertEqual(client.adds, [p.scheduledAt])
+    }
+
 }

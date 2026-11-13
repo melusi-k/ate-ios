@@ -198,6 +198,11 @@ struct SettingsView: View {
                             .accessibilityIdentifier("settings.shareFeedback")
                         }
                     }
+                    Section("Product") {
+                        NavigationLink { ProductReleaseNotesView() } label: {
+                            Label("Release Notes", systemImage: "doc.text")
+                        }.accessibilityIdentifier("settings.releaseNotes")
+                    }
                     Section("Diagnostics") {
                         NavigationLink {
                             DiagnosticHistoryView()

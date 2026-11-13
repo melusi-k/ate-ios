@@ -189,13 +189,21 @@ struct JournalEntryDetailView: View {
     @State private var entryReadFailed = false
     @State private var editing = false
     @State private var draft = ""
+    @State private var editProblem: String?
     @State private var confirmDelete = false
+    @State private var deleteProblem: String?
     @State private var openRecipe: RecipeSheetTarget?
 
     var body: some View {
-        Group {
+        // A concrete container owns presentation once. Group distributes modifiers
+        // to its rendered children and can register duplicate alert actions.
+        VStack(spacing: 0) {
             if let e = entry {
                 List {
+                    if let deleteProblem {
+                        Text(deleteProblem).foregroundStyle(Theme.destructive)
+                            .accessibilityIdentifier("journal.delete.error")
+                    }
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
                             if let state = e.recordedHealthState {
@@ -250,40 +258,42 @@ struct JournalEntryDetailView: View {
                         ShareLink(item: shareText(e)) { Label("Share", systemImage: "square.and.arrow.up") }
                             .accessibilityIdentifier("journal.detail.share")
                         Menu {
-                            Button { draft = e.text; editing = true } label: { Label("Edit", systemImage: "pencil") }
-                            Button(role: .destructive) { confirmDelete = true } label: { Label("Delete", systemImage: "trash") }
+                            Button { draft = e.text; editProblem = nil; editing = true } label: { Label("Edit", systemImage: "pencil") }
+                            Button(role: .destructive) { deleteProblem = nil; confirmDelete = true } label: { Label("Delete", systemImage: "trash") }
                         } label: { Label("More", systemImage: "ellipsis.circle") }
                         .accessibilityIdentifier("journal.detail.menu")
                     }
                 }
-                // Destructive deletion always needs an explicit, accessible Cancel action.
-                // A confirmation popover may omit its cancel row; an alert keeps both choices.
-                .alert("Delete this journal entry?", isPresented: $confirmDelete) {
-                    Button("Delete", role: .destructive) {
-                        guard store.journalStore.delete(e) else {
-                            store.show("Ate couldn't delete this journal entry. Try again.", error: true)
-                            return
-                        }
-                        // The history retains its loaded array while detail is pushed.
-                        // Refresh it only after the deletion's context has saved.
-                        store.journalRevision += 1
-                        store.show("Journal entry deleted")
-                        BetaQA.shared.pass("C-JRN-04", note: "Deleted an entry after confirming")
-                        entry = nil; dismiss()
-                    }
-                    Button("Cancel", role: .cancel) {}
-                } message: { Text("This can't be undone. It's only stored on this iPhone.") }
                 .sheet(isPresented: $editing) {
                     NavigationStack {
-                        TextEditor(text: $draft).padding().font(AteFont.body(16)).accessibilityIdentifier("journal.edit.text")
+                        VStack(alignment: .leading, spacing: 8) {
+                            TextEditor(text: $draft).font(AteFont.body(16)).accessibilityIdentifier("journal.edit.text")
+                            if let editProblem {
+                                Text(editProblem).font(AteFont.body(14)).foregroundStyle(Theme.destructive)
+                                    .accessibilityIdentifier("journal.edit.error")
+                            }
+                        }
+                            .padding()
                             .navigationTitle("Edit entry").navigationBarTitleDisplayMode(.inline)
                             .toolbar {
-                                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { editing = false } }
+                                ToolbarItem(placement: .cancellationAction) {
+                                    Button("Cancel") { editing = false }
+                                        .accessibilityIdentifier("journal.edit.cancel")
+                                }
                                 ToolbarItem(placement: .confirmationAction) {
                                     Button("Save") {
-                                        store.journalStore.update(e, text: draft); editing = false; reloadEntry()
+                                        guard store.journalStore.update(e, text: draft) else {
+                                            editProblem = "Your entry could not be saved. Your draft is still here. Try again."
+                                            return
+                                        }
+                                        editProblem = nil
+                                        store.journalRevision += 1
+                                        editing = false
+                                        reloadEntry()
                                         BetaQA.shared.pass("C-JRN-03", note: "Edited an entry")
-                                    }.disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                    }
+                                    .accessibilityIdentifier("journal.edit.save")
+                                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                                 }
                             }
                     }
@@ -304,11 +314,34 @@ struct JournalEntryDetailView: View {
                 ContentUnavailableView("Entry not found", systemImage: "book.closed", description: Text("It may have been deleted."))
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Journal entry")
+        // The confirmation belongs to the stable detail owner, not the conditional
+        // List/model being removed. Its action uses route identity, never a captured
+        // reader model from an earlier render or an edit sheet.
+        .background {
+            JournalDeleteConfirmation(isPresented: $confirmDelete, onDelete: deleteConfirmedEntry)
+                .frame(width: 0, height: 0)
+        }
         .onAppear {
             reloadEntry()
             if entry != nil { BetaQA.shared.pass("C-JRN-01", note: "Opened an entry on its own") }
         }
+    }
+
+    private func deleteConfirmedEntry() {
+        guard store.journalStore.deleteReflection(id: entryID) else {
+            deleteProblem = "Ate couldn't verify deletion of this journal entry. Your entry is still shown. Try again."
+            return
+        }
+        // Retire this detail before notifying its loaded parent history. A parent
+        // reload must not race a child alert's captured List/model presentation.
+        deleteProblem = nil
+        entry = nil
+        dismiss()
+        store.journalRevision += 1
+        store.show("Journal entry deleted")
+        BetaQA.shared.pass("C-JRN-04", note: "Deleted an entry after confirming")
     }
 
     private func reloadEntry() {

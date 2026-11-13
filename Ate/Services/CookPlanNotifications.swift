@@ -111,6 +111,13 @@ final class CookPlanNotifications {
             let state = CookPlanReminders.reconcile(plans: plans, existingRecipeIDs: Set(recipes.map(\.id)),
                 notificationsAllowed: allowed, pendingIDs: pending, now: now)
             await self.client.remove(state.removeIDs)
+            if !state.removeIDs.isEmpty {
+                let remaining = await self.client.pendingIDs()
+                guard token == self.generation else { return }
+                guard remaining.isDisjoint(with: state.removeIDs) else {
+                    throw CookPlanError.verificationFailed
+                }
+            }
             for plan in state.desired {
                 guard token == self.generation, plan.scheduledAt > Date(),
                       let recipe = recipes.first(where: { $0.id == plan.recipeID }) else { return }

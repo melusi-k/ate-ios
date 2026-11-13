@@ -243,6 +243,7 @@ jobs:
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log
             ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments
+            ${{ runner.temp }}/ate-test-results/cook-finish-accessory-attachments
 
   regression-suites:
     name: regression suite (${{ matrix.suite }})
@@ -337,6 +338,8 @@ jobs:
             -only-testing:AteUITests/InsightsAcceptanceUITests/testJournalRootReflectionFailedSaveKeepsDraftVisible \
             -only-testing:AteUITests/InsightsAcceptanceUITests/testCandidateCardsScrollSideBySideWithoutDismissing \
             -only-testing:AteUITests/InsightsAcceptanceUITests/testJournalRootReflectionLabelsSampleHealthPrompts \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testSeededShoppingInsightOpensRealListAndRetainsSuggestion \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testSeededDiaryInsightOpensRealDiaryAndRetainsSuggestion \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
@@ -548,6 +551,32 @@ jobs:
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" cook-mode-history.log | tail -n 30
 
+      - name: Cook Finish above retained resume accessory
+        if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CookFinishAccessoryUITests \
+            -only-testing:AteUITests/CookSharedStepUITests \
+            -only-testing:AteUITests/CoverageUITests/testBottomBarsDoNotOverlapRecipeDetail \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-finish-accessory.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > cook-finish-accessory.log 2>&1 || { tail -120 cook-finish-accessory.log; exit 1; }
+          for test in testPushedFinishAboveResumeAccessoryPortrait testPushedFinishAboveResumeAccessoryLandscape; do
+            grep -qF "CookFinishAccessoryUITests $test]' passed" cook-finish-accessory.log || { echo "::error::Missing named Cook Finish pass: $test"; exit 1; }
+          done
+          for test in "CookSharedStepUITests testExternalSharedStepChangeWhileCookIsOpenUpdatesCurrentStep" "CoverageUITests testBottomBarsDoNotOverlapRecipeDetail"; do
+            grep -qF "$test]' passed" cook-finish-accessory.log || { echo "::error::Missing named shared-state/detail-overlap pass: $test"; exit 1; }
+          done
+      - name: Retain Cook Finish accessory captures
+        if: ${{ matrix.suite == 'account-cooking' && always() }}
+        run: |
+          if [ -d "$RUNNER_TEMP/ate-test-results/cook-finish-accessory.xcresult" ]; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/cook-finish-accessory.xcresult" \
+              --output-path "$RUNNER_TEMP/ate-test-results/cook-finish-accessory-attachments"
+          fi
+
       - name: Cook Mode ingredient sheet (UI; session units in full unit lane)
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
@@ -684,6 +713,7 @@ jobs:
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log
             ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments
+            ${{ runner.temp }}/ate-test-results/cook-finish-accessory-attachments
 
   regressions:
     # Preserve the original required-check context. Matrix skips, cancellation or

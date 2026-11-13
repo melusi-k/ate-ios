@@ -273,10 +273,17 @@ final class AteUITests: XCTestCase {
         }
         wait(finish, 5)
         finish.tap()
+        // Finish confirms the saved cook before returning to recipe detail. Do not
+        // query background buttons/tabs through the still-present completion sheet.
+        wait(app.staticTexts["cookCompletion.recorded"], 5)
+        let completionDone = app.buttons["cookReflection.notNow"]
+        wait(completionDone, 5)
+        XCTAssertEqual(app.buttons.matching(identifier: "cookReflection.notNow").count, 1)
+        completionDone.tap()
         wait(app.buttons["Cook mode"], 5)
 
         // Completion must update the persistent Tracker, not merely dismiss Cook Mode.
-        tab("Journal")
+        tabFromRecipeDetail("Journal", recipeTitle: "Miso salmon for two")
         // Journal is the tab root; Insights & Cooking History is its one named route.
         let hub = app.buttons["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")

@@ -1,7 +1,7 @@
 {
-  "title": "Bundle A: Settings, Insights, Cook, generation and Journal",
-  "summary": "Focus: Settings release notes and replay tour, owned Insights destinations, recorded cooking history, shared Cook steps and measured bottom chrome, owned photo/generation inputs, onboarding navigation, and native Journal delete confirmation with retained reflection drafts. All source folds are included, not native or device acceptance. Nutrition termination awaits fresh exact-head evidence. Cooking is not an eaten-food log; Food Journal activation is not enabled by this bundle.",
-  "source_commit": "0a625c23aaacc4713c7bb3a45cc45506c2f350c7",
+  "title": "Main features with live Shopping sync and offline Explore",
+  "summary": "Source union: Settings release notes, Insights destinations, cooking history, shared Cook steps, owned generation inputs, native Journal delete confirmation, live Shopping sync and local durability, offline Explore and source-faithful draft repair. Native qualification and device acceptance remain separate. Cooking is not an eaten-food log. No activation change is made.",
+  "source_commit": "12ecb15badc5867cd1167775585a139b3a6dcf6e",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -46,6 +46,26 @@
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
       "blob": "e25f2c8a67877b5a6d362d8b64a0d9a0da52f5f9"
+    },
+    {
+      "path": "Ate/Views/ShoppingListView.swift",
+      "blob": "031df522bdb2bae02452fe99f535835dae0d7c08"
+    },
+    {
+      "path": "Ate/Store/AppStore.swift",
+      "blob": "8d613d06bf023c2ad8ecbeb0c1718f0ff1c1e565"
+    },
+    {
+      "path": "Ate/Logic/SyncPayloadSafety.swift",
+      "blob": "a97407346934598d82dda7ffda52eed0c29aa46a"
+    },
+    {
+      "path": "Ate/Views/ExploreView.swift",
+      "blob": "1049ba938a741b92dc0656e8d372fddc4b2f2f73"
+    },
+    {
+      "path": "Ate/Views/LibraryView.swift",
+      "blob": "28101234a51b76e746ff2ed90931b04a4560fcd0"
     }
   ]
 }

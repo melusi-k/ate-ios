@@ -8,6 +8,8 @@ import FoundationModels
 final class InsightsModel {
     static let shared = InsightsModel()
     private(set) var health: HealthKitServicing
+    @ObservationIgnored weak var owner: AppStore?
+    @ObservationIgnored var validateOwner: () throws -> Void = {}
     var access: HealthAccess
     /// Beta debug picker: swap to a mock scenario ("" = live Apple Health).
     func useScenario(_ s: String, recipes: [RecipeCard]) async {
@@ -35,23 +37,42 @@ final class InsightsModel {
     /// True when Beta testing › Health data is a mock scenario: show a "Sample data" badge, never a red entitlement error.
     var isSample: Bool { health is MockHealthKitService }
     func connect(recipes: [RecipeCard]) async {
-        access = await health.requestAccess(); requestError = health.lastError
-        await refresh(recipes: recipes)
+        if let owner { await owner.runJournalTask { await self.connectOwned(recipes: recipes) } }
+        else { await connectOwned(recipes: recipes) }
+    }
+    private func connectOwned(recipes: [RecipeCard]) async {
+        let result = await health.requestAccess()
+        guard !Task.isCancelled, (try? validateOwner()) != nil else { return }
+        access = result; requestError = health.lastError
+        await refreshOwned(recipes: recipes)
     }
     func useSampleData(recipes: [RecipeCard]) async { await useScenario("recovery", recipes: recipes) }
     func refresh(recipes: [RecipeCard]) async {
+        if let owner { await owner.runJournalTask { await self.refreshOwned(recipes: recipes) } }
+        else { await refreshOwned(recipes: recipes) }
+    }
+    private func refreshOwned(recipes: [RecipeCard]) async {
         access = health.access
         guard access == .requested else { context = nil; return }
         loading = true; defer { loading = false }
+        let validate = validateOwner
+        let originalOwner = owner
+        guard !Task.isCancelled, (try? validate()) != nil else { return }
         let s = await health.summary(days: 7)
+        guard !Task.isCancelled, (try? validate()) != nil else { return }
         guard let i = HealthInsightEngine.insight(for: s) else { context = nil; return }
         if WidgetBridge.lastHealthState != i.state {
-            WidgetBridge.lastHealthState = i.state
-            if let st = AppStore.current { WidgetBridge.publish(st, delay: 0) }
+            if let originalOwner {
+                try? originalOwner.capturedSharedBoundary.withEffect { WidgetBridge.lastHealthState = i.state }
+                WidgetBridge.publish(originalOwner, delay: 0)
+            } else if AppConfig.isUITesting {
+                WidgetBridge.lastHealthState = i.state
+            }
         }
+        let prompts = await JournalSuggestionService.prompts(for: i)
+        guard !Task.isCancelled, (try? validate()) != nil else { return }
         context = HealthContext(summary: s, insight: i,
-                                suggestions: RecipeHealthMatcher.suggestions(for: i.state, recipes: recipes),
-                                prompts: await JournalSuggestionService.prompts(for: i))
+                                suggestions: RecipeHealthMatcher.suggestions(for: i.state, recipes: recipes), prompts: prompts)
     }
 }
 
@@ -261,7 +282,7 @@ struct InsightsView: View {
     var isRoot: Bool = true
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @State private var model = InsightsModel.shared
+    private var model: InsightsModel { store.insightsModel }
     @State private var recipeProgressCandidates: [RankedRecipeInsightCandidate] = []
     @State private var recipeProgressSuppressed = false
     @State private var recipeProgressLoading = false
@@ -273,6 +294,7 @@ struct InsightsView: View {
     @State private var openRecipe: RecipeSheetTarget?
 
     var body: some View {
+        @Bindable var model = model
         ZStack {
             Theme.background.ignoresSafeArea()
             ScrollViewReader { scrollProxy in
@@ -846,7 +868,7 @@ struct InsightsView: View {
 /// Small "Today" card at the top of the Library (only once Health is connected and has data).
 struct TodayHealthCard: View {
     @Environment(AppStore.self) private var store
-    @State private var model = InsightsModel.shared
+    private var model: InsightsModel { store.insightsModel }
     var body: some View {
         Group {
             if let c = model.context {

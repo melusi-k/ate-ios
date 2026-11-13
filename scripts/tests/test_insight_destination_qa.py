@@ -30,3 +30,12 @@ class InsightDestinationQATests(unittest.TestCase):
             self.assertIn('func ' + method + '()', tests)
         self.assertIn('returnToSeededInsight("shopping-multi-recipe")', tests)
         self.assertIn('returnToSeededInsight("nutrition-diary-coverage")', tests)
+
+    def test_contextual_destination_has_typed_owner_and_no_missed_mount_boolean(self):
+        source = (ROOT / 'Ate/Views/InsightsView.swift').read_text().split('private func openInsightDestination', 1)[1].split('private func refreshRecipeProgressInsight', 1)[0]
+        self.assertIn('if !isRoot { store.trackerPath = [] }', source)
+        self.assertIn('store.openInsightFoodDiary()', source)
+        self.assertNotIn('store.showNutritionDiary = true', source)
+        store = (ROOT / 'Ate/Store/AppStore.swift').read_text().split('func openInsightFoodDiary()', 1)[1].split('func handle(url:', 1)[0]
+        self.assertIn('settingsPath = [.nutritionDiary]', store)
+        self.assertLess(store.index('settingsPath = [.nutritionDiary]'), store.index('select(.settings)'))

@@ -195,7 +195,9 @@ struct JournalEntryDetailView: View {
     @State private var openRecipe: RecipeSheetTarget?
 
     var body: some View {
-        Group {
+        // A concrete container owns presentation once. Group distributes modifiers
+        // to its rendered children and can register duplicate alert actions.
+        VStack(spacing: 0) {
             if let e = entry {
                 List {
                     if let deleteProblem {
@@ -274,7 +276,10 @@ struct JournalEntryDetailView: View {
                             .padding()
                             .navigationTitle("Edit entry").navigationBarTitleDisplayMode(.inline)
                             .toolbar {
-                                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { editing = false } }
+                                ToolbarItem(placement: .cancellationAction) {
+                                    Button("Cancel") { editing = false }
+                                        .accessibilityIdentifier("journal.edit.cancel")
+                                }
                                 ToolbarItem(placement: .confirmationAction) {
                                     Button("Save") {
                                         guard store.journalStore.update(e, text: draft) else {
@@ -286,7 +291,9 @@ struct JournalEntryDetailView: View {
                                         editing = false
                                         reloadEntry()
                                         BetaQA.shared.pass("C-JRN-03", note: "Edited an entry")
-                                    }.disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                    }
+                                    .accessibilityIdentifier("journal.edit.save")
+                                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                                 }
                             }
                     }
@@ -307,6 +314,7 @@ struct JournalEntryDetailView: View {
                 ContentUnavailableView("Entry not found", systemImage: "book.closed", description: Text("It may have been deleted."))
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Journal entry")
         // The confirmation belongs to the stable detail owner, not the conditional
         // List/model being removed. Its action uses route identity, never a captured

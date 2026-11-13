@@ -1,7 +1,7 @@
 {
   "title": "Bundle A: Settings, Insights, Cook, generation and Journal",
   "summary": "Focus: Settings release notes and replay tour, owned Insights destinations, recorded cooking history, shared Cook steps and measured bottom chrome, owned photo/generation inputs, onboarding navigation, and native Journal delete confirmation with retained reflection drafts. All source folds are included, not native or device acceptance. Nutrition termination awaits fresh exact-head evidence. Cooking is not an eaten-food log; Food Journal activation is not enabled by this bundle.",
-  "source_commit": "984b07a2385e278b35544eab3ed56aa910e72144",
+  "source_commit": "0a625c23aaacc4713c7bb3a45cc45506c2f350c7",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

@@ -193,7 +193,10 @@ final class UserDataSyncTests: XCTestCase {
     @MainActor
     private func makeFencedHarness(generation: Int64, receiptGeneration: Int64? = nil,
                                    rows: [[String: Any]] = [],
-                                   gate: SyncCycleGate = SyncCycleGate()) throws -> FencedHarness {
+                                   gate suppliedGate: SyncCycleGate? = nil) throws -> FencedHarness {
+        // Default arguments are evaluated outside this actor-isolated body.
+        // Construct the default here; retain an injected shared gate unchanged.
+        let gate = suppliedGate ?? SyncCycleGate()
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("uds-\(UUID().uuidString)", isDirectory: true).standardizedFileURL
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

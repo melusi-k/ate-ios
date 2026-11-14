@@ -1,7 +1,7 @@
 {
   "title": "Journal layout, published release history and recipe draft feedback",
-  "summary": "Focus: Journal geometry, DEBUG445 release history, draft/Achari and source-prep fixes; opaque Cook footer, bounded Cook and Reorder journeys. Restored exact home-cooking persona within prompt caps. Failed-save persistence dismisses the real keyboard before two writes, Cancel and real relaunch; native cause unproven. Bundled Roadmap reader has empty catalog and unavailable voting; shared Journal palette. Food Journal shipping and anonymous sign-in off. No production writes. Native pixels pending; merge held.",
-  "source_commit": "dca8dc66f2f0edad1b3c642be77a02c27fd8000e",
+  "summary": "Focus: Journal geometry, release history, draft/Achari and source-prep fixes; opaque Cook footer and bounded Cook/Reorder journeys. Exact home-cooking persona restored. Failed-save test dismisses keyboard; ManualCRUD now retains row screenshot and AX before the original tap, diagnostic only. Bundled Roadmap has empty catalog and unavailable voting. Food Journal and anonymous sign-in off. No production writes. Native pixels pending; merge held.",
+  "source_commit": "b14376d193c348e2a741ad0b7fcc732e91e3bd8e",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

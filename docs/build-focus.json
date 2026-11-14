@@ -1,7 +1,7 @@
 {
   "title": "Library main-protein grouping",
-  "summary": "Focus: Library main-protein grouping preserves species/source amounts and original prompt caps. Independent sheet journeys retain Pork and both named passes. Ingredient positioning keeps measured bidirectional slow drags, full-row containment and immediate capture. Reorder splits actual My order selection from unchanged actions. Cook footer inset now belongs to the scroll with opaque background; QA8 timer-exit repair is a hypothesis. Native rerun/pixels pending; not acceptance.",
-  "source_commit": "cedba94aea7beff5755d89b3f0f1740773110884",
+  "summary": "Focus: explicit Library pork mapping and retained native Library journeys. Adds nine bounded DEBUG+UITesting+explicit normal-text Journal-only read-only layer-animation samples with numeric orientation and cover-loading counts. Diagnostic only, not an animation or Files picker fix. Assertions, waits, budgets, workflows and product flow unchanged. Native samples and physical-device acceptance pending. Merge held.",
+  "source_commit": "7e2f4dc49cf176e8d085bb565dc77bff232d65bd",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "e6014247fd0676c1ef77bbbf1a33a894c54da8b2"
+      "blob": "05333d3d5c4a65eb283ac16f9a8fe743812facdf"
     },
     {
       "path": "Ate/App/LibraryProteinQAFixtures.swift",

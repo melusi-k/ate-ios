@@ -1,7 +1,7 @@
 {
   "title": "Library main-protein grouping",
-  "summary": "Focus: Library main-protein grouping preserves species and source amounts, with original prompt size limits restored. Sheet portrait and landscape/rotation tests use separate budgets and explicit DEBUG+UITesting saved-card setup; first ingredient requires full viewport containment. Pork and both sheet named passes remain required. Native correction rerun and updated pixels unverified; not acceptance.",
-  "source_commit": "c87c9ea4ae41e4fd7fc8535249986148c0a87b29",
+  "summary": "Focus: Library main-protein grouping preserves species/source amounts and original prompt caps. Independent sheet journeys retain Pork and both named passes. Same five-gesture ingredient positioning now uses measured bidirectional slow drags, full-row containment and immediate capture before unchanged assertions. Product code unchanged. Native correction rerun/pixels pending; not acceptance.",
+  "source_commit": "69fdd421d28aa049524e1119ac0cc16f1d042c13",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

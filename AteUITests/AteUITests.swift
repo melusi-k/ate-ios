@@ -1210,9 +1210,9 @@ final class AteUITests: XCTestCase {
     }
 
     func test28_GroupSortAndMenus() {
-        launch()
-        addNamed("Zesty tacos")
-        addNamed("Apple crumble")
+        // Creation has independent end-to-end coverage. These journeys own
+        // the real Library menus/actions, not two unrelated generation flows.
+        launch(["-qaSavedRecipesForGroupSort"])
         pick("sortMenu", "A–Z")
         let a = text("Apple crumble"), z = text("Zesty tacos")
         wait(a)
@@ -1280,10 +1280,17 @@ final class AteUITests: XCTestCase {
     }
 
     func test29_ReorderMyOrder() {
-        launch()
-        addNamed("First dish")
-        addNamed("Second dish")
+        launch(["-qaSavedRecipesForDogfoodReorder"])
         pick("sortMenu", "My order")
+        let first = text("First dish"), second = text("Second dish")
+        wait(first)
+        XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
+    }
+
+    func test29b_ReorderMyOrderActions() {
+        // The selection journey exercises My order. Preselect only that mode;
+        // unordered cards and all real action results remain unseeded.
+        launch(["-qaSavedRecipesForReorderAction"])
         let first = text("First dish"), second = text("Second dish")
         wait(first)
         XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")

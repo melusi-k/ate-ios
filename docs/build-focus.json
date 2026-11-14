@@ -1,7 +1,7 @@
 {
   "title": "Recipe sheet clarity, Cook contrast and duplicate display rows",
-  "summary": "Focus: recipe-sheet chrome, viewport Cook footer and saved Group28 preconditions. Real Files picker lifecycle observations retained. Opt-in normal-text Journal diagnostics sample bounded layer animation timing and MainActor heartbeats without model reads; UTC-bounded host/simulator logs retained. Original taps, assertions and time limits unchanged. Diagnostics do not fix or prove the animation stall or blank Files surface. Native/pixel qualification pending; merge held.",
-  "source_commit": "eae6f34920b661ce6846a0b148c43e78997b0336",
+  "summary": "Focus: recipe-sheet chrome, sibling-clipped scroll viewport above the opaque Cook footer, and saved Group28 preconditions. Existing ingredient, final-field, servings and detent acceptance unchanged. Opt-in normal-text Journal diagnostics retain bounded animation/MainActor samples and UTC logs. No model reads. Native geometry, hit testing, editing, detents and pixels remain unqualified; merge held.",
+  "source_commit": "5a8a14861947744490904430b8113cffce54955f",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -81,7 +81,7 @@
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "c85ce0c974ec761dc62b04305b9b71fef5042332"
+      "blob": "71219de9338d3e6b2e6fa71447fe2a8f1482b2e4"
     },
     {
       "path": "Ate/Views/RecipeNutritionView.swift",

@@ -1,12 +1,12 @@
 import Foundation
 
-/// Slice-one rollout is OFF unless explicitly enabled. No user-facing toggle yet.
+/// Enabled for prompt/social by default. DEBUG opt-out supports paired device eval.
 enum RecipeGenerationToolGate {
     static var enabled: Bool {
 #if DEBUG
-        ProcessInfo.processInfo.arguments.contains("-qaRecipeGenerationTool")
+        !ProcessInfo.processInfo.arguments.contains("-qaDisableRecipeGenerationTool")
 #else
-        false
+        true
 #endif
     }
     static func applies(enabled: Bool, input: RecipePrompt.Input) -> Bool {

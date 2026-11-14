@@ -429,7 +429,14 @@ final class AppStore {
         }
     }
 
-    /// Sidebar/tab selection of a collection applies its filter; Library clears it.
+    /// Switching tabs preserves the person's collection. An explicit sidebar Library
+    /// destination still uses select(.library) to request the unfiltered collection.
+    func selectTab(_ t: AppTab) {
+        if t == .library { tab = t }
+        else { select(t) }
+    }
+
+    /// Explicit destination selection applies a collection; Library clears it.
     func select(_ t: AppTab) {
         switch t {
         case .collection(let c): filter.collection = c; tab = t

@@ -96,6 +96,9 @@ jobs:
           xcrun simctl bootstatus "$SIM_ID" -b
           # QA1 flow = the exact three cases below; keep in sync with QA1_REQUIRED_CASES
           # in scripts/qa-summary.py and scripts/release/readiness.py.
+          mkdir -p dogfood-critical-window
+          date -u '+%Y-%m-%d %H:%M:%S' > dogfood-critical-window/start-utc.txt
+          trap 'date -u "+%Y-%m-%d %H:%M:%S" > dogfood-critical-window/end-utc.txt' EXIT
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
             -only-testing:AteUITests/KeyFlowsQATests/testQA1_AddFromURL_JSONLD \
             -only-testing:AteUITests/KeyFlowsQATests/testQA1_AddFromURL_InstagramCaption \
@@ -121,6 +124,31 @@ jobs:
             grep -qF "AteUITests $test]' passed" dogfood-critical-flows.log || { echo "::error::missing named Library pass: $test"; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" dogfood-critical-flows.log | tail -50
+
+      - name: Retain bounded critical-flow unified-log window
+        if: always() && steps.critical_flows.outcome != 'skipped' && steps.select_simulator.outputs.id != ''
+        env:
+          SIM_ID: ${{ steps.select_simulator.outputs.id }}
+        run: |
+          # Post-run collection has no background process to leak on test failure.
+          mkdir -p dogfood-critical-window
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > dogfood-critical-window/collection-utc.txt
+          if [ -s dogfood-critical-window/start-utc.txt ]; then
+            start_utc=$(cat dogfood-critical-window/start-utc.txt)
+            if [ ! -s dogfood-critical-window/end-utc.txt ]; then
+              date -u '+%Y-%m-%d %H:%M:%S' > dogfood-critical-window/end-utc.txt
+            fi
+            end_utc=$(cat dogfood-critical-window/end-utc.txt)
+            predicate='process == "Ate" OR process == "AteUITests-Runner" OR subsystem == "com.melusik.ate"'
+            /usr/bin/log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > dogfood-critical-window/host-unified.log 2>&1 || \
+              echo 'Host collection failed; see retained output.' >> dogfood-critical-window/collection-errors.txt
+            xcrun simctl spawn "$SIM_ID" log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > dogfood-critical-window/simulator-unified.log 2>&1 || \
+              echo 'Simulator collection failed; see retained output.' >> dogfood-critical-window/collection-errors.txt
+          else
+            echo 'No critical-flow start marker; no covered window claimed.' > dogfood-critical-window/collection-errors.txt
+          fi
 
       - name: Retain UI-test photo-import phase diagnostics
         if: always() && steps.critical_flows.outcome != 'skipped' && steps.select_simulator.outputs.id != ''
@@ -174,6 +202,7 @@ jobs:
           name: dogfood-qualification-${{ github.run_number }}
           path: |
             dogfood-critical-flows.log
+            dogfood-critical-window
             dogfood-photo-import-phases.log
             dogfood-sync-quarantine.log
             build/DogfoodCriticalFlows.xcresult

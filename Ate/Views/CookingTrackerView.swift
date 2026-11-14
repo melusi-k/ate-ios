@@ -164,17 +164,23 @@ private struct CookingDotGrid: View {
             }
 
             let monthSummary = CookingMonthSummary.make(events: history.events, month: displayedMonth, calendar: calendar)
-            HStack(alignment: .firstTextBaseline, spacing: 20) {
-                Text(monthSummary.daysText)
-                    .font(AteFont.body(16, .semibold)).foregroundStyle(Theme.foreground)
-                Text(monthSummary.recipesText)
-                    .font(AteFont.body(16, .medium)).foregroundStyle(Theme.secondaryForeground)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 20) {
+                    Text(monthSummary.daysText)
+                        .font(AteFont.body(16, .semibold)).foregroundStyle(Theme.foreground)
+                    Text(monthSummary.recipesText)
+                        .font(AteFont.body(16, .medium)).foregroundStyle(Theme.secondaryForeground)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Recorded this month: " + monthSummary.text)
+                .accessibilityIdentifier("tracker.monthSummary")
             }
+            // Measure the padded row separately from the combined text's glyph bounds.
             .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Recorded this month: " + monthSummary.text)
-            .accessibilityIdentifier("tracker.monthSummary")
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("tracker.monthSummaryRow")
 
             LazyVGrid(columns: columns, spacing: 7) {
                 ForEach(Array(weekdays.enumerated()), id: \.offset) { _, weekday in

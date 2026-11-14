@@ -1,7 +1,7 @@
 {
   "title": "Quieter Insights and new recipe suggestions",
-  "summary": "Focus: Insights recipe discovery refuses generated recipes with no ingredients, including cold dishes outside bounded food vocabulary. Mock, uncertain and duplicate outputs remain rejected; rejection tests label each input. Existing nutrition, Journal and menu improvements retained. Native correction rerun pending; not acceptance.",
-  "source_commit": "f50da61391f1868270d757a519c0ee9060dffaca",
+  "summary": "Focus: draft fixes, viewport Cook footer candidate and bounded sort/reorder journeys. Both reorder named passes and twelve-case Dogfood floor are required; source guard now matches strengthened workflow. Earlier reported Python pass preceded last workflow edit and was invalid for that head. Fresh exact-head verification required. Native/pixels remain pending; no acceptance claim.",
+  "source_commit": "7deb74ab118abcebba0e1ac61e342760f5677a85",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
+      "blob": "e6014247fd0676c1ef77bbbf1a33a894c54da8b2"
     },
     {
       "path": "Ate/Insights/InsightCandidateEngine.swift",
@@ -77,7 +77,7 @@
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
+      "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
     },
     {
       "path": "Ate/Views/SuggestedNewRecipesView.swift",

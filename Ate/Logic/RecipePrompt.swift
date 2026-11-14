@@ -55,6 +55,7 @@ enum RecipePrompt {
     7. Respect regional cuisines (South African, Southern African, West African). For any regional or unfamiliar dish name, call lookupRegionalDish before writing ingredients. Never replace them with an unrelated Western dish.
     8. A main dish needs at least 4 real ingredients with quantities; oven steps give °C. Include needed prep, heat, time and doneness cues, transitions and serving/resting only when appropriate. No filler or skipped actions. Times: simmer/stew 20+ min, braise 1 h+, pap 15+ min, browning 5+ min. Use specific verbs, never just "cook the ribs". Never invent steps or ingredients the source contradicts.
     9. Reconcile ingredients and steps both ways, including salt, oil, water, bread, wrappers and filling. Measure every item used; use every item listed. Preserve dish-defining structure, not just its name. Order dependencies: aromatics/spices before simmering a generated curry; explain any pre-boil liquid. Preserve source order; flag gaps, don't invent missing source facts.
+    10. Keep dependency order consistent with the source and your own note. If potatoes are described as pre-boiled before frying, put that boil/drain before the fry, not after. Do not impose pre-boiling on dishes that do not need it. Finish cooking and any stated rest before a final serving action; do not add repeated serve/rest/serve filler. Keep distinct coating and glaze ingredient uses separate; do not repeat an identical ingredient row.
     Example 1 (South African), input "chakalaka": dish Chakalaka, South African, confidence 0.95. Ingredients: 2 tbsp oil; 1 onion, diced; 2 carrots, grated; 1 green pepper, diced; 2 tsp curry powder; 400 g tinned baked beans. Steps: Sauté the onion in the oil over medium heat until soft, 5 min. Stir in the carrot, pepper and curry powder and fry 3 min. Add the beans and simmer uncovered until thick, 15 min.
     Example 2, input "sticky oven ribs": dish Sticky pork ribs, American, confidence 0.9. Ingredients: 1.2 kg pork ribs; 3 tbsp brown sugar; 2 tsp smoked paprika; 3 cloves garlic, crushed; 125 ml barbecue sauce. Steps: Rub the ribs with sugar, paprika and garlic. Wrap in foil and bake at 160°C until tender, 120 min. Unwrap, brush with sauce and roast at 220°C until sticky, 15 min.
     """
@@ -349,4 +350,3 @@ struct PhotoNeedsDishError: LocalizedError, Equatable {
                : "Not sure what this dish is. Tell ate what it is for a better recipe."
     }
 }
-

@@ -1,7 +1,7 @@
 {
   "title": "Journal layout, published release history and recipe draft feedback",
-  "summary": "Focus: Journal geometry, DEBUG445 release history, draft/Achari and prompt/source-prep fixes; opaque Cook footer and bounded saved-recipe Cook split. Enabled bundled Roadmap reader with honest empty catalog and unavailable voting; shared Journal palette. Food Journal shipping and anonymous sign-in remain off. No production writes. Native normal-text/light-dark pixels pending; merge held.",
-  "source_commit": "81d59a2ce0be75eaf77116bb99e636bcdfd096f4",
+  "summary": "Focus: Journal geometry, DEBUG445 release history, draft/Achari and source-prep fixes; opaque Cook footer, bounded Cook and Reorder journeys. Restored exact home-cooking persona within prompt caps. Failed-save persistence dismisses the real keyboard before two writes, Cancel and real relaunch; native cause unproven. Bundled Roadmap reader has empty catalog and unavailable voting; shared Journal palette. Food Journal shipping and anonymous sign-in off. No production writes. Native pixels pending; merge held.",
+  "source_commit": "dca8dc66f2f0edad1b3c642be77a02c27fd8000e",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "53e6d89c137c2c7b01ab3e20177b12ffe1bdc9d1"
+      "blob": "6a14a9f40359413fc82dfaa9b668055850ae37e1"
     },
     {
       "path": "Ate/App/ProductReleaseNotesQAFixture.swift",
@@ -49,7 +49,7 @@
     },
     {
       "path": "Ate/Logic/RecipePrompt.swift",
-      "blob": "e6a1821db213fb154ca35313b54f85818f6c8835"
+      "blob": "2f4c0819b970fceace88229361721658d2383489"
     },
     {
       "path": "Ate/Logic/RecipeQuality.swift",
@@ -128,4 +128,4 @@
       "blob": "ae8ffbf9487aaeb061a755c1f7238ad5defdc2ca"
     }
   ]
-    }
+}

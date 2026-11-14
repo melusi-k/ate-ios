@@ -341,6 +341,7 @@ jobs:
             -only-testing:AteUITests/InsightsAcceptanceUITests/testSeededShoppingInsightOpensRealListAndRetainsSuggestion \
             -only-testing:AteUITests/InsightsAcceptanceUITests/testSeededDiaryInsightOpensRealDiaryAndRetainsSuggestion \
             -only-testing:AteUITests/InsightsAcceptanceUITests/testExploreOpensNewSuggestionsNotLibraryAndUnavailableAIIsHonest \
+            -only-testing:AteUITests/CookReflectionUITests/testSavedCookNoteAppearsUnderRecipeOnCookedDayAtNormalText \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \

@@ -74,7 +74,13 @@ final class FoodJournalStagedSyncTests: XCTestCase {
                 if request.url!.lastPathComponent != "account_data_snapshot", !commitFailure { throw Injected.network }
             }
             do { _ = try await f.run(commitError: commitFailure); XCTFail("Injected failure accepted") }
-            catch Injected.network {} catch Injected.commit {} catch { XCTFail("Unexpected \(error)") }
+            catch ResetRPCError.outcomeUnverified(let diagnostic) {
+                XCTAssertFalse(commitFailure, "Only the transport failure is wrapped as unverified")
+                XCTAssertEqual(diagnostic, Net.friendly(Injected.network), "Preserve the exact injected transport diagnostic")
+                XCTAssertEqual(f.puts, 1, "Injected failure must occur during upload")
+            } catch Injected.commit {
+                XCTAssertTrue(commitFailure, "Only the durable commit injection escapes unchanged")
+            } catch { XCTFail("Unexpected \(error)") }
             XCTAssertEqual(f.local, original); XCTAssertEqual(f.commits, 0)
             do { try await f.adapter.push([], session: f.current); XCTFail("No reusable pull capture") }
             catch FoodJournalGenerationSync.Failure.missingPull {} catch { XCTFail("Unexpected \(error)") }

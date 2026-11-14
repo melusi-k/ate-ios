@@ -213,6 +213,7 @@ jobs:
           if-no-files-found: warn
           path: |
             nutrition-ui-tests.log
+            ${{ runner.temp }}/ate-test-results/roadmap-reader-attachments
             ${{ runner.temp }}/ate-test-results/nutrition-ui-tests.xcresult
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
 
@@ -239,6 +240,7 @@ jobs:
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
+            ${{ runner.temp }}/ate-test-results/roadmap-reader-attachments
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log
@@ -261,7 +263,7 @@ jobs:
       matrix:
         include:
           - suite: presentation-creation
-            required_logs: insights-evidence-navigation.log share-publish-outage-tests.log interrupted-generation-retry-lifecycle.log transient-generation-retry.log expandable-recipe-sheet-tests.log
+            required_logs: roadmap-reader.log insights-evidence-navigation.log share-publish-outage-tests.log interrupted-generation-retry-lifecycle.log transient-generation-retry.log expandable-recipe-sheet-tests.log
           - suite: account-cooking
             required_logs: settings-sync.log production-channel-production.log settings-about-145.log account-switch-sync-failure-library.log tracker-ui.log navigation-header-tests.log cook-mode-history.log cook-ingredients-tests.log
     env:
@@ -345,6 +347,23 @@ jobs:
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > insights-evidence-navigation.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" insights-evidence-navigation.log || true; tail -120 insights-evidence-navigation.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" insights-evidence-navigation.log | tail -40
+
+      - name: Bundled roadmap reader acceptance (#74)
+        if: ${{ matrix.suite == 'presentation-creation' && (!cancelled() && steps.build.outcome == 'success') }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/InsightsPresentationUITests/testSettingsRoadmapEmptyCatalogAndUnavailableVotingAtNormalText \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/roadmap-reader.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > roadmap-reader.log 2>&1 || { tail -120 roadmap-reader.log; exit 1; }
+          python3 scripts/verify-roadmap-reader-results.py roadmap-reader.log
+      - name: Retain roadmap reader screenshots
+        if: ${{ always() && matrix.suite == 'presentation-creation' && steps.build.outcome == 'success' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/ate-test-results/roadmap-reader-attachments"
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/roadmap-reader.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/roadmap-reader-attachments" || true
 
       - name: Retain UI-test day-sheet presentation trace
         if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.insights_acceptance.outcome != 'skipped') }}
@@ -713,6 +732,7 @@ jobs:
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
+            ${{ runner.temp }}/ate-test-results/roadmap-reader-attachments
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log

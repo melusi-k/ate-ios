@@ -31,10 +31,11 @@ improvement when this golden set says so.
 | F10 | retry | An input known to fail the quality bar once (thin card) | The retry repairs the listed gaps instead of re-rolling; second card passes `shortfall` with fewer gaps |
 | F11 | journal reflection | "Reflect on your day" on a day with health data | Generated prompt is under 25 words and ends with a question mark; otherwise templates show |
 | F12 | prompt, then screenshot-regression review | "Mutton bunny chow for 6"; compare with Melusi's 11 Nov 2026 screenshot (1.5 kg mutton, 2 onions, 3 cloves garlic, 2 tsp curry powder, 500 ml stock; salted-water simmer 150 min, fry 8 min, sauce simmer 30 min; total 198) | Curry served inside measured hollowed bread portions, not kota or curry with pap; every used staple listed; coherent cooking order with pre-boil liquid handling if used; total equals step sum plus explicit Prep: N min (198 may be valid as 188 + 10 prep); varied spice blends allowed, no forced browning. Human reviewer checks taste, portions and food safety. |
+| F13 | prompt/social structuring | "Achari Murgh"; source regression: 1.2 kg chicken pieces, 1 onion diced, 2 cloves garlic crushed, 2 tsp curry powder, 300 ml vegetable oil, 400 ml water, 1 tsp salt; step 2 "Add the onion and garlic", step 3 "Stir in the curry powder and achari paste" | Onion is food name with diced prep, not unit onion/name diced. Source extraction must flag absent achari paste without inventing its quantity. Creative prompt must explicitly list any used paste with an amount. Existing typed validations, source-fidelity checks and manual Save remain. |
 
 ## Results log
 
-| Date | Build SHA | By | F1-F12 scores | Notes |
+| Date | Build SHA | By | F1-F13 scores | Notes |
 |------|-----------|----|---------------|-------|
 | pending | baseline on main before the generation-pipeline PR | | | First run establishes the baseline |
 
@@ -93,3 +94,40 @@ cover-and-bake). Existing native good-ribs acceptance with time + oven temperatu
 explicit doneness is still requested by the prompt. A bare oven setting without time still fails.
 The validator cannot disambiguate a separate meat use from a stock descriptor; human review remains
 required. Existing prompt phrase "at least 4 real ingredients" is preserved without changing tests.
+
+## RecipeGenerationTool slice one (default OFF)
+
+- Opt in only in a DEBUG device build with `-qaRecipeGenerationTool`. No release
+  toggle or automatic enablement. Applies only to prompt/social generation, not
+  photo, screenshot, web-page extraction or rewrite. Promo rejection and the
+  deterministic screenshot parser run unchanged before model/session allocation.
+- The tool receives typed ingredient/step fields, validates them in Swift, and
+  returns the accepted structure. It does not retrieve facts, add missing food or
+  amounts, save a recipe, or change dish confidence. The final generated fields
+  must match a valid tool result. Zero calls, invalid calls or mismatches fail
+  closed. Repeated/concurrent calls are bounded and isolated per request.
+- Existing GenRecipe streamed preview remains provisional. Extraction retains its
+  existing preview suppression for source-fidelity. Tool latency can delay the
+  first preview because the framework waits for a tool call before continuing.
+- Opt-in sessions bypass prewarm and session reuse/cache so a tool-less session
+  cannot bypass validation, and a stale receipt cannot authorize another request.
+  The existing optional quality-repair limit is unchanged; this adds no retry.
+- Tool invocation is model-selected, not guaranteed by instructions or schemas.
+  Fail-closed rejection may be frequent. This slice is experimental, not a claim
+  of better recipes or a replacement for source-fidelity/quality review.
+- One paired BEFORE/AFTER device run for F13 Achari: NOT RUN. Run flag OFF then
+  ON on the same Apple Intelligence device/model/OS and record build SHA,
+  tool-call evidence, first-preview/total latency, rejected/missing calls,
+  ingredient/step facts, confidence and human scores. No iteration loops or
+  additional slices. Promo/screenshot routes stay untouched and deterministic
+  regression tests remain required. No merge until this paired device result is
+  passing and independently reviewed. This narrow run does not establish a
+  passing full F1-F13 golden set or broader rollout readiness.
+
+API evidence inspected for this slice:
+- https://developer.apple.com/videos/play/wwdc2025/301/ explains model-selected,
+  repeated and parallel tool calls and that generation waits for their result.
+- https://developer.apple.com/events/resources/code-along-205/ shows Tool with
+  Generable Arguments, async throwing String call, session registration, and
+  streamed typed responses. Existing PhotoTextTool/RegionalDishTool are the repo
+  compatibility examples. SDK typecheck and actual model behavior remain UNRUN.

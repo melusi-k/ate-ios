@@ -1,7 +1,7 @@
 {
   "title": "Quieter Insights and new recipe suggestions",
-  "summary": "Focus: quieter Insights, draft recovery and bounded sort/reorder journeys. Final interrupted-generation relaunch now observes draft-restore branch labels and six bounded main-actor heartbeats behind DEBUG+UITesting+one explicit flag. No payload logging, draft mutation, replacement query, retry, assertion or budget change. Diagnostic only; no persistence fix claim. Native/pixel qualification pending; merge held.",
-  "source_commit": "fa405a1784cbfa2fe8cd1aa6c985d084ce6cb679",
+  "summary": "Focus: quieter Insights, draft recovery and bounded reorder journeys. Failed-save nutrition adds one retained screenshot before existing geometry and opt-in DEBUG main-actor heartbeats through 210s. Original Save/error/Cancel/relaunch journey, waits, assertions and budgets remain unchanged. Diagnostic only, no cause or fix claim. Earlier cb0 nutrition red does not qualify this head. Native/pixel qualification pending; merge held.",
+  "source_commit": "69c8e314267f7013a6772bac8990c42a91412038",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -82,6 +82,10 @@
     {
       "path": "Ate/Views/SuggestedNewRecipesView.swift",
       "blob": "64519ac5cbab4364cbb30aaf731b4338f352da52"
+    },
+    {
+      "path": "Ate/Views/NutritionDiaryView.swift",
+      "blob": "19648e0db1cfc6deb0ee37d2d9ed5b0c4b87a152"
     }
   ]
 }

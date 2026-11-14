@@ -676,7 +676,7 @@ struct RegionalDishTool: Tool {
 @Generable
 struct GenIngredient {
     @Guide(description: "Realistic numeric amount for the servings; 0 only for 'to taste'", .range(0...5000)) var quantity: Double
-    @Guide(description: "Metric or short unit: g, kg, ml, l, tbsp, tsp, cloves, pcs, or empty") var unit: String
+    @Guide(description: "Metric or short unit: g, kg, ml, l, tbsp, tsp, cloves, pcs, or empty. For meat cuts such as wings and ribs, use an explicit piece count (pcs) or weight (g/kg); never an ambiguous bare amount such as 1 wings. Preserve any supplied source count or weight; do not invent one.") var unit: String
     @Guide(description: "Ingredient name, e.g. 'beef short rib'") var name: String
     @Guide(description: "Optional prep, e.g. 'finely chopped'") var prep: String?
 }

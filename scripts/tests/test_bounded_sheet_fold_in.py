@@ -20,7 +20,7 @@ class BoundedSheetFoldIn(unittest.TestCase):
         for forbidden in ['store.path', 'detent =', 'scrollTo', 'factor =']:
             self.assertNotIn(forbidden, fixture)
         tests = (ROOT / 'AteUITests/CoverageUITests.swift').read_text()
-        self.assertIn('for _ in 0..<5 where !RecipeDetailVisibility.contains(firstIngredient', tests)
+        self.assertIn('RecipeDetailVisibility.reveal(firstIngredient', tests)
         helper = (ROOT / 'AteUITests/RecipeDetailVisibility.swift').read_text()
         self.assertIn('band.contains(frame) && row.isHittable', helper)
         self.assertIn('footer.frame.minY - 8', helper)

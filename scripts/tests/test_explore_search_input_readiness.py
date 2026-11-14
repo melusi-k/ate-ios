@@ -21,7 +21,7 @@ class ExploreSearchInputReadinessTests(unittest.TestCase):
         self.assertLess(journey.index('XCTWaiter.wait(for: [fullQuery]'), journey.index('shot("explore-search-query-before-submit")'))
         self.assertLess(journey.index('XCTWaiter.wait(for: [fullQuery]'), journey.index('search.typeText("\\n")'))
         self.assertNotRegex(journey, r'\b(?:sleep|usleep|while|repeat)\s*\(')
-        self.assertEqual(re.findall(r'timeout: (\d+)', journey), ['10', '5', '5', '5', '10', '10', '10'])
+        self.assertEqual(re.findall(r'timeout: (\d+)', journey), ['10', '5', '5', '10', '10', '10'])
 
     def test_all_three_exact_query_assertions_remain(self):
         self.assertEqual(self.journey.count('XCTAssertEqual(search.value as? String, "miso"'), 3)

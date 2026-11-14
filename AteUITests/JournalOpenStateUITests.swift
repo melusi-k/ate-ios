@@ -291,7 +291,15 @@ extension JournalOpenStateUITests {
         wait(app.navigationBars["Journal"])
         let saved = app.descendants(matching: .any).matching(identifier: "journal.entry")
             .matching(NSPredicate(format: "label CONTAINS %@", original)).firstMatch
-        wait(saved); saved.tap()
+        wait(saved)
+        // Diagnostic only: the same original query still owns the tap below.
+        shot("manual-crud-created-row-before-tap")
+        // Scope to the named row, not the entire application accessibility tree.
+        let rowEvidence = XCTAttachment(string: saved.debugDescription)
+        rowEvidence.name = "manual-crud-created-row-before-tap-AX"
+        rowEvidence.lifetime = .keepAlways
+        add(rowEvidence)
+        saved.tap()
         let detail = any("journal.detail.text")
         wait(detail)
         XCTAssertEqual(detail.label, original, "Only the newly created reflection may be edited or deleted")

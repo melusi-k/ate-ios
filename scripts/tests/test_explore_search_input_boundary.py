@@ -9,7 +9,7 @@ class ExploreSearchInputBoundaryTests(unittest.TestCase):
         journey = source.split('func testExploreDismissPreservesCollectionAndSearchQuery()', 1)[1]
         self.assertEqual(journey.count('search.typeText("miso")'), 1)
         self.assertNotIn('search.typeText("miso\\n")', journey)
-        self.assertLess(journey.index('app.keyboards.firstMatch.waitForExistence(timeout: 5)'), journey.index('search.typeText("miso")'))
+        self.assertLess(journey.index('XCTWaiter.wait(for: [readyForInput], timeout: 5)'), journey.index('search.typeText("miso")'))
         self.assertEqual(journey.count('XCTAssertEqual(search.value as? String, "miso"'), 3)
         self.assertLess(journey.index('The full Search query must land before testing retention'), journey.index('search.typeText("\\n")'))
         self.assertLess(journey.index('Submitting Search must keep the full query'), journey.index('app.tabBars.buttons["Library"].tap()'))

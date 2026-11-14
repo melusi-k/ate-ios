@@ -26,7 +26,13 @@ final class CookFinishAccessoryUITests: XCTestCase {
         let clear = NSPredicate { _, _ in
             finish.exists && finish.isHittable && finish.frame.height > 0 && finish.frame.maxY <= mini.frame.minY
         }
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: clear, object: finish)], timeout: 10), .completed)
+        let result = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: clear, object: finish)], timeout: 10)
+        // Capture evidence before asserting, including the failing landscape state.
+        let geometry = XCTAttachment(string: "finish=\(finish.frame); mini=\(mini.frame)\n\(app.debugDescription)")
+        geometry.name = "cook-finish-accessory-geometry"; geometry.lifetime = .keepAlways; add(geometry)
+        let measured = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        measured.name = "cook-finish-accessory-measured-state"; measured.lifetime = .keepAlways; add(measured)
+        XCTAssertEqual(result, .completed)
         XCTAssertEqual(app.buttons.matching(identifier: "cookFinish").count, 1)
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = landscape ? "cook-finish-clear-of-resume-landscape" : "cook-finish-clear-of-resume-portrait"

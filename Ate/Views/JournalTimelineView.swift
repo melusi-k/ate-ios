@@ -70,6 +70,7 @@ struct JournalTimelineView: View {
         let openState = openStateOverride ?? store.journalStore.openState
         let content = JournalTimelineContent.make(state: state, filter: filter, query: query)
         List {
+            Group {
             if isTabRoot {
                 PendingCookedReflectionSection(state: pendingCooking) { pendingCooking.reload(store: store) }
                 Section {
@@ -124,6 +125,8 @@ struct JournalTimelineView: View {
                     }
                 }
             }
+            }
+            .listRowBackground(Theme.card)
         }
         .modifier(JournalHomeLayout())
         .onAppear { pendingCooking.reload(store: store) }

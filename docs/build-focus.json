@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
+      "blob": "53e6d89c137c2c7b01ab3e20177b12ffe1bdc9d1"
     },
     {
       "path": "Ate/App/ProductReleaseNotesQAFixture.swift",
@@ -105,11 +105,11 @@
     },
     {
       "path": "Ate/Views/JournalTimelineView.swift",
-      "blob": "459c72ae4651816c609c2d4b996a6ff43cd0c13b"
+      "blob": "1f106d23b97803a9f7385486e0ed9841e316b5ec"
     },
     {
       "path": "Ate/Views/JournalViews.swift",
-      "blob": "ef17d261d74db812eb21717a49a683bc5fc9bda7"
+      "blob": "ecf5db07291ed24c0bca35cc5cbbf4951e34efb4"
     },
     {
       "path": "Ate/Views/OnboardingView.swift",
@@ -121,7 +121,19 @@
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
+      "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
+    },
+    {
+      "path": "Ate/Logic/ProductRoadmap.swift",
+      "blob": "184a1a3649ad1df897a46b784dcd550a0f33ca7a"
+    },
+    {
+      "path": "Ate/Views/ProductRoadmapView.swift",
+      "blob": "235b2da14a5eb4bc90cb9c749c312117971162b5"
+    },
+    {
+      "path": "Ate/Views/SettingsView.swift",
+      "blob": "ae8ffbf9487aaeb061a755c1f7238ad5defdc2ca"
     }
   ]
-}
+    }

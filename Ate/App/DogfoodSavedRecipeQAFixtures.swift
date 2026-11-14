@@ -1,7 +1,7 @@
 #if DEBUG
 import Foundation
 
-/// Only precondition data for menu/reorder journeys. Does not preselect sort,
+/// Only precondition data for menu/reorder and Cook Mode journeys. Does not preselect sort,
 /// group, favourites or an action result; all asserted behavior stays in the UI.
 enum DogfoodSavedRecipeQAFixtures {
     @MainActor static func prepare(_ store: AppStore) {
@@ -9,11 +9,16 @@ enum DogfoodSavedRecipeQAFixtures {
         let args = ProcessInfo.processInfo.arguments
         let menus = args.contains("-qaSavedRecipesForGroupSort")
         let reorder = args.contains("-qaSavedRecipesForDogfoodReorder")
-        guard menus || reorder else { return }
-        precondition(menus != reorder, "Choose exactly one Dogfood saved-recipe fixture")
+        let cook = args.contains("-qaSavedRecipeForCookMode")
+        guard menus || reorder || cook else { return }
+        precondition([menus, reorder, cook].filter { $0 }.count == 1, "Choose exactly one Dogfood saved-recipe fixture")
         store.filter.clear()
         store.layout = LibraryLayout()
         let now = Date().timeIntervalSince1970 * 1000
+        if cook {
+            store.recipes = [card(id: "qa-cook-mode-saved", title: "Miso salmon for two", createdAt: now)]
+            return
+        }
         let first = card(id: "qa-dogfood-first", title: menus ? "Zesty tacos" : "First dish", createdAt: now - 1000)
         let second = card(id: "qa-dogfood-second", title: menus ? "Apple crumble" : "Second dish", createdAt: now)
         store.recipes = [second, first]

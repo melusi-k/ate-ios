@@ -1,15 +1,15 @@
 {
   "title": "Quieter Insights and new recipe suggestions",
-  "summary": "Focus: quieter Insights, draft recovery and bounded reorder journeys. Failed-save nutrition adds one retained screenshot before existing geometry and opt-in DEBUG main-actor heartbeats through 210s. Original Save/error/Cancel/relaunch journey, waits, assertions and budgets remain unchanged. Diagnostic only, no cause or fix claim. Earlier cb0 nutrition red does not qualify this head. Native/pixel qualification pending; merge held.",
-  "source_commit": "69c8e314267f7013a6772bac8990c42a91412038",
+  "summary": "Focus: quieter Insights and honest new-recipe availability. Opt-in Tracker and Cook completion diagnostics record bounded layer animation timing and MainActor heartbeats without model, AX or content reads. Per-step UTC-bounded host/simulator logs retain process-ownership evidence. Original journeys, assertions and limits unchanged. Diagnostics do not fix or attribute launch, AX-query or animation delays. Native/pixel qualification pending; merge held.",
+  "source_commit": "641d86fee2ca428fa3bb0b08a0cc1c3b2822aa78",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "40d4e92814c6b89d177cb224e8f8e24410cd258e"
+      "blob": "5fa41d9704bda2bd1a1b396b3c1df70e0ff14c5e"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "e6014247fd0676c1ef77bbbf1a33a894c54da8b2"
+      "blob": "c3a73c84d8d46ecdd7a872fc9853b3883c729928"
     },
     {
       "path": "Ate/Insights/InsightCandidateEngine.swift",

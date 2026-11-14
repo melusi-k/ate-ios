@@ -1213,9 +1213,9 @@ final class AteUITests: XCTestCase {
     }
 
     func test28_GroupSortAndMenus() {
-        launch()
-        addNamed("Zesty tacos")
-        addNamed("Apple crumble")
+        // Recipe creation has separate end-to-end coverage; keep this budget
+        // for real native menus and their asserted Library actions.
+        launch(["-qaSavedRecipesForGroupSort"])
         pick("sortMenu", "A–Z")
         let a = text("Apple crumble"), z = text("Zesty tacos")
         wait(a)

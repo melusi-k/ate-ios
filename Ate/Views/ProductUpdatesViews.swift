@@ -16,17 +16,26 @@ private struct ProductPage<Content: View>: View {
 struct ProductReleaseNotesView: View {
     private let catalog = ProductUpdatesCatalog.load()
     @State private var visibleBuildCount = 10
+    private var catalogBuildNumber: Int {
+        let actual = Int(AppConfig.buildNumber) ?? 0
+#if DEBUG
+        return ProductReleaseNotesQAFixture.buildNumber(actual: actual, isUITesting: AppConfig.isUITesting,
+                                                       arguments: ProcessInfo.processInfo.arguments)
+#else
+        return actual
+#endif
+    }
     var body: some View {
         ProductPage {
             if let catalog {
-                let releases = catalog.visibleReleases(build: Int(AppConfig.buildNumber) ?? 0,
+                let releases = catalog.visibleReleases(build: catalogBuildNumber,
                                                         channel: AppConfig.isBetaBuild ? "beta" : "release")
                 if releases.isEmpty { Text("Release notes are not available for this build yet.") }
                 // Keep the feature explainer separate: it is not a dated build.
                 ForEach(releases.filter { $0.buildNumber == nil }) { release in
                     releaseRow(release)
                 }
-                let builds = catalog.publishedBuildReleases(build: Int(AppConfig.buildNumber) ?? 0,
+                let builds = catalog.publishedBuildReleases(build: catalogBuildNumber,
                                                             channel: AppConfig.isBetaBuild ? "beta" : "release")
                 if !builds.isEmpty {
                     Text("Past and current builds").font(AteFont.display(20))

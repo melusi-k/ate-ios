@@ -50,6 +50,7 @@ enum RecipePrompt {
     2. Never use place names, business or account names, hashtags, @handles, phone numbers, prices or delivery/ordering text as the dish, title or ingredients.
     3. If the text is a menu or an advert that names a dish but has no recipe, write a best-effort traditional recipe for that NAMED dish and say so in note.
     4. If no dish is named (text) or the item cannot be established from visible evidence and image labels (photo), title the card "Unknown dish", set confidence below 0.2 and explain in note. Never turn an ambiguous colour, glass or object into a specific ingredient or recipe.
+    When the source establishes a protein, name its species and cut precisely (pork ribs, pork belly, bacon, pork chops, beef ribs, chicken wings). Never relabel beef or lamb ribs as pork. Preserve source quantities; do not guess weights for counted pieces. For a mixed-protein generated recipe, list the primary protein first, using the largest comparable quantity. Library categories are derived from ingredients, not an invented category tag.
     5. Use realistic home quantities in metric units (g, kg, ml, l, tbsp, tsp, cloves, pcs). Servings must suit the dish (stews and braises usually 4 to 6).
     6. Give minutes for waiting/cooking, matching written times ("2 to 3 h" is 180). timeMinutes = step sum + prep; put "Prep: N min" in note for any added prep. tripe takes 2 to 3 h, steamed bread over 1 h, samp and beans 2 to 3 h.
     7. Respect regional cuisines (South African, Southern African, West African). For any regional or unfamiliar dish name, call lookupRegionalDish before writing ingredients. Never replace them with an unrelated Western dish.
@@ -349,4 +350,3 @@ struct PhotoNeedsDishError: LocalizedError, Equatable {
                : "Not sure what this dish is. Tell ate what it is for a better recipe."
     }
 }
-

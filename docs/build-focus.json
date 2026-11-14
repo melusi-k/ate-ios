@@ -1,51 +1,83 @@
 {
-  "title": "Bundle A: Settings, Insights, Cook, generation and Journal",
-  "summary": "Focus: Settings release notes and replay tour, owned Insights destinations, recorded cooking history, shared Cook steps and measured bottom chrome, owned photo/generation inputs, onboarding navigation, and native Journal delete confirmation with retained reflection drafts. All source folds are included, not native or device acceptance. Nutrition termination awaits fresh exact-head evidence. Cooking is not an eaten-food log; Food Journal activation is not enabled by this bundle.",
-  "source_commit": "0a625c23aaacc4713c7bb3a45cc45506c2f350c7",
+  "title": "Main features with live Shopping sync and offline Explore",
+  "summary": "Focus: Explore retention, live Shopping sync and Cook footer candidate. Explicit synthetic real-Vision tests now trace decode, worker, perform, deadline, cancellation and caller phases. OCR deadline remains 10s; accuracy, assertions and single-terminal behavior unchanged. Timer-fired alone does not establish timeout won. Diagnostic only, no OCR fix claim. Native qualification pending; merge held.",
+  "source_commit": "8958a16085172ce93561895a3374b55cd023a166",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "e636e5eccd67e31dcb8ac7f8b155c9f278bb9f6a"
+      "blob": "6287ec8053732b9aa942a7664585a31ad04c2e62"
     },
     {
-      "path": "Ate/Views/JournalViews.swift",
-      "blob": "7e0375d362867507e781901318e32fde459f0e85"
+      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
+      "blob": "e6014247fd0676c1ef77bbbf1a33a894c54da8b2"
     },
     {
-      "path": "Ate/Views/ProductUpdatesViews.swift",
-      "blob": "3de31c5f54026a0a5b3b8a3c83c36e5c3244d03e"
+      "path": "Ate/App/ExploreRetentionQAFixtures.swift",
+      "blob": "f98df83f7cbaba2e7a70ec2699a2791bde9ee17c"
     },
     {
-      "path": "Ate/Views/InsightsView.swift",
-      "blob": "3f38057fb07a065197672fab9c6f219ea06c17f1"
-    },
-    {
-      "path": "Ate/Views/CookingTrackerView.swift",
-      "blob": "6b209b692702c03311ec3feba3bf3632202e9bc1"
-    },
-    {
-      "path": "Ate/Views/CookModeView.swift",
-      "blob": "203f46cec2a7b69e8f17a11f1c771a982441b9bc"
-    },
-    {
-      "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
+      "path": "Ate/Logic/SyncPayloadSafety.swift",
+      "blob": "a97407346934598d82dda7ffda52eed0c29aa46a"
     },
     {
       "path": "Ate/Services/JournalSuggestionService.swift",
       "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
     },
     {
+      "path": "Ate/Store/AppStore.swift",
+      "blob": "8d613d06bf023c2ad8ecbeb0c1718f0ff1c1e565"
+    },
+    {
+      "path": "Ate/Views/AddRecipeSheet.swift",
+      "blob": "e25f2c8a67877b5a6d362d8b64a0d9a0da52f5f9"
+    },
+    {
+      "path": "Ate/Views/CookModeView.swift",
+      "blob": "203f46cec2a7b69e8f17a11f1c771a982441b9bc"
+    },
+    {
+      "path": "Ate/Views/CookingTrackerView.swift",
+      "blob": "6b209b692702c03311ec3feba3bf3632202e9bc1"
+    },
+    {
+      "path": "Ate/Views/ExploreView.swift",
+      "blob": "1049ba938a741b92dc0656e8d372fddc4b2f2f73"
+    },
+    {
+      "path": "Ate/Views/InsightsView.swift",
+      "blob": "3f38057fb07a065197672fab9c6f219ea06c17f1"
+    },
+    {
       "path": "Ate/Views/JournalDeleteConfirmation.swift",
       "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
+    },
+    {
+      "path": "Ate/Views/JournalViews.swift",
+      "blob": "7e0375d362867507e781901318e32fde459f0e85"
+    },
+    {
+      "path": "Ate/Views/LibraryView.swift",
+      "blob": "28101234a51b76e746ff2ed90931b04a4560fcd0"
     },
     {
       "path": "Ate/Views/OnboardingView.swift",
       "blob": "ae031e11f4c03dfbdb810c8290aa0fb3329a036b"
     },
     {
-      "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "e25f2c8a67877b5a6d362d8b64a0d9a0da52f5f9"
+      "path": "Ate/Views/ProductUpdatesViews.swift",
+      "blob": "3de31c5f54026a0a5b3b8a3c83c36e5c3244d03e"
+    },
+    {
+      "path": "Ate/Views/RecipeDetailView.swift",
+      "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
+    },
+    {
+      "path": "Ate/Views/ShoppingListView.swift",
+      "blob": "031df522bdb2bae02452fe99f535835dae0d7c08"
+    },
+    {
+      "path": "Ate/Services/OnDeviceBackend.swift",
+      "blob": "4561826dfb30db147b00e95e3860eeff3e344c53"
     }
   ]
 }

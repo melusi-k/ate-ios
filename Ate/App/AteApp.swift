@@ -42,6 +42,8 @@ struct AteApp: App {
             precondition(st.foodJournalRuntime == nil, "Legacy Insights QA fixture cannot mix with canonical runtime")
             st.shopping = InsightDestinationQAFixtures.shopping()
         }
+        DogfoodSavedRecipeQAFixtures.prepare(st)
+        ExploreRetentionQAFixtures.prepare(st)
         CookJournalQARoute.prepare(st)
         #else
         let st = AppStore(context: c?.mainContext)

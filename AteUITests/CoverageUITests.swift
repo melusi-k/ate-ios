@@ -1022,19 +1022,32 @@ extension CoverageUITests {
         app.swipeUp()
         XCTAssertTrue(settingsTitle.exists, "The navigation bar must remain present while Settings scrolls")
 
-        // The native tab bar minimizes on scroll-down. Apple documents two ways
-        // to expand it: tap its selected tab or scroll all the way to the top.
-        // One reverse swipe is not that contract: final #529 pixels still show
-        // Account & sync below the header and only the Settings/Search capsules.
-        // Expand through the visible selected Settings tab exactly once, then
-        // perform the existing single Journal navigation tap below.
+        // Scroll-down minimizes native tab chrome. Re-selecting Settings can
+        // return its Form to the first row without expanding that chrome on the
+        // current runtime. Follow re-selection with one real downward Form
+        // gesture, then verify the first section. Re-selection alone does not
+        // prove that a lazy first-row element is ready. This is a scroll-to-top action,
+        // not a repeated Journal tap or a wait for an unreachable hidden tab.
         let settingsTab = app.tabBars.buttons["Settings"]
         XCTAssertTrue(settingsTab.isSelected,
                       "Settings must remain selected after its scroll")
         shot("82-settings-after-scroll-before-tab-reveal")
         XCTAssertTrue(settingsTab.isHittable, "The selected minimized Settings tab must be reachable")
         settingsTab.tap()
+        let settingsForm = settingsContent()
+        shot("82-settings-after-selected-tab-scroll-reset")
+        settingsForm.swipeDown()
         shot("82-settings-tab-chrome-revealed")
+        let hierarchy = XCTAttachment(string: app.debugDescription)
+        hierarchy.name = "82-settings-after-top-boundary-scroll-hierarchy"
+        hierarchy.lifetime = .keepAlways
+        add(hierarchy)
+        let firstSection = settingsForm.staticTexts["accountSyncTitle"]
+        wait(firstSection)
+        XCTAssertEqual(firstSection.label, "Account & sync",
+                       "The first Settings section must retain its account and sync heading")
+        XCTAssertTrue(firstSection.isHittable,
+                      "The scroll-to-top interaction must expose the first Settings section")
         // #82 uses the current Journal root, not the historical Tracker title or
         // pushed Cooking History route. Keep every strict tab/arrival/header
         // assertion; the reveal gesture is setup, never a substitute destination.

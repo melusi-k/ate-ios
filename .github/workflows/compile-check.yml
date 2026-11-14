@@ -243,6 +243,8 @@ jobs:
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log
             ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments
+            ${{ runner.temp }}/ate-test-results/shopping-sync-attachments
+            ${{ runner.temp }}/ate-test-results/explore-attachments
             ${{ runner.temp }}/ate-test-results/cook-finish-accessory-attachments
 
   regression-suites:
@@ -399,6 +401,56 @@ jobs:
         if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
         run: |
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/transient-generation-retry.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/draft-quality-repair-attachments" || { echo '::warning::Draft repair attachment export unavailable; no pixel acceptance'; }
+
+      - name: Explore local discovery focused acceptance (#73)
+        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/explore-discovery.xcresult" \
+            -only-testing:AteUITests/ExploreUITests \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > explore-discovery.log 2>&1 || { tail -120 explore-discovery.log; exit 1; }
+          for test in testExploreLocalSourceAndDismissPreservesLibrary testLandscapeExploreRemainsReadableAndDismisses testEmptyExploreAddHandoffUsesExistingAddRecipe testExploreSelectionOpensSavedRecipePreviewAndDetail testExploreDismissPreservesCollectionAndSearchQuery; do
+            grep -qF "ExploreUITests $test]' passed" explore-discovery.log || { echo "::error::Missing named Explore pass: $test"; exit 1; }
+          done
+      - name: Retain Explore full log, failure details and console screenshot fallback
+        if: ${{ matrix.suite == 'presentation-creation' && always() }}
+        run: |
+          python3 scripts/retain-explore-evidence.py --log explore-discovery.log \
+            --result "$RUNNER_TEMP/ate-test-results/explore-discovery.xcresult" \
+            --output "$RUNNER_TEMP/explore-evidence"
+      - name: Upload small independent Explore evidence before bulky results
+        if: ${{ matrix.suite == 'presentation-creation' && always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: explore-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/explore-evidence
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
+
+      - name: Shopping sync status and manual-refresh captures (#72)
+        if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/shopping-sync-capture.xcresult" \
+            -only-testing:AteUITests/ShoppingSyncCaptureUITests \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > shopping-sync-capture.log 2>&1 || { tail -120 shopping-sync-capture.log; exit 1; }
+          for test in testSignedOutShoppingPortraitLocalStatus testSignedOutShoppingLandscapeLocalStatus testSignedInShoppingPortraitStatusAndManualRefresh testSignedInShoppingLandscapeStatusAndManualRefresh; do
+            grep -qF "ShoppingSyncCaptureUITests $test]' passed" shopping-sync-capture.log || { echo "::error::Missing named Shopping capture pass: $test"; exit 1; }
+          done
+      - name: Retain Shopping sync captures on every outcome
+        if: ${{ matrix.suite == 'account-cooking' && always() }}
+        run: |
+          if [ -d "$RUNNER_TEMP/ate-test-results/shopping-sync-capture.xcresult" ]; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/shopping-sync-capture.xcresult" \
+              --output-path "$RUNNER_TEMP/ate-test-results/shopping-sync-attachments"
+          fi
 
       - name: Expandable recipe-detail sheet regression (#101)
         if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.build.outcome == 'success') }}
@@ -713,6 +765,8 @@ jobs:
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log
             ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments
+            ${{ runner.temp }}/ate-test-results/shopping-sync-attachments
+            ${{ runner.temp }}/ate-test-results/explore-attachments
             ${{ runner.temp }}/ate-test-results/cook-finish-accessory-attachments
 
   regressions:

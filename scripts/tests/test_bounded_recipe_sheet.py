@@ -28,7 +28,7 @@ class BoundedRecipeSheet(unittest.TestCase):
             self.assertIn(token, helper)
         for file, row in [('CoverageUITests.swift', 'firstIngredient'), ('IngredientDisplayUITests.swift', 'row')]:
             source = (ROOT / 'AteUITests' / file).read_text()
-            self.assertIn('for _ in 0..<5 where !RecipeDetailVisibility.contains(' + row, source)
+            self.assertIn('RecipeDetailVisibility.reveal(' + row, source)
             self.assertIn('XCTAssertTrue(RecipeDetailVisibility.contains(' + row, source)
         duplicate = (ROOT / 'AteUITests/IngredientDisplayUITests.swift').read_text()
         for token in ['XCTAssertEqual(rows.count, 1', 'row.label.contains("for serving")', 'row.label.lowercased().contains("sliced")']:

@@ -36,7 +36,15 @@ enum GeneratedStepQuality {
     /// salted butter) retain their substantive ingredient-use check.
     static func isPlainPantrySeasoning(_ ingredient: Ingredient) -> Bool {
         let name = ingredient.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        return ["salt", "pepper", "oil"].contains(name)
+        if name == "salt" || name == "oil" { return true }
+        guard name == "pepper" else { return false }
+        let prep = words(ingredient.notes ?? "")
+        // Bare/countable pepper or vegetable prep is not the pantry spice.
+        guard prep.isDisjoint(with: ["slice", "sliced", "dice", "diced", "chop", "chopped", "stuff", "stuffed", "strip", "halved"]) else { return false }
+        let unit = ingredient.unit.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        return ["tsp", "teaspoon", "teaspoons", "tbsp", "tablespoon", "tablespoons", "pinch", "pinches", "to taste"].contains(unit)
+            || !prep.isDisjoint(with: ["ground", "grounded", "grind", "grinding", "spice"])
+            || (ingredient.notes ?? "").lowercased().contains("to taste")
     }
 
     static func issues(_ card: RecipeCard) -> [String] {

@@ -3,11 +3,12 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 class RecipeGenerationToolContracts(unittest.TestCase):
-    def test_default_off_scoped_gate_and_request_isolation(self):
+    def test_default_on_scoped_gate_and_request_isolation(self):
         logic = (ROOT / 'Ate/Logic/RecipeStructureValidation.swift').read_text()
         gate = logic.split('enum RecipeGenerationToolGate', 1)[1].split('/// Deterministic', 1)[0]
         self.assertIn('#if DEBUG', gate)
-        self.assertIn('#else\n        false', gate)
+        self.assertIn('#else\n        true', gate)
+        self.assertIn('!ProcessInfo.processInfo.arguments.contains("-qaDisableRecipeGenerationTool")', gate)
         self.assertIn('input == .prompt || input == .social', gate)
         backend = (ROOT / 'Ate/Services/OnDeviceBackend.swift').read_text()
         self.assertIn('if !structureEnabled, reuseSession', backend)

@@ -406,6 +406,12 @@ final class NutritionDiaryUITests: XCTestCase {
         openDiary(app)
         openLogForm(app)
         typeAfterKeyboard(app.textFields["nutritionDiary.foodName"], in: app, surface: .logFood, "My lunch")
+        // Finish editing through the real keyboard before measuring Save and errors.
+        // Candidate for the slow AX-query phase, not a replacement for persistence checks.
+        let returnKey = app.keyboards.buttons["return"]
+        XCTAssertTrue(returnKey.waitForExistence(timeout: 2), "Food-name keyboard should expose Return")
+        returnKey.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), "Return should dismiss the food-name keyboard")
         let save = app.navigationBars["Log food"].buttons["nutritionDiary.save"]
         let formError = app.descendants(matching: .any)["nutritionDiary.formError"]
         for _ in 0..<2 {

@@ -6,7 +6,7 @@ enum IngredientTags {
     static let table: [(tag: String, words: [String])] = [
         ("chicken", ["chicken", "drumstick", "drumsticks", "thigh", "thighs", "wings"]),
         ("beef", ["beef", "steak", "mince", "brisket", "oxtail", "boerewors"]),
-        ("pork", ["pork", "bacon", "ham", "chorizo", "pancetta", "sausage", "sausages", "prosciutto"]),
+        ("pork", ["pork", "bacon", "ham", "chorizo", "pancetta", "sausage", "sausages", "prosciutto", "pork belly", "pork chops", "spareribs", "spare ribs", "baby back ribs", "gammon", "guanciale"]),
         ("lamb", ["lamb", "mutton"]),
         ("fish", ["fish", "salmon", "tuna", "cod", "hake", "snoek", "trout", "sardines", "anchovies", "mackerel"]),
         ("seafood", ["prawn", "prawns", "shrimp", "mussels", "calamari", "squid", "crab", "lobster", "scallops"]),
@@ -23,7 +23,8 @@ enum IngredientTags {
     static let meat: Set<String> = ["chicken", "beef", "pork", "lamb", "fish", "seafood"]
     static let animal: Set<String> = meat.union(["eggs", "cheese"])
     static let dairyWords = ["milk", "butter", "cream", "yoghurt", "yogurt", "honey", "ghee", "buttermilk"]
-    /// Ordered by how well they name a dish (used for "main ingredient").
+    /// Category display order and fallback for recipes without identified protein ingredients.
+    /// Mixed-protein primary selection uses measured amounts, not this order.
     static let mainOrder = ["chicken", "beef", "pork", "lamb", "fish", "seafood", "tofu", "beans", "pasta", "rice", "eggs", "potato", "mushroom", "cheese", "chocolate"]
 
     static func words(_ s: String) -> Set<String> {
@@ -39,6 +40,13 @@ enum IngredientTags {
         let w = words(ing + " " + r.title)
         var out = Set<String>()
         for (tag, ks) in table where ks.contains(where: w.contains) { out.insert(tag) }
+        // Ingredient species override ambiguous cut words (e.g. pork mince,
+        // beef sausage). Keep secondary proteins available as filters.
+        let proteins = r.ingredients.compactMap { protein(in: $0.name) }
+        if !proteins.isEmpty {
+            out.subtract(meat)
+            out.formUnion(proteins)
+        }
         // Plant-based labels only when there are ingredients to judge.
         if !r.ingredients.isEmpty, out.isDisjoint(with: meat) {
             out.insert("vegetarian")
@@ -51,7 +59,55 @@ enum IngredientTags {
         return out
     }
 
+    /// Explicit species win over generic cuts such as wings, bacon or sausage.
+    /// Bare ribs have no universal species: only named pork cuts imply Pork.
+    static func protein(in name: String) -> String? {
+        let tokens = words(name)
+        let explicit: [(String, Set<String>)] = [
+            ("pork", ["pork", "pig"]), ("beef", ["beef", "veal"]),
+            ("lamb", ["lamb", "mutton"]), ("chicken", ["chicken"])
+        ]
+        for (tag, names) in explicit where !tokens.isDisjoint(with: names) { return tag }
+        for (tag, names) in table where meat.contains(tag) && names.contains(where: tokens.contains) { return tag }
+        return nil
+    }
+
+    /// A quantity is comparable only within its real dimension. Do not pretend
+    /// that one wing, one rack or a volume of bacon has a known weight.
+    static func proteinAmount(_ ingredient: Ingredient) -> (dimension: String, amount: Double)? {
+        guard ingredient.quantity.isFinite, ingredient.quantity > 0 else { return nil }
+        let unit = Units.canonical(ingredient.unit)
+        let mass: [String: Double] = ["g": 1, "kg": 1000, "oz": 28.349523125, "lb": 453.59237]
+        if let factor = mass[unit] {
+            let amount = ingredient.quantity * factor
+            return amount.isFinite ? ("mass", amount) : nil
+        }
+        guard !unit.isEmpty else { return nil }
+        // The same unit can be compared without guessing density or portion size.
+        return (unit, ingredient.quantity)
+    }
+
     static func main(for r: RecipeCard) -> String? {
+        let proteins = r.ingredients.compactMap { ingredient -> (tag: String, ingredient: Ingredient)? in
+            protein(in: ingredient.name).map { ($0, ingredient) }
+        }
+        if let first = proteins.first {
+            let amounts = proteins.compactMap { item -> (tag: String, dimension: String, amount: Double)? in
+                proteinAmount(item.ingredient).map { (item.tag, $0.dimension, $0.amount) }
+            }
+            if amounts.count == proteins.count, Set(amounts.map(\.dimension)).count == 1 {
+                var totals: [String: Double] = [:]
+                for item in amounts { totals[item.tag, default: 0] += item.amount }
+                if totals.values.allSatisfy(\.isFinite) {
+                    // Equal quantities keep source ingredient order, never the old
+                    // chicken-first category table priority.
+                    return proteins.map(\.tag).reduce(first.tag) { best, tag in
+                        (totals[tag] ?? 0) > (totals[best] ?? 0) ? tag : best
+                    }
+                }
+            }
+            return first.tag
+        }
         let t = tags(for: r)
         return mainOrder.first(where: t.contains)
     }

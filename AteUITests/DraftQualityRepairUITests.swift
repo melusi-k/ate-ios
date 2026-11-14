@@ -39,6 +39,12 @@ final class DraftQualityRepairUITests: XCTestCase {
         expectation(for: cleared, evaluatedWith: gapPanel)
         waitForExpectations(timeout: 15)
         XCTAssertFalse(app.staticTexts["repairDraftError"].exists)
+        let result = app.staticTexts["repairDraftResult"]
+        XCTAssertTrue(result.waitForExistence(timeout: 3), "Accepted repair must never be silent")
+        XCTAssertTrue(result.label.contains("Fixed"))
+        XCTAssertTrue(result.label.contains("bread"))
+        XCTAssertTrue(result.isHittable, "Repair outcome must scroll into view")
+        XCTAssertTrue(app.staticTexts["repairConfidenceExplanation"].exists)
         XCTAssertFalse(app.buttons["confirmDraft"].exists,
                        "Repair must resolve the quality gap, not merely remove its own button")
         XCTAssertTrue(app.buttons["saveRecipe"].isEnabled,

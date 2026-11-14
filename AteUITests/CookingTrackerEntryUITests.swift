@@ -89,9 +89,15 @@ final class CookingTrackerEntryUITests: XCTestCase {
         let summary = app.descendants(matching: .any)["tracker.monthSummary"].firstMatch
         XCTAssertTrue(summary.waitForExistence(timeout: 5))
         XCTAssertEqual(summary.label, "Recorded this month: 0 days cooked · 0 recipes")
-        XCTAssertGreaterThanOrEqual(summary.frame.height, 43.99,
+        let rows = app.otherElements.matching(identifier: "tracker.monthSummaryRow")
+        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertEqual(rows.count, 1, "Measure the unique padded summary row, not combined text")
+        let row = rows.firstMatch
+        XCTAssertGreaterThanOrEqual(row.frame.height, 43.99,
                                     "Body-size summary has 12pt vertical breathing room on each side")
-        XCTAssertGreaterThanOrEqual(summary.frame.minY, app.staticTexts["tracker.displayedMonth"].frame.maxY)
+        XCTAssertGreaterThanOrEqual(row.frame.minY, app.staticTexts["tracker.displayedMonth"].frame.maxY)
+        XCTAssertGreaterThanOrEqual(summary.frame.minY, row.frame.minY)
+        XCTAssertLessThanOrEqual(summary.frame.maxY, row.frame.maxY)
         shot("tracker-month-summary-current-normal")
         app.buttons["tracker.previousMonth"].tap()
         XCTAssertEqual(summary.label, "Recorded this month: 0 days cooked · 0 recipes")

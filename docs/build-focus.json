@@ -1,7 +1,7 @@
 {
   "title": "Quieter Insights and new recipe suggestions",
-  "summary": "Focus: quieter Insight cards and explicit Done, remind and dismiss actions; genuinely new on-device recipe suggestions with saved/cooked exclusions and explicit Save; clearer cooking month totals; and existing reflection notes below cooked-day recipes. Deleting a Journal entry deletes its note. Source and normal-text capture journeys are included, not native or device acceptance. Unified Food Journal activation remains off.",
-  "source_commit": "c50c796208c5e6ed1a0b2b5b135f3830b987d647",
+  "summary": "Focus: quieter recipe insights, honest new-recipe suggestions with explicit Save, readable cooking-month counts, and existing cooked-day notes. The summary exposes separate combined-text and padded-row accessibility targets while preserving 44pt row verification. Source-only: native, pixel and device acceptance remain unverified.",
+  "source_commit": "d1019051855b8ab40261f995f631278d983da37f",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -45,7 +45,7 @@
     },
     {
       "path": "Ate/Views/CookingTrackerView.swift",
-      "blob": "cab1e813709cad9b02b8e45f391ed1fb352a8628"
+      "blob": "4e27adbd857bb0e47d60b10bf4e4156c799b59f6"
     },
     {
       "path": "Ate/Views/InsightsView.swift",

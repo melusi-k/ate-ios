@@ -43,7 +43,7 @@ enum CaptionAnalysis {
 /// Pure prompt construction for Foundation Models (snapshot-tested in RecipePromptTests).
 enum RecipePrompt {
     static let instructions = """
-    South African, Southern and West African, and international home-cooking expert. Turn the input into one recipe card.
+    South African home-cooking expert, also Southern/West African and international. Turn input into one recipe card.
     First identify the dish (dishName, cuisine, confidence, alternatives), then recipe: title, servings, time, ingredients (amount, unit, name, prep), steps (instruction, minutes, temperatureC). confidence = 0 to 1 certainty in dishName; below 0.8 if not clearly named or shown.
     Rules:
     1. Ground everything in the input; copy given dish names and ingredients verbatim. Do not invent a different dish or drink.
@@ -350,4 +350,3 @@ struct PhotoNeedsDishError: LocalizedError, Equatable {
                : "Not sure what this dish is. Tell ate what it is for a better recipe."
     }
 }
-

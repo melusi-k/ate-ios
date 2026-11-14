@@ -1,6 +1,7 @@
 import XCTest
 
 final class NutritionDiaryUITests: XCTestCase {
+    private var captureSettingsQuery = false
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
@@ -306,6 +307,12 @@ final class NutritionDiaryUITests: XCTestCase {
         let settings = app.tabBars.buttons["Settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
         settings.tap()
+        if captureSettingsQuery {
+            let pixels = XCTAttachment(screenshot: app.screenshot())
+            pixels.name = "failed-save-settings-before-diary-geometry"
+            pixels.lifetime = .keepAlways
+            add(pixels)
+        }
         let diaryEntry = app.buttons["settings.nutritionDiary"]
         // SwiftUI does not materialise this below-fold cell until Settings is scrolled.
         // Reveal it before asserting presence, then keep the actual screen assertion below.
@@ -401,9 +408,12 @@ final class NutritionDiaryUITests: XCTestCase {
     /// repeated layout checks of the retry presentation test into its execution budget.
     func testCancelledFailedSavesLeaveDiaryEmptyAfterRelaunch() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-resetNutritionDiary", "-failDiarySaves"]
+        app.launchArguments = ["-UITesting", "-resetNutritionDiary", "-failDiarySaves", "-qaSettingsQueryDiagnostic"]
         app.launch()
+        captureSettingsQuery = true
+        defer { captureSettingsQuery = false }
         openDiary(app)
+        captureSettingsQuery = false
         openLogForm(app)
         typeAfterKeyboard(app.textFields["nutritionDiary.foodName"], in: app, surface: .logFood, "My lunch")
         // This journey proves failed-write persistence, not keyboard occlusion.

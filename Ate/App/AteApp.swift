@@ -2,6 +2,9 @@ import SwiftUI
 import Combine
 import SwiftData
 import UserNotifications
+#if DEBUG
+import OSLog
+#endif
 
 @main
 struct AteApp: App {
@@ -14,6 +17,7 @@ struct AteApp: App {
         TabBarStyle.apply()
         #if DEBUG
         LiveDTProbe.installIfRequested()
+        SettingsQueryDiagnostic.startIfRequested()
         #endif
         if AppConfig.isUITesting {
             for k in ["ate.timerprefs.v1", "ate.cookSession.v1", CookCompletionOutbox.defaultsKey, CookReflectionOfferPolicy.defaultsKey, CookPlanStore.storageKey] { UserDefaults.standard.removeObject(forKey: k) }
@@ -727,3 +731,26 @@ extension AppAppearance {
         switch self { case .system: return nil; case .light: return .light; case .dark: return .dark }
     }
 }
+
+#if DEBUG
+/// Explicit failed-save journey only, active before Settings geometry begins.
+private enum SettingsQueryDiagnostic {
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "SettingsQueryDiagnostic")
+    @MainActor static func startIfRequested() {
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaSettingsQueryDiagnostic") else { return }
+        let trace = UUID().uuidString
+        let started = ProcessInfo.processInfo.systemUptime
+        Task { @MainActor in
+            for offset in [0.0, 15, 30, 60, 90, 120, 150, 180, 210] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - started)
+                if remaining > 0 {
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
+                }
+                guard !Task.isCancelled else { return }
+                logger.notice("trace=\(trace, privacy: .public) scheduled=\(offset, privacy: .public) elapsed=\(ProcessInfo.processInfo.systemUptime - started, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public) main-actor-heartbeat")
+            }
+        }
+    }
+}
+#endif

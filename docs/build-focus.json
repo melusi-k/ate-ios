@@ -1,11 +1,11 @@
 {
   "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Focus: Explore retention, live Shopping sync and Cook footer candidate. Explicit synthetic real-Vision tests now trace decode, worker, perform, deadline, cancellation and caller phases. OCR deadline remains 10s; accuracy, assertions and single-terminal behavior unchanged. Timer-fired alone does not establish timeout won. Diagnostic only, no OCR fix claim. Native qualification pending; merge held.",
-  "source_commit": "8958a16085172ce93561895a3374b55cd023a166",
+  "summary": "Focus: Explore retention, live Shopping sync and Cook footer candidate. Library tab switches now preserve collection while explicit all-Library still clears it; Search query storage is unchanged. Add-sheet MainActor heartbeat and pre-title-query pixels are diagnostic only. OCR accuracy and 10s deadline, all assertions and budgets unchanged. Native collection-retention/UI qualification pending; SelectedCollection stall and Insights bootstrap unresolved. Merge held.",
+  "source_commit": "52b38e15d474d3f8ee591bba2e57ba931bd09a24",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "6287ec8053732b9aa942a7664585a31ad04c2e62"
+      "blob": "151f652a4aabc7a564dba14ae3d35886ba08b527"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
@@ -25,11 +25,11 @@
     },
     {
       "path": "Ate/Store/AppStore.swift",
-      "blob": "8d613d06bf023c2ad8ecbeb0c1718f0ff1c1e565"
+      "blob": "52f7b316e8805b7e7e1ef1a81a6857acc710aa3a"
     },
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "e25f2c8a67877b5a6d362d8b64a0d9a0da52f5f9"
+      "blob": "c6ca14de1fc90831163bc4f8b2764396e25a0a7d"
     },
     {
       "path": "Ate/Views/CookModeView.swift",

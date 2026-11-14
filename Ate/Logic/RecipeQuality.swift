@@ -126,10 +126,13 @@ enum RecipeQuality {
         if steps.contains(where: { s in s.timeSeconds == nil && (Durations.minimumSeconds(for: s.instruction) ?? 0) >= 15 * 60 && Durations.seconds(in: s.instruction) == nil }) {
             out.append("A long cooking step has no believable time.")
         }
+        if isGenerated(c), c.ingredients.filter({ !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }).count < minIngredients {
+            out.append("Needs at least \(minIngredients) ingredients.")
+        }
         return out
     }
 
-    static let minIngredients = 3, minSteps = 3
+    static let minIngredients = 3
 
     /// Visible things (Vision labels) that should be ingredients but aren't, e.g. bread/lettuce on a sandwich photo.
     static let nonIngredientLabels: Set<String> = ["sandwich", "burger", "plate", "dish", "meal", "food", "snack", "lunch", "breakfast",
@@ -143,11 +146,11 @@ enum RecipeQuality {
         }
     }
 
-    /// Too thin to show: fewer than 3 ingredients or 3 steps, or visible items missing. Triggers one regeneration.
+    /// Same visible quality gaps used by review and explicit repair, plus photo
+    /// evidence available only during generation. Complete instructions may have
+    /// one or two steps; never demand filler just to reach an arbitrary count.
     static func shortfall(_ c: RecipeCard, labels: [String] = []) -> [String] {
         var out = issues(c)
-        if c.ingredients.filter({ !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }).count < minIngredients { out.append("Needs at least \(minIngredients) ingredients.") }
-        if RecipeLogic.nonBlank(c.steps).count < minSteps { out.append("Needs at least \(minSteps) steps.") }
         let miss = missingVisible(c, labels: labels)
         if !miss.isEmpty { out.append("Missing what's visible in the photo: \(miss.joined(separator: ", ")).") }
         return out

@@ -238,8 +238,10 @@ final class AteUITests: XCTestCase {
     }
 
     func testCookModeExitDoesNotRecordCookingDay() {
-        launch()
-        addPromptRecipe()
+        // Add/generate/save is covered by test04 and the QA3/QA4 journeys.
+        // Start at its saved-detail boundary so this budget measures Cook exit.
+        launch(["-qaSavedRecipeForCookExit"])
+        wait(app.buttons["Cook mode"], 10)
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))
         app.buttons["Exit"].tap()
@@ -1281,9 +1283,9 @@ final class AteUITests: XCTestCase {
     }
 
     func test29_ReorderMyOrder() {
-        launch()
-        addNamed("First dish")
-        addNamed("Second dish")
+        // Only saved-recipe setup is seeded. Browse, Sort, My order, the
+        // long-press menu and both reorder assertions remain real UI actions.
+        launch(["-qaSavedRecipesForReorder"])
         pick("sortMenu", "My order")
         let first = text("First dish"), second = text("Second dish")
         wait(first)

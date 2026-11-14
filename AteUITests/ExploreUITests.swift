@@ -94,6 +94,13 @@ final class ExploreUITests: XCTestCase {
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5),
                       "Search keyboard must be ready before entering the query")
         search.typeText("miso")
+        // typeText returning and a visible keyboard do not guarantee that the
+        // final character has reached Search's accessibility value. Wait for
+        // this single input event to settle; never retype or accept a prefix.
+        let fullQuery = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "miso"), object: search)
+        XCTAssertEqual(XCTWaiter.wait(for: [fullQuery], timeout: 5), .completed,
+                       "Search must finish receiving the single typed query")
         shot("explore-search-query-before-submit")
         XCTAssertEqual(search.value as? String, "miso",
                        "The full Search query must land before testing retention")

@@ -1,7 +1,7 @@
 {
-  "title": "Journal layout, published release history and recipe draft feedback",
-  "summary": "Focus: published release history, Journal reflection layout, ingredient dedupe, fewer false pantry gaps, quality-repair feedback and 60s generation deadlines. Food-bearing units and preparation-only names retain generated ingredient identity; explicit named-paste gaps remain gated without invented amounts or confidence. Dogfood saved-recipe setup retains real menu/reorder assertions; provenance reveal targets visible text. Source-only: native, pixel, device and timing acceptance remain unverified. Cooking is not an eaten-food log; Food Journal activation remains off.",
-  "source_commit": "bbf6c300acb8dc02f6871dd72e83e986c93af809",
+  "title": "Journal fixes and default-OFF recipe structuring experiment",
+  "summary": "Focus: Journal/history and draft fixes with Achari identity and named-paste checks, plus isolated DEBUG opt-in RecipeGenerationTool for prompt/social only. Swift validation rejects invalid fields and missing or mismatched tool receipts; provisional streaming and source-fidelity checks remain. Flag defaults OFF. Source-only: native SDK, pixels and device/model acceptance unverified. One paired F13 OFF/ON device run remains pending; no merge or waiver.",
+  "source_commit": "b80e42d13284a2df9d3569eba587143f621a62e5",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -49,7 +49,7 @@
     },
     {
       "path": "Ate/Services/OnDeviceBackend.swift",
-      "blob": "3d4ecec4f6709160469145a75e910885db8f84aa"
+      "blob": "1d9f7971f45a6d97f4dbc87998b72e7bf29da146"
     },
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
@@ -101,11 +101,19 @@
     },
     {
       "path": "Ate/Logic/IngredientFieldNormalization.swift",
-      "blob": "342fd0eb1a9cfbfd0921d6180693c071ad200430"
+      "blob": "b66cafdb0a93743232842a1555aadb878cc59a0a"
     },
     {
       "path": "Ate/Logic/JSONLD.swift",
       "blob": "f95e85d4dc0990e46972fe0ddd32a68ad503fb5a"
+    },
+    {
+      "path": "Ate/Logic/RecipeStructureValidation.swift",
+      "blob": "b5718d03ee4159b784eafb9f1e5fd1b08567ca2a"
+    },
+    {
+      "path": "Ate/Services/RecipeGenerationTool.swift",
+      "blob": "918a048ab3068a885e77c5b42f5c85ad5861eed9"
     }
   ]
 }

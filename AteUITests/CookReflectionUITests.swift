@@ -189,6 +189,20 @@ final class CookReflectionUITests: XCTestCase {
         app.tabBars.buttons["Journal"].tap()
         let pending = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "cookJournal.pending.")).firstMatch
         wait(pending)
+        // These are actual List cell bounds, not label-to-label distances: header
+        // padding and an accidental empty section must count as visible whitespace.
+        let notesCell = app.cells.containing(.any, identifier: "journal.cookingNotesCard").firstMatch
+        let timelineCell = app.cells.containing(.any, identifier: "journal.timelineLink").firstMatch
+        let insightsCell = app.cells.containing(.any, identifier: "journal.insightsHistory").firstMatch
+        let reflectionCell = app.cells.containing(.any, identifier: "journal.reflection").firstMatch
+        for cell in [notesCell, timelineCell, insightsCell, reflectionCell] { wait(cell) }
+        let gaps = [timelineCell.frame.minY - notesCell.frame.maxY,
+                    insightsCell.frame.minY - timelineCell.frame.maxY,
+                    reflectionCell.frame.minY - insightsCell.frame.maxY]
+        let geometry = XCTAttachment(string: "Journal home cell gaps: \(gaps); notes=\(notesCell.frame); timeline=\(timelineCell.frame); insights=\(insightsCell.frame); reflection=\(reflectionCell.frame)")
+        geometry.name = "journal-home-section-geometry"; geometry.lifetime = .keepAlways; add(geometry)
+        shot("journal-normal-home-equal-section-gaps")
+        for gap in gaps { XCTAssertEqual(gap, 12, accuracy: 2, "All home cards share the explicit 12pt gap") }
         pending.tap()
         wait(note)
         XCTAssertEqual(note.value as? String, retained)

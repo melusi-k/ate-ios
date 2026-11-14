@@ -29,6 +29,14 @@ enum RecipeLogic {
         c.title = t.isEmpty ? "Untitled recipe" : ([.manual, .mock].contains(c.source) ? t : RecipeQuality.titleCased(t))
         c.servings = max(1, c.servings)
         c.tags = c.tags.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        // Collapse only byte-for-byte equal generated rows. Do this before
+        // sanitizing invalid quantities: two different invalid rows must not
+        // become equal merely because both quantities were replaced with zero.
+        // First occurrence wins; never sum amounts or merge different prep uses.
+        if RecipeQuality.isGenerated(c) {
+            var seen = Set<Ingredient>()
+            c.ingredients = c.ingredients.filter { seen.insert($0).inserted }
+        }
         c.ingredients = c.ingredients.map { var i = $0; if !i.quantity.isFinite { i.quantity = 0 }; return i }
         c.steps = nonBlank(c.steps).enumerated().map { idx, s in var s = s; s.order = idx + 1; return s }
         let fixed = Durations.sanitize(c)

@@ -1,11 +1,15 @@
 {
   "title": "Recipe sheet clarity, Cook contrast and duplicate display rows",
-  "summary": "Focus: remove visible recipe-sheet state labels while retaining accessibility, reserve the Cook footer, use explicit on-accent theme colours for filled actions, and collapse identical ingredient display rows and repeated nutrition-warning names. Distinct source quantities and calculation inputs are preserved. Source and normal-text capture journeys are included; native, pixel and device acceptance remain unverified.",
-  "source_commit": "4ea225c2cd5161f9274fd0c432c3c418c2d5aa28",
+  "summary": "Focus: remove recipe-sheet state labels while retaining accessibility, reserve the Cook footer, use on-accent colours for filled actions, and collapse identical display rows and repeated nutrition warnings without changing source quantities or calculations. Cook-exit and reorder UI journeys use explicit debug-only saved-recipe setup, retaining real navigation, menus and assertions. Source-only: native, pixel, device acceptance and timing benefit remain unverified.",
+  "source_commit": "669b322f1b8b8dd7ef052b32339b0d05ac170241",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "6e8c7696cb54e73b9140ca7fe29cc2a4d6873953"
+      "blob": "6dcdc46a31da9a25aee46cd16e375b17614d918a"
+    },
+    {
+      "path": "Ate/App/FocusedJourneyQAFixtures.swift",
+      "blob": "fa64c38efc08974a8ff714ab8614db4f152ec911"
     },
     {
       "path": "Ate/App/IngredientDisplayQAFixtures.swift",

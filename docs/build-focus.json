@@ -1,7 +1,7 @@
 {
   "title": "Recipe sheet clarity, Cook contrast and duplicate display rows",
-  "summary": "Focus: expandable sheet geometry and visible ingredient capture. Reorder sort UI/initial order and MoveUp/drag now have separate required journeys; explicit action-only My order precondition never seeds card positions/results. Twelve-case Dogfood floor, matching guard and both named passes retained. Sheet/product/helper code unchanged. Native rerun/pixels pending; QA8 prior pass is not new-head acceptance.",
-  "source_commit": "8d208f9a0afdb8768c00587ca49bc03346055192",
+  "summary": "Focus: expandable sheet geometry and visible ingredient capture. Separate required Reorder sort/initial-order and MoveUp/drag journeys retain the twelve-case Dogfood floor. Adds six bounded DEBUG+UITesting+Group28-only read-only layer-animation samples; not a menu fix. Assertions, waits, budgets, workflows and product flow unchanged. Native samples and pixels pending; prior passes are not new-head acceptance. Merge held.",
+  "source_commit": "4ef512d55c253a70d8aa326fa3f18ac3526f54cd",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "e6014247fd0676c1ef77bbbf1a33a894c54da8b2"
+      "blob": "2ebaef7a5487f0d11aa671ad631e9430f232c435"
     },
     {
       "path": "Ate/App/FocusedJourneyQAFixtures.swift",

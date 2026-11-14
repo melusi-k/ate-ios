@@ -28,7 +28,9 @@ final class RecipeShoppingSyncStageTests: XCTestCase {
         XCTAssertEqual(metadata.userID, "old-owner"); XCTAssertEqual(original.id, "keep")
     }
     func testEqualStampServerMergeIsStagedWithoutNewClockStampOrNormalization() throws {
-        let local = RecipeCard(id: "same", title: "Local"), server = RecipeCard(id: "same", title: "Server")
+        // Explicit unequal fractional dates prove payload adoption without clock normalization.
+        let local = RecipeCard(id: "same", title: "Local", createdAt: 1234.125)
+        let server = RecipeCard(id: "same", title: "Server", createdAt: 1234.875)
         var metadata = RecipeShoppingSyncStage.Metadata(); metadata.userID = "owner"
         metadata.recipeStamps = ["same": 5]
         let row = SyncRecord(user_id: "owner", kind: "recipe", id: "same",
@@ -37,6 +39,19 @@ final class RecipeShoppingSyncStageTests: XCTestCase {
             remote: [row], ownerID: "owner")
         XCTAssertEqual(stage.recipes, [server]); XCTAssertTrue(stage.upload.isEmpty)
         XCTAssertEqual(local.title, "Local"); XCTAssertEqual(stage.metadata.recipeStamps["same"], 5)
+    }
+    func testEqualStampServerTombstoneRemovesLiveRecipeWithoutReupload() throws {
+        let local = RecipeCard(id: "same", title: "Local", createdAt: 1234.125)
+        var metadata = RecipeShoppingSyncStage.Metadata(); metadata.userID = "owner"
+        metadata.recipeStamps = ["same": 5]
+        let row = SyncRecord(user_id: "owner", kind: "recipe", id: "same",
+            data: nil, updated_at: 5, deleted: true)
+        let stage = try RecipeShoppingSyncStage.prepare(recipes: [local], shopping: [], metadata: metadata,
+            remote: [row], ownerID: "owner")
+        XCTAssertTrue(stage.recipes.isEmpty); XCTAssertTrue(stage.upload.isEmpty)
+        XCTAssertNil(stage.metadata.recipeStamps["same"])
+        XCTAssertEqual(stage.metadata.recipeTombs["same"], 5)
+        XCTAssertEqual(metadata.recipeStamps["same"], 5, "Original pending state is immutable")
     }
     func testShoppingOrderRetainsExistingAndAppendsNewRemoteIDsDeterministically() throws {
         let local = ShoppingItem(id: "z", name: "Last", quantity: 1, unit: "g")

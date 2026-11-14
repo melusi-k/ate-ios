@@ -1,7 +1,7 @@
 {
   "title": "Food Journal owner qualification plus main Settings, Insights, Cook and Journal",
-  "summary": "Source union: bound Food Journal owners and stores, owner-registered generation and Health work, generation/input attempt invalidation, Health refresh-generation and access fencing, Settings release notes and tour, owned Insights destinations, recorded cooking history, shared Cook steps and bottom chrome, onboarding, and native Journal delete confirmation. Shipping Food Journal activation stays OFF. Native compilation and device acceptance remain unqualified. Cooking is not an eaten meal. OCR timing remains parked.",
-  "source_commit": "285031b4843e77bd9330a38168067e376f25f40b",
+  "summary": "Source union: bound Food Journal graph/recovery/archive/import, writer-safe generation/Health/input, Settings history/tour, owned Insights, cooking history/shared steps/chrome, onboarding and native delete. Adds dormant admitted sync owner, staged merge/redo journal and upload-before-commit seam; production routing unchanged. Shipping Food Journal OFF; no backend writes. Build441 upload OPEN. Cooking is not an eaten meal; OCR parked. Native SwiftData/restart/durability/device unqualified; merge held.",
+  "source_commit": "791ebd65cd1a5ea7e13cdb745d50582cd4446605",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -62,6 +62,26 @@
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
       "blob": "1586924a1a7e231f5f0f1aac886288800f5d4b4a"
+    },
+    {
+      "path": "Ate/Store/ArchiveStartupRecoveryBinding.swift",
+      "blob": "6c13b939e541f158214eab62931fc7c3a6a43da8"
+    },
+    {
+      "path": "Ate/Store/FoodJournalGenerationSync.swift",
+      "blob": "09911f2a383e8e9070b4982d87f752b99055b343"
+    },
+    {
+      "path": "Ate/Store/RecipeShoppingSyncCommitJournal.swift",
+      "blob": "faf96b2c06dd291898dd949a3448778bbb12e80e"
+    },
+    {
+      "path": "Ate/Store/RecipeShoppingSyncOwner.swift",
+      "blob": "e1f3dde418ae74f25c74ff6b3206ca941709bc63"
+    },
+    {
+      "path": "Ate/Store/RecipeShoppingSyncStage.swift",
+      "blob": "978d84e1e74a2b51207a99db4248adba35778ac8"
     }
   ]
 }

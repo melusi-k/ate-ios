@@ -1,7 +1,7 @@
 {
   "title": "Recipe sheet clarity, Cook contrast and duplicate display rows",
-  "summary": "Focus: recipe sheet regression checks split portrait and landscape rotation into separate real UI journeys using explicit DEBUG+UITesting saved-card setup. Ingredient captures now require whole-row viewport containment between pinned header and Cook footer, retaining existing assertions. Both journeys required by CI; no timeout increases. Native timing and updated pixels unverified; not acceptance.",
-  "source_commit": "9419caa92cb32492a32576ee3a09693f2b5c6843",
+  "summary": "Focus: native expandable recipe sheet with portrait/landscape journeys. Ingredient capture now uses the same five-gesture limit with measured bidirectional slow drags and stops on full viewport containment, before capture/assertions. Strict geometry and all assertions retained. Product code unchanged. Native rerun/new ingredient pixels pending; prior screenshots overshot to Nutrition/AskAte, not acceptance.",
+  "source_commit": "3f4ea359db446833cfc64088e862d47321ffd3ba",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

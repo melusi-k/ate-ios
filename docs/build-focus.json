@@ -1,7 +1,7 @@
 {
   "title": "Library main-protein grouping",
-  "summary": "Focus: ingredient-derived Library categories choose the primary protein by comparable quantities, so pork-led ribs and wings appear under Pork. Explicit species and source quantities are preserved; incompatible measures retain ingredient order without invented weights. Normal-text grouping capture coverage is included. Native tests and device pixels remain unverified; this is not acceptance. Dogfood menu and reorder tests use explicit debug-only saved-recipe preconditions, retaining real UI actions and assertions; native timing benefit is unverified.",
-  "source_commit": "e5a71f499d5c8936afc2fe45174784d97b9430c7",
+  "summary": "Focus: ingredient-derived Library categories use comparable protein amounts; preserve species, source quantities and ingredient order for incompatible measures. Normal-text grouping and DEBUG dogfood saved-recipe setup remain. Shared prompt wording now restores original size guards with all protein/source rules and both examples retained. Native correction rerun and device pixels pending; not acceptance.",
+  "source_commit": "d76eaeeb932f9b229894ecae2407047bd2ba6f39",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -17,7 +17,7 @@
     },
     {
       "path": "Ate/Logic/RecipePrompt.swift",
-      "blob": "2f2be4c70c67dddecf2463a167f2bac427fc978e"
+      "blob": "02fd9cb37711eb6646a8aa9a071798be80a48bcd"
     },
     {
       "path": "Ate/Services/JournalSuggestionService.swift",

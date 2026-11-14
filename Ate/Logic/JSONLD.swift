@@ -211,6 +211,9 @@ enum IngredientParser {
             if !n.isEmpty { notes.insert(n, at: 0) }
             name = String(name[..<comma]).trimmingCharacters(in: .whitespaces)
         }
+        let preparation = IngredientFieldNormalization.splitPreparation(name)
+        name = preparation.name
+        if let prep = preparation.prep { notes.insert(prep, at: 0) }
         if qty > 0 && unit.isEmpty { unit = "pcs" }
         return Ingredient(name: name.isEmpty ? raw.trimmingCharacters(in: .whitespaces) : name,
                           quantity: RecipeLogic.round2(qty), unit: unit, notes: notes.isEmpty ? nil : notes.joined(separator: "; "))

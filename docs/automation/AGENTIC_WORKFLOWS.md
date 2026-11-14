@@ -50,16 +50,16 @@ qualification before accepting/merging. Existing CI/rulesets remain unchanged.
 
 ## Activation prerequisites and costs (unresolved)
 
-1. Choose an AI engine/auth method under the user's FREE-ONLY constraint. Sources
-   use gh-aw's default Copilot with `copilot-requests: none`, not org-billed write.
-   Compiled activation validates the COPILOT_GITHUB_TOKEN secret. A fine-grained
-   PAT with Copilot Requests permission and a usable entitlement is needed for
-   that path. No token, entitlement or zero-cost allowance was assumed/verified.
-   The alternative `copilot-requests: write` charges through an organization and
-   is intentionally NOT enabled. Claude/Codex/Gemini require provider credentials
-   or federation and can bill inference. Do not request a secret in chat or commit
-   one. User must choose/provide an approved credential through a secure path and
-   verify a supported zero-spend entitlement/billing guard before activation.
+1. Main sources now choose Pi with exact Google model IDs: Flash-Lite3.1 for
+   daily report/plan/CI diagnosis, Flash3.6 for other workflows. Main and detection
+   both explicitly reference GEMINI_API_KEY in their own engine.env. No key was
+   created, read, stored or used here. No billing or inference was activated.
+   BLOCKER: gh-aw v1.2.2 accepts detection.engine.id: pi in source but compiles
+   it to `threat-detect --engine copilot`, COPILOT_MODEL and COPILOT_GITHUB_TOKEN.
+   Its own warning confirms Pi detection still uses Copilot CLI. Therefore a
+   Gemini key alone is NOT sufficient. Detection is enabled, never bypassed.
+   Wait for supported Google-backed detection before activation; don't silently
+   switch to Copilot billing, disable detection or hand-edit generated locks.
 2. Standard public-repository Ubuntu Actions usage can be free, but AI inference
    is separate. Compiler defaults include nonzero AI-credit limits; those are not
    a zero-dollar guarantee. Detection also uses inference. No model execution
@@ -187,3 +187,27 @@ ranking means noop/report_incomplete rather than fabricated priority decisions.
 Private PO chat isn't a GitHub input. No automatic acceptance ticks. Dedup searches
 open/closed same-day keys. Compilation is not execution, activation or zero-cost
 inference approval. Same dormant/staged and engine/credential caveats apply.
+
+## Pi source preparation14November2026, execution blocked
+
+Latest published compiler confirmed v1.2.2 on14November2026:
+https://github.com/github/gh-aw/releases/tag/v1.2.2 . All eight strict compiles
+succeed but each warns that Pi threat detection needs Copilot authentication.
+Generated main runtime routes `GH_AW_LLM_PROVIDER=google` and GEMINI_API_KEY;
+generated detection uses Copilot, despite metadata reporting Pi. Metadata alone
+is not acceptance. `network.allowed: []` retained; compile success is not live
+endpoint reachability evidence. No API/model invocation, activation or spend.
+
+Security review: sole new restricted secret name GEMINI_API_KEY. It is referenced
+only in provider/detector environment, with no authored output or shell echo.
+No new authored action, output permissions, path allowances or redirect. All
+activation false guards, staged outputs, detection and schedules remain intact.
+Compiler-generated action/container pins may be refreshed by its pin resolver;
+review generated diff separately. No credential value is present in this packet.
+Free-only project/no-billing and exact gateway inventory remain activation checks.
+
+References inspected:
+- https://github.github.com/gh-aw/reference/engines/pi/
+- https://github.github.com/gh-aw/reference/threat-detection/
+- https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite?authuser=2
+- https://ai.google.dev/gemini-api/docs/pricing?authuser=002

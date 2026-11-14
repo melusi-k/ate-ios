@@ -1,7 +1,7 @@
 {
   "title": "Library main-protein grouping",
-  "summary": "Focus: explicit Library pork mapping and retained native Library journeys. Adds nine bounded DEBUG+UITesting+explicit normal-text Journal-only read-only layer-animation samples with numeric orientation and cover-loading counts. Diagnostic only, not an animation or Files picker fix. Assertions, waits, budgets, workflows and product flow unchanged. Native samples and physical-device acceptance pending. Merge held.",
-  "source_commit": "7e2f4dc49cf176e8d085bb565dc77bff232d65bd",
+  "summary": "Focus: Library pork mapping and retained native journeys. Exact South African home-cooking persona restored with broader cuisine coverage. Failed-save persistence candidate finishes editing through real Return before unchanged Save/error/Cancel/relaunch checks; keyboard cause unproven. Nine bounded DEBUG Journal layer samples remain diagnostic only, not a fix. Tests and budgets unchanged. Native validation and physical-device acceptance pending. Merge held.",
+  "source_commit": "563c968b8336ca17d880f31c1ca1fedc685a7e5a",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -25,7 +25,7 @@
     },
     {
       "path": "Ate/Logic/RecipePrompt.swift",
-      "blob": "02fd9cb37711eb6646a8aa9a071798be80a48bcd"
+      "blob": "cb4cff899b02f22cb4f5b33a0daccedc8b4eddc0"
     },
     {
       "path": "Ate/Services/JournalSuggestionService.swift",

@@ -116,16 +116,8 @@
       "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
     },
     {
-      "path": ".github/workflows/compile-check.yml",
-      "blob": "18006efe7104411dca0a970a6336e0fea77e331f"
-    },
-    {
       "path": "Ate/Logic/ProductRoadmap.swift",
       "blob": "184a1a3649ad1df897a46b784dcd550a0f33ca7a"
-    },
-    {
-      "path": "Ate/Resources/ProductUpdates/roadmap.json",
-      "blob": "bdacac52cd254a419d1bce8f83975632c2df3434"
     },
     {
       "path": "Ate/Views/ProductRoadmapView.swift",
@@ -134,38 +126,6 @@
     {
       "path": "Ate/Views/SettingsView.swift",
       "blob": "ae8ffbf9487aaeb061a755c1f7238ad5defdc2ca"
-    },
-    {
-      "path": "AteTests/ProductRoadmapTests.swift",
-      "blob": "6ddb4075013a5898bfbf6756da512731aeb6c86c"
-    },
-    {
-      "path": "AteUITests/InsightsPresentationUITests.swift",
-      "blob": "540fc6b3dc1a2c9bbd99123dddca5b2db4cf7fee"
-    },
-    {
-      "path": "docs/implementation/74_ROADMAP_READER.md",
-      "blob": "1ba23dc61c27e293baa8061589fa8bbf5b2db5ca"
-    },
-    {
-      "path": "scripts/full-unit-required.txt",
-      "blob": "49a01cd2b45284a34d8082a232550320d6f03bb8"
-    },
-    {
-      "path": "scripts/tests/test_product_roadmap.py",
-      "blob": "182a0cdfaf92d4963aacb66742f788e9e494be6a"
-    },
-    {
-      "path": "scripts/tests/test_unit_lane_routing.py",
-      "blob": "948062247073b83f244020168de4862946078c0f"
-    },
-    {
-      "path": "scripts/verify-roadmap-reader-results.py",
-      "blob": "6edddf8bf881bed2185eca6f58cc94ec9d1aa747"
-    },
-    {
-      "path": "scripts/tests/test_journal_theme_current.py",
-      "blob": "c598cfa4c82cc62c6c45ba1a255f341bc960a295"
     }
   ]
-}
+    }

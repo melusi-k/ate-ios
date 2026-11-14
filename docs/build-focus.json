@@ -1,11 +1,15 @@
 {
   "title": "Quieter Insights and new recipe suggestions",
-  "summary": "Focus: quieter recipe insights, honest new-recipe suggestions with explicit Save, readable cooking-month counts, and existing cooked-day notes. The summary exposes separate combined-text and padded-row accessibility targets while preserving 44pt row verification. Source-only: native, pixel and device acceptance remain unverified. Dogfood menu and reorder tests use explicit debug-only saved-recipe preconditions, retaining real UI actions and assertions; native timing benefit is unverified.",
-  "source_commit": "2f21682b67b84a404c6f9237e4e72036f752bbee",
+  "summary": "Focus: Insights recipe discovery refuses generated recipes with no ingredients, including cold dishes outside bounded food vocabulary. Mock, uncertain and duplicate outputs remain rejected; rejection tests label each input. Existing nutrition, Journal and menu improvements retained. Native correction rerun pending; not acceptance.",
+  "source_commit": "f50da61391f1868270d757a519c0ee9060dffaca",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
       "blob": "40d4e92814c6b89d177cb224e8f8e24410cd258e"
+    },
+    {
+      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
+      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
     },
     {
       "path": "Ate/Insights/InsightCandidateEngine.swift",
@@ -26,6 +30,10 @@
     {
       "path": "Ate/Logic/RecipeDiscovery.swift",
       "blob": "7ff554c598c2cc898f17179f97d60210910eabca"
+    },
+    {
+      "path": "Ate/Logic/RecipeQuality.swift",
+      "blob": "d6a8eba001cb77424b5959d0b85d8c9c92478060"
     },
     {
       "path": "Ate/Services/JournalSuggestionService.swift",
@@ -74,10 +82,6 @@
     {
       "path": "Ate/Views/SuggestedNewRecipesView.swift",
       "blob": "64519ac5cbab4364cbb30aaf731b4338f352da52"
-    },
-    {
-      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
     }
   ]
 }

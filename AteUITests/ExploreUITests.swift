@@ -91,8 +91,21 @@ final class ExploreUITests: XCTestCase {
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 10))
         search.tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5),
-                      "Search keyboard must be ready before entering the query")
+        let keyboard = app.keyboards.firstMatch
+        // A keyboard may already exist while Search is still acquiring focus.
+        // XCTest exposes keyboard ownership through this iOS-only attribute,
+        // not a public Swift property. Fail closed if the runner lacks it.
+        let focusSelector = NSSelectorFromString("hasKeyboardFocus")
+        XCTAssertTrue(search.responds(to: focusSelector),
+                      "This runner must expose Search keyboard focus")
+        let readyForInput = XCTNSPredicateExpectation(predicate: NSPredicate { object, _ in
+            guard let field = object as? XCUIElement,
+                  field.responds(to: focusSelector),
+                  (field.value(forKey: "hasKeyboardFocus") as? Bool) == true else { return false }
+            return keyboard.exists
+        }, object: search)
+        XCTAssertEqual(XCTWaiter.wait(for: [readyForInput], timeout: 5), .completed,
+                       "Search must own keyboard focus before entering the query")
         search.typeText("miso")
         // typeText returning and a visible keyboard do not guarantee that the
         // final character has reached Search's accessibility value. Wait for

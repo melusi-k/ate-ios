@@ -463,7 +463,7 @@ final class InsightsPresentationUITests: XCTestCase {
         wait(title)
     }
     func testSettingsReleaseNotesAndReplayableTourAtNormalText() {
-        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
+        launch(["-qaReleaseHistory445", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
         wait(app.tabBars.buttons["Settings"], 15)
         app.tabBars.buttons["Settings"].tap()
         wait(app.navigationBars["Settings"])

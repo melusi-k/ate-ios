@@ -29,3 +29,20 @@ class NativeFixtureReadinessAndTypingTests(unittest.TestCase):
         self.assertIn('XCTFail("Typed text did not land in the field', helper)
         self.assertIn('typeAfterKeyboard-missed', helper)
         self.assertIn('XCTAssertEqual(app.textFields["nutritionDiary.foodName"].value as? String, "My lunch")', source)
+
+    def test_insight_readiness_check_and_waiter_registration_share_one_lock(self):
+        source = (ROOT / 'AteTests/InsightsRefreshOwnershipTests.swift').read_text()
+        fixture = source.split('private final class SuspendedInsightReads<Value>', 1)[1].split('/// No HealthKit', 1)[0]
+        self.assertIn('private let lock = NSLock()', fixture)
+        self.assertNotIn('onRead', source)
+        suspend = fixture.split('func suspend()', 1)[1].split('func waitForRead', 1)[0]
+        self.assertLess(suspend.index('lock.lock()'), suspend.index('pending.append(continuation)'))
+        self.assertLess(suspend.index('pending.append(continuation)'), suspend.index('let ready = waiters.filter'))
+        self.assertLess(suspend.index('waiters.removeAll'), suspend.index('lock.unlock()'))
+        self.assertLess(suspend.index('lock.unlock()'), suspend.index('waiter.continuation.resume()'))
+        wait = fixture.split('func waitForRead', 1)[1]
+        self.assertLess(wait.index('lock.lock()'), wait.index('if pending.count >= count'))
+        self.assertIn('waiters.append((count, continuation))\n                lock.unlock()', wait)
+        self.assertIn('lock.unlock()\n                continuation.resume()', wait)
+        self.assertEqual(source.count('await suspension.waitForRead(count)'), 2)
+        self.assertEqual(source.count('await suspension.suspend()'), 2)

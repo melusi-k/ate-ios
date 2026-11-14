@@ -1,44 +1,70 @@
 import XCTest
 @testable import Ate
 
-/// Native UNRUN. No HealthKit, model or widget/default side effects.
+/// Test-only handshake: async protocol calls may run away from MainActor.
+/// Check + waiter registration and read publication must share one lock.
+private final class SuspendedInsightReads<Value> {
+    private let lock = NSLock()
+    private var continuations: [CheckedContinuation<Value, Never>] = []
+    private var waiters: [(Int, CheckedContinuation<Void, Never>)] = []
+    var reads: [CheckedContinuation<Value, Never>] { lock.withLock { continuations } }
+
+    func suspend() async -> Value {
+        await withCheckedContinuation { continuation in
+            let ready: [CheckedContinuation<Void, Never>] = lock.withLock {
+                continuations.append(continuation)
+                let ready = waiters.filter { $0.0 <= continuations.count }.map { $0.1 }
+                waiters.removeAll { $0.0 <= continuations.count }
+                return ready
+            }
+            // Resume outside the lock. The read is already published to every waiter.
+            for waiter in ready { waiter.resume() }
+        }
+    }
+    func waitForRead(_ count: Int) async {
+        await withCheckedContinuation { continuation in
+            let ready = lock.withLock {
+                if continuations.count >= count { return true }
+                waiters.append((count, continuation))
+                return false
+            }
+            if ready { continuation.resume() }
+        }
+    }
+}
+
 private final class SuspendedInsightHealth: HealthKitServicing {
     var access: HealthAccess = .requested
     var lastError: String?
-    var reads: [CheckedContinuation<HealthSummary, Never>] = []
-    var onRead: (() -> Void)?
+    private let pending = SuspendedInsightReads<HealthSummary>()
+    var reads: [CheckedContinuation<HealthSummary, Never>] { pending.reads }
     func requestAccess() async -> HealthAccess { access }
-    func summary(days: Int) async -> HealthSummary {
-        await withCheckedContinuation { continuation in
-            reads.append(continuation); onRead?()
-        }
-    }
-    func waitForRead(_ count: Int) async {
-        if reads.count >= count { return }
-        await withCheckedContinuation { continuation in
-            onRead = { [weak self] in
-                if let self, self.reads.count >= count { self.onRead = nil; continuation.resume() }
-            }
-        }
-    }
+    func summary(days: Int) async -> HealthSummary { await pending.suspend() }
+    func waitForRead(_ count: Int) async { await pending.waitForRead(count) }
 }
 private final class SuspendedInsightPrompts {
-    var reads: [CheckedContinuation<[JournalPrompt], Never>] = []
-    var onRead: (() -> Void)?
-    func make(_ insight: HealthInsight) async -> [JournalPrompt] {
-        await withCheckedContinuation { continuation in reads.append(continuation); onRead?() }
-    }
-    func waitForRead(_ count: Int) async {
-        if reads.count >= count { return }
-        await withCheckedContinuation { continuation in
-            onRead = { [weak self] in
-                if let self, self.reads.count >= count { self.onRead = nil; continuation.resume() }
-            }
-        }
-    }
+    private let pending = SuspendedInsightReads<[JournalPrompt]>()
+    var reads: [CheckedContinuation<[JournalPrompt], Never>] { pending.reads }
+    func make(_ insight: HealthInsight) async -> [JournalPrompt] { await pending.suspend() }
+    func waitForRead(_ count: Int) async { await pending.waitForRead(count) }
 }
 @MainActor
 final class InsightsRefreshOwnershipTests: XCTestCase {
+    func testReadHandshakeSupportsConcurrentWaitersAndReadBeforeWait() async {
+        let pending = SuspendedInsightReads<Int>()
+        let firstWaiter = Task { await pending.waitForRead(1) }
+        let secondWaiter = Task { await pending.waitForRead(1) }
+        let read = Task { await pending.suspend() }
+        await firstWaiter.value
+        await secondWaiter.value
+        // Registration after publication must return without depending on another read.
+        await pending.waitForRead(1)
+        XCTAssertEqual(pending.reads.count, 1)
+        pending.reads[0].resume(returning: 42)
+        let value = await read.value
+        XCTAssertEqual(value, 42)
+    }
+
     private func summary(_ scenario: String) -> HealthSummary {
         MockHealthKitService.fixture(scenario, now: Date(timeIntervalSince1970: 1_794_564_000))
     }

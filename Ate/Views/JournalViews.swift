@@ -64,6 +64,10 @@ struct JournalHomeLayout: ViewModifier {
     @State private var listBottomY: CGFloat?
     func body(content: Content) -> some View {
         content
+            .scrollContentBackground(.hidden)
+            .background(Theme.background)
+            .foregroundStyle(Theme.foreground)
+            .tint(Theme.primary)
             .listSectionSpacing(.custom(JournalHomeMetrics.sectionGap))
             .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { listBottomY = $0 }
             .contentMargins(.bottom, JournalHomeMetrics.bottomMargin(listBottomY: listBottomY, chromeMinY: chromeMinY),
@@ -109,6 +113,7 @@ struct JournalListView: View {
         let openState = openStateOverride ?? store.journalStore.openState
         let content = JournalListContent.make(state: state, openState: openState, filteredCount: filtered.count)
         List {
+            Group {
             PendingCookedReflectionSection(state: pendingCooking) { pendingCooking.reload(store: store) }
             Section {
                 NavigationLink { JournalTimelineView() } label: { Label("Timeline", systemImage: "calendar.day.timeline.left") }
@@ -155,6 +160,8 @@ struct JournalListView: View {
                         .accessibilityIdentifier("journal.entry")
                 }
             }
+            }
+            .listRowBackground(Theme.card)
         }
         .modifier(JournalHomeLayout())
         .onAppear { pendingCooking.reload(store: store) }

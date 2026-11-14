@@ -1022,19 +1022,29 @@ extension CoverageUITests {
         app.swipeUp()
         XCTAssertTrue(settingsTitle.exists, "The navigation bar must remain present while Settings scrolls")
 
-        // The native tab bar minimizes on scroll-down. Apple documents two ways
-        // to expand it: tap its selected tab or scroll all the way to the top.
-        // One reverse swipe is not that contract: final #529 pixels still show
-        // Account & sync below the header and only the Settings/Search capsules.
-        // Expand through the visible selected Settings tab exactly once, then
-        // perform the existing single Journal navigation tap below.
+        // Scroll-down minimizes native tab chrome. Re-selecting Settings can
+        // return its Form to the first row without expanding that chrome on the
+        // current runtime. Reset to the top once, then make one real downward
+        // Form gesture at that boundary. This is a user scroll-to-top action,
+        // not a repeated Journal tap or a wait for an unreachable hidden tab.
         let settingsTab = app.tabBars.buttons["Settings"]
         XCTAssertTrue(settingsTab.isSelected,
                       "Settings must remain selected after its scroll")
         shot("82-settings-after-scroll-before-tab-reveal")
         XCTAssertTrue(settingsTab.isHittable, "The selected minimized Settings tab must be reachable")
         settingsTab.tap()
+        let settingsForm = settingsContent()
+        let firstSection = settingsForm.staticTexts["Account & sync"]
+        wait(firstSection)
+        XCTAssertTrue(firstSection.isHittable,
+                      "Re-selecting Settings must return its first section before the top-boundary gesture")
+        shot("82-settings-after-selected-tab-scroll-reset")
+        settingsForm.swipeDown()
         shot("82-settings-tab-chrome-revealed")
+        let hierarchy = XCTAttachment(string: app.debugDescription)
+        hierarchy.name = "82-settings-after-top-boundary-scroll-hierarchy"
+        hierarchy.lifetime = .keepAlways
+        add(hierarchy)
         // #82 uses the current Journal root, not the historical Tracker title or
         // pushed Cooking History route. Keep every strict tab/arrival/header
         // assertion; the reveal gesture is setup, never a substitute destination.

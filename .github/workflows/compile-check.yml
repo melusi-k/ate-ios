@@ -165,6 +165,9 @@ jobs:
           set -o pipefail
           # Clean process so launch arguments are real (same rationale as other UI shards).
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          mkdir -p nutrition-query-window
+          date -u '+%Y-%m-%d %H:%M:%S' > nutrition-query-window/start-utc.txt
+          trap 'date -u "+%Y-%m-%d %H:%M:%S" > nutrition-query-window/end-utc.txt' EXIT
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
@@ -202,6 +205,27 @@ jobs:
           done
           grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
 
+      - name: Retain bounded nutrition query diagnostic window
+        if: always()
+        run: |
+          mkdir -p nutrition-query-window
+          if [ -s nutrition-query-window/start-utc.txt ]; then
+            start_utc=$(cat nutrition-query-window/start-utc.txt)
+            if [ ! -s nutrition-query-window/end-utc.txt ]; then
+              date -u '+%Y-%m-%d %H:%M:%S' > nutrition-query-window/end-utc.txt
+            fi
+            end_utc=$(cat nutrition-query-window/end-utc.txt)
+            predicate='process == "Ate" OR process == "AteUITests-Runner" OR subsystem == "com.melusik.ate"'
+            /usr/bin/log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > nutrition-query-window/host-unified.log 2>&1 || \
+              echo 'Host collection failed; see retained output.' >> nutrition-query-window/errors.txt
+            xcrun simctl spawn "$SIM_ID" log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > nutrition-query-window/simulator-unified.log 2>&1 || \
+              echo 'Simulator collection failed; see retained output.' >> nutrition-query-window/errors.txt
+          else
+            echo 'Start marker missing; no covered window claimed.' > nutrition-query-window/errors.txt
+          fi
+
       - name: Upload nutrition UI diagnostics (early)
         if: always()
         uses: actions/upload-artifact@v7
@@ -213,6 +237,7 @@ jobs:
           if-no-files-found: warn
           path: |
             nutrition-ui-tests.log
+            nutrition-query-window
             ${{ runner.temp }}/ate-test-results/roadmap-reader-attachments
             ${{ runner.temp }}/ate-test-results/nutrition-ui-tests.xcresult
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
@@ -240,6 +265,7 @@ jobs:
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
+            nutrition-query-window
             ${{ runner.temp }}/ate-test-results/roadmap-reader-attachments
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
@@ -732,6 +758,7 @@ jobs:
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
+            nutrition-query-window
             ${{ runner.temp }}/ate-test-results/roadmap-reader-attachments
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult

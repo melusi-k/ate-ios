@@ -1,7 +1,7 @@
 {
   "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Source union: release notes, Insights, cooking history, shared Cook steps, owned generation inputs, Journal delete, live Shopping durability, offline Explore and source-faithful repair. Real menu selection and typed Search/Explore retention have separate UI-test budgets with explicit DEBUG+UITesting saved/Favourites setup; original assertions and full-query checks retained. Dogfood saved setup preserves real menu/reorder actions. Native timing and device acceptance pending. Cooking is not an eaten-food log; Food Journal shipping remains off.",
-  "source_commit": "ea102f098ee439ec0ff5c6ed3b4b6b345572d687",
+  "summary": "Focus: Explore saved-recipe discovery and exact query retention. Recipe detail Cook footer now belongs to its scrolling viewport, matching the reviewed sheet branch, while retaining measured timer chrome reserve. QA8 and timer policy unchanged. Exit snapshot failure has no returned state; native QA8 rerun and updated pixels pending. Layout-cause hypothesis, not confirmed acceptance.",
+  "source_commit": "aab04e73bba421345cb8367e76de29cf0c728b67",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -69,7 +69,7 @@
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
+      "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
     },
     {
       "path": "Ate/Views/ShoppingListView.swift",

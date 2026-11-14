@@ -44,6 +44,7 @@ struct AteApp: App {
         }
         DogfoodSavedRecipeQAFixtures.prepare(st)
         CookJournalQARoute.prepare(st)
+        RecipeSheetQAFixtures.prepare(st)
         LibraryProteinQAFixtures.prepare(st)
         #else
         let st = AppStore(context: c?.mainContext)

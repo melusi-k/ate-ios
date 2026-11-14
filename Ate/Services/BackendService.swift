@@ -70,6 +70,18 @@ enum AppConfig {
     static var buildLabel: String { "\(appVersion) (\(buildNumber))" + (channel.isEmpty ? "" : " \(channel)") }
     static var versionLine: String { "ate \(appVersion) (build \(buildNumber))\(channel.isEmpty ? "" : " · " + channel) · \(gitSHA) · backend \(backendRef)" }
     static var shareHost: String { string("AteShareHost").isEmpty ? "https://melusi-k.github.io/ate-legal" : string("AteShareHost") }
+    /// Issue #34 user-data sync (Food Journal / insight states / nutrition goals) to Supabase.
+    /// Default ON per owner direction (2026-11-14): new features ship ON and go OFF only by
+    /// explicit instruction. Off switches: the `-qaUserDataSyncOff` launch argument or the
+    /// `AteUserDataSync` Info.plist key set to "off". Effective only on the unified (fenced)
+    /// graph with `userDataSyncTransport` bound - on the legacy graph families stay
+    /// local-only (owner decision: no unfenced family writes). When the backend predates the
+    /// new kinds the families degrade to local-only per round; nothing here gates
+    /// recipe/shopping sync.
+    static var userDataSyncEnabled: Bool {
+        if ProcessInfo.processInfo.arguments.contains("-qaUserDataSyncOff") { return false }
+        return string("AteUserDataSync").lowercased() != "off"
+    }
     /// Full share-link template with `{slug}`; see ShareLinks.
     static var shareURLTemplate: String { string("AteShareURLTemplate").contains("{slug}") ? string("AteShareURLTemplate") : ShareLinks.defaultTemplate }
     static func shareURL(slug: String) -> String { ShareLinks.url(slug: slug, template: shareURLTemplate) }
@@ -334,4 +346,3 @@ final class SupabaseBackend: BackendService {
         return try JSONDecoder().decode(CardEnvelope.self, from: data).card
     }
 }
-

@@ -1,41 +1,59 @@
 import XCTest
 @testable import Ate
 
-/// Native UNRUN. No HealthKit, model or widget/default side effects.
-private final class SuspendedInsightHealth: HealthKitServicing {
-    var access: HealthAccess = .requested
-    var lastError: String?
-    var reads: [CheckedContinuation<HealthSummary, Never>] = []
-    var onRead: (() -> Void)?
-    func requestAccess() async -> HealthAccess { access }
-    func summary(days: Int) async -> HealthSummary {
+/// Only the existing suspension fixtures use this rendezvous. Async protocol
+/// calls can run outside the test's MainActor, so readiness and append must be
+/// one serialized transition, not a count check followed by callback install.
+private final class SuspendedInsightReads<Value> {
+    private let lock = NSLock()
+    private var pending: [CheckedContinuation<Value, Never>] = []
+    private var waiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
+
+    var reads: [CheckedContinuation<Value, Never>] {
+        lock.lock(); defer { lock.unlock() }
+        return pending
+    }
+
+    func suspend() async -> Value {
         await withCheckedContinuation { continuation in
-            reads.append(continuation); onRead?()
+            lock.lock()
+            pending.append(continuation)
+            let ready = waiters.filter { pending.count >= $0.count }
+            waiters.removeAll { pending.count >= $0.count }
+            lock.unlock()
+            for waiter in ready { waiter.continuation.resume() }
         }
     }
+
     func waitForRead(_ count: Int) async {
-        if reads.count >= count { return }
         await withCheckedContinuation { continuation in
-            onRead = { [weak self] in
-                if let self, self.reads.count >= count { self.onRead = nil; continuation.resume() }
+            lock.lock()
+            if pending.count >= count {
+                lock.unlock()
+                continuation.resume()
+            } else {
+                waiters.append((count, continuation))
+                lock.unlock()
             }
         }
     }
 }
+
+/// No HealthKit, model or widget/default side effects.
+private final class SuspendedInsightHealth: HealthKitServicing {
+    var access: HealthAccess = .requested
+    var lastError: String?
+    private let suspension = SuspendedInsightReads<HealthSummary>()
+    var reads: [CheckedContinuation<HealthSummary, Never>] { suspension.reads }
+    func requestAccess() async -> HealthAccess { access }
+    func summary(days: Int) async -> HealthSummary { await suspension.suspend() }
+    func waitForRead(_ count: Int) async { await suspension.waitForRead(count) }
+}
 private final class SuspendedInsightPrompts {
-    var reads: [CheckedContinuation<[JournalPrompt], Never>] = []
-    var onRead: (() -> Void)?
-    func make(_ insight: HealthInsight) async -> [JournalPrompt] {
-        await withCheckedContinuation { continuation in reads.append(continuation); onRead?() }
-    }
-    func waitForRead(_ count: Int) async {
-        if reads.count >= count { return }
-        await withCheckedContinuation { continuation in
-            onRead = { [weak self] in
-                if let self, self.reads.count >= count { self.onRead = nil; continuation.resume() }
-            }
-        }
-    }
+    private let suspension = SuspendedInsightReads<[JournalPrompt]>()
+    var reads: [CheckedContinuation<[JournalPrompt], Never>] { suspension.reads }
+    func make(_ insight: HealthInsight) async -> [JournalPrompt] { await suspension.suspend() }
+    func waitForRead(_ count: Int) async { await suspension.waitForRead(count) }
 }
 @MainActor
 final class InsightsRefreshOwnershipTests: XCTestCase {

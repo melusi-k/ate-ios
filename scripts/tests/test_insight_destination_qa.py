@@ -67,6 +67,14 @@ class InsightDestinationQATests(unittest.TestCase):
         self.assertNotRegex(journey, r'(?m)^\s*(while|for)\s')
         self.assertNotIn('sleep(', journey)
         self.assertIn('82-settings-after-top-boundary-scroll-hierarchy', journey)
+        self.assertIn('settingsForm.staticTexts["accountSyncTitle"]', journey)
+        self.assertIn('XCTAssertEqual(firstSection.label, "Account & sync"', journey)
+        self.assertLess(journey.index('settingsForm.swipeDown()'), journey.index('wait(firstSection)'))
+        self.assertLess(journey.index('add(hierarchy)'), journey.index('wait(firstSection)'))
+        self.assertLess(journey.index('XCTAssertTrue(firstSection.isHittable'), journey.index('tab("Journal")'))
+        card = (ROOT / 'Ate/Views/AccountCard.swift').read_text()
+        self.assertLess(card.index('.accessibilityIdentifier("accountSyncTitle")'), card.index('if !store.accountAvailable'))
+
 
     def test_diary_return_expands_selected_settings_once_before_journal_navigation(self):
         source = (ROOT / 'AteUITests/InsightsAcceptanceUITests.swift').read_text()

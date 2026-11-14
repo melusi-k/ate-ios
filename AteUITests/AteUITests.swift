@@ -204,12 +204,13 @@ final class AteUITests: XCTestCase {
     }
 
     func test06_CookMode() {
-        launch()
+        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
         addPromptRecipe()
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))
         XCTAssertFalse(app.buttons["Back"].isEnabled)
-        shot("cook-step1")
+        XCTAssertEqual(app.buttons["cookNextStep"].label, "Next step")
+        shot("cook-step1-on-accent-label-normal")
         app.buttons["Next step"].tap()
         wait(text("Step 2 of 4"))
         app.buttons["Back"].tap()

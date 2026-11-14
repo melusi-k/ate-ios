@@ -1,11 +1,15 @@
 {
   "title": "Recipe sheet clarity, Cook contrast and duplicate display rows",
-  "summary": "Focus: recipe-sheet accessibility, Cook footer clearance and on-accent action contrast, exact duplicate ingredient display rows and warning names without changing source quantities or calculations. Cook-exit and Reorder retain focused debug-only saved setup; GroupSort now uses shared saved-data setup while all real menu, sort, group, favourite, shopping and reorder assertions remain unchanged. Source-only: native results, pixels, device acceptance and timing benefit remain unverified.",
-  "source_commit": "3a835c9db3bd471ccc69c2ea7a6a3cb919d5a844",
+  "summary": "Focus: recipe sheet regression checks split portrait and landscape rotation into separate real UI journeys using explicit DEBUG+UITesting saved-card setup. Ingredient captures now require whole-row viewport containment between pinned header and Cook footer, retaining existing assertions. Both journeys required by CI; no timeout increases. Native timing and updated pixels unverified; not acceptance.",
+  "source_commit": "9419caa92cb32492a32576ee3a09693f2b5c6843",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "46fc065f0076e885515c844eeeaacaee35020efb"
+      "blob": "4dbf4f4fe806daf4057c23266863c18e2631b1ae"
+    },
+    {
+      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
+      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
     },
     {
       "path": "Ate/App/FocusedJourneyQAFixtures.swift",
@@ -14,6 +18,10 @@
     {
       "path": "Ate/App/IngredientDisplayQAFixtures.swift",
       "blob": "053eac463a71b73b4489b8da331f1ad1bbd19a0d"
+    },
+    {
+      "path": "Ate/App/RecipeSheetQAFixtures.swift",
+      "blob": "05d1732d13b096e8e2027bc73f8094cbb90d8164"
     },
     {
       "path": "Ate/Logic/IngredientPresentation.swift",
@@ -78,10 +86,6 @@
     {
       "path": "Ate/Views/RecipeNutritionView.swift",
       "blob": "b58a8489a1c726436ab8b91ead91e040dd92c83e"
-    },
-    {
-      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
     }
   ]
 }

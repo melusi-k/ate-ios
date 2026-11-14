@@ -15,7 +15,7 @@ final class CookingMonthSummaryTests: XCTestCase {
         let summary = CookingMonthSummary.make(events: ["2026-11-01": ["r1", "r2"], "2026-11-02": ["r1"],
             "2026-11-03": ["deleted-recipe"], "2026-10-31": ["outside"]], month: try month(2026, 11, calendar: calendar), calendar: calendar)
         XCTAssertEqual(summary, .init(cookingDays: 3, distinctRecipes: 3))
-        XCTAssertEqual(summary.text, "3 cooking days · 3 distinct recipes")
+        XCTAssertEqual(summary.text, "3 days cooked · 3 recipes")
     }
     func testMonthYearAndLeapBoundariesDoNotCountMalformedOrEmptyDays() throws {
         let calendar = try calendar()
@@ -24,7 +24,7 @@ final class CookingMonthSummaryTests: XCTestCase {
             "2023-12-31": ["last"], "2024-01-01": ["new"]]
         let leap = CookingMonthSummary.make(events: events, month: try month(2024, 2, calendar: calendar), calendar: calendar)
         XCTAssertEqual(leap, .init(cookingDays: 1, distinctRecipes: 1))
-        XCTAssertEqual(leap.text, "1 cooking day · 1 distinct recipe")
+        XCTAssertEqual(leap.text, "1 day cooked · 1 recipe")
         XCTAssertEqual(CookingMonthSummary.make(events: events, month: try month(2023, 12, calendar: calendar), calendar: calendar).distinctRecipes, 1)
         XCTAssertEqual(CookingMonthSummary.make(events: events, month: try month(2024, 1, calendar: calendar), calendar: calendar).distinctRecipes, 1)
     }
@@ -37,6 +37,24 @@ final class CookingMonthSummaryTests: XCTestCase {
         }
         let calendar = try calendar()
         let empty = CookingMonthSummary.make(events: [:], month: try month(2026, 11, calendar: calendar), calendar: calendar)
-        XCTAssertEqual(empty.text, "0 cooking days · 0 distinct recipes")
+        XCTAssertEqual(empty.text, "0 days cooked · 0 recipes")
     }
+    func testSummaryItemsPluralizeIndependentlyWithoutChangingValues() {
+        for (days, recipes, daysText, recipesText) in [
+            (0, 0, "0 days cooked", "0 recipes"),
+            (1, 1, "1 day cooked", "1 recipe"),
+            (1, 3, "1 day cooked", "3 recipes"),
+            (3, 1, "3 days cooked", "1 recipe"),
+            (12, 25, "12 days cooked", "25 recipes")
+        ] {
+            let summary = CookingMonthSummary(cookingDays: days, distinctRecipes: recipes)
+            XCTAssertEqual(summary.cookingDays, days)
+            XCTAssertEqual(summary.distinctRecipes, recipes)
+            XCTAssertEqual(summary.daysText, daysText)
+            XCTAssertEqual(summary.recipesText, recipesText)
+            XCTAssertEqual(summary.text, daysText + " · " + recipesText)
+            XCTAssertFalse(summary.text.contains("distinct"))
+        }
+    }
+
 }

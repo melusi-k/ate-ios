@@ -1,7 +1,7 @@
 {
-  "title": "Journal fixes and default-OFF recipe structuring experiment",
-  "summary": "Focus: Journal/history fixes and default-OFF DEBUG recipe tool for prompt/social. Shared prompt shortened with all ten rules/examples retained; source contracts preserve written prep names while ordinary parser and generated normalization still split prep. Original F1/size/Achari/tool tests unchanged. Native rerun pending; paired F13 OFF/ON device run still required. No merge/waiver.",
-  "source_commit": "3a6c45f5da5f3b03633c3f8e5dbf3a8d8c34b809",
+  "title": "Journal layout, release history and default-OFF recipe tool",
+  "summary": "Focus: explicit merge of5340780983 into538200b083. Keep Journal route-card geometry and DEBUG445 release history with draft/Achari fixes, shortened ten-rule prompt and verbatim source prep names. Default-OFF DEBUG prompt/social tool and all guards retained. Food Journal shipping stays off. Native rerun/pixels and paired F13 OFF/ON device run pending; no acceptance/merge waiver.",
+  "source_commit": "38dffa6b2a895d38d34e4fa15a0d1643f108f608",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

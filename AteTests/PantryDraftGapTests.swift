@@ -49,6 +49,23 @@ final class PantryDraftGapTests: XCTestCase {
         }
     }
 
+    func testUsedAndUnusedSlicedPepperRemainVegetablesNotPantrySeasoning() {
+        let vegetable = Ingredient(name: "pepper", quantity: 1, unit: "", notes: "sliced")
+        XCTAssertFalse(GeneratedStepQuality.isPlainPantrySeasoning(vegetable))
+        var card = Self.screenshot
+        card.ingredients.removeAll { $0.name == "pepper" }
+        card.ingredients.append(vegetable)
+        XCTAssertTrue(GeneratedStepQuality.issues(card).contains { $0.contains("pepper") && $0.contains("never used") })
+        card.steps[0].instruction += " Add the sliced pepper."
+        XCTAssertFalse(GeneratedStepQuality.issues(card).contains { $0.contains("pepper") && $0.contains("never used") })
+        // Even a model-supplied spoon unit must not override explicit vegetable prep.
+        XCTAssertFalse(GeneratedStepQuality.isPlainPantrySeasoning(.init(name: "pepper", quantity: 1, unit: "tsp", notes: "diced")))
+        XCTAssertFalse(GeneratedStepQuality.isPlainPantrySeasoning(.init(name: "pepper", quantity: 1, unit: "pcs")))
+        XCTAssertFalse(GeneratedStepQuality.isPlainPantrySeasoning(.init(name: "pepper", quantity: 1, unit: "")))
+        XCTAssertTrue(GeneratedStepQuality.isPlainPantrySeasoning(.init(name: "pepper", quantity: 1, unit: "tsp")))
+        XCTAssertTrue(GeneratedStepQuality.isPlainPantrySeasoning(.init(name: "pepper", quantity: 1, unit: "g", notes: "freshly ground")))
+    }
+
     func testSubstantiveUnusedIngredientRemainsVisibleAndRepairableWithoutFiller() throws {
         var original = Self.screenshot
         original.ingredients.append(.init(name: "potatoes", quantity: 2, unit: "pcs"))

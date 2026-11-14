@@ -42,7 +42,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
     }
 
     func testMonthNavigationAndFutureMonthRestriction() {
-        let app = launchTracker()
+        let app = launchTracker(["-qaAccountJourneyAnimationDiagnostic"])
         let month = app.staticTexts["tracker.displayedMonth"]
         XCTAssertTrue(month.waitForExistence(timeout: 5))
         shot("tracker-month-view")

@@ -744,6 +744,7 @@ enum DogWaitPhaseDiagnostics {
               ProcessInfo.processInfo.arguments.contains("-qaDogWaitPhaseDiagnostic"),
               !diagnosticsStarted else { return }
         diagnosticsStarted = true
+        QA8ExitFileDiagnostic.startIfRequested()
         Task { @MainActor in
             let started = ProcessInfo.processInfo.systemUptime
             for offset in [15.0, 25, 45, 75, 105, 135, 165, 195, 225] {
@@ -783,5 +784,57 @@ enum DogWaitPhaseDiagnostics {
         // System-process animations and framework completion tokens are outside this scan.
     }
 
+}
+#endif
+
+#if DEBUG
+/// Numeric phase evidence independent of the unified-log store. No model/content reads.
+enum QA8ExitFileDiagnostic {
+    @MainActor private static var rows: [String] = []
+    @MainActor private static var started: Double = 0
+    @MainActor private static var exitObserved = false
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "QA8ExitFileDiagnostic")
+    private static var enabled: Bool {
+        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaQA8ExitFileDiagnostic")
+    }
+    @MainActor static func startIfRequested() {
+        guard enabled else { return }
+        rows = []
+        started = ProcessInfo.processInfo.systemUptime
+        record("app-start")
+    }
+    @MainActor static func exitWillBegin() {
+        guard enabled, !exitObserved else { return }
+        exitObserved = true
+        record("exit-enter")
+        let phaseStart = ProcessInfo.processInfo.systemUptime
+        Task { @MainActor in
+            for offset in [0.0, 5, 15, 30, 45, 60, 90, 120] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 {
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
+                }
+                guard !Task.isCancelled else { return }
+                record("post-exit-heartbeat", scheduled: offset, phaseStart: phaseStart)
+            }
+        }
+    }
+    @MainActor static func exitDidReturn() {
+        guard enabled else { return }
+        record("exit-return")
+    }
+    @MainActor private static func record(_ phase: String, scheduled: Double = -1, phaseStart: Double? = nil) {
+        guard enabled, rows.count < 12,
+              let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        // Fixed phase names and numeric timing only. At most twelve short rows per app launch.
+        rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) uptime=\(now) appElapsed=\(now - started) scheduled=\(scheduled) phaseElapsed=\(now - (phaseStart ?? started))")
+        do {
+            try Data((rows.joined(separator: "\n") + "\n").utf8).write(
+                to: cache.appendingPathComponent("qa8-exit-diagnostic.txt"), options: .atomic)
+        } catch {
+            logger.error("QA8 numeric evidence file write failed")
+        }
+    }
 }
 #endif

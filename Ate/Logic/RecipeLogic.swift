@@ -36,6 +36,7 @@ enum RecipeLogic {
         if RecipeQuality.isGenerated(c) {
             var seen = Set<Ingredient>()
             c.ingredients = c.ingredients.filter { seen.insert($0).inserted }
+            c.ingredients = c.ingredients.map(IngredientFieldNormalization.normalizeGenerated)
         }
         c.ingredients = c.ingredients.map { var i = $0; if !i.quantity.isFinite { i.quantity = 0 }; return i }
         c.steps = nonBlank(c.steps).enumerated().map { idx, s in var s = s; s.order = idx + 1; return s }

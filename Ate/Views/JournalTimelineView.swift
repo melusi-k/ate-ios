@@ -38,6 +38,7 @@ struct JournalTimelineView: View {
     /// The canonical tab uses this same timeline, not a second reflection-only list.
     var isTabRoot = false
     @State private var loaded: JournalTimelineScreenState = .loading
+    @State private var pendingCooking = PendingCookedReflectionState()
     /// Private picker selection (the #272 filter enum stays untouched); mapped to `JournalTimelineFilter` below.
     private enum Show: Hashable, CaseIterable {
         case all, meals, reflections, recipes
@@ -70,7 +71,7 @@ struct JournalTimelineView: View {
         let content = JournalTimelineContent.make(state: state, filter: filter, query: query)
         List {
             if isTabRoot {
-                PendingCookedReflectionSection()
+                PendingCookedReflectionSection(state: pendingCooking) { pendingCooking.reload(store: store) }
                 Section {
                     NavigationLink(value: Route.insights) {
                         Label("Insights & Cooking History", systemImage: "heart.text.square")
@@ -122,6 +123,9 @@ struct JournalTimelineView: View {
                 }
             }
         }
+        .modifier(JournalHomeLayout())
+        .onAppear { pendingCooking.reload(store: store) }
+        .onChange(of: store.journalRevision) { _, _ in pendingCooking.reload(store: store) }
         .searchableWhenReadable(Self.controlsVisible(for: state), text: $query)
         .navigationTitle("Food Journal")
         .ateRootNavigationChrome(logoID: "journal.logo", enabled: isTabRoot)

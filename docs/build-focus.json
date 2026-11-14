@@ -1,6 +1,6 @@
 {
   "title": "Journal layout, published release history and recipe draft feedback",
-  "summary": "Focus: bundled published release history, Journal reflection layout and retained draft input, generated ingredient duplicate cleanup, fewer false pantry gaps, and visible quality-repair feedback with 60-second terminal deadlines. These are included source changes, not native or device acceptance. Cooking is not an eaten-food log; unified Food Journal activation remains off. Dogfood menu and reorder tests use explicit debug-only saved-recipe preconditions, retaining real UI actions and assertions; native timing benefit is unverified. Generated ingredient field normalization preserves food identity and flags bounded explicit named-paste gaps without adding ingredients, amounts or confidence; native Achari import acceptance remains unverified.",
+  "summary": "Focus: published release history, Journal reflection layout, ingredient dedupe, fewer false pantry gaps, quality-repair feedback and 60s generation deadlines. Food-bearing units and preparation-only names retain generated ingredient identity; explicit named-paste gaps remain gated without invented amounts or confidence. Dogfood saved-recipe setup retains real menu/reorder assertions; provenance reveal targets visible text. Source-only: native, pixel, device and timing acceptance remain unverified. Cooking is not an eaten-food log; Food Journal activation remains off.",
   "source_commit": "bbf6c300acb8dc02f6871dd72e83e986c93af809",
   "evidence": [
     {

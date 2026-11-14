@@ -32,6 +32,13 @@ enum GeneratedStepQuality {
         return tokens.intersection(foods)
     }
 
+    /// Only plain pantry names. Compound ingredients (lemon pepper, chilli oil,
+    /// salted butter) retain their substantive ingredient-use check.
+    static func isPlainPantrySeasoning(_ ingredient: Ingredient) -> Bool {
+        let name = ingredient.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        return ["salt", "pepper", "oil"].contains(name)
+    }
+
     static func issues(_ card: RecipeCard) -> [String] {
         guard RecipeQuality.isGenerated(card) else { return [] }
         let steps = RecipeLogic.nonBlank(card.steps)
@@ -42,7 +49,7 @@ enum GeneratedStepQuality {
         // Do not pretend to prove individual usage when the wording is collective.
         let collective = steps.contains { $0.instruction.lowercased().contains("all ingredients") || $0.instruction.lowercased().contains("remaining ingredients") }
         if !collective {
-            for ingredient in card.ingredients {
+            for ingredient in card.ingredients where !isPlainPantrySeasoning(ingredient) {
                 let ingredientAnchors = anchors(ingredient.name)
                 if !ingredientAnchors.isEmpty && ingredientAnchors.isDisjoint(with: allStepWords) {
                     gaps.append("Explain when to use \(ingredient.name); it is listed but never used in the steps.")

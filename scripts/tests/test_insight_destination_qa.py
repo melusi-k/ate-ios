@@ -59,7 +59,14 @@ class InsightDestinationQATests(unittest.TestCase):
         self.assertIn('XCTAssertTrue(settingsTab.isHittable', journey)
         self.assertIn('XCTAssertEqual(app.navigationBars.count, 1', journey)
         self.assertIn('XCTAssertTrue(addEntry.isHittable', journey)
-        self.assertNotIn('settingsContent().swipeDown()', journey)
+        self.assertIn('let settingsForm = settingsContent()', journey)
+        self.assertIn('XCTAssertTrue(firstSection.isHittable', journey)
+        self.assertEqual(journey.count('settingsForm.swipeDown()'), 1)
+        self.assertLess(journey.index('settingsTab.tap()'), journey.index('settingsForm.swipeDown()'))
+        self.assertLess(journey.index('settingsForm.swipeDown()'), journey.index('tab("Journal")'))
+        self.assertNotRegex(journey, r'(?m)^\s*(while|for)\s')
+        self.assertNotIn('sleep(', journey)
+        self.assertIn('82-settings-after-top-boundary-scroll-hierarchy', journey)
 
     def test_diary_return_expands_selected_settings_once_before_journal_navigation(self):
         source = (ROOT / 'AteUITests/InsightsAcceptanceUITests.swift').read_text()

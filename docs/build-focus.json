@@ -1,7 +1,7 @@
 {
-  "title": "Journal layout, release history and default-OFF recipe tool",
-  "summary": "Focus: explicit merge of5340780983 into538200b083. Keep Journal route-card geometry and DEBUG445 release history with draft/Achari fixes, shortened ten-rule prompt and verbatim source prep names. Default-OFF DEBUG prompt/social tool and all guards retained. Food Journal shipping stays off. Native rerun/pixels and paired F13 OFF/ON device run pending; no acceptance/merge waiver.",
-  "source_commit": "38dffa6b2a895d38d34e4fa15a0d1643f108f608",
+  "title": "Journal layout, release history and scoped recipe tool",
+  "summary": "Focus: Journal geometry, DEBUG445 release history, draft/Achari fixes, shortened ten-rule prompt and verbatim source prep. Owner approved default-ON prompt/social recipe tool; DEBUG opt-out permits the paired F13 baseline. Scope and fail-closed guards retained. Food Journal shipping stays off. Native/pixels and one paired F13 OFF/ON device run pending; merge held.",
+  "source_commit": "5979353e366b37a758669cc645969888f340f1cb",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -57,7 +57,7 @@
     },
     {
       "path": "Ate/Logic/RecipeStructureValidation.swift",
-      "blob": "b5718d03ee4159b784eafb9f1e5fd1b08567ca2a"
+      "blob": "5792586be083ec8c383e4599a2393d14c5dc8b28"
     },
     {
       "path": "Ate/Logic/RepairFeedback.swift",

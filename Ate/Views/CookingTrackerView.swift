@@ -130,7 +130,7 @@ private struct CookingDotGrid: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Button {
                     if let previous = calendar.date(byAdding: .month, value: -1, to: displayedMonth) {
@@ -164,11 +164,17 @@ private struct CookingDotGrid: View {
             }
 
             let monthSummary = CookingMonthSummary.make(events: history.events, month: displayedMonth, calendar: calendar)
-            Text(monthSummary.text)
-                .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityLabel("Recorded this month: " + monthSummary.text)
-                .accessibilityIdentifier("tracker.monthSummary")
+            HStack(alignment: .firstTextBaseline, spacing: 20) {
+                Text(monthSummary.daysText)
+                    .font(AteFont.body(16, .semibold)).foregroundStyle(Theme.foreground)
+                Text(monthSummary.recipesText)
+                    .font(AteFont.body(16, .medium)).foregroundStyle(Theme.secondaryForeground)
+            }
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Recorded this month: " + monthSummary.text)
+            .accessibilityIdentifier("tracker.monthSummary")
 
             LazyVGrid(columns: columns, spacing: 7) {
                 ForEach(Array(weekdays.enumerated()), id: \.offset) { _, weekday in

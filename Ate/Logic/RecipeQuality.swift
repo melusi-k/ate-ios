@@ -70,6 +70,11 @@ enum RecipeQuality {
         // Structural output checks apply only to generated cards. Imported JSON-LD and
         // user-authored recipes retain their existing, deliberately lenient semantics.
         if isGenerated(c) {
+            // A cold dish can use foods outside the bounded step vocabulary.
+            // An empty list is still incomplete, regardless of dish category.
+            if c.ingredients.isEmpty {
+                out.append("The generated recipe needs measured ingredients.")
+            }
             out += GeneratedRecipeConsistency.issues(c)
             out += GeneratedStepQuality.issues(c)
             let title = c.title.trimmingCharacters(in: .whitespacesAndNewlines)

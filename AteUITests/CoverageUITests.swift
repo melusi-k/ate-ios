@@ -747,7 +747,7 @@ final class CoverageUITests: XCTestCase {
         app.buttons["saveRecipe"].tap()
         wait(app.buttons["Cook mode"], 10)
         app.terminate()
-        launch(["-qaPersistDraft"])
+        launch(["-qaPersistDraft", "-qaDraftRestoreSnapshotDiagnostic"])
         app.buttons["Add recipe"].tap()
         wait(text("Add a recipe"))
         // Retain final-relaunch evidence before the original negative query.

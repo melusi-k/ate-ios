@@ -257,8 +257,8 @@ enum RecipeProgressInsightService {
             )
         }
         return RecipeProgressInsight(
-            title: "Your recipe collection is taking shape",
-            detail: "You have \(input.savedRecipeCount) saved recipes. As you cook and record a few, Ate can surface patterns and ideas to revisit.",
+            title: "Try something new",
+            detail: "Explore a new recipe inspired by the dishes you have saved.",
             evidence: "Based on your saved recipe collection.",
             generated: false
         )
@@ -308,6 +308,7 @@ struct InsightsView: View {
     @State private var isEditingInsightOrder = false
     @AppStorage("insights.tileOrder") private var savedInsightTileOrder = ""
     @State private var openRecipe: RecipeSheetTarget?
+    @State private var showingRecipeDiscovery = false
 
     var body: some View {
         ZStack {
@@ -386,6 +387,7 @@ struct InsightsView: View {
         .contentMargins(.bottom, 96, for: .scrollContent)
         .navigationTitle(screenTitle)
         .ateRootNavigationChrome(logoID: "insights.logo", enabled: isRoot)
+        .sheet(isPresented: $showingRecipeDiscovery) { NavigationStack { SuggestedNewRecipesView().environment(store) } }
         .sheet(item: $openRecipe) { t in RecipeSheet(recipeID: t.id, recordsHealthSuggestionEvidence: t.recordsHealthSuggestionEvidence).environment(store) }
         .onChange(of: model.context?.insight.state) { _, st in
             if st != nil { BetaQA.shared.pass("A-HEALTH-03", note: "Insights showed \(st!.title) with \(model.context?.suggestions.count ?? 0) meal ideas") }
@@ -493,7 +495,7 @@ struct InsightsView: View {
     }
 
     @ViewBuilder private var recipeProgressCard: some View {
-        card("Recipe & cooking insights") {
+        card("Recipe & cooking insights", subduedHeader: true) {
             if recipeProgressLoading {
                 ProgressView("Looking at your recipe collection…")
                     .accessibilityIdentifier("insights.progress.loading")
@@ -506,13 +508,10 @@ struct InsightsView: View {
                                 Image(systemName: recipeProgressInsightSymbol(for: candidate.insight))
                                     .foregroundStyle(Theme.primary)
                                 VStack(alignment: .leading, spacing: 5) {
-                                    Text(candidate.insight.title).font(AteFont.body(15, .semibold))
+                                    Text(candidate.insight.title).font(AteFont.body(17, .bold))
+                                        .foregroundStyle(Theme.foreground)
+                                        .accessibilityIdentifier("insights.progress.title.\(candidate.id)")
                                     Text(candidate.insight.detail).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
-                                    Text(candidate.insight.evidence + " · Guided by your saved data")
-                                        .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
-                                    Text("Evidence: \(candidate.evidenceMetadata.source) · \(candidate.evidenceMetadata.period) · Confidence: \(candidate.evidenceMetadata.confidence.rawValue)")
-                                        .font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
-                                        .accessibilityIdentifier("insights.progress.evidence.\(candidate.id)")
                                 }
                             }
                             Button {
@@ -537,17 +536,23 @@ struct InsightsView: View {
                                     }
                                 }
                             }
-                            VStack(alignment: .leading, spacing: 12) {
-                                Button("I've handled this") { resolveRecipeInsight(candidate) }
+                            HStack(spacing: 12) {
+                                Button("Done") { resolveRecipeInsight(candidate) }
                                     .font(AteFont.body(12, .semibold))
                                     .accessibilityIdentifier("insights.progress.resolve.\(candidate.id)")
-                                Button("Not useful") { dismissRecipeInsight(candidate) }
-                                    .font(AteFont.body(12, .semibold))
-                                    .accessibilityIdentifier("insights.progress.dismiss.\(candidate.id)")
-                                Button("Remind me tomorrow") { snoozeRecipeInsight(candidate) }
-                                    .font(AteFont.body(12, .semibold))
-                                    .accessibilityIdentifier("insights.progress.snooze.\(candidate.id)")
+                                Spacer()
+                                Button { snoozeRecipeInsight(candidate) } label: {
+                                    Image(systemName: "clock").frame(width: 44, height: 44)
+                                }
+                                .accessibilityLabel("Remind me later")
+                                .accessibilityIdentifier("insights.progress.snooze.\(candidate.id)")
+                                Button { dismissRecipeInsight(candidate) } label: {
+                                    Image(systemName: "xmark").frame(width: 44, height: 44)
+                                }
+                                .accessibilityLabel("Dismiss")
+                                .accessibilityIdentifier("insights.progress.dismiss.\(candidate.id)")
                             }
+                            .buttonStyle(.plain)
                             .foregroundStyle(Theme.mutedForeground)
                         }
                         .accessibilityElement(children: .contain)
@@ -648,6 +653,10 @@ struct InsightsView: View {
     }
 
     @MainActor private func openInsightDestination(for candidate: RankedRecipeInsightCandidate) {
+        if candidate.action == .recipes, candidate.id != "recipe-duplicates" {
+            showingRecipeDiscovery = true
+            return
+        }
         // A pushed hub already owns the requested cooking-history destination. Dismissing
         // here would pop to Journal and race the subsequent path assignment.
         if candidate.action == .cookingHistory, !isRoot {
@@ -832,15 +841,17 @@ struct InsightsView: View {
         .accessibilityElement(children: .contain).accessibilityIdentifier(id)
     }
 
-    private func card<C: View>(_ title: String, @ViewBuilder _ c: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+    private func card<C: View>(_ title: String, subduedHeader: Bool = false, @ViewBuilder _ c: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: subduedHeader ? 18 : 10) {
             HStack(spacing: 9) {
                 Image(systemName: insightTileSymbol(for: title))
-                    .font(AteFont.body(16, .semibold))
-                    .foregroundStyle(Theme.primary)
+                    .font(AteFont.body(subduedHeader ? 13 : 16, subduedHeader ? .medium : .semibold))
+                    .foregroundStyle(subduedHeader ? Theme.mutedForeground : Theme.primary)
                     .frame(width: 24)
                     .accessibilityHidden(true)
-                Text(title).font(AteFont.display(18))
+                Text(title)
+                    .font(subduedHeader ? AteFont.body(13, .medium) : AteFont.display(18))
+                    .foregroundStyle(subduedHeader ? Theme.mutedForeground : Theme.foreground)
             }
             c()
         }
@@ -868,7 +879,7 @@ struct InsightsView: View {
         case "Your shopping list brings recipes together": return "basket"
         case "Add verified details to your food diary": return "fork.knife"
         case "Your cooking rhythm", "You're building a steady rhythm": return "chart.bar.xaxis"
-        case "Your recipe collection is taking shape": return "books.vertical"
+        case "Try something new": return "books.vertical"
         default: return "lightbulb"
         }
     }

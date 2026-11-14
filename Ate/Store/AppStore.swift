@@ -896,11 +896,12 @@ final class AppStore {
     func recipe(_ id: String) -> RecipeCard? { recipes.first { $0.id == id } }
 
     /// Idempotent: saving the same draft id again (restored draft, double tap) replaces instead of copying.
-    func add(_ card: RecipeCard) {
+    /// Discovery opts out of clearing the unrelated Add Recipe recovery draft.
+    func add(_ card: RecipeCard, clearPendingDraft: Bool = true) {
         performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
             let c = RecipeLogic.normalize(card)
             if let i = recipes.firstIndex(where: { $0.id == c.id }) { recipes[i] = c } else { recipes.insert(c, at: 0) }
-            DraftStore.shared.clear()
+            if clearPendingDraft { DraftStore.shared.clear() }
             persistRecipes()
         }
     }

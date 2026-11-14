@@ -401,10 +401,15 @@ final class NutritionDiaryUITests: XCTestCase {
     /// repeated layout checks of the retry presentation test into its execution budget.
     func testCancelledFailedSavesLeaveDiaryEmptyAfterRelaunch() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-resetNutritionDiary", "-failDiarySaves"]
+        app.launchArguments = ["-UITesting", "-resetNutritionDiary", "-failDiarySaves", "-qaNutritionPretapDiagnostic"]
         app.launch()
         openDiary(app)
         openLogForm(app)
+        // Pixels before the unchanged pre-tap geometry/keyboard query, no extra AX query.
+        let preGeometry = XCTAttachment(screenshot: app.screenshot())
+        preGeometry.name = "nutrition-failed-save-before-food-name-geometry"
+        preGeometry.lifetime = .keepAlways
+        add(preGeometry)
         typeAfterKeyboard(app.textFields["nutritionDiary.foodName"], in: app, surface: .logFood, "My lunch")
         let save = app.navigationBars["Log food"].buttons["nutritionDiary.save"]
         let formError = app.descendants(matching: .any)["nutritionDiary.formError"]

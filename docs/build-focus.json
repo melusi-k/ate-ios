@@ -1,11 +1,11 @@
 {
   "title": "Quieter Insights and new recipe suggestions",
-  "summary": "Focus: quieter recipe insights, honest new-recipe suggestions with explicit Save, readable cooking-month counts, and existing cooked-day notes. The summary exposes separate combined-text and padded-row accessibility targets while preserving 44pt row verification. Source-only: native, pixel and device acceptance remain unverified.",
-  "source_commit": "d1019051855b8ab40261f995f631278d983da37f",
+  "summary": "Focus: quieter recipe insights, honest new-recipe suggestions with explicit Save, readable cooking-month counts, and existing cooked-day notes. The summary exposes separate combined-text and padded-row accessibility targets while preserving 44pt row verification. Source-only: native, pixel and device acceptance remain unverified. Dogfood menu and reorder tests use explicit debug-only saved-recipe preconditions, retaining real UI actions and assertions; native timing benefit is unverified.",
+  "source_commit": "2f21682b67b84a404c6f9237e4e72036f752bbee",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "e636e5eccd67e31dcb8ac7f8b155c9f278bb9f6a"
+      "blob": "40d4e92814c6b89d177cb224e8f8e24410cd258e"
     },
     {
       "path": "Ate/Insights/InsightCandidateEngine.swift",
@@ -74,6 +74,10 @@
     {
       "path": "Ate/Views/SuggestedNewRecipesView.swift",
       "blob": "64519ac5cbab4364cbb30aaf731b4338f352da52"
+    },
+    {
+      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
+      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
     }
   ]
 }

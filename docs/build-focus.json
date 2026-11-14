@@ -12,6 +12,10 @@
       "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
     },
     {
+      "path": "Ate/App/ProductReleaseNotesQAFixture.swift",
+      "blob": "84b9076c88a88907d1e509c467792d99a88db40a"
+    },
+    {
       "path": "Ate/Logic/DraftGenerationAttempt.swift",
       "blob": "f22b96a67d824317ba30b2bd4f49b2265e45cd1a"
     },
@@ -101,7 +105,7 @@
     },
     {
       "path": "Ate/Views/JournalTimelineView.swift",
-      "blob": "24210932e88a306aa7333a227a2fc7f29ba931d2"
+      "blob": "459c72ae4651816c609c2d4b996a6ff43cd0c13b"
     },
     {
       "path": "Ate/Views/JournalViews.swift",
@@ -113,7 +117,7 @@
     },
     {
       "path": "Ate/Views/ProductUpdatesViews.swift",
-      "blob": "dea47174ff6ee625074e96fcb8e869bbbf906c62"
+      "blob": "4b1407a5580b39ae6561de5c33d21f25b9e647f7"
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",

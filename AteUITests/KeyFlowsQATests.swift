@@ -277,7 +277,7 @@ final class KeyFlowsQATests: XCTestCase {
     // MARK: 8 — timers (start, pause, resume, timer bar, finish → chime/haptic, Live Activity request)
 
     func testQA8_Timers() {
-        launch(["-qaFastTimers", "-qaDogWaitPhaseDiagnostic"])
+        launch(["-qaFastTimers", "-qaDogWaitPhaseDiagnostic", "-qaQA8ExitFileDiagnostic"])
         addPrompt("Timer test salmon")
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))

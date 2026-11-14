@@ -1,7 +1,7 @@
 {
   "title": "Library main-protein grouping",
-  "summary": "Focus: Library main-protein grouping preserves species/source amounts and original prompt caps. Independent sheet journeys retain Pork and both named passes. Same five-gesture ingredient positioning now uses measured bidirectional slow drags, full-row containment and immediate capture before unchanged assertions. Product code unchanged. Native correction rerun/pixels pending; not acceptance.",
-  "source_commit": "69fdd421d28aa049524e1119ac0cc16f1d042c13",
+  "summary": "Focus: Library main-protein grouping preserves species/source amounts and original prompt caps. Independent sheet journeys retain Pork and both named passes. Ingredient positioning keeps measured bidirectional slow drags, full-row containment and immediate capture. Reorder splits actual My order selection from unchanged actions. Cook footer inset now belongs to the scroll with opaque background; QA8 timer-exit repair is a hypothesis. Native rerun/pixels pending; not acceptance.",
+  "source_commit": "cedba94aea7beff5755d89b3f0f1740773110884",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
+      "blob": "e6014247fd0676c1ef77bbbf1a33a894c54da8b2"
     },
     {
       "path": "Ate/App/LibraryProteinQAFixtures.swift",
@@ -69,7 +69,7 @@
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
+      "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
     }
   ]
 }

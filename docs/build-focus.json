@@ -1,7 +1,7 @@
 {
   "title": "Quieter Insights and new recipe suggestions",
-  "summary": "Focus: draft fixes, viewport Cook footer candidate and bounded sort/reorder journeys. Both reorder named passes and twelve-case Dogfood floor are required; source guard now matches strengthened workflow. Earlier reported Python pass preceded last workflow edit and was invalid for that head. Fresh exact-head verification required. Native/pixels remain pending; no acceptance claim.",
-  "source_commit": "7deb74ab118abcebba0e1ac61e342760f5677a85",
+  "summary": "Focus: quieter Insights, draft recovery and bounded sort/reorder journeys. Final interrupted-generation relaunch now observes draft-restore branch labels and six bounded main-actor heartbeats behind DEBUG+UITesting+one explicit flag. No payload logging, draft mutation, replacement query, retry, assertion or budget change. Diagnostic only; no persistence fix claim. Native/pixel qualification pending; merge held.",
+  "source_commit": "fa405a1784cbfa2fe8cd1aa6c985d084ce6cb679",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -45,7 +45,7 @@
     },
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "e25f2c8a67877b5a6d362d8b64a0d9a0da52f5f9"
+      "blob": "81a638433444ec6b3ad0f514abe86b0624da7bbf"
     },
     {
       "path": "Ate/Views/CookModeView.swift",

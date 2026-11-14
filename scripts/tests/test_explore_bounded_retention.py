@@ -7,7 +7,7 @@ class ExploreBoundedRetention(unittest.TestCase):
         source = (ROOT / 'AteUITests/ExploreUITests.swift').read_text()
         menu = source.split('func testExploreDismissPreservesSelectedCollection()',1)[1].split('func testExploreDismissPreservesCollectionAndSearchQuery()',1)[0]
         for phrase in ['app.buttons["libraryBrowseMenu"].tap()',
-                       'app.collectionViews.containing(.button, identifier: "library.collection.Favourites")',
+                       'app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections"))',
                        'XCTAssertTrue(menu.waitForExistence(timeout: 5))',
                        'let favourite = menu.buttons.matching(NSPredicate(format: "label == %@", "Favourites"))',
                        'XCTAssertEqual(favourite.count, 1)', 'favourite.element(boundBy: 0).tap()',

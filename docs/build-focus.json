@@ -1,11 +1,11 @@
 {
   "title": "Recipe sheet clarity, Cook contrast and duplicate display rows",
-  "summary": "Focus: remove recipe-sheet state labels while retaining accessibility, reserve the Cook footer, use on-accent colours for filled actions, and collapse identical display rows and repeated nutrition warnings without changing source quantities or calculations. Cook-exit and reorder UI journeys use explicit debug-only saved-recipe setup, retaining real navigation, menus and assertions. Source-only: native, pixel, device acceptance and timing benefit remain unverified.",
-  "source_commit": "669b322f1b8b8dd7ef052b32339b0d05ac170241",
+  "summary": "Focus: recipe-sheet accessibility, Cook footer clearance and on-accent action contrast, exact duplicate ingredient display rows and warning names without changing source quantities or calculations. Cook-exit and Reorder retain focused debug-only saved setup; GroupSort now uses shared saved-data setup while all real menu, sort, group, favourite, shopping and reorder assertions remain unchanged. Source-only: native results, pixels, device acceptance and timing benefit remain unverified.",
+  "source_commit": "3a835c9db3bd471ccc69c2ea7a6a3cb919d5a844",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "6dcdc46a31da9a25aee46cd16e375b17614d918a"
+      "blob": "46fc065f0076e885515c844eeeaacaee35020efb"
     },
     {
       "path": "Ate/App/FocusedJourneyQAFixtures.swift",
@@ -78,6 +78,10 @@
     {
       "path": "Ate/Views/RecipeNutritionView.swift",
       "blob": "b58a8489a1c726436ab8b91ead91e040dd92c83e"
+    },
+    {
+      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
+      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
     }
   ]
 }

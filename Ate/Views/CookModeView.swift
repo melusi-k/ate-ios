@@ -160,6 +160,10 @@ struct CookModeView: View {
     }
 
     private func exit() {
+        #if DEBUG
+        QA8ExitFileDiagnostic.exitWillBegin()
+        defer { QA8ExitFileDiagnostic.exitDidReturn() }
+        #endif
         store.timers.cleanupIdle(recipeID: recipeID)
         if let onExit { onExit() } else if !store.path.isEmpty { store.path.removeLast() }
     }

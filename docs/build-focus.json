@@ -1,15 +1,19 @@
 {
   "title": "Journal navigation and cooking reflections",
-  "summary": "Focus: the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log.",
-  "source_commit": "7c3f7d0265e58ea124c0bf55140a90fe76df45b3",
+  "summary": "Focus: inactive agentic workflow engine preparation; all eight workflow sources and compiled locks remain OFF and unchanged by this repair. Library group/sort and Reorder use saved-only preconditions; My order selection and real reorder actions run separately with all assertions and unchanged budgets. Journal entry point, Insights, Cooking History and reflection-only cooking remain included. Native rerun/pixels pending; no workflow activation, production writes or acceptance claim. Merge held.",
+  "source_commit": "9a59750cdd560e6e32a61b57aac232f716753320",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "56f838b904b24a8d88ba3409638d7dc434aaa57e"
+      "blob": "4470a9001ee333a7e6c43cc50e8c06cd7a7b6436"
     },
     {
       "path": "Ate/Views/JournalViews.swift",
       "blob": "61c2d7df9cf3b780cf809b779efef40b0daeb3d2"
+    },
+    {
+      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
+      "blob": "e6014247fd0676c1ef77bbbf1a33a894c54da8b2"
     }
   ]
 }

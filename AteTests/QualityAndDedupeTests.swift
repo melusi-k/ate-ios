@@ -336,3 +336,4 @@ final class EditorRegressionTests: XCTestCase {
         XCTAssertEqual(RecipeLogic.normalize(manual).title, "sushi", "what the user typed is left alone")
     }
 }
+

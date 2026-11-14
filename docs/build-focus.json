@@ -1,7 +1,7 @@
 {
   "title": "Recipe sheet clarity, Cook contrast and duplicate display rows",
-  "summary": "Focus: expandable sheet geometry and visible ingredient capture. Separate required Reorder sort/initial-order and MoveUp/drag journeys retain the twelve-case Dogfood floor. Adds six bounded DEBUG+UITesting+Group28-only read-only layer-animation samples; not a menu fix. Assertions, waits, budgets, workflows and product flow unchanged. Native samples and pixels pending; prior passes are not new-head acceptance. Merge held.",
-  "source_commit": "4ef512d55c253a70d8aa326fa3f18ac3526f54cd",
+  "summary": "Focus: recipe-sheet chrome, viewport Cook footer and saved Group28 preconditions. Bounded read-only Library animation sampler retained. Real Files picker now logs created/cancelled coordinator and presented/dismissed sheet lifecycle at notice level. These observations do not establish Files content readiness or fix late presentation. No picker subclass, UI test, assertion, timeout, workflow or retry change. Native/pixel qualification pending; merge held.",
+  "source_commit": "ec337ea322b4d6dfa431eee74e2cbcc1d41b475f",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -86,6 +86,10 @@
     {
       "path": "Ate/Views/RecipeNutritionView.swift",
       "blob": "b58a8489a1c726436ab8b91ead91e040dd92c83e"
+    },
+    {
+      "path": "Ate/Views/CanonicalNutritionDiaryView.swift",
+      "blob": "98218458484b40253ed7c90caa8fd9cd73849710"
     }
   ]
 }

@@ -545,7 +545,7 @@ extension JournalOpenStateUITests {
 
     /// Normal-size coverage, separate from the retained original cross-size case.
     func testJournalRootAddAtNormalTextAndSidebarRoundTrip() {
-        launch(extra: ["-qaMockHealth", "empty", "-UIPreferredContentSizeCategoryName",
+        launch(extra: ["-qaJournalAnimationDiagnostic", "-qaMockHealth", "empty", "-UIPreferredContentSizeCategoryName",
                        "UICTContentSizeCategoryL"])
         defer { XCUIDevice.shared.orientation = .portrait }
         openJournal()

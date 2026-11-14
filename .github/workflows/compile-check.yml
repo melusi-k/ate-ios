@@ -340,11 +340,21 @@ jobs:
             -only-testing:AteUITests/InsightsAcceptanceUITests/testJournalRootReflectionLabelsSampleHealthPrompts \
             -only-testing:AteUITests/InsightsAcceptanceUITests/testSeededShoppingInsightOpensRealListAndRetainsSuggestion \
             -only-testing:AteUITests/InsightsAcceptanceUITests/testSeededDiaryInsightOpensRealDiaryAndRetainsSuggestion \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testExploreOpensNewSuggestionsNotLibraryAndUnavailableAIIsHonest \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > insights-evidence-navigation.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" insights-evidence-navigation.log || true; tail -120 insights-evidence-navigation.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" insights-evidence-navigation.log | tail -40
+
+      - name: Retain Insights normal-size captures
+        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.insights_acceptance.outcome != 'skipped') }}
+        run: |
+          if [ -d "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" ]; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" \
+              --output-path "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation-attachments" \
+              || { echo '::warning::Insights attachment export unavailable; inspect retained xcresult, no pixel acceptance'; }
+          fi
 
       - name: Retain UI-test day-sheet presentation trace
         if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.insights_acceptance.outcome != 'skipped') }}
@@ -693,6 +703,7 @@ jobs:
           path: |
             *.log
             ${{ runner.temp }}/ate-test-results/draft-quality-repair-attachments
+            ${{ runner.temp }}/ate-test-results/insights-evidence-navigation-attachments
             build.log
             app-clip-build.log
             app-clip-tests.log

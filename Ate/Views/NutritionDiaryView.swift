@@ -1,4 +1,7 @@
 import SwiftUI
+#if DEBUG
+import OSLog
+#endif
 
 /// Add/remove against the visible diary list with explicit failed-save semantics, as plain
 /// values so the behaviour is unit-testable without SwiftUI. The persist closure reports
@@ -580,6 +583,9 @@ private struct NutritionDiaryEntryForm: View {
             .presentationDragIndicator(.visible)
         }
         .navigationTitle(existing == nil ? "Log food" : "Edit food")
+        #if DEBUG
+        .task { await NutritionPretapDiagnostic.observeIfRequested() }
+        #endif
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: source) { _, newSource in
             sourceName = newSource.suggestedSourceName
@@ -656,3 +662,26 @@ private struct ListBottomMeasure: ViewModifier {
             .onPreferenceChange(ListBottomYKey.self) { listBottomY = $0 }
     }
 }
+
+#if DEBUG
+/// Explicit failed-save journey only. No model, AX, view state or UI mutations.
+private enum NutritionPretapDiagnostic {
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "NutritionPretapDiagnostic")
+
+    @MainActor static func observeIfRequested() async {
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaNutritionPretapDiagnostic") else { return }
+        let started = ProcessInfo.processInfo.systemUptime
+        let trace = UUID().uuidString
+        // Yields between fixed samples, stops when the form task is cancelled.
+        for offset in [0.0, 15, 30, 60, 90, 120, 180, 210] {
+            let remaining = offset - (ProcessInfo.processInfo.systemUptime - started)
+            if remaining > 0 {
+                do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
+            }
+            guard !Task.isCancelled else { return }
+            logger.notice("trace=\(trace, privacy: .public) scheduled=\(offset, privacy: .public) elapsed=\(ProcessInfo.processInfo.systemUptime - started, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public) main-actor-heartbeat")
+        }
+    }
+}
+#endif

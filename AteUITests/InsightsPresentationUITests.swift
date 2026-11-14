@@ -477,7 +477,39 @@ final class InsightsPresentationUITests: XCTestCase {
         shot("release-notes-01-settings-normal")
         notes.tap()
         let release = app.buttons["release.product-updates-introduction"]
-        wait(release); shot("release-notes-02-list")
+        wait(release)
+        shot("release-notes-initial-ten-builds")
+        let olderBuild = app.buttons["release.build-435-TierA"]
+        XCTAssertFalse(olderBuild.exists, "Only the newest ten build rows should initially be present")
+        let showOlder = app.buttons["releases.showOlder"]
+        for _ in 0..<16 where !showOlder.isHittable { app.swipeUp() }
+        wait(showOlder); XCTAssertTrue(showOlder.isHittable)
+        showOlder.tap()
+        wait(olderBuild)
+        for _ in 0..<4 where !olderBuild.isHittable { app.swipeUp() }
+        XCTAssertTrue(olderBuild.isHittable)
+        shot("release-notes-show-older-builds")
+        for _ in 0..<16 where !release.isHittable { app.swipeDown() }
+        let currentBuild = app.buttons["release.build-445-TierA"]
+        let priorBuild = app.buttons["release.build-444-TierA"]
+        // A standalone release entry opens its own notes, not a shared combined panel.
+        for _ in 0..<5 where !currentBuild.isHittable { app.swipeUp() }
+        wait(currentBuild); wait(priorBuild)
+        XCTAssertLessThan(currentBuild.frame.minY, priorBuild.frame.minY)
+        currentBuild.tap()
+        wait(app.staticTexts["release.detail.title"])
+        XCTAssertEqual(app.staticTexts["release.detail.title"].label, "Build 445")
+        shot("release-notes-445-own-detail")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        for _ in 0..<5 where !priorBuild.isHittable { app.swipeUp() }
+        priorBuild.tap()
+        wait(app.staticTexts["release.detail.title"])
+        XCTAssertEqual(app.staticTexts["release.detail.title"].label, "Build 444")
+        shot("release-notes-444-own-detail")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        for _ in 0..<8 where !release.isHittable { app.swipeDown() }
+        XCTAssertTrue(release.isHittable)
+        shot("release-notes-02-list")
         release.tap()
         wait(app.buttons["release.whatsNew"])
         shot("release-notes-03-detail")

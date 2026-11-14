@@ -4,8 +4,13 @@ final class CookPlanUITests: XCTestCase {
     func testSavedRecipePlanWithoutReminderCanBeReopenedAndCancelled() {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-qaNutritionFixtures"]
+        app.launchArguments = ["-UITesting", "-qaNutritionFixtures", "-qaCookPlanRootQueryDiagnostic"]
         app.launch()
+        // Capture pixels before the unchanged first saved-row AX query.
+        let preQuery = XCTAttachment(screenshot: app.screenshot())
+        preQuery.name = "cook-plan-library-before-saved-row-query"
+        preQuery.lifetime = .keepAlways
+        add(preQuery)
         let recipe = app.staticTexts["QA pap and rice"].firstMatch
         XCTAssertTrue(recipe.waitForExistence(timeout: 10))
         recipe.tap()

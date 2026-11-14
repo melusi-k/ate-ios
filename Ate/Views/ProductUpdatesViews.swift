@@ -15,27 +15,44 @@ private struct ProductPage<Content: View>: View {
 
 struct ProductReleaseNotesView: View {
     private let catalog = ProductUpdatesCatalog.load()
+    @State private var visibleBuildCount = 10
     var body: some View {
         ProductPage {
             if let catalog {
                 let releases = catalog.visibleReleases(build: Int(AppConfig.buildNumber) ?? 0,
                                                         channel: AppConfig.isBetaBuild ? "beta" : "release")
                 if releases.isEmpty { Text("Release notes are not available for this build yet.") }
-                ForEach(releases) { release in
-                    NavigationLink { ProductReleaseDetailView(release: release) } label: {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(release.title).font(AteFont.display(20))
-                            Text("Version \(release.version)" + (release.channel == "beta" ? " · Beta" : ""))
-                                .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
-                            Text(release.summary).font(AteFont.body(16))
-                        }.frame(maxWidth: .infinity, alignment: .leading).cardSurface(padding: 16)
-                    }.buttonStyle(.plain).accessibilityIdentifier("release.\(release.id)")
+                // Keep the feature explainer separate: it is not a dated build.
+                ForEach(releases.filter { $0.buildNumber == nil }) { release in
+                    releaseRow(release)
+                }
+                let builds = catalog.publishedBuildReleases(build: Int(AppConfig.buildNumber) ?? 0,
+                                                            channel: AppConfig.isBetaBuild ? "beta" : "release")
+                if !builds.isEmpty {
+                    Text("Past and current builds").font(AteFont.display(20))
+                    ForEach(Array(builds.prefix(visibleBuildCount))) { release in releaseRow(release) }
+                    if visibleBuildCount < builds.count {
+                        Button("Show older releases") { visibleBuildCount += 10 }
+                            .buttonStyle(.ate(.secondary, height: 48))
+                            .accessibilityIdentifier("releases.showOlder")
+                    }
                 }
             } else {
                 Text("Release notes could not be read. You can still use the rest of Ate.")
                     .accessibilityIdentifier("releases.unavailable")
             }
         }.navigationTitle("Release Notes").navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func releaseRow(_ release: ProductRelease) -> some View {
+        NavigationLink { ProductReleaseDetailView(release: release) } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(release.title).font(AteFont.display(20))
+                Text("Version \(release.version)" + (release.channel == "beta" ? " · Beta" : ""))
+                    .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                Text(release.summary).font(AteFont.body(16))
+            }.frame(maxWidth: .infinity, alignment: .leading).cardSurface(padding: 16)
+        }.buttonStyle(.plain).accessibilityIdentifier("release.\(release.id)")
     }
 }
 
@@ -44,7 +61,7 @@ struct ProductReleaseDetailView: View {
     @State private var showingSlides = false
     var body: some View {
         ProductPage {
-            Text(release.title).font(AteFont.display(26))
+            Text(release.title).font(AteFont.display(26)).accessibilityIdentifier("release.detail.title")
             Text("Version \(release.version)" + (release.channel == "beta" ? " · Beta" : "")).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
             Text(release.summary).font(AteFont.body(16))
             ForEach([ProductRelease.Change.Kind.added, .improved, .fixed], id: \.rawValue) { kind in

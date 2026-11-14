@@ -13,7 +13,17 @@ class LibraryIndependentJourneyTests(unittest.TestCase):
         workflow = (ROOT / '.github/workflows/dogfood-qualification.yml').read_text()
         for name in NAMES:
             body = source.split('    func ' + name + '() {', 1)[1].split('\n    func ', 1)[0]
-            self.assertIn('launch()', body)
+            flags = {
+                'test28_GroupSortAndMenus': '-qaSavedRecipesForGroupSort',
+                'test28_GroupRecentlyAdded': '-qaSavedAppleForGroup',
+                'test28_GroupCookTime': '-qaSavedAppleForGroup',
+                'test28_FavouriteSwipeAndSort': '-qaSavedRecipesForFavourite',
+                'test28_ContextMenuAddsShoppingAndShowsFeedback': '-qaSavedZestyForContext',
+                'test29_ReorderMyOrder': '-qaSavedRecipesForDogfoodReorder',
+                'test29_DragMyOrder': '-qaSavedRecipesForDogfoodReorder',
+            }
+            self.assertIn('launch(["' + flags[name] + '"])', body)
+            self.assertNotIn('addNamed(', body)
             self.assertIn('-only-testing:AteUITests/AteUITests/' + name + ' \\', workflow)
         self.assertIn('for test in ' + ' '.join(NAMES) + '; do', workflow)
         self.assertIn('"$total" -lt 16', workflow)

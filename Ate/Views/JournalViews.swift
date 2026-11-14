@@ -212,6 +212,10 @@ struct JournalEntryDetailView: View {
                             Text(e.createdAt.formatted(date: .complete, time: .shortened)).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
                                 .accessibilityIdentifier("journal.detail.date")
                             if let t = e.editedAt { Text("Edited " + t.formatted(date: .abbreviated, time: .shortened)).font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground) }
+                            // Per-record cloud state: this record's own upload, not the last
+                            // aggregate round. Confirmed = the server holds this version.
+                            Text(syncStateLine(for: e)).font(AteFont.body(11)).foregroundStyle(Theme.mutedForeground)
+                                .accessibilityIdentifier("journal.detail.syncState")
                             if !e.prompt.isEmpty { Text(e.prompt).font(AteFont.body(14, .semibold)) }
                             Text(e.text).font(AteFont.body(16)).textSelection(.enabled).accessibilityIdentifier("journal.detail.text")
                         }.padding(.vertical, 4)
@@ -355,6 +359,22 @@ struct JournalEntryDetailView: View {
         entryReadComplete = true
     }
 
+    /// Per-record cloud state line for the detail view (issue #34, Reviewer): this
+    /// record's own upload state, never the aggregate round status. `cloudCopyOnly`
+    /// separates "the account holds THIS version" from "the account holds an EARLIER
+    /// version" - both truthfully distinct from "saved only on this iPhone".
+    func syncStateLine(for e: JournalEntry) -> String {
+        switch store.journalRecordSyncState(id: e.id, createdAt: e.createdAt, editedAt: e.editedAt) {
+        case .confirmed: return "Synced to your Ate account."
+        case .pending: return "Sync pending. This version is saved on this iPhone and queued to upload."
+        case .cloudCopyOnly(let currentVersion):
+            return currentVersion
+                ? "A copy of this version is in your Ate account. New changes stay on this iPhone for now."
+                : "An earlier version is in your Ate account. Changes made on this iPhone stay here for now."
+        case .localOnly: return "Saved only on this iPhone."
+        }
+    }
+
     func shareText(_ e: JournalEntry) -> String {
         var s = e.createdAt.formatted(date: .long, time: .shortened)
         if let state = e.recordedHealthState { s += " · " + state.title }
@@ -425,7 +445,11 @@ struct ManualJournalComposer: View {
                         .accessibilityIdentifier("journal.compose.text")
                 }
                 Section {
-                    Text("Saved only on this iPhone. No Health data is needed. Ate cannot write to Apple's Journal app.")
+                    // A record being composed has not uploaded yet: per-record wording is
+                    // "queued" (pending), never "synced" off the aggregate round status.
+                    Text(store.journalRecordSyncState(id: nil) == .localOnly
+                         ? "Saved only on this iPhone. No Health data is needed. Ate cannot write to Apple's Journal app."
+                         : "Saved on this iPhone and queued to sync to your Ate account. No Health data is needed. Ate cannot write to Apple's Journal app.")
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                     JournalOpenStateBanner(state: store.journalStore.openState)
                 }
@@ -570,7 +594,9 @@ struct JournalReflectionCard: View {
             if journalingEnabled && JournalingSuggestionsGate.isAvailable && !AppConfig.isUITesting {
                 JournalingSuggestionsButton { handle(moment: $0) }
             }
-            Text("Saved only on this iPhone. Ate can't write to Apple's Journal app.")
+            Text(store.journalRecordSyncState(id: nil) == .localOnly
+                 ? "Saved only on this iPhone. Ate can't write to Apple's Journal app."
+                 : "Saved on this iPhone and queued to sync to your Ate account. Ate can't write to Apple's Journal app.")
                 .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
         }
         .task { await model.loadIfNeeded(recipes: store.recipes) }

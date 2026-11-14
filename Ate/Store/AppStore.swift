@@ -81,12 +81,31 @@ enum SyncState: Equatable {
     }
 }
 
-private struct SyncMeta: Codable {
+// Internal (not private) so the issue #34 family sync in AppStore+UserDataSync.swift can
+// persist per-family stamps/tombstones through the same metadata object as recipes/shopping.
+struct SyncMeta: Codable {
     var recipeStamps: [String: Double] = [:]
     var recipeTombs: [String: Double] = [:]
     var shopStamps: [String: Double] = [:]
     var shopTombs: [String: Double] = [:]
     var userID: String?
+    // Issue #34 user-data sync families. Optional so sync metadata written by older builds
+    // still decodes (synthesized Codable would otherwise drop every stamp on upgrade).
+    var journalStamps: [String: Double]?
+    var journalTombs: [String: Double]?
+    var insightStamps: [String: Double]?
+    var insightTombs: [String: Double]?
+    var goalsStamps: [String: Double]?
+    var goalsTombs: [String: Double]?
+    /// Last synced goals payload bytes: the local-edit signal for a value with no updatedAt.
+    var goalsSyncedPayload: Data?
+    /// The account + generation each family's last successful family commit confirmed
+    /// against (issue #34, Reviewer): confirmation is keyed PER FAMILY, so a family whose
+    /// round failed keeps its old scope and the commit never promotes its stale stamps
+    /// into the new owner/epoch. One account's confirmed state never leaks into another's.
+    var journalScope: AccountDataScope?
+    var insightScope: AccountDataScope?
+    var goalsScope: AccountDataScope?
 }
 
 struct AteDataArchive: Codable {
@@ -562,13 +581,70 @@ final class AppStore {
     var pendingConfirmation: String?   // email awaiting confirmation
 
     // Accounts & sync
-    var session: AuthSession?
+    var session: AuthSession? {
+        didSet {
+            // Family-sync status and backend knowledge describe the PREVIOUS account's
+            // rounds; a session change must not let them leak into the new account's
+            // privacy copy (Reviewer: reset status on session/graph change).
+            if session?.userID != oldValue?.userID {
+                userDataSyncStatus = nil
+                userDataSyncBackendUnavailable = false
+            }
+        }
+    }
     /// Keep lifecycle ownership stable while signed out if local app data is retained.
     var insightLifecycleAccountID: String? { session?.userID ?? meta.userID }
     var syncState: SyncState = .signedOut
+    /// Issue #34 family sync (Food Journal / insight states / nutrition goals). Recipes and
+    /// shopping own `syncState`; this reports only the new families and never blocks Library,
+    /// Cook or recipe sync when the backend is not migrated for them yet.
+    var userDataSyncStatus: UserDataSyncStatus?
+    /// True after a round proved the backend cannot store the new kinds yet (contract
+    /// missing / 23514). While true, journal records report `.localOnly`, never "queued" -
+    /// the privacy copy must not promise an upload the server currently refuses.
+    var userDataSyncBackendUnavailable = false
+    /// Per-record Journal cloud state for privacy copy. The aggregate round status never
+    /// speaks for a single record. Confirmation is a historical fact keyed to the persisted
+    /// JOURNAL family scope (`meta.journalScope`): THAT account's server holds THIS exact
+    /// version. The scope's generation is re-checked against the live receipt when a
+    /// session and transport exist; a different account never inherits it. Capability is
+    /// separate: when sync currently cannot run (flag off, signed out, legacy graph, host
+    /// or commit seam unbound, backend refusing the new kinds) a confirmed record reports
+    /// `cloudCopyOnly` (the server copy still exists) and an unconfirmed one reports
+    /// `localOnly` - never "queued" for an upload that cannot run.
+    func journalRecordSyncState(id: String?, createdAt: Date? = nil, editedAt: Date? = nil) -> JournalRecordSyncState {
+        // "Ever uploaded" is separate from "current version confirmed": an edit moves the
+        // version stamp, but the earlier version's presence in the account remains true.
+        var currentVersionConfirmed = false, anyVersionConfirmed = false
+        if let id, let createdAt, let scope = meta.journalScope {
+            let stampMs = ((editedAt ?? createdAt).timeIntervalSince1970 * 1000).rounded()
+            // Signed out: the last confirmed account's copy fact stands on its own.
+            let ownerMatches = session.map { $0.userID == scope.ownerID } ?? true
+            // Generation is re-checked when it is knowable; an unbound transport or signed-
+            // out state falls back to the persisted scope (a round will re-prove it).
+            let generationCurrent: Bool
+            if session != nil, let transport = userDataSyncTransport {
+                generationCurrent = transport.currentScope == scope
+            } else {
+                generationCurrent = true
+            }
+            if let synced = meta.journalStamps?[id], ownerMatches, generationCurrent {
+                anyVersionConfirmed = true
+                currentVersionConfirmed = synced == stampMs
+            }
+        }
+        let enabled = userDataSyncEnabledOverride ?? AppConfig.userDataSyncEnabled
+        // The round refuses to run without the durable commit journal, so capability must
+        // require it too: otherwise "queued to upload" would show under an unbound seam.
+        let canSync = enabled && session != nil && foodJournalRuntime != nil
+            && userDataSyncTransport != nil && familySyncCommitJournal != nil
+            && !userDataSyncBackendUnavailable
+        if canSync { return currentVersionConfirmed ? .confirmed : .pending }
+        return anyVersionConfirmed ? .cloudCopyOnly(currentVersion: currentVersionConfirmed) : .localOnly
+    }
     let auth: AuthService?
     let sync: SyncService?
-    private var meta = SyncMeta()
+    var meta = SyncMeta()
     private var recipeSnapshot: [String: RecipeCard] = [:]
     private var shopSnapshot: [String: ShoppingItem] = [:]
     private var syncTask: Task<Void, Never>?
@@ -602,6 +678,19 @@ final class AppStore {
     /// archive format and capture discipline are A's; AppStore only routes. While nil,
     /// the canonical refusal stands.
     @ObservationIgnored var journalArchiveExport: (() async throws -> Data)?
+    /// Issue #34: the fenced family-sync transport, bound by the host that builds the
+    /// unified graph (the #532 application owner constructs a FencedUserDataSyncTransport
+    /// from its GenerationFencedSync + receipt store, sharing ONE SyncCycleGate with the
+    /// recipe/shopping transport so family and recipe/shopping cycles never interleave).
+    /// Nil means families stay local-only; family sync must never fall back to an
+    /// unfenced writer.
+    @ObservationIgnored var userDataSyncTransport: UserDataSyncTransport?
+    /// Test seam for the family-sync capability checks (launch-arg flag is process-wide).
+    @ObservationIgnored var userDataSyncEnabledOverride: Bool?
+    /// The durable redo journal every family commit publishes through (issue #34,
+    /// Reviewer). Nil means the round is skipped fail-closed - family commits never fall
+    /// back to a non-durable write.
+    @ObservationIgnored var familySyncCommitJournal: FamilySyncCommitJournal?
     /// Unified Settings import, backed by A's standalone ArchiveStandaloneImportSession.
     /// While nil, the canonical refusal stands.
     @ObservationIgnored var journalArchiveImport: ((Data) throws -> DataImportSummary)?
@@ -647,7 +736,7 @@ final class AppStore {
 
     /// Throwing form for writers that already report failure through `throws`
     /// (cook-completion prepare/clear, completed-cook recording, legacy import, sync publish).
-    private func performOrdinaryWriteThrowing<T>(_ work: () throws -> T) throws -> T {
+    func performOrdinaryWriteThrowing<T>(_ work: () throws -> T) throws -> T {
         guard let effect = journalWriterEffect else { return try work() }
         var performed = false
         var result: T?
@@ -871,7 +960,7 @@ final class AppStore {
         }
     }
 
-    private func saveDefaults<T: Encodable>(_ v: T, key: String) {
+    func saveDefaults<T: Encodable>(_ v: T, key: String) {
         if let d = try? JSONEncoder().encode(v) { UserDefaults.standard.set(d, forKey: key) }
     }
     private static func loadDefaults<T: Decodable>(_ t: T.Type, key: String) -> T? {
@@ -1253,7 +1342,7 @@ final class AppStore {
     }
 
     // MARK: sync bookkeeping (last-write-wins)
-    private func nowMs() -> Double { (Date().timeIntervalSince1970 * 1000).rounded() }
+    func nowMs() -> Double { (Date().timeIntervalSince1970 * 1000).rounded() }
 
     private func stampChanges() {
         performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
@@ -1412,6 +1501,12 @@ final class AppStore {
             }
             syncState = .synced(Date())
             BetaQA.shared.syncSucceeded(pushed: out.count)
+            // Issue #34: Food Journal, insight states and nutrition goals ride the same
+            // successful round. syncNow AWAITS the family round, so a slow family round
+            // extends this call's completion after syncState is already .synced; family
+            // failures land on userDataSyncStatus only and never change syncState or block
+            // Library/Cook.
+            await syncUserDataFamilies()
         } catch SyncError.tableMissing {
             if switchingAccounts && !accountSwitchPullSucceeded {
                 signOutAfterFailedAccountSwitch()

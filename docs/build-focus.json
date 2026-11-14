@@ -1,51 +1,43 @@
 {
-  "title": "Bundle A: Settings, Insights, Cook, generation and Journal",
-  "summary": "Focus: Settings release notes and replay tour, owned Insights destinations, recorded cooking history, shared Cook steps and measured bottom chrome, owned photo/generation inputs, onboarding navigation, and native Journal delete confirmation with retained reflection drafts. All source folds are included, not native or device acceptance. Nutrition termination awaits fresh exact-head evidence. Cooking is not an eaten-food log; Food Journal activation is not enabled by this bundle.",
-  "source_commit": "0a625c23aaacc4713c7bb3a45cc45506c2f350c7",
+  "title": "Dormant Journal and nutrition goals sync preparation",
+  "summary": "Dormant client preparation only: generation-fenced Journal and nutrition goals planning with receipt-bound durable redo, goals file sealing and scoped cloud status. Insight sync is dormant and content images are refused by default. Host transport, launch replay and reset wiring are unbound. Migration is an unapplied file; no production writes. Swift compilation, native tests, interruption matrix and device durability are unrun. This does not complete sync all data or the build 441 upload gap. Merge held.",
+  "source_commit": "be50e9863afa1f53d7a88fb24c0f5dc7169db76a",
   "evidence": [
     {
-      "path": "Ate/App/AteApp.swift",
-      "blob": "e636e5eccd67e31dcb8ac7f8b155c9f278bb9f6a"
+      "path": "Ate/Insights/InsightLifecycle.swift",
+      "blob": "50d4d70a7d1b4186a961f9f86f7adca5ed77751d"
+    },
+    {
+      "path": "Ate/Services/BackendService.swift",
+      "blob": "32c0851fcbfcef8fc582754cee5756480a7ee890"
+    },
+    {
+      "path": "Ate/Services/UserDataSync.swift",
+      "blob": "f4f8ca6c149f9f1bda2f584c8feb346f1d2c63b4"
+    },
+    {
+      "path": "Ate/Store/AppStore+UserDataSync.swift",
+      "blob": "6bc1985e0124fa7aa350cd51cb0bbdc7217a6652"
+    },
+    {
+      "path": "Ate/Store/AppStore.swift",
+      "blob": "b74cc60bfbfdf0f6753dd167d3dc0312db94971e"
+    },
+    {
+      "path": "Ate/Store/FamilySyncCommitJournal.swift",
+      "blob": "ae11021665bf1d12166195772207c07aa3f5d124"
+    },
+    {
+      "path": "Ate/Store/FamilySyncGoalsDurability.swift",
+      "blob": "80875fa00c5d406040ca446928c363c98e71c32f"
+    },
+    {
+      "path": "Ate/Store/JournalSyncBridge.swift",
+      "blob": "da27b37b25f03fa82078454af469fdecc03a4f2b"
     },
     {
       "path": "Ate/Views/JournalViews.swift",
-      "blob": "7e0375d362867507e781901318e32fde459f0e85"
-    },
-    {
-      "path": "Ate/Views/ProductUpdatesViews.swift",
-      "blob": "3de31c5f54026a0a5b3b8a3c83c36e5c3244d03e"
-    },
-    {
-      "path": "Ate/Views/InsightsView.swift",
-      "blob": "3f38057fb07a065197672fab9c6f219ea06c17f1"
-    },
-    {
-      "path": "Ate/Views/CookingTrackerView.swift",
-      "blob": "6b209b692702c03311ec3feba3bf3632202e9bc1"
-    },
-    {
-      "path": "Ate/Views/CookModeView.swift",
-      "blob": "203f46cec2a7b69e8f17a11f1c771a982441b9bc"
-    },
-    {
-      "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
-    },
-    {
-      "path": "Ate/Services/JournalSuggestionService.swift",
-      "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
-    },
-    {
-      "path": "Ate/Views/JournalDeleteConfirmation.swift",
-      "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
-    },
-    {
-      "path": "Ate/Views/OnboardingView.swift",
-      "blob": "ae031e11f4c03dfbdb810c8290aa0fb3329a036b"
-    },
-    {
-      "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "e25f2c8a67877b5a6d362d8b64a0d9a0da52f5f9"
+      "blob": "b3b9da1beb17d289c5a18e618b81424637488839"
     }
   ]
 }

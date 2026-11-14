@@ -1210,9 +1210,9 @@ final class AteUITests: XCTestCase {
     }
 
     func test28_GroupSortAndMenus() {
-        launch()
-        addNamed("Zesty tacos")
-        addNamed("Apple crumble")
+        // Recipe creation has separate end-to-end coverage; keep this budget
+        // for real native menus and their asserted Library actions.
+        launch(["-qaSavedRecipesForGroupSort"])
         pick("sortMenu", "A–Z")
         let a = text("Apple crumble"), z = text("Zesty tacos")
         wait(a)
@@ -1280,9 +1280,9 @@ final class AteUITests: XCTestCase {
     }
 
     func test29_ReorderMyOrder() {
-        launch()
-        addNamed("First dish")
-        addNamed("Second dish")
+        // Recipe creation has separate end-to-end coverage; keep this budget
+        // for real native menus and their asserted Library actions.
+        launch(["-qaSavedRecipesForDogfoodReorder"])
         pick("sortMenu", "My order")
         let first = text("First dish"), second = text("Second dish")
         wait(first)

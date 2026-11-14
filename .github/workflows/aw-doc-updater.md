@@ -13,6 +13,11 @@ permissions:
   actions: read
   copilot-requests: none
 if: "false"
+engine:
+  id: pi
+  model: google/gemini-3.6-flash
+  env:
+    GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 strict: true
 runs-on: ubuntu-latest
 runs-on-slim: ubuntu-latest
@@ -55,6 +60,11 @@ safe-outputs:
   report-incomplete:
     create-issue: false
   threat-detection:
+    engine:
+      id: pi
+      model: google/gemini-3.6-flash
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     report-as-issue: false
   create-issue: false
   create-pull-request:

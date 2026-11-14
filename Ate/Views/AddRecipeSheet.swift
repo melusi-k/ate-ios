@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import OSLog
 
 struct AddRecipeSheet: View {
     enum Mode: String, CaseIterable { case link = "Link", image = "Image", prompt = "Prompt"
@@ -428,12 +429,25 @@ struct AddRecipeSheet: View {
 
     /// A-CREATE-05: the app was closed mid-generation (or with an unsaved card) last time.
     private func restoreInterrupted() {
+        #if DEBUG
+        let diagnostic = DraftRestoreSnapshotDiagnostics.beginIfRequested()
+        defer { diagnostic?.mark("restore-finished") }
+        #endif
         if let c = DraftStore.shared.draft, store.recipe(c.id) != nil {
+            #if DEBUG
+            diagnostic?.mark("already-saved-draft-cleared")
+            #endif
             DraftStore.shared.clear()   // P0: this draft was already saved; restoring it made duplicate copies
         } else if let c = DraftStore.shared.draft {
+            #if DEBUG
+            diagnostic?.mark("unsaved-draft-restored")
+            #endif
             draft = c; store.show("Restored your unsaved card")
             BetaQA.shared.pass("A-CREATE-05", note: "Restored unsaved draft “\(c.title)” after relaunch")
         } else if let p = DraftStore.shared.pending {
+            #if DEBUG
+            diagnostic?.mark("pending-request-restored")
+            #endif
             if let m = Mode(rawValue: p.mode) { mode = m }
             switch mode {
             case .link: link = p.text
@@ -446,6 +460,10 @@ struct AddRecipeSheet: View {
             // Keep the pending request until retry succeeds or the user discards it.
             // Clearing it here loses the only recoverable input if the app closes before Retry.
             BetaQA.shared.pass("A-CREATE-05", note: "Interrupted \(p.mode) generation offered a retry after relaunch")
+        } else {
+            #if DEBUG
+            diagnostic?.mark("no-recoverable-draft-or-request")
+            #endif
         }
     }
     static let interruptedMessage = "Your last recipe was interrupted when ate closed. Tap Try again to retry."
@@ -708,3 +726,36 @@ extension View {
         else { background(fill, in: RoundedRectangle(cornerRadius: 14)) }
     }
 }
+
+#if DEBUG
+/// Synthetic final-relaunch journey only. Observe restoration and main-actor scheduling;
+/// never inspect payloads, change draft state, drive UI, or replace the negative AX assertion.
+private struct DraftRestoreSnapshotDiagnostics: Sendable {
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "DraftRestoreSnapshotDiagnostic")
+    private let id = UUID().uuidString
+    private let started = ProcessInfo.processInfo.systemUptime
+
+    @MainActor static func beginIfRequested() -> Self? {
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaDraftRestoreSnapshotDiagnostic") else { return nil }
+        let diagnostic = Self()
+        diagnostic.mark("restore-started")
+        Task { @MainActor in
+            // Bounded yielding observation, not a test wait or a responsiveness watchdog.
+            for offset in [15.0, 30, 60, 90, 120, 180] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - diagnostic.started)
+                if remaining > 0 {
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
+                }
+                guard !Task.isCancelled else { return }
+                diagnostic.mark("main-actor-heartbeat")
+            }
+        }
+        return diagnostic
+    }
+
+    func mark(_ phase: String) {
+        Self.logger.notice("trace=\(id, privacy: .public) phase=\(phase, privacy: .public) elapsed=\(ProcessInfo.processInfo.systemUptime - started, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public)")
+    }
+}
+#endif

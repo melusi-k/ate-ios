@@ -1,7 +1,7 @@
 {
   "title": "Journal layout, published release history and recipe draft feedback",
-  "summary": "Focus: published release history, Journal equal route-card gaps, ingredient dedupe, pantry gaps, repair feedback and 60s generation deadlines. Geometry checks target actual Notes, Insights, Meals and Reflect cells. Explicit DEBUG+UITesting build445 catalog fixture leaves installed identity and production filtering unchanged. Achari identity and missing-paste checks remain. Native, pixel, device and timing acceptance pending; cooking is not an eaten-food log. Food Journal shipping stays off.",
-  "source_commit": "cb3c92120510d831b9a9d3f7294451f3fea6226b",
+  "summary": "Focus: Journal geometry, DEBUG445 release history and draft fixes. Ported538prompt/source correction only: all ten shared rules/examples fit original caps; source extraction keeps written prep names while normal parsing/generated normalization still split prep. Original size/F1/Achari guards unchanged. No recipe tool slice imported. Native rerun/pixels/device/timing acceptance pending; Food Journal shipping stays off.",
+  "source_commit": "3f412176220dae8d641a553e197329300df12b6b",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -33,7 +33,7 @@
     },
     {
       "path": "Ate/Logic/JSONLD.swift",
-      "blob": "f95e85d4dc0990e46972fe0ddd32a68ad503fb5a"
+      "blob": "f76d00a4138a4f6997d5cbe728b9c07224e7f847"
     },
     {
       "path": "Ate/Logic/ProductUpdates.swift",
@@ -49,7 +49,7 @@
     },
     {
       "path": "Ate/Logic/RecipePrompt.swift",
-      "blob": "997fb4c57efa945aa87ee8ed820572da37ea7651"
+      "blob": "e6a1821db213fb154ca35313b54f85818f6c8835"
     },
     {
       "path": "Ate/Logic/RecipeQuality.swift",
@@ -58,6 +58,10 @@
     {
       "path": "Ate/Logic/RepairFeedback.swift",
       "blob": "b6ece9703106cf2a759f0b3df1ffe9b391bbaa9b"
+    },
+    {
+      "path": "Ate/Logic/SourceRecipeFidelity.swift",
+      "blob": "1836b1a804dc8fd82c3703a15876bfc8d6f24d0f"
     },
     {
       "path": "Ate/Services/JournalSuggestionService.swift",

@@ -4,6 +4,12 @@ import Foundation
 enum IngredientFieldNormalization {
     private static let preparationWords: Set<String> = ["diced", "chopped", "sliced", "minced", "crushed", "grated", "peeled", "finely", "roughly", "thinly", "coarsely"]
 
+    /// Known prep words alone are not a food identity, regardless of the unit.
+    static func isPreparationOnly(_ name: String) -> Bool {
+        let nameWords = Set(name.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init))
+        return !nameWords.isEmpty && nameWords.isSubset(of: preparationWords)
+    }
+
     static func splitPreparation(_ name: String) -> (name: String, prep: String?) {
         let tokens = name.split(whereSeparator: { $0.isWhitespace }).map(String.init)
         var end = tokens.count
@@ -24,8 +30,7 @@ enum IngredientFieldNormalization {
 
     static func normalizeGenerated(_ original: Ingredient) -> Ingredient {
         var ingredient = original
-        let nameWords = Set(original.name.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init))
-        if !nameWords.isEmpty, nameWords.isSubset(of: preparationWords), let food = foodInUnit(original) {
+        if isPreparationOnly(original.name), let food = foodInUnit(original) {
             ingredient.name = food
             ingredient.unit = "pcs"
             ingredient.notes = [original.name, original.notes].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "; ")

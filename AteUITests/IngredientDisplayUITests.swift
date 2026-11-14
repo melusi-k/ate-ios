@@ -18,7 +18,14 @@ final class IngredientDisplayUITests: XCTestCase {
         let rows = scroll.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "recipe.ingredient."))
         let row = rows.firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
-        for _ in 0..<5 where !row.isHittable { scroll.swipeUp() }
+        let footer = app.buttons["Cook mode"]
+        let header = app.buttons["favouriteButton"]
+        XCTAssertTrue(footer.waitForExistence(timeout: 5))
+        for _ in 0..<5 where !RecipeDetailVisibility.contains(row, scroll: scroll, header: header, footer: footer) {
+            scroll.swipeUp()
+        }
+        XCTAssertTrue(RecipeDetailVisibility.contains(row, scroll: scroll, header: header, footer: footer),
+                      "The complete ingredient row must be visible between pinned header and Cook footer")
         XCTAssertEqual(rows.count, 1, "Two old saved lemon rows render as one ingredient, not two")
         XCTAssertTrue(row.isHittable)
         XCTAssertTrue(row.label.contains("for serving"), row.label)

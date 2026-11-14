@@ -1,7 +1,7 @@
 {
   "title": "Recipe sheet clarity, Cook contrast and duplicate display rows",
-  "summary": "Focus: native expandable recipe sheet with portrait/landscape journeys. Ingredient capture now uses the same five-gesture limit with measured bidirectional slow drags and stops on full viewport containment, before capture/assertions. Strict geometry and all assertions retained. Product code unchanged. Native rerun/new ingredient pixels pending; prior screenshots overshot to Nutrition/AskAte, not acceptance.",
-  "source_commit": "3f4ea359db446833cfc64088e862d47321ffd3ba",
+  "summary": "Focus: expandable sheet geometry and visible ingredient capture. Reorder sort UI/initial order and MoveUp/drag now have separate required journeys; explicit action-only My order precondition never seeds card positions/results. Twelve-case Dogfood floor, matching guard and both named passes retained. Sheet/product/helper code unchanged. Native rerun/pixels pending; QA8 prior pass is not new-head acceptance.",
+  "source_commit": "8d208f9a0afdb8768c00587ca49bc03346055192",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
+      "blob": "e6014247fd0676c1ef77bbbf1a33a894c54da8b2"
     },
     {
       "path": "Ate/App/FocusedJourneyQAFixtures.swift",

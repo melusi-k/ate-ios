@@ -1,11 +1,11 @@
 {
   "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Source union: Settings release notes, Insights destinations, cooking history, shared Cook steps, owned generation inputs, native Journal delete confirmation, live Shopping sync and local durability, offline Explore and source-faithful draft repair. Native qualification and device acceptance remain separate. Cooking is not an eaten-food log. No activation change is made.",
-  "source_commit": "12ecb15badc5867cd1167775585a139b3a6dcf6e",
+  "summary": "Source union: Settings release notes, Insights destinations, cooking history, shared Cook steps, owned generation inputs, native Journal delete confirmation, live Shopping sync and local durability, offline Explore and source-faithful draft repair. Native qualification and device acceptance remain separate. Cooking is not an eaten-food log. No activation change is made. Dogfood menu and reorder tests use explicit debug-only saved-recipe preconditions, retaining real UI actions and assertions; native timing benefit is unverified.",
+  "source_commit": "336b159fb3d77e44ee31d6cf1ddcaf88bf72e94a",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "e636e5eccd67e31dcb8ac7f8b155c9f278bb9f6a"
+      "blob": "40d4e92814c6b89d177cb224e8f8e24410cd258e"
     },
     {
       "path": "Ate/Views/JournalViews.swift",
@@ -66,6 +66,10 @@
     {
       "path": "Ate/Views/LibraryView.swift",
       "blob": "28101234a51b76e746ff2ed90931b04a4560fcd0"
+    },
+    {
+      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
+      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
     }
   ]
 }

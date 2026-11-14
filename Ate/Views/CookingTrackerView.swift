@@ -238,6 +238,10 @@ private struct CookingDotGrid: View {
 }
 
 private struct CookingDaySheet: View {
+    @Environment(AppStore.self) private var store
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var notes: [CookedDayNote] = []
+    @State private var notesError: String?
     let date: Date
     let recipeIDs: Set<String>
     let recipes: [RecipeCard]
@@ -247,6 +251,11 @@ private struct CookingDaySheet: View {
             List {
                 Section(date.formatted(date: .complete, time: .omitted)) {
                     if recipeIDs.isEmpty { Text("Nothing recorded for this day.").foregroundStyle(.secondary) }
+                    if let notesError {
+                        Text(notesError).foregroundStyle(Theme.mutedForeground)
+                            .accessibilityIdentifier("tracker.notes.error")
+                        Button("Try again") { loadNotes() }
+                    }
                     ForEach(Array(recipeIDs).sorted(), id: \.self) { id in
                         let title = CookingTrackerPresentation.recipeTitle(for: id, recipes: recipes)
                         if CookingTrackerPresentation.isInLibrary(id, recipes: recipes) {
@@ -265,9 +274,29 @@ private struct CookingDaySheet: View {
                             Label(title, systemImage: "fork.knife")
                                 .accessibilityIdentifier("tracker.recipe." + id)
                         }
+                        ForEach(notes.filter { $0.recipeID == id }) { note in
+                            Text(note.text)
+                                .font(AteFont.body(15)).foregroundStyle(Theme.foreground)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("tracker.note." + note.id)
+                        }
                     }
                 }
             }.navigationTitle("Cooked that day").navigationBarTitleDisplayMode(.inline)
+        }
+        .task { loadNotes() }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { loadNotes() } }
+        .onChange(of: store.insightLifecycleAccountID) { _, _ in notes = []; notesError = nil; loadNotes() }
+    }
+
+    private func loadNotes() {
+        do {
+            notes = try CookedDayNotes.read(dayKey: store.journalCookingHistory.key(for: date),
+                                           recipeIDs: recipeIDs, journal: store.journalStore)
+            notesError = nil
+        } catch {
+            notes = []
+            notesError = "Your reflection notes could not be loaded. The recorded cook is unchanged."
         }
     }
 }

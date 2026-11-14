@@ -26,8 +26,10 @@ final class RecipeShoppingSyncCommitJournalTests: XCTestCase {
             let requested = FileManager.default.temporaryDirectory.appendingPathComponent(suite)
             try FileManager.default.createDirectory(at: requested, withIntermediateDirectories: false)
             root = requested.resolvingSymlinksInPath().standardizedFileURL
-            journalDirectory = root.appendingPathComponent(RecipeShoppingSyncCommitJournal.directoryName)
-            try FileManager.default.createDirectory(at: journalDirectory, withIntermediateDirectories: false)
+            let requestedJournal = root.appendingPathComponent(RecipeShoppingSyncCommitJournal.directoryName, isDirectory: true)
+            try FileManager.default.createDirectory(at: requestedJournal, withIntermediateDirectories: false)
+            journalDirectory = requestedJournal.resolvingSymlinksInPath().standardizedFileURL
+            XCTAssertEqual(journalDirectory.standardizedFileURL, journalDirectory)
             storeURL = root.appendingPathComponent("recipes.store")
             let g = try AccountWriterGate(directory: root, resetControlExists: { false })
             gate = g; lease = try g.captureWriter()

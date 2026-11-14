@@ -6,8 +6,12 @@ final class ExploreUITests: XCTestCase {
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
         app = XCUIApplication()
-        // Existing UI-test startup uses an in-memory recipe store, not a new fixture.
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
+        if name.contains("testExploreDismissPreservesSelectedCollection") {
+            app.launchArguments += ["-qaExploreRetentionSaved"]
+        } else if name.contains("testExploreDismissPreservesCollectionAndSearchQuery") {
+            app.launchArguments += ["-qaExploreRetentionSaved", "-qaExploreRetentionFavourites"]
+        }
         app.launch()
         XCTAssertTrue(app.buttons["library.explore"].waitForExistence(timeout: 20))
     }
@@ -85,8 +89,21 @@ final class ExploreUITests: XCTestCase {
         XCTAssertTrue(app.segmentedControls["servingsPicker"].waitForExistence(timeout: 10))
         shot("explore-selected-recipe-detail")
     }
+    /// Menu coverage has its own budget, not the Search retention test's budget.
+    func testExploreDismissPreservesSelectedCollection() {
+        app.buttons["libraryBrowseMenu"].tap()
+        let menu = app.collectionViews.containing(.button, identifier: "library.collection.Favourites").firstMatch
+        XCTAssertTrue(menu.waitForExistence(timeout: 5))
+        let favourite = menu.buttons.matching(NSPredicate(format: "label == %@", "Favourites"))
+        XCTAssertEqual(favourite.count, 1)
+        favourite.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Favourites"].waitForExistence(timeout: 10))
+        open(); shot("explore-menu-selected-collection")
+        app.buttons["explore.done"].tap()
+        XCTAssertTrue(app.navigationBars["Favourites"].waitForExistence(timeout: 10))
+    }
+
     func testExploreDismissPreservesCollectionAndSearchQuery() {
-        saveRecipe()
         app.tabBars.buttons["Search"].tap()
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 10))
@@ -122,12 +139,6 @@ final class ExploreUITests: XCTestCase {
                        "Submitting Search must keep the full query before opening Explore")
         shot("explore-search-query-before-library")
         app.tabBars.buttons["Library"].tap()
-        app.buttons["libraryBrowseMenu"].tap()
-        let menu = app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch
-        XCTAssertTrue(menu.waitForExistence(timeout: 5))
-        let favourite = menu.buttons.matching(NSPredicate(format: "label == %@", "Favourites"))
-        XCTAssertEqual(favourite.count, 1)
-        favourite.element(boundBy: 0).tap()
         XCTAssertTrue(app.navigationBars["Favourites"].waitForExistence(timeout: 10))
         open(); shot("explore-over-filtered-library")
         app.buttons["explore.done"].tap()

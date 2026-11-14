@@ -80,13 +80,31 @@ final class RecipeDiscoveryTests: XCTestCase {
         var incomplete = card(); incomplete.ingredients = []
         var uncertain = card(); uncertain.aiConfidence = 0.4
         let duplicate = card("fresh", "Vegetable Soup")
-        for result in [demo, incomplete, uncertain, duplicate] {
+        for (label, result) in [("mock", demo), ("empty ingredients", incomplete),
+                                ("confidence 0.4", uncertain), ("saved title", duplicate)] {
             let session = RecipeDiscoverySession()
             await request(session, result: result)
-            XCTAssertTrue(session.suggestions.isEmpty)
-            XCTAssertNotNil(session.message)
-            XCTAssertEqual(result.aiConfidence, result == uncertain ? 0.4 : 0.9, "Never inflate identification confidence")
+            XCTAssertTrue(session.suggestions.isEmpty, label)
+            XCTAssertNotNil(session.message, label)
+            XCTAssertEqual(result.aiConfidence, result == uncertain ? 0.4 : 0.9, "Never inflate identification confidence: " + label)
         }
+    }
+
+    func testEmptyGeneratedColdDishNeedsIngredientsButDoesNotImposeMinimumCountOnOtherCards() {
+        var empty = card()
+        empty.ingredients = []
+        XCTAssertTrue(RecipeQuality.issues(empty).contains("The generated recipe needs measured ingredients."))
+        XCTAssertTrue(RecipeQuality.needsInput(empty))
+        XCTAssertFalse(RecipeQuality.needsInput(card()), "The complete cold bowl must remain accepted")
+        for source in [RecipeSource.manual, .jsonLD, .imported] {
+            empty.source = source
+            XCTAssertFalse(RecipeQuality.issues(empty).contains("The generated recipe needs measured ingredients."))
+        }
+        var oneIngredient = card()
+        oneIngredient.ingredients = [.init(name: "banana", quantity: 1, unit: "pcs")]
+        oneIngredient.steps = [.init(order: 1, instruction: "Slice the banana into rounds.", timeSeconds: nil)]
+        XCTAssertFalse(RecipeQuality.issues(oneIngredient).contains("The generated recipe needs measured ingredients."),
+                       "This fix rejects an empty list, not all simple single-ingredient preparations")
     }
 
     func testSaveRechecksCurrentCollectionCookingAndAccountAndReportsWriteRefusal() async throws {

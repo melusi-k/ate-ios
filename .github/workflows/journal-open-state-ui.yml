@@ -233,12 +233,35 @@ jobs:
         if: ${{ always() && steps.build.outcome == 'success' }}
         continue-on-error: true
         run: |
+          mkdir -p files-cancel-window
+          date -u '+%Y-%m-%d %H:%M:%S' > files-cancel-window/start-utc.txt
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > files-cancel-window/collection-context.txt
+          xcrun simctl list devices booted >> files-cancel-window/collection-context.txt 2>&1 || true
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/CanonicalUpgradeUITests/testActualFilesPickerCancellationDoesNotShowImportErrorOrAddMeal \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/files-cancel-system-diagnostic.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > files-cancel-system-diagnostic.log 2>&1
+      - name: Retain optional Files invocation unified-log window
+        if: ${{ always() && steps.files_cancel_diagnostic.outcome != 'skipped' }}
+        run: |
+          # Separate window: earlier launch diagnostics finish before this optional test.
+          mkdir -p files-cancel-window
+          end_utc=$(date -u '+%Y-%m-%d %H:%M:%S')
+          printf '%s\n' "$end_utc" > files-cancel-window/end-utc.txt
+          if [ -s files-cancel-window/start-utc.txt ]; then
+            start_utc=$(cat files-cancel-window/start-utc.txt)
+            predicate='process == "Ate" OR process == "AteUITests-Runner" OR subsystem == "com.melusik.ate" OR process CONTAINS "DocumentManager" OR process CONTAINS "fileprovider"'
+            /usr/bin/log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > files-cancel-window/host-unified.log 2>&1 || \
+              echo 'Host log collection failed; see retained output.' >> files-cancel-window/collection-context.txt
+            xcrun simctl spawn "$SIM_ID" log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > files-cancel-window/simulator-unified.log 2>&1 || \
+              echo 'Simulator log collection failed; see retained output.' >> files-cancel-window/collection-context.txt
+          else
+            echo 'Optional test start marker missing; no covered log window claimed.' >> files-cancel-window/collection-context.txt
+          fi
       - name: Record Files cancellation acceptance boundary
         if: always()
         env:
@@ -296,6 +319,7 @@ jobs:
           path: |
             journal-open-state-ui.log
             files-cancel-system-diagnostic.log
+            files-cancel-window
             files-cancel-system-diagnostic-attachments
             ${{ runner.temp }}/ate-test-results/files-cancel-system-diagnostic.xcresult
             reset-composition.log

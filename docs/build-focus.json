@@ -1,11 +1,11 @@
 {
   "title": "Food Journal owner qualification plus main Settings, Insights, Cook and Journal",
-  "summary": "Source union: bound Food Journal graph/recovery/archive/import, writer-safe generation/Health/input, Settings history/tour, owned Insights, cooking history/shared steps/chrome, onboarding and native delete. Adds dormant admitted sync owner, staged merge/redo journal and upload-before-commit seam; production routing unchanged. Shipping Food Journal OFF; no backend writes. Build441 upload OPEN. Cooking is not an eaten meal; OCR parked. Native SwiftData/restart/durability/device unqualified; merge held.",
-  "source_commit": "6996b828a613da5c136e1425d316d0913ab7215e",
+  "summary": "Focus: dormant owner-scoped Food Journal sync, shipping activation OFF. Seven Library journeys use saved-only recipe preconditions; native sort, grouping, favourite, context-shopping, Move up and drag actions/assertions unchanged. Nine bounded read-only animation samples observe the existing stall; no animation cancellation or seeded action result. Workflow case list and 240/480 allowances unchanged. Diagnostic/setup-cost reduction only, not a stall fix. Native/pixels pending; merge held.",
+  "source_commit": "766e4739561ee2af348099c167df6f63a8c6896d",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "774a0b470dc56d150d992e95b6aea84bfde07552"
+      "blob": "76b70482be7bec25d893d521021cc7d397b3a703"
     },
     {
       "path": "Ate/Services/BackendService.swift",
@@ -82,6 +82,10 @@
     {
       "path": "Ate/Store/RecipeShoppingSyncStage.swift",
       "blob": "978d84e1e74a2b51207a99db4248adba35778ac8"
+    },
+    {
+      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
+      "blob": "f7f2d574d25e5c6f0b89073346a835aa64b106c1"
     }
   ]
 }

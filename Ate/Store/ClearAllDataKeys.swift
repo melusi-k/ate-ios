@@ -6,7 +6,7 @@ import Foundation
 enum ClearAllDataKeys {
     static let standard: Set<String> = [
         "ate.nutritionDiary.v1", "ate.nutritionGoals.v1", "ate.nutritionRecipeAssociations.v1", "ate.settings.v1", "ate.timerprefs.v1",
-        "ate.cookSession.v1", "ate.cook.reflectionOffer.v1", "ate.cook.completionOutbox.v1",
+        CookPlanStore.storageKey, "ate.cookSession.v1", "ate.cook.reflectionOffer.v1", "ate.cook.completionOutbox.v1",
         // Obsolete cooking-candidate key: the V6 candidate removed CookSessionToken entirely
         // (active cook session identity is central-owned AppStore state). Retained here only to
         // clean up copies an earlier candidate iteration may already have written.

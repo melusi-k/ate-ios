@@ -280,6 +280,16 @@ final class MockAuth: AuthService {
 }
 
 enum Keychain {
+    enum PersistenceError: Error { case unreadable }
+    static func loadVerified(account: String) throws -> Data? {
+        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
+            kSecAttrAccount as String: account, kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
+        var out: CFTypeRef?
+        let status = SecItemCopyMatching(q as CFDictionary, &out)
+        if status == errSecItemNotFound { return nil }
+        guard status == errSecSuccess, let bytes = out as? Data else { throw PersistenceError.unreadable }
+        return bytes
+    }
     static let service = "com.melusik.ate.auth"
     static func save(_ data: Data?, account: String) {
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,

@@ -225,8 +225,12 @@ final class AppStore {
         do {
             if cookedReflectionSessions[event.id] == nil {
                 guard try cookJournalOutbox.load().contains(event) else { throw CookedJournalReflectionError.invalidContext }
-                cookedReflectionSessions[event.id] = CookedJournalReflectionSession(event: event,
-                    reflections: CookedJournalReflectionStore(journal: cookJournalStore), outbox: cookJournalOutbox)
+                if let runtime = foodJournalRuntime {
+                    cookedReflectionSessions[event.id] = try runtime.reflectionSession(for: event.id)
+                } else {
+                    cookedReflectionSessions[event.id] = CookedJournalReflectionSession(event: event,
+                        reflections: CookedJournalReflectionStore(journal: cookJournalStore), outbox: cookJournalOutbox)
+                }
             }
             cookedReflectionPendingID = event.id
         } catch { show("Ate could not open the note for this cook. The saved cook list was not changed.", error: true) }
@@ -554,7 +558,7 @@ final class AppStore {
     }
 
     var cookTarget: CookTarget?
-    let timers = TimerCenter()
+    let timers: TimerCenter
 
     // Onboarding & auth UI
     var showOnboarding = false
@@ -573,6 +577,9 @@ final class AppStore {
     private var shopSnapshot: [String: ShoppingItem] = [:]
     private var syncTask: Task<Void, Never>?
 
+    let draftStore: DraftStore
+    let coverStore: CoverStore
+    let insightsModel: InsightsModel
     let backend: BackendService
     private let context: ModelContext?
     /// Nil until the complete canonical consumer graph is qualified for activation.
@@ -601,6 +608,17 @@ final class AppStore {
     /// (snapshot() plus finish(stillCurrent:) before the bytes are published). The
     /// archive format and capture discipline are A's; AppStore only routes. While nil,
     /// the canonical refusal stands.
+    /// Installed with the production root owner. These async transitions retire
+    /// old editors and drain the graph before any identity/import/reset change.
+    @ObservationIgnored var journalRecoverySessionTransition: ((AuthSession) async throws -> Void)?
+    @ObservationIgnored var journalSessionTransition: ((AuthSession?) async throws -> Void)?
+    @ObservationIgnored var journalArchiveImportAsync: ((Data) async throws -> Void)?
+    @ObservationIgnored var journalClearAllAsync: (() async throws -> Void)?
+    @ObservationIgnored var journalSignOutRemovingDataAsync: (() async throws -> Void)?
+    @ObservationIgnored var journalDeleteAccountAsync: (() async throws -> Void)?
+    @ObservationIgnored var journalConsumerTasks: FoodJournalConsumerTasks?
+    @ObservationIgnored private var journalSyncInFlight = false
+
     @ObservationIgnored var journalArchiveExport: (() async throws -> Data)?
     /// Unified Settings import, backed by A's standalone ArchiveStandaloneImportSession.
     /// While nil, the canonical refusal stands.
@@ -608,6 +626,8 @@ final class AppStore {
     /// Central supplies the adoption-preservation directory at composition
     /// (JournalInstallReconciliation); it joins the unified wipe's erase inventory.
     @ObservationIgnored var journalResetPreservationDirectory: URL?
+    /// Required canonical inventory. Never reconstruct personal paths from globals.
+    @ObservationIgnored var journalLocalResetInventory: JournalLocalReset?
 
     // MARK: ordinary-writer boundary seam (#245, lane 1)
 
@@ -698,6 +718,10 @@ final class AppStore {
          nutritionDiaryRepository: NutritionDiaryRepository = NutritionDiaryRepository(),
          nutritionGoalsRepository: NutritionGoalsRepository = NutritionGoalsRepository(),
          foodJournalRuntime: FoodJournalRuntime? = nil,
+         draftStore: DraftStore = .shared,
+         timers: TimerCenter? = nil,
+         coverStore: CoverStore = .shared,
+         insightsModel: InsightsModel = .shared,
          journalWriterEffect: ((() throws -> Void) throws -> Void)? = nil,
          journalWriterValidator: (() throws -> Void)? = nil,
          injectedAuth: AuthService? = nil, injectedSync: SyncService? = nil,
@@ -708,6 +732,10 @@ final class AppStore {
         self.clearCookPlansOverride = clearCookPlans
         self.context = context
         self.foodJournalRuntime = foodJournalRuntime
+        self.draftStore = draftStore
+        self.coverStore = coverStore
+        self.insightsModel = insightsModel
+        self.timers = timers ?? TimerCenter()
         // The ordinary-writer boundary is bound BEFORE load() and any launch normalization
         // writes; setting it as a property only after construction would leave the first
         // writes ungated.
@@ -768,7 +796,7 @@ final class AppStore {
         }
         recipeSnapshot = Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         shopSnapshot = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        timers.prefsProvider = { [weak self] in self?.timerPrefs ?? TimerPrefs() }
+        self.timers.prefsProvider = { [weak self] in self?.timerPrefs ?? TimerPrefs() }
         // Shares are attributed to the signed-in user when the session is still valid; otherwise anonymous.
         SupabaseBackend.userAccessToken = {
             guard let d = Keychain.load(account: "session"),
@@ -900,7 +928,7 @@ final class AppStore {
         performOrdinaryWrite(Self.ordinaryWriteFailureMessage) {
             let c = RecipeLogic.normalize(card)
             if let i = recipes.firstIndex(where: { $0.id == c.id }) { recipes[i] = c } else { recipes.insert(c, at: 0) }
-            DraftStore.shared.clear()
+            draftStore.clear()
             persistRecipes()
         }
     }
@@ -935,7 +963,7 @@ final class AppStore {
                 return false
             }
             try performOrdinaryWriteThrowing {
-                CoverStore.shared.removeFiles(recipeID: id)
+                coverStore.removeFiles(recipeID: id)
                 recipes.removeAll { $0.id == id }
                 persistRecipes()
             }
@@ -963,6 +991,10 @@ final class AppStore {
 
     @discardableResult
     func clearLibrary() async -> Bool {
+        if let reset = journalClearAllAsync {
+            do { try await reset(); return true }
+            catch { show("Account-data cleanup could not be verified. Reopen Ate before making more changes.", error: true); return false }
+        }
         if foodJournalRuntime != nil && (journalWriterEffect == nil || journalWriterValidator == nil) {
             show("The unified Journal reset is not ready. Nothing was cleared.", error: true); return false
         }
@@ -1294,7 +1326,39 @@ final class AppStore {
         recovery = r
     }
 
+    /// Ordinary async work retains this graph's actual completion and shared owner.
+    /// Do not wrap root transitions, which must remain outside the drained registry.
+    func performJournalTask<T>(_ work: @escaping @MainActor () async throws -> T) async throws -> T {
+        if let journalConsumerTasks { return try await journalConsumerTasks.run(work) }
+        return try await work()
+    }
+    func runJournalTask(_ work: @escaping @MainActor () async throws -> Void) async {
+        do {
+            if let journalConsumerTasks { try await journalConsumerTasks.run(work) }
+            else { try await work() }
+        } catch {
+            // Quiescence/cancellation is expected. No stale completion publication.
+        }
+    }
+    func validateJournalTask() throws {
+        try Task.checkCancellation()
+        try journalWriterValidator?()
+    }
+    var capturedSharedBoundary: SharedWriterBoundary {
+        foodJournalRuntime?.writerBoundary.sharedBoundary ?? .current
+    }
+
     func syncNow() async {
+        if let tasks = journalConsumerTasks {
+            guard !journalSyncInFlight else { return }
+            journalSyncInFlight = true
+            defer { journalSyncInFlight = false }
+            do { try await tasks.run { [self] in await syncNowOwned() } }
+            catch { syncState = .failed(Self.syncInterruptedMessage) }
+        } else { await syncNowOwned() }
+    }
+
+    private func syncNowOwned() async {
         guard var s = session, let sync, let auth else { syncState = .signedOut; return }
         syncState = .syncing
         // Determine account ownership before any refresh or pull can fail. If this is a switch,
@@ -1310,6 +1374,15 @@ final class AppStore {
                     s = try await auth.refresh(s)
                     guard validatePostAwaitPublish(capturedSession: capturedSession) else {
                         syncState = .failed(Self.syncInterruptedMessage); return
+                    }
+                    if let transition = journalSessionTransition {
+                        // This sync task cannot drain itself. The root owns the
+                        // transition outside this consumer and resumes on new graph.
+                        Task { [weak self] in
+                            do { try await transition(s) }
+                            catch { self?.show(Self.sessionWriteFailureMessage, error: true) }
+                        }
+                        return
                     }
                     guard setSession(s) else {
                         syncState = .failed(Self.sessionWriteFailureMessage); return
@@ -1444,6 +1517,13 @@ final class AppStore {
     /// Session can't be refreshed: sign out locally (keep recipes) and say so plainly.
     var sessionExpired = false
     func expireSession() {
+        if let transition = journalSessionTransition {
+            Task { [weak self] in
+                do { try await transition(nil) }
+                catch { self?.show(Self.sessionWriteFailureMessage, error: true) }
+            }
+            return
+        }
         guard setSession(nil) else {
             syncState = .failed(Self.sessionWriteFailureMessage); return
         }
@@ -1456,7 +1536,9 @@ final class AppStore {
     /// True only when the whole bounded effect returns successfully. False does not
     /// imply rollback: the session/keychain/watch publish may already have partly run.
     private func setSession(_ s: AuthSession?) -> Bool {
-        performOrdinaryWrite(Self.sessionWriteFailureMessage) {
+        // Activated graphs must never mutate identity inside the old writer effect.
+        guard journalSessionTransition == nil else { return false }
+        return performOrdinaryWrite(Self.sessionWriteFailureMessage) {
             if s != nil { sessionExpired = false }
             session = s
             Keychain.save(s.flatMap { try? JSONEncoder().encode($0) }, account: "session")
@@ -1488,6 +1570,10 @@ final class AppStore {
             guard validatePostAwaitPublish(capturedSession: capturedSession) else {
                 return AuthError(message: "This iPhone's data changed while signing in. Sign in again.")
             }
+            if let transition = journalSessionTransition {
+                try await transition(new)
+                return nil  // only the newly admitted graph may sync/publish
+            }
             guard setSession(new) else { return AuthError(message: Self.sessionWriteFailureMessage) }
             pendingConfirmation = nil
             BetaQA.shared.pass("A-AUTH-03", note: "Signed in as \(new.email)")
@@ -1510,6 +1596,10 @@ final class AppStore {
             if let s = try await auth.signUp(email: email, password: password) {
                 guard validatePostAwaitPublish(capturedSession: capturedSession) else {
                     return .failed(AuthError(message: "This iPhone's data changed while creating your account. Sign in instead."))
+                }
+                if let transition = journalSessionTransition {
+                    try await transition(s)
+                    return .signedIn
                 }
                 guard setSession(s) else { return .failed(AuthError(message: Self.sessionWriteFailureMessage)) }
                 show("Account created"); Task { await syncNow() }
@@ -1551,6 +1641,20 @@ final class AppStore {
     }
 
     func signOut(removeLocalData: Bool = false) async {
+        if let transition = journalSessionTransition {
+            do {
+                if removeLocalData {
+                    guard let signOut = journalSignOutRemovingDataAsync else { throw CanonicalConsumerBindingError.archiveBindingRequired }
+                    try await signOut()
+                    // Replacement owner owns subsequent UI, not this closed graph.
+                    return
+                }
+                if let session { await auth?.signOut(session) }
+                try await transition(nil)
+            } catch { show("Sign-out could not be verified. Saved data stays closed until safe startup.", error: true) }
+            return
+        }
+
         // Unified graph: refuse an unbound wipe exactly as before; bound wipes report
         // per-component partial failure honestly instead of claiming a clean wipe.
         if foodJournalRuntime != nil && removeLocalData && (journalWriterEffect == nil || journalWriterValidator == nil) {
@@ -1595,6 +1699,13 @@ final class AppStore {
 
     /// Permanently deletes the account on the server, then all local data, then shows onboarding.
     func deleteAccount() async -> AuthError? {
+        if journalSessionTransition != nil {
+            guard let delete = journalDeleteAccountAsync else {
+                return AuthError(message: "Account deletion needs the verified account reset route in this build. Your account has not been deleted.")
+            }
+            do { try await delete(); return nil }
+            catch { return AuthError(message: "Account deletion could not be verified. Reopen Ate and review account status before trying again.") }
+        }
         // Unified graph: refuse only while the writer boundary is unbound. Once bound,
         // the account is deleted server-side first; a partial local wipe is reported
         // honestly and cannot resurrect the account.
@@ -1725,6 +1836,10 @@ final class AppStore {
                             show("This iPhone's data changed while signing in. Open the link again.", error: true)
                             return
                         }
+                        if let transition = journalSessionTransition {
+                            try await transition(s)
+                            return
+                        }
                         guard setSession(s) else { return }
                         pendingConfirmation = nil; authSheet = nil
                         BetaQA.shared.authLinkSignedIn(email: s.email)
@@ -1733,6 +1848,10 @@ final class AppStore {
                     case .recovery(let s)?:
                         guard validatePostAwaitPublish(capturedSession: capturedSession) else {
                             show("This iPhone's data changed while opening the reset link. Open the link again.", error: true)
+                            return
+                        }
+                        if let transition = journalRecoverySessionTransition {
+                            try await transition(s)
                             return
                         }
                         guard setSession(s) else { return }

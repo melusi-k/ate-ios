@@ -15,7 +15,7 @@ class DraftInputOwnershipTests(unittest.TestCase):
     def test_terminal_actions_invalidate_before_persistent_or_external_effects(self):
         source = (ROOT / 'Ate/Views/AddRecipeSheet.swift').read_text()
         discard = source.split('Button("Discard", role: .destructive)', 1)[1].split('Button("Keep editing"', 1)[0]
-        self.assertLess(discard.index('invalidateInputLoads()'), discard.index('DraftStore.shared.clear()'))
+        self.assertLess(discard.index('invalidateInputLoads()'), discard.index('store.draftStore.clear()'))
         save = source.split('Button(saving ? "Saving…"', 1)[1].split('.buttonStyle', 1)[0]
         self.assertLess(save.index('invalidateInputLoads()'), save.index('onSave('))
         start = source.split('private func startGeneration()', 1)[1].split('private func generate(', 1)[0]

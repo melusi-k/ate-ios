@@ -6,7 +6,7 @@ import UserNotifications
 @main
 struct AteApp: App {
     let container: ModelContainer?
-    @State private var store: AppStore
+    @State private var store: AppStore?
 
     init() {
         UNUserNotificationCenter.current().delegate = CookPlanNotificationRouter.shared
@@ -15,6 +15,11 @@ struct AteApp: App {
         #if DEBUG
         LiveDTProbe.installIfRequested()
         #endif
+        if AppConfig.useFoodJournalProductionOwner {
+            container = nil
+            _store = State(initialValue: nil)
+            return // no ordinary constructors before production admission
+        }
         if AppConfig.isUITesting {
             for k in ["ate.timerprefs.v1", "ate.cookSession.v1", CookCompletionOutbox.defaultsKey, CookReflectionOfferPolicy.defaultsKey, CookPlanStore.storageKey] { UserDefaults.standard.removeObject(forKey: k) }
             if !ProcessInfo.processInfo.arguments.contains("-qaPreserveSettings") {
@@ -43,6 +48,7 @@ struct AteApp: App {
             st.shopping = InsightDestinationQAFixtures.shopping()
         }
         CookJournalQARoute.prepare(st)
+        DogfoodSavedRecipeQAFixtures.prepare(st)
         #else
         let st = AppStore(context: c?.mainContext)
         #endif
@@ -71,15 +77,18 @@ struct AteApp: App {
 
     /// One typed expression keeps the shared modifiers attached across DEBUG compilation.
     private var rootContent: AnyView {
+        guard let store else { return AnyView(FoodJournalApplicationRoot()) }
+
 #if DEBUG
-        CanonicalUpgradeQARoute.rootView() ?? CanonicalNutritionQARoute.rootView(store: store) ?? AnyView(RootView().modifier(CookJournalQAInspector()))
+        return CanonicalUpgradeQARoute.rootView() ?? CanonicalNutritionQARoute.rootView(store: store) ?? AnyView(RootView().modifier(CookJournalQAInspector()))
 #else
-        AnyView(RootView())
+        return AnyView(RootView())
 #endif
     }
 
     var body: some Scene {
         WindowGroup {
+            if let store {
             rootContent
                 .environment(store)
                 .preferredColorScheme(store.settings.appearance.preferredColorScheme)
@@ -97,6 +106,9 @@ struct AteApp: App {
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { a in
                     if let u = a.webpageURL { store.handle(url: u) }
                 }
+            } else {
+                FoodJournalApplicationRoot()
+            }
         }
     }
 }
@@ -104,17 +116,25 @@ struct AteApp: App {
 /// Sticky timer summary bar, one per stack; it reserves layout space so bottom actions sit above it.
 struct TimerBarInset: ViewModifier {
     @Environment(AppStore.self) private var store
+    @State private var measuredChromeHeight: CGFloat = 0
+    private var showsPushedChrome: Bool {
+        store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot)
+    }
     func body(content: Content) -> some View {
         // Applied once per NavigationStack (not per screen), so it can never show twice. Screen-level bottom
         // actions (Cook mode, Add recipe) use their own inner safeAreaInset and therefore sit directly above it.
-        content.safeAreaInset(edge: .bottom, spacing: 0) {
+        content.environment(\.pushedCookChromeHeight, showsPushedChrome ? measuredChromeHeight : 0)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             // iOS 26: at tab roots the timer lives in the tab bar's bottom accessory, so the inset only shows on pushed screens.
-            if store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot) {
+            if showsPushedChrome {
                 VStack(spacing: 0) {
                     if let session = store.cookSession { CookSessionMiniPlayer(session: session) }
                     if !store.timers.timers.isEmpty { TimerBar() }
                 }
                 .bottomChromeMeasured()
+                // Measure at the inset owner, not through navigation preferences
+                // and a global coordinate from the pre-rotation root container.
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measuredChromeHeight = $0 }
             }
         }
     }
@@ -306,11 +326,19 @@ struct BottomChromeMinYKey: PreferenceKey {
     static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) { if let n = nextValue() { value = n } }
 }
 
+private struct PushedCookChromeHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
 struct BottomChromeMinYEnvironmentKey: EnvironmentKey {
     static let defaultValue: CGFloat? = nil
 }
 
 extension EnvironmentValues {
+    var pushedCookChromeHeight: CGFloat {
+        get { self[PushedCookChromeHeightKey.self] }
+        set { self[PushedCookChromeHeightKey.self] = newValue }
+    }
     var bottomChromeMinY: CGFloat? {
         get { self[BottomChromeMinYEnvironmentKey.self] }
         set { self[BottomChromeMinYEnvironmentKey.self] = newValue }
@@ -517,7 +545,8 @@ struct RouteView: View {
                 if let runtime = store.foodJournalRuntime {
                     CanonicalNutritionDiaryView(coordinator: runtime.coordinator,
                                                goalsRepository: runtime.goalsRepository,
-                                               repair: runtime.repair, associationStore: nil)
+                                               repair: runtime.repair, associationStore: NutritionRecipeAssociationStore(
+                                                   defaults: runtime.defaults, writerBoundary: runtime.writerBoundary))
                 } else {
 #if DEBUG
                     NutritionDiaryView(repository: InsightDestinationQAFixtures.repository(prepare: false))

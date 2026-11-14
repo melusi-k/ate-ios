@@ -30,7 +30,7 @@ final class SystemSurfaceCleanup: ClearAllSystemSurfaceCleaning {
         static let writerFence = "writer gate validation"
     }
 
-    private let timers: TimerCenter
+    private let timers: TimerCenter?
     private let bridge: PhoneWatchBridge
     private let activityLog: LiveActivityLog
     private let sharedDefaults: UserDefaults
@@ -41,7 +41,7 @@ final class SystemSurfaceCleanup: ClearAllSystemSurfaceCleaning {
     /// Real dependencies are required (no fabricated empty implementation): the factory
     /// passes the live graph's timer center, bridge and log. `validateWriter` defaults
     /// to always-pass for tests and pre-activation wiring.
-    init(timers: TimerCenter,
+    init(timers: TimerCenter?,
          bridge: PhoneWatchBridge = .shared,
          activityLog: LiveActivityLog = .shared,
          sharedDefaults: UserDefaults = SharedContainer.defaults,
@@ -66,7 +66,7 @@ final class SystemSurfaceCleanup: ClearAllSystemSurfaceCleaning {
 
         // In-memory timers first: stopping each one drives its own snapshot, bridge
         // mirror, notification cancel and Live Activity end through the writer boundary.
-        for t in timers.timers { timers.stop(t.id) }
+        if let timers { for t in timers.timers { timers.stop(t.id) } }
 
         // Watch mirror: queues an empty cook context over WatchConnectivity. Delivery to
         // the watch is not verifiable from here; the watch also converges on its next

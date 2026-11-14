@@ -18,6 +18,8 @@ struct WatchRecipe: Codable, Identifiable, Hashable {
 }
 
 struct WatchShoppingItem: Codable, Identifiable, Hashable {
+    /// Local UI provenance, never server JSON or cloud write data.
+    var snapshotID: UUID? = nil
     var id: String
     var name: String
     var quantity: Double?
@@ -233,11 +235,13 @@ enum WatchTimerStore {
     static let groupID = "group.com.melusik.ate"
     static let key = "ate.watch.timer.v1"
     enum ContainerMode: String { case shared, appOnly }
-    static var mode: ContainerMode { UserDefaults(suiteName: groupID) != nil ? .shared : .appOnly }
-    static var defaults: UserDefaults { UserDefaults(suiteName: groupID) ?? .standard }
+    static var mode: ContainerMode {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupID) != nil ? .shared : .appOnly
+    }
+    static var defaults: UserDefaults { mode == .shared ? (UserDefaults(suiteName: groupID) ?? .standard) : .standard }
     /// Injected by production watch wiring before ordinary use; `.legacy` preserves
     /// today's behavior exactly (#245, lane 3).
-    static var writerBoundary: WatchWriterBoundary = .legacy
+    static var writerBoundary = WatchWriterBoundary(perform: { try $0() })
     static func save(_ t: WatchStepTimer?) {
         try? writerBoundary.withEffect {
             defaults.set(t.flatMap { try? JSONEncoder().encode($0) }, forKey: key)

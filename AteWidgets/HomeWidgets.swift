@@ -28,9 +28,11 @@ struct NoDataView: View {
 enum Heartbeat {
     static func beat(_ kind: String) {
         guard SharedContainer.isAvailable else { return }
-        var m = (SharedContainer.defaults.dictionary(forKey: WidgetKinds.heartbeatKey) as? [String: Double]) ?? [:]
-        m[kind] = Date().timeIntervalSince1970
-        SharedContainer.defaults.set(m, forKey: WidgetKinds.heartbeatKey)
+        try? SharedWriterBoundary.current.withEffect {
+            var m = (SharedContainer.defaults.dictionary(forKey: WidgetKinds.heartbeatKey) as? [String: Double]) ?? [:]
+            m[kind] = Date().timeIntervalSince1970
+            SharedContainer.defaults.set(m, forKey: WidgetKinds.heartbeatKey)
+        }
     }
 }
 

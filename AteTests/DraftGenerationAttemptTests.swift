@@ -3,10 +3,18 @@ import XCTest
 
 @MainActor
 final class DraftGenerationAttemptTests: XCTestCase {
+    @MainActor
     private final class DelayedBackend {
         var continuation: CheckedContinuation<RecipeCard, Never>?
-        func parse() async -> RecipeCard { await withCheckedContinuation { continuation = $0 } }
+        func parse(ready: () -> Void) async -> RecipeCard {
+            await withCheckedContinuation {
+                continuation = $0
+                // Readiness means complete() can resume this exact suspended call.
+                ready()
+            }
+        }
         func complete() {
+            XCTAssertNotNil(continuation, "Complete only after the delayed call installs its continuation")
             continuation?.resume(returning: RecipeCard(title: "Late recipe", source: .appleIntelligence))
             continuation = nil
         }
@@ -22,8 +30,7 @@ final class DraftGenerationAttemptTests: XCTestCase {
         let started = expectation(description: "started"), done = expectation(description: "late callback settled")
         var effects = 0
         attempt.start { token in
-            started.fulfill()
-            let card = await backend.parse()
+            let card = await backend.parse(ready: { started.fulfill() })
             // Same admission boundary used by UI callbacks and terminal cleanup.
             attempt.publish(token) { drafts.saveDraft(card); effects += 1 }
             attempt.publish(token) { effects += 1 } // preview/error/finish must also refuse
@@ -48,8 +55,7 @@ final class DraftGenerationAttemptTests: XCTestCase {
         let attempt = DraftGenerationAttempt(), backend = DelayedBackend()
         let started = expectation(description: "started"), done = expectation(description: "returned")
         attempt.start { token in
-            started.fulfill()
-            let card = await backend.parse()
+            let card = await backend.parse(ready: { started.fulfill() })
             attempt.publish(token) { drafts.saveDraft(card) }
             done.fulfill()
         }
@@ -67,8 +73,8 @@ final class DraftGenerationAttemptTests: XCTestCase {
         let oldDone = expectation(description: "old returned"), newDone = expectation(description: "new returned")
         var starts = 0, effects = 0
         attempt.start { token in
-            starts += 1; firstStarted.fulfill()
-            _ = await old.parse()
+            starts += 1
+            _ = await old.parse(ready: { firstStarted.fulfill() })
             attempt.publish(token) { effects += 100 }
             oldDone.fulfill()
         }
@@ -76,8 +82,8 @@ final class DraftGenerationAttemptTests: XCTestCase {
         await fulfillment(of: [firstStarted], timeout: 2)
         attempt.invalidate()
         attempt.start { token in
-            starts += 1; newStarted.fulfill()
-            _ = await fresh.parse()
+            starts += 1
+            _ = await fresh.parse(ready: { newStarted.fulfill() })
             attempt.publish(token) { effects += 1 }
             newDone.fulfill()
         }
@@ -96,8 +102,7 @@ final class DraftGenerationAttemptTests: XCTestCase {
         var cards: [RecipeCard] = []
         attempt.start { token in
             attempt.startChild(token) {
-                started.fulfill()
-                let card = await child.parse()
+                let card = await child.parse(ready: { started.fulfill() })
                 attempt.publish(token) { cards.append(card) }
                 done.fulfill()
             }

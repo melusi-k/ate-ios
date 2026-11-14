@@ -8,11 +8,14 @@ final class CookingHistory {
     static let shared = CookingHistory()
     private static let key = "ate.cooking.history.v1"
     private(set) var events: [String: Set<String>] = [:] // day key -> recipe IDs
+    private let writerBoundary: FoodJournalWriterBoundary
     private let calendar: Calendar
     private let defaults: UserDefaults
 
     /// Inject storage so tests can verify persistence without mutating the user's standard defaults.
-    init(calendar: Calendar = .autoupdatingCurrent, defaults: UserDefaults = .standard) {
+    init(calendar: Calendar = .autoupdatingCurrent, defaults: UserDefaults = .standard,
+         writerBoundary: FoodJournalWriterBoundary = .legacy) {
+        self.writerBoundary = writerBoundary
         self.calendar = calendar
         self.defaults = defaults
         if let data = defaults.data(forKey: Self.key),
@@ -22,14 +25,20 @@ final class CookingHistory {
     }
 
     func record(recipeID: String, date: Date = Date()) {
-        let day = key(for: date)
-        events[day, default: []].insert(recipeID)
-        save()
+        try? writerBoundary.withEffect {
+            let day = key(for: date)
+            events[day, default: []].insert(recipeID)
+            save()
+        }
     }
 
     /// Fail closed before claiming a completed cook was recorded. Unreadable prior history
     /// is preserved instead of overwritten as an empty calendar.
     func recordVerified(recipeID: String, date: Date, dayKey: String) throws {
+        try writerBoundary.withEffect { try recordHeld(recipeID: recipeID, date: date, dayKey: dayKey) }
+    }
+
+    private func recordHeld(recipeID: String, date: Date, dayKey: String) throws {
         guard !recipeID.isEmpty, date.timeIntervalSince1970.isFinite, key(for: date) == dayKey else {
             throw CookCompletionOutboxError.invalidEvent
         }
@@ -53,7 +62,7 @@ final class CookingHistory {
 
     func recipeIDs(on date: Date) -> Set<String> { events[key(for: date)] ?? [] }
     func cooked(on date: Date) -> Bool { !recipeIDs(on: date).isEmpty }
-    func clear() { events.removeAll(); save() }
+    func clear() { try? writerBoundary.withEffect { events.removeAll(); save() } }
 
     func days(in interval: DateInterval) -> Set<String> {
         Set(events.keys.filter { guard let d = date(for: $0) else { return false }; return interval.contains(d) })

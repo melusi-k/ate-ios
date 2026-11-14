@@ -74,6 +74,7 @@ final class JournalStore {
     private var writeReflectionContext: (ModelContext) throws -> Void = { try $0.save() }
     private var didInjectDeleteFailure = false
     let container: ModelContainer?
+    let mediaDirectory: URL
     private(set) var openState: JournalOpenState
     convenience init(inMemory: Bool = AppConfig.isUITesting,
                      writerBoundary: FoodJournalWriterBoundary = .legacy) {
@@ -111,9 +112,11 @@ final class JournalStore {
     /// Explicit container injection for storage tests; production uses the verified open path above.
     init(container: ModelContainer?, openState: JournalOpenState,
          writerBoundary: FoodJournalWriterBoundary = .legacy,
+         mediaDirectory: URL = JournalStore.mediaDir,
          writeReflectionContext: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
         self.writerBoundary = writerBoundary
         self.container = container
+        self.mediaDirectory = mediaDirectory
         self.openState = openState
         self.writeReflectionContext = writeReflectionContext
     }
@@ -254,7 +257,7 @@ final class JournalStore {
             } catch { ctx.rollback(); throw error }
             // Keep media until the record deletion commits. A failed cleanup leaves
             // removable orphan bytes, never a live reflection with missing media.
-            for name in media { try? FileManager.default.removeItem(at: Self.mediaURL(name)) }
+            for name in media { try? FileManager.default.removeItem(at: boundMediaURL(name)) }
             return true
         }) ?? false
     }
@@ -303,13 +306,13 @@ final class JournalStore {
             ctx.autosaveEnabled = false
             let entry = JournalEntry(createdAt: date ?? .now, prompt: title ?? "Note from Siri", text: text, state: state, source: .siri)
             entry.locationName = locationName; entry.latitude = latitude; entry.longitude = longitude
-            try FileManager.default.createDirectory(at: Self.mediaDir, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: mediaDirectory, withIntermediateDirectories: true)
             do {
                 for item in media.prefix(10) {
                     let ext = item.ext.isEmpty ? "jpg" : item.ext
                     guard ext.allSatisfy({ $0.isLetter || $0.isNumber }) else { throw ManualJournalSaveError.failed }
                     let name = "\(entry.id)-\(UUID().uuidString).\(ext)"
-                    let url = Self.mediaURL(name)
+                    let url = boundMediaURL(name)
                     try item.data.write(to: url, options: .atomic)
                     entry.mediaFileNames.append(name)
                 }
@@ -324,6 +327,9 @@ final class JournalStore {
             }
         }
     }
+    /// Bound consumers must resolve media through this store, never a global path.
+    func boundMediaURL(_ name: String) -> URL { mediaDirectory.appendingPathComponent(name) }
+
     nonisolated static var mediaDir: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("JournalMedia", isDirectory: true)
     }

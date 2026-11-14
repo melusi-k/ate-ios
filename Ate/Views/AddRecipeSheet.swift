@@ -82,7 +82,7 @@ struct AddRecipeSheet: View {
                             invalidateRepair()
                             invalidateGeneration()
                             invalidateInputLoads()
-                            DraftStore.shared.clear()
+                            store.draftStore.clear()
                             dismiss()
                         }
                         Button("Keep editing", role: .cancel) {}
@@ -93,7 +93,7 @@ struct AddRecipeSheet: View {
             invalidateRepair()
             invalidateGeneration()
             invalidateInputLoads()
-            if !loading && !hasUnsaved { DraftStore.shared.clear() }
+            if !loading && !hasUnsaved { store.draftStore.clear() }
         }
         .task {
             OnDeviceBackend.prewarm()
@@ -131,7 +131,7 @@ struct AddRecipeSheet: View {
         }
         .onChange(of: photoItem) { _, item in
             photoInputAttempt.start(load: { try? await item?.loadTransferable(type: Data.self) }) { data in
-                guard !saving else { return }
+                guard !saving, (try? store.validateJournalTask()) != nil else { return }
                 imageData = data
             }
         }
@@ -310,7 +310,7 @@ struct AddRecipeSheet: View {
                 guard !saving, let d = draft else { return }
                 invalidateInputLoads()
                 saving = true                       // P0: one save per draft; double taps are ignored
-                DraftStore.shared.clear()           // the stored draft must not be restored (and saved again) later
+                store.draftStore.clear()           // the stored draft must not be restored (and saved again) later
                 BetaQA.shared.pass("A-EDIT-01", note: (didEdit ? "Edited and saved" : "Reviewed and saved") + " “\(d.title)”")
                 onSave(RecipeLogic.normalize(d))
                 // Record only after handing the normalized recipe to the owning save flow.
@@ -345,17 +345,17 @@ struct AddRecipeSheet: View {
                 if CoverStore.playgroundAvailable && !ProcessInfo.processInfo.arguments.contains("-qaNoPlayground") {
                     Button {
                         Task {
-                            guard let cur = draft, let name = await CoverStore.shared.generate(for: cur) else {
+                            guard let cur = draft, let name = await store.coverStore.generate(for: cur) else {
                                 store.show("Couldn't generate an image right now.", error: true); return
                             }
                             draft?.coverImage = name
                         }
                     } label: { Label("Generate cover", systemImage: "wand.and.sparkles") }
                         .buttonStyle(.ate(.secondary, height: 36)).accessibilityIdentifier("generateCover")
-                        .disabled(CoverStore.shared.isLoading(d.id))
+                        .disabled(store.coverStore.isLoading(d.id))
                 }
                 if d.coverImage != nil && d.coverImage != CoverStore.removed {
-                    Button { coverInputAttempt.invalidate(); CoverStore.shared.removeFiles(recipeID: d.id); draft?.coverImage = CoverStore.removed } label: {
+                    Button { coverInputAttempt.invalidate(); store.coverStore.removeFiles(recipeID: d.id); draft?.coverImage = CoverStore.removed } label: {
                         Label("Remove", systemImage: "xmark")
                     }.buttonStyle(.ate(.ghost, height: 36)).accessibilityIdentifier("removeCover")
                 }
@@ -366,18 +366,18 @@ struct AddRecipeSheet: View {
 
     private func setUserCover(_ img: UIImage) {
         coverInputAttempt.invalidate()
-        guard let id = draft?.id, let name = CoverStore.shared.save(img, recipeID: id, source: .userPhoto) else { return }
+        guard (try? store.validateJournalTask()) != nil, let id = draft?.id, let name = store.coverStore.save(img, recipeID: id, source: .userPhoto) else { return }
         draft?.coverImage = name
     }
 
     /// Picks the initial cover for a fresh draft (async; saving never waits for it).
     private func chooseInitialCover(for card: RecipeCard) {
         if mode == .image, let d = imageData, let img = UIImage(data: d) {
-            draft?.coverImage = CoverStore.shared.save(img, recipeID: card.id, source: .userPhoto)
+            draft?.coverImage = store.coverStore.save(img, recipeID: card.id, source: .userPhoto)
             return
         }
         Task {
-            guard let res = await CoverStore.shared.resolve(card) else { return }
+            guard let res = await store.coverStore.resolve(card) else { return }
             if draft?.id == card.id, draft?.coverImage == nil {
                 draft?.coverImage = res.file
                 if let u = res.imageURL { draft?.imageURL = u }
@@ -428,12 +428,12 @@ struct AddRecipeSheet: View {
 
     /// A-CREATE-05: the app was closed mid-generation (or with an unsaved card) last time.
     private func restoreInterrupted() {
-        if let c = DraftStore.shared.draft, store.recipe(c.id) != nil {
-            DraftStore.shared.clear()   // P0: this draft was already saved; restoring it made duplicate copies
-        } else if let c = DraftStore.shared.draft {
+        if let c = store.draftStore.draft, store.recipe(c.id) != nil {
+            store.draftStore.clear()   // P0: this draft was already saved; restoring it made duplicate copies
+        } else if let c = store.draftStore.draft {
             draft = c; store.show("Restored your unsaved card")
             BetaQA.shared.pass("A-CREATE-05", note: "Restored unsaved draft “\(c.title)” after relaunch")
-        } else if let p = DraftStore.shared.pending {
+        } else if let p = store.draftStore.pending {
             if let m = Mode(rawValue: p.mode) { mode = m }
             switch mode {
             case .link: link = p.text
@@ -502,8 +502,13 @@ struct AddRecipeSheet: View {
         let request = ParseRequest(mode: .rewrite, text: mode == .prompt ? prompt : nil,
             currentRecipe: original, repairQuality: true)
         repairAttempt.start(operation: {
-            try await store.backend.parseRecipe(request)
+            try await store.performJournalTask {
+                let result = try await store.backend.parseRecipe(request)
+                try store.validateJournalTask()
+                return result
+            }
         }, apply: { result in
+            try store.validateJournalTask()
             // Admission has already been rechecked after await. Also refuse
             // edits made during repair before any state or DraftStore write.
             guard draft == original else {
@@ -513,7 +518,7 @@ struct AddRecipeSheet: View {
             draft = repaired
             didEdit = false
             confirmedDraft = false
-            DraftStore.shared.saveDraft(repaired)
+            store.draftStore.saveDraft(repaired)
         }, failed: { error in
             repairError = error.localizedDescription
         }, finished: {
@@ -540,6 +545,10 @@ struct AddRecipeSheet: View {
     }
 
     private func generate(token: UUID) async {
+        await store.runJournalTask { await generateOwned(token: token) }
+    }
+
+    private func generateOwned(token: UUID) async {
         // The UI disables generation while loading, but keep the lifecycle safe against rapid or programmatic duplicate taps.
         guard !loading else { return }
         if store.settings.onDeviceOnly {
@@ -582,19 +591,23 @@ struct AddRecipeSheet: View {
                 let rest = Array(dishes.dropFirst())
                 let base = req
                 generationAttempt.startChild(token) {
-                    var saved = 0
-                    for d in rest {
-                        guard generationAttempt.isCurrent(token) else { return }
-                        var r = base; r.text = d
-                        if var c = try? await store.backend.parseRecipe(r) {
-                            guard generationAttempt.isCurrent(token) else { return }
-                            c.origin = .photo
-                            store.add(RecipeLogic.normalize(c))
-                            saved += 1
+                    await store.runJournalTask {
+                        var saved = 0
+                        for d in rest {
+                            guard generationAttempt.isCurrent(token), (try? store.validateJournalTask()) != nil else { return }
+                            var r = base; r.text = d
+                            if var c = try? await store.backend.parseRecipe(r) {
+                                try store.validateJournalTask()
+                                guard generationAttempt.isCurrent(token), (try? store.validateJournalTask()) != nil else { return }
+                                c.origin = .photo
+                                store.add(RecipeLogic.normalize(c))
+                                saved += 1
+                            }
                         }
-                    }
-                    generationAttempt.publish(token) {
-                        if saved > 0 { store.show("Saved \(saved) more card\(saved == 1 ? "" : "s") from the spread") }
+                        guard (try? store.validateJournalTask()) != nil else { return }
+                        generationAttempt.publish(token) {
+                            if saved > 0 { store.show("Saved \(saved) more card\(saved == 1 ? "" : "s") from the spread") }
+                        }
                     }
                 }
             }
@@ -603,8 +616,11 @@ struct AddRecipeSheet: View {
         loading = true
         error = nil; socialError = nil; socialReason = nil
         live = nil
-        OnDeviceBackend.partialSink = { p in _ = generationAttempt.publish(token) { live = p } }
-        DraftStore.shared.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""),
+        OnDeviceBackend.partialSink = { p in
+            guard (try? store.validateJournalTask()) != nil else { return }
+            _ = generationAttempt.publish(token) { live = p }
+        }
+        store.draftStore.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""),
                                 imageData: recoveryImageData)
         // Keep pending input on failure or while asking the user to identify an uncertain dish.
         // DraftStore.saveDraft clears it on success; Cancel/Discard clears it explicitly.
@@ -617,7 +633,8 @@ struct AddRecipeSheet: View {
         do {
             let started = Date()
             var card = try await store.backend.parseRecipe(req)
-            guard generationAttempt.isCurrent(token) else { return }
+            try store.validateJournalTask()
+            guard generationAttempt.isCurrent(token), (try? store.validateJournalTask()) != nil else { return }
             diagnostic?.mark(.backendReturned)
             card.origin = mode == .link ? .link : (mode == .image ? .photo : .prompt)
             if mode == .link, let u = URL(string: link.trimmingCharacters(in: .whitespaces)) { card.sourceURL = SocialLinks.clean(u).absoluteString }
@@ -637,7 +654,7 @@ struct AddRecipeSheet: View {
             draft = normalized
             diagnostic?.mark(.draftAssigned)
             confirmedDraft = false
-            if let d = draft { chooseInitialCover(for: d); DraftStore.shared.saveDraft(d) }
+            if let d = draft { chooseInitialCover(for: d); store.draftStore.saveDraft(d) }
             editing = false
             dishQuestion = nil; dishAnswer = ""; spreadPicks = []
             let src = "source \(card.source) in \(Int(Date().timeIntervalSince(started) * 1000)) ms"
@@ -650,25 +667,25 @@ struct AddRecipeSheet: View {
             case .prompt: BetaQA.shared.pass("A-CREATE-04", note: "Prompt → card, \(src)")
             }
         } catch let e as SocialCaptionError {
-            guard generationAttempt.isCurrent(token) else { return }
+            guard generationAttempt.isCurrent(token), (try? store.validateJournalTask()) != nil else { return }
             diagnostic?.mark(.generationFailed)
             socialError = e.platform
             socialReason = e.reason
             BetaQA.shared.pass("A-CREATE-02", note: "No caption on \(e.platform): friendly Prompt offer shown")
             Haptics.warning()
         } catch let e as PhotoNeedsDishError {
-            guard generationAttempt.isCurrent(token) else { return }
+            guard generationAttempt.isCurrent(token), (try? store.validateJournalTask()) != nil else { return }
             diagnostic?.mark(.dishQuestion)
             dishQuestion = e
             Haptics.warning()
         } catch is CancellationError {
-            guard generationAttempt.isCurrent(token) else { return }
+            guard generationAttempt.isCurrent(token), (try? store.validateJournalTask()) != nil else { return }
             diagnostic?.mark(.generationFailed)
             // Cancellation is a terminal attempt outcome, not a model failure. Keep the
             // persisted request so the user can retry without re-entering their input.
             self.error = Self.interruptedMessage
         } catch let e {
-            guard generationAttempt.isCurrent(token) else { return }
+            guard generationAttempt.isCurrent(token), (try? store.validateJournalTask()) != nil else { return }
             diagnostic?.mark(.generationFailed)
             let msg = (e is URLError) ? Net.friendly(e) : e.localizedDescription
             self.error = msg

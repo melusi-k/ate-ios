@@ -56,6 +56,9 @@ final class CookPlanNotifications {
     private let client: CookPlanNotificationClient
     private var tail: Task<Void, Error>?
     private var generation = 0
+    private var ownerClosed = false
+    func closeOwner() { ownerClosed = true; generation += 1; tail?.cancel() }
+    func drainOwner() async { _ = await tail?.result }
     init(client: CookPlanNotificationClient? = nil) { self.client = client ?? SystemCookPlanNotificationClient() }
 
     func permission(requestIfNeeded: Bool) async -> Permission {
@@ -71,6 +74,7 @@ final class CookPlanNotifications {
         let task = Task { @MainActor in
             defer { if token == self.generation { self.tail = nil } }
             _ = try? await previous?.value
+            guard !self.ownerClosed else { throw CancellationError() }
             try await work(token)
         }
         tail = task

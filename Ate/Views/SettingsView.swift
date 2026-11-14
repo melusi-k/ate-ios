@@ -142,7 +142,8 @@ struct SettingsView: View {
                     Section {
                         Button("Clear all", role: .destructive) { confirmClear = true }
                     } header: { Text("Your data") } footer: {
-                        Text(SettingsCopy.dataFooter(signedIn: store.session != nil))
+                        Text(store.foodJournalRuntime == nil ? SettingsCopy.dataFooter(signedIn: store.session != nil) :
+                            "Clear all removes recipes, shopping, Journal, diary, cooking history, drafts, saved media and preferences across your Ate account. Your account and subscription stay. An online sign-in is required.")
                     }
                     Section {
                         Button {
@@ -173,7 +174,8 @@ struct SettingsView: View {
                             Label("Replay intro", systemImage: "sparkles")
                         }.accessibilityIdentifier("settings.replayOnboarding")
                     } header: { Text("Tools") } footer: {
-                        Text(SettingsCopy.toolsFooter)
+                        Text(store.foodJournalRuntime == nil ? SettingsCopy.toolsFooter :
+                            "Your data export includes recipes, shopping, food diary, goals, preferences and Journal entries with their saved media. Recipe links are not supported by this archive version: export and import pause if saved links exist. Journal history stays on this iPhone and does not sync to your account.")
                     }
                     // Everyday settings end above this point. Developer and beta surfaces
                     // are grouped together at the bottom, just before About.
@@ -295,8 +297,12 @@ struct SettingsView: View {
         } message: {
             Text("New recipes, shopping items and diary entries will be added. Existing matching items stay on this iPhone. If this archive contains nutrition goals and app preferences, they replace the current ones.")
         }
-        .confirmationDialog("Clear your whole library?", isPresented: $confirmClear, titleVisibility: .visible) {
-            Button("Clear all", role: .destructive) { Task { if await store.clearLibrary() { store.show("Library cleared") } } }
+        .confirmationDialog(store.foodJournalRuntime == nil ? "Clear your whole library?" : "Clear all your Ate account data?", isPresented: $confirmClear, titleVisibility: .visible) {
+            Button("Clear all", role: .destructive) { Task { if await store.clearLibrary() { store.show(store.foodJournalRuntime == nil ? "Library cleared" : "Account data cleared") } } }
+        } message: {
+            if store.foodJournalRuntime != nil {
+                Text("This clears recipes, shopping, Journal, diary, goals, drafts, cooking history, saved media and app data across your account. Your account and subscription stay. Sign in and connect to the internet to continue.")
+            }
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
@@ -324,12 +330,18 @@ struct SettingsView: View {
     private func importSelectedData() {
         guard let data = pendingImportData else { return }
         pendingImportData = nil
-        do {
-            store.show(try store.importJSON(data).message)
-        } catch let error as AteDataArchiveError {
-            store.show(error.localizedDescription, error: true)
-        } catch {
-            store.show("That file isn’t a supported ate data export.", error: true)
+        Task { @MainActor in
+            do {
+                if let importArchive = store.journalArchiveImportAsync {
+                    try await importArchive(data)
+                } else {
+                    store.show(try store.importJSON(data).message)
+                }
+            } catch let error as AteDataArchiveError {
+                store.show(error.localizedDescription, error: true)
+            } catch {
+                store.show("Import could not be verified. Reopen Ate before making more changes.", error: true)
+            }
         }
     }
 

@@ -20,6 +20,7 @@ final class CoverStore {
     /// and a post-await validator; the defaults preserve today's behavior exactly.
     @ObservationIgnored var writerBoundary: FoodJournalWriterBoundary = .legacy
     @ObservationIgnored var validateWriter: () throws -> Void = {}
+    @ObservationIgnored var consumerTasks: FoodJournalConsumerTasks?
 
     // MARK: files
 
@@ -67,10 +68,15 @@ final class CoverStore {
     func save(_ image: UIImage, recipeID: String, source: CoverLogic.Source) -> String? {
         // One gated effect covers the whole mutation: process, remove old covers, write
         // the file and publish the cache entry.
-        try? writerBoundary.withEffect {
+        save(image, recipeID: recipeID, source: source, boundary: writerBoundary)
+    }
+
+    private func save(_ image: UIImage, recipeID: String, source: CoverLogic.Source,
+                      boundary: FoodJournalWriterBoundary) -> String? {
+        try? boundary.withEffect {
             guard let data = Self.process(image) else { return nil }
             let name = CoverLogic.fileName(for: recipeID, source: source)
-            removeFiles(recipeID: recipeID, except: name)
+            removeFiles(recipeID: recipeID, except: name, boundary: boundary)
             do { try data.write(to: Self.url(name), options: .atomic) } catch { return nil }
             cache[name] = UIImage(data: data)
             return name
@@ -78,7 +84,11 @@ final class CoverStore {
     }
 
     func removeFiles(recipeID: String, except keep: String? = nil) {
-        try? writerBoundary.withEffect {
+        removeFiles(recipeID: recipeID, except: keep, boundary: writerBoundary)
+    }
+
+    private func removeFiles(recipeID: String, except keep: String?, boundary: FoodJournalWriterBoundary) {
+        try? boundary.withEffect {
             for s in CoverLogic.Source.allCases {
                 let n = CoverLogic.fileName(for: recipeID, source: s)
                 if n == keep { continue }
@@ -98,33 +108,52 @@ final class CoverStore {
         if r.coverImage == Self.removed || image(for: r) != nil || attempted.contains(r.id) { return }
         if CoverLogic.source(ofFile: r.coverImage) == .userPhoto { return } // the photo lives on another device
         attempted.insert(r.id)
-        Task {
-            // The launch-time Playground check may not have finished yet; never decide "tile" before it has.
+        let boundary = writerBoundary
+        let validate = validateWriter
+        let operation: @MainActor () async throws -> Void = { [self] in
             if Self.playgroundStatus == "not checked" { await Self.checkPlayground() }
+            try Task.checkCancellation()
+            try validate()
             guard CoverLogic.httpsURL(r.imageURL) != nil || CoverLogic.httpsURL(r.sourceURL) != nil || shouldAutoGenerate(r) else {
                 attempted.remove(r.id); return
             }
-            if let res = await resolve(r) {
-                // Late async completion: re-prove the writer boundary after the awaits
-                // before publishing into the store; a reset in between drops the result.
-                guard (try? validateWriter()) != nil else { return }
+            if let res = await resolveOwned(r, allowGenerate: true, boundary: boundary, validate: validate) {
+                try Task.checkCancellation()
+                try validate()
                 store.setCover(r.id, file: res.file, imageURL: res.imageURL)
             }
         }
+        if let consumerTasks {
+            do { try consumerTasks.launch(operation) }
+            catch { attempted.remove(r.id) }
+        } else { Task { try? await operation() } }
     }
 
     /// Finds a cover for a recipe without a user photo: remote image → page image → Image Playground.
     func resolve(_ r: RecipeCard, allowGenerate: Bool = true) async -> (file: String, imageURL: String?)? {
+        let boundary = writerBoundary
+        let validate = validateWriter
+        if let consumerTasks {
+            return try? await consumerTasks.run { [self] in
+                await resolveOwned(r, allowGenerate: allowGenerate, boundary: boundary, validate: validate)
+            }
+        }
+        return await resolveOwned(r, allowGenerate: allowGenerate, boundary: boundary, validate: validate)
+    }
+
+    private func resolveOwned(_ r: RecipeCard, allowGenerate: Bool,
+                              boundary: FoodJournalWriterBoundary,
+                              validate: @escaping () throws -> Void) async -> (file: String, imageURL: String?)? {
         loading.insert(r.id); defer { loading.remove(r.id) }
         var imageURL = CoverLogic.httpsURL(r.imageURL)
         if imageURL == nil, let page = CoverLogic.httpsURL(r.sourceURL) { imageURL = await Self.findPageImage(page) }
         if let u = imageURL, let img = await Self.download(u) {
             // Epoch re-check after the network await: never write a cover fetched for a
             // store state that a reset or account change has since replaced.
-            guard (try? validateWriter()) != nil else { return nil }
-            if let name = save(img, recipeID: r.id, source: .pageImage) { return (name, u.absoluteString) }
+            guard !Task.isCancelled, (try? validate()) != nil else { return nil }
+            if let name = save(img, recipeID: r.id, source: .pageImage, boundary: boundary) { return (name, u.absoluteString) }
         }
-        if allowGenerate, shouldAutoGenerate(r), let name = await generate(for: r) { return (name, nil) }
+        if allowGenerate, shouldAutoGenerate(r), let name = await generateOwned(for: r, boundary: boundary, validate: validate) { return (name, nil) }
         return nil
     }
 
@@ -180,10 +209,23 @@ final class CoverStore {
 
     /// Generates an illustration from the title + main ingredients. Returns nil on any error.
     func generate(for r: RecipeCard) async -> String? {
-        // The attempted marker is a mutation and goes through the writer boundary.
-        try? writerBoundary.withEffect {
-            UserDefaults.standard.set(true, forKey: "ate.cover.gen.\(r.id)")
+        let boundary = writerBoundary
+        let validate = validateWriter
+        if let consumerTasks {
+            return try? await consumerTasks.run { [self] in
+                await generateOwned(for: r, boundary: boundary, validate: validate)
+            }
         }
+        return await generateOwned(for: r, boundary: boundary, validate: validate)
+    }
+
+    private func generateOwned(for r: RecipeCard, boundary: FoodJournalWriterBoundary,
+                               validate: @escaping () throws -> Void) async -> String? {
+        guard !Task.isCancelled, (try? validate()) != nil else { return nil }
+        // The attempted marker is a mutation and goes through the writer boundary.
+        guard (try? boundary.withEffect {
+            UserDefaults.standard.set(true, forKey: "ate.cover.gen.\(r.id)")
+        }) != nil else { return nil }
         #if canImport(ImagePlayground)
         if #available(iOS 18.4, *) {
             let wasLoading = loading.contains(r.id)
@@ -196,8 +238,8 @@ final class CoverStore {
                 for try await img in creator.images(for: [.text(text)], style: style, limit: 1) {
                     // Epoch re-check after the generator await: a cover produced for a
                     // pre-reset state is dropped, never written.
-                    guard (try? validateWriter()) != nil else { return nil }
-                    return save(UIImage(cgImage: img.cgImage), recipeID: r.id, source: .generated)
+                    guard !Task.isCancelled, (try? validate()) != nil else { return nil }
+                    return save(UIImage(cgImage: img.cgImage), recipeID: r.id, source: .generated, boundary: boundary)
                 }
             } catch { return nil }
         }

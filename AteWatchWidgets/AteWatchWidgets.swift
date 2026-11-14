@@ -45,6 +45,7 @@ struct TimerWidgetView: View {
 
 @main
 struct AteWatchWidgets: Widget {
+    init() { WatchTimerStore.writerBoundary = WatchWriterBoundary(perform: { try $0() }) }
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "ate.watch.timer", provider: TimerProvider()) { TimerWidgetView(entry: $0) }
             .configurationDisplayName("ate timer")

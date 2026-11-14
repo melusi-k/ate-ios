@@ -113,17 +113,46 @@ final class AccountWriterGate: ClearAllWriterGating {
         defer { activeEffectLease = nil }
         return try effect()
     }
+    func usesControlDirectory(_ candidate: URL) -> Bool { candidate == directory }
+
+    /// Raw startup recovery uses the SAME control root and held account flock.
+    /// Ordinary archive admission deliberately refuses unresolved transactions, so
+    /// recovery must run before constructing that ordinary boundary.
+    func withArchiveRecoveryLease<T>(_ lease: UUID, _ work: (POSIXArchiveWriterLease) throws -> T) throws -> T {
+        try withWriterEffect(lease) {
+            let archive = try POSIXArchiveWriterLease(nestedDirectory: directory)
+            defer { archive.release() }
+            return try work(archive)
+        }
+    }
+
+    /// A retained graph may revoke only its original epoch. A stale graph cannot
+    /// cancel a newer owner's writers, even for the same account identity.
+    @discardableResult
+    func invalidateWriters(expectedLease: UUID) throws -> UUID {
+        guard resetFD == nil else { throw Error.resetPending }
+        guard activeEffectLease == nil else { throw Error.busy }
+        let fd = try lock(); defer { unlock(fd) }
+        guard try readEpoch() == expectedLease else { throw Error.staleLease }
+        try SharedNotificationSubmission.requireDrained(directory: directory)
+        let replacement = UUID()
+        try saveEpoch(replacement)
+        return replacement
+    }
+
     /// Explicit auth lifecycle binding must call this BEFORE a new session graph can
     /// publish. Invalidates same-owner logout/relogin work, not just account switches.
     func invalidateWriters() throws {
         guard resetFD == nil else { throw Error.resetPending }
         let fd = try lock(); defer { unlock(fd) }
+        try SharedNotificationSubmission.requireDrained(directory: directory)
         try saveEpoch(UUID())
     }
     func acquireResetGate() throws {
         guard resetFD == nil else { throw Error.busy }
         let fd = try lock()
         do {
+            try SharedNotificationSubmission.requireDrained(directory: directory)
             let epoch = UUID()
             try saveEpoch(epoch)
             resetFD = fd

@@ -107,7 +107,7 @@ struct RecipeDetailView: View {
                             .accessibilityIdentifier("editButton")
                         if CoverStore.playgroundAvailable && !ProcessInfo.processInfo.arguments.contains("-qaNoPlayground") {
                             Button { Task { await generateCover(recipe) } } label: { Label("Generate cover", systemImage: "wand.and.sparkles") }
-                                .disabled(CoverStore.shared.isLoading(recipe.id))
+                                .disabled(store.coverStore.isLoading(recipe.id))
                                 .accessibilityIdentifier("generateCoverMenu")
                         }
                         Button(role: .destructive) { confirmDelete = true } label: { Label("Delete", systemImage: "trash") }
@@ -194,7 +194,7 @@ struct RecipeDetailView: View {
 
     /// Image Playground cover on demand (replaces a web image or tile, never a user photo without asking: the menu is explicit).
     private func generateCover(_ recipe: RecipeCard) async {
-        guard let name = await CoverStore.shared.generate(for: recipe) else {
+        guard let name = await store.coverStore.generate(for: recipe) else {
             store.show("Couldn't generate a cover right now.", error: true); return
         }
         store.setCover(recipe.id, file: name, imageURL: nil)

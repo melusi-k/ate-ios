@@ -1209,37 +1209,70 @@ final class AteUITests: XCTestCase {
         }
     }
 
+    // Library actions are independent journeys. No test has to traverse every
+    // native popup before reaching its assertion, and a failure identifies the
+    // actual operation rather than a late step in a cumulative tour.
     func test28_GroupSortAndMenus() {
-        launch()
-        addNamed("Zesty tacos")
-        addNamed("Apple crumble")
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedRecipesForGroupSort"])
         pick("sortMenu", "A–Z")
         let a = text("Apple crumble"), z = text("Zesty tacos")
         wait(a)
         XCTAssertLessThan(a.frame.minY, z.frame.minY, "A–Z order")
         shot("library-sort-az")
+    }
+
+    func test28_GroupRecentlyAdded() {
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedAppleForGroup"])
         pick("groupByMenu", "Recently added")
         wait(app.descendants(matching: .any)["section.Today"].firstMatch, 3)
         shot("library-group-added")
+    }
+
+    func test28_GroupCookTime() {
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedAppleForGroup"])
         pick("groupByMenu", "Cook time")
         wait(app.descendants(matching: .any)["section.Under 30 min"].firstMatch, 3)
         shot("library-group-cooktime")
+        // Preserve the original transition out of grouping too.
         pick("groupByMenu", "None")
-        // leading swipe: favourite + add to list
+    }
+
+    func test28_FavouriteSwipeAndSort() {
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedRecipesForFavourite"])
+        let a = text("Apple crumble")
         a.swipeRight()
         wait(app.buttons["Favourite"].firstMatch, 3)
         shot("library-swipe-leading")
         app.buttons["Favourite"].firstMatch.tap()
         wait(text("Added to Favourites"), 3)
         pick("sortMenu", "Favourites first")
-        // context menu with preview
-        z.press(forDuration: 1.2)
+        XCTAssertLessThan(text("Apple crumble").frame.minY, text("Zesty tacos").frame.minY,
+                          "Favourite must sort ahead of the newer non-favourite")
+    }
+
+    func test28_ContextMenuAddsShoppingAndShowsFeedback() {
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedZestyForContext"])
+        text("Zesty tacos").press(forDuration: 1.2)
         wait(app.buttons["Cook"], 3)
         XCTAssertTrue(app.buttons["Share"].exists)
         XCTAssertTrue(app.buttons["Add to shopping list"].exists)
         shot("library-context-menu-full")
         app.buttons["Add to shopping list"].tap()
-        wait(text("Added to your shopping list"), 3)
+        let feedback = text("Added to your shopping list")
+        let appeared = feedback.waitForExistence(timeout: 3)
+        // Capture after the observation, immediately before its assertion. Do
+        // not spend the toast's short visible lifetime taking diagnostics first.
+        shot("library-context-shopping-feedback-assertion")
+        let evidence = XCTAttachment(string: app.debugDescription)
+        evidence.name = "library-context-shopping-feedback-assertion-AX"
+        evidence.lifetime = .keepAlways
+        add(evidence)
+        XCTAssertTrue(appeared, "Context-menu Add must show Added to your shopping list within 3 seconds")
     }
 
     func test30_SessionExpiryAndAccountSwitch() {
@@ -1280,9 +1313,8 @@ final class AteUITests: XCTestCase {
     }
 
     func test29_ReorderMyOrder() {
-        launch()
-        addNamed("First dish")
-        addNamed("Second dish")
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedRecipesForDogfoodReorder"])
         pick("sortMenu", "My order")
         let first = text("First dish"), second = text("Second dish")
         wait(first)
@@ -1295,9 +1327,18 @@ final class AteUITests: XCTestCase {
         sleep(1)
         XCTAssertLessThan(text("First dish").frame.minY, text("Second dish").frame.minY, "moved up")
         shot("library-reordered")
-        // drag (best effort in the simulator)
-        text("First dish").press(forDuration: 1.0, thenDragTo: text("Second dish"))
-        sleep(1)
+    }
+
+    func test29_DragMyOrder() {
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedRecipesForDogfoodReorder"])
+        pick("sortMenu", "My order")
+        let first = text("First dish"), second = text("Second dish")
+        wait(first)
+        XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
+        // Drag remains a separate best-effort capture, exactly as before. The
+        // accessible Move up journey is asserted independently above.
+        second.press(forDuration: 1.0, thenDragTo: first)
         shot("library-reorder-drag")
     }
 

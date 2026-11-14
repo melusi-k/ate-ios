@@ -61,7 +61,7 @@ begin
     where user_id = new.user_id for share;
   if new.data_generation <> current_generation then
     raise exception 'Account data was cleared; discard old local data and fetch a fresh snapshot'
-      using errcode = '40001';
+      using errcode = 'PT409';
   end if;
   return new;
 end $$;
@@ -90,7 +90,7 @@ begin
     where user_id = owner_id for share;
   if p_caller_generation <> current_generation then
     raise exception 'Account data was cleared; discard old local data and fetch a fresh snapshot'
-      using errcode = '40001';
+      using errcode = 'PT409';
   end if;
   insert into public.user_recipes as r (user_id, kind, id, data, updated_at, deleted, data_generation)
   values (owner_id, p_kind, p_id, p_data, p_updated_at, p_deleted, p_caller_generation)
@@ -131,7 +131,7 @@ begin
     from public.account_data_generation where user_id=owner_id for update;
   if previous_request=request_id then return current_generation; end if;
   if current_generation <> expected_generation then
-    raise exception 'Reset generation changed; verify status before another reset' using errcode='40001';
+    raise exception 'Reset generation changed; verify status before another reset' using errcode='PT409';
   end if;
   update public.account_data_generation set generation=generation+1,last_reset_request=request_id where user_id=owner_id
     returning generation into current_generation;

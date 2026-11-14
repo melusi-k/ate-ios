@@ -1,15 +1,31 @@
 {
-  "title": "Bundle A: Settings, Insights, Cook, generation and Journal",
-  "summary": "Focus: Settings release notes and replay tour, owned Insights destinations, recorded cooking history, shared Cook steps and measured bottom chrome, owned photo/generation inputs, onboarding navigation, and native Journal delete confirmation with retained reflection drafts. All source folds are included, not native or device acceptance. Nutrition termination awaits fresh exact-head evidence. Cooking is not an eaten-food log; Food Journal activation is not enabled by this bundle.",
-  "source_commit": "0a625c23aaacc4713c7bb3a45cc45506c2f350c7",
+  "title": "Food Journal owner qualification plus main Settings, Insights, Cook and Journal",
+  "summary": "Focus: dormant owner-scoped Food Journal sync, shipping activation OFF. Seven Library journeys use saved-only recipe preconditions; native sort, grouping, favourite, context-shopping, Move up and drag actions/assertions unchanged. Nine bounded read-only animation samples observe the existing stall; no animation cancellation or seeded action result. Workflow case list and 240/480 allowances unchanged. Diagnostic/setup-cost reduction only, not a stall fix. Native/pixels pending; merge held.",
+  "source_commit": "766e4739561ee2af348099c167df6f63a8c6896d",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "e636e5eccd67e31dcb8ac7f8b155c9f278bb9f6a"
+      "blob": "76b70482be7bec25d893d521021cc7d397b3a703"
+    },
+    {
+      "path": "Ate/Services/BackendService.swift",
+      "blob": "f2b19236e4901daa3939e6159f60e80e25fa3c7b"
+    },
+    {
+      "path": "Ate/Store/FoodJournalApplicationOwner.swift",
+      "blob": "232155a6de69be97759b03d0b96dad895f1ab974"
+    },
+    {
+      "path": "Ate/Store/FoodJournalProductionAdmission.swift",
+      "blob": "07828e344c49072ca94b16a85006fd82b9845bc2"
+    },
+    {
+      "path": "Ate/Store/FoodJournalConsumerLifecycle.swift",
+      "blob": "f38a3e7aa9bbf0ec96f9ae20a60b5e9670e3f5de"
     },
     {
       "path": "Ate/Views/JournalViews.swift",
-      "blob": "7e0375d362867507e781901318e32fde459f0e85"
+      "blob": "747fd4dbdc9db3c801d2adbbdbd2887e628379c3"
     },
     {
       "path": "Ate/Views/ProductUpdatesViews.swift",
@@ -17,7 +33,7 @@
     },
     {
       "path": "Ate/Views/InsightsView.swift",
-      "blob": "3f38057fb07a065197672fab9c6f219ea06c17f1"
+      "blob": "2ed4eccabb8d4d91b8edfeebe15bdc1b1f086d32"
     },
     {
       "path": "Ate/Views/CookingTrackerView.swift",
@@ -25,15 +41,15 @@
     },
     {
       "path": "Ate/Views/CookModeView.swift",
-      "blob": "203f46cec2a7b69e8f17a11f1c771a982441b9bc"
+      "blob": "d8f3c4c810e5f961e0791ae134ff0b7cff3b0bd1"
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
+      "blob": "61d203cbc9476d6b6ee07c69fca06e9ddcbdc4f4"
     },
     {
       "path": "Ate/Services/JournalSuggestionService.swift",
-      "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
+      "blob": "8435d202b1b3b05603566f34831477dfd500730e"
     },
     {
       "path": "Ate/Views/JournalDeleteConfirmation.swift",
@@ -45,7 +61,31 @@
     },
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "e25f2c8a67877b5a6d362d8b64a0d9a0da52f5f9"
+      "blob": "1586924a1a7e231f5f0f1aac886288800f5d4b4a"
+    },
+    {
+      "path": "Ate/Store/ArchiveStartupRecoveryBinding.swift",
+      "blob": "6c13b939e541f158214eab62931fc7c3a6a43da8"
+    },
+    {
+      "path": "Ate/Store/FoodJournalGenerationSync.swift",
+      "blob": "09911f2a383e8e9070b4982d87f752b99055b343"
+    },
+    {
+      "path": "Ate/Store/RecipeShoppingSyncCommitJournal.swift",
+      "blob": "faf96b2c06dd291898dd949a3448778bbb12e80e"
+    },
+    {
+      "path": "Ate/Store/RecipeShoppingSyncOwner.swift",
+      "blob": "e1f3dde418ae74f25c74ff6b3206ca941709bc63"
+    },
+    {
+      "path": "Ate/Store/RecipeShoppingSyncStage.swift",
+      "blob": "978d84e1e74a2b51207a99db4248adba35778ac8"
+    },
+    {
+      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
+      "blob": "f7f2d574d25e5c6f0b89073346a835aa64b106c1"
     }
   ]
 }

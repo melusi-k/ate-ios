@@ -31,6 +31,22 @@ protocol BackendService {
 }
 
 enum AppConfig {
+    /// Qualification candidate only. Shipping activation stays OFF until exact-head
+    /// native production-path evidence and a separate activation decision.
+    static let foodJournalEnabled = false
+
+    /// The debug selector reaches the REAL owner, not the hermetic UITesting
+    /// graph. Release compiles no launch-argument activation path.
+    static var useFoodJournalProductionOwner: Bool {
+        foodJournalProductionOwnerSelected(arguments: ProcessInfo.processInfo.arguments)
+    }
+    static func foodJournalProductionOwnerSelected(arguments: [String]) -> Bool {
+        guard !arguments.contains("-UITesting") else { return false }
+        #if DEBUG
+        if arguments.contains("-qaFoodJournalProductionOwner") { return true }
+        #endif
+        return foodJournalEnabled
+    }
     static func string(_ key: String) -> String {
         (Bundle.main.object(forInfoDictionaryKey: key) as? String)?.trimmingCharacters(in: .whitespaces) ?? ""
     }

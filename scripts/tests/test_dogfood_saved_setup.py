@@ -9,7 +9,7 @@ class DogfoodSavedSetupTests(unittest.TestCase):
         self.assertTrue(source.startswith('#if DEBUG\n'))
         self.assertTrue(source.rstrip().endswith('#endif'))
         self.assertIn('guard AppConfig.isUITesting else { return }', source)
-        self.assertIn('guard menus || reorder else { return }', source)
+        self.assertIn('guard menus || reorder || cook else { return }', source)
         self.assertIn('store.layout = LibraryLayout()', source)
         self.assertIn('Date().timeIntervalSince1970 * 1000', source)
         self.assertIn('timeMinutes: 25', source)

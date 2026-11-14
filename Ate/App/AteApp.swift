@@ -3,6 +3,7 @@ import Combine
 import SwiftData
 import UserNotifications
 #if DEBUG
+import UIKit
 import OSLog
 #endif
 

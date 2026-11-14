@@ -1024,8 +1024,9 @@ extension CoverageUITests {
 
         // Scroll-down minimizes native tab chrome. Re-selecting Settings can
         // return its Form to the first row without expanding that chrome on the
-        // current runtime. Reset to the top once, then make one real downward
-        // Form gesture at that boundary. This is a user scroll-to-top action,
+        // current runtime. Follow re-selection with one real downward Form
+        // gesture, then verify the first section. Re-selection alone does not
+        // prove that a lazy first-row element is ready. This is a scroll-to-top action,
         // not a repeated Journal tap or a wait for an unreachable hidden tab.
         let settingsTab = app.tabBars.buttons["Settings"]
         XCTAssertTrue(settingsTab.isSelected,
@@ -1034,10 +1035,6 @@ extension CoverageUITests {
         XCTAssertTrue(settingsTab.isHittable, "The selected minimized Settings tab must be reachable")
         settingsTab.tap()
         let settingsForm = settingsContent()
-        let firstSection = settingsForm.staticTexts["Account & sync"]
-        wait(firstSection)
-        XCTAssertTrue(firstSection.isHittable,
-                      "Re-selecting Settings must return its first section before the top-boundary gesture")
         shot("82-settings-after-selected-tab-scroll-reset")
         settingsForm.swipeDown()
         shot("82-settings-tab-chrome-revealed")
@@ -1045,6 +1042,12 @@ extension CoverageUITests {
         hierarchy.name = "82-settings-after-top-boundary-scroll-hierarchy"
         hierarchy.lifetime = .keepAlways
         add(hierarchy)
+        let firstSection = settingsForm.staticTexts["accountSyncTitle"]
+        wait(firstSection)
+        XCTAssertEqual(firstSection.label, "Account & sync",
+                       "The first Settings section must retain its account and sync heading")
+        XCTAssertTrue(firstSection.isHittable,
+                      "The scroll-to-top interaction must expose the first Settings section")
         // #82 uses the current Journal root, not the historical Tracker title or
         // pushed Cooking History route. Keep every strict tab/arrival/header
         // assertion; the reveal gesture is setup, never a substitute destination.

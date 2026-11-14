@@ -13,6 +13,12 @@ final class RecipeGenerationToolTests: XCTestCase {
         [.init(order: 1, instruction: "Chop the onion and garlic.", timeSeconds: nil)]
     }
     func testGateDefaultsOffAndOnlyPromptSocialCanOptIn() {
+        // Name retained for existing required native selectors. Defaults now ON.
+#if DEBUG
+        XCTAssertEqual(RecipeGenerationToolGate.enabled, !ProcessInfo.processInfo.arguments.contains("-qaDisableRecipeGenerationTool"))
+#else
+        XCTAssertTrue(RecipeGenerationToolGate.enabled)
+#endif
         XCTAssertFalse(RecipeGenerationToolGate.applies(enabled: false, input: .prompt))
         for input in [RecipePrompt.Input.link, .photo, .screenshot, .rewrite] {
             XCTAssertFalse(RecipeGenerationToolGate.applies(enabled: true, input: input))

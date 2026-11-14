@@ -286,11 +286,11 @@ struct CookModeView: View {
                 Spacer()
                 if index < n - 1 {
                     Button("Next step") { index += 1 }
-                        .buttonStyle(.borderedProminent).controlSize(.large)
+                        .buttonStyle(.ate(.primary, height: 48))
                         .accessibilityIdentifier("cookNextStep")
                 } else {
                     Button("Finish cooking") { finish(recipe) }
-                    .buttonStyle(.borderedProminent).controlSize(.large)
+                    .buttonStyle(.ate(.primary, height: 48))
                     .accessibilityIdentifier("cookFinish")
                 }
             }

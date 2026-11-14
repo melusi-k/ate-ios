@@ -115,17 +115,25 @@ struct AteApp: App {
 /// Sticky timer summary bar, one per stack; it reserves layout space so bottom actions sit above it.
 struct TimerBarInset: ViewModifier {
     @Environment(AppStore.self) private var store
+    @State private var measuredChromeHeight: CGFloat = 0
+    private var showsPushedChrome: Bool {
+        store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot)
+    }
     func body(content: Content) -> some View {
         // Applied once per NavigationStack (not per screen), so it can never show twice. Screen-level bottom
         // actions (Cook mode, Add recipe) use their own inner safeAreaInset and therefore sit directly above it.
-        content.safeAreaInset(edge: .bottom, spacing: 0) {
+        content.environment(\.pushedCookChromeHeight, showsPushedChrome ? measuredChromeHeight : 0)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             // iOS 26: at tab roots the timer lives in the tab bar's bottom accessory, so the inset only shows on pushed screens.
-            if store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot) {
+            if showsPushedChrome {
                 VStack(spacing: 0) {
                     if let session = store.cookSession { CookSessionMiniPlayer(session: session) }
                     if !store.timers.timers.isEmpty { TimerBar() }
                 }
                 .bottomChromeMeasured()
+                // Measure at the inset owner, not through navigation preferences
+                // and a global coordinate from the pre-rotation root container.
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measuredChromeHeight = $0 }
             }
         }
     }
@@ -317,11 +325,19 @@ struct BottomChromeMinYKey: PreferenceKey {
     static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) { if let n = nextValue() { value = n } }
 }
 
+private struct PushedCookChromeHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
 struct BottomChromeMinYEnvironmentKey: EnvironmentKey {
     static let defaultValue: CGFloat? = nil
 }
 
 extension EnvironmentValues {
+    var pushedCookChromeHeight: CGFloat {
+        get { self[PushedCookChromeHeightKey.self] }
+        set { self[PushedCookChromeHeightKey.self] = newValue }
+    }
     var bottomChromeMinY: CGFloat? {
         get { self[BottomChromeMinYEnvironmentKey.self] }
         set { self[BottomChromeMinYEnvironmentKey.self] = newValue }

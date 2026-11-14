@@ -492,7 +492,7 @@ extension RootView {
                 case .search: store.searchPath = []
                 }
             }
-            store.select(new)
+            store.selectTab(new)
         })
     }
 }

@@ -258,7 +258,7 @@ final class AteUITests: XCTestCase {
     }
 
     func testCookModeCompletionRecordsCookingDay() {
-        launch()
+        launch(["-qaAccountJourneyAnimationDiagnostic"])
         addPromptRecipe()
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))

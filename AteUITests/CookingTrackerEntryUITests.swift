@@ -86,12 +86,15 @@ final class CookingTrackerEntryUITests: XCTestCase {
     }
     func testEmptyMonthSummaryFollowsCalendarAtNormalText() {
         let app = launchTracker(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
-        let summary = app.staticTexts["tracker.monthSummary"]
+        let summary = app.descendants(matching: .any)["tracker.monthSummary"].firstMatch
         XCTAssertTrue(summary.waitForExistence(timeout: 5))
-        XCTAssertEqual(summary.label, "Recorded this month: 0 cooking days · 0 distinct recipes")
+        XCTAssertEqual(summary.label, "Recorded this month: 0 days cooked · 0 recipes")
+        XCTAssertGreaterThanOrEqual(summary.frame.height, 43.99,
+                                    "Body-size summary has 12pt vertical breathing room on each side")
+        XCTAssertGreaterThanOrEqual(summary.frame.minY, app.staticTexts["tracker.displayedMonth"].frame.maxY)
         shot("tracker-month-summary-current-normal")
         app.buttons["tracker.previousMonth"].tap()
-        XCTAssertEqual(summary.label, "Recorded this month: 0 cooking days · 0 distinct recipes")
+        XCTAssertEqual(summary.label, "Recorded this month: 0 days cooked · 0 recipes")
         shot("tracker-month-summary-previous-normal")
         app.buttons["tracker.nextMonth"].tap()
         XCTAssertTrue(summary.exists)

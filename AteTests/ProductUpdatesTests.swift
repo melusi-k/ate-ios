@@ -2,6 +2,17 @@ import XCTest
 @testable import Ate
 
 final class ProductUpdatesTests: XCTestCase {
+    func testRealHostBundleContainsReadableCatalogInRequiredDirectory() throws {
+        let url = try XCTUnwrap(Bundle.main.url(forResource: "catalog", withExtension: "json",
+                                               subdirectory: "ProductUpdates"))
+        XCTAssertEqual(url.deletingLastPathComponent().lastPathComponent, "ProductUpdates")
+        let catalog = try XCTUnwrap(ProductUpdatesCatalog.load(), "Load the actual Ate host bundle, not a test fixture")
+        XCTAssertFalse(catalog.releases.isEmpty)
+        XCTAssertTrue(catalog.releases.contains { $0.id == "product-updates-introduction" })
+        XCTAssertFalse(catalog.visibleReleases(build: 445, channel: "beta").isEmpty)
+        XCTAssertFalse(catalog.visibleReleases(build: 445, channel: "release").isEmpty)
+    }
+
     private func data(_ releases: String = "[]", schema: Int = 1) -> Data {
         Data("{\"schemaVersion\":\(schema),\"releases\":\(releases)}".utf8)
     }

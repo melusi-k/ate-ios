@@ -46,6 +46,8 @@ struct AddRecipeSheet: View {
     @State private var live: RecipeStreamPreview?
     @State private var confirmedDraft = false
     @State private var repairError: String?
+    @State private var repairResult: String?
+    @State private var repairStatusRevision = 0
     @State private var repairAttempt = DraftRepairAttempt()
     @State private var generationAttempt = DraftGenerationAttempt()
     @State private var photoInputAttempt = DraftInputAttempt()
@@ -58,12 +60,17 @@ struct AddRecipeSheet: View {
     }
 
     var body: some View {
+        ScrollViewReader { reader in
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 if draft == nil { inputState } else { reviewState }
             }
             .foregroundStyle(Theme.foreground)
             .padding(20)
+        }
+        .onChange(of: repairStatusRevision) { _, _ in
+            withAnimation(Motion.anim()) { reader.scrollTo("repairStatusAnchor", anchor: .center) }
+        }
         }
         .background(Theme.background.ignoresSafeArea())
         .overlay(alignment: .top) { if let t = store.toast { ToastView(toast: t).padding(.top, 8) } }
@@ -275,26 +282,36 @@ struct AddRecipeSheet: View {
                     Text("Ate is only \(d.aiConfidence ?? 0, format: .percent.precision(.fractionLength(0))) sure this is \(d.title).").font(AteFont.body(13))
                 }
                 ForEach(RecipeQuality.issues(d), id: \.self) { Text("• " + $0).font(AteFont.body(13)) }
-                if RecipeQuality.isGenerated(d), !RecipeQuality.shortfall(d).isEmpty {
-                    Button(loading ? "Repairing draft…" : "Repair these gaps") {
-                        repairDraft()
-                    }
-                    .buttonStyle(.ate(.secondary, height: 44))
-                    .disabled(loading || saving)
-                    .accessibilityIdentifier("repairDraftQuality")
-                    Text("Repairs this draft using the listed gaps. It does not choose a different dish.")
-                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                }
-                if let repairError {
-                    Text(repairError).font(AteFont.body(13)).foregroundStyle(Theme.destructive)
-                        .accessibilityIdentifier("repairDraftError")
-                }
                 Text("Edit the card, or confirm it's right, before saving.").font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                 Button("It's right, let me save") { confirmedDraft = true }.buttonStyle(.ate(.secondary, height: 36))
                     .accessibilityIdentifier("confirmDraft")
             }
             .padding(12).frame(maxWidth: .infinity, alignment: .leading)
             .sheetCard(Theme.warm.opacity(0.5))
+        }
+        if let d = draft, RecipeQuality.isGenerated(d) {
+            VStack(alignment: .leading, spacing: 8) {
+                if !RecipeQuality.shortfall(d).isEmpty {
+                    Button(loading ? "Repairing draft…" : "Repair these gaps") { repairDraft() }
+                        .buttonStyle(.ate(.secondary, height: 44))
+                        .disabled(loading || saving)
+                        .accessibilityIdentifier("repairDraftQuality")
+                    Text("Repairs this draft using the listed gaps. It does not choose a different dish.")
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                }
+                if let repairResult {
+                    Text(repairResult).font(AteFont.body(13))
+                        .accessibilityIdentifier("repairDraftResult")
+                }
+                if let repairError {
+                    Text(repairError).font(AteFont.body(13)).foregroundStyle(Theme.destructive)
+                        .accessibilityIdentifier("repairDraftError")
+                }
+                Text(RepairFeedback.confidenceExplanation).font(AteFont.body(12))
+                    .foregroundStyle(Theme.mutedForeground)
+                    .accessibilityIdentifier("repairConfidenceExplanation")
+            }
+            .id("repairStatusAnchor")
         }
         if let n = draft?.aiNote { Text(n).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aiNote") }
         Text("Fix anything the AI got wrong, then save it to your library.")
@@ -499,6 +516,7 @@ struct AddRecipeSheet: View {
         }
         loading = true
         repairError = nil
+        repairResult = nil
         let request = ParseRequest(mode: .rewrite, text: mode == .prompt ? prompt : nil,
             currentRecipe: original, repairQuality: true)
         repairAttempt.start(operation: {
@@ -510,12 +528,17 @@ struct AddRecipeSheet: View {
                 throw BackendError(message: "Your draft changed during repair. The repair was not applied.")
             }
             let repaired = try RecipeDraftRepair.accept(result, replacing: original)
+            repairResult = RepairFeedback.accepted(original: original, repaired: repaired)
             draft = repaired
+            repairStatusRevision += 1
             didEdit = false
             confirmedDraft = false
             DraftStore.shared.saveDraft(repaired)
         }, failed: { error in
-            repairError = error.localizedDescription
+            repairError = error is CancellationError
+                ? "Repair was cancelled. Your draft is unchanged. Try again."
+                : error.localizedDescription
+            repairStatusRevision += 1
         }, finished: {
             loading = false
         })
@@ -536,7 +559,17 @@ struct AddRecipeSheet: View {
     private func startGeneration() {
         guard !loading, !saving else { return }
         invalidateInputLoads()
-        generationAttempt.start { token in await generate(token: token) }
+        generationAttempt.start(timedOut: {
+            loading = false
+            OnDeviceBackend.partialSink = nil
+            live = nil
+            error = "Generation took too long. Your input and draft are unchanged. Try again."
+            if draft != nil {
+                repairError = error
+                repairResult = nil
+                repairStatusRevision += 1
+            }
+        }) { token in await generate(token: token) }
     }
 
     private func generate(token: UUID) async {

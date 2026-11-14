@@ -90,7 +90,17 @@ final class ExploreUITests: XCTestCase {
         app.tabBars.buttons["Search"].tap()
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 10))
-        search.tap(); search.typeText("miso\n")
+        search.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5),
+                      "Search keyboard must be ready before entering the query")
+        search.typeText("miso")
+        shot("explore-search-query-before-submit")
+        XCTAssertEqual(search.value as? String, "miso",
+                       "The full Search query must land before testing retention")
+        search.typeText("\n")
+        XCTAssertEqual(search.value as? String, "miso",
+                       "Submitting Search must keep the full query before opening Explore")
+        shot("explore-search-query-before-library")
         app.tabBars.buttons["Library"].tap()
         app.buttons["libraryBrowseMenu"].tap()
         let menu = app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch

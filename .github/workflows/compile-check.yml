@@ -512,6 +512,9 @@ jobs:
         run: |
           STEP_START=$(date +%s)
           set +e
+          mkdir -p tracker-query-window
+          date -u '+%Y-%m-%d %H:%M:%S' > tracker-query-window/start-utc.txt
+          trap 'date -u "+%Y-%m-%d %H:%M:%S" > tracker-query-window/end-utc.txt' EXIT
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cooking-tracker-ui-tests.xcresult" -only-testing:AteUITests/CookingTrackerEntryUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1
           status=$?
           set -e
@@ -528,6 +531,26 @@ jobs:
           fi
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" tracker-ui.log | tail -n 30
+      - name: Retain tracker-query-window unified-log window
+        if: ${{ matrix.suite == 'account-cooking' && always() }}
+        run: |
+          mkdir -p tracker-query-window
+          if [ -s tracker-query-window/start-utc.txt ]; then
+            start_utc=$(cat tracker-query-window/start-utc.txt)
+            if [ ! -s tracker-query-window/end-utc.txt ]; then
+              date -u '+%Y-%m-%d %H:%M:%S' > tracker-query-window/end-utc.txt
+            fi
+            end_utc=$(cat tracker-query-window/end-utc.txt)
+            predicate='process == "Ate" OR process == "AteUITests-Runner" OR subsystem == "com.melusik.ate" OR process == "runningboardd" OR process == "SpringBoard" OR process == "testmanagerd" OR process == "launchd_sim"'
+            /usr/bin/log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > tracker-query-window/host-unified.log 2>&1 || \
+              echo 'Host collection failed; see retained output.' >> tracker-query-window/errors.txt
+            xcrun simctl spawn "$SIM_ID" log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > tracker-query-window/simulator-unified.log 2>&1 || \
+              echo 'Simulator collection failed; see retained output.' >> tracker-query-window/errors.txt
+          else
+            echo 'Start marker missing; no covered window claimed.' > tracker-query-window/errors.txt
+          fi
       - name: Shared navigation header regressions (#68)
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
@@ -545,6 +568,9 @@ jobs:
         run: |
           STEP_START=$(date +%s)
           set +e
+          mkdir -p cook-completion-window
+          date -u '+%Y-%m-%d %H:%M:%S' > cook-completion-window/start-utc.txt
+          trap 'date -u "+%Y-%m-%d %H:%M:%S" > cook-completion-window/end-utc.txt' EXIT
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-mode-history-ui-tests.xcresult" -only-testing:AteUITests/AteUITests/test06_CookMode -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > cook-mode-history.log 2>&1
           status=$?
           set -e
@@ -562,6 +588,26 @@ jobs:
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" cook-mode-history.log | tail -n 30
 
+      - name: Retain cook-completion-window unified-log window
+        if: ${{ matrix.suite == 'account-cooking' && always() }}
+        run: |
+          mkdir -p cook-completion-window
+          if [ -s cook-completion-window/start-utc.txt ]; then
+            start_utc=$(cat cook-completion-window/start-utc.txt)
+            if [ ! -s cook-completion-window/end-utc.txt ]; then
+              date -u '+%Y-%m-%d %H:%M:%S' > cook-completion-window/end-utc.txt
+            fi
+            end_utc=$(cat cook-completion-window/end-utc.txt)
+            predicate='process == "Ate" OR process == "AteUITests-Runner" OR subsystem == "com.melusik.ate" OR process == "runningboardd" OR process == "SpringBoard" OR process == "testmanagerd" OR process == "launchd_sim"'
+            /usr/bin/log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > cook-completion-window/host-unified.log 2>&1 || \
+              echo 'Host collection failed; see retained output.' >> cook-completion-window/errors.txt
+            xcrun simctl spawn "$SIM_ID" log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > cook-completion-window/simulator-unified.log 2>&1 || \
+              echo 'Simulator collection failed; see retained output.' >> cook-completion-window/errors.txt
+          else
+            echo 'Start marker missing; no covered window claimed.' > cook-completion-window/errors.txt
+          fi
       - name: Cook Finish above retained resume accessory
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
@@ -702,6 +748,8 @@ jobs:
           name: compile-regression-diagnostics-${{ matrix.suite }}-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
+            tracker-query-window
+            cook-completion-window
             *.log
             ${{ runner.temp }}/ate-test-results/draft-quality-repair-attachments
             ${{ runner.temp }}/ate-test-results/insights-evidence-navigation-attachments

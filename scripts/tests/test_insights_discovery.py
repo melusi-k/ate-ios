@@ -74,3 +74,17 @@ class InsightsDiscoveryContracts(unittest.TestCase):
         self.assertNotIn('distinct ', summary.split('var daysText:', 1)[1])
         tests = (ROOT / 'AteTests/CookingMonthSummaryTests.swift').read_text()
         self.assertIn('testSummaryItemsPluralizeIndependentlyWithoutChangingValues', tests)
+
+    def test_new_discovery_journey_is_selected_and_captures_uploaded_in_existing_lane(self):
+        flow = (ROOT / '.github/workflows/compile-check.yml').read_text()
+        lane = flow.split('- name: Insights evidence and contextual navigation acceptance', 1)[1].split('- name: Retain UI-test day-sheet presentation trace', 1)[0]
+        selector = '-only-testing:AteUITests/InsightsAcceptanceUITests/testExploreOpensNewSuggestionsNotLibraryAndUnavailableAIIsHonest'
+        self.assertEqual(lane.count(selector), 1)
+        self.assertIn("matrix.suite == 'presentation-creation'", lane)
+        self.assertIn('-default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480', lane)
+        self.assertIn('xcrun xcresulttool export attachments', lane)
+        self.assertIn("always() && steps.insights_acceptance.outcome != 'skipped'", lane)
+        self.assertIn('insights-evidence-navigation-attachments', lane)
+        upload = flow.split('- name: Upload test diagnostics', 1)[1]
+        self.assertIn('${{ runner.temp }}/ate-test-results/insights-evidence-navigation-attachments', upload)
+        self.assertIn('${{ runner.temp }}/ate-test-results/*.xcresult', upload)

@@ -2,6 +2,9 @@ import SwiftUI
 import Combine
 import SwiftData
 import UserNotifications
+#if DEBUG
+import OSLog
+#endif
 
 @main
 struct AteApp: App {
@@ -14,6 +17,7 @@ struct AteApp: App {
         TabBarStyle.apply()
         #if DEBUG
         LiveDTProbe.installIfRequested()
+        DogWaitPhaseDiagnostics.startIfRequested()
         #endif
         if AppConfig.isUITesting {
             for k in ["ate.timerprefs.v1", "ate.cookSession.v1", CookCompletionOutbox.defaultsKey, CookReflectionOfferPolicy.defaultsKey, CookPlanStore.storageKey] { UserDefaults.standard.removeObject(forKey: k) }
@@ -726,3 +730,57 @@ extension AppAppearance {
         switch self { case .system: return nil; case .light: return .light; case .dark: return .dark }
     }
 }
+
+#if DEBUG
+enum DogWaitPhaseDiagnostics {
+    @MainActor private static var diagnosticsStarted = false
+    private static let animationLogger = Logger(subsystem: "com.melusik.ate", category: "DogWaitPhaseDiagnostic")
+
+    /// Nine read-only samples, only in explicitly flagged Dog journeys. No test waits,
+    /// synchronization changes, menu actions, animation cancellation or cover mutation.
+    @MainActor static func startIfRequested() {
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaDogWaitPhaseDiagnostic"),
+              !diagnosticsStarted else { return }
+        diagnosticsStarted = true
+        Task { @MainActor in
+            let started = ProcessInfo.processInfo.systemUptime
+            for offset in [15.0, 25, 45, 75, 105, 135, 165, 195, 225] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - started)
+                if remaining > 0 {
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
+                }
+                guard !Task.isCancelled else { return }
+                animationLogger.notice("scheduled=\(offset, privacy: .public) elapsed=\(ProcessInfo.processInfo.systemUptime - started, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public) main-actor-heartbeat")
+                recordAnimations(offset: offset)
+            }
+        }
+    }
+
+    @MainActor private static func recordAnimations(offset: Double) {
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows).prefix(8)
+        var visited = 0, observed = 0, emitted = 0
+        func inspect(_ layer: CALayer, depth: Int) {
+            guard visited < 2048, depth < 64 else { return }
+            visited += 1
+            for key in layer.animationKeys() ?? [] {
+                guard let animation = layer.animation(forKey: key) else { continue }
+                observed += 1
+                guard emitted < 64 else { continue }
+                emitted += 1
+                // Only animation structure and numeric timing. No view labels, recipe IDs,
+                // layer names, file paths, model values or content from the animation.
+                let kind = String(describing: type(of: animation))
+                animationLogger.notice("sample=\(offset, privacy: .public) layerIndex=\(visited, privacy: .public) depth=\(depth, privacy: .public) type=\(kind, privacy: .public) duration=\(animation.duration, privacy: .public) repeatCount=\(animation.repeatCount, privacy: .public) repeatDuration=\(animation.repeatDuration, privacy: .public) speed=\(animation.speed, privacy: .public)")
+            }
+            for child in layer.sublayers ?? [] { inspect(child, depth: depth + 1) }
+        }
+        for window in windows { inspect(window.layer, depth: 0) }
+        animationLogger.notice("sample=\(offset, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public) windows=\(windows.count, privacy: .public) visited=\(visited, privacy: .public) observed=\(observed, privacy: .public) emitted=\(emitted, privacy: .public) orientation=\(windows.first?.windowScene?.interfaceOrientation.rawValue ?? 0, privacy: .public)")
+        // No animations observed does not prove all UIKit/SwiftUI animation bookkeeping idle.
+        // System-process animations and framework completion tokens are outside this scan.
+    }
+
+}
+#endif

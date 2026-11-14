@@ -406,6 +406,13 @@ final class NutritionDiaryUITests: XCTestCase {
         openDiary(app)
         openLogForm(app)
         typeAfterKeyboard(app.textFields["nutritionDiary.foodName"], in: app, surface: .logFood, "My lunch")
+        // This journey proves failed-write persistence, not keyboard occlusion.
+        // Resign the real editor keyboard before measuring the error twice; keep
+        // every write, retained-draft assertion, Cancel and actual relaunch below.
+        let returnKey = app.keyboards.buttons["return"]
+        XCTAssertTrue(returnKey.waitForExistence(timeout: 2), "The active food-name keyboard must offer Return")
+        returnKey.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), "Return must dismiss the keyboard before failed-save checks")
         let save = app.navigationBars["Log food"].buttons["nutritionDiary.save"]
         let formError = app.descendants(matching: .any)["nutritionDiary.formError"]
         for _ in 0..<2 {

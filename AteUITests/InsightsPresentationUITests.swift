@@ -462,8 +462,31 @@ final class InsightsPresentationUITests: XCTestCase {
         hub.tap()
         wait(title)
     }
-    func testSettingsReleaseNotesAndReplayableTourAtNormalText() {
+    func testSettingsRoadmapEmptyCatalogAndUnavailableVotingAtNormalText() {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
+        let settings = app.tabBars.buttons["Settings"]
+        wait(settings, 15); settings.tap()
+        wait(app.navigationBars["Settings"])
+        let roadmap = app.buttons["settings.roadmap"]
+        for _ in 0..<8 where !(roadmap.exists && roadmap.isHittable) { app.swipeUp() }
+        wait(roadmap); XCTAssertTrue(roadmap.isHittable)
+        shot("roadmap-01-settings-normal")
+        roadmap.tap()
+        wait(app.navigationBars["Roadmap"])
+        wait(any("roadmap.empty"))
+        wait(any("roadmap.votingUnavailable"))
+        XCTAssertTrue(any("roadmap.votingUnavailable").label.contains("No vote has been sent or saved"))
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "roadmap.vote.")).count, 0)
+        XCTAssertFalse(any("roadmap.unavailable").exists, "Bundled empty catalog must decode, not look corrupt")
+        XCTAssertEqual(app.navigationBars.count, 1)
+        shot("roadmap-02-honest-empty-offline-reader-normal")
+        app.navigationBars["Roadmap"].buttons["Settings"].tap()
+        wait(app.navigationBars["Settings"])
+        XCTAssertTrue(app.tabBars.buttons["Settings"].isSelected)
+    }
+
+    func testSettingsReleaseNotesAndReplayableTourAtNormalText() {
+        launch(["-qaReleaseHistory445", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
         wait(app.tabBars.buttons["Settings"], 15)
         app.tabBars.buttons["Settings"].tap()
         wait(app.navigationBars["Settings"])
@@ -473,11 +496,43 @@ final class InsightsPresentationUITests: XCTestCase {
             app.swipeUp()
         }
         wait(notes); XCTAssertTrue(notes.isHittable)
-        XCTAssertFalse(app.buttons["settings.roadmap"].exists)
+        XCTAssertTrue(app.buttons["settings.roadmap"].exists, "Roadmap reader is enabled alongside release notes")
         shot("release-notes-01-settings-normal")
         notes.tap()
         let release = app.buttons["release.product-updates-introduction"]
-        wait(release); shot("release-notes-02-list")
+        wait(release)
+        shot("release-notes-initial-ten-builds")
+        let olderBuild = app.buttons["release.build-435-TierA"]
+        XCTAssertFalse(olderBuild.exists, "Only the newest ten build rows should initially be present")
+        let showOlder = app.buttons["releases.showOlder"]
+        for _ in 0..<16 where !showOlder.isHittable { app.swipeUp() }
+        wait(showOlder); XCTAssertTrue(showOlder.isHittable)
+        showOlder.tap()
+        wait(olderBuild)
+        for _ in 0..<4 where !olderBuild.isHittable { app.swipeUp() }
+        XCTAssertTrue(olderBuild.isHittable)
+        shot("release-notes-show-older-builds")
+        for _ in 0..<16 where !release.isHittable { app.swipeDown() }
+        let currentBuild = app.buttons["release.build-445-TierA"]
+        let priorBuild = app.buttons["release.build-444-TierA"]
+        // A standalone release entry opens its own notes, not a shared combined panel.
+        for _ in 0..<5 where !currentBuild.isHittable { app.swipeUp() }
+        wait(currentBuild); wait(priorBuild)
+        XCTAssertLessThan(currentBuild.frame.minY, priorBuild.frame.minY)
+        currentBuild.tap()
+        wait(app.staticTexts["release.detail.title"])
+        XCTAssertEqual(app.staticTexts["release.detail.title"].label, "Build 445")
+        shot("release-notes-445-own-detail")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        for _ in 0..<5 where !priorBuild.isHittable { app.swipeUp() }
+        priorBuild.tap()
+        wait(app.staticTexts["release.detail.title"])
+        XCTAssertEqual(app.staticTexts["release.detail.title"].label, "Build 444")
+        shot("release-notes-444-own-detail")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        for _ in 0..<8 where !release.isHittable { app.swipeDown() }
+        XCTAssertTrue(release.isHittable)
+        shot("release-notes-02-list")
         release.tap()
         wait(app.buttons["release.whatsNew"])
         shot("release-notes-03-detail")

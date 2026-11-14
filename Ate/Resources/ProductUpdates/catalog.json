@@ -32,6 +32,4466 @@
           "placeholder": true
         }
       ]
+    },
+    {
+      "id": "build-445-TierA",
+      "title": "Build 445",
+      "version": "0.1.445",
+      "buildNumber": 445,
+      "minimumBuild": 445,
+      "channel": "all",
+      "summary": "Bundle A: Settings, Insights, Cook, generation and Journal",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Settings release notes and replay tour, owned Insights destinations, recorded cooking history, shared Cook steps and measured bottom chrome, owned photo/generation inputs, onboarding navigation, and native Journal delete confirmation with retained reflection drafts. All source folds are included, not native or device acceptance. Nutrition termination awaits fresh exact-head evidence. Cooking is not an eaten-food log; Food Journal activation is not enabled by this bundle."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-444-TierA",
+      "title": "Build 444",
+      "version": "0.1.444",
+      "buildNumber": 444,
+      "minimumBuild": 444,
+      "channel": "all",
+      "summary": "Bundle A: Settings, Insights, Cook, generation and Journal",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Settings release notes and replay tour, owned Insights destinations, recorded cooking history, shared Cook steps and measured bottom chrome, owned photo/generation inputs, onboarding navigation, and native Journal delete confirmation with retained reflection drafts. All source folds are included, not native or device acceptance. Nutrition termination awaits fresh exact-head evidence. Cooking is not an eaten-food log; Food Journal activation is not enabled by this bundle."
+        },
+        {
+          "kind": "improved",
+          "text": "Preserve single Journal navigation after explicit Settings chrome expansion"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-443-TierA",
+      "title": "Build 443",
+      "version": "0.1.443",
+      "buildNumber": 443,
+      "minimumBuild": 443,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-442-Production",
+      "title": "Build 442",
+      "version": "0.1.442",
+      "buildNumber": 442,
+      "minimumBuild": 442,
+      "channel": "all",
+      "summary": "Combined test build: Journal actions, Cook countdown and Settings tabs",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Reviewed union includes native Journal delete, Cook leaf countdown/static-row accessibility, generation/input lifetime checks, Settings root tabs and dormant Food Journal graph. Artifact-only test build, not qualified: validation lanes skipped; exact-head native gates still running. NOT API-compatible for cloud upload; local use only, do not rely on cloud sync. Food Journal activation stays OFF. Settings community row is absent. Native, AX, pixels, tracker and bottom-bars qualification remains pending."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-441-TierA",
+      "title": "Build 441",
+      "version": "0.1.441",
+      "buildNumber": 441,
+      "minimumBuild": 441,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-440-TierA",
+      "title": "Build 440",
+      "version": "0.1.440",
+      "buildNumber": 440,
+      "minimumBuild": 440,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-439-TierA",
+      "title": "Build 439",
+      "version": "0.1.439",
+      "buildNumber": 439,
+      "minimumBuild": 439,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-438-TierA",
+      "title": "Build 438",
+      "version": "0.1.438",
+      "buildNumber": 438,
+      "minimumBuild": 438,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-437-TierA",
+      "title": "Build 437",
+      "version": "0.1.437",
+      "buildNumber": 437,
+      "minimumBuild": 437,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-436-TierA",
+      "title": "Build 436",
+      "version": "0.1.436",
+      "buildNumber": 436,
+      "minimumBuild": 436,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-435-TierA",
+      "title": "Build 435",
+      "version": "0.1.435",
+      "buildNumber": 435,
+      "minimumBuild": 435,
+      "channel": "all",
+      "summary": "Same runtime as build 434, docs-only changes since (#488). The generation pipeline from #254 remains the runtime focus: source-aware context, retry repair and prompt consolidation. On-device model evaluation and Files Cancel verification remain pending. Cooking completion remains separate from eaten-food logging. #245 unified Journal activation remains off.",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-434-TierA",
+      "title": "Build 434",
+      "version": "0.1.434",
+      "buildNumber": 434,
+      "minimumBuild": 434,
+      "channel": "all",
+      "summary": "#254 generation pipeline: source-aware context, retry repair and prompt consolidation, plus terminal import failures and share retry dismissal handling from #485. This internal build includes those source changes; the on-device model evaluation below is still pending. Cooking completion remains separate from eaten-food logging. #245 unified Journal activation remains off.",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-433-TierA",
+      "title": "Build 433",
+      "version": "0.1.433",
+      "buildNumber": 433,
+      "minimumBuild": 433,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-432-TierA",
+      "title": "Build 432",
+      "version": "0.1.432",
+      "buildNumber": 432,
+      "minimumBuild": 432,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-428-TierA",
+      "title": "Build 428",
+      "version": "0.1.428",
+      "buildNumber": 428,
+      "minimumBuild": 428,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        },
+        {
+          "kind": "improved",
+          "text": "Assert Journal tab readiness and landing before route lookup"
+        },
+        {
+          "kind": "improved",
+          "text": "Preserve verified completion for unified account cleanup"
+        },
+        {
+          "kind": "improved",
+          "text": "Reanchor focus after cook-plan main integration"
+        },
+        {
+          "kind": "improved",
+          "text": "Fix cook-plan UI route through compact recipe preview"
+        },
+        {
+          "kind": "improved",
+          "text": "Journal #245: dormant integrated preparation, activation off"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-424-TierA",
+      "title": "Build 424",
+      "version": "0.1.424",
+      "buildNumber": 424,
+      "minimumBuild": 424,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        },
+        {
+          "kind": "improved",
+          "text": "Journal #245: dormant integrated preparation, activation off"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-423-TierA",
+      "title": "Build 423",
+      "version": "0.1.423",
+      "buildNumber": 423,
+      "minimumBuild": 423,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        },
+        {
+          "kind": "improved",
+          "text": "Journal #245: dormant integrated preparation, activation off"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-421-TierA",
+      "title": "Build 421",
+      "version": "0.1.421",
+      "buildNumber": 421,
+      "minimumBuild": 421,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        },
+        {
+          "kind": "improved",
+          "text": "Journal #245: dormant integrated preparation, activation off"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-419-TierA",
+      "title": "Build 419",
+      "version": "0.1.419",
+      "buildNumber": 419,
+      "minimumBuild": 419,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        },
+        {
+          "kind": "improved",
+          "text": "Journal #245: dormant integrated preparation, activation off"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-417-TierA",
+      "title": "Build 417",
+      "version": "0.1.417",
+      "buildNumber": 417,
+      "minimumBuild": 417,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-416-TierA",
+      "title": "Build 416",
+      "version": "0.1.416",
+      "buildNumber": 416,
+      "minimumBuild": 416,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-415-TierA",
+      "title": "Build 415",
+      "version": "0.1.415",
+      "buildNumber": 415,
+      "minimumBuild": 415,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        },
+        {
+          "kind": "improved",
+          "text": "This device-test candidate adds opening an existing reflection from Journal Timeline. Cooking still must not create an eaten-food entry."
+        },
+        {
+          "kind": "improved",
+          "text": "Source: unmerged PR #420, slice/legacy-reflection-navigation, commit 5047a1c6. Includes merged main through b8ce355 (same source as build 413), plus #420's Timeline reflection-detail navigation and CI/test changes. Does not include #432/#433 writer/startup work or activate the unified Journal. Not a validated beta; device acceptance is pending. Meals stay non-editable."
+        },
+        {
+          "kind": "improved",
+          "text": "Journal: explicit saved reflection detail destination"
+        },
+        {
+          "kind": "improved",
+          "text": "Journal: open reflections from the timeline in legacy mode"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-413-TierA",
+      "title": "Build 413",
+      "version": "0.1.413",
+      "buildNumber": 413,
+      "minimumBuild": 413,
+      "channel": "all",
+      "summary": "Journal navigation and cooking reflections",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "the Journal entry point, Insights and Cooking History navigation, and reflection-only cooking entries. Source inclusion is not device acceptance; cooking must not create an eaten-food log."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-412-TierA",
+      "title": "Build 412",
+      "version": "0.1.412",
+      "buildNumber": 412,
+      "minimumBuild": 412,
+      "channel": "all",
+      "summary": "Own genuine Files picker lifecycle and defer backup review until dismissal",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Own genuine Files picker lifecycle and defer backup review until dismissal"
+        },
+        {
+          "kind": "improved",
+          "text": "Cover sample provenance in portrait Health state and Library grid"
+        },
+        {
+          "kind": "improved",
+          "text": "Assert Journal moment origin remains false through recipe-sheet presentation"
+        },
+        {
+          "kind": "improved",
+          "text": "Retain sample provenance coverage at the Journal root"
+        },
+        {
+          "kind": "improved",
+          "text": "Keep typed nutrition routing on the existing injected runtime"
+        },
+        {
+          "kind": "improved",
+          "text": "Preserve injected nutrition runtime through the typed destination"
+        },
+        {
+          "kind": "improved",
+          "text": "Fix nonoptional backup metadata rendering"
+        },
+        {
+          "kind": "improved",
+          "text": "Center medium cooking completion sheet with top action buttons"
+        },
+        {
+          "kind": "improved",
+          "text": "Place Cook navigation controls in the actual bottom safe area"
+        },
+        {
+          "kind": "improved",
+          "text": "Apply owner-approved normal-text acceptance scope: remove max-AX Journal journey"
+        },
+        {
+          "kind": "improved",
+          "text": "Add dormant archive nutrition participant"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-411-TierA",
+      "title": "Build 411",
+      "version": "0.1.411",
+      "buildNumber": 411,
+      "minimumBuild": 411,
+      "channel": "all",
+      "summary": "Keep an explicit Cancel action for journal deletion",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Keep an explicit Cancel action for journal deletion"
+        },
+        {
+          "kind": "improved",
+          "text": "Restore approved failed-save contracts after main merge refresh"
+        },
+        {
+          "kind": "improved",
+          "text": "Fix Dynamic Island timer compression and long-title placement"
+        },
+        {
+          "kind": "improved",
+          "text": "Keep moment context accessible in canonical Journal detail"
+        },
+        {
+          "kind": "improved",
+          "text": "Remove duplicate Insights journal preview, preserve entitled moment picker"
+        },
+        {
+          "kind": "improved",
+          "text": "Keep Library Group and Sort choices in explicit nested menus"
+        },
+        {
+          "kind": "improved",
+          "text": "Qualify visible Settings About rows without seeking tappable text containers"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-410-TierA",
+      "title": "Build 410",
+      "version": "0.1.410",
+      "buildNumber": 410,
+      "minimumBuild": 410,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-409-TierA",
+      "title": "Build 409",
+      "version": "0.1.409",
+      "buildNumber": 409,
+      "minimumBuild": 409,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-408-TierA",
+      "title": "Build 408",
+      "version": "0.1.408",
+      "buildNumber": 408,
+      "minimumBuild": 408,
+      "channel": "all",
+      "summary": "Observe native Settings export, Cook navigation and Journal stalls",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Observe native Settings export, Cook navigation and Journal stalls"
+        },
+        {
+          "kind": "improved",
+          "text": "Bind Settings queries to the unique main-window collection"
+        },
+        {
+          "kind": "improved",
+          "text": "Scope Cook exit navigation and Journal tab query"
+        },
+        {
+          "kind": "improved",
+          "text": "Scope Add recipe heading query to its link scroll view"
+        },
+        {
+          "kind": "improved",
+          "text": "Handle identified system typing onboarding before Journal row checks"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-407-TierA",
+      "title": "Build 407",
+      "version": "0.1.407",
+      "buildNumber": 407,
+      "minimumBuild": 407,
+      "channel": "all",
+      "summary": "Allow honest no-Health reflection persistence",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Allow honest no-Health reflection persistence"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-406-TierA",
+      "title": "Build 406",
+      "version": "0.1.406",
+      "buildNumber": 406,
+      "minimumBuild": 406,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-404-TierA",
+      "title": "Build 404",
+      "version": "0.1.404",
+      "buildNumber": 404,
+      "minimumBuild": 404,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-399-TierA",
+      "title": "Build 399",
+      "version": "0.1.399",
+      "buildNumber": 399,
+      "minimumBuild": 399,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-398-TierA",
+      "title": "Build 398",
+      "version": "0.1.398",
+      "buildNumber": 398,
+      "minimumBuild": 398,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-397-TierA",
+      "title": "Build 397",
+      "version": "0.1.397",
+      "buildNumber": 397,
+      "minimumBuild": 397,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-396-TierA",
+      "title": "Build 396",
+      "version": "0.1.396",
+      "buildNumber": 396,
+      "minimumBuild": 396,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-395-TierA",
+      "title": "Build 395",
+      "version": "0.1.395",
+      "buildNumber": 395,
+      "minimumBuild": 395,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-394-TierA",
+      "title": "Build 394",
+      "version": "0.1.394",
+      "buildNumber": 394,
+      "minimumBuild": 394,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-393-TierA",
+      "title": "Build 393",
+      "version": "0.1.393",
+      "buildNumber": 393,
+      "minimumBuild": 393,
+      "channel": "all",
+      "summary": "Apply shared Journal search chrome to Timeline",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Apply shared Journal search chrome to Timeline"
+        },
+        {
+          "kind": "improved",
+          "text": "Apply rotation-qualified chrome to Journal root search"
+        },
+        {
+          "kind": "improved",
+          "text": "Extract shared Journal search chrome"
+        },
+        {
+          "kind": "improved",
+          "text": "Retain pushed hub while revealing cooking tracker"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-391-TierA",
+      "title": "Build 391",
+      "version": "0.1.391",
+      "buildNumber": 391,
+      "minimumBuild": 391,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-390-TierA",
+      "title": "Build 390",
+      "version": "0.1.390",
+      "buildNumber": 390,
+      "minimumBuild": 390,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-389-TierA",
+      "title": "Build 389",
+      "version": "0.1.389",
+      "buildNumber": 389,
+      "minimumBuild": 389,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-388-TierA",
+      "title": "Build 388",
+      "version": "0.1.388",
+      "buildNumber": 388,
+      "minimumBuild": 388,
+      "channel": "all",
+      "summary": "Restore valid tab accessory expression and braces",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Restore valid tab accessory expression and braces"
+        },
+        {
+          "kind": "improved",
+          "text": "Remove duplicated Nutrition section tail"
+        },
+        {
+          "kind": "improved",
+          "text": "Restore missing diary editing implementation"
+        },
+        {
+          "kind": "improved",
+          "text": "DEBUG-only LiveDTProbe - Darwin-notification driven window trait override for live Dynamic Type diagnostic"
+        },
+        {
+          "kind": "improved",
+          "text": "Replace goals-row Label with Image+Text so the row supports all Dynamic Type steps"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-381-TierA",
+      "title": "Build 381",
+      "version": "0.1.381",
+      "buildNumber": 381,
+      "minimumBuild": 381,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-380-TierA",
+      "title": "Build 380",
+      "version": "0.1.380",
+      "buildNumber": 380,
+      "minimumBuild": 380,
+      "channel": "all",
+      "summary": "Check timeline clearance against the pinned search drawer and bottom chrome",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Check timeline clearance against the pinned search drawer and bottom chrome"
+        },
+        {
+          "kind": "improved",
+          "text": "Fit complete journal accessory labels at accessibility text sizes"
+        },
+        {
+          "kind": "improved",
+          "text": "Keep Journal root search visible on arrival"
+        },
+        {
+          "kind": "improved",
+          "text": "Pin timeline search to an always-visible navigation drawer"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-378-TierA",
+      "title": "Build 378",
+      "version": "0.1.378",
+      "buildNumber": 378,
+      "minimumBuild": 378,
+      "channel": "all",
+      "summary": "Preserve manual Journal ownership across layout replacement",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Preserve manual Journal ownership across layout replacement"
+        },
+        {
+          "kind": "improved",
+          "text": "Preserve integrated manual Journal save errors during foundation sync"
+        },
+        {
+          "kind": "improved",
+          "text": "Preserve unique Journal popup and native scroll integration"
+        },
+        {
+          "kind": "improved",
+          "text": "Anchor Journal open-state route on the native popup target"
+        },
+        {
+          "kind": "improved",
+          "text": "Fix shadowed nutrition association state when unlinking recipe"
+        },
+        {
+          "kind": "improved",
+          "text": "Shopping: identify the field-adjacent add button for unambiguous queries"
+        },
+        {
+          "kind": "improved",
+          "text": "Explain AI availability with device-specific next steps"
+        },
+        {
+          "kind": "improved",
+          "text": "Search Results Options menu: placement-dependent trailing menu on the Search tab"
+        },
+        {
+          "kind": "improved",
+          "text": "Shopping List Options menu: consolidate list-level actions into the top bar"
+        },
+        {
+          "kind": "improved",
+          "text": "Search toward earlier Settings section before bounded fallback (#245)"
+        },
+        {
+          "kind": "improved",
+          "text": "Keep newest-first Journal timeline without non-Sendable sort key paths"
+        },
+        {
+          "kind": "improved",
+          "text": "Verify out-of-order archive rows export in ascending creation order"
+        },
+        {
+          "kind": "improved",
+          "text": "Sort copied Journal archive values without non-Sendable key paths"
+        },
+        {
+          "kind": "improved",
+          "text": "Add unactivated canonical nutrition diary view with entry editing and weekly totals (issue #179)"
+        },
+        {
+          "kind": "improved",
+          "text": "Add unactivated canonical nutrition diary controller (issue #179)"
+        },
+        {
+          "kind": "improved",
+          "text": "Add unactivated canonical nutrition diary entry draft model (issue #179)"
+        },
+        {
+          "kind": "improved",
+          "text": "Add unactivated canonical nutrition diary week totals (issue #179)"
+        },
+        {
+          "kind": "improved",
+          "text": "Reject malformed meal days consistently before canonical mutation"
+        },
+        {
+          "kind": "improved",
+          "text": "Make canonical meal boundary throwing and migration retirement durable"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-365-TierA",
+      "title": "Build 365",
+      "version": "0.1.365",
+      "buildNumber": 365,
+      "minimumBuild": 365,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-364-TierA",
+      "title": "Build 364",
+      "version": "0.1.364",
+      "buildNumber": 364,
+      "minimumBuild": 364,
+      "channel": "all",
+      "summary": "Add production-window timely Undo restore journey (#72)",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Add production-window timely Undo restore journey (#72)"
+        },
+        {
+          "kind": "improved",
+          "text": "Pad sync summary to avoid row-edge glyph clipping"
+        },
+        {
+          "kind": "improved",
+          "text": "Keep sync summary Dynamic Type accessible"
+        },
+        {
+          "kind": "improved",
+          "text": "Search tab: pin search field to always-visible navigation drawer"
+        },
+        {
+          "kind": "improved",
+          "text": "Shopping: cover Undo restore across shifted list states (#72)"
+        },
+        {
+          "kind": "improved",
+          "text": "Shopping: restore batched Undo removals in original order (#72)"
+        },
+        {
+          "kind": "improved",
+          "text": "Shopping: edit sheet, batch Undo wiring and account-change copy (#72)"
+        },
+        {
+          "kind": "improved",
+          "text": "Shopping: edit items in place and recover removals with batch Undo (#72)"
+        },
+        {
+          "kind": "improved",
+          "text": "Reorganise Settings: sync summary, AI and nutrition sections (#74)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-361-TierA",
+      "title": "Build 361",
+      "version": "0.1.361",
+      "buildNumber": 361,
+      "minimumBuild": 361,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-360-TierA",
+      "title": "Build 360",
+      "version": "0.1.360",
+      "buildNumber": 360,
+      "minimumBuild": 360,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-358-TierA",
+      "title": "Build 358",
+      "version": "0.1.358",
+      "buildNumber": 358,
+      "minimumBuild": 358,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-357-TierA",
+      "title": "Build 357",
+      "version": "0.1.357",
+      "buildNumber": 357,
+      "minimumBuild": 357,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-352-TierA",
+      "title": "Build 352",
+      "version": "0.1.352",
+      "buildNumber": 352,
+      "minimumBuild": 352,
+      "channel": "all",
+      "summary": "Sanitize UI screenshot copy names so diagnostics upload accepts them (journal open state)",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Sanitize UI screenshot copy names so diagnostics upload accepts them (journal open state)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-351-TierA",
+      "title": "Build 351",
+      "version": "0.1.351",
+      "buildNumber": 351,
+      "minimumBuild": 351,
+      "channel": "all",
+      "summary": "Assert legacy upgrade rows carry no recipe snapshots (#245)",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Assert legacy upgrade rows carry no recipe snapshots (#245)"
+        },
+        {
+          "kind": "improved",
+          "text": "Add recipe snapshot codec and additive JournalEntry storage column (#245)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-350-TierA",
+      "title": "Build 350",
+      "version": "0.1.350",
+      "buildNumber": 350,
+      "minimumBuild": 350,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-349-TierA",
+      "title": "Build 349",
+      "version": "0.1.349",
+      "buildNumber": 349,
+      "minimumBuild": 349,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-348-TierA",
+      "title": "Build 348",
+      "version": "0.1.348",
+      "buildNumber": 348,
+      "minimumBuild": 348,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-347-TierA",
+      "title": "Build 347",
+      "version": "0.1.347",
+      "buildNumber": 347,
+      "minimumBuild": 347,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-346-TierA",
+      "title": "Build 346",
+      "version": "0.1.346",
+      "buildNumber": 346,
+      "minimumBuild": 346,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-345-TierA",
+      "title": "Build 345",
+      "version": "0.1.345",
+      "buildNumber": 345,
+      "minimumBuild": 345,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-344-TierA",
+      "title": "Build 344",
+      "version": "0.1.344",
+      "buildNumber": 344,
+      "minimumBuild": 344,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-342-TierA",
+      "title": "Build 342",
+      "version": "0.1.342",
+      "buildNumber": 342,
+      "minimumBuild": 342,
+      "channel": "all",
+      "summary": "Refine acceptance check for journal prompts",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Refine acceptance check for journal prompts"
+        },
+        {
+          "kind": "improved",
+          "text": "Context scan: negated diets are not requirements; cooking times are not servings"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-341-TierA",
+      "title": "Build 341",
+      "version": "0.1.341",
+      "buildNumber": 341,
+      "minimumBuild": 341,
+      "channel": "all",
+      "summary": "Implement journal open state handling in UI",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Implement journal open state handling in UI"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-340-TierA",
+      "title": "Build 340",
+      "version": "0.1.340",
+      "buildNumber": 340,
+      "minimumBuild": 340,
+      "channel": "all",
+      "summary": "Implement FoodJournalStore for meal entry management",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Implement FoodJournalStore for meal entry management"
+        },
+        {
+          "kind": "improved",
+          "text": "Add structured meal payload model for Food Journal (#245)"
+        },
+        {
+          "kind": "improved",
+          "text": "Recoverable journal store holding meal payloads (#245)"
+        },
+        {
+          "kind": "improved",
+          "text": "Add Food Journal entry kind and day semantics to JournalEntry (#245)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-339-TierA",
+      "title": "Build 339",
+      "version": "0.1.339",
+      "buildNumber": 339,
+      "minimumBuild": 339,
+      "channel": "all",
+      "summary": "Ingredient sheet: large-only detents at accessibility text sizes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Ingredient sheet: large-only detents at accessibility text sizes"
+        },
+        {
+          "kind": "improved",
+          "text": "Ingredient sheet: open at large detent for accessibility text sizes"
+        },
+        {
+          "kind": "improved",
+          "text": "Pin current step instruction at top of ingredient sheet"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-338-TierA",
+      "title": "Build 338",
+      "version": "0.1.338",
+      "buildNumber": 338,
+      "minimumBuild": 338,
+      "channel": "all",
+      "summary": "Define unified Food Journal contract (#245)",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Define unified Food Journal contract (#245)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-337-TierA",
+      "title": "Build 337",
+      "version": "0.1.337",
+      "buildNumber": 337,
+      "minimumBuild": 337,
+      "channel": "all",
+      "summary": "Cook mode: sheet scroll identifier and growable amount column",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Cook mode: sheet scroll identifier and growable amount column"
+        },
+        {
+          "kind": "improved",
+          "text": "Cook mode: collision-proof ingredient signature (JSON triples)"
+        },
+        {
+          "kind": "improved",
+          "text": "Cook mode: hide gathered checks when ingredient signature is stale"
+        },
+        {
+          "kind": "improved",
+          "text": "Cook mode: invalidate gathered checks on any recipe write via recipes didSet"
+        },
+        {
+          "kind": "improved",
+          "text": "Cook mode: ingredient checklist sheet view"
+        },
+        {
+          "kind": "improved",
+          "text": "Cook mode: add Ingredients button and checklist sheet presentation"
+        },
+        {
+          "kind": "improved",
+          "text": "Cook mode: pass detail servings selection into the cook session"
+        },
+        {
+          "kind": "improved",
+          "text": "Cook mode: carry servings factor and gathered checks in CookSession"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-336-TierA",
+      "title": "Build 336",
+      "version": "0.1.336",
+      "buildNumber": 336,
+      "minimumBuild": 336,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-335-TierA",
+      "title": "Build 335",
+      "version": "0.1.335",
+      "buildNumber": 335,
+      "minimumBuild": 335,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-334-TierA",
+      "title": "Build 334",
+      "version": "0.1.334",
+      "buildNumber": 334,
+      "minimumBuild": 334,
+      "channel": "all",
+      "summary": "Guard corrupt diary storage with backup-first recovery (#179)",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Guard corrupt diary storage with backup-first recovery (#179)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-333-TierA",
+      "title": "Build 333",
+      "version": "0.1.333",
+      "buildNumber": 333,
+      "minimumBuild": 333,
+      "channel": "all",
+      "summary": "Ensure unique recovery backup filenames",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Ensure unique recovery backup filenames"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-332-TierA",
+      "title": "Build 332",
+      "version": "0.1.332",
+      "buildNumber": 332,
+      "minimumBuild": 332,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-331-TierA",
+      "title": "Build 331",
+      "version": "0.1.331",
+      "buildNumber": 331,
+      "minimumBuild": 331,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-330-TierA",
+      "title": "Build 330",
+      "version": "0.1.330",
+      "buildNumber": 330,
+      "minimumBuild": 330,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-329-TierA",
+      "title": "Build 329",
+      "version": "0.1.329",
+      "buildNumber": 329,
+      "minimumBuild": 329,
+      "channel": "all",
+      "summary": "Expose Share Feedback in beta settings",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Expose Share Feedback in beta settings"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-328-TierA",
+      "title": "Build 328",
+      "version": "0.1.328",
+      "buildNumber": 328,
+      "minimumBuild": 328,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-327-TierA",
+      "title": "Build 327",
+      "version": "0.1.327",
+      "buildNumber": 327,
+      "minimumBuild": 327,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-326-TierA",
+      "title": "Build 326",
+      "version": "0.1.326",
+      "buildNumber": 326,
+      "minimumBuild": 326,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-325-TierA",
+      "title": "Build 325",
+      "version": "0.1.325",
+      "buildNumber": 325,
+      "minimumBuild": 325,
+      "channel": "all",
+      "summary": "Load local cooking insights independently of HealthKit",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Load local cooking insights independently of HealthKit"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-322-TierA",
+      "title": "Build 322",
+      "version": "0.1.322",
+      "buildNumber": 322,
+      "minimumBuild": 322,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-321-TierA",
+      "title": "Build 321",
+      "version": "0.1.321",
+      "buildNumber": 321,
+      "minimumBuild": 321,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-320-TierA",
+      "title": "Build 320",
+      "version": "0.1.320",
+      "buildNumber": 320,
+      "minimumBuild": 320,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-315-TierA",
+      "title": "Build 315",
+      "version": "0.1.315",
+      "buildNumber": 315,
+      "minimumBuild": 315,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-306-TierA",
+      "title": "Build 306",
+      "version": "0.1.306",
+      "buildNumber": 306,
+      "minimumBuild": 306,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-305-TierA",
+      "title": "Build 305",
+      "version": "0.1.305",
+      "buildNumber": 305,
+      "minimumBuild": 305,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-302-TierA",
+      "title": "Build 302",
+      "version": "0.1.302",
+      "buildNumber": 302,
+      "minimumBuild": 302,
+      "channel": "all",
+      "summary": "Make Insights UI acceptance return from recipe detail reliably",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Make Insights UI acceptance return from recipe detail reliably"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-301-TierA",
+      "title": "Build 301",
+      "version": "0.1.301",
+      "buildNumber": 301,
+      "minimumBuild": 301,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-300-TierA",
+      "title": "Build 300",
+      "version": "0.1.300",
+      "buildNumber": 300,
+      "minimumBuild": 300,
+      "channel": "all",
+      "summary": "Add distinct nutrition and shopping insight symbols",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Add distinct nutrition and shopping insight symbols"
+        },
+        {
+          "kind": "improved",
+          "text": "Import CryptoKit for candidate fingerprints"
+        },
+        {
+          "kind": "improved",
+          "text": "Route recipe insight selection through ranked candidates"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-299-TierA",
+      "title": "Build 299",
+      "version": "0.1.299",
+      "buildNumber": 299,
+      "minimumBuild": 299,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-298-TierA",
+      "title": "Build 298",
+      "version": "0.1.298",
+      "buildNumber": 298,
+      "minimumBuild": 298,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-297-TierA",
+      "title": "Build 297",
+      "version": "0.1.297",
+      "buildNumber": 297,
+      "minimumBuild": 297,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-296-TierA",
+      "title": "Build 296",
+      "version": "0.1.296",
+      "buildNumber": 296,
+      "minimumBuild": 296,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-295-TierA",
+      "title": "Build 295",
+      "version": "0.1.295",
+      "buildNumber": 295,
+      "minimumBuild": 295,
+      "channel": "all",
+      "summary": "Keep account-switch failure visible after sign-out",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Keep account-switch failure visible after sign-out"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-294-TierA",
+      "title": "Build 294",
+      "version": "0.1.294",
+      "buildNumber": 294,
+      "minimumBuild": 294,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-293-TierA",
+      "title": "Build 293",
+      "version": "0.1.293",
+      "buildNumber": 293,
+      "minimumBuild": 293,
+      "channel": "all",
+      "summary": "Avoid racing account row against failed-switch sign-out",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Avoid racing account row against failed-switch sign-out"
+        },
+        {
+          "kind": "improved",
+          "text": "Assert failed account switch returns to signed-out state"
+        },
+        {
+          "kind": "improved",
+          "text": "Protect local library when account-switch sync pull fails"
+        },
+        {
+          "kind": "improved",
+          "text": "Track sync failure data-preservation regression as pending"
+        },
+        {
+          "kind": "improved",
+          "text": "Record pending regression for sync failure data preservation"
+        },
+        {
+          "kind": "improved",
+          "text": "Add regression for local data preservation on failed account switch sync"
+        },
+        {
+          "kind": "improved",
+          "text": "Preserve local library until account switch sync pull succeeds"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-292-TierA",
+      "title": "Build 292",
+      "version": "0.1.292",
+      "buildNumber": 292,
+      "minimumBuild": 292,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-291-TierA",
+      "title": "Build 291",
+      "version": "0.1.291",
+      "buildNumber": 291,
+      "minimumBuild": 291,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-290-TierA",
+      "title": "Build 290",
+      "version": "0.1.290",
+      "buildNumber": 290,
+      "minimumBuild": 290,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-289-TierA",
+      "title": "Build 289",
+      "version": "0.1.289",
+      "buildNumber": 289,
+      "minimumBuild": 289,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-288-TierA",
+      "title": "Build 288",
+      "version": "0.1.288",
+      "buildNumber": 288,
+      "minimumBuild": 288,
+      "channel": "all",
+      "summary": "Add local food diary and daily nutrition totals (#179) (#185)",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Add local food diary and daily nutrition totals (#179) (#185)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-287-TierA",
+      "title": "Build 287",
+      "version": "0.1.287",
+      "buildNumber": 287,
+      "minimumBuild": 287,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-286-TierA",
+      "title": "Build 286",
+      "version": "0.1.286",
+      "buildNumber": 286,
+      "minimumBuild": 286,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-285-TierA",
+      "title": "Build 285",
+      "version": "0.1.285",
+      "buildNumber": 285,
+      "minimumBuild": 285,
+      "channel": "all",
+      "summary": "Expose nutrition goals from Settings",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Expose nutrition goals from Settings"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-284-TierA",
+      "title": "Build 284",
+      "version": "0.1.284",
+      "buildNumber": 284,
+      "minimumBuild": 284,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-281-TierA",
+      "title": "Build 281",
+      "version": "0.1.281",
+      "buildNumber": 281,
+      "minimumBuild": 281,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-280-TierA",
+      "title": "Build 280",
+      "version": "0.1.280",
+      "buildNumber": 280,
+      "minimumBuild": 280,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-279-TierA",
+      "title": "Build 279",
+      "version": "0.1.279",
+      "buildNumber": 279,
+      "minimumBuild": 279,
+      "channel": "all",
+      "summary": "Record recipe save after save callback",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Record recipe save after save callback"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-278-TierA",
+      "title": "Build 278",
+      "version": "0.1.278",
+      "buildNumber": 278,
+      "minimumBuild": 278,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-275-TierA",
+      "title": "Build 275",
+      "version": "0.1.275",
+      "buildNumber": 275,
+      "minimumBuild": 275,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-274-TierA",
+      "title": "Build 274",
+      "version": "0.1.274",
+      "buildNumber": 274,
+      "minimumBuild": 274,
+      "channel": "all",
+      "summary": "Derive cooking insight streak from supplied history",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Derive cooking insight streak from supplied history"
+        },
+        {
+          "kind": "improved",
+          "text": "Make cooking streak calculation accept explicit history"
+        },
+        {
+          "kind": "improved",
+          "text": "Name recipe-browsing accessibility action accurately"
+        },
+        {
+          "kind": "improved",
+          "text": "Ground cooking reflections in weekly history and streak"
+        },
+        {
+          "kind": "improved",
+          "text": "Route insight actions to tracker journal and recipe library"
+        },
+        {
+          "kind": "improved",
+          "text": "Add icon-led actions to cooking insights"
+        },
+        {
+          "kind": "improved",
+          "text": "Expose Cooked Meals in Library collections"
+        },
+        {
+          "kind": "improved",
+          "text": "Filter Cooked Meals from cooking history"
+        },
+        {
+          "kind": "improved",
+          "text": "Add Cooked Meals library collection"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-271-TierA",
+      "title": "Build 271",
+      "version": "0.1.271",
+      "buildNumber": 271,
+      "minimumBuild": 271,
+      "channel": "all",
+      "summary": "Use explicit returns for Settings sheet identity",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Use explicit returns for Settings sheet identity"
+        },
+        {
+          "kind": "improved",
+          "text": "Unify Settings sheet presentation for legal links and export"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-270-TierA",
+      "title": "Build 270",
+      "version": "0.1.270",
+      "buildNumber": 270,
+      "minimumBuild": 270,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-269-Production",
+      "title": "Build 269",
+      "version": "0.1.269",
+      "buildNumber": 269,
+      "minimumBuild": 269,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-268-TierA",
+      "title": "Build 268",
+      "version": "0.1.268",
+      "buildNumber": 268,
+      "minimumBuild": 268,
+      "channel": "all",
+      "summary": "Assert restored draft state instead of transient toast",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Assert restored draft state instead of transient toast"
+        },
+        {
+          "kind": "improved",
+          "text": "Keep timer notification rows grouped without gaps"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-266-TierA",
+      "title": "Build 266",
+      "version": "0.1.266",
+      "buildNumber": 266,
+      "minimumBuild": 266,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-265-TierA",
+      "title": "Build 265",
+      "version": "0.1.265",
+      "buildNumber": 265,
+      "minimumBuild": 265,
+      "channel": "all",
+      "summary": "Fix Foundation Models import for IPA build",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Fix Foundation Models import for IPA build"
+        },
+        {
+          "kind": "improved",
+          "text": "Refresh recipe insights with pull-to-refresh (#84)"
+        },
+        {
+          "kind": "improved",
+          "text": "Build recipe and cooking progress insights (#84)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-263-TierA",
+      "title": "Build 263",
+      "version": "0.1.263",
+      "buildNumber": 263,
+      "minimumBuild": 263,
+      "channel": "all",
+      "summary": "Cover Library Explore sheet presentation and dismissal",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Cover Library Explore sheet presentation and dismissal"
+        },
+        {
+          "kind": "improved",
+          "text": "Present Library Explore destinations in native sheets"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-262-TierA",
+      "title": "Build 262",
+      "version": "0.1.262",
+      "buildNumber": 262,
+      "minimumBuild": 262,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-261-TierA",
+      "title": "Build 261",
+      "version": "0.1.261",
+      "buildNumber": 261,
+      "minimumBuild": 261,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-260-TierA",
+      "title": "Build 260",
+      "version": "0.1.260",
+      "buildNumber": 260,
+      "minimumBuild": 260,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-259-TierA",
+      "title": "Build 259",
+      "version": "0.1.259",
+      "buildNumber": 259,
+      "minimumBuild": 259,
+      "channel": "all",
+      "summary": "Present Settings legal documents in native sheets",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Present Settings legal documents in native sheets"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-258-TierA",
+      "title": "Build 258",
+      "version": "0.1.258",
+      "buildNumber": 258,
+      "minimumBuild": 258,
+      "channel": "all",
+      "summary": "Guard ambiguous drink-photo generation and verify retry recovery",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Guard ambiguous drink-photo generation and verify retry recovery"
+        },
+        {
+          "kind": "improved",
+          "text": "Fix sync QA editor Done keyboard visibility handling"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-256-TierA",
+      "title": "Build 256",
+      "version": "0.1.256",
+      "buildNumber": 256,
+      "minimumBuild": 256,
+      "channel": "all",
+      "summary": "Handle cancelled recipe generation as recoverable interruption",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Handle cancelled recipe generation as recoverable interruption"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-255-TierA",
+      "title": "Build 255",
+      "version": "0.1.255",
+      "buildNumber": 255,
+      "minimumBuild": 255,
+      "channel": "all",
+      "summary": "Validate generated recipe structure for issue #144",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Validate generated recipe structure for issue #144"
+        },
+        {
+          "kind": "improved",
+          "text": "Share legal links from Settings"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-254-TierA",
+      "title": "Build 254",
+      "version": "0.1.254",
+      "buildNumber": 254,
+      "minimumBuild": 254,
+      "channel": "all",
+      "summary": "Restore missing QA matrix rows from checklist",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Restore missing QA matrix rows from checklist"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-253-TierA",
+      "title": "Build 253",
+      "version": "0.1.253",
+      "buildNumber": 253,
+      "minimumBuild": 253,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-252-TierA",
+      "title": "Build 252",
+      "version": "0.1.252",
+      "buildNumber": 252,
+      "minimumBuild": 252,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-251-TierA",
+      "title": "Build 251",
+      "version": "0.1.251",
+      "buildNumber": 251,
+      "minimumBuild": 251,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-250-TierA",
+      "title": "Build 250",
+      "version": "0.1.250",
+      "buildNumber": 250,
+      "minimumBuild": 250,
+      "channel": "all",
+      "summary": "Expose diagnostic history in Settings",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Expose diagnostic history in Settings"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-249-TierA",
+      "title": "Build 249",
+      "version": "0.1.249",
+      "buildNumber": 249,
+      "minimumBuild": 249,
+      "channel": "all",
+      "summary": "Attach recipe quick-look sheet to Library layout container",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Attach recipe quick-look sheet to Library layout container"
+        },
+        {
+          "kind": "improved",
+          "text": "Cover expandable recipe sheet from list and grid"
+        },
+        {
+          "kind": "improved",
+          "text": "Open recipe sheet from library list rows"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-248-TierA",
+      "title": "Build 248",
+      "version": "0.1.248",
+      "buildNumber": 248,
+      "minimumBuild": 248,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-247-TierA",
+      "title": "Build 247",
+      "version": "0.1.247",
+      "buildNumber": 247,
+      "minimumBuild": 247,
+      "channel": "all",
+      "summary": "Fix expandable recipe sheet in compact height",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Fix expandable recipe sheet in compact height"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-246-TierA",
+      "title": "Build 246",
+      "version": "0.1.246",
+      "buildNumber": 246,
+      "minimumBuild": 246,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-245-TierA",
+      "title": "Build 245",
+      "version": "0.1.245",
+      "buildNumber": 245,
+      "minimumBuild": 245,
+      "channel": "all",
+      "summary": "Assert nonoptional persisted Library order indices",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Assert nonoptional persisted Library order indices"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-244-TierA",
+      "title": "Build 244",
+      "version": "0.1.244",
+      "buildNumber": 244,
+      "minimumBuild": 244,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-243-TierA",
+      "title": "Build 243",
+      "version": "0.1.243",
+      "buildNumber": 243,
+      "minimumBuild": 243,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-242-TierA",
+      "title": "Build 242",
+      "version": "0.1.242",
+      "buildNumber": 242,
+      "minimumBuild": 242,
+      "channel": "all",
+      "summary": "Restore supported Foundation Models sampling label",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Restore supported Foundation Models sampling label"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-241-TierA",
+      "title": "Build 241",
+      "version": "0.1.241",
+      "buildNumber": 241,
+      "minimumBuild": 241,
+      "channel": "all",
+      "summary": "Preserve interrupted recipe generation for retry (#89)",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Preserve interrupted recipe generation for retry (#89)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-240-TierA",
+      "title": "Build 240",
+      "version": "0.1.240",
+      "buildNumber": 240,
+      "minimumBuild": 240,
+      "channel": "all",
+      "summary": "Prototype expandable recipe-detail sheet (#101)",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Prototype expandable recipe-detail sheet (#101)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-239-TierA",
+      "title": "Build 239",
+      "version": "0.1.239",
+      "buildNumber": 239,
+      "minimumBuild": 239,
+      "channel": "all",
+      "summary": "Preserve Cook Mode sessions with a resumable mini-player (#124)",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Preserve Cook Mode sessions with a resumable mini-player (#124)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-238-TierA",
+      "title": "Build 238",
+      "version": "0.1.238",
+      "buildNumber": 238,
+      "minimumBuild": 238,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-237-TierA",
+      "title": "Build 237",
+      "version": "0.1.237",
+      "buildNumber": 237,
+      "minimumBuild": 237,
+      "channel": "all",
+      "summary": "Remove deprecated notification authorization option",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Remove deprecated notification authorization option"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-236-TierA",
+      "title": "Build 236",
+      "version": "0.1.236",
+      "buildNumber": 236,
+      "minimumBuild": 236,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-235-TierA",
+      "title": "Build 235",
+      "version": "0.1.235",
+      "buildNumber": 235,
+      "minimumBuild": 235,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-234-TierA",
+      "title": "Build 234",
+      "version": "0.1.234",
+      "buildNumber": 234,
+      "minimumBuild": 234,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-233-TierA",
+      "title": "Build 233",
+      "version": "0.1.233",
+      "buildNumber": 233,
+      "minimumBuild": 233,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-232-TierA",
+      "title": "Build 232",
+      "version": "0.1.232",
+      "buildNumber": 232,
+      "minimumBuild": 232,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-231-TierA",
+      "title": "Build 231",
+      "version": "0.1.231",
+      "buildNumber": 231,
+      "minimumBuild": 231,
+      "channel": "all",
+      "summary": "Correct Combine import placement in auth sheet",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Correct Combine import placement in auth sheet"
+        },
+        {
+          "kind": "improved",
+          "text": "Correct Combine import placement in app entry point"
+        },
+        {
+          "kind": "improved",
+          "text": "Import Combine for auth publisher type"
+        },
+        {
+          "kind": "improved",
+          "text": "Import Combine for timer publisher type"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-230-TierA",
+      "title": "Build 230",
+      "version": "0.1.230",
+      "buildNumber": 230,
+      "minimumBuild": 230,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-229-TierA",
+      "title": "Build 229",
+      "version": "0.1.229",
+      "buildNumber": 229,
+      "minimumBuild": 229,
+      "channel": "all",
+      "summary": "Fixed settings view",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Fixed settings view"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-228-TierA",
+      "title": "Build 228",
+      "version": "0.1.228",
+      "buildNumber": 228,
+      "minimumBuild": 228,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-227-TierA",
+      "title": "Build 227",
+      "version": "0.1.227",
+      "buildNumber": 227,
+      "minimumBuild": 227,
+      "channel": "all",
+      "summary": "Add isolated App Clip shared-recipe viewer",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Add isolated App Clip shared-recipe viewer"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-226-TierA",
+      "title": "Build 226",
+      "version": "0.1.226",
+      "buildNumber": 226,
+      "minimumBuild": 226,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-225-TierA",
+      "title": "Build 225",
+      "version": "0.1.225",
+      "buildNumber": 225,
+      "minimumBuild": 225,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-224-TierA",
+      "title": "Build 224",
+      "version": "0.1.224",
+      "buildNumber": 224,
+      "minimumBuild": 224,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-223-TierA",
+      "title": "Build 223",
+      "version": "0.1.223",
+      "buildNumber": 223,
+      "minimumBuild": 223,
+      "channel": "all",
+      "summary": "Add direct favourites action to Library grid",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Add direct favourites action to Library grid"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-222-TierA",
+      "title": "Build 222",
+      "version": "0.1.222",
+      "buildNumber": 222,
+      "minimumBuild": 222,
+      "channel": "all",
+      "summary": "Port Insights mock and journal route regressions from PR #71",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Port Insights mock and journal route regressions from PR #71"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-221-TierA",
+      "title": "Build 221",
+      "version": "0.1.221",
+      "buildNumber": 221,
+      "minimumBuild": 221,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-220-TierA",
+      "title": "Build 220",
+      "version": "0.1.220",
+      "buildNumber": 220,
+      "minimumBuild": 220,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-219-TierA",
+      "title": "Build 219",
+      "version": "0.1.219",
+      "buildNumber": 219,
+      "minimumBuild": 219,
+      "channel": "all",
+      "summary": "Prevent Library reorder corruption while filtered (#95)",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Prevent Library reorder corruption while filtered (#95)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-218-TierA",
+      "title": "Build 218",
+      "version": "0.1.218",
+      "buildNumber": 218,
+      "minimumBuild": 218,
+      "channel": "all",
+      "summary": "Make Library collection ordering deterministic (#94)",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Make Library collection ordering deterministic (#94)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-217-TierA",
+      "title": "Build 217",
+      "version": "0.1.217",
+      "buildNumber": 217,
+      "minimumBuild": 217,
+      "channel": "all",
+      "summary": "Preserve navigation when clearing shopping list (#93)",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Preserve navigation when clearing shopping list (#93)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-216-TierA",
+      "title": "Build 216",
+      "version": "0.1.216",
+      "buildNumber": 216,
+      "minimumBuild": 216,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-212-TierA",
+      "title": "Build 212",
+      "version": "0.1.212",
+      "buildNumber": 212,
+      "minimumBuild": 212,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-209-TierA",
+      "title": "Build 209",
+      "version": "0.1.209",
+      "buildNumber": 209,
+      "minimumBuild": 209,
+      "channel": "all",
+      "summary": "Bound persisted photo payload size",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Bound persisted photo payload size"
+        },
+        {
+          "kind": "improved",
+          "text": "Align photo identification with general prompt rules"
+        },
+        {
+          "kind": "improved",
+          "text": "Restore image input and retry after app interruption"
+        },
+        {
+          "kind": "improved",
+          "text": "Ground photo guesses and support beverage recipes"
+        },
+        {
+          "kind": "improved",
+          "text": "Persist photo input for interrupted recipe retry"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-208-TierA",
+      "title": "Build 208",
+      "version": "0.1.208",
+      "buildNumber": 208,
+      "minimumBuild": 208,
+      "channel": "all",
+      "summary": "Use Insights name in Health permission QA step",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Use Insights name in Health permission QA step"
+        },
+        {
+          "kind": "improved",
+          "text": "Align Library shortcut label with Insights"
+        },
+        {
+          "kind": "improved",
+          "text": "Assert the Library Insights route title"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-207-TierA",
+      "title": "Build 207",
+      "version": "0.1.207",
+      "buildNumber": 207,
+      "minimumBuild": 207,
+      "channel": "all",
+      "summary": "Standardize Settings navigation branding",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Standardize Settings navigation branding"
+        },
+        {
+          "kind": "improved",
+          "text": "Fix Shopping navigation header overlap"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-206-TierA",
+      "title": "Build 206",
+      "version": "0.1.206",
+      "buildNumber": 206,
+      "minimumBuild": 206,
+      "channel": "all",
+      "summary": "Correct stable Tracker recipe accessibility identifier",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Correct stable Tracker recipe accessibility identifier"
+        },
+        {
+          "kind": "improved",
+          "text": "Add stable accessibility IDs to cooked recipe rows"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-205-TierA",
+      "title": "Build 205",
+      "version": "0.1.205",
+      "buildNumber": 205,
+      "minimumBuild": 205,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-202-TierA",
+      "title": "Build 202",
+      "version": "0.1.202",
+      "buildNumber": 202,
+      "minimumBuild": 202,
+      "channel": "all",
+      "summary": "Link cook mode completion failure to investigation issue",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Link cook mode completion failure to investigation issue"
+        },
+        {
+          "kind": "improved",
+          "text": "Exercise beta diagnostics row after scrolling Settings"
+        },
+        {
+          "kind": "improved",
+          "text": "Add Today and Journal Tracker hub QA plan"
+        },
+        {
+          "kind": "improved",
+          "text": "Lead Tracker hub with daily cooking status"
+        },
+        {
+          "kind": "improved",
+          "text": "Add Library shortcut to Today and Journal hub"
+        },
+        {
+          "kind": "improved",
+          "text": "Combine cooking, Health, and journal in Tracker"
+        },
+        {
+          "kind": "improved",
+          "text": "Define Health and journal Tracker hub acceptance"
+        },
+        {
+          "kind": "improved",
+          "text": "Fix Tracker recipe accessibility identifier interpolation"
+        },
+        {
+          "kind": "improved",
+          "text": "Assert Tracker exposes the completed recipe in day details"
+        },
+        {
+          "kind": "improved",
+          "text": "Expose stable accessibility IDs for Tracker day-detail recipes"
+        },
+        {
+          "kind": "improved",
+          "text": "Assert completed Cook Mode sessions appear in Tracker history"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-196-TierA",
+      "title": "Build 196",
+      "version": "0.1.196",
+      "buildNumber": 196,
+      "minimumBuild": 196,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-195-TierA",
+      "title": "Build 195",
+      "version": "0.1.195",
+      "buildNumber": 195,
+      "minimumBuild": 195,
+      "channel": "all",
+      "summary": "Update PRD health entry path for beta-only diagnostics",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Update PRD health entry path for beta-only diagnostics"
+        },
+        {
+          "kind": "improved",
+          "text": "Avoid idle timer state churn when no cooking timer runs"
+        },
+        {
+          "kind": "improved",
+          "text": "Use stable account heading query in sync key flow"
+        },
+        {
+          "kind": "improved",
+          "text": "Add stable accessibility identifier to account sync heading"
+        },
+        {
+          "kind": "improved",
+          "text": "Add explicit real-device Cooking Tracker acceptance checklist"
+        },
+        {
+          "kind": "improved",
+          "text": "Use autoupdating calendar for local cooking history"
+        },
+        {
+          "kind": "improved",
+          "text": "Verify exiting Cook Mode does not count as cooking"
+        },
+        {
+          "kind": "improved",
+          "text": "Record cooking only after explicit completion"
+        },
+        {
+          "kind": "improved",
+          "text": "Record deleted-recipe fallback regression coverage"
+        },
+        {
+          "kind": "improved",
+          "text": "Make deleted-recipe fallback explicit and testable"
+        },
+        {
+          "kind": "improved",
+          "text": "Make cooking history changes observable to Tracker UI"
+        },
+        {
+          "kind": "improved",
+          "text": "Improve Cooking Tracker calendar tap targets"
+        },
+        {
+          "kind": "improved",
+          "text": "Cover Cooking Tracker streak and timezone boundaries"
+        },
+        {
+          "kind": "improved",
+          "text": "Keep journal deep links working without a More tab"
+        },
+        {
+          "kind": "improved",
+          "text": "Show beta diagnostics in Settings only for beta channels"
+        },
+        {
+          "kind": "improved",
+          "text": "Route beta banner to Settings and remove More from sidebar"
+        },
+        {
+          "kind": "improved",
+          "text": "Align Beta navigation references with Settings"
+        },
+        {
+          "kind": "improved",
+          "text": "Document Beta testing move under Settings"
+        },
+        {
+          "kind": "improved",
+          "text": "Update checklist navigation acceptance for Settings beta tools"
+        },
+        {
+          "kind": "improved",
+          "text": "Update navigation documentation for Settings beta tools"
+        },
+        {
+          "kind": "improved",
+          "text": "Move Beta testing entry into Settings"
+        },
+        {
+          "kind": "improved",
+          "text": "Expose Settings from More hub on iOS 26"
+        },
+        {
+          "kind": "improved",
+          "text": "Handle Settings in iOS 26 tab overflow during QA"
+        },
+        {
+          "kind": "improved",
+          "text": "Match Settings tabs by accessibility label or identifier"
+        },
+        {
+          "kind": "improved",
+          "text": "Add direct Cooking Tracker tab"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-188-TierA",
+      "title": "Build 188",
+      "version": "0.1.188",
+      "buildNumber": 188,
+      "minimumBuild": 188,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-187-TierA",
+      "title": "Build 187",
+      "version": "0.1.187",
+      "buildNumber": 187,
+      "minimumBuild": 187,
+      "channel": "all",
+      "summary": "Complete Cooking Tracker month calendar and acceptance coverage (#43)",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Complete Cooking Tracker month calendar and acceptance coverage (#43)"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-186-TierA",
+      "title": "Build 186",
+      "version": "0.1.186",
+      "buildNumber": 186,
+      "minimumBuild": 186,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-185-TierA",
+      "title": "Build 185",
+      "version": "0.1.185",
+      "buildNumber": 185,
+      "minimumBuild": 185,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-184-TierA",
+      "title": "Build 184",
+      "version": "0.1.184",
+      "buildNumber": 184,
+      "minimumBuild": 184,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-182-TierA",
+      "title": "Build 182",
+      "version": "0.1.182",
+      "buildNumber": 182,
+      "minimumBuild": 182,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-177-TierA",
+      "title": "Build 177",
+      "version": "0.1.177",
+      "buildNumber": 177,
+      "minimumBuild": 177,
+      "channel": "all",
+      "summary": "Optimize app and watch asset images",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Optimize app and watch asset images"
+        },
+        {
+          "kind": "improved",
+          "text": "Security: fetch shared recipes through edge function"
+        },
+        {
+          "kind": "improved",
+          "text": "Reflect draft recovery coverage"
+        },
+        {
+          "kind": "improved",
+          "text": "Clarify trigger search-path hardening"
+        },
+        {
+          "kind": "improved",
+          "text": "Security: pin trigger function to empty search path"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-171-TierA",
+      "title": "Build 171",
+      "version": "0.1.171",
+      "buildNumber": 171,
+      "minimumBuild": 171,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-167-TierA",
+      "title": "Build 167",
+      "version": "0.1.167",
+      "buildNumber": 167,
+      "minimumBuild": 167,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-165-TierA",
+      "title": "Build 165",
+      "version": "0.1.165",
+      "buildNumber": 165,
+      "minimumBuild": 165,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-164-TierA",
+      "title": "Build 164",
+      "version": "0.1.164",
+      "buildNumber": 164,
+      "minimumBuild": 164,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-162-TierA",
+      "title": "Build 162",
+      "version": "0.1.162",
+      "buildNumber": 162,
+      "minimumBuild": 162,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-161-TierA",
+      "title": "Build 161",
+      "version": "0.1.161",
+      "buildNumber": 161,
+      "minimumBuild": 161,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-160-TierA",
+      "title": "Build 160",
+      "version": "0.1.160",
+      "buildNumber": 160,
+      "minimumBuild": 160,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-159-TierA",
+      "title": "Build 159",
+      "version": "0.1.159",
+      "buildNumber": 159,
+      "minimumBuild": 159,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-158-TierA",
+      "title": "Build 158",
+      "version": "0.1.158",
+      "buildNumber": 158,
+      "minimumBuild": 158,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-157-TierA",
+      "title": "Build 157",
+      "version": "0.1.157",
+      "buildNumber": 157,
+      "minimumBuild": 157,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-156-TierA",
+      "title": "Build 156",
+      "version": "0.1.156",
+      "buildNumber": 156,
+      "minimumBuild": 156,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-155-TierA",
+      "title": "Build 155",
+      "version": "0.1.155",
+      "buildNumber": 155,
+      "minimumBuild": 155,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-154-TierA",
+      "title": "Build 154",
+      "version": "0.1.154",
+      "buildNumber": 154,
+      "minimumBuild": 154,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-153-TierA",
+      "title": "Build 153",
+      "version": "0.1.153",
+      "buildNumber": 153,
+      "minimumBuild": 153,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-152-TierA",
+      "title": "Build 152",
+      "version": "0.1.152",
+      "buildNumber": 152,
+      "minimumBuild": 152,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-151-TierA",
+      "title": "Build 151",
+      "version": "0.1.151",
+      "buildNumber": 151,
+      "minimumBuild": 151,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-150-TierA",
+      "title": "Build 150",
+      "version": "0.1.150",
+      "buildNumber": 150,
+      "minimumBuild": 150,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-149-TierA",
+      "title": "Build 149",
+      "version": "0.1.149",
+      "buildNumber": 149,
+      "minimumBuild": 149,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-144-TierA",
+      "title": "Build 144",
+      "version": "0.1.144",
+      "buildNumber": 144,
+      "minimumBuild": 144,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-141-TierA",
+      "title": "Build 141",
+      "version": "0.1.141",
+      "buildNumber": 141,
+      "minimumBuild": 141,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-136-TierA",
+      "title": "Build 136",
+      "version": "0.1.136",
+      "buildNumber": 136,
+      "minimumBuild": 136,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-135-TierA",
+      "title": "Build 135",
+      "version": "0.1.135",
+      "buildNumber": 135,
+      "minimumBuild": 135,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-134-TierA",
+      "title": "Build 134",
+      "version": "0.1.134",
+      "buildNumber": 134,
+      "minimumBuild": 134,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-132-TierA",
+      "title": "Build 132",
+      "version": "0.1.132",
+      "buildNumber": 132,
+      "minimumBuild": 132,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-131-TierA",
+      "title": "Build 131",
+      "version": "0.1.131",
+      "buildNumber": 131,
+      "minimumBuild": 131,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-130-TierA",
+      "title": "Build 130",
+      "version": "0.1.130",
+      "buildNumber": 130,
+      "minimumBuild": 130,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-126-TierA",
+      "title": "Build 126",
+      "version": "0.1.126",
+      "buildNumber": 126,
+      "minimumBuild": 126,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-124-TierA",
+      "title": "Build 124",
+      "version": "0.1.124",
+      "buildNumber": 124,
+      "minimumBuild": 124,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-123-TierA",
+      "title": "Build 123",
+      "version": "0.1.123",
+      "buildNumber": 123,
+      "minimumBuild": 123,
+      "channel": "all",
+      "summary": "Add South African feast photo regression",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Add South African feast photo regression"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-120-TierA",
+      "title": "Build 120",
+      "version": "0.1.120",
+      "buildNumber": 120,
+      "minimumBuild": 120,
+      "channel": "all",
+      "summary": "Fix Settings About section syntax",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Fix Settings About section syntax"
+        },
+        {
+          "kind": "improved",
+          "text": "Reject non-food photo labels in recipe generation"
+        },
+        {
+          "kind": "improved",
+          "text": "Refocus navigation around Library, Settings, and Beta"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-115-TierA",
+      "title": "Build 115",
+      "version": "0.1.115",
+      "buildNumber": 115,
+      "minimumBuild": 115,
+      "channel": "all",
+      "summary": "Fix cooking tracker sheet date binding",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Fix cooking tracker sheet date binding"
+        },
+        {
+          "kind": "improved",
+          "text": "Remove duplicate cooking widget kind"
+        },
+        {
+          "kind": "improved",
+          "text": "Fix cooking streak widget interpolation"
+        },
+        {
+          "kind": "improved",
+          "text": "Harden photo recipe quality checks"
+        },
+        {
+          "kind": "improved",
+          "text": "Build cooking tracker and harden clear-data navigation"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-106-TierA",
+      "title": "Build 106",
+      "version": "0.1.106",
+      "buildNumber": 106,
+      "minimumBuild": 106,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-104-TierA",
+      "title": "Build 104",
+      "version": "0.1.104",
+      "buildNumber": 104,
+      "minimumBuild": 104,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-97-TierA",
+      "title": "Build 97",
+      "version": "0.1.97",
+      "buildNumber": 97,
+      "minimumBuild": 97,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-96-TierC",
+      "title": "Build 96",
+      "version": "0.1.96",
+      "buildNumber": 96,
+      "minimumBuild": 96,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-81-TierC",
+      "title": "Build 81",
+      "version": "0.1.81",
+      "buildNumber": 81,
+      "minimumBuild": 81,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-80-TierA",
+      "title": "Build 80",
+      "version": "0.1.80",
+      "buildNumber": 80,
+      "minimumBuild": 80,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-78-TierA",
+      "title": "Build 78",
+      "version": "0.1.78",
+      "buildNumber": 78,
+      "minimumBuild": 78,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-77-TierA",
+      "title": "Build 77",
+      "version": "0.1.77",
+      "buildNumber": 77,
+      "minimumBuild": 77,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-76-TierA",
+      "title": "Build 76",
+      "version": "0.1.76",
+      "buildNumber": 76,
+      "minimumBuild": 76,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-74-TierA",
+      "title": "Build 74",
+      "version": "0.1.74",
+      "buildNumber": 74,
+      "minimumBuild": 74,
+      "channel": "all",
+      "summary": "Siri snippets: tonight's pick, shopping list, timer status, quick recipes with buttons",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Siri snippets: tonight's pick, shopping list, timer status, quick recipes with buttons"
+        },
+        {
+          "kind": "improved",
+          "text": "Siri: fuzzy recipe matching with disambiguation, recipe cook phrases, refresh shortcut parameters"
+        },
+        {
+          "kind": "improved",
+          "text": "Spotlight: drop per-item shopping shortcuts; widget signing diagnostics (prefix rule, profile id)"
+        },
+        {
+          "kind": "improved",
+          "text": "Resolve App Group at runtime (sideload-renamed groups), show resolved group in diagnostics, BETA steps"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-70-TierA",
+      "title": "Build 70",
+      "version": "0.1.70",
+      "buildNumber": 70,
+      "minimumBuild": 70,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-69-TierA",
+      "title": "Build 69",
+      "version": "0.1.69",
+      "buildNumber": 69,
+      "minimumBuild": 69,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-62-TierA",
+      "title": "Build 62",
+      "version": "0.1.62",
+      "buildNumber": 62,
+      "minimumBuild": 62,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-58-TierA",
+      "title": "Build 58",
+      "version": "0.1.58",
+      "buildNumber": 58,
+      "minimumBuild": 58,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-55-TierA",
+      "title": "Build 55",
+      "version": "0.1.55",
+      "buildNumber": 55,
+      "minimumBuild": 55,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-54-TierA",
+      "title": "Build 54",
+      "version": "0.1.54",
+      "buildNumber": 54,
+      "minimumBuild": 54,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-53-TierA",
+      "title": "Build 53",
+      "version": "0.1.53",
+      "buildNumber": 53,
+      "minimumBuild": 53,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-48-TierA",
+      "title": "Build 48",
+      "version": "0.1.48",
+      "buildNumber": 48,
+      "minimumBuild": 48,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-47-TierA",
+      "title": "Build 47",
+      "version": "0.1.47",
+      "buildNumber": 47,
+      "minimumBuild": 47,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-44-TierA",
+      "title": "Build 44",
+      "version": "0.1.44",
+      "buildNumber": 44,
+      "minimumBuild": 44,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-43-TierA",
+      "title": "Build 43",
+      "version": "0.1.43",
+      "buildNumber": 43,
+      "minimumBuild": 43,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-41-TierA",
+      "title": "Build 41",
+      "version": "0.1.41",
+      "buildNumber": 41,
+      "minimumBuild": 41,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-39",
+      "title": "Build 39",
+      "version": "0.1.39",
+      "buildNumber": 39,
+      "minimumBuild": 39,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-38",
+      "title": "Build 38",
+      "version": "0.1.38",
+      "buildNumber": 38,
+      "minimumBuild": 38,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-37",
+      "title": "Build 37",
+      "version": "0.1.37",
+      "buildNumber": 37,
+      "minimumBuild": 37,
+      "channel": "all",
+      "summary": "Behind the scenes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "The saved build notes contain no readable feature summary."
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-36",
+      "title": "Build 36",
+      "version": "0.1.36",
+      "buildNumber": 36,
+      "minimumBuild": 36,
+      "channel": "all",
+      "summary": "Four-tab bar (Library, Shopping, More, Settings), branded More screen, Quick chip first, landscape rotation enabled, tab bar overlap fixes",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Four-tab bar (Library, Shopping, More, Settings), branded More screen, Quick chip first, landscape rotation enabled, tab bar overlap fixes"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-35",
+      "title": "Build 35",
+      "version": "0.1.35",
+      "buildNumber": 35,
+      "minimumBuild": 35,
+      "channel": "all",
+      "summary": "Voice cook mode (on-device speech); fix: Theme type-check timeout",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Voice cook mode (on-device speech); fix: Theme type-check timeout"
+        }
+      ],
+      "slides": []
+    },
+    {
+      "id": "build-14",
+      "title": "Build 14",
+      "version": "0.1.14",
+      "buildNumber": 14,
+      "minimumBuild": 14,
+      "channel": "all",
+      "summary": "Timer bar reserves space so floating buttons aren't covered; clearer demo copy",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Timer bar reserves space so floating buttons aren't covered; clearer demo copy"
+        }
+      ],
+      "slides": []
     }
   ]
 }

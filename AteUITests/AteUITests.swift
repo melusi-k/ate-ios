@@ -203,9 +203,21 @@ final class AteUITests: XCTestCase {
         shot("library-after-delete")
     }
 
+    /// Saved data only. Enter the real Library sheet and Cook UI; never seed
+    /// a session, current step, timer or completed outcome.
+    private func openSavedCookRecipe() {
+        launch(["-qaSavedRecipeForCookMode"])
+        let card = app.buttons["listCard"].firstMatch
+        wait(card); card.tap()
+        let expand = app.buttons["expandRecipeDetails"]
+        wait(expand, 5); expand.tap()
+        let full = app.buttons["recipeSheet.expandFully"]
+        wait(full, 3); full.tap()
+        wait(app.buttons["Cook mode"], 10)
+    }
+
     func test06_CookMode() {
-        launch()
-        addPromptRecipe()
+        openSavedCookRecipe()
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))
         XCTAssertFalse(app.buttons["Back"].isEnabled)
@@ -225,6 +237,14 @@ final class AteUITests: XCTestCase {
         app.buttons["Pause timer"].tap()
         app.buttons["Reset timer"].tap()
         wait(text("10:00"))
+    }
+
+    func test06b_CookModeFinalStepAndFinish() {
+        openSavedCookRecipe()
+        app.buttons["Cook mode"].tap()
+        wait(text("Step 1 of 4"))
+        app.buttons["Next step"].tap(); app.buttons["Next step"].tap()
+        wait(text("Step 3 of 4"))
         app.buttons["Next step"].tap()
         wait(text("Step 4 of 4"))
         XCTAssertFalse(app.buttons["Next step"].exists, "The final step should offer explicit completion, not a disabled Next step.")
@@ -1210,9 +1230,9 @@ final class AteUITests: XCTestCase {
     }
 
     func test28_GroupSortAndMenus() {
-        launch()
-        addNamed("Zesty tacos")
-        addNamed("Apple crumble")
+        // Recipe creation has separate end-to-end coverage; keep this budget
+        // for real native menus and their asserted Library actions.
+        launch(["-qaSavedRecipesForGroupSort"])
         pick("sortMenu", "A–Z")
         let a = text("Apple crumble"), z = text("Zesty tacos")
         wait(a)
@@ -1280,10 +1300,19 @@ final class AteUITests: XCTestCase {
     }
 
     func test29_ReorderMyOrder() {
-        launch()
-        addNamed("First dish")
-        addNamed("Second dish")
+        // Recipe creation has separate end-to-end coverage; keep this budget
+        // for real native menus and their asserted Library actions.
+        launch(["-qaSavedRecipesForDogfoodReorder"])
         pick("sortMenu", "My order")
+        let first = text("First dish"), second = text("Second dish")
+        wait(first)
+        XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
+    }
+
+    func test29b_ReorderMyOrderActions() {
+        // Sort selection is exercised by test29. These cards still have no
+        // explicit positions; Move up must perform the real ordering change.
+        launch(["-qaSavedRecipesForReorderAction"])
         let first = text("First dish"), second = text("Second dish")
         wait(first)
         XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")

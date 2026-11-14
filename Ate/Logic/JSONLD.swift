@@ -156,6 +156,12 @@ enum IngredientParser {
     ]
 
     static func parse(_ raw: String) -> Ingredient {
+        parse(raw, preserveSourceName: false)
+    }
+
+    /// Explicit source contracts keep unpunctuated name text verbatim; normal
+    /// import parsing still separates known trailing prep into notes.
+    static func parse(_ raw: String, preserveSourceName: Bool) -> Ingredient {
         var s = JSONLD.decode(JSONLD.strip(raw)).trimmingCharacters(in: .whitespaces)
         var notes: [String] = []
         // Parenthetical notes.
@@ -210,6 +216,11 @@ enum IngredientParser {
             let n = name[name.index(after: comma)...].trimmingCharacters(in: .whitespaces)
             if !n.isEmpty { notes.insert(n, at: 0) }
             name = String(name[..<comma]).trimmingCharacters(in: .whitespaces)
+        }
+        if !preserveSourceName {
+            let preparation = IngredientFieldNormalization.splitPreparation(name)
+            name = preparation.name
+            if let prep = preparation.prep { notes.insert(prep, at: 0) }
         }
         if qty > 0 && unit.isEmpty { unit = "pcs" }
         return Ingredient(name: name.isEmpty ? raw.trimmingCharacters(in: .whitespaces) : name,

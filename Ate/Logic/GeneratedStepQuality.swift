@@ -32,18 +32,33 @@ enum GeneratedStepQuality {
         return tokens.intersection(foods)
     }
 
+    /// Only plain pantry names. Compound ingredients (lemon pepper, chilli oil,
+    /// salted butter) retain their substantive ingredient-use check.
+    static func isPlainPantrySeasoning(_ ingredient: Ingredient) -> Bool {
+        let name = ingredient.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        if name == "salt" || name == "oil" { return true }
+        guard name == "pepper" else { return false }
+        let prep = words(ingredient.notes ?? "")
+        // Bare/countable pepper or vegetable prep is not the pantry spice.
+        guard prep.isDisjoint(with: ["slice", "sliced", "dice", "diced", "chop", "chopped", "stuff", "stuffed", "strip", "halved"]) else { return false }
+        let unit = ingredient.unit.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        return ["tsp", "teaspoon", "teaspoons", "tbsp", "tablespoon", "tablespoons", "pinch", "pinches", "to taste"].contains(unit)
+            || !prep.isDisjoint(with: ["ground", "grounded", "grind", "grinding", "spice"])
+            || (ingredient.notes ?? "").lowercased().contains("to taste")
+    }
+
     static func issues(_ card: RecipeCard) -> [String] {
         guard RecipeQuality.isGenerated(card) else { return [] }
         let steps = RecipeLogic.nonBlank(card.steps)
         let allStepWords = words(steps.map(\.instruction).joined(separator: " "))
-        let ingredientWords = words(card.ingredients.map(\.name).joined(separator: " "))
+        let ingredientWords = words(card.ingredients.map(IngredientFieldNormalization.identity).joined(separator: " "))
         var gaps: [String] = []
         // Explicit collective use can be legitimate (dressings, batter, spice mixes).
         // Do not pretend to prove individual usage when the wording is collective.
         let collective = steps.contains { $0.instruction.lowercased().contains("all ingredients") || $0.instruction.lowercased().contains("remaining ingredients") }
         if !collective {
-            for ingredient in card.ingredients {
-                let ingredientAnchors = anchors(ingredient.name)
+            for ingredient in card.ingredients where !isPlainPantrySeasoning(ingredient) {
+                let ingredientAnchors = anchors(IngredientFieldNormalization.identity(ingredient))
                 if !ingredientAnchors.isEmpty && ingredientAnchors.isDisjoint(with: allStepWords) {
                     gaps.append("Explain when to use \(ingredient.name); it is listed but never used in the steps.")
                 }
@@ -57,6 +72,19 @@ enum GeneratedStepQuality {
             // 'oil' used as a verb still requires a listed cooking fat.
             if food == "oil", !listed.isDisjoint(with: ["butter", "ghee", "fat"]) { continue }
             gaps.append("Step mentions \(food), but it is not in the ingredients; reconcile it without inventing source facts.")
+        }
+        // A named paste is a distinct ingredient, not proved by listing one
+        // component or a different paste. Keep this a bounded food vocabulary,
+        // not a claim to understand arbitrary prose or invent missing amounts.
+        let namedPastes = ["achari paste", "tomato paste", "curry paste", "chilli paste", "ginger paste", "garlic paste"]
+        func containsPhrase(_ text: String, _ phrase: String) -> Bool {
+            let normalized = text.lowercased().split(whereSeparator: { !$0.isLetter }).joined(separator: " ")
+            return (" " + normalized + " ").contains(" " + phrase + " ")
+        }
+        for paste in namedPastes where steps.contains(where: { containsPhrase($0.instruction, paste) }) {
+            if !card.ingredients.contains(where: { containsPhrase(IngredientFieldNormalization.identity($0), paste) }) {
+                gaps.append("Step mentions \(paste), but it is not in the ingredients; reconcile it without inventing source facts.")
+            }
         }
         for step in steps {
             let tokens = words(step.instruction)

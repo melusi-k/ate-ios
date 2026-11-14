@@ -10,6 +10,7 @@ struct ProductUpdatesCatalog: Decodable {
               Set(value.releases.map(\.id)).count == value.releases.count,
               value.releases.allSatisfy({ release in
                   !release.id.isEmpty && !release.title.isEmpty && !release.version.isEmpty && !release.summary.isEmpty &&
+                  (release.buildNumber == nil || release.buildNumber == release.minimumBuild) &&
                   release.minimumBuild >= 0 && ["all", "beta", "release"].contains(release.channel) &&
                   release.slides.count <= 5 && Set(release.slides.map(\.id)).count == release.slides.count &&
                   release.changes.allSatisfy({ !$0.text.isEmpty }) &&
@@ -23,6 +24,9 @@ struct ProductUpdatesCatalog: Decodable {
         guard let url = Bundle.main.url(forResource: "catalog", withExtension: "json", subdirectory: "ProductUpdates"),
               let data = try? Data(contentsOf: url) else { return nil }
         return try? decode(data)
+    }
+    func publishedBuildReleases(build: Int, channel: String) -> [ProductRelease] {
+        visibleReleases(build: build, channel: channel).filter { $0.buildNumber != nil }
     }
     func visibleReleases(build: Int, channel: String) -> [ProductRelease] {
         releases.filter { $0.minimumBuild <= build && ($0.channel == "all" || $0.channel == channel) }
@@ -46,6 +50,7 @@ struct ProductRelease: Decodable, Identifiable {
     let id: String
     let title: String
     let version: String
+    let buildNumber: Int?
     let minimumBuild: Int
     let channel: String
     let summary: String

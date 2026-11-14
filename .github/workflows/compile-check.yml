@@ -534,7 +534,7 @@ jobs:
         run: |
           STEP_START=$(date +%s)
           set +e
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-mode-history-ui-tests.xcresult" -only-testing:AteUITests/AteUITests/test06_CookMode -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > cook-mode-history.log 2>&1
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-mode-history-ui-tests.xcresult" -only-testing:AteUITests/AteUITests/test06_CookMode -only-testing:AteUITests/AteUITests/test06b_CookModeFinalStepAndFinish -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > cook-mode-history.log 2>&1
           status=$?
           set -e
           STEP_END=$(date +%s)
@@ -550,6 +550,10 @@ jobs:
           fi
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" cook-mode-history.log | tail -n 30
+
+          for test in test06_CookMode test06b_CookModeFinalStepAndFinish; do
+            grep -qF "AteUITests $test]' passed" cook-mode-history.log || { echo "::error::Missing bounded Cook Mode pass: $test"; exit 1; }
+          done
 
       - name: Cook Finish above retained resume accessory
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}

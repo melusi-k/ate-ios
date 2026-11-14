@@ -19,6 +19,66 @@ final class ShoppingSyncCaptureUITests: XCTestCase {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
+    /// Preserve pixels before any AX query that could itself stall. Step markers
+    /// show which property/hierarchy request failed to return in a budget kill.
+    private func refreshDiagnostics(_ phase: String, refresh: XCUIElement, status: XCUIElement) {
+        let prefix = "SHOPPING-REFRESH-DIAGNOSTIC \(phase)"
+        print("\(prefix) screenshot begin \(Date().timeIntervalSince1970)")
+        let screenshot = XCUIScreen.main.screenshot()
+        let image = XCTAttachment(screenshot: screenshot)
+        image.name = "shopping-refresh-\(phase)"; image.lifetime = .keepAlways; add(image)
+        // Keep the image recoverable from the individual log as well as xcresult.
+        let encoded = screenshot.pngRepresentation.base64EncodedString()
+        print("SNAPSHOT-BEGIN shopping-refresh-\(phase) \(encoded.count)")
+        var index = encoded.startIndex
+        while index < encoded.endIndex {
+            let end = encoded.index(index, offsetBy: 4000, limitedBy: encoded.endIndex)
+                ?? encoded.endIndex
+            print("SNAPSHOT-CHUNK shopping-refresh-\(phase) \(encoded[index..<end])")
+            index = end
+        }
+        print("SNAPSHOT-END shopping-refresh-\(phase)")
+        var lines = ["phase=\(phase)", "deviceOrientation=\(XCUIDevice.shared.orientation.rawValue)"]
+        func record(_ name: String, _ read: () -> String) {
+            print("\(prefix) \(name) begin \(Date().timeIntervalSince1970)")
+            let value = read()
+            lines.append("\(name)=\(value)")
+            print("\(prefix) \(name)=\(value) \(Date().timeIntervalSince1970)")
+        }
+        record("app.state") { String(describing: app.state) }
+        record("app.frame") { String(describing: app.frame) }
+        record("refresh.exists") { String(refresh.exists) }
+        if refresh.exists {
+            record("refresh.isEnabled") { String(refresh.isEnabled) }
+            record("refresh.isHittable") { String(refresh.isHittable) }
+            record("refresh.frame") { String(describing: refresh.frame) }
+        }
+        record("status.exists") { String(status.exists) }
+        if status.exists {
+            record("status.label") { status.label }
+            record("status.frame") { String(describing: status.frame) }
+        }
+        let sidebar = app.descendants(matching: .any)["sidebar"].firstMatch
+        record("sidebar.exists") { String(sidebar.exists) }
+        if sidebar.exists {
+            record("sidebar.frame") { String(describing: sidebar.frame) }
+            record("sidebar.isHittable") { String(sidebar.isHittable) }
+        }
+        let toggle = app.buttons["sidebarToggle"]
+        record("sidebarToggle.exists") { String(toggle.exists) }
+        if toggle.exists {
+            record("sidebarToggle.label") { toggle.label }
+            record("sidebarToggle.frame") { String(describing: toggle.frame) }
+        }
+        let values = XCTAttachment(string: lines.joined(separator: "\n"))
+        values.name = "shopping-refresh-\(phase)-state"; values.lifetime = .keepAlways; add(values)
+        print("\(prefix) hierarchy begin \(Date().timeIntervalSince1970)")
+        let hierarchy = app.debugDescription
+        let tree = XCTAttachment(string: hierarchy)
+        tree.name = "shopping-refresh-\(phase)-hierarchy"; tree.lifetime = .keepAlways; add(tree)
+        print("\(prefix) hierarchy\n\(hierarchy)\n\(prefix) hierarchy end")
+    }
+
     private func shopping() {
         let tab = app.tabBars.buttons["Shopping"]
         XCTAssertTrue(tab.waitForExistence(timeout: 10))
@@ -61,11 +121,24 @@ final class ShoppingSyncCaptureUITests: XCTestCase {
         let synced = NSPredicate(format: "label BEGINSWITH %@", "Synced")
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: synced, object: status)], timeout: 10), .completed)
         shot("shopping-signed-in-before-refresh-" + (landscape ? "landscape" : "portrait"))
+        print("SHOPPING-REFRESH tap begin \(Date().timeIntervalSince1970)")
         refresh.tap()
+        print("SHOPPING-REFRESH tap returned \(Date().timeIntervalSince1970)")
+        // Screenshot only before the waiter: diagnostic AX reads must not consume
+        // its unchanged10s completion window or make a failing state recover first.
+        shot("shopping-immediately-post-refresh-tap-" + (landscape ? "landscape" : "portrait"))
         // MockSync may complete within one frame; do not require a transient
         // spinner. Require the actual button to be available and success shown.
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: refresh)], timeout: 10), .completed)
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: synced, object: status)], timeout: 10), .completed)
+        let readyResult = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: refresh)], timeout: 10)
+        if readyResult != .completed {
+            refreshDiagnostics("post-ready-failure", refresh: refresh, status: status)
+        }
+        XCTAssertEqual(readyResult, .completed)
+        let syncedResult = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: synced, object: status)], timeout: 10)
+        if syncedResult != .completed {
+            refreshDiagnostics("post-sync-failure", refresh: refresh, status: status)
+        }
+        XCTAssertEqual(syncedResult, .completed)
         XCTAssertTrue(status.isHittable)
         shot("shopping-signed-in-after-manual-refresh-" + (landscape ? "landscape" : "portrait"))
     }

@@ -1,11 +1,15 @@
 {
   "title": "Journal fixes and default-OFF recipe structuring experiment",
-  "summary": "Focus: Journal/history and draft fixes with Achari identity and named-paste checks, plus isolated DEBUG opt-in RecipeGenerationTool for prompt/social only. Swift validation rejects invalid fields and missing or mismatched tool receipts; provisional streaming and source-fidelity checks remain. Flag defaults OFF. Source-only: native SDK, pixels and device/model acceptance unverified. One paired F13 OFF/ON device run remains pending; no merge or waiver.",
-  "source_commit": "b80e42d13284a2df9d3569eba587143f621a62e5",
+  "summary": "Focus: Journal/history fixes and default-OFF DEBUG recipe tool for prompt/social. Shared prompt shortened with all ten rules/examples retained; source contracts preserve written prep names while ordinary parser and generated normalization still split prep. Original F1/size/Achari/tool tests unchanged. Native rerun pending; paired F13 OFF/ON device run still required. No merge/waiver.",
+  "source_commit": "3a6c45f5da5f3b03633c3f8e5dbf3a8d8c34b809",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
       "blob": "40d4e92814c6b89d177cb224e8f8e24410cd258e"
+    },
+    {
+      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
+      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
     },
     {
       "path": "Ate/Logic/DraftGenerationAttempt.swift",
@@ -18,6 +22,14 @@
     {
       "path": "Ate/Logic/GeneratedStepQuality.swift",
       "blob": "2a88810dc9673bb769f33d92e9f6ef59a6627296"
+    },
+    {
+      "path": "Ate/Logic/IngredientFieldNormalization.swift",
+      "blob": "b66cafdb0a93743232842a1555aadb878cc59a0a"
+    },
+    {
+      "path": "Ate/Logic/JSONLD.swift",
+      "blob": "f76d00a4138a4f6997d5cbe728b9c07224e7f847"
     },
     {
       "path": "Ate/Logic/ProductUpdates.swift",
@@ -33,15 +45,23 @@
     },
     {
       "path": "Ate/Logic/RecipePrompt.swift",
-      "blob": "997fb4c57efa945aa87ee8ed820572da37ea7651"
+      "blob": "e6a1821db213fb154ca35313b54f85818f6c8835"
     },
     {
       "path": "Ate/Logic/RecipeQuality.swift",
       "blob": "215982e2ed176f9cebbfa5f0d376be4b86aeebe1"
     },
     {
+      "path": "Ate/Logic/RecipeStructureValidation.swift",
+      "blob": "b5718d03ee4159b784eafb9f1e5fd1b08567ca2a"
+    },
+    {
       "path": "Ate/Logic/RepairFeedback.swift",
       "blob": "b6ece9703106cf2a759f0b3df1ffe9b391bbaa9b"
+    },
+    {
+      "path": "Ate/Logic/SourceRecipeFidelity.swift",
+      "blob": "1836b1a804dc8fd82c3703a15876bfc8d6f24d0f"
     },
     {
       "path": "Ate/Services/JournalSuggestionService.swift",
@@ -50,6 +70,10 @@
     {
       "path": "Ate/Services/OnDeviceBackend.swift",
       "blob": "1d9f7971f45a6d97f4dbc87998b72e7bf29da146"
+    },
+    {
+      "path": "Ate/Services/RecipeGenerationTool.swift",
+      "blob": "918a048ab3068a885e77c5b42f5c85ad5861eed9"
     },
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
@@ -94,26 +118,6 @@
     {
       "path": "Ate/Views/RecipeDetailView.swift",
       "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
-    },
-    {
-      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
-    },
-    {
-      "path": "Ate/Logic/IngredientFieldNormalization.swift",
-      "blob": "b66cafdb0a93743232842a1555aadb878cc59a0a"
-    },
-    {
-      "path": "Ate/Logic/JSONLD.swift",
-      "blob": "f95e85d4dc0990e46972fe0ddd32a68ad503fb5a"
-    },
-    {
-      "path": "Ate/Logic/RecipeStructureValidation.swift",
-      "blob": "b5718d03ee4159b784eafb9f1e5fd1b08567ca2a"
-    },
-    {
-      "path": "Ate/Services/RecipeGenerationTool.swift",
-      "blob": "918a048ab3068a885e77c5b42f5c85ad5861eed9"
     }
   ]
 }

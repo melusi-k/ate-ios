@@ -1280,7 +1280,7 @@ final class AteUITests: XCTestCase {
     }
 
     func test29_ReorderMyOrder() {
-        launch()
+        launch(["-qaDogWaitPhaseDiagnostic"])
         addNamed("First dish")
         addNamed("Second dish")
         pick("sortMenu", "My order")
@@ -1289,6 +1289,7 @@ final class AteUITests: XCTestCase {
         XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
         // accessible reorder: long-press → Move up
         first.press(forDuration: 1.2)
+        shot("library-reorder-after-longpress")
         wait(app.buttons["Move up"], 3)
         shot("library-reorder-menu")
         app.buttons["Move up"].tap()

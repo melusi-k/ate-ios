@@ -1,7 +1,7 @@
 {
   "title": "Journal layout, release history and scoped recipe tool",
-  "summary": "Focus: Journal geometry, DEBUG445 release history, draft/Achari fixes, shortened ten-rule prompt and verbatim source prep. Owner approved default-ON prompt/social recipe tool; DEBUG opt-out permits the paired F13 baseline. Scope and fail-closed guards retained. Food Journal shipping stays off. Native/pixels and one paired F13 OFF/ON device run pending; merge held.",
-  "source_commit": "5979353e366b37a758669cc645969888f340f1cb",
+  "summary": "Focus: Journal geometry/palette, DEBUG445 release history, draft/Achari, prompt/source-prep and bounded Cook fixes. Enabled offline Roadmap reader with unavailable voting. Prompt/social recipe tool defaults ON, DEBUG opt-out for paired F13 baseline; scope/fail-closed guards retained. Food Journal shipping and anonymous sign-in remain off. Native normal-text/light-dark pixels and one paired F13 device run pending; merge held.",
+  "source_commit": "25accedaeeae900a07a229e5bd0035a58ff47601",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -136,4 +136,4 @@
       "blob": "ae8ffbf9487aaeb061a755c1f7238ad5defdc2ca"
     }
   ]
-    }
+}

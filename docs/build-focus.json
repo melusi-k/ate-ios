@@ -1,11 +1,11 @@
 {
   "title": "Library main-protein grouping",
-  "summary": "Focus: ingredient-derived Library categories choose the primary protein by comparable quantities, so pork-led ribs and wings appear under Pork. Explicit species and source quantities are preserved; incompatible measures retain ingredient order without invented weights. Normal-text grouping capture coverage is included. Native tests and device pixels remain unverified; this is not acceptance.",
-  "source_commit": "60ba057e38ba4b3adfcb65455b9e5e702fdccf9b",
+  "summary": "Focus: ingredient-derived Library categories choose the primary protein by comparable quantities, so pork-led ribs and wings appear under Pork. Explicit species and source quantities are preserved; incompatible measures retain ingredient order without invented weights. Normal-text grouping capture coverage is included. Native tests and device pixels remain unverified; this is not acceptance. Dogfood menu and reorder tests use explicit debug-only saved-recipe preconditions, retaining real UI actions and assertions; native timing benefit is unverified.",
+  "source_commit": "e5a71f499d5c8936afc2fe45174784d97b9430c7",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "015ab938d37b5b74fce87ef74fb4a7354c9003fd"
+      "blob": "d3cdebf0d05f892e11453f73300279cb98027cc0"
     },
     {
       "path": "Ate/App/LibraryProteinQAFixtures.swift",
@@ -58,6 +58,10 @@
     {
       "path": "Ate/Views/RecipeDetailView.swift",
       "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
+    },
+    {
+      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
+      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
     }
   ]
 }

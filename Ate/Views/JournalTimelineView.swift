@@ -76,6 +76,8 @@ struct JournalTimelineView: View {
                     NavigationLink(value: Route.insights) {
                         Label("Insights & Cooking History", systemImage: "heart.text.square")
                     }.accessibilityIdentifier("journal.insightsHistory")
+                }
+                Section {
                     NavigationLink(value: Route.nutritionDiary) {
                         Label("Log food and view meals", systemImage: "fork.knife")
                     }.accessibilityIdentifier("journal.meals")

@@ -1,7 +1,7 @@
 {
   "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Focus: Explore saved-recipe discovery/query retention, foreground shopping sync, viewport-owned Cook footer and saved-recipe fixtures. Reorder29 exercises actual My order selection;29b starts in My order then performs unchanged long-press/Move up/ordering/drag assertions. No positions/action result seeded. Both journeys required with unchanged allowances. QA8/timer policy unchanged; Exit snapshot cause remains unconfirmed. Native/pixels pending; merge held.",
-  "source_commit": "5b8d0496e7fc6c3d09fa26237107c09bb97692f7",
+  "summary": "Focus: Explore retention, live Shopping sync and Cook footer candidate. Explicit synthetic real-Vision tests now trace decode, worker, perform, deadline, cancellation and caller phases. OCR deadline remains 10s; accuracy, assertions and single-terminal behavior unchanged. Timer-fired alone does not establish timeout won. Diagnostic only, no OCR fix claim. Native qualification pending; merge held.",
+  "source_commit": "8958a16085172ce93561895a3374b55cd023a166",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -74,6 +74,10 @@
     {
       "path": "Ate/Views/ShoppingListView.swift",
       "blob": "031df522bdb2bae02452fe99f535835dae0d7c08"
+    },
+    {
+      "path": "Ate/Services/OnDeviceBackend.swift",
+      "blob": "4561826dfb30db147b00e95e3860eeff3e344c53"
     }
   ]
 }

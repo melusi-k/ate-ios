@@ -1213,9 +1213,8 @@ final class AteUITests: XCTestCase {
     // native popup before reaching its assertion, and a failure identifies the
     // actual operation rather than a late step in a cumulative tour.
     func test28_GroupSortAndMenus() {
-        launch()
-        addNamed("Zesty tacos")
-        addNamed("Apple crumble")
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedRecipesForGroupSort"])
         pick("sortMenu", "A–Z")
         let a = text("Apple crumble"), z = text("Zesty tacos")
         wait(a)
@@ -1224,16 +1223,16 @@ final class AteUITests: XCTestCase {
     }
 
     func test28_GroupRecentlyAdded() {
-        launch()
-        addNamed("Apple crumble")
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedAppleForGroup"])
         pick("groupByMenu", "Recently added")
         wait(app.descendants(matching: .any)["section.Today"].firstMatch, 3)
         shot("library-group-added")
     }
 
     func test28_GroupCookTime() {
-        launch()
-        addNamed("Apple crumble")
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedAppleForGroup"])
         pick("groupByMenu", "Cook time")
         wait(app.descendants(matching: .any)["section.Under 30 min"].firstMatch, 3)
         shot("library-group-cooktime")
@@ -1242,9 +1241,8 @@ final class AteUITests: XCTestCase {
     }
 
     func test28_FavouriteSwipeAndSort() {
-        launch()
-        addNamed("Apple crumble")
-        addNamed("Zesty tacos")
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedRecipesForFavourite"])
         let a = text("Apple crumble")
         a.swipeRight()
         wait(app.buttons["Favourite"].firstMatch, 3)
@@ -1257,8 +1255,8 @@ final class AteUITests: XCTestCase {
     }
 
     func test28_ContextMenuAddsShoppingAndShowsFeedback() {
-        launch()
-        addNamed("Zesty tacos")
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedZestyForContext"])
         text("Zesty tacos").press(forDuration: 1.2)
         wait(app.buttons["Cook"], 3)
         XCTAssertTrue(app.buttons["Share"].exists)
@@ -1315,9 +1313,8 @@ final class AteUITests: XCTestCase {
     }
 
     func test29_ReorderMyOrder() {
-        launch()
-        addNamed("First dish")
-        addNamed("Second dish")
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedRecipesForDogfoodReorder"])
         pick("sortMenu", "My order")
         let first = text("First dish"), second = text("Second dish")
         wait(first)
@@ -1333,9 +1330,8 @@ final class AteUITests: XCTestCase {
     }
 
     func test29_DragMyOrder() {
-        launch()
-        addNamed("First dish")
-        addNamed("Second dish")
+        // Saved-only setup; all original native actions and assertions below remain.
+        launch(["-qaSavedRecipesForDogfoodReorder"])
         pick("sortMenu", "My order")
         let first = text("First dish"), second = text("Second dish")
         wait(first)

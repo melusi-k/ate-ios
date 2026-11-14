@@ -37,6 +37,7 @@ struct AteApp: App {
         let upgradeRuntime = CanonicalUpgradeQARoute.prepareIfRequested()
         let st = AppStore(context: c?.mainContext, foodJournalRuntime: upgradeRuntime ?? CookJournalQARoute.runtime())
         CookJournalQARoute.prepare(st)
+        DogfoodSavedRecipeQAFixtures.prepare(st)
         #else
         let st = AppStore(context: c?.mainContext)
         #endif

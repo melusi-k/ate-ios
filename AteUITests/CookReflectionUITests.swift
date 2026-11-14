@@ -172,6 +172,34 @@ final class CookReflectionUITests: XCTestCase {
         shot("cook-journal-bound-saved-record-detail")
     }
 
+    func testSavedCookNoteAppearsUnderRecipeOnCookedDayAtNormalText() {
+        launchHost(extra: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
+        finishAndChooseNote()
+        let editor = app.textViews["cookJournal.note"]
+        editor.tap(); editor.typeText("A little more lemon next time.")
+        app.buttons["cookJournal.save"].tap()
+        XCTAssertTrue(editor.waitForNonExistence(timeout: 10))
+        let journal = app.tabBars.buttons["Journal"]
+        wait(journal); journal.tap()
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub); hub.tap()
+        let day = Calendar.current.component(.day, from: Date())
+        let today = app.buttons["tracker.day.\(day)"]
+        wait(today); today.tap()
+        wait(app.navigationBars["Cooked that day"])
+        let recipe = app.buttons["tracker.recipe.qa-cook-journal"]
+        wait(recipe)
+        let notes = app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tracker.note."))
+        wait(notes.firstMatch)
+        XCTAssertEqual(notes.count, 1)
+        XCTAssertTrue(notes.firstMatch.label.contains("A little more lemon next time."))
+        XCTAssertGreaterThanOrEqual(notes.firstMatch.frame.minY, recipe.frame.maxY,
+                                    "The actual saved reflection belongs below its cooked recipe")
+        XCTAssertTrue(notes.firstMatch.isHittable)
+        shot("cooked-day-saved-reflection-under-recipe-normal")
+        app.swipeDown()
+    }
+
     func testKeepLaterReopensSameDraftAcrossRotation() {
         launchHost()
         finishAndChooseNote()

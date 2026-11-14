@@ -92,7 +92,7 @@ final class ExploreUITests: XCTestCase {
     /// Menu coverage has its own budget, not the Search retention test's budget.
     func testExploreDismissPreservesSelectedCollection() {
         app.buttons["libraryBrowseMenu"].tap()
-        let menu = app.collectionViews.containing(.button, identifier: "library.collection.Favourites").firstMatch
+        let menu = app.collectionViews.containing(NSPredicate(format: "label == %@", "Collections")).firstMatch
         XCTAssertTrue(menu.waitForExistence(timeout: 5))
         let favourite = menu.buttons.matching(NSPredicate(format: "label == %@", "Favourites"))
         XCTAssertEqual(favourite.count, 1)

@@ -1290,6 +1290,15 @@ final class AteUITests: XCTestCase {
         let first = text("First dish"), second = text("Second dish")
         wait(first)
         XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
+    }
+
+    func test29b_ReorderMyOrderActions() {
+        // Sort selection is exercised by test29. These cards still have no
+        // explicit positions; Move up must perform the real ordering change.
+        launch(["-qaSavedRecipesForReorderAction"])
+        let first = text("First dish"), second = text("Second dish")
+        wait(first)
+        XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
         // accessible reorder: long-press → Move up
         first.press(forDuration: 1.2)
         wait(app.buttons["Move up"], 3)

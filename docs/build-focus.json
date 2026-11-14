@@ -1,51 +1,99 @@
 {
-  "title": "Bundle A: Settings, Insights, Cook, generation and Journal",
-  "summary": "Focus: Settings release notes and replay tour, owned Insights destinations, recorded cooking history, shared Cook steps and measured bottom chrome, owned photo/generation inputs, onboarding navigation, and native Journal delete confirmation with retained reflection drafts. All source folds are included, not native or device acceptance. Nutrition termination awaits fresh exact-head evidence. Cooking is not an eaten-food log; Food Journal activation is not enabled by this bundle.",
-  "source_commit": "0a625c23aaacc4713c7bb3a45cc45506c2f350c7",
+  "title": "Journal layout, published release history and recipe draft feedback",
+  "summary": "Focus: bundled published release history, Journal reflection layout and retained draft input, generated ingredient duplicate cleanup, fewer false pantry gaps, and visible quality-repair feedback with 60-second terminal deadlines. These are included source changes, not native or device acceptance. Cooking is not an eaten-food log; unified Food Journal activation remains off.",
+  "source_commit": "0151c39ac24fac03cf70d23cae37925c37cbac5f",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
       "blob": "e636e5eccd67e31dcb8ac7f8b155c9f278bb9f6a"
     },
     {
-      "path": "Ate/Views/JournalViews.swift",
-      "blob": "7e0375d362867507e781901318e32fde459f0e85"
+      "path": "Ate/Logic/DraftGenerationAttempt.swift",
+      "blob": "f22b96a67d824317ba30b2bd4f49b2265e45cd1a"
     },
     {
-      "path": "Ate/Views/ProductUpdatesViews.swift",
-      "blob": "3de31c5f54026a0a5b3b8a3c83c36e5c3244d03e"
+      "path": "Ate/Logic/DraftRepairAttempt.swift",
+      "blob": "0b9b7e8d57209793854693340f993821b44642af"
     },
     {
-      "path": "Ate/Views/InsightsView.swift",
-      "blob": "3f38057fb07a065197672fab9c6f219ea06c17f1"
+      "path": "Ate/Logic/GeneratedStepQuality.swift",
+      "blob": "6759243d8e4f18968d6df1b3f2b5d775b146d2e1"
     },
     {
-      "path": "Ate/Views/CookingTrackerView.swift",
-      "blob": "6b209b692702c03311ec3feba3bf3632202e9bc1"
+      "path": "Ate/Logic/ProductUpdates.swift",
+      "blob": "96340d356f52d94c1a5873030b404a9d7bccce06"
     },
     {
-      "path": "Ate/Views/CookModeView.swift",
-      "blob": "203f46cec2a7b69e8f17a11f1c771a982441b9bc"
+      "path": "Ate/Logic/RecipeDraftRepair.swift",
+      "blob": "de0396c1a8ae1728a9b684816875630286eccf42"
     },
     {
-      "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
+      "path": "Ate/Logic/RecipeLogic.swift",
+      "blob": "8c5048c6ed5933ff417f5b3ba022c6eee9b40f4c"
+    },
+    {
+      "path": "Ate/Logic/RecipePrompt.swift",
+      "blob": "997fb4c57efa945aa87ee8ed820572da37ea7651"
+    },
+    {
+      "path": "Ate/Logic/RecipeQuality.swift",
+      "blob": "215982e2ed176f9cebbfa5f0d376be4b86aeebe1"
+    },
+    {
+      "path": "Ate/Logic/RepairFeedback.swift",
+      "blob": "b6ece9703106cf2a759f0b3df1ffe9b391bbaa9b"
     },
     {
       "path": "Ate/Services/JournalSuggestionService.swift",
       "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
     },
     {
+      "path": "Ate/Services/OnDeviceBackend.swift",
+      "blob": "4a2e636b05716dc676d50a64cb61896622ec4b57"
+    },
+    {
+      "path": "Ate/Views/AddRecipeSheet.swift",
+      "blob": "6f129ab7b92b15e1f073caaf6991c13d8fa4f4da"
+    },
+    {
+      "path": "Ate/Views/CookModeView.swift",
+      "blob": "203f46cec2a7b69e8f17a11f1c771a982441b9bc"
+    },
+    {
+      "path": "Ate/Views/CookedJournalReflectionComposer.swift",
+      "blob": "d8d088d29051cdcd68390eede80a31bf48d073c0"
+    },
+    {
+      "path": "Ate/Views/CookingTrackerView.swift",
+      "blob": "6b209b692702c03311ec3feba3bf3632202e9bc1"
+    },
+    {
+      "path": "Ate/Views/InsightsView.swift",
+      "blob": "3f38057fb07a065197672fab9c6f219ea06c17f1"
+    },
+    {
       "path": "Ate/Views/JournalDeleteConfirmation.swift",
       "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
+    },
+    {
+      "path": "Ate/Views/JournalTimelineView.swift",
+      "blob": "24210932e88a306aa7333a227a2fc7f29ba931d2"
+    },
+    {
+      "path": "Ate/Views/JournalViews.swift",
+      "blob": "ef17d261d74db812eb21717a49a683bc5fc9bda7"
     },
     {
       "path": "Ate/Views/OnboardingView.swift",
       "blob": "ae031e11f4c03dfbdb810c8290aa0fb3329a036b"
     },
     {
-      "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "e25f2c8a67877b5a6d362d8b64a0d9a0da52f5f9"
+      "path": "Ate/Views/ProductUpdatesViews.swift",
+      "blob": "dea47174ff6ee625074e96fcb8e869bbbf906c62"
+    },
+    {
+      "path": "Ate/Views/RecipeDetailView.swift",
+      "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
     }
   ]
 }

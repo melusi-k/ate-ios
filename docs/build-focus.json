@@ -1,7 +1,7 @@
 {
   "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Focus: Explore saved-recipe discovery and exact query retention. Recipe detail Cook footer now belongs to its scrolling viewport, matching the reviewed sheet branch, while retaining measured timer chrome reserve. QA8 and timer policy unchanged. Exit snapshot failure has no returned state; native QA8 rerun and updated pixels pending. Layout-cause hypothesis, not confirmed acceptance.",
-  "source_commit": "aab04e73bba421345cb8367e76de29cf0c728b67",
+  "summary": "Focus: Explore saved-recipe discovery/query retention, foreground shopping sync, viewport-owned Cook footer and saved-recipe fixtures. Reorder29 exercises actual My order selection;29b starts in My order then performs unchanged long-press/Move up/ordering/drag assertions. No positions/action result seeded. Both journeys required with unchanged allowances. QA8/timer policy unchanged; Exit snapshot cause remains unconfirmed. Native/pixels pending; merge held.",
+  "source_commit": "5b8d0496e7fc6c3d09fa26237107c09bb97692f7",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
+      "blob": "e6014247fd0676c1ef77bbbf1a33a894c54da8b2"
     },
     {
       "path": "Ate/App/ExploreRetentionQAFixtures.swift",

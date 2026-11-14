@@ -212,14 +212,12 @@ final class CoverageUITests: XCTestCase {
         let firstIngredient = detailScroll.descendants(matching: .any)["recipe.ingredient.0"].firstMatch
         wait(firstIngredient, 5)
         let header = app.buttons["favouriteButton"]
-        for _ in 0..<5 where !RecipeDetailVisibility.contains(firstIngredient, scroll: detailScroll, header: header, footer: cookFooter) {
-            detailScroll.swipeUp()
-        }
+        RecipeDetailVisibility.reveal(firstIngredient, scroll: detailScroll, header: header, footer: cookFooter)
+        shot("recipe-sheet-full-first-ingredient-clear-of-cook-normal")
         XCTAssertTrue(firstIngredient.isHittable)
         XCTAssertFalse(firstIngredient.frame.intersects(cookFooter.frame), "First ingredient must scroll clear of Cook mode")
         XCTAssertTrue(RecipeDetailVisibility.contains(firstIngredient, scroll: detailScroll, header: header, footer: cookFooter),
                       "The whole ingredient must be inside the visible detail band")
-        shot("recipe-sheet-full-first-ingredient-clear-of-cook-normal")
         let steps = detailScroll.staticTexts["recipe.steps.heading"]
         // Overline text is exposed as uppercase STEPS. Use the stable identifier,
         // and scroll only the mounted detail rather than the sheet or Library.

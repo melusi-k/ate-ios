@@ -12,13 +12,16 @@ class RecipeSheetChromeTests(unittest.TestCase):
             self.assertIn(identifier, source)
         self.assertIn('.accessibilityElement(children: .contain)', source)
 
-    def test_actual_scroll_owns_opaque_footer_and_keeps_measured_timer_reserve(self):
+    def test_footer_is_outside_clipped_scroll_and_keeps_measured_timer_reserve(self):
         source = (ROOT / 'Ate/Views/RecipeDetailView.swift').read_text()
         scroll = source.split('.accessibilityIdentifier("recipe.detail.scroll")', 1)[1].split('RecipeNotFoundView', 1)[0]
-        self.assertIn('.safeAreaInset(edge: .bottom, spacing: 0)', scroll)
+        self.assertIn('VStack(spacing: 0) {\n                    ScrollView {', source)
+        self.assertIn('.contentShape(Rectangle())', scroll)
+        self.assertIn('.clipped()', scroll)
+        self.assertLess(scroll.index('.clipped()'), scroll.index('Button {'))
         self.assertIn('.background(Theme.background.ignoresSafeArea(edges: .bottom))', scroll)
         self.assertIn('.padding(.bottom, footerChromeReserve)', scroll)
-        self.assertEqual(source.count('.safeAreaInset(edge: .bottom'), 1)
+        self.assertNotIn('.safeAreaInset(edge: .bottom', source)
 
     def test_existing_selected_journey_checks_first_and_last_content_and_all_detents(self):
         tests = (ROOT / 'AteUITests/CoverageUITests.swift').read_text()
@@ -44,3 +47,8 @@ class RecipeSheetChromeTests(unittest.TestCase):
         self.assertIn('.foregroundStyle(fg)', style)
         for filename in ['CookReflectionOfferSheet.swift', 'BetaTestingView.swift']:
             self.assertNotIn('.borderedProminent', (ROOT / 'Ate/Views' / filename).read_text())
+
+    def test_entire_ui_file_unchanged(self):
+        import hashlib
+        source=(ROOT/'AteUITests/CoverageUITests.swift').read_bytes()
+        self.assertEqual(hashlib.sha256(source).hexdigest(),'9426f1c479e994f769ade1f69ac0a55ee092532bc04d2bb1e70c639faf31525c')

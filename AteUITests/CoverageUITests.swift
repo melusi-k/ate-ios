@@ -181,9 +181,7 @@ final class CoverageUITests: XCTestCase {
     // MARK: Library discovery + Settings tools/About
 
     func test32c_ExpandableRecipeSheetOpensExpandsAndDismisses() {
-        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
-        addPrompt("Miso salmon for two")
-        tab("Library")
+        launch(["-qaSavedRecipeForSheet", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
         defer { XCUIDevice.shared.orientation = .portrait }
 
         let listCard = app.buttons["listCard"].firstMatch
@@ -216,7 +214,12 @@ final class CoverageUITests: XCTestCase {
         wait(cookFooter, 5)
         let firstIngredient = detailScroll.descendants(matching: .any)["recipe.ingredient.0"].firstMatch
         wait(firstIngredient, 5)
-        for _ in 0..<5 where !firstIngredient.isHittable { detailScroll.swipeUp() }
+        let header = app.buttons["favouriteButton"]
+        for _ in 0..<5 where !RecipeDetailVisibility.contains(firstIngredient, scroll: detailScroll, header: header, footer: cookFooter) {
+            detailScroll.swipeUp()
+        }
+        XCTAssertTrue(RecipeDetailVisibility.contains(firstIngredient, scroll: detailScroll, header: header, footer: cookFooter),
+                      "The whole first ingredient must be inside the visible detail band, not merely hittable offscreen")
         XCTAssertTrue(firstIngredient.isHittable)
         XCTAssertFalse(firstIngredient.frame.intersects(cookFooter.frame), "First ingredient must scroll clear of Cook mode")
         XCTAssertFalse(app.staticTexts["Recipe details"].exists)
@@ -251,6 +254,14 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["Library"].isSelected, "Dismissal must return to the original Library tab")
         shot("recipe-sheet-return-library-portrait")
 
+    }
+
+    func test32d_ExpandableRecipeSheetLandscapeRotationAndDismissal() {
+        launch(["-qaSavedRecipeForSheet", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let title = app.staticTexts["recipeQuickLookTitle"]
+        let expand = app.buttons["expandRecipeDetails"]
+        let servings = app.segmentedControls["servingsPicker"]
         XCUIDevice.shared.orientation = .landscapeLeft
         let card = app.buttons["gridCard"].firstMatch
         wait(card, 10)

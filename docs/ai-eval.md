@@ -95,10 +95,11 @@ explicit doneness is still requested by the prompt. A bare oven setting without 
 The validator cannot disambiguate a separate meat use from a stock descriptor; human review remains
 required. Existing prompt phrase "at least 4 real ingredients" is preserved without changing tests.
 
-## RecipeGenerationTool slice one (default OFF)
+## RecipeGenerationTool slice one (default ON, device evidence pending)
 
-- Opt in only in a DEBUG device build with `-qaRecipeGenerationTool`. No release
-  toggle or automatic enablement. Applies only to prompt/social generation, not
+- Owner approved default ON on14November2026. DEBUG-only opt-out
+  `-qaDisableRecipeGenerationTool` permits the paired baseline. No user toggle.
+  Applies only to prompt/social generation, not
   photo, screenshot, web-page extraction or rewrite. Promo rejection and the
   deterministic screenshot parser run unchanged before model/session allocation.
 - The tool receives typed ingredient/step fields, validates them in Swift, and
@@ -109,14 +110,14 @@ required. Existing prompt phrase "at least 4 real ingredients" is preserved with
 - Existing GenRecipe streamed preview remains provisional. Extraction retains its
   existing preview suppression for source-fidelity. Tool latency can delay the
   first preview because the framework waits for a tool call before continuing.
-- Opt-in sessions bypass prewarm and session reuse/cache so a tool-less session
+- Tool-enabled sessions bypass prewarm and session reuse/cache so a tool-less session
   cannot bypass validation, and a stale receipt cannot authorize another request.
   The existing optional quality-repair limit is unchanged; this adds no retry.
 - Tool invocation is model-selected, not guaranteed by instructions or schemas.
   Fail-closed rejection may be frequent. This slice is experimental, not a claim
   of better recipes or a replacement for source-fidelity/quality review.
-- One paired BEFORE/AFTER device run for F13 Achari: NOT RUN. Run flag OFF then
-  ON on the same Apple Intelligence device/model/OS and record build SHA,
+- One paired BEFORE/AFTER device run for F13 Achari: NOT RUN. Run DEBUG opt-out present then
+  absent on the same Apple Intelligence device/model/OS and record build SHA,
   tool-call evidence, first-preview/total latency, rejected/missing calls,
   ingredient/step facts, confidence and human scores. No iteration loops or
   additional slices. Promo/screenshot routes stay untouched and deterministic

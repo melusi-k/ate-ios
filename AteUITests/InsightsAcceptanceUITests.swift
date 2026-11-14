@@ -182,6 +182,20 @@ final class InsightsAcceptanceUITests: XCTestCase {
                       "A resolved insight must remain suppressed when refreshed with unchanged evidence.")
     }
 
+    private func assertQuietInsightControls(_ id: String) {
+        let card = app.descendants(matching: .any)["insights.progress.candidate." + id].firstMatch
+        wait(card)
+        XCTAssertFalse(app.staticTexts["insights.progress.evidence." + id].exists,
+                       "Evidence and confidence stay internal, not customer-facing card copy")
+        let done = app.buttons["insights.progress.resolve." + id]
+        wait(done)
+        XCTAssertEqual(done.label, "Done")
+        XCTAssertEqual(card.buttons.matching(NSPredicate(format: "label == %@", "Done")).count, 1)
+        XCTAssertEqual(app.buttons["insights.progress.snooze." + id].label, "Remind me later")
+        XCTAssertEqual(app.buttons["insights.progress.dismiss." + id].label, "Dismiss")
+    }
+
+    // Existing selector is retained for CI routing; evidence now means internal provenance.
     func testWeeklyCookingInsightShowsEvidenceAndNavigatesToTracker() {
         launch()
         addAndCompleteRecipe()
@@ -190,11 +204,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
 
         let action = app.buttons["insights.progress.action.weekly-cooking"]
         reveal(action)
-        let evidence = app.staticTexts["insights.progress.evidence.weekly-cooking"]
-        wait(evidence, 5)
-        XCTAssertTrue(evidence.label.contains("Cooking history"), evidence.label)
-        XCTAssertTrue(evidence.label.contains("This week"), evidence.label)
-        XCTAssertTrue(evidence.label.contains("Confidence: High"), evidence.label)
+        assertQuietInsightControls("weekly-cooking")
 
         action.tap()
 
@@ -442,6 +452,31 @@ final class InsightsAcceptanceUITests: XCTestCase {
         shot.name = "journal-normal-reflection-sample-provenance"; shot.lifetime = .keepAlways; add(shot)
     }
 
+    func testExploreOpensNewSuggestionsNotLibraryAndUnavailableAIIsHonest() {
+        launch(); addAndCompleteRecipe(); reopenInsightsFromJournal()
+        let action = app.buttons["insights.progress.action.recipe-discovery"]
+        reveal(action)
+        assertQuietInsightControls("recipe-discovery")
+        let header = app.staticTexts["Recipe & cooking insights"]
+        let title = app.staticTexts["insights.progress.title.recipe-discovery"]
+        wait(header); wait(title)
+        XCTAssertLessThan(header.frame.maxY, title.frame.minY,
+                          "The secondary section label must sit clearly above the primary insight title")
+        seededShot("insights-normal-quiet-header-primary-title-controls")
+        action.tap()
+        wait(app.navigationBars["Suggested new recipes"])
+        let status = app.staticTexts["discovery.status"]
+        wait(status)
+        XCTAssertTrue(status.label.contains("On-device AI is not available"), status.label)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "discovery.save.")).count, 0,
+                       "A simulator or mock backend must never substitute saved or Demo recipes")
+        seededShot("insights-new-suggestions-unavailable-no-demo")
+        app.navigationBars["Suggested new recipes"].buttons["Close"].tap()
+        wait(app.navigationBars["Insights & Cooking History"])
+        reveal(action)
+        XCTAssertTrue(action.isHittable, "Opening suggestions must not auto-dismiss the insight")
+    }
+
     private func launchSeededDestinations() {
         app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory", "-qaResetInsightLifecycle",
@@ -479,9 +514,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
         launchSeededDestinations()
         let action = app.buttons["insights.progress.action.shopping-multi-recipe"]
         reveal(action)
-        let evidence = app.staticTexts["insights.progress.evidence.shopping-multi-recipe"]
-        wait(evidence)
-        XCTAssertTrue(evidence.label.contains("Shopping list and recipe sources"), evidence.label)
+        assertQuietInsightControls("shopping-multi-recipe")
         seededShot("195-shopping-insight-before-action-normal")
         action.tap()
         wait(app.navigationBars["Shopping list"])
@@ -503,10 +536,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
         launchSeededDestinations()
         let action = app.buttons["insights.progress.action.nutrition-diary-coverage"]
         reveal(action)
-        let evidence = app.staticTexts["insights.progress.evidence.nutrition-diary-coverage"]
-        wait(evidence)
-        XCTAssertTrue(evidence.label.contains("Locally stored food diary"), evidence.label)
-        XCTAssertTrue(evidence.label.contains("Last 7 days"), evidence.label)
+        assertQuietInsightControls("nutrition-diary-coverage")
         seededShot("195-diary-insight-before-action-normal")
         action.tap()
         let diary = app.navigationBars["Food diary"]

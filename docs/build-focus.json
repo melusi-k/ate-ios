@@ -1,7 +1,7 @@
 {
   "title": "Food Journal owner qualification plus main Settings, Insights, Cook and Journal",
   "summary": "Source union: bound Food Journal graph/recovery/archive/import, writer-safe generation/Health/input, Settings history/tour, owned Insights, cooking history/shared steps/chrome, onboarding and native delete. Adds dormant admitted sync owner, staged merge/redo journal and upload-before-commit seam; production routing unchanged. Shipping Food Journal OFF; no backend writes. Build441 upload OPEN. Cooking is not an eaten meal; OCR parked. Native SwiftData/restart/durability/device unqualified; merge held.",
-  "source_commit": "791ebd65cd1a5ea7e13cdb745d50582cd4446605",
+  "source_commit": "6996b828a613da5c136e1425d316d0913ab7215e",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

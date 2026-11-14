@@ -32,9 +32,6 @@ struct ExpandableRecipeDetailSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(isCompact ? "Recipe preview" : "Recipe details")
-                    .font(AteFont.body(13, .medium))
-                    .foregroundStyle(Theme.mutedForeground)
                 Spacer()
                 if !isCompact {
                     if detent != .large {
@@ -84,6 +81,9 @@ struct ExpandableRecipeDetailSheet: View {
         }
         .background(Theme.background)
         .foregroundStyle(Theme.foreground)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(isCompact ? "Recipe preview" : "Recipe details")
+        .accessibilityIdentifier("recipeSheet.surface")
         .presentationDetents(availableDetents, selection: $detent)
         .presentationDragIndicator(.visible)
         .presentationContentInteraction(.resizes)

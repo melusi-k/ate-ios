@@ -370,7 +370,22 @@ final class InsightsAcceptanceUITests: XCTestCase {
         XCTAssertEqual(field.value as? String, seed, "Returning to Journal must retain the same draft")
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "journal-normal-root-reflection-retained"; shot.lifetime = .keepAlways; add(shot)
-        let save = app.buttons["insights.save"]; reveal(save); save.tap()
+        let save = app.buttons["insights.save"]; reveal(save)
+        let card = app.cells.containing(.any, identifier: "journal.reflection").firstMatch
+        let accessory = app.descendants(matching: .any)["bottomAccessory"].firstMatch
+        wait(card); wait(accessory)
+        // Reach the end of the scroll content. Hittable alone is insufficient:
+        // a partly covered cell may still expose a tappable point.
+        for _ in 0..<4 where card.frame.maxY + 12 > accessory.frame.minY {
+            app.swipeUp()
+        }
+        let clearanceShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        clearanceShot.name = "journal-normal-reflect-save-clearance"
+        clearanceShot.lifetime = .keepAlways; add(clearanceShot)
+        XCTAssertLessThanOrEqual(card.frame.maxY + 11, accessory.frame.minY,
+                                 "The whole Reflect card, including Save and footer, must scroll above the accessory")
+        XCTAssertTrue(save.isHittable)
+        save.tap()
         let saved = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", seed)).firstMatch
         reveal(saved); saved.tap()
         wait(app.staticTexts["journal.detail.text"])

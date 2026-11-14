@@ -1,7 +1,7 @@
 {
   "title": "Journal layout, published release history and recipe draft feedback",
-  "summary": "Focus: Journal geometry, DEBUG445 release history and draft fixes. Ported538prompt/source correction only: all ten shared rules/examples fit original caps; source extraction keeps written prep names while normal parsing/generated normalization still split prep. Original size/F1/Achari guards unchanged. No recipe tool slice imported. Native rerun/pixels/device/timing acceptance pending; Food Journal shipping stays off.",
-  "source_commit": "3f412176220dae8d641a553e197329300df12b6b",
+  "summary": "Focus: Journal/release and prompt/source fixes. Cook06 now has separate saved-card-only navigation/timer and final-step/Finish journeys, all assertions retained. Cook footer belongs to actual scroll viewport, matching passing sheet source; BottomBars/QA8 tests and timer policy unchanged. Transition-stall cause remains unconfirmed. Native rerun/pixels pending; Food Journal shipping stays off.",
+  "source_commit": "63c6afd30c52e20368e9b7eda53b22c0773fb0af",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "f2594ad8d738859439a2cf63e22601ba87c396a4"
+      "blob": "53e6d89c137c2c7b01ab3e20177b12ffe1bdc9d1"
     },
     {
       "path": "Ate/App/ProductReleaseNotesQAFixture.swift",
@@ -113,7 +113,7 @@
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "edab1bdc7ee3e7c78591b1ed6b899125b70e1a68"
+      "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
     }
   ]
 }

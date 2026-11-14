@@ -10,7 +10,10 @@ class DogWaitPhaseDiagnosticTests(unittest.TestCase):
             s=s.replace('\n        shot("'+pixel+'")','')
             self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),digest)
     def test_flagged_bounded_main_actor_sampler(self):
-        s=(ROOT/'Ate/App/AteApp.swift').read_text().split('enum DogWaitPhaseDiagnostics {',1)[1]
+        source=(ROOT/'Ate/App/AteApp.swift').read_text()
+        for module in ['UIKit','OSLog']:
+            self.assertIn('import '+module, source.split('@main')[0])
+        s=source.split('enum DogWaitPhaseDiagnostics {',1)[1]
         for token in ['-qaDogWaitPhaseDiagnostic','main-actor-heartbeat','AppConfig.isUITesting','Task.sleep','visited < 2048','emitted < 64']:
             self.assertIn(token,s)
 

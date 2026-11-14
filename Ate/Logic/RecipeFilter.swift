@@ -40,7 +40,7 @@ enum IngredientTags {
         let w = words(ing + " " + r.title)
         var out = Set<String>()
         for (tag, ks) in table where ks.contains(where: w.contains) { out.insert(tag) }
-        // Ingredient species override ambiguous cut words (e.g. turkey bacon,
+        // Ingredient species override ambiguous cut words (e.g. pork mince,
         // beef sausage). Keep secondary proteins available as filters.
         let proteins = r.ingredients.compactMap { protein(in: $0.name) }
         if !proteins.isEmpty {

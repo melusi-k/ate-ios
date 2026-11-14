@@ -181,9 +181,7 @@ final class CoverageUITests: XCTestCase {
     // MARK: Library discovery + Settings tools/About
 
     func test32c_ExpandableRecipeSheetOpensExpandsAndDismisses() {
-        launch()
-        addPrompt("Miso salmon for two")
-        tab("Library")
+        launch(["-qaSavedRecipeForSheet", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
         defer { XCUIDevice.shared.orientation = .portrait }
 
         let listCard = app.buttons["listCard"].firstMatch
@@ -198,17 +196,32 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(title.label.localizedCaseInsensitiveContains("Miso salmon"), "Preview must show the selected recipe")
         let expand = app.buttons["expandRecipeDetails"]
         wait(expand, 5)
+        XCTAssertFalse(app.staticTexts["Recipe preview"].exists, "Sheet state is an accessibility label, not visible screen labelling")
         shot("recipe-sheet-compact-portrait")
         expand.tap()
         let servings = app.segmentedControls["servingsPicker"]
         wait(servings, 5)
         XCTAssertTrue(servings.isHittable, "Expanded recipe must expose actual detail content")
+        XCTAssertFalse(app.staticTexts["Recipe details"].exists)
+        shot("recipe-sheet-medium-no-visible-state-label-normal")
         servings.buttons["2×"].tap()
         let fully = app.buttons["recipeSheet.expandFully"]
         wait(fully, 3)
         fully.tap()
         let detailScroll = app.scrollViews["recipe.detail.scroll"]
         wait(detailScroll, 5)
+        let cookFooter = app.buttons["Cook mode"]
+        wait(cookFooter, 5)
+        let firstIngredient = detailScroll.descendants(matching: .any)["recipe.ingredient.0"].firstMatch
+        wait(firstIngredient, 5)
+        let header = app.buttons["favouriteButton"]
+        RecipeDetailVisibility.reveal(firstIngredient, scroll: detailScroll, header: header, footer: cookFooter)
+        shot("recipe-sheet-full-first-ingredient-clear-of-cook-normal")
+        XCTAssertTrue(RecipeDetailVisibility.contains(firstIngredient, scroll: detailScroll, header: header, footer: cookFooter),
+                      "The whole first ingredient must be inside the visible detail band, not merely hittable offscreen")
+        XCTAssertTrue(firstIngredient.isHittable)
+        XCTAssertFalse(firstIngredient.frame.intersects(cookFooter.frame), "First ingredient must scroll clear of Cook mode")
+        XCTAssertFalse(app.staticTexts["Recipe details"].exists)
         let steps = detailScroll.staticTexts["recipe.steps.heading"]
         // Overline text is exposed as uppercase STEPS. Use the stable identifier,
         // and scroll only the mounted detail rather than the sheet or Library.
@@ -216,6 +229,13 @@ final class CoverageUITests: XCTestCase {
         for _ in 0..<5 where !steps.isHittable { detailScroll.swipeUp() }
         shot("recipe-sheet-expanded-steps-portrait")
         XCTAssertTrue(steps.exists && steps.isHittable, "Full recipe must allow scrolling to steps")
+        let lastField = detailScroll.textFields["askField"]
+        wait(lastField, 5)
+        for _ in 0..<5 where !lastField.isHittable { detailScroll.swipeUp() }
+        XCTAssertTrue(lastField.isHittable, "Bottom content must remain reachable above the Cook footer")
+        XCTAssertLessThanOrEqual(lastField.frame.maxY, cookFooter.frame.minY - 1,
+                                 "At rest the final field must scroll completely clear of Cook mode")
+        shot("recipe-sheet-full-bottom-content-clear-of-cook-normal")
         app.buttons["recipeSheet.collapse"].tap()
         wait(expand, 3)
         XCTAssertTrue(title.exists, "Collapse must restore the compact preview")
@@ -232,6 +252,14 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["Library"].isSelected, "Dismissal must return to the original Library tab")
         shot("recipe-sheet-return-library-portrait")
 
+    }
+
+    func test32d_ExpandableRecipeSheetLandscapeRotationAndDismissal() {
+        launch(["-qaSavedRecipeForSheet", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let title = app.staticTexts["recipeQuickLookTitle"]
+        let expand = app.buttons["expandRecipeDetails"]
+        let servings = app.segmentedControls["servingsPicker"]
         XCUIDevice.shared.orientation = .landscapeLeft
         let card = app.buttons["gridCard"].firstMatch
         wait(card, 10)

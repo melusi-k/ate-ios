@@ -13,7 +13,7 @@ struct CookReflectionOfferSheet: View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
                 Button("Add a note", action: onWrite)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.ate(.primary))
                     .accessibilityIdentifier("cookReflection.write")
                 Button("Done", action: onNotNow)
                     .buttonStyle(.bordered)

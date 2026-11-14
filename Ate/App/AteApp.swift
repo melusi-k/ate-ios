@@ -43,6 +43,10 @@ struct AteApp: App {
             st.shopping = InsightDestinationQAFixtures.shopping()
         }
         CookJournalQARoute.prepare(st)
+        IngredientDisplayQAFixtures.prepare(st)
+        DogfoodSavedRecipeQAFixtures.prepare(st)
+        RecipeSheetQAFixtures.prepare(st)
+        FocusedJourneyQAFixtures.prepare(st)
         #else
         let st = AppStore(context: c?.mainContext)
         #endif

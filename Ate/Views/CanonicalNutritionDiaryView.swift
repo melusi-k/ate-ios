@@ -78,6 +78,7 @@ struct CanonicalNutritionDiaryView: View {
             }
         }
         .sheet(isPresented: $choosingMealBackup, onDismiss: {
+            MealBackupDocumentPicker.Coordinator.traceSheetDismissed()
             // Present review only after Files has finished dismissing, not from its delegate.
             reviewedMealBackup = pendingMealBackupReview
             pendingMealBackupReview = nil
@@ -97,6 +98,7 @@ struct CanonicalNutritionDiaryView: View {
                     mutationError = error.localizedDescription
                 }
             }
+            .onAppear { MealBackupDocumentPicker.Coordinator.traceSheetPresented() }
         }
         .sheet(item: $reviewedMealBackup, onDismiss: { controller.reload() }) { backup in
             ReviewedMealBackupSheet(backup: backup) { try controller.restoreReviewedMealBackup(backup) }
@@ -526,10 +528,10 @@ struct MealBackupDocumentPicker: UIViewControllerRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        context.coordinator.trace("create")
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json], asCopy: false)
         picker.allowsMultipleSelection = false
         picker.delegate = context.coordinator
+        context.coordinator.trace("created")
         return picker
     }
 
@@ -556,6 +558,7 @@ struct MealBackupDocumentPicker: UIViewControllerRepresentable {
         }
 
         func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            trace("cancelled")
             finish(nil, outcome: "cancelled")
         }
 
@@ -566,9 +569,21 @@ struct MealBackupDocumentPicker: UIViewControllerRepresentable {
             onFinish(url)
         }
 
+        static func traceSheetPresented() {
+            // This observes the SwiftUI wrapper appearing, NOT Files content readiness.
+            // Keep the system controller unmodified: no subclass, polling or presentation changes.
+            logger.notice("phase=presented scope=sheet uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public)")
+        }
+
+        static func traceSheetDismissed() {
+            // Sheet-level marker has no coordinator correlation: SwiftUI owns this callback.
+            logger.notice("phase=dismissed scope=sheet uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public)")
+        }
+
         func trace(_ phase: String) {
             // Uptime is monotonic. Markers observe lifecycle only and never gate presentation.
-            Self.logger.info("phase=\(phase, privacy: .public) instance=\(self.diagnosticID, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public)")
+            // Notice survives normal unified-log collection; info can be discarded.
+            Self.logger.notice("phase=\(phase, privacy: .public) instance=\(self.diagnosticID, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public)")
         }
     }
 }

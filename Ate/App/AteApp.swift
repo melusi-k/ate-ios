@@ -3,6 +3,8 @@ import Combine
 import SwiftData
 import UserNotifications
 #if DEBUG
+import Foundation
+import Dispatch
 import UIKit
 import OSLog
 #endif
@@ -801,6 +803,9 @@ enum QA8ExitFileDiagnostic {
         guard enabled else { return }
         rows = []
         started = ProcessInfo.processInfo.systemUptime
+        if let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            try? FileManager.default.removeItem(at: cache.appendingPathComponent("qa8-exit-scheduler.txt"))
+        }
         record("app-start")
     }
     @MainActor static func exitWillBegin() {
@@ -808,26 +813,69 @@ enum QA8ExitFileDiagnostic {
         exitObserved = true
         record("exit-enter")
         let phaseStart = ProcessInfo.processInfo.systemUptime
+        startBackgroundScheduler(phaseStart: phaseStart)
         Task { @MainActor in
+            record("task-entered", phaseStart: phaseStart)
             for offset in [0.0, 5, 15, 30, 45, 60, 90, 120] {
                 let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
                 if remaining > 0 {
-                    do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch {
+                        record("task-sleep-error", scheduled: offset, phaseStart: phaseStart)
+                        return
+                    }
                 }
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled else {
+                    record("task-cancelled", scheduled: offset, phaseStart: phaseStart)
+                    return
+                }
                 record("post-exit-heartbeat", scheduled: offset, phaseStart: phaseStart)
             }
         }
+        record("sampler-enqueued", phaseStart: phaseStart)
+    }
+    /// A private utility queue, independent of Swift's MainActor executor. One
+    /// bounded worker, ten atomic snapshots, no model/UI reads or repeated poll.
+    @MainActor private static func startBackgroundScheduler(phaseStart: Double) {
+        guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            record("scheduler-no-cache", phaseStart: phaseStart)
+            return
+        }
+        let destination = cache.appendingPathComponent("qa8-exit-scheduler.txt")
+        let pid = ProcessInfo.processInfo.processIdentifier
+        DispatchQueue(label: "com.melusik.ate.qa8-exit-scheduler", qos: .utility).async {
+            var schedulerRows: [String] = []
+            func write(_ phase: String, scheduled: Double = -1) {
+                guard schedulerRows.count < 10 else { return }
+                let now = ProcessInfo.processInfo.systemUptime
+                schedulerRows.append("pid=\(pid) phase=\(phase) uptime=\(now) scheduled=\(scheduled) phaseElapsed=\(now - phaseStart)")
+                do {
+                    try Data((schedulerRows.joined(separator: "\n") + "\n").utf8).write(to: destination, options: .atomic)
+                } catch {
+                    Logger(subsystem: "com.melusik.ate", category: "QA8ExitFileDiagnostic").error("QA8 scheduler evidence file write failed")
+                }
+            }
+            write("scheduler-entered")
+            for offset in [0.0, 5, 15, 30, 45, 60, 90, 120] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 { Thread.sleep(forTimeInterval: remaining) }
+                write("scheduler-fired", scheduled: offset)
+                Task { @MainActor in
+                    record("scheduler-main-delivery", scheduled: offset, phaseStart: phaseStart)
+                }
+            }
+            write("scheduler-complete")
+        }
+        record("scheduler-enqueued", phaseStart: phaseStart)
     }
     @MainActor static func exitDidReturn() {
         guard enabled else { return }
         record("exit-return")
     }
     @MainActor private static func record(_ phase: String, scheduled: Double = -1, phaseStart: Double? = nil) {
-        guard enabled, rows.count < 12,
+        guard enabled, rows.count < 24,
               let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
         let now = ProcessInfo.processInfo.systemUptime
-        // Fixed phase names and numeric timing only. At most twelve short rows per app launch.
+        // Fixed phase names and numeric timing only. At most twenty-four short rows per app launch.
         rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) uptime=\(now) appElapsed=\(now - started) scheduled=\(scheduled) phaseElapsed=\(now - (phaseStart ?? started))")
         do {
             try Data((rows.joined(separator: "\n") + "\n").utf8).write(

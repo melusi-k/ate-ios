@@ -1,7 +1,7 @@
 {
   "title": "Dormant Journal and nutrition goals sync preparation",
-  "summary": "Dormant client preparation only: generation-fenced Journal and nutrition goals planning with receipt-bound durable redo, goals file sealing and scoped cloud status. Insight sync is dormant and content images are refused by default. Host transport, launch replay and reset wiring are unbound. Migration is an unapplied file; no production writes. Swift compilation, native tests, interruption matrix and device durability are unrun. This does not complete sync all data or the build 441 upload gap. Merge held.",
-  "source_commit": "be50e9863afa1f53d7a88fb24c0f5dc7169db76a",
+  "summary": "Dormant Journal and goals sync preparation; shipping and host binding remain OFF. QA8 adds paired bounded background-scheduler and MainActor timing files, fixed numeric phases only, for the unresolved post-Exit busy-main freeze. This is diagnostic instrumentation, not a product fix or native acceptance; it may perturb timing. No test budgets or assertions changed. Native qualification remains unverified at this head. Migration unapplied; no production writes. Merge held.",
+  "source_commit": "c3669a4ba14b007403a1b22a094447986ae37831",
   "evidence": [
     {
       "path": "Ate/Insights/InsightLifecycle.swift",

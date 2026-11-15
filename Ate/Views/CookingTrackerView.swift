@@ -133,6 +133,9 @@ private struct CookingDotGrid: View {
         VStack(alignment: .leading, spacing: 9) {
             HStack {
                 Button {
+#if DEBUG
+                    AccountAssertionDiagnostic.record(1, value: displayedMonth.timeIntervalSince1970)
+#endif
                     if let previous = calendar.date(byAdding: .month, value: -1, to: displayedMonth) {
                         withAnimation(Motion.anim(.snappy)) { displayedMonth = previous }
                     }
@@ -151,6 +154,9 @@ private struct CookingDotGrid: View {
                 Spacer()
 
                 Button {
+#if DEBUG
+                    AccountAssertionDiagnostic.record(2, value: displayedMonth.timeIntervalSince1970)
+#endif
                     if let next = calendar.date(byAdding: .month, value: 1, to: displayedMonth) {
                         withAnimation(Motion.anim(.snappy)) { displayedMonth = next }
                     }
@@ -214,17 +220,26 @@ private struct CookingDotGrid: View {
             }
         }
         .onChange(of: displayedMonth) { _, month in
+#if DEBUG
+            AccountAssertionDiagnostic.record(3, value: month.timeIntervalSince1970)
+#endif
             if let selectedDate, !calendar.isDate(selectedDate, equalTo: month, toGranularity: .month) {
                 self.selectedDate = nil
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
+#if DEBUG
+            AccountAssertionDiagnostic.record(4, value: displayedMonth.timeIntervalSince1970)
+#endif
             // Keep the visible month aligned with the device's new local calendar without
             // rewriting previously stored YYYY-MM-DD event keys.
             displayedMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
             selectedDate = nil
         }
         .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
+#if DEBUG
+            AccountAssertionDiagnostic.record(5, value: displayedMonth.timeIntervalSince1970)
+#endif
             displayedMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
             selectedDate = nil
         }

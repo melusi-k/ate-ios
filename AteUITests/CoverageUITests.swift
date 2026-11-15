@@ -251,9 +251,15 @@ final class CoverageUITests: XCTestCase {
         wait(expand, 3)
         app.buttons["recipeSheet.close"].tap()
         XCTAssertTrue(expand.waitForNonExistence(timeout: 3))
+        #if DEBUG
+        ReturnBoundaryReceipt.capture(app, phase: "landscape-grid-close-before-query")
+        #endif
         wait(card, 5)
         // iPhone landscape uses LandscapeSplitView's sidebar, not a TabBar.
         let librarySidebar = app.buttons["sidebar.Library"]
+        #if DEBUG
+        ReturnBoundaryReceipt.capture(app, phase: "landscape-grid-close-after-query")
+        #endif
         XCTAssertTrue(librarySidebar.isSelected)
         let shoppingSidebar = app.buttons["sidebar.Shopping list"]
         wait(shoppingSidebar, 5)

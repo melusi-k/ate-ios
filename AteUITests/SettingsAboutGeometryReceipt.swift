@@ -22,7 +22,7 @@ struct SettingsAboutGeometryReceipt {
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "settings-about-geometry-" + checkpoint
         screenshot.lifetime = .keepAlways
-        XCTContext.runActivity(named: screenshot.name) { $0.add(screenshot) }
+        XCTContext.runActivity(named: "settings-about-geometry-" + checkpoint) { $0.add(screenshot) }
     }
 }
 #endif

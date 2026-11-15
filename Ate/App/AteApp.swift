@@ -196,7 +196,13 @@ struct RootView: View {
             // Collections are sidebar-only; back in portrait keep the filter but show the Library tab.
             if v != .compact, case .collection = store.tab { store.tab = .library }
         }
-        .onPreferenceChange(BottomChromeMinYKey.self) { bottomChromeMinY = $0 }
+        .onPreferenceChange(BottomChromeMinYKey.self) { value in
+            #if DEBUG
+            QA8DetailLayoutDiagnostic.event("root-chrome-min-y", value: value.map { Double($0) },
+                previous: bottomChromeMinY.map { Double($0) })
+            #endif
+            bottomChromeMinY = value
+        }
         .environment(\.bottomChromeMinY, bottomChromeMinY)
         .fullScreenCover(item: $store.cookTarget, onDismiss: { store.cookJournalModalDismissing = false; store.presentPendingCookedReflection() }) { target in
             NavigationStack { JournalBoundCookMode(recipeID: target.id, onExit: { store.cookJournalModalDismissing = true; store.cookTarget = nil }) }.environment(store)
@@ -812,6 +818,7 @@ enum QA8ExitFileDiagnostic {
     @MainActor static func exitWillBegin() {
         guard enabled, !exitObserved else { return }
         exitObserved = true
+        QA8DetailLayoutDiagnostic.beginExit()
         record("exit-enter")
         let phaseStart = ProcessInfo.processInfo.systemUptime
         startBackgroundScheduler(phaseStart: phaseStart)
@@ -871,6 +878,7 @@ enum QA8ExitFileDiagnostic {
     @MainActor static func exitDidReturn() {
         guard enabled else { return }
         record("exit-return")
+        QA8DetailLayoutDiagnostic.event("exit-return")
     }
     @MainActor private static func record(_ phase: String, scheduled: Double = -1, phaseStart: Double? = nil) {
         guard enabled, rows.count < 24,

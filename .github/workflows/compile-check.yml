@@ -165,6 +165,14 @@ jobs:
           set -o pipefail
           # Clean process so launch arguments are real (same rationale as other UI shards).
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          mkdir -p cookplan-process-lifecycle
+          python3 scripts/capture-cookplan-process-lifecycle.py --sim-id "$SIM_ID" --output cookplan-process-lifecycle > cookplan-process-lifecycle/collector-status.txt 2>&1 &
+          lifecycle_pid=$!
+          stop_lifecycle() {
+            kill "$lifecycle_pid" 2>/dev/null || true
+            wait "$lifecycle_pid" || true
+          }
+          trap stop_lifecycle EXIT
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
@@ -174,6 +182,8 @@ jobs:
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > nutrition-ui-tests.log 2>&1 || status=$?
+          stop_lifecycle
+          trap - EXIT
           # Export screenshots, hierarchy snapshots and audit attachments on every outcome,
           # including successful runs, so merge-gate pixel evidence is retained.
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/nutrition-ui-attachments" 2>/dev/null || true
@@ -231,6 +241,7 @@ jobs:
           if-no-files-found: warn
           path: |
             nutrition-ui-tests.log
+            cookplan-process-lifecycle
             nutrition-startup-liveness
             ${{ runner.temp }}/ate-test-results/nutrition-ui-tests.xcresult
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
@@ -258,6 +269,7 @@ jobs:
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
+            cookplan-process-lifecycle
             nutrition-startup-liveness
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
@@ -802,6 +814,7 @@ jobs:
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
+            cookplan-process-lifecycle
             nutrition-startup-liveness
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult

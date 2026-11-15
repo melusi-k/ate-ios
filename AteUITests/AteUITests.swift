@@ -1323,6 +1323,24 @@ final class AteUITests: XCTestCase {
         let first = text("First dish"), second = text("Second dish")
         wait(first)
         XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
+        // accessible reorder: long-press → Move up
+        first.press(forDuration: 1.2)
+        wait(app.buttons["Move up"], 3)
+        shot("library-reorder-menu")
+        app.buttons["Move up"].tap()
+        sleep(1)
+        XCTAssertLessThan(text("First dish").frame.minY, text("Second dish").frame.minY, "moved up")
+        shot("library-reordered")
+    }
+
+    func test29a_MyOrderSelectionOnly() {
+        // Recipe creation has separate end-to-end coverage; keep this budget
+        // for real native menus and their asserted Library actions.
+        launch(["-qaSavedRecipesForDogfoodReorder"])
+        pick("sortMenu", "My order")
+        let first = text("First dish"), second = text("Second dish")
+        wait(first)
+        XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
     }
 
     func test29b_ReorderMyOrderActions() {

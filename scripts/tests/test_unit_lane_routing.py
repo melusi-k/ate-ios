@@ -95,6 +95,8 @@ class UnitLaneRoutingTests(unittest.TestCase):
             self.assertIn('/' + method, self.dogfood)
         self.assertIn('missing named Library pass', self.dogfood)
         self.assertIn('"$total" -lt 16', self.dogfood)
+        self.assertIn('/test29b_ReorderMyOrderActions', self.dogfood)
+        self.assertIn('grep -qF "AteUITests $test]\' passed"', self.dogfood)
 
     def test_sync_quarantine_is_not_a_qualification_pass(self):
         q = self.dogfood.split('- name: Diagnose quarantined Settings/account-sync', 1)[1].split('- name: Summarize qualification', 1)[0]

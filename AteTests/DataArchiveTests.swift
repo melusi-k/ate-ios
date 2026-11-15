@@ -228,6 +228,13 @@ final class DataArchiveTests: XCTestCase {
         )
         let store = AppStore(context: nil, backend: MockBackend(), nutritionDiaryRepository: diary,
                              nutritionGoalsRepository: goals)
+        // Hermetic credential effect: these tests cover AppStore boundaries, not simulator Keychain entitlements.
+        // Explicit credential-refusal tests replace this seam after construction.
+        var credentialBytes: Data?
+        store.saveSessionCredentials = { data in
+            credentialBytes = data
+            return credentialBytes == data
+        }
         return (store, diary, goals, defaults, suite, directory)
     }
 }

@@ -520,3 +520,29 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
     }
 
 }
+
+extension AppStoreWriterBoundaryTests {
+    func testCredentialSaveFailureRefusesSignInAndPreservesCurrentSession() async {
+        let auth = AuthSpy(); let store = makeStore(auth: auth, sync: SyncSpy())
+        let original = auth.base.make("existing@example.test")
+        store.session = original
+        var attempts = 0
+        store.saveSessionCredentials = { data in attempts += 1; XCTAssertNotNil(data); return false }
+        let error = await store.signIn(email: "new@example.test", password: "fixture")
+        XCTAssertEqual(error?.message, AppStore.sessionWriteFailureMessage)
+        XCTAssertEqual(attempts, 1)
+        XCTAssertEqual(store.session, original)
+    }
+
+    func testCredentialRemovalFailureDoesNotClaimSessionExpired() {
+        let store = makeStore(auth: AuthSpy(), sync: SyncSpy())
+        let original = MockAuth().make("existing@example.test")
+        store.session = original
+        store.saveSessionCredentials = { data in XCTAssertNil(data); return false }
+        store.expireSession()
+        XCTAssertEqual(store.session, original)
+        XCTAssertFalse(store.sessionExpired)
+        guard case .failed(let message) = store.syncState else { return XCTFail("storage failure hidden") }
+        XCTAssertEqual(message, AppStore.sessionWriteFailureMessage)
+    }
+}

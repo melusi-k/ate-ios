@@ -1,7 +1,7 @@
 {
   "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Cook-plan removal responsiveness hypothesis: synchronous pending/delivered notification removals run on an awaited utility queue, not Main. Ordered intent cleanup and pending-ID verification remain unchanged; OFF plans still clear obsolete reminders. No timeout, retry or native assertion changes. Existing app focus and diagnostics retained. Native compile, responsiveness, reminders, saved-plan reopening/cancellation and pixels UNRUN on this patch. Metadata validation is not native qualification; merge held.",
-  "source_commit": "6707415ec9518497ce72fc383b05720fbb9d69a0",
+  "summary": "Opt-in Search receipt diagnostics record only bounded numeric binding lengths and utility/Main timing. Original storage write, single typing action, full-query assertions and waits remain unchanged. Capture can perturb input timing and does not establish cause. Existing focus diagnostics and notification responsiveness hypothesis retained. Native compile, receipt, AX/rendered value and pixels UNRUN on this packet. Metadata validation is not native qualification; merge held.",
+  "source_commit": "6ce0a7fa53c3f3e7021ee187d47a57bc1f65e792",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -57,7 +57,7 @@
     },
     {
       "path": "Ate/Views/LibraryView.swift",
-      "blob": "28101234a51b76e746ff2ed90931b04a4560fcd0"
+      "blob": "0fd016d0837c1f56fac572527b92975370a21f53"
     },
     {
       "path": "Ate/Views/OnboardingView.swift",

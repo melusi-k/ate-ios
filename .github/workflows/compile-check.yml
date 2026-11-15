@@ -202,6 +202,24 @@ jobs:
           done
           grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
 
+      - name: Retain selected Nutrition startup liveness
+        if: always()
+        run: |
+          mkdir -p nutrition-startup-liveness
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > nutrition-startup-liveness/copy-utc.txt
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> nutrition-startup-liveness/container-errors.txt); then
+            found=0
+            for evidence in "$data_container"/Library/Caches/startup-liveness-*.txt; do
+              if [ -f "$evidence" ]; then
+                cp "$evidence" nutrition-startup-liveness/
+                found=1
+              fi
+            done
+            if [ "$found" -eq 0 ]; then
+              echo 'No startup samples retained; liveness unverified.' > nutrition-startup-liveness/missing.txt
+            fi
+          fi
+
       - name: Upload nutrition UI diagnostics (early)
         if: always()
         uses: actions/upload-artifact@v7
@@ -213,6 +231,7 @@ jobs:
           if-no-files-found: warn
           path: |
             nutrition-ui-tests.log
+            nutrition-startup-liveness
             ${{ runner.temp }}/ate-test-results/nutrition-ui-tests.xcresult
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
 
@@ -239,6 +258,7 @@ jobs:
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
+            nutrition-startup-liveness
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log
@@ -782,6 +802,7 @@ jobs:
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
+            nutrition-startup-liveness
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log

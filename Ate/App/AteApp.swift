@@ -20,6 +20,7 @@ struct AteApp: App {
         #if DEBUG
         LiveDTProbe.installIfRequested()
         JournalAnimationDiagnostics.startIfRequested()
+        SearchFocusDiagnostic.startIfRequested()
         #endif
         if AppConfig.isUITesting {
             for k in ["ate.timerprefs.v1", "ate.cookSession.v1", CookCompletionOutbox.defaultsKey, CookReflectionOfferPolicy.defaultsKey, CookPlanStore.storageKey] { UserDefaults.standard.removeObject(forKey: k) }
@@ -48,7 +49,6 @@ struct AteApp: App {
             precondition(st.foodJournalRuntime == nil, "Legacy Insights QA fixture cannot mix with canonical runtime")
             st.shopping = InsightDestinationQAFixtures.shopping()
         }
-        DogfoodSavedRecipeQAFixtures.prepare(st)
         ExploreRetentionQAFixtures.prepare(st)
         CookJournalQARoute.prepare(st)
         IngredientDisplayQAFixtures.prepare(st)

@@ -1038,9 +1038,17 @@ final class AteUITests: XCTestCase {
         wait(text("Your Kitchen"), 5)
     }
 
+    private var captureGroup28 = false
+    private func menuCaptureMark(_ phase: String) {
+        guard captureGroup28 else { return }
+        print("MENU-CAPTURE phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime)")
+    }
+
     func pick(_ menu: String, _ option: String) {
         XCTAssertTrue(menu == "sortMenu" || menu == "groupByMenu", "Unknown picker contract")
+        menuCaptureMark("browse-tap-enter")
         app.buttons["libraryBrowseMenu"].firstMatch.tap()
+        menuCaptureMark("browse-tap-return")
         shot("library-browse-opened-\(menu)-\(option)")
         // Native iOS 27 popups expose the submenu label and icon but omit the
         // SwiftUI Menu identifier. Scope to the actual open Collections menu,
@@ -1056,7 +1064,9 @@ final class AteUITests: XCTestCase {
         XCTAssertEqual(submenu.count, 1, "Browse must expose one named arrange submenu")
         XCTAssertTrue(submenu.firstMatch.isHittable, "Arrange submenu must be visible without scrolling")
         guard submenu.count == 1 && submenu.firstMatch.isHittable else { return }
+        menuCaptureMark("submenu-tap-enter")
         submenu.firstMatch.tap()
+        menuCaptureMark("submenu-tap-return")
         shot("library-browse-choice-\(menu)-\(option)")
         // The explicit submenu contains only its own choices; shared labels such as
         // Recently added cannot accidentally select a collection in the parent popup.
@@ -1074,7 +1084,9 @@ final class AteUITests: XCTestCase {
         XCTAssertEqual(choices.count, 1, "Picker option must be unique in its submenu")
         XCTAssertTrue(choices.firstMatch.isHittable, "Picker option must be visible without scrolling")
         guard choices.count == 1 && choices.firstMatch.isHittable else { return }
+        menuCaptureMark("choice-tap-enter")
         choices.firstMatch.tap()
+        menuCaptureMark("choice-tap-return")
     }
 
     /// Journal menu journey: the Journal is the tab root with "New journal entry" as its primary
@@ -1210,7 +1222,9 @@ final class AteUITests: XCTestCase {
     }
 
     func test28_GroupSortAndMenus() {
-        launch()
+        captureGroup28 = true
+        defer { captureGroup28 = false }
+        launch(["-qaMenuWaitCapture", "-qaDogWaitPhaseDiagnostic"])
         addNamed("Zesty tacos")
         addNamed("Apple crumble")
         pick("sortMenu", "A–Z")
@@ -1229,8 +1243,19 @@ final class AteUITests: XCTestCase {
         a.swipeRight()
         wait(app.buttons["Favourite"].firstMatch, 3)
         shot("library-swipe-leading")
+        menuCaptureMark("favourite-before-pixels")
+        shot("group28-favourite-before-tap")
+        menuCaptureMark("favourite-tap-enter")
         app.buttons["Favourite"].firstMatch.tap()
+        menuCaptureMark("favourite-tap-return")
+        shot("group28-favourite-after-tap")
+        menuCaptureMark("favourite-after-pixels-toast-wait-enter")
+        defer {
+            menuCaptureMark("group28-exit")
+            shot("group28-favourite-test-exit")
+        }
         wait(text("Added to Favourites"), 3)
+        menuCaptureMark("favourite-toast-wait-return")
         pick("sortMenu", "Favourites first")
         // context menu with preview
         z.press(forDuration: 1.2)

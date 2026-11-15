@@ -1,7 +1,7 @@
 {
   "title": "Journal layout, published release history and recipe draft feedback",
-  "summary": "Focus: Journal root, reflection and release notes. Delete-Cancel and optional real Files diagnostics remain opt-in and may perturb timing. Dogfood now builds first, then runs the same 12 named tests once without building. This gives tests more of the existing 60-minute job envelope; the test step stays 30 minutes and per-test limits stay 240/480s. No app, UI-test actions, assertions, retries or runner changes. Genuine deadline failures stay red. Native and device acceptance remain unqualified; merge held.",
-  "source_commit": "fc564b3e1dee3c75829f440829381a0a34e3bd2e",
+  "summary": "Import review candidate: generated ingredients retain food identity and deduplicate repeated prep without guessing measures. Total/Prep/Cook labels distinguish the 17/12/5-minute example. A sear-only main method and ambiguous herb units raise review gaps; unused black pepper/water gaps remain. Save still requires editing or confirmation for low-confidence drafts. No renaming from pixels or invented steps. Existing repair feedback and Library/Settings diagnostics retained. Native tests and UI pixels unverified; this refresh only repairs pinned runtime metadata. Merge held.",
+  "source_commit": "9c8dc9e1112e2a700c57ae3d4be8f0e7773956f8",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -25,11 +25,11 @@
     },
     {
       "path": "Ate/Logic/GeneratedStepQuality.swift",
-      "blob": "2a88810dc9673bb769f33d92e9f6ef59a6627296"
+      "blob": "598aa805549ad845a39be2e6a2a375447c18bc06"
     },
     {
       "path": "Ate/Logic/IngredientFieldNormalization.swift",
-      "blob": "342fd0eb1a9cfbfd0921d6180693c071ad200430"
+      "blob": "d1c33144d6883bbd7fd71e90b0a2046e86243384"
     },
     {
       "path": "Ate/Logic/JSONLD.swift",
@@ -126,6 +126,14 @@
     {
       "path": "Ate/Views/SettingsView.swift",
       "blob": "ae8ffbf9487aaeb061a755c1f7238ad5defdc2ca"
+    },
+    {
+      "path": "Ate/Logic/GeneratedRecipeConsistency.swift",
+      "blob": "0d33469b486f440838e42d921544e2098483d32a"
+    },
+    {
+      "path": "Ate/Views/Components.swift",
+      "blob": "e4c30d9f9829f6c0ec553d3e5566bf10e7dbcb76"
     }
   ]
 }

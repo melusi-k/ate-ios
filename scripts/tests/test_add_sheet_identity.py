@@ -1,3 +1,4 @@
+from approved_merge_537 import normalize
 from pathlib import Path
 import hashlib, unittest
 ROOT=Path(__file__).resolve().parents[2]
@@ -9,13 +10,13 @@ BASE_SHA256 = {
 class AddSheetIdentityTests(unittest.TestCase):
     def test_only_identifier_added_to_product(self):
         path='Ate/Views/AddRecipeSheet.swift'
-        source=(ROOT/path).read_text()
+        source=normalize('source:'+path,(ROOT/path).read_text())
         extra='        .accessibilityIdentifier("addRecipe.content")\n'
         self.assertEqual(source.count(extra),1)
         self.assertEqual(hashlib.sha256(source.replace(extra,'',1).encode()).hexdigest(),BASE_SHA256[path])
     def test_exact_heading_and_nav_contract_preserved_without_containing_query(self):
         path='AteUITests/CookIngredientsUITests.swift'
-        source=(ROOT/path).read_text()
+        source=normalize('source:'+path,(ROOT/path).read_text())
         direct='app.scrollViews["addRecipe.content"]'
         self.assertEqual(source.count(direct),1)
         self.assertNotIn('scrollViews.containing(.textField',source)

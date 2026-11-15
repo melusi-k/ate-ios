@@ -1,3 +1,4 @@
+from approved_merge_534 import normalize
 from pathlib import Path
 import hashlib, unittest
 ROOT=Path(__file__).resolve().parents[2]
@@ -5,7 +6,7 @@ HELPER='    /// Opt-in diagnostic reads can perturb AX timing; never retry or na
 class JournalTabMetricsTests(unittest.TestCase):
     def test_capture_only_all_original_coverage_preserved(self):
         from settings_about_receipt_contract import original_coverage_bytes
-        current=original_coverage_bytes((ROOT/'AteUITests/CoverageUITests.swift').read_bytes()).decode()
+        current=original_coverage_bytes(normalize('source:AteUITests/CoverageUITests.swift', (ROOT/'AteUITests/CoverageUITests.swift').read_bytes())).decode()
         for fragment in [HELPER, '            captureJournalTabMetrics("before-hittable-waiter")\n', '        captureJournalTabMetrics("after-selected-settings-reveal")\n']:
             self.assertEqual(current.count(fragment),1)
             current=current.replace(fragment,'',1)

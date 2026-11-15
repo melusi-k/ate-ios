@@ -2,7 +2,8 @@
 from pathlib import Path
 import hashlib,json,unittest
 from unittest.mock import patch
-from approved_merge_539 import normalize,approved_original_file
+from approved_merge_539 import normalize,approved_original_file,normalize_539_parent
+from journal_personal_reset_delta import restore as restore_journal_reset
 ROOT=Path(__file__).resolve().parents[2]
 METHODS={'test28_GroupSortAndMenus': 'e30851c026ccfa7a36ff5d828c7e0f204bf21021eba9a4e6383c715429b4bc67', 'test29_ReorderMyOrder': 'f30fa14b1a5774dc41b193c2d6bdac4be296ccc412ec38d432ea3a5a4970c5db', 'test28_GroupSortAndMenusSavedSetup': '35eaf3673231e78c562868bdab22ee5253de6f199cc1d360e26226f15c2bbd81', 'test29_ReorderMyOrderSavedSetup': '1a7483c1d1d9b5e02a80689773461f0875bb46ae9f007154aeb4f88d6e52a779', 'test29b_ReorderMyOrderActions': 'a7b888247433c089cc1dfe6c52401977edabd90a5d5bbc15238aebd3191a0c2f'}
 class Merge539Union(unittest.TestCase):
@@ -44,11 +45,11 @@ class Merge539Union(unittest.TestCase):
         fixture=ROOT/'scripts/tests/approved_merge_539_inverses.json'
         data=json.loads(fixture.read_text())
         for key,contract in data['contracts'].items():
-            raw=(ROOT/contract['path']).read_text()
+            raw=restore_journal_reset(key,(ROOT/contract['path']).read_text())
             for item in contract['inverse_fragments']:
                 old=item['merged_fragment']
                 for changed in [raw.replace(old,'',1),raw+old]:
-                    with self.assertRaises(AssertionError):normalize(key,changed)
+                    with self.assertRaises(AssertionError):normalize_539_parent(key,changed)
         read=Path.read_bytes;altered=read(fixture)+b' '
         with patch.object(Path,'read_bytes',lambda p,*a,**k:altered if p==fixture else read(p,*a,**k)):
             with self.assertRaises(AssertionError):normalize(next(iter(data['contracts'])),'')

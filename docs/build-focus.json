@@ -1,7 +1,7 @@
 {
   "title": "Journal layout, published release history and recipe draft feedback",
-  "summary": "Opt-in Account assertion diagnostics capture bounded numeric month tap/state/reset events and completion/Done/dismiss/exit receipt. Additional screenshots/query text preserve original single taps, full assertions and waits. Captures may perturb timing and do not establish cause. Ingredients gathered query and runner failures remain separate. Native compile, transitions, dismissal, pixels and responsiveness UNRUN on this packet. Metadata guard is not qualification; merge held.",
-  "source_commit": "e1f94dfb0e3a6fdefbfafe921e184dc93cdeca1e",
+  "summary": "Sheet-owned Cook presentation hypothesis preserves the originating Library recipe detail after Finish and Done; default pushed-detail root route retained. Native compile, saved-sheet return, Exit, rotation, timers and optional-note handoff UNRUN. Existing tests and allowances unchanged. SettingsAbout allowance is separate; Nutrition exception unchanged. Metadata pass is not qualification; merge held.",
+  "source_commit": "215a92d4e2cfa147d84d186b75e7c118d2a19bd0",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -113,7 +113,7 @@
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
+      "blob": "38e263e6ac1c733f8c1c10f5708c46f82a614ed0"
     },
     {
       "path": "Ate/Logic/ProductRoadmap.swift",
@@ -134,6 +134,10 @@
     {
       "path": "Ate/Views/Components.swift",
       "blob": "e4c30d9f9829f6c0ec553d3e5566bf10e7dbcb76"
+    },
+    {
+      "path": "Ate/Views/ExpandableRecipeDetailSheet.swift",
+      "blob": "6fa5c8c8c99ed32fca77f934ac8c2dd706d0a2ae"
     }
   ]
 }

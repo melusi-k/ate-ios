@@ -272,6 +272,8 @@ jobs:
             cook-ingredients-tests.log
             ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments
             ${{ runner.temp }}/ate-test-results/cook-finish-accessory-attachments
+            ${{ runner.temp }}/ate-test-results/cook-mode-history-ui-tests-attachments
+            ${{ runner.temp }}/ate-test-results/cooking-tracker-ui-tests-attachments
 
   regression-suites:
     name: regression suite (${{ matrix.suite }})
@@ -600,6 +602,35 @@ jobs:
             grep -qF "AteUITests $test]' passed" cook-mode-history.log || { echo "::error::Missing bounded Cook Mode pass: $test"; exit 1; }
           done
 
+      - name: Retain Account month and completion assertion captures
+        if: ${{ matrix.suite == 'account-cooking' && always() }}
+        run: |
+          python3 - <<'PYEXPORT'
+          import os, pathlib, subprocess
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'ate-test-results'
+          for name in ['cook-mode-history-ui-tests', 'cooking-tracker-ui-tests']:
+              source = root / (name + '.xcresult')
+              output = root / (name + '-attachments')
+              output.mkdir(parents=True, exist_ok=True)
+              note = output / 'export-status.txt'
+              if not source.is_dir():
+                  note.write_text('Source xcresult missing; captures unavailable.\n')
+                  continue
+              try:
+                  result = subprocess.run(['xcrun', 'xcresulttool', 'export', 'attachments',
+                      '--path', str(source), '--output-path', str(output)],
+                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=60)
+                  note.write_text('export_exit=' + str(result.returncode) + '\n' + result.stdout)
+                  if result.returncode:
+                      print('::warning::Attachment export failed for ' + name + '; see export-status.txt')
+              except subprocess.TimeoutExpired:
+                  note.write_text('Attachment export exceeded 60 seconds and was stopped; partial captures may remain.\n')
+                  print('::warning::Attachment export timed out for ' + name)
+              except OSError as error:
+                  note.write_text('Attachment export could not start: ' + str(error) + '\n')
+                  print('::warning::Attachment export unavailable for ' + name)
+          PYEXPORT
+
       - name: Cook Finish above retained resume accessory
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
@@ -765,6 +796,8 @@ jobs:
             cook-ingredients-tests.log
             ${{ runner.temp }}/ate-test-results/cook-ingredients-attachments
             ${{ runner.temp }}/ate-test-results/cook-finish-accessory-attachments
+            ${{ runner.temp }}/ate-test-results/cook-mode-history-ui-tests-attachments
+            ${{ runner.temp }}/ate-test-results/cooking-tracker-ui-tests-attachments
 
   regressions:
     # Preserve the original required-check context. Matrix skips, cancellation or

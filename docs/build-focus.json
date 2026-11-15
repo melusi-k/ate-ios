@@ -1,7 +1,7 @@
 {
   "title": "Dormant Journal and nutrition goals sync preparation",
-  "summary": "Dormant Journal and goals sync preparation; shipping and host binding remain OFF. QA8 adds paired bounded background-scheduler and MainActor timing files, fixed numeric phases only, for the unresolved post-Exit busy-main freeze. This is diagnostic instrumentation, not a product fix or native acceptance; it may perturb timing. No test budgets or assertions changed. Native qualification remains unverified at this head. Migration unapplied; no production writes. Merge held.",
-  "source_commit": "c3669a4ba14b007403a1b22a094447986ae37831",
+  "summary": "Dormant Journal and goals sync preparation; shipping and host binding OFF. Sync tests use canonical fixture paths and targeted valid-day inputs; suspended test fakes register waiters atomically. Group28 adds opt-in paired MainActor/utility timing, fixed Favourite toast phases and capture around original taps/wait. The after-tap screenshot can consume a short toast window; absence is not regression proof. QA8 post-Exit diagnostics retained. No assertions or budgets weakened. Native qualification unverified; migration unapplied, no production writes. Merge held.",
+  "source_commit": "9235b4549d0399d68c45a508544f28f113f3ec2d",
   "evidence": [
     {
       "path": "Ate/Insights/InsightLifecycle.swift",
@@ -21,7 +21,7 @@
     },
     {
       "path": "Ate/Store/AppStore.swift",
-      "blob": "b74cc60bfbfdf0f6753dd167d3dc0312db94971e"
+      "blob": "d6b925e418eed0f0e02e562f85511bb224a63566"
     },
     {
       "path": "Ate/Store/FamilySyncCommitJournal.swift",

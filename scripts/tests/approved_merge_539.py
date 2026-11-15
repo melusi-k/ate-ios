@@ -1,0 +1,31 @@
+"""Exact reviewed opposite-parent inverse deltas; no git or network at runtime."""
+import hashlib,json
+from pathlib import Path
+_FIXTURE=Path(__file__).with_name('approved_merge_539_inverses.json')
+_FIXTURE_SHA256='2c43203deb8d312f0ff24e46db405dd4f96ba06cd75f81885cacf298dd375aee'
+def normalize(key, raw):
+    payload=_FIXTURE.read_bytes()
+    assert hashlib.sha256(payload).hexdigest()==_FIXTURE_SHA256, 'approved inverse fixture changed'
+    contract=json.loads(payload)['contracts'][key]
+    binary=isinstance(raw,bytes)
+    text=raw.decode() if binary else raw
+    cursor=0
+    for item in contract['inverse_fragments']:
+        old,new=item['merged_fragment'],item['parent_fragment']
+        assert text.count(old)==1, 'approved inverse fragment absent, changed or duplicated: '+key
+        start=text.index(old)
+        assert start>=cursor, 'approved inverse placement/order changed: '+key
+        text=text[:start]+new+text[start+len(old):]
+        cursor=start+len(new)
+    return text.encode() if binary else text
+
+
+def approved_original_file(path, raw):
+    payload=_FIXTURE.read_bytes()
+    assert hashlib.sha256(payload).hexdigest()==_FIXTURE_SHA256
+    additions=json.loads(payload)['approved_added_files']
+    if path in additions:
+        assert hashlib.sha256(raw).hexdigest()==additions[path], 'approved added file changed: '+path
+        return False
+    assert 'source:'+path in json.loads(payload)['contracts'], 'unreviewed added file: '+path
+    return True

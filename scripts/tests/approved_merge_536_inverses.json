@@ -1,0 +1,50 @@
+{
+  "parents": {
+    "source": "659e95479053af778b9db92152d6311f3886a38f",
+    "main": "4aa5e5ed62c84cba4bb9a9008ae35810956d91ae"
+  },
+  "contracts": {
+    "main:Ate/Views/LibraryView.swift": {
+      "parent_sha": "4aa5e5ed62c84cba4bb9a9008ae35810956d91ae",
+      "path": "Ate/Views/LibraryView.swift",
+      "inverse_fragments": []
+    },
+    "main:.github/workflows/compile-check.yml": {
+      "parent_sha": "4aa5e5ed62c84cba4bb9a9008ae35810956d91ae",
+      "path": ".github/workflows/compile-check.yml",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "          xcrun simctl terminate \"$SIM_ID\" com.melusik.ate >/dev/null 2>&1 || true\n          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -resultBundlePath \"$RUNNER_TEMP/ate-test-results/expandable-recipe-sheet.xcresult\" \\\n            -only-testing:AteUITests/CoverageUITests/test32c_ExpandableRecipeSheetOpensExpandsAndDismisses             -only-testing:AteUITests/CoverageUITests/test32d_ExpandableRecipeSheetLandscapeRotationAndDismissal \\\n            -only-testing:AteUITests/LibraryProteinGroupingUITests/testPorkLedRibsAppearUnderPorkAtNormalText \\\n            -parallel-testing-enabled NO -test-timeouts-enabled YES \\\n            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \\\n            CODE_SIGNING_ALLOWED=NO > expandable-recipe-sheet-tests.log 2>&1 || { grep -n -B 8 -A 15 -E \"error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed\" expandable-recipe-sheet-tests.log || true; tail -100 expandable-recipe-sheet-tests.log; exit 1; }\n          # Require the actual strengthened journey, not a zero-test green selection.\n          if grep -q \"Executed 0 tests\" expandable-recipe-sheet-tests.log; then echo \"::error::expandable recipe selection executed 0 tests\"; exit 1; fi\n          grep -qF \"CoverageUITests test32c_ExpandableRecipeSheetOpensExpandsAndDismisses]' passed\" expandable-recipe-sheet-tests.log || { echo \"::error::missing expandable recipe named-pass evidence\"; tail -80 expandable-recipe-sheet-tests.log; exit 1; }\n          grep -qF \"CoverageUITests test32d_ExpandableRecipeSheetLandscapeRotationAndDismissal]' passed\" expandable-recipe-sheet-tests.log || { echo \"::error::missing landscape recipe named-pass evidence\"; tail -80 expandable-recipe-sheet-tests.log; exit 1; }\n          grep -qF \"LibraryProteinGroupingUITests testPorkLedRibsAppearUnderPorkAtNormalText]' passed\" expandable-recipe-sheet-tests.log || { echo \"::error::missing Pork named-pass evidence\"; tail -80 expandable-recipe-sheet-tests.log; exit 1; }\n          grep -E \"Test Case .* (passed|failed)|Executed|TEST SUCCEEDED\" expandable-recipe-sheet-tests.log | tail -40\n\n      - name: Retain Library protein and recipe-sheet captures\n        if: ${{ matrix.suite == 'presentation-creation' && always() }}\n        run: |\n          if [ -d \"$RUNNER_TEMP/ate-test-results/expandable-recipe-sheet.xcresult\" ]; then\n            xcrun xcresulttool export attachments --path \"$RUNNER_TEMP/ate-test-results/expandable-recipe-sheet.xcresult\" \\\n              --output-path \"$RUNNER_TEMP/ate-test-results/library-protein-sheet-attachments\" \\\n              || { echo '::warning::Library capture export unavailable; inspect raw xcresult'; }\n          fi\n\n      - name: Settings-tab key-flow regression test\n        if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}\n",
+          "parent_fragment": "          xcrun simctl terminate \"$SIM_ID\" com.melusik.ate >/dev/null 2>&1 || true\n          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -resultBundlePath \"$RUNNER_TEMP/ate-test-results/expandable-recipe-sheet.xcresult\" \\\n            -only-testing:AteUITests/CoverageUITests/test32c_ExpandableRecipeSheetOpensExpandsAndDismisses \\\n            -parallel-testing-enabled NO -test-timeouts-enabled YES \\\n            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \\\n            CODE_SIGNING_ALLOWED=NO > expandable-recipe-sheet-tests.log 2>&1 || { grep -n -B 8 -A 15 -E \"error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed\" expandable-recipe-sheet-tests.log || true; tail -100 expandable-recipe-sheet-tests.log; exit 1; }\n          # Require the actual strengthened journey, not a zero-test green selection.\n          if grep -q \"Executed 0 tests\" expandable-recipe-sheet-tests.log; then echo \"::error::expandable recipe selection executed 0 tests\"; exit 1; fi\n          grep -qF \"CoverageUITests test32c_ExpandableRecipeSheetOpensExpandsAndDismisses]' passed\" expandable-recipe-sheet-tests.log || { echo \"::error::missing expandable recipe named-pass evidence\"; tail -80 expandable-recipe-sheet-tests.log; exit 1; }\n          grep -E \"Test Case .* (passed|failed)|Executed|TEST SUCCEEDED\" expandable-recipe-sheet-tests.log | tail -40\n\n      - name: Settings-tab key-flow regression test\n        if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}\n"
+        },
+        {
+          "merged_fragment": "          path: |\n            *.log\n            ${{ runner.temp }}/ate-test-results/draft-quality-repair-attachments\n            ${{ runner.temp }}/ate-test-results/library-protein-sheet-attachments\n            build.log\n            app-clip-build.log\n            app-clip-tests.log\n",
+          "parent_fragment": "          path: |\n            *.log\n            ${{ runner.temp }}/ate-test-results/draft-quality-repair-attachments\n            build.log\n            app-clip-build.log\n            app-clip-tests.log\n"
+        }
+      ]
+    },
+    "main:AteUITests/ExploreUITests.swift": {
+      "parent_sha": "4aa5e5ed62c84cba4bb9a9008ae35810956d91ae",
+      "path": "AteUITests/ExploreUITests.swift",
+      "inverse_fragments": []
+    },
+    "main:AteUITests/CoverageUITests.swift": {
+      "parent_sha": "4aa5e5ed62c84cba4bb9a9008ae35810956d91ae",
+      "path": "AteUITests/CoverageUITests.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "    // MARK: Library discovery + Settings tools/About\n\n    func test32c_ExpandableRecipeSheetOpensExpandsAndDismisses() {\n        launch([\"-qaSavedRecipeForSheet\", \"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryL\"])\n        defer { XCUIDevice.shared.orientation = .portrait }\n\n        let listCard = app.buttons[\"listCard\"].firstMatch\n",
+          "parent_fragment": "    // MARK: Library discovery + Settings tools/About\n\n    func test32c_ExpandableRecipeSheetOpensExpandsAndDismisses() {\n        launch()\n        addPrompt(\"Miso salmon for two\")\n        tab(\"Library\")\n        defer { XCUIDevice.shared.orientation = .portrait }\n\n        let listCard = app.buttons[\"listCard\"].firstMatch\n"
+        },
+        {
+          "merged_fragment": "        fully.tap()\n        let detailScroll = app.scrollViews[\"recipe.detail.scroll\"]\n        wait(detailScroll, 5)\n        let cookFooter = app.buttons[\"Cook mode\"]\n        wait(cookFooter, 5)\n        let firstIngredient = detailScroll.descendants(matching: .any)[\"recipe.ingredient.0\"].firstMatch\n        wait(firstIngredient, 5)\n        let header = app.buttons[\"favouriteButton\"]\n        RecipeDetailVisibility.reveal(firstIngredient, scroll: detailScroll, header: header, footer: cookFooter)\n        shot(\"recipe-sheet-full-first-ingredient-clear-of-cook-normal\")\n        XCTAssertTrue(firstIngredient.isHittable)\n        XCTAssertFalse(firstIngredient.frame.intersects(cookFooter.frame), \"First ingredient must scroll clear of Cook mode\")\n        XCTAssertTrue(RecipeDetailVisibility.contains(firstIngredient, scroll: detailScroll, header: header, footer: cookFooter),\n                      \"The whole ingredient must be inside the visible detail band\")\n        let steps = detailScroll.staticTexts[\"recipe.steps.heading\"]\n        // Overline text is exposed as uppercase STEPS. Use the stable identifier,\n        // and scroll only the mounted detail rather than the sheet or Library.\n",
+          "parent_fragment": "        fully.tap()\n        let detailScroll = app.scrollViews[\"recipe.detail.scroll\"]\n        wait(detailScroll, 5)\n        let steps = detailScroll.staticTexts[\"recipe.steps.heading\"]\n        // Overline text is exposed as uppercase STEPS. Use the stable identifier,\n        // and scroll only the mounted detail rather than the sheet or Library.\n"
+        },
+        {
+          "merged_fragment": "        XCTAssertTrue(app.tabBars.buttons[\"Library\"].isSelected, \"Dismissal must return to the original Library tab\")\n        shot(\"recipe-sheet-return-library-portrait\")\n\n    }\n\n    func test32d_ExpandableRecipeSheetLandscapeRotationAndDismissal() {\n        launch([\"-qaSavedRecipeForSheet\", \"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryL\"])\n        defer { XCUIDevice.shared.orientation = .portrait }\n        let title = app.staticTexts[\"recipeQuickLookTitle\"]\n        let expand = app.buttons[\"expandRecipeDetails\"]\n        let servings = app.segmentedControls[\"servingsPicker\"]\n        XCUIDevice.shared.orientation = .landscapeLeft\n        let card = app.buttons[\"gridCard\"].firstMatch\n        wait(card, 10)\n",
+          "parent_fragment": "        XCTAssertTrue(app.tabBars.buttons[\"Library\"].isSelected, \"Dismissal must return to the original Library tab\")\n        shot(\"recipe-sheet-return-library-portrait\")\n\n        XCUIDevice.shared.orientation = .landscapeLeft\n        let card = app.buttons[\"gridCard\"].firstMatch\n        wait(card, 10)\n"
+        }
+      ]
+    }
+  }
+}

@@ -63,6 +63,13 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
                         .appendingPathComponent(UUID().uuidString))),
                  foodJournalRuntime: nil,
                  injectedAuth: auth, injectedSync: sync)
+        // Hermetic credential effect: these tests cover AppStore boundaries, not simulator Keychain entitlements.
+        // Explicit credential-refusal tests replace this seam after construction.
+        var credentialBytes: Data?
+        store.saveSessionCredentials = { data in
+            credentialBytes = data
+            return credentialBytes == data
+        }
         stores.append(store)
         return store
     }

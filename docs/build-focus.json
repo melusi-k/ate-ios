@@ -1,7 +1,7 @@
 {
   "title": "Quieter Insights and new recipe suggestions",
-  "summary": "Focus: Insights and Journal navigation. Opt-in native Back diagnostics retain paired bounded scheduler/MainActor timing; the path observer is not UIKit transition completion. Selected Nutrition and Group28 journeys add paired startup liveness through 240s and monotonic markers around existing helpers, without extra UI queries. Numeric-only diagnostics may perturb timing, not a product fix or cause attribution. Original actions, assertions and budgets unchanged. Settings, animation-notification and AX latency remain unresolved; native/pixel acceptance unqualified. Merge held.",
-  "source_commit": "5099f06e0a316d80add93c6d22d9c57454dd81db",
+  "summary": "DEBUG-only phase capture brackets original widget-relay unit operations and landscape sheet close/grid return. Original actions, assertions, waits and OS services remain unchanged; no timeout, retry or service bypass. Bounded always-run attachment export retains landscape screenshots with honest error notes. Capture may perturb timing. Existing focus retained; native compile, phase attribution, responsiveness and pixels UNRUN on this packet. Metadata pass is not native qualification; merge held.",
+  "source_commit": "610e15a0b1734698d958dc6d8e4ffda330f009ae",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

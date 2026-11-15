@@ -79,7 +79,6 @@ struct RecipeDetailView: View {
                             store.beginCookSession(recipeID: recipeID, factor: factor)
                             if let onCook { onCook() }
                             else { store.cookTarget = CookTarget(id: recipeID) }
-                            store.cookTarget = CookTarget(id: recipeID)
                         } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
                             .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)
                             .padding(.bottom, footerChromeReserve)

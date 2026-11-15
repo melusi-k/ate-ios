@@ -43,7 +43,7 @@ final class CookIngredientsUITests: XCTestCase {
         let navigation = app.navigationBars["Add recipe"]
         XCTAssertTrue(navigation.exists && !navigation.frame.isEmpty && navigation.isHittable,
                       "Add recipe must be the active sheet before querying its heading")
-        let sheetContent = app.scrollViews.containing(.textField, identifier: "linkField").firstMatch
+        let sheetContent = app.scrollViews["addRecipe.content"]
         wait(sheetContent.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Add a recipe")).firstMatch)
         app.buttons["Prompt"].tap()
         let e = app.textViews["promptEditor"]; e.tap(); e.typeText("Miso salmon for two")

@@ -1,18 +1,19 @@
+from approved_merge_532 import normalize
 from pathlib import Path
 import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 class FoodJournalActivationRootTests(unittest.TestCase):
     def test_production_branch_returns_before_legacy_ordinary_open(self):
-        app = (ROOT / 'Ate/App/AteApp.swift').read_text()
+        app = normalize('source:Ate/App/AteApp.swift', (ROOT / 'Ate/App/AteApp.swift').read_text())
         self.assertLess(app.index('if AppConfig.useFoodJournalProductionOwner'), app.index('StoreRecovery.open('))
         prefix = app.split('if AppConfig.useFoodJournalProductionOwner', 1)[1].split('// Corruption-safe open', 1)[0]
         self.assertIn('return // no ordinary constructors', prefix)
-        self.assertIn('static let foodJournalEnabled = false', (ROOT / 'Ate/Services/BackendService.swift').read_text())
+        self.assertIn('static let foodJournalEnabled = false', normalize('source:Ate/Services/BackendService.swift', (ROOT / 'Ate/Services/BackendService.swift').read_text()))
         self.assertIn('FoodJournalApplicationRoot()', app)
 
     def test_real_owner_resumes_before_rebuild_and_injects_real_graph(self):
-        source = (ROOT / 'Ate/Store/FoodJournalApplicationOwner.swift').read_text()
+        source = normalize('source:Ate/Store/FoodJournalApplicationOwner.swift', (ROOT / 'Ate/Store/FoodJournalApplicationOwner.swift').read_text())
         start = source.split('func start() async', 1)[1].split('static func decodeSession', 1)[0]
         self.assertLess(start.index('refreshStartupSessionIfNeeded'), start.index('resumeLocalActionIfPending'))
         self.assertLess(start.index('resumeLocalActionIfPending'), start.index('try await rebuild()'))
@@ -32,8 +33,8 @@ class FoodJournalActivationRootTests(unittest.TestCase):
         self.assertIn('appOnlyContainerMode', source)
 
     def test_retirement_removes_root_and_checks_actual_disappearance_before_drain(self):
-        owner = (ROOT / 'Ate/Store/FoodJournalApplicationOwner.swift').read_text()
-        root = (ROOT / 'Ate/Views/FoodJournalApplicationRoot.swift').read_text()
+        owner = normalize('source:Ate/Store/FoodJournalApplicationOwner.swift', (ROOT / 'Ate/Store/FoodJournalApplicationOwner.swift').read_text())
+        root = normalize('source:Ate/Views/FoodJournalApplicationRoot.swift', (ROOT / 'Ate/Views/FoodJournalApplicationRoot.swift').read_text())
         retirement = owner.split('private func retireEditors()', 1)[1].split('private func rawInventory', 1)[0]
         self.assertLess(retirement.index('state = .checking'), retirement.index('withCheckedContinuation'))
         self.assertIn('retirementWaiter?.resume()', owner)
@@ -41,22 +42,22 @@ class FoodJournalActivationRootTests(unittest.TestCase):
         self.assertIn('.id(id)', root)
 
     def test_editor_and_health_work_are_captured_and_full_account_copy_is_honest(self):
-        add = (ROOT / 'Ate/Views/AddRecipeSheet.swift').read_text()
+        add = normalize('source:Ate/Views/AddRecipeSheet.swift', (ROOT / 'Ate/Views/AddRecipeSheet.swift').read_text())
         self.assertIn('await store.runJournalTask { await generateOwned(token: token) }', add)
         self.assertIn('try await store.performJournalTask', add)
         self.assertIn('try store.validateJournalTask()', add)
         self.assertNotIn('CoverStore.shared', add)
-        health = (ROOT / 'Ate/Views/InsightsView.swift').read_text()
+        health = normalize('source:Ate/Views/InsightsView.swift', (ROOT / 'Ate/Views/InsightsView.swift').read_text())
         self.assertIn('let originalOwner = owner', health)
         self.assertIn('!Task.isCancelled, (try? validate()) != nil', health)
         self.assertNotIn('if let st = AppStore.current', health)
-        settings = (ROOT / 'Ate/Views/SettingsView.swift').read_text()
+        settings = normalize('source:Ate/Views/SettingsView.swift', (ROOT / 'Ate/Views/SettingsView.swift').read_text())
         self.assertIn('Clear all your Ate account data?', settings)
         self.assertIn('Recipe links are not supported by this archive version', settings)
-        self.assertIn('CookPlanStore.storageKey', (ROOT / 'Ate/Store/ClearAllDataKeys.swift').read_text())
+        self.assertIn('CookPlanStore.storageKey', normalize('source:Ate/Store/ClearAllDataKeys.swift', (ROOT / 'Ate/Store/ClearAllDataKeys.swift').read_text()))
 
     def test_composed_generation_keeps_attempts_and_captured_owner_before_effects(self):
-        source = (ROOT / 'Ate/Views/AddRecipeSheet.swift').read_text()
+        source = normalize('source:Ate/Views/AddRecipeSheet.swift', (ROOT / 'Ate/Views/AddRecipeSheet.swift').read_text())
         self.assertIn('generationAttempt.start { token in await generate(token: token) }', source)
         generation = source.split('private func generateOwned(token: UUID)', 1)[1]
         self.assertIn('generationAttempt.startChild(token) {\n                    await store.runJournalTask {', generation)
@@ -68,7 +69,7 @@ class FoodJournalActivationRootTests(unittest.TestCase):
         self.assertNotIn('CoverStore.shared', source)
 
     def test_composed_insight_owner_refresh_checks_both_await_boundaries(self):
-        source = (ROOT / 'Ate/Views/InsightsView.swift').read_text()
+        source = normalize('source:Ate/Views/InsightsView.swift', (ROOT / 'Ate/Views/InsightsView.swift').read_text())
         self.assertEqual(source.count('private var model: InsightsModel { store.insightsModel }'), 2)
         self.assertNotIn('@State private var model = InsightsModel.shared', source)
         self.assertIn('@Bindable var model = model', source)
@@ -86,17 +87,17 @@ class FoodJournalActivationRootTests(unittest.TestCase):
         self.assertNotIn('AppStore.current', refresh)
 
     def test_extensions_bootstrap_before_shared_writes_and_share_image_captures_owner(self):
-        shared = (ROOT / 'Shared/SharedWriterGate.swift').read_text()
+        shared = normalize('source:Shared/SharedWriterGate.swift', (ROOT / 'Shared/SharedWriterGate.swift').read_text())
         self.assertIn('Bundle.main.bundleURL.pathExtension == "appex"', shared)
         self.assertIn('return (try? extensionProvider()) ?? .requiresCapturedOwner', shared)
-        self.assertIn('SharedWriterBoundary.installExtensionStartup()', (ROOT / 'AteWidgets/AteWidgets.swift').read_text())
-        share = (ROOT / 'AteShare/ShareViewController.swift').read_text()
+        self.assertIn('SharedWriterBoundary.installExtensionStartup()', normalize('source:AteWidgets/AteWidgets.swift', (ROOT / 'AteWidgets/AteWidgets.swift').read_text()))
+        share = normalize('source:AteShare/ShareViewController.swift', (ROOT / 'AteShare/ShareViewController.swift').read_text())
         self.assertIn('SharedWriterBoundary.installExtensionStartup()', share)
         self.assertLess(share.index('let boundary = SharedWriterBoundary.current'), share.index('await saveImage'))
         self.assertIn('private func saveImage(_ p: NSItemProvider, boundary: SharedWriterBoundary)', share)
         self.assertIn('SharedInbox.saveImage(boundary: boundary', share)
         self.assertIn('SharedInbox.push(item, boundary: boundary)', share)
-        watch = (ROOT / 'AteWatch/WatchStore.swift').read_text()
+        watch = normalize('source:AteWatch/WatchStore.swift', (ROOT / 'AteWatch/WatchStore.swift').read_text())
         self.assertIn('rest/v1/rpc/account_data_snapshot', watch)
         self.assertIn('rest/v1/rpc/put_user_recipe', watch)
         self.assertIn('try content.prepareToggle(item, session: originalSession', watch)
@@ -105,26 +106,26 @@ class FoodJournalActivationRootTests(unittest.TestCase):
         self.assertNotIn('rest/v1/user_recipes', watch)
 
     def test_timer_os_submissions_are_awaited_and_closed_owner_is_drained(self):
-        alerts = (ROOT / 'Ate/Services/TimerAlerts.swift').read_text()
+        alerts = normalize('source:Ate/Services/TimerAlerts.swift', (ROOT / 'Ate/Services/TimerAlerts.swift').read_text())
         self.assertNotIn('.add(req)', alerts)
         self.assertIn('Task.sleep(nanoseconds: 300_000_000)', alerts)
-        owner = (ROOT / 'Ate/Store/FoodJournalApplicationOwner.swift').read_text()
+        owner = normalize('source:Ate/Store/FoodJournalApplicationOwner.swift', (ROOT / 'Ate/Store/FoodJournalApplicationOwner.swift').read_text())
         self.assertIn('timers.notificationQueue.closeOwner()', owner)
         self.assertIn('await timers.notificationQueue.drainOwner()', owner)
-        queue = (ROOT / 'Shared/OrderedTimerNotifications.swift').read_text()
+        queue = normalize('source:Shared/OrderedTimerNotifications.swift', (ROOT / 'Shared/OrderedTimerNotifications.swift').read_text())
         self.assertIn('try await self.add(request)', queue)
         self.assertIn('await previous?.value', queue)
-        gate = (ROOT / 'Ate/Store/AccountWriterGate.swift').read_text()
+        gate = normalize('source:Ate/Store/AccountWriterGate.swift', (ROOT / 'Ate/Store/AccountWriterGate.swift').read_text())
         self.assertEqual(gate.count('try SharedNotificationSubmission.requireDrained(directory: directory)'), 3)
-        intents = (ROOT / 'SharedWidgets/TimerIntents.swift').read_text()
+        intents = normalize('source:SharedWidgets/TimerIntents.swift', (ROOT / 'SharedWidgets/TimerIntents.swift').read_text())
         self.assertIn('try? await c.add(', intents)
         self.assertIn('SharedNotificationSubmission.begin(directory:', intents)
         self.assertIn('try? pair.submission.finish()', intents)
         self.assertIn('try? result.submission.finish()', intents)
 
     def test_watch_cache_and_retained_items_are_bound_to_actual_session_and_snapshot(self):
-        watch = (ROOT / 'AteWatch/WatchStore.swift').read_text()
-        content = (ROOT / 'Shared/Watch/WatchOwnedContent.swift').read_text()
+        watch = normalize('source:AteWatch/WatchStore.swift', (ROOT / 'AteWatch/WatchStore.swift').read_text())
+        content = normalize('source:Shared/Watch/WatchOwnedContent.swift', (ROOT / 'Shared/Watch/WatchOwnedContent.swift').read_text())
         self.assertIn('content = WatchOwnedContent(session: saved, cacheURL: url)', watch)
         self.assertNotIn('private struct Cache', watch)
         self.assertIn('try content.transition(to: next, cacheURL: cacheURL)', watch)
@@ -139,7 +140,7 @@ class FoodJournalActivationRootTests(unittest.TestCase):
         self.assertIn('guard session == capture.session else {', watch)
 
     def test_real_owner_qualification_selector_is_debug_only_and_excludes_hermetic_fixture(self):
-        config = (ROOT / 'Ate/Services/BackendService.swift').read_text()
+        config = normalize('source:Ate/Services/BackendService.swift', (ROOT / 'Ate/Services/BackendService.swift').read_text())
         selector = config.split('static func foodJournalProductionOwnerSelected(arguments:', 1)[1].split('    static func string(', 1)[0]
         self.assertIn('guard !arguments.contains("-UITesting") else { return false }', selector)
         self.assertIn('#if DEBUG\n        if arguments.contains("-qaFoodJournalProductionOwner") { return true }\n        #endif', selector)
@@ -148,5 +149,5 @@ class FoodJournalActivationRootTests(unittest.TestCase):
         self.assertNotIn('return true', release)
         self.assertIn('return foodJournalEnabled', release)
         self.assertIn('static let foodJournalEnabled = false', config)
-        app = (ROOT / 'Ate/App/AteApp.swift').read_text()
+        app = normalize('source:Ate/App/AteApp.swift', (ROOT / 'Ate/App/AteApp.swift').read_text())
         self.assertLess(app.index('if AppConfig.useFoodJournalProductionOwner'), app.index('if AppConfig.isUITesting'))

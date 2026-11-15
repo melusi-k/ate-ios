@@ -399,10 +399,87 @@ final class CoverageUITests: XCTestCase {
         revealReadOnlySettingsRow(transparency); wait(transparency, 3)
         shot("settings-about")
 
-        // About is below Tools. Return toward the earlier Export row first,
-        // rather than spending the full downward search at the bottom of Settings.
-        // Keep the same bounded opposite-direction fallback and all export assertions.
-        scrollTo(export, searchDownFirst: false)
+        // Export is an interactive row. A stale/lazy AX node can be hittable
+        // behind chrome; prove full clearance before allowing its original tap.
+        func exportTargetSnapshot() -> (row: CGRect, clear: CGRect)? {
+            let window = app.windows.firstMatch
+            let navigation = app.navigationBars["Settings"]
+            let tabs = app.tabBars.firstMatch
+            guard window.exists, navigation.exists, tabs.exists, timerSettings.exists,
+                  export.exists, export.isEnabled, export.elementType == .button,
+                  export.identifier == "settings.export" else { return nil }
+            let screen = window.frame
+            let form = timerSettings.frame
+            let nav = navigation.frame
+            let tab = tabs.frame
+            let row = export.frame
+            let frames = [screen, form, nav, tab, row]
+            guard frames.allSatisfy({ !$0.isEmpty && !$0.isNull && !$0.isInfinite }) else { return nil }
+            let top = max(screen.minY, max(form.minY, nav.maxY)) + 8
+            var bottom = min(screen.maxY, min(form.maxY, tab.minY)) - 8
+            let accessory = app.descendants(matching: .any)["bottomAccessory"].firstMatch
+            if accessory.exists {
+                let frame = accessory.frame
+                guard !frame.isEmpty, !frame.isNull, !frame.isInfinite else { return nil }
+                if frame.intersects(screen) { bottom = min(bottom, frame.minY - 8) }
+            }
+            let left = max(screen.minX, form.minX) + 8
+            let right = min(screen.maxX, form.maxX) - 8
+            guard bottom > top, right > left else { return nil }
+            return (row, CGRect(x: left, y: top, width: right - left, height: bottom - top))
+        }
+        func exportFullyClear() -> Bool {
+            guard let first = exportTargetSnapshot(), first.clear.contains(first.row),
+                  export.isHittable,
+                  let second = exportTargetSnapshot(), second.clear.contains(second.row),
+                  first.row == second.row, first.clear == second.clear else { return false }
+            return true
+        }
+        func dragInsideSettings(towardEarlier: Bool) {
+            let window = app.windows.firstMatch.frame
+            let nav = app.navigationBars["Settings"].frame
+            let tabs = app.tabBars.firstMatch.frame
+            let form = timerSettings.frame
+            let top = max(window.minY, max(form.minY, nav.maxY)) + 16
+            var bottom = min(window.maxY, min(form.maxY, tabs.minY)) - 16
+            let frames = [window, nav, tabs, form]
+            guard frames.allSatisfy({ !$0.isEmpty && !$0.isNull && !$0.isInfinite }) else { return }
+            let accessory = app.descendants(matching: .any)["bottomAccessory"].firstMatch
+            if accessory.exists {
+                let frame = accessory.frame
+                guard !frame.isEmpty, !frame.isNull, !frame.isInfinite else { return }
+                if frame.intersects(window) { bottom = min(bottom, frame.minY - 16) }
+            }
+            guard bottom > top else { return }
+            let origin = timerSettings.coordinate(withNormalizedOffset: .zero)
+            let upper = origin.withOffset(CGVector(dx: form.width / 2, dy: top - form.minY))
+            let lower = origin.withOffset(CGVector(dx: form.width / 2, dy: bottom - form.minY))
+            if towardEarlier { upper.press(forDuration: 0.1, thenDragTo: lower) }
+            else { lower.press(forDuration: 0.1, thenDragTo: upper) }
+        }
+        // Retain the original bounded 25-earlier/50-later search and 2s existence
+        // wait. Only gesture surface and readiness are stricter; no tap retries.
+        _ = export.waitForExistence(timeout: 2)
+        var exportSwipes = 0
+        while !exportFullyClear() && exportSwipes < 25 {
+            dragInsideSettings(towardEarlier: true); exportSwipes += 1
+        }
+        exportSwipes = 0
+        while !exportFullyClear() && exportSwipes < 50 {
+            dragInsideSettings(towardEarlier: false); exportSwipes += 1
+        }
+        let exportClear = exportFullyClear()
+        if let snapshot = exportTargetSnapshot() {
+            print("SETTINGS-EXPORT-PRETAP row=\(snapshot.row) clear=\(snapshot.clear) ready=\(exportClear)")
+        } else {
+            print("SETTINGS-EXPORT-PRETAP geometry=unavailable ready=false")
+        }
+        shot("settings-export-before-original-tap")
+        XCTAssertTrue(exportClear, "Export row must be fully inside the live Settings clear band before tapping")
+        guard exportClear, exportFullyClear() else {
+            XCTFail("Export target moved or is clipped; no off-band tap is allowed")
+            return
+        }
         export.tap()
         shot("settings-export-immediately-after-tap")
         print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-BEGIN")

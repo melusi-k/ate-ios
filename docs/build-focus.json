@@ -1,7 +1,7 @@
 {
-  "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Opt-in Search receipt diagnostics record only bounded numeric binding lengths and utility/Main timing. Original storage write, single typing action, full-query assertions and waits remain unchanged. Capture can perturb input timing and does not establish cause. Existing focus diagnostics and notification responsiveness hypothesis retained. Native compile, receipt, AX/rendered value and pixels UNRUN on this packet. Metadata validation is not native qualification; merge held.",
-  "source_commit": "6ce0a7fa53c3f3e7021ee187d47a57bc1f65e792",
+  "title": "Honest uncertain photo questions and draft metadata",
+  "summary": "Photo spread question is uncertain, not an assertion. After final calibration low-confidence photo cuisine/tags omitted with note. Recipe/confidence/threshold/OCR untouched. Independent245PythonPASS; native compilation/XCTest/realmodel/pixelsUNRUN. Held.",
+  "source_commit": "d0de870be6461e648ee0879e3c45883f4fe05316",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -77,11 +77,19 @@
     },
     {
       "path": "Ate/Services/OnDeviceBackend.swift",
-      "blob": "2caf8558181d9f0273f267fc78e6973d14f367c7"
+      "blob": "da7c5e8f3fdfa3cea5f3c20b4202ed54caabe52d"
     },
     {
       "path": "Ate/Services/CookPlanNotifications.swift",
       "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
+    },
+    {
+      "path": "Ate/Logic/PhotoDraftHonesty.swift",
+      "blob": "7e76573fb3346257dd88fa22314ae33330451903"
+    },
+    {
+      "path": "Ate/Logic/RecipePrompt.swift",
+      "blob": "80ea720f4ed65b74a796c89100f3e5442c465f92"
     }
   ]
 }

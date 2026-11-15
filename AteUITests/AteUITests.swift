@@ -1214,8 +1214,8 @@ final class AteUITests: XCTestCase {
     }
 
     func test28_GroupSortAndMenus() {
-        // Recipe creation has separate end-to-end coverage; keep this budget
-        // for real native menus and their asserted Library actions.
+        // Creation has independent end-to-end coverage. These journeys own
+        // the real Library menus/actions, not two unrelated generation flows.
         launch(["-qaSavedRecipesForGroupSort"])
         pick("sortMenu", "A–Z")
         let a = text("Apple crumble"), z = text("Zesty tacos")
@@ -1284,8 +1284,6 @@ final class AteUITests: XCTestCase {
     }
 
     func test29_ReorderMyOrder() {
-        // Recipe creation has separate end-to-end coverage; keep this budget
-        // for real native menus and their asserted Library actions.
         launch(["-qaSavedRecipesForDogfoodReorder"])
         pick("sortMenu", "My order")
         let first = text("First dish"), second = text("Second dish")
@@ -1294,8 +1292,8 @@ final class AteUITests: XCTestCase {
     }
 
     func test29b_ReorderMyOrderActions() {
-        // Sort selection is exercised by test29. These cards still have no
-        // explicit positions; Move up must perform the real ordering change.
+        // The selection journey exercises My order. Preselect only that mode;
+        // unordered cards and all real action results remain unseeded.
         launch(["-qaSavedRecipesForReorderAction"])
         let first = text("First dish"), second = text("Second dish")
         wait(first)

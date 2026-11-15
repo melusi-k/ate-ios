@@ -926,6 +926,12 @@ enum StartupLivenessDiagnostic {
                 to: cache.appendingPathComponent("startup-liveness-diagnostic-\(ProcessInfo.processInfo.processIdentifier).txt"), options: .atomic)
         } catch {
             logger.error("Presentation return numeric evidence file write failed")
+        }
+    }
+}
+#endif
+
+#if DEBUG
 /// Notification timing only. Never queries content, focus, or first responders.
 @MainActor enum SearchFocusDiagnostic {
     private static var tokens: [NSObjectProtocol] = []

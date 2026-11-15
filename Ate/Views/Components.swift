@@ -294,6 +294,14 @@ struct ToastView: View {
         .overlay(Capsule().stroke(Theme.border))
         .shadow(color: .black.opacity(0.12), radius: 12, y: 6)
         .padding(.horizontal, 16)
+        #if DEBUG
+        .onAppear {
+            if toast.message == "Added to Favourites" { MenuWaitCapture.event("favourite-toast-view-appear") }
+        }
+        .onDisappear {
+            if toast.message == "Added to Favourites" { MenuWaitCapture.event("favourite-toast-view-disappear") }
+        }
+        #endif
     }
 }
 

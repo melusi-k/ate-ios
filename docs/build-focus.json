@@ -1,7 +1,7 @@
 {
   "title": "Dormant Journal and nutrition goals sync preparation",
-  "summary": "Dormant Journal and goals sync preparation remains OFF. Goals fixture, schema/crash markers and targeted QA8 stack capture retained. Adds bounded DEBUG-only post-Exit quality-call timing and existing geometry callback counts/values to distinguish slow work from repeated layout. Seven native stack samples suggest layout work, not a proven cause. Group28 allowance breach remains separate. No quality checks, product layout, assertions or budgets changed. New native capture UNRUN; merge held, production migration unapplied.",
-  "source_commit": "120b0b673a4776fe4a6fe3056a5bda6a245178d8",
+  "summary": "Recipe-detail geometry feedback hypothesis: measure the outer safe-area-inset host instead of its reduced content. Live chrome clearance, reserve formula, actions, tests and diagnostic capture remain unchanged. No debounce, frozen geometry, timeout or retry changes. Native compile, post-Cook layout stability, rotation, timer/footer clearance and pixels UNRUN on this change. Group28/Reorder29 remain separate reds. Metadata guard is not qualification; merge held.",
+  "source_commit": "4c602321506b62281cb8f46b351a5d2bab92ff02",
   "evidence": [
     {
       "path": "Ate/Insights/InsightLifecycle.swift",
@@ -41,7 +41,7 @@
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "987d8197e376f8d0002da2ed90e215dfadb91718"
+      "blob": "232655dc9d70686ebc5639028c5a5249c7dd3fd8"
     }
   ]
 }

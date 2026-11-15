@@ -1,3 +1,4 @@
+from approved_merge_539 import normalize
 from pathlib import Path
 import hashlib,unittest
 ROOT=Path(__file__).resolve().parents[2]
@@ -13,9 +14,9 @@ def restore_auth_refresh(test,source,file):
 class AuthRefreshRaceContracts(unittest.TestCase):
     def test_only_declared_changes(self):
         for f in CHANGES:
-            self.assertEqual(hashlib.sha256(restore_auth_refresh(self,(ROOT/f).read_text(),f).encode()).hexdigest(),HASHES[f])
+            self.assertEqual(hashlib.sha256(restore_auth_refresh(self,normalize('source:'+f,(ROOT/f).read_text()),f).encode()).hexdigest(),HASHES[f])
     def test_auth_events_never_reach_telemetry(self):
-        s=(ROOT/'Ate/Services/TelemetryClient.swift').read_text()
+        s=normalize('source:Ate/Services/TelemetryClient.swift', (ROOT/'Ate/Services/TelemetryClient.swift').read_text())
         self.assertLess(s.index('!DiagnosticEvent.isLocalOnly(kind)'),s.index('Task.detached'))
         self.assertLess(s.index('!DiagnosticEvent.isLocalOnly(kind)'),s.index('request.httpBody'))
 

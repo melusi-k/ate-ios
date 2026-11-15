@@ -2,6 +2,8 @@ from pathlib import Path
 import unittest,hashlib
 ROOT=Path(__file__).resolve().parents[2]
 def restore_sync_crash_capture(s):
+    from test_user_data_sync_model_qualification import restore_sync_model_qualification
+    s=restore_sync_model_qualification(s)
     s=s.replace('            print("SYNC-MATRIX boundary=\\(boundary.rawValue) phase=recovery-assertions-return")\n','',1)
     s=s.replace('            print("SYNC-MATRIX boundary=\\(boundary.rawValue) phase=reopened-before-recovery")\n','',1)
     s=s.replace('            print("SYNC-MATRIX boundary=\\(boundary.rawValue) phase=release-return")\n','',1)

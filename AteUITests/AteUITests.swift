@@ -2,6 +2,7 @@ import XCTest
 
 final class AteUITests: XCTestCase {
     var app: XCUIApplication!
+    private var captureAddTitleQuery = false
 
     override func setUp() {
         continueAfterFailure = false
@@ -109,6 +110,7 @@ final class AteUITests: XCTestCase {
     /// Opens Add sheet, picks a tab, generates via mock and saves; ends on Recipe detail.
     func addRecipe(tab: String, input: ((XCUIApplication) -> Void)?, shotPrefix: String) {
         app.buttons["Add recipe"].tap()
+        if captureAddTitleQuery { shot("cook-completion-before-add-title-query") }
         wait(text("Add a recipe"))
         app.buttons[tab].tap()
         input?(app)
@@ -258,7 +260,9 @@ final class AteUITests: XCTestCase {
     }
 
     func testCookModeCompletionRecordsCookingDay() {
-        launch()
+        captureAddTitleQuery = true
+        defer { captureAddTitleQuery = false }
+        launch(["-qaAddTitleQueryDiagnostic"])
         addPromptRecipe()
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))
@@ -1221,6 +1225,39 @@ final class AteUITests: XCTestCase {
         }
     }
 
+    func test28_GroupSortAndMenusSavedSetup() {
+        // Recipe creation has separate end-to-end coverage; keep this budget
+        // for real native menus and their asserted Library actions.
+        launch(["-qaSavedRecipesForGroupSort"])
+        pick("sortMenu", "A–Z")
+        let a = text("Apple crumble"), z = text("Zesty tacos")
+        wait(a)
+        XCTAssertLessThan(a.frame.minY, z.frame.minY, "A–Z order")
+        shot("library-sort-az")
+        pick("groupByMenu", "Recently added")
+        wait(app.descendants(matching: .any)["section.Today"].firstMatch, 3)
+        shot("library-group-added")
+        pick("groupByMenu", "Cook time")
+        wait(app.descendants(matching: .any)["section.Under 30 min"].firstMatch, 3)
+        shot("library-group-cooktime")
+        pick("groupByMenu", "None")
+        // leading swipe: favourite + add to list
+        a.swipeRight()
+        wait(app.buttons["Favourite"].firstMatch, 3)
+        shot("library-swipe-leading")
+        app.buttons["Favourite"].firstMatch.tap()
+        wait(text("Added to Favourites"), 3)
+        pick("sortMenu", "Favourites first")
+        // context menu with preview
+        z.press(forDuration: 1.2)
+        wait(app.buttons["Cook"], 3)
+        XCTAssertTrue(app.buttons["Share"].exists)
+        XCTAssertTrue(app.buttons["Add to shopping list"].exists)
+        shot("library-context-menu-full")
+        app.buttons["Add to shopping list"].tap()
+        wait(text("Added to your shopping list"), 3)
+    }
+
     func test28_GroupSortAndMenus() {
         captureGroup28 = true
         defer { captureGroup28 = false }
@@ -1304,6 +1341,16 @@ final class AteUITests: XCTestCase {
         app.buttons["authSubmit"].tap()
     }
 
+    func test29_ReorderMyOrderSavedSetup() {
+        // Recipe creation has separate end-to-end coverage; keep this budget
+        // for real native menus and their asserted Library actions.
+        launch(["-qaSavedRecipesForDogfoodReorder"])
+        pick("sortMenu", "My order")
+        let first = text("First dish"), second = text("Second dish")
+        wait(first)
+        XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
+    }
+
     func test29_ReorderMyOrder() {
         launch(["-qaDogWaitPhaseDiagnostic"])
         addNamed("First dish")
@@ -1315,6 +1362,27 @@ final class AteUITests: XCTestCase {
         // accessible reorder: long-press → Move up
         first.press(forDuration: 1.2)
         shot("library-reorder-after-longpress")
+        wait(app.buttons["Move up"], 3)
+        shot("library-reorder-menu")
+        app.buttons["Move up"].tap()
+        sleep(1)
+        XCTAssertLessThan(text("First dish").frame.minY, text("Second dish").frame.minY, "moved up")
+        shot("library-reordered")
+        // drag (best effort in the simulator)
+        text("First dish").press(forDuration: 1.0, thenDragTo: text("Second dish"))
+        sleep(1)
+        shot("library-reorder-drag")
+    }
+
+    func test29b_ReorderMyOrderActions() {
+        // Sort selection is exercised by test29. These cards still have no
+        // explicit positions; Move up must perform the real ordering change.
+        launch(["-qaSavedRecipesForReorderAction"])
+        let first = text("First dish"), second = text("Second dish")
+        wait(first)
+        XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
+        // accessible reorder: long-press → Move up
+        first.press(forDuration: 1.2)
         wait(app.buttons["Move up"], 3)
         shot("library-reorder-menu")
         app.buttons["Move up"].tap()

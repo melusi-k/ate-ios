@@ -199,7 +199,15 @@ struct RootView: View {
         .onPreferenceChange(BottomChromeMinYKey.self) { bottomChromeMinY = $0 }
         .environment(\.bottomChromeMinY, bottomChromeMinY)
         .fullScreenCover(item: $store.cookTarget, onDismiss: { store.cookJournalModalDismissing = false; store.presentPendingCookedReflection() }) { target in
-            NavigationStack { JournalBoundCookMode(recipeID: target.id, onExit: { store.cookJournalModalDismissing = true; store.cookTarget = nil }) }.environment(store)
+            NavigationStack { JournalBoundCookMode(recipeID: target.id, onExit: {
+#if DEBUG
+                AccountAssertionDiagnostic.record(24)
+#endif
+                store.cookJournalModalDismissing = true; store.cookTarget = nil
+#if DEBUG
+                AccountAssertionDiagnostic.record(25)
+#endif
+            }) }.environment(store)
         }
         .fullScreenCover(isPresented: $store.showOnboarding) { OnboardingView().environment(store) }
         .sheet(item: $store.authSheet) { m in AuthSheet(mode: m).environment(store) }

@@ -233,13 +233,20 @@ struct CookModeView: View {
             }
 
             Spacer()
-            Text(Units.convertTemperatures(in: s.instruction, to: store.settings.units))
-                .font(AteFont.display(UIScreen.main.bounds.width > 400 ? 34 : 30)).lineSpacing(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .minimumScaleFactor(0.5)
-                .accessibilityLabel("Step \(index + 1) of \(n). " + Units.convertTemperatures(in: s.instruction, to: store.settings.units))
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityIdentifier("cookStepText")
+            GeometryReader { viewport in
+                ScrollView(.vertical) {
+                    Text(Units.convertTemperatures(in: s.instruction, to: store.settings.units))
+                        .font(AteFont.display(UIScreen.main.bounds.width > 400 ? 34 : 30)).lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, minHeight: viewport.size.height, alignment: .leading)
+                        .accessibilityLabel("Step \(index + 1) of \(n). " + Units.convertTemperatures(in: s.instruction, to: store.settings.units))
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("cookStepText")
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .accessibilityIdentifier("cookStepScroll")
+                .id(index) // A new step starts at its beginning, not the previous step's scroll offset.
+            }
             if let range = Durations.rangeLabel(in: s.instruction), (s.timeSeconds ?? 0) > 0 {
                 Text("\(range) · timer set to the longer time").font(AteFont.body(13)).foregroundStyle(Theme.warmForeground)
                     .accessibilityIdentifier("cookTimerRange")

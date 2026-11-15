@@ -2,6 +2,11 @@ import SwiftUI
 import Combine
 import SwiftData
 import UserNotifications
+#if DEBUG
+import Foundation
+import UIKit
+import OSLog
+#endif
 
 @main
 struct AteApp: App {
@@ -43,6 +48,8 @@ struct AteApp: App {
             precondition(st.foodJournalRuntime == nil, "Legacy Insights QA fixture cannot mix with canonical runtime")
             st.shopping = InsightDestinationQAFixtures.shopping()
         }
+        DogfoodSavedRecipeQAFixtures.prepare(st)
+        ExploreRetentionQAFixtures.prepare(st)
         CookJournalQARoute.prepare(st)
         IngredientDisplayQAFixtures.prepare(st)
         DogfoodSavedRecipeQAFixtures.prepare(st)
@@ -495,7 +502,7 @@ extension RootView {
                 case .search: store.searchPath = []
                 }
             }
-            store.select(new)
+            store.selectTab(new)
         })
     }
 }
@@ -731,3 +738,37 @@ extension AppAppearance {
         switch self { case .system: return nil; case .light: return .light; case .dark: return .dark }
     }
 }
+
+#if DEBUG
+/// Notification timing only. Never queries content, focus, or first responders.
+@MainActor enum SearchFocusDiagnostic {
+    private static var tokens: [NSObjectProtocol] = []
+    private static var rows: [String] = []
+    static func startIfRequested() {
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaSearchFocusDiagnostic"), tokens.isEmpty else { return }
+        record(phase: 0, frame: .zero)
+        let names: [Notification.Name] = [UIResponder.keyboardWillShowNotification,
+            UIResponder.keyboardDidShowNotification, UIResponder.keyboardWillHideNotification,
+            UIResponder.keyboardDidHideNotification]
+        for (index, name) in names.enumerated() {
+            tokens.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { note in
+                MainActor.assumeIsolated {
+                    let frame = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue ?? .zero
+                    record(phase: index + 1, frame: frame)
+                }
+            })
+        }
+    }
+    private static func record(phase: Int, frame: CGRect) {
+        guard rows.count < 20,
+              let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime) x=\(frame.minX) y=\(frame.minY) width=\(frame.width) height=\(frame.height)")
+        do {
+            try Data((rows.joined(separator: "\n") + "\n").utf8).write(to: cache.appendingPathComponent("search-focus-diagnostic.txt"), options: .atomic)
+        } catch {
+            Logger(subsystem: "com.melusik.ate", category: "SearchFocusDiagnostic").error("Search focus numeric evidence write failed")
+        }
+    }
+}
+#endif

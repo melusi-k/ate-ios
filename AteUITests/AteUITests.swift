@@ -2,6 +2,7 @@ import XCTest
 
 final class AteUITests: XCTestCase {
     var app: XCUIApplication!
+    private var captureAddTitleQuery = false
 
     override func setUp() {
         continueAfterFailure = false
@@ -109,6 +110,7 @@ final class AteUITests: XCTestCase {
     /// Opens Add sheet, picks a tab, generates via mock and saves; ends on Recipe detail.
     func addRecipe(tab: String, input: ((XCUIApplication) -> Void)?, shotPrefix: String) {
         app.buttons["Add recipe"].tap()
+        if captureAddTitleQuery { shot("cook-completion-before-add-title-query") }
         wait(text("Add a recipe"))
         app.buttons[tab].tap()
         input?(app)
@@ -261,7 +263,9 @@ final class AteUITests: XCTestCase {
     }
 
     func testCookModeCompletionRecordsCookingDay() {
-        launch()
+        captureAddTitleQuery = true
+        defer { captureAddTitleQuery = false }
+        launch(["-qaAddTitleQueryDiagnostic"])
         addPromptRecipe()
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))

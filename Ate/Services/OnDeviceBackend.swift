@@ -1,4 +1,7 @@
 import Foundation
+#if DEBUG
+import Darwin
+#endif
 import Vision
 import OSLog
 import UIKit
@@ -564,18 +567,38 @@ final class OnDeviceBackend: BackendService {
                     // Read synchronous perform's result on this worker. Completion must not
                     // depend on Vision calling a request callback, and must happen only once
                     // even when a slow worker finishes after the deadline.
+                    #if DEBUG
+                    let cpuCapture = suppliedDiagnostic?.cpuCapture()
+                    cpuCapture?.mark("request-create-enter")
+                    #endif
                     let req = VNRecognizeTextRequest()
                     req.recognitionLevel = .accurate
                     req.usesLanguageCorrection = true
                     cancellation.install { req.cancel() }
+                    #if DEBUG
+                    cpuCapture?.mark("request-configured")
+                    #endif
                     diagnostic?.mark(.performStarted)
                     do {
-                        try VNImageRequestHandler(cgImage: cg).perform([req])
+                        let handler = VNImageRequestHandler(cgImage: cg)
+                        #if DEBUG
+                        cpuCapture?.mark("handler-created-perform-enter")
+                        #endif
+                        try handler.perform([req])
+                        #if DEBUG
+                        cpuCapture?.mark("perform-return")
+                        #endif
                         diagnostic?.mark(.performReturned)
                         let lines = (req.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+                        #if DEBUG
+                        cpuCapture?.mark("candidates-extracted")
+                        #endif
                         diagnostic?.mark(.ocrCompleted)
                         finish(.success(lines.joined(separator: "\n")))
                     } catch {
+                        #if DEBUG
+                        cpuCapture?.mark("perform-error")
+                        #endif
                         diagnostic?.mark(.performFailed)
                         diagnostic?.mark(.ocrFailed)
                         finish(.failure(error))
@@ -843,3 +866,26 @@ struct PhotoImportDiagnostics: Sendable {
         Self.log.notice("trace=\(id, privacy: .public) phase=\(phase.rawValue, privacy: .public) elapsed_ms=\(elapsedMs, privacy: .public)")
     }
 }
+
+#if DEBUG
+extension PhotoImportDiagnostics {
+    /// Two actual OCR unit fixtures opt in via their already-supplied diagnostic.
+    /// Per-worker six-point maximum, no polling or synchronization/timeout decision.
+    func cpuCapture() -> OCRCPUPhaseCapture { OCRCPUPhaseCapture(trace: id) }
+}
+
+struct OCRCPUPhaseCapture {
+    let trace: String
+    private let started = ProcessInfo.processInfo.systemUptime
+    private let startedCPU = clock()
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "photo-import-cpu")
+    func mark(_ phase: String) {
+        let wall = ProcessInfo.processInfo.systemUptime - started
+        let cpu = Double(clock() - startedCPU) / Double(CLOCKS_PER_SEC)
+        let info = ProcessInfo.processInfo
+        // CPU is THIS PROCESS aggregate, not Vision service or host CPU. Ratios
+        // are diagnostic only, never proof of contention or an optimization verdict.
+        Self.logger.notice("trace=\(trace, privacy: .public) phase=\(phase, privacy: .public) wall_s=\(wall, privacy: .public) process_cpu_s=\(cpu, privacy: .public) active_cpus=\(info.activeProcessorCount, privacy: .public) thermal=\(info.thermalState.rawValue, privacy: .public) uptime=\(info.systemUptime, privacy: .public)")
+    }
+}
+#endif

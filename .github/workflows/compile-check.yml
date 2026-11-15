@@ -605,6 +605,20 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > cook-ingredients-tests.log 2>&1
           status=$?
           set -e
+          mkdir -p "$RUNNER_TEMP/ate-test-results/cook-ingredients-attachments"
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > "$RUNNER_TEMP/ate-test-results/cook-ingredients-attachments/rice-copy-utc.txt"
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> "$RUNNER_TEMP/ate-test-results/cook-ingredients-attachments/rice-container-errors.txt"); then
+            found=0
+            for evidence in "$data_container"/Library/Caches/rice-query-*.txt; do
+              if [ -f "$evidence" ]; then
+                cp "$evidence" "$RUNNER_TEMP/ate-test-results/cook-ingredients-attachments/"
+                found=1
+              fi
+            done
+            if [ "$found" -eq 0 ]; then
+              echo 'Rice samples missing; liveness unverified.' > "$RUNNER_TEMP/ate-test-results/cook-ingredients-attachments/rice-missing.txt"
+            fi
+          fi
           # Export screenshots and attachments on green runs too: for this feature the rendered
           # sheet is itself the evidence, not only failure diagnostics (keepAlways shots).
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/cook-ingredients-tests.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/cook-ingredients-attachments" 2>/dev/null || true

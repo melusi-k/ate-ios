@@ -73,17 +73,6 @@ struct RecipeDetailView: View {
                 RecipeNotFoundView(title: "Recipe not found")
             }
         }
-        .background(GeometryReader { geometry in
-            Color.clear.preference(key: RecipeDetailHostBottomYKey.self,
-                                   value: geometry.frame(in: .global).maxY)
-        })
-        .onPreferenceChange(RecipeDetailHostBottomYKey.self) { value in
-            #if DEBUG
-            QA8DetailLayoutDiagnostic.event("detail-host-bottom", value: value.map { Double($0) },
-                previous: hostBottomY.map { Double($0) }, reserve: Double(footerChromeReserve))
-            #endif
-            hostBottomY = value
-        }
         .toolbar(.hidden, for: .tabBar)   // full-height detail; Cook mode pinned at the bottom, never under the tab bar
         .navigationTitle(store.recipe(recipeID)?.title ?? "Recipe")
         .navigationBarTitleDisplayMode(.inline)
@@ -98,6 +87,19 @@ struct RecipeDetailView: View {
                     .padding(.bottom, footerChromeReserve)
                     .frame(maxWidth: .infinity)
             }
+        }
+        // Measure the outer inset host, not the content region reduced by the
+        // reserve that this measurement controls. Keep live parent/chrome changes.
+        .background(GeometryReader { geometry in
+            Color.clear.preference(key: RecipeDetailHostBottomYKey.self,
+                                   value: geometry.frame(in: .global).maxY)
+        })
+        .onPreferenceChange(RecipeDetailHostBottomYKey.self) { value in
+            #if DEBUG
+            QA8DetailLayoutDiagnostic.event("detail-host-bottom", value: value.map { Double($0) },
+                previous: hostBottomY.map { Double($0) }, reserve: Double(footerChromeReserve))
+            #endif
+            hostBottomY = value
         }
         .toolbar {
             if let recipe = store.recipe(recipeID) {

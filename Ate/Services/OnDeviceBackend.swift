@@ -263,6 +263,7 @@ final class OnDeviceBackend: BackendService {
         if request.mode == .rewrite, let cur = request.currentRecipe {
             card.id = cur.id; card.createdAt = cur.createdAt; card.favorite = cur.favorite; card.sortIndex = cur.sortIndex; card.lastCookedAt = cur.lastCookedAt; card.source = .appleIntelligence; card.imageURL = cur.imageURL; card.sourceURL = cur.sourceURL
         }
+        card = PhotoDraftHonesty.apply(card)
         var normalized = RecipeLogic.normalize(card)
         if request.repairQuality == true, let original = request.currentRecipe {
             normalized = try RecipeDraftRepair.accept(normalized, replacing: original)

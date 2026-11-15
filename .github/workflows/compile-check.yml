@@ -421,6 +421,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/explore-evidence"
           date -u '+%Y-%m-%dT%H:%M:%SZ' > "$RUNNER_TEMP/explore-evidence/focus-copy-utc.txt"
           if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> "$RUNNER_TEMP/explore-evidence/focus-container-errors.txt"); then
+            if [ -f "$data_container/Library/Caches/search-receipt-diagnostic.txt" ]; then
+              cp "$data_container/Library/Caches/search-receipt-diagnostic.txt" "$RUNNER_TEMP/explore-evidence/search-receipt-diagnostic.txt"
+            else
+              echo 'Receipt file missing; binding delivery unverified.' > "$RUNNER_TEMP/explore-evidence/receipt-missing.txt"
+            fi
             if [ -f "$data_container/Library/Caches/search-focus-diagnostic.txt" ]; then
               cp "$data_container/Library/Caches/search-focus-diagnostic.txt" "$RUNNER_TEMP/explore-evidence/search-focus-diagnostic.txt"
             else

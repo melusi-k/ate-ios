@@ -1,11 +1,11 @@
 {
   "title": "Journal layout, published release history and recipe draft feedback",
-  "summary": "Focus: Journal geometry, release history, draft/Achari and source-prep fixes; opaque Cook footer and bounded Cook/Reorder journeys. Exact home-cooking persona restored. Failed-save Settings phase now retains an opt-in pixel, MainActor heartbeat and bounded host/sim logs. Diagnostics only, not a stall fix. Bundled Roadmap has empty catalog and unavailable voting. Food Journal and anonymous sign-in off. No production writes. Native pixels pending; merge held.",
-  "source_commit": "fe01dc43e30a1fdca62787f328f487418c5dfcfb",
+  "summary": "Focus: Journal and release notes. Opt-in Delete Cancel diagnostics pair a bounded utility scheduler with MainActor timing files and one post-Cancel pixel. The callback marker follows the original state assignment, not UIKit dismissal completion. Fixed numeric phases only, no model/UI queries. Original actions, predicates and budgets unchanged. Settings, Journal and other native failures remain unresolved; this diagnostic may perturb timing and is not a product fix or cause attribution. Native/pixel qualification pending; merge held.",
+  "source_commit": "2754269b04445b04083241a4505ba2a9f500d830",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "88f04e7d07b5af06f16efeb7f08adffbbc0be455"
+      "blob": "b2ee36ce761846f07a42636e246cbc8604910fcb"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
@@ -93,7 +93,7 @@
     },
     {
       "path": "Ate/Views/JournalDeleteConfirmation.swift",
-      "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
+      "blob": "396a1d643a032975df398366c845b79284dd0e0e"
     },
     {
       "path": "Ate/Views/JournalTimelineView.swift",

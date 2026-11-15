@@ -53,3 +53,71 @@ final class AuthHardeningTests: XCTestCase {
         catch { XCTAssertEqual((error as? AuthError)?.kind, .rateLimited) }
     }
 }
+
+private actor AuthRefreshTestLatch {
+    private var opened = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private(set) var calls = 0
+    func wait() async {
+        calls += 1
+        if opened { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+    func release() {
+        opened = true
+        for waiter in waiters { waiter.resume() }
+        waiters = []
+    }
+}
+
+extension AuthHardeningTests {
+    func testConcurrentRefreshSharesRequestEvenWhenOneWaiterIsCancelled() async throws {
+        let gate = AuthRefreshFlight()
+        let latch = AuthRefreshTestLatch()
+        let original = MockAuth().make("fixture@example.test")
+        var rotated = original; rotated.accessToken = "rotated-access"; rotated.refreshToken = "rotated-refresh"
+        let result = rotated
+        let operation: () async throws -> AuthSession = { await latch.wait(); return result }
+        let first = Task { try await gate.refresh(original, operation: operation) }
+        let second = Task { try await gate.refresh(original, operation: operation) }
+        for _ in 0..<10000 {
+            let count = await gate.waitingCallCount
+            if count == 2 { break }
+            await Task.yield()
+        }
+        let waiting = await gate.waitingCallCount
+        XCTAssertEqual(waiting, 2, "both callers must overlap before release")
+        second.cancel()
+        await latch.release()
+        let firstValue = try await first.value
+        let secondValue = try await second.value
+        XCTAssertEqual(firstValue, result)
+        XCTAssertEqual(secondValue, result)
+        let calls = await latch.calls
+        XCTAssertEqual(calls, 1, "rotation must use only one network operation")
+    }
+
+    func testFailedRefreshFlightIsRemovedAndDoesNotCacheFailure() async throws {
+        let gate = AuthRefreshFlight()
+        let original = MockAuth().make("fixture@example.test")
+        do {
+            _ = try await gate.refresh(original) { throw AuthError(.unauthorized, "fixture") }
+            XCTFail("rejection swallowed")
+        } catch { XCTAssertEqual((error as? AuthError)?.kind, .unauthorized) }
+        let recovered = try await gate.refresh(original) { original }
+        XCTAssertEqual(recovered, original)
+        let waiting = await gate.waitingCallCount
+        XCTAssertEqual(waiting, 0)
+    }
+
+    func testDifferentSessionsDoNotShareRefreshResults() async throws {
+        let gate = AuthRefreshFlight()
+        let a = MockAuth().make("a@example.test")
+        var b = a; b.refreshToken = "other-refresh"; b.userID = "other-user"
+        let first = try await gate.refresh(a) { a }
+        let other = b
+        let second = try await gate.refresh(other) { other }
+        XCTAssertEqual(first, a)
+        XCTAssertEqual(second, b)
+    }
+}

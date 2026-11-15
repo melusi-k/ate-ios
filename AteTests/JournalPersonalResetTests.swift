@@ -122,6 +122,18 @@ final class JournalPersonalResetTests: XCTestCase {
         XCTAssertNil(error); XCTAssertTrue(checkedAtCredentialWrite)
         XCTAssertEqual(store.session?.email, "second@example.com"); try assertEmpty(store)
     }
+    func testPrePatchSessionExpirySeedsMissingOwnerMarkerBeforeDifferentAccountSignIn() async throws {
+        let store = makeStore(); try seed(store)
+        store.session = MockAuth().make("existing-before-patch@example.com")
+        store.meta = SyncMeta()
+        XCTAssertNil(store.journalOwnerFingerprint)
+        store.expireSession()
+        XCTAssertEqual(store.journalOwnerFingerprint,
+            AppStore.journalOwnerFingerprint(for: "mock-existing-before-patch@example.com"))
+        XCTAssertEqual(try store.journalStore.readEntries().count, 2)
+        let error = await store.signIn(email: "second@example.com", password: "password123")
+        XCTAssertNil(error); try assertEmpty(store)
+    }
     func testDifferentAccountAfterExpiryWithoutCompletedSyncStillErasesJournal() async throws {
         let store = makeStore()
         let firstError = await store.signIn(email: "first@example.com", password: "password123")

@@ -28,10 +28,17 @@ struct RecipeCardView: View {
                     Text(d).font(AteFont.body(14)).foregroundStyle(Theme.warmForeground.opacity(0.8))
                 }
                 HStack(spacing: 14) {
-                    if let m = r.timeMinutes, m > 0 { Label("\(m) min", systemImage: "clock") }
+                    if let total = GeneratedRecipeConsistency.timeLabels(r).first {
+                        Label(total, systemImage: "clock")
+                    }
                     Label("\(r.servings) servings", systemImage: "person.2")
                 }
                 .font(AteFont.body(13, .medium)).foregroundStyle(Theme.warmForeground)
+                let timeParts = Array(GeneratedRecipeConsistency.timeLabels(r).dropFirst())
+                if !timeParts.isEmpty {
+                    Text(timeParts.joined(separator: " · ")).font(AteFont.body(13))
+                        .foregroundStyle(Theme.warmForeground)
+                }
                 if !r.tags.isEmpty {
                     FlowRow(r.tags) { TagBadge(text: $0, outline: true) }
                 }
@@ -44,7 +51,7 @@ struct RecipeCardView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Ingredients").overline()
                     ForEach(Array(r.ingredients.enumerated()), id: \.offset) { _, ing in
-                        let (q, u) = Units.convert(quantity: ing.quantity, unit: ing.unit, to: units)
+                        let (q, u) = Units.convert(quantity: ing.quantity, unit: IngredientFieldNormalization.displayUnit(ing, generated: RecipeQuality.isGenerated(r)), to: units)
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text(Units.formatAmount(q, u)).font(AteFont.body(15, .medium)).monospacedDigit()
                                 .frame(width: 96, alignment: .leading)

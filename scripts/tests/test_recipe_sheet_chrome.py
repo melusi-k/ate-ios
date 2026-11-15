@@ -51,6 +51,7 @@ class RecipeSheetChromeTests(unittest.TestCase):
     def test_entire_ui_file_reconstructs_original_except_last_field_reveal(self):
         import hashlib
         source=(ROOT/'AteUITests/CoverageUITests.swift').read_text()
+        source=source.replace('        // Medium detent prioritizes native sheet resizing over downward content\n        // scrolling. Expand once before returning through the retained detail.\n        shot("recipe-sheet-reexpanded-medium-before-return-to-servings")\n        fully.tap()\n        RecipeDetailVisibility.reveal(servings, scroll: detailScroll, header: header, footer: cookFooter)\n        shot("recipe-sheet-reexpanded-full-after-return-to-servings")', '        for _ in 0..<5 where !servings.isHittable { detailScroll.swipeDown() }')
         replacement = """        // Partial hittability is not full clearance. Keep the existing five-gesture
         // budget and require the same visible band used for the first ingredient.
         RecipeDetailVisibility.reveal(lastField, scroll: detailScroll, header: header, footer: cookFooter)"""

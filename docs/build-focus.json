@@ -1,11 +1,11 @@
 {
-  "title": "Quieter Insights and new recipe suggestions",
-  "summary": "DEBUG-only phase capture brackets original widget-relay unit operations and landscape sheet close/grid return. Original actions, assertions, waits and OS services remain unchanged; no timeout, retry or service bypass. Bounded always-run attachment export retains landscape screenshots with honest error notes. Capture may perturb timing. Existing focus retained; native compile, phase attribution, responsiveness and pixels UNRUN on this packet. Metadata pass is not native qualification; merge held.",
-  "source_commit": "610e15a0b1734698d958dc6d8e4ffda330f009ae",
+  "title": "Main Shopping and Explore with Cook portrait boundary diagnostics",
+  "summary": "Main Shopping sync, offline Explore and Search diagnostics retained with Cook, Account and startup diagnostics. Two DEBUG portrait return-boundary receipts capture screenshot then hierarchy before the existing clear predicate query and only after it returns. Original native predicate, waiter, allowances and actions unchanged. Capture may perturb timing and does not prove cause. Native compile, XCTest and merged normal-text pixels UNRUN. Historical whole-file guard conflicts require Reviewer review; merge held.",
+  "source_commit": "243b4276aa9f8ee18d10f9c5718341e2db6a76e9",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "6c29147b6d95233166312389b0e161a751ae9d7a"
+      "blob": "0fe8a639bfbe09d1e33cad1dff57e8c85878333f"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
@@ -36,20 +36,16 @@
       "blob": "d6a8eba001cb77424b5959d0b85d8c9c92478060"
     },
     {
-      "path": "Ate/Views/ExploreView.swift",
-      "blob": "1049ba938a741b92dc0656e8d372fddc4b2f2f73"
-    },
-    {
-      "path": "Ate/Views/InsightsView.swift",
-      "blob": "3f38057fb07a065197672fab9c6f219ea06c17f1"
+      "path": "Ate/Services/JournalSuggestionService.swift",
+      "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
     },
     {
       "path": "Ate/Store/AppStore.swift",
-      "blob": "48cab95a44ead5fb4a12bc5e33b5ff15cd751a64"
+      "blob": "3b611d893b6976458275a9e0497933b7da36ce7b"
     },
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "81a638433444ec6b3ad0f514abe86b0624da7bbf"
+      "blob": "683c834ab0cd8d1c024976b13fc704918407ac67"
     },
     {
       "path": "Ate/Views/CookModeView.swift",
@@ -90,6 +86,34 @@
     {
       "path": "Ate/Views/NutritionDiaryView.swift",
       "blob": "19648e0db1cfc6deb0ee37d2d9ed5b0c4b87a152"
+    },
+    {
+      "path": "Ate/App/ExploreRetentionQAFixtures.swift",
+      "blob": "f98df83f7cbaba2e7a70ec2699a2791bde9ee17c"
+    },
+    {
+      "path": "Ate/Logic/SyncPayloadSafety.swift",
+      "blob": "a97407346934598d82dda7ffda52eed0c29aa46a"
+    },
+    {
+      "path": "Ate/Views/ExploreView.swift",
+      "blob": "1049ba938a741b92dc0656e8d372fddc4b2f2f73"
+    },
+    {
+      "path": "Ate/Views/LibraryView.swift",
+      "blob": "0fd016d0837c1f56fac572527b92975370a21f53"
+    },
+    {
+      "path": "Ate/Views/ShoppingListView.swift",
+      "blob": "031df522bdb2bae02452fe99f535835dae0d7c08"
+    },
+    {
+      "path": "Ate/Services/OnDeviceBackend.swift",
+      "blob": "2caf8558181d9f0273f267fc78e6973d14f367c7"
+    },
+    {
+      "path": "Ate/Services/CookPlanNotifications.swift",
+      "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
     }
   ]
 }

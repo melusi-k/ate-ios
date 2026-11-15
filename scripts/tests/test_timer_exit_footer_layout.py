@@ -4,13 +4,17 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 class TimerExitFooterLayoutContracts(unittest.TestCase):
-    def test_actual_scroll_owns_cook_inset_once_and_keeps_measured_reserve(self):
+    def test_actual_scroll_owns_transparent_floating_cook_once_and_keeps_measured_reserve(self):
         source = (ROOT / 'Ate/Views/RecipeDetailView.swift').read_text()
         scroll = source.split('.accessibilityIdentifier("recipe.detail.scroll")', 1)[1].split('RecipeNotFoundView', 1)[0]
-        self.assertIn('.safeAreaInset(edge: .bottom, spacing: 0)', scroll)
+        self.assertIn('.overlay(alignment: .bottom)', scroll)
         self.assertIn('.padding(.bottom, footerChromeReserve)', scroll)
-        self.assertIn('.background(Theme.background.ignoresSafeArea(edges: .bottom))', scroll)
-        self.assertEqual(source.count('.safeAreaInset(edge: .bottom'), 1)
+        self.assertNotIn('.background(', scroll)
+        self.assertNotIn('.safeAreaInset(edge: .bottom', source)
+        self.assertIn('.padding(.bottom, editing ? 16 : 16 + 72 + footerChromeReserve)', source)
+        self.assertIn('.primary, height: 56', scroll)
+        self.assertIn('.padding(.vertical, 8)', scroll)
+        self.assertEqual(source.count('.overlay(alignment: .bottom)'), 1)
         self.assertIn('max(0, hostBottomY - bottomChromeMinY) + 8', source)
         self.assertIn('store.beginCookSession(recipeID: recipeID, factor: factor)', scroll)
         self.assertIn('store.cookTarget = CookTarget(id: recipeID)', scroll)

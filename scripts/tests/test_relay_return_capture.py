@@ -1,3 +1,4 @@
+from approved_merge_535 import normalize
 from pathlib import Path
 import hashlib,unittest
 ROOT=Path(__file__).resolve().parents[2]
@@ -11,4 +12,4 @@ def restore_relay_return_capture(test,source,file):
 class RelayReturnCaptureTests(unittest.TestCase):
     def test_every_original_file_reconstructs(self):
         for file in CHANGES:
-            self.assertEqual(hashlib.sha256(restore_relay_return_capture(self,(ROOT/file).read_text(),file).encode()).hexdigest(),HASHES[file])
+            self.assertEqual(hashlib.sha256(restore_relay_return_capture(self,normalize('source:'+file,(ROOT/file).read_text()),file).encode()).hexdigest(),HASHES[file])

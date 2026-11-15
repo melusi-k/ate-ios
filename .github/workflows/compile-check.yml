@@ -624,6 +624,7 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/CookFinishAccessoryUITests \
             -only-testing:AteUITests/CookSharedStepUITests \
+            -only-testing:AteUITests/CookReadableStepUITests \
             -only-testing:AteUITests/CoverageUITests/testBottomBarsDoNotOverlapRecipeDetail \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-finish-accessory.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
@@ -632,7 +633,7 @@ jobs:
           for test in testPushedFinishAboveResumeAccessoryPortrait testPushedFinishAboveResumeAccessoryLandscape; do
             grep -qF "CookFinishAccessoryUITests $test]' passed" cook-finish-accessory.log || { echo "::error::Missing named Cook Finish pass: $test"; exit 1; }
           done
-          for test in "CookSharedStepUITests testExternalSharedStepChangeWhileCookIsOpenUpdatesCurrentStep" "CoverageUITests testBottomBarsDoNotOverlapRecipeDetail"; do
+          for test in "CookSharedStepUITests testExternalSharedStepChangeWhileCookIsOpenUpdatesCurrentStep" "CoverageUITests testBottomBarsDoNotOverlapRecipeDetail" "CookReadableStepUITests testLongInstructionScrollsWithoutMovingStepControls"; do
             grep -qF "$test]' passed" cook-finish-accessory.log || { echo "::error::Missing named shared-state/detail-overlap pass: $test"; exit 1; }
           done
       - name: Retain Cook Finish accessory captures

@@ -1,7 +1,7 @@
 {
   "title": "Recipe sheet clarity, Cook contrast and duplicate display rows",
-  "summary": "Focus: recipe-sheet chrome, sibling-clipped scroll viewport above the opaque Cook footer, and saved Group28 preconditions. Last-field and return-to-servings setup use the existing bounded whole-field reveal; return setup expands fully once before scrolling. Strict assertions remain unchanged. This is test navigation, not a product interaction-policy fix. Opt-in Journal diagnostics retain bounded animation/MainActor samples and UTC logs, without model reads. Native geometry, hit testing, editing, detents and pixels remain unqualified; merge held.",
-  "source_commit": "f80ef4f739ab54763dda836ab59626e2190895bf",
+  "summary": "Focus: recipe-sheet chrome and Cook ingredient geometry. Opt-in Imperial rice-query diagnostics add paired bounded MainActor/utility timing from sheet appearance, screenshots and monotonic markers around original queries. Predicate, short-circuit reads, eight-swipe maximum, five-second wait and assertions are preserved. Capture may perturb timing, not a product fix or cause attribution. Journal timing diagnostics retained. Native geometry, AX latency, hit testing, editing, detents and pixels remain unqualified; merge held.",
+  "source_commit": "5990ac3554098388447293e4df6795bb560b0824",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

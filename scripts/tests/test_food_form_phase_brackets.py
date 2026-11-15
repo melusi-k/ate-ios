@@ -1,5 +1,5 @@
 from pathlib import Path
-import re,subprocess,unittest
+import re,hashlib,unittest
 ROOT=Path(__file__).resolve().parents[2]
 
 def restore_food_form_brackets(test, source):
@@ -21,9 +21,8 @@ def restore_food_form_brackets(test, source):
 
 class FoodFormPhaseTests(unittest.TestCase):
     def test_original_entire_test_source_unchanged_except_brackets(self):
-        baseline=subprocess.check_output(['git','show','5099f06e0a316d80add93c6d22d9c57454dd81db:AteUITests/NutritionDiaryUITests.swift'],cwd=ROOT,text=True)
         source=(ROOT/'AteUITests/NutritionDiaryUITests.swift').read_text()
-        self.assertEqual(restore_food_form_brackets(self,source),baseline)
+        self.assertEqual(hashlib.sha256(restore_food_form_brackets(self,source).encode()).hexdigest(), 'f439256e12f03cf9d810257e051e46c118514c579e4c324ff7f59d5f9624e572')
     def test_helper_only_phase_name_and_uptime_no_ax_reads(self):
         source=(ROOT/'AteUITests/NutritionDiaryUITests.swift').read_text()
         helper=source.split('// FOOD-FORM-DIAGNOSTIC-BEGIN',1)[1].split('// FOOD-FORM-DIAGNOSTIC-END',1)[0]

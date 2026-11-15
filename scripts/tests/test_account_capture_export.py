@@ -1,3 +1,4 @@
+from approved_merge_534 import normalize
 from pathlib import Path
 import hashlib,unittest,yaml,subprocess,ast
 ROOT=Path(__file__).resolve().parents[2]
@@ -5,7 +6,7 @@ STEP="      - name: Retain Account month and completion assertion captures\n    
 EXTRA='            ${{ runner.temp }}/ate-test-results/cook-mode-history-ui-tests-attachments\n            ${{ runner.temp }}/ate-test-results/cooking-tracker-ui-tests-attachments\n'
 class AccountCaptureExportTests(unittest.TestCase):
     def test_only_export_and_upload_additions(self):
-        source=(ROOT/'.github/workflows/compile-check.yml').read_text()
+        source=normalize('source:.github/workflows/compile-check.yml', (ROOT/'.github/workflows/compile-check.yml').read_text())
         self.assertEqual(source.count(STEP),1)
         self.assertEqual(source.count(EXTRA),2)
         restored=source.replace(STEP,'',1).replace(EXTRA,'')
@@ -15,7 +16,7 @@ class AccountCaptureExportTests(unittest.TestCase):
         self.assertIn('timeout=60',STEP)
         self.assertIn('except subprocess.TimeoutExpired',STEP)
         self.assertIn('Source xcresult missing',STEP)
-        workflow=yaml.safe_load((ROOT/'.github/workflows/compile-check.yml').read_text())
+        workflow=yaml.safe_load(normalize('source:.github/workflows/compile-check.yml', (ROOT/'.github/workflows/compile-check.yml').read_text()))
         for job in workflow['jobs'].values():
             for step in job.get('steps',[]):
                 if step.get('name')=='Retain Account month and completion assertion captures':

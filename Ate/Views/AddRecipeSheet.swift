@@ -1,6 +1,5 @@
 import SwiftUI
 import PhotosUI
-import OSLog
 #if DEBUG
 import OSLog
 #endif
@@ -762,6 +761,11 @@ private struct DraftRestoreSnapshotDiagnostics: Sendable {
 
     func mark(_ phase: String) {
         Self.logger.notice("trace=\(id, privacy: .public) phase=\(phase, privacy: .public) elapsed=\(ProcessInfo.processInfo.systemUptime - started, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public)")
+    }
+}
+#endif
+
+#if DEBUG
 /// One explicitly flagged Cook-completion journey, no UI, model or AX reads.
 private enum AddTitleQueryDiagnostic {
     private static let logger = Logger(subsystem: "com.melusik.ate", category: "AddTitleQueryDiagnostic")

@@ -1,11 +1,11 @@
 {
   "title": "Journal layout, published release history and recipe draft feedback",
-  "summary": "Photo-import review keeps Total/Prep/Cook labels, honest incomplete-main guidance, editable uncertain units and the Save gate. Fixes a step-quality regression: brown sugar is an ingredient descriptor, not a browning command; both action checks now share the existing normalization. Real sear/brown actions and time/doneness requirements remain active. Original native assertion preserved, regressions added. Native unit/full-gate rerun UNRUN; separate Account and Presentation failures unresolved. Merge held.",
-  "source_commit": "ca3822ccc03b4a95ce401e1ee8d1a15e8f0576dc",
+  "summary": "Opt-in Account assertion diagnostics capture bounded numeric month tap/state/reset events and completion/Done/dismiss/exit receipt. Additional screenshots/query text preserve original single taps, full assertions and waits. Captures may perturb timing and do not establish cause. Ingredients gathered query and runner failures remain separate. Native compile, transitions, dismissal, pixels and responsiveness UNRUN on this packet. Metadata guard is not qualification; merge held.",
+  "source_commit": "e1f94dfb0e3a6fdefbfafe921e184dc93cdeca1e",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "b2ee36ce761846f07a42636e246cbc8604910fcb"
+      "blob": "33f2fad9610826696f9a72a98c12153ed11aca20"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
@@ -77,7 +77,7 @@
     },
     {
       "path": "Ate/Views/CookModeView.swift",
-      "blob": "203f46cec2a7b69e8f17a11f1c771a982441b9bc"
+      "blob": "34151d8ecb13760df8d8c137f39860997e7edc09"
     },
     {
       "path": "Ate/Views/CookedJournalReflectionComposer.swift",
@@ -85,7 +85,7 @@
     },
     {
       "path": "Ate/Views/CookingTrackerView.swift",
-      "blob": "6b209b692702c03311ec3feba3bf3632202e9bc1"
+      "blob": "5bd7132c13b4398edb28b8a3eb7c76f2040e5f86"
     },
     {
       "path": "Ate/Views/InsightsView.swift",

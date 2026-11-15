@@ -1,9 +1,11 @@
+from test_sync_crash_capture import restore_sync_crash_capture
 from pathlib import Path
+from test_goals_upload_fixture import restore_goals_upload_fixture
 import unittest,hashlib,re
 ROOT=Path(__file__).resolve().parents[2]
 class SyncFixtureValidityTests(unittest.TestCase):
     def test_only_fixture_inputs_change(self):
-        s=(ROOT/'AteTests/UserDataSyncTests.swift').read_text()
+        s=restore_goals_upload_fixture(restore_sync_crash_capture((ROOT/'AteTests/UserDataSyncTests.swift').read_text()))
         self.assertEqual(s.count('let url = FileManager.default.temporaryDirectory\n            .appendingPathComponent(UUID().uuidString, isDirectory: true).standardizedFileURL'),1)
         s=s.replace('let url = FileManager.default.temporaryDirectory\n            .appendingPathComponent(UUID().uuidString, isDirectory: true).standardizedFileURL','let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)')
         self.assertEqual(s.count('directory = FileManager.default.temporaryDirectory\n            .appendingPathComponent(UUID().uuidString, isDirectory: true).standardizedFileURL'),1)

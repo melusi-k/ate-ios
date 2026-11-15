@@ -1,7 +1,7 @@
 {
   "title": "Main Shopping and Explore plus recipe import, Cook return and review improvements",
-  "summary": "Normal two-parent union of main Shopping sync, offline Explore and Search diagnostics with recipe import quality, Cook return, Journal and review improvements. Both sides tests retained; Settings/About receipt type fix preserved. Chicken grounding and title hint still held for device golden set and pixels. Native compile, XCTest, offline-device checks and merged normal-text screenshots UNRUN; source checks and focus metadata are not qualification. Merge held for reviewer destination confirmation.",
-  "source_commit": "da18ba80b80bfb188819be935f9fce9304922746",
+  "summary": "Patch-forward534: independently exposed AI diagnostics heading, selectable combined details unchanged; removed unsafe diagnostic identifier interpolation only. Original CoverageUITests frozen. Independent302PythonPASS8.496s. Original test32 named pass plus actual About screenshot still required; nativeUNRUN. Earlier8c326e4c native results superseded. Held.",
+  "source_commit": "95c8374548913e2ea43acb2688d2bca3ee155669",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -125,7 +125,7 @@
     },
     {
       "path": "Ate/Views/SettingsView.swift",
-      "blob": "ae8ffbf9487aaeb061a755c1f7238ad5defdc2ca"
+      "blob": "ba69d00e2c7b2216873c2c38a69289e467c676f9"
     },
     {
       "path": "Ate/Logic/GeneratedRecipeConsistency.swift",

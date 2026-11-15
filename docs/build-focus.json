@@ -1,11 +1,11 @@
 {
   "title": "Owner-scoped Food Journal with main Shopping and offline Explore",
   "summary": "Dormant owner-scoped Food Journal sync remains shipping OFF. Main Shopping sync, offline Explore and Search diagnostics retained with owner-drained task lifetime, sync serialization and bounded Shopping receipt pull. Native Library menus, drag and action reorder selections retained with at least sixteen tests. Existing diagnostic actions, assertions and budgets preserved. Native compile, XCTest, live sync and merged normal-text pixels UNRUN; source checks are not qualification. Merge held for Reviewer destination confirmation.",
-  "source_commit": "8fb9a26ab116e5ffa889d44981a2c08eb3a67ba5",
+  "source_commit": "faf1ec496b40d373bd0d166ea97c1125905b20d4",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "2b7e5474876c08e43d7e0f15acdfc20223ff8d64"
+      "blob": "294fd0c0234ee4fb2464fe924d4d1d73982276cf"
     },
     {
       "path": "Ate/Services/BackendService.swift",

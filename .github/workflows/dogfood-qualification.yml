@@ -86,17 +86,43 @@ jobs:
 
       # Full AteTests executes once in Compile/build-nutrition on the exact head.
       # This workflow qualifies critical flows only, not the removed unit execution.
+      # Build once on this existing runner. The 30-minute critical step below now
+      # measures test execution, not compilation; the whole job still has 60 minutes.
+      - name: Build Dogfood tests for the exact head
+        id: build_tests
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          python3 -c 'import time; print("build-start monotonic_ns=" + str(time.monotonic_ns()))' > build/dogfood-build-timing.txt
+          record_build_end() {
+            python3 -c 'import time; print("build-end monotonic_ns=" + str(time.monotonic_ns()))' >> build/dogfood-build-timing.txt
+          }
+          trap record_build_end EXIT
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -resultBundlePath build/DogfoodBuild.xcresult \
+            CODE_SIGNING_ALLOWED=NO > dogfood-build-for-testing.log 2>&1 || {
+              tail -100 dogfood-build-for-testing.log
+              exit 1
+            }
+
       - name: Required critical flows and Library popup journeys
         id: critical_flows
+        if: ${{ success() && steps.build_tests.outcome == 'success' }}
         timeout-minutes: 30
         run: |
           set -o pipefail
           SIM_ID="${{ steps.select_simulator.outputs.id }}"
           xcrun simctl boot "$SIM_ID" || true
           xcrun simctl bootstatus "$SIM_ID" -b
+          python3 -c 'import time; print("critical-start monotonic_ns=" + str(time.monotonic_ns()))' > build/dogfood-critical-timing.txt
+          record_critical_end() {
+            python3 -c 'import time; print("critical-end monotonic_ns=" + str(time.monotonic_ns()))' >> build/dogfood-critical-timing.txt
+          }
+          trap record_critical_end EXIT
           # QA1 flow = the exact three cases below; keep in sync with QA1_REQUIRED_CASES
           # in scripts/qa-summary.py and scripts/release/readiness.py.
-          xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
             -only-testing:AteUITests/KeyFlowsQATests/testQA1_AddFromURL_JSONLD \
             -only-testing:AteUITests/KeyFlowsQATests/testQA1_AddFromURL_InstagramCaption \
             -only-testing:AteUITests/KeyFlowsQATests/testQA1_AddFromURL_HiddenCaptionFallback \
@@ -121,6 +147,22 @@ jobs:
           for test in test28_GroupSortAndMenus test29_ReorderMyOrder test29b_ReorderMyOrderActions; do
             grep -qF "AteUITests $test]' passed" dogfood-critical-flows.log || { echo "::error::missing named Library pass: $test"; exit 1; }
           done
+          # All twelve exact named passes are required on this head and invocation.
+          for evidence in \
+            "KeyFlowsQATests testQA1_AddFromURL_JSONLD]' passed" \
+            "KeyFlowsQATests testQA1_AddFromURL_InstagramCaption]' passed" \
+            "KeyFlowsQATests testQA1_AddFromURL_HiddenCaptionFallback]' passed" \
+            "KeyFlowsQATests testQA2_AddFromPhoto]' passed" \
+            "KeyFlowsQATests testQA3_GenerateAndEdit]' passed" \
+            "KeyFlowsQATests testQA4_Save]' passed" \
+            "KeyFlowsQATests testQA5_Share]' passed" \
+            "KeyFlowsQATests testQA6_OpenShared]' passed" \
+            "KeyFlowsQATests testQA8_Timers]' passed" \
+            "AteUITests test28_GroupSortAndMenus]' passed" \
+            "AteUITests test29_ReorderMyOrder]' passed" \
+            "AteUITests test29b_ReorderMyOrderActions]' passed"; do
+            grep -qF "$evidence" dogfood-critical-flows.log || { echo "::error::missing required named pass: $evidence"; exit 1; }
+          done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" dogfood-critical-flows.log | tail -50
 
       - name: Retain UI-test photo-import phase diagnostics
@@ -143,7 +185,7 @@ jobs:
           SIM_ID="${{ steps.select_simulator.outputs.id }}"
           xcrun simctl boot "$SIM_ID" || true
           xcrun simctl bootstatus "$SIM_ID" -b
-          xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
             -only-testing:AteUITests/KeyFlowsQATests/testQA7_SyncAccount \
             -resultBundlePath build/DogfoodSyncQuarantine.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
@@ -160,6 +202,7 @@ jobs:
             echo '### Dogfood qualification status'
             echo
             echo "- Commit: \`$(git rev-parse HEAD)\`."
+            echo '- Budget split: build-for-testing runs before the unchanged 30-minute critical test step; the same runner job remains capped at 60 minutes. Per-test limits are unchanged. This gives tests more of the existing job envelope, not a pass for a deadline failure.'
             echo '- Unit tests: NOT RUN HERE. Required separately by Compile/build-nutrition on the exact candidate head.'
             printf '%s\n' "- Critical flows and Library popup journeys: ${CRITICAL_FLOWS_OUTCOME:-unknown}."
             echo '- Required here: seven non-quarantined critical flows plus named Library group/sort/menu and reorder journeys. The full unit suite remains required by Compile.'
@@ -175,6 +218,10 @@ jobs:
           name: dogfood-qualification-${{ github.run_number }}
           path: |
             dogfood-critical-flows.log
+            dogfood-build-for-testing.log
+            build/dogfood-build-timing.txt
+            build/dogfood-critical-timing.txt
+            build/DogfoodBuild.xcresult
             dogfood-photo-import-phases.log
             dogfood-sync-quarantine.log
             build/DogfoodCriticalFlows.xcresult

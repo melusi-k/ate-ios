@@ -313,6 +313,11 @@ struct AddRecipeSheet: View {
             }
             .id("repairStatusAnchor")
         }
+        if let d = draft, let warning = GeneratedTitleReview.warning(d) {
+            Label(warning, systemImage: "exclamationmark.bubble")
+                .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+                .accessibilityIdentifier("generatedTitleReview")
+        }
         if let n = draft?.aiNote { Text(n).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aiNote") }
         Text("Fix anything the AI got wrong, then save it to your library.")
             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)

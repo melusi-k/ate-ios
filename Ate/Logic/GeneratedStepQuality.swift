@@ -53,6 +53,18 @@ enum GeneratedStepQuality {
         let allStepWords = words(steps.map(\.instruction).joined(separator: " "))
         let ingredientWords = words(card.ingredients.map(IngredientFieldNormalization.identity).joined(separator: " "))
         var gaps: [String] = []
+        // A five-minute browning action is not a complete generated chicken main.
+        // Do not fabricate a finish or impose a step-count rule on cold/source recipes.
+        if steps.count == 1, RecipeQuality.isMainDish(card) {
+            let method = words(steps[0].instruction)
+            if !method.isDisjoint(with: ["sear", "brown"]),
+               method.isDisjoint(with: ["simmer", "boil", "bake", "roast", "braise", "steam", "grill", "internal", "centre", "center", "serve"]) {
+                gaps.append("The method stops after browning. Explain how to finish cooking this main dish and check doneness; do not invent missing source steps.")
+            }
+        }
+        for ingredient in card.ingredients where ["herb", "herbs"].contains(ingredient.unit.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)) {
+            gaps.append("Clarify the measure for \(ingredient.name); herb is not a measurement unit.")
+        }
         // Explicit collective use can be legitimate (dressings, batter, spice mixes).
         // Do not pretend to prove individual usage when the wording is collective.
         let collective = steps.contains { $0.instruction.lowercased().contains("all ingredients") || $0.instruction.lowercased().contains("remaining ingredients") }

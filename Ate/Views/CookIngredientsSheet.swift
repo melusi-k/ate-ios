@@ -1,4 +1,9 @@
 import SwiftUI
+#if DEBUG
+import Foundation
+import Dispatch
+import OSLog
+#endif
 
 /// Pull-up ingredient checklist for Cook Mode: the recipe's ingredients scaled to the
 /// session's servings factor, checkable while cooking. Checks live in the cook session,
@@ -110,6 +115,9 @@ struct CookIngredientsSheet: View {
         .modifier(CookSheetDetents())
         .presentationDragIndicator(.visible)
         .cookSheetUITestDynamicType()
+#if DEBUG
+        .onAppear { RiceQueryDiagnostic.startIfRequested() }
+#endif
     }
 
     private func row(_ idx: Int, _ ing: Ingredient) -> some View {
@@ -172,3 +180,97 @@ extension View {
         } else { self }
     }
 }
+
+#if DEBUG
+enum RiceQueryDiagnostic {
+    @MainActor private static var rows: [String] = []
+    @MainActor private static var started: Double = 0
+    @MainActor private static var returnObserved = false
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "RiceQueryDiagnostic")
+    private static var enabled: Bool {
+        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaRiceQueryDiagnostic")
+    }
+    @MainActor static func startIfRequested() {
+        guard enabled, !returnObserved else { return }
+        rows = []
+        started = ProcessInfo.processInfo.systemUptime
+        if let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            try? FileManager.default.removeItem(at: cache.appendingPathComponent("rice-query-scheduler-\(ProcessInfo.processInfo.processIdentifier).txt"))
+        }
+        record("app-start")
+        returnedIfRequested()
+    }
+    @MainActor static func returnedIfRequested() {
+        guard enabled, !returnObserved else { return }
+        returnObserved = true
+        record("startup-sampler-start")
+        let phaseStart = ProcessInfo.processInfo.systemUptime
+        startBackgroundScheduler(phaseStart: phaseStart)
+        Task { @MainActor in
+            record("task-entered", phaseStart: phaseStart)
+            for offset in [0.0, 5, 15, 30, 60, 90, 120, 180, 240] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 {
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch {
+                        record("task-sleep-error", scheduled: offset, phaseStart: phaseStart)
+                        return
+                    }
+                }
+                guard !Task.isCancelled else {
+                    record("task-cancelled", scheduled: offset, phaseStart: phaseStart)
+                    return
+                }
+                record("post-return-heartbeat", scheduled: offset, phaseStart: phaseStart)
+            }
+        }
+        record("sampler-enqueued", phaseStart: phaseStart)
+    }
+    /// A private utility queue, independent of Swift's MainActor executor. One
+    /// bounded worker, ten atomic snapshots, no model/UI reads or repeated poll.
+    @MainActor private static func startBackgroundScheduler(phaseStart: Double) {
+        guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            record("scheduler-no-cache", phaseStart: phaseStart)
+            return
+        }
+        let destination = cache.appendingPathComponent("rice-query-scheduler-\(ProcessInfo.processInfo.processIdentifier).txt")
+        let pid = ProcessInfo.processInfo.processIdentifier
+        DispatchQueue(label: "com.melusik.ate.rice-query-scheduler", qos: .utility).async {
+            var schedulerRows: [String] = []
+            func write(_ phase: String, scheduled: Double = -1) {
+                guard schedulerRows.count < 12 else { return }
+                let now = ProcessInfo.processInfo.systemUptime
+                schedulerRows.append("pid=\(pid) phase=\(phase) uptime=\(now) scheduled=\(scheduled) phaseElapsed=\(now - phaseStart)")
+                do {
+                    try Data((schedulerRows.joined(separator: "\n") + "\n").utf8).write(to: destination, options: .atomic)
+                } catch {
+                    Logger(subsystem: "com.melusik.ate", category: "RiceQueryDiagnostic").error("Presentation return scheduler evidence file write failed")
+                }
+            }
+            write("scheduler-entered")
+            for offset in [0.0, 5, 15, 30, 60, 90, 120, 180, 240] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 { Thread.sleep(forTimeInterval: remaining) }
+                write("scheduler-fired", scheduled: offset)
+                Task { @MainActor in
+                    record("scheduler-main-delivery", scheduled: offset, phaseStart: phaseStart)
+                }
+            }
+            write("scheduler-complete")
+        }
+        record("scheduler-enqueued", phaseStart: phaseStart)
+    }
+    @MainActor private static func record(_ phase: String, scheduled: Double = -1, phaseStart: Double? = nil) {
+        guard enabled, rows.count < 28,
+              let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        // Fixed phase names and numeric timing only. At most twenty-four short rows per app launch.
+        rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) uptime=\(now) appElapsed=\(now - started) scheduled=\(scheduled) phaseElapsed=\(now - (phaseStart ?? started))")
+        do {
+            try Data((rows.joined(separator: "\n") + "\n").utf8).write(
+                to: cache.appendingPathComponent("rice-query-diagnostic-\(ProcessInfo.processInfo.processIdentifier).txt"), options: .atomic)
+        } catch {
+            logger.error("Presentation return numeric evidence file write failed")
+        }
+    }
+}
+#endif

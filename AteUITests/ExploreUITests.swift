@@ -10,12 +10,17 @@ final class ExploreUITests: XCTestCase {
         if name.contains("testExploreDismissPreservesSelectedCollection") {
             app.launchArguments += ["-qaExploreRetentionSaved"]
         } else if name.contains("testExploreDismissPreservesCollectionAndSearchQuery") {
-            app.launchArguments += ["-qaExploreRetentionSaved", "-qaExploreRetentionFavourites"]
+            app.launchArguments += ["-qaExploreRetentionSaved", "-qaExploreRetentionFavourites", "-qaSearchFocusDiagnostic"]
         }
         app.launch()
         XCTAssertTrue(app.buttons["library.explore"].waitForExistence(timeout: 20))
     }
-    override func tearDown() { XCUIDevice.shared.orientation = .portrait; app.terminate() }
+    override func tearDown() {
+        if name.contains("testExploreDismissPreservesCollectionAndSearchQuery") {
+            shot("explore-search-focus-before-teardown-termination")
+        }
+        XCUIDevice.shared.orientation = .portrait; app.terminate()
+    }
     private func shot(_ name: String) {
         let capture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         capture.name = name; capture.lifetime = .keepAlways; add(capture)
@@ -115,14 +120,30 @@ final class ExploreUITests: XCTestCase {
         let focusSelector = NSSelectorFromString("hasKeyboardFocus")
         XCTAssertTrue(search.responds(to: focusSelector),
                       "This runner must expose Search keyboard focus")
+        var diagnosticEvaluations = 0
         let readyForInput = XCTNSPredicateExpectation(predicate: NSPredicate { object, _ in
+            let began = ProcessInfo.processInfo.systemUptime
+            if diagnosticEvaluations < 20 {
+                print("SEARCH-FOCUS-PREDICATE-START evaluation=\(diagnosticEvaluations + 1) uptime=\(began)")
+            }
+            var focused: Bool? = nil
+            var keyboardPresent: Bool? = nil
+            defer {
+                if diagnosticEvaluations < 20 {
+                    diagnosticEvaluations += 1
+                    print("SEARCH-FOCUS-PREDICATE evaluation=\(diagnosticEvaluations) start=\(began) end=\(ProcessInfo.processInfo.systemUptime) focus=\(focused.map { $0 ? 1 : 0 } ?? -1) keyboard=\(keyboardPresent.map { $0 ? 1 : 0 } ?? -1)")
+                }
+            }
             guard let field = object as? XCUIElement,
-                  field.responds(to: focusSelector),
-                  (field.value(forKey: "hasKeyboardFocus") as? Bool) == true else { return false }
-            return keyboard.exists
+                  field.responds(to: focusSelector) else { return false }
+            focused = field.value(forKey: "hasKeyboardFocus") as? Bool
+            guard focused == true else { return false }
+            keyboardPresent = keyboard.exists
+            return keyboardPresent == true
         }, object: search)
         XCTAssertEqual(XCTWaiter.wait(for: [readyForInput], timeout: 5), .completed,
                        "Search must own keyboard focus before entering the query")
+        shot("explore-search-focus-after-original-predicate")
         search.typeText("miso")
         // typeText returning and a visible keyboard do not guarantee that the
         // final character has reached Search's accessibility value. Wait for

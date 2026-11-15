@@ -1038,9 +1038,17 @@ final class AteUITests: XCTestCase {
         wait(text("Your Kitchen"), 5)
     }
 
+    private func startupDiagnosticMark(_ phase: String) {
+        guard name.contains("test28_GroupSortAndMenus") else { return }
+        print("STARTUP-TEST phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime)")
+    }
     func pick(_ menu: String, _ option: String) {
+        startupDiagnosticMark("pick-start")
+        defer { startupDiagnosticMark("pick-end") }
         XCTAssertTrue(menu == "sortMenu" || menu == "groupByMenu", "Unknown picker contract")
+        startupDiagnosticMark("browse-tap-start")
         app.buttons["libraryBrowseMenu"].firstMatch.tap()
+        startupDiagnosticMark("browse-tap-end")
         shot("library-browse-opened-\(menu)-\(option)")
         // Native iOS 27 popups expose the submenu label and icon but omit the
         // SwiftUI Menu identifier. Scope to the actual open Collections menu,
@@ -1056,7 +1064,9 @@ final class AteUITests: XCTestCase {
         XCTAssertEqual(submenu.count, 1, "Browse must expose one named arrange submenu")
         XCTAssertTrue(submenu.firstMatch.isHittable, "Arrange submenu must be visible without scrolling")
         guard submenu.count == 1 && submenu.firstMatch.isHittable else { return }
+        startupDiagnosticMark("submenu-tap-start")
         submenu.firstMatch.tap()
+        startupDiagnosticMark("submenu-tap-end")
         shot("library-browse-choice-\(menu)-\(option)")
         // The explicit submenu contains only its own choices; shared labels such as
         // Recently added cannot accidentally select a collection in the parent popup.
@@ -1074,7 +1084,9 @@ final class AteUITests: XCTestCase {
         XCTAssertEqual(choices.count, 1, "Picker option must be unique in its submenu")
         XCTAssertTrue(choices.firstMatch.isHittable, "Picker option must be visible without scrolling")
         guard choices.count == 1 && choices.firstMatch.isHittable else { return }
+        startupDiagnosticMark("choice-tap-start")
         choices.firstMatch.tap()
+        startupDiagnosticMark("choice-tap-end")
     }
 
     /// Journal menu journey: the Journal is the tab root with "New journal entry" as its primary
@@ -1212,7 +1224,9 @@ final class AteUITests: XCTestCase {
     func test28_GroupSortAndMenus() {
         // Recipe creation has separate end-to-end coverage; keep this budget
         // for real native menus and their asserted Library actions.
-        launch(["-qaSavedRecipesForGroupSort"])
+        startupDiagnosticMark("group-launch-start")
+        launch(["-qaSavedRecipesForGroupSort", "-qaStartupLivenessDiagnostic"])
+        startupDiagnosticMark("group-launch-end")
         pick("sortMenu", "A–Z")
         let a = text("Apple crumble"), z = text("Zesty tacos")
         wait(a)

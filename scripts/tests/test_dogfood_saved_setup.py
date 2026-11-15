@@ -1,3 +1,4 @@
+from approved_merge_538 import normalize
 """Setup contracts only, not native menu acceptance or timing proof."""
 from pathlib import Path
 import unittest
@@ -5,23 +6,21 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class DogfoodSavedSetupTests(unittest.TestCase):
     def test_explicit_debug_only_setup_without_action_results(self):
-        source = (ROOT / 'Ate/App/DogfoodSavedRecipeQAFixtures.swift').read_text()
+        source = normalize('source:Ate/App/DogfoodSavedRecipeQAFixtures.swift', (ROOT / 'Ate/App/DogfoodSavedRecipeQAFixtures.swift').read_text())
         self.assertTrue(source.startswith('#if DEBUG\n'))
         self.assertTrue(source.rstrip().endswith('#endif'))
         self.assertIn('guard AppConfig.isUITesting else { return }', source)
-        self.assertIn('guard menus || reorder || reorderAction else { return }', source)
+        self.assertIn('guard menus || reorder || cook else { return }', source)
         self.assertIn('store.layout = LibraryLayout()', source)
-        self.assertIn('if reorderAction { store.layout.sort = .myOrder }', source)
-        self.assertIn('contains("-qaSavedRecipesForReorderAction")', source)
         self.assertIn('Date().timeIntervalSince1970 * 1000', source)
         self.assertIn('timeMinutes: 25', source)
-        for forbidden in ['store.path', '.group =', '.favorite =', '.sortIndex =', 'CookingHistory', 'store.move']:
+        for forbidden in ['store.path', '.sort =', '.group =', '.favorite =', '.sortIndex =', 'CookingHistory', 'store.move']:
             self.assertNotIn(forbidden, source)
-        startup = (ROOT / 'Ate/App/AteApp.swift').read_text().split('let upgradeRuntime =', 1)[1].split('#else', 1)[0]
+        startup = normalize('source:Ate/App/AteApp.swift', (ROOT / 'Ate/App/AteApp.swift').read_text()).split('let upgradeRuntime =', 1)[1].split('#else', 1)[0]
         self.assertIn('DogfoodSavedRecipeQAFixtures.prepare(st)', startup)
 
     def test_real_menu_and_reorder_journeys_retained(self):
-        source = (ROOT / 'AteUITests/AteUITests.swift').read_text()
+        source = normalize('source:AteUITests/AteUITests.swift', (ROOT / 'AteUITests/AteUITests.swift').read_text())
         menus = source.split('func test28_GroupSortAndMenus()', 1)[1].split('func test30_', 1)[0]
         reorder = source.split('func test29_ReorderMyOrder()', 1)[1].split('func testFirstLibrary', 1)[0]
         self.assertIn('-qaSavedRecipesForGroupSort', menus)

@@ -18,6 +18,7 @@ final class ExploreUITests: XCTestCase {
     override func tearDown() {
         if name.contains("testExploreDismissPreservesCollectionAndSearchQuery") {
             shot("explore-search-focus-before-teardown-termination")
+            captureSearchWriteReceipt("before-teardown")
         }
         XCUIDevice.shared.orientation = .portrait; app.terminate()
     }
@@ -145,6 +146,7 @@ final class ExploreUITests: XCTestCase {
                        "Search must own keyboard focus before entering the query")
         shot("explore-search-focus-after-original-predicate")
         search.typeText("miso")
+        captureSearchWriteReceipt("after-single-input")
         // typeText returning and a visible keyboard do not guarantee that the
         // final character has reached Search's accessibility value. Wait for
         // this single input event to settle; never retype or accept a prefix.
@@ -168,5 +170,19 @@ final class ExploreUITests: XCTestCase {
         XCTAssertTrue(search.waitForExistence(timeout: 10))
         XCTAssertEqual(search.value as? String, "miso", "Explore must not clear the Search tab query")
         shot("explore-dismiss-keeps-search-query")
+    }
+}
+
+extension ExploreUITests {
+    /// Read the app-owned numeric ring while this exact process is still alive.
+    /// No simctl cache lookup after the test class, extra wait, input or retry.
+    private func captureSearchWriteReceipt(_ phase: String) {
+        let value = app.staticTexts["libraryCount"].value as? String ?? "receipt-value-unavailable"
+        let body = "SEARCH-WRITE-RECEIPT phase=\(phase) \(value)"
+        print(body)
+        let attachment = XCTAttachment(string: body)
+        attachment.name = "search-write-receipt-" + phase
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }

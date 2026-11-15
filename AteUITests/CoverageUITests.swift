@@ -71,16 +71,16 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(e.waitForExistence(timeout: t), "Missing \(e)", file: file, line: line)
     }
     /// Search both directions for lazy rows. Callers with a known section order can choose the first direction.
-    func scrollTo(_ e: XCUIElement, max: Int = 25, searchDownFirst: Bool = true) {
+    func scrollTo(_ e: XCUIElement, max: Int = 25, searchDownFirst: Bool = true, surface: XCUIElement? = nil) {
         _ = e.waitForExistence(timeout: 2)
         var n = 0
         while !(e.exists && e.isHittable) && n < max {
-            if searchDownFirst { app.swipeUp() } else { app.swipeDown() }
+            if searchDownFirst { (surface ?? app).swipeUp() } else { (surface ?? app).swipeDown() }
             n += 1
         }
         n = 0
         while !(e.exists && e.isHittable) && n < max * 2 {
-            if searchDownFirst { app.swipeDown() } else { app.swipeUp() }
+            if searchDownFirst { (surface ?? app).swipeDown() } else { (surface ?? app).swipeUp() }
             n += 1
         }
     }
@@ -314,12 +314,10 @@ final class CoverageUITests: XCTestCase {
         // Settings uses lazily materialized rows: scroll to each toggle before asserting it exists.
         // Export is in Tools, below Timer notifications. Search toward the earlier section first,
         // retaining the opposite-direction fallback if the viewport differs.
-        scrollTo(settingsQuietHours, searchDownFirst: false); wait(settingsQuietHours, 3)
+        scrollTo(settingsQuietHours, searchDownFirst: false, surface: timerSettings); wait(settingsQuietHours, 3)
         XCTAssertTrue(settingsQuietHours.isHittable, "Quiet hours toggle should be reachable in Timer notifications")
-        scrollTo(settingsStepAlerts); wait(settingsStepAlerts, 3)
+        scrollTo(settingsStepAlerts, surface: timerSettings); wait(settingsStepAlerts, 3)
         XCTAssertTrue(settingsStepAlerts.isHittable, "Step-by-step alerts toggle should be reachable in Timer notifications")
-        let about = timerSettings.staticTexts["aboutVersion"]; scrollTo(about); wait(about, 3)
-        XCTAssertTrue(about.label.contains("(build "))
         // The SwiftUI combined container is not consistently hittable across simulator
         // runtimes, even when its child heading is visible. Scroll to the stable visible
         // heading so this journey cannot spend minutes swiping toward a non-hittable parent.
@@ -362,6 +360,8 @@ final class CoverageUITests: XCTestCase {
             while !fullyVisible() && swipes < 50 { timerSettings.swipeDown(); swipes += 1 }
             XCTAssertTrue(fullyVisible(), "Settings read-only row must clear the live Settings navigation, tab bar and bottom accessory")
         }
+        let about = timerSettings.staticTexts["aboutVersion"]; revealReadOnlySettingsRow(about); wait(about, 3)
+        XCTAssertTrue(about.label.contains("(build "))
         let buildNotesHeading = timerSettings.staticTexts["aboutBuildNotesHeading"]
         revealReadOnlySettingsRow(buildNotesHeading); wait(buildNotesHeading, 3)
         let buildNotes = timerSettings.staticTexts["aboutBuildNotes"].firstMatch

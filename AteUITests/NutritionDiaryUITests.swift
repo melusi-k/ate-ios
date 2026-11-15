@@ -1,6 +1,14 @@
 import XCTest
 
 final class NutritionDiaryUITests: XCTestCase {
+    private var keyboardDiagnosticApp: XCUIApplication?
+    override func tearDown() {
+        if let app = keyboardDiagnosticApp, app.state == .runningForeground {
+            captureFailureBoundary(app.buttons["nutritionDiary.save"], phase: "before-teardown")
+        }
+        keyboardDiagnosticApp = nil
+        super.tearDown()
+    }
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
@@ -196,6 +204,9 @@ final class NutritionDiaryUITests: XCTestCase {
         tapWhenHittable(element, in: app, surface: surface, file: file, line: line)
         // scrollToHittable may have dismissed a keyboard that occluded this field, so
         // prior existence proves nothing: always wait for the keyboard before typing.
+        if app.launchArguments.contains("-qaDiaryKeyboardDiagnostic") {
+            captureFailureBoundary(app.buttons["nutritionDiary.save"], phase: "before-original-keyboard-assertion")
+        }
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the focused field", file: file, line: line)
         // Clear any default value first: typeText inserts at the cursor, so typing into a
         // prefilled field appends (CI: "servingbowl" passed a substring check for "bowl",
@@ -402,6 +413,8 @@ final class NutritionDiaryUITests: XCTestCase {
     func testCancelledFailedSavesLeaveDiaryEmptyAfterRelaunch() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-resetNutritionDiary", "-failDiarySaves"]
+        app.launchArguments += ["-qaDiaryKeyboardDiagnostic"]
+        keyboardDiagnosticApp = app
         app.launch()
         openDiary(app)
         openLogForm(app)
@@ -603,4 +616,16 @@ final class NutritionDiaryUITests: XCTestCase {
         add(attachment)
     }
 
+}
+
+extension NutritionDiaryUITests {
+    private func captureFailureBoundary(_ element: XCUIElement, phase: String) {
+        let value = element.exists ? element.value as? String : nil
+        let body = "DIARY-KEYBOARD-RECEIPT phase=\(phase) " + (value ?? "receipt-unavailable")
+        print(body)
+        let attachment = XCTAttachment(string: body)
+        attachment.name = "diary-keyboard-receipt-" + phase
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
 }

@@ -1,7 +1,7 @@
 {
-  "title": "Bounded live Search receipt diagnostics",
-  "summary": "Opt-in diagnostic snapshots expose bounded numeric receipt rows through existing libraryCount accessibility value. No query text, new controls, input, waits, assertions or storage writes change. Verify visible, unique and current receipt before interpreting rows. Native compile and runtime evidence remain pending; draft held, no merge.",
-  "source_commit": "6b1dd9973d1616407c24937d7109a1bdc085fdd5",
+  "title": "Flag-gated Search, diary keyboard and CookPlan cancellation receipts",
+  "summary": "Numeric bounded diagnostic receipts for Search input, diary keyboard notifications/focus and CookPlan cancellation boundaries. No production behavior, storage writes, OCR changes, input, waits or assertions change. Native receipt visibility, identity and currency must be verified before interpretation. Captures can perturb timing; receipts are not proof of focus or cancellation. Draft held, no merge.",
+  "source_commit": "b46568428c3c2fa354823630c7e2cdb60b6a373f",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -69,7 +69,7 @@
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
+      "blob": "bbbb5c8f6c2598c6ca6c827c0333cacff867d527"
     },
     {
       "path": "Ate/Views/ShoppingListView.swift",
@@ -81,7 +81,19 @@
     },
     {
       "path": "Ate/Services/CookPlanNotifications.swift",
-      "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
+      "blob": "1a1fd42a5e655143c8e74aa03e65b2fae9932200"
+    },
+    {
+      "path": "Ate/App/FailureBoundaryDiagnostic.swift",
+      "blob": "5aea153ab4513b720609fc29f5fe43cac7eaab39"
+    },
+    {
+      "path": "Ate/Views/CookPlanSheet.swift",
+      "blob": "10a17f4522a9c8b23979a29bc77e3f6bc3f3e18f"
+    },
+    {
+      "path": "Ate/Views/NutritionDiaryView.swift",
+      "blob": "e03ff4382a1738eac02ba39f39ca4d32c198aa5a"
     }
   ]
 }

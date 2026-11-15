@@ -1,7 +1,7 @@
 {
   "title": "Recipe sheet clarity, Cook contrast and duplicate display rows",
   "summary": "Recipe-sheet chrome and Cook ingredient geometry remain unqualified. Add-sheet query hypothesis replaces TextField-containing ScrollView discovery with an explicit content identifier, preserving the exact heading and active-nav assertions. No timeout, retry or product-flow changes. Existing rice-query and Journal diagnostics retained. Native lookup, AX exposure, pixels, editing and detents UNRUN on this change; metadata guard is not qualification. Merge held.",
-  "source_commit": "d00677588a6ca80d22a2080ad5c58566a5ae6d2d",
+  "source_commit": "5a5e5af89e9ef470cefcb57d18f8b5cb497f1e44",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

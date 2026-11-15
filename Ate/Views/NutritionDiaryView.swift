@@ -546,6 +546,14 @@ private struct NutritionDiaryEntryForm: View {
         }
         // The decimal-pad fields have no return key; dismiss the keyboard on scroll.
         .scrollDismissesKeyboard(.immediately)
+        #if DEBUG
+        .onAppear {
+            FailureBoundaryDiagnostic.record(.keyboard, 10, focusedField == nil ? 0 : (focusedField == "foodName" ? 1 : 2), foodName.count)
+        }
+        .onChange(of: focusedField) { _, field in
+            FailureBoundaryDiagnostic.record(.keyboard, 11, field == nil ? 0 : (field == "foodName" ? 1 : 2), foodName.count)
+        }
+        #endif
         .sheet(isPresented: $showingSourceChoices) {
             NavigationStack {
                 List {
@@ -589,6 +597,9 @@ private struct NutritionDiaryEntryForm: View {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") { save() }.accessibilityIdentifier("nutritionDiary.save")
+                    #if DEBUG
+                    .modifier(FailureBoundaryReceipt(surface: .keyboard))
+                    #endif
             }
         }
     }

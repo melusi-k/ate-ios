@@ -470,6 +470,9 @@ struct LibraryView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("\(store.recipes.count) saved recipe\(store.recipes.count == 1 ? "" : "s")")
                 .font(AteFont.display(22)).accessibilityIdentifier("libraryCount")
+                #if DEBUG
+                .modifier(SearchReceiptAccessibilityDiagnostic(receipt: SearchReceiptDiagnostic.enabled ? SearchReceiptDiagnostic.accessibilityReceipt(stored: query.count) : nil))
+                #endif
             if store.filter.isActive {
                 Text("\(resultCount) showing · \(store.filter.activeCount) active filter\(store.filter.activeCount == 1 ? "" : "s")")
                     .font(AteFont.body(14, .semibold)).accessibilityIdentifier("library.filterSummary")
@@ -694,6 +697,9 @@ struct TodayJournalHubCard: View {
     }
     private static var events = 0
     private static var rows: [String] = []
+    static func accessibilityReceipt(stored: Int) -> String {
+        "pid=\(ProcessInfo.processInfo.processIdentifier) stored=\(stored) events=\(events) rows=\(rows.count)|" + rows.joined(separator: "|")
+    }
     static func begin(previous: Int, incoming: Int) -> Int? {
         guard enabled, events < 8 else { return nil }
         events += 1
@@ -719,6 +725,21 @@ struct TodayJournalHubCard: View {
             try Data((rows.joined(separator: "\n") + "\n").utf8).write(to: cache.appendingPathComponent("search-receipt-diagnostic.txt"), options: .atomic)
         } catch {
             Logger(subsystem: "com.melusik.ate", category: "SearchReceiptDiagnostic").error("Search receipt numeric evidence write failed")
+        }
+    }
+}
+#endif
+
+#if DEBUG
+/// Explicit diagnostic flag only. Reuses the existing count label, with no new
+/// controls, query text, storage writes or focus/keyboard reads.
+private struct SearchReceiptAccessibilityDiagnostic: ViewModifier {
+    let receipt: String?
+    func body(content: Content) -> some View {
+        if let receipt {
+            content.accessibilityValue(receipt)
+        } else {
+            content
         }
     }
 }

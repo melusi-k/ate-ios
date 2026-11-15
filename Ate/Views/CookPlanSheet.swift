@@ -54,16 +54,28 @@ struct CookPlanSheet: View {
                     Button("Save") { save() }
                         .disabled(busy || loadingFailed || store.recipe(recipeID) == nil || when <= Date())
                         .accessibilityIdentifier("cookPlan.save")
+                        #if DEBUG
+                        .modifier(FailureBoundaryReceipt(surface: .cookPlan))
+                        #endif
                 }
             }
             .interactiveDismissDisabled(busy)
             .onAppear(perform: load)
+            #if DEBUG
+            .onDisappear { FailureBoundaryDiagnostic.record(.cookPlan, 29) }
+            #endif
         }
     }
 
     private func load() {
+        #if DEBUG
+        FailureBoundaryDiagnostic.record(.cookPlan, 27)
+        #endif
         do {
             existing = try store.cookPlanStore.plans().first { $0.recipeID == recipeID }
+            #if DEBUG
+            FailureBoundaryDiagnostic.record(.cookPlan, 28, existing == nil ? 0 : 1)
+            #endif
             if let existing {
                 when = existing.scheduledAt; reminder = existing.reminderRequested; zoneID = existing.timeZoneID
                 Task { @MainActor in
@@ -122,16 +134,34 @@ struct CookPlanSheet: View {
     }
 
     private func cancel() {
+        #if DEBUG
+        FailureBoundaryDiagnostic.record(.cookPlan, 20)
+        #endif
         busy = true
         Task { @MainActor in
             do {
+                #if DEBUG
+                FailureBoundaryDiagnostic.record(.cookPlan, 21)
+                #endif
                 try store.cookPlanStore.cancel(recipeID: recipeID)
+                #if DEBUG
+                FailureBoundaryDiagnostic.record(.cookPlan, 22)
+                #endif
                 try await store.cookPlanNotifications.cancel(recipeID: recipeID)
+                #if DEBUG
+                FailureBoundaryDiagnostic.record(.cookPlan, 23)
+                #endif
                 busy = false
                 store.show("Cooking plan cancelled")
+                #if DEBUG
+                FailureBoundaryDiagnostic.record(.cookPlan, 24)
+                #endif
                 dismiss()
             } catch {
                 busy = false
+                #if DEBUG
+                FailureBoundaryDiagnostic.record(.cookPlan, 25)
+                #endif
                 problem = "Cancellation could not be verified. Try again to remove the reminder."
             }
         }

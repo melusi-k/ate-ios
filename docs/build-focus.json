@@ -1,7 +1,7 @@
 {
-  "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Opt-in Search receipt diagnostics record only bounded numeric binding lengths and utility/Main timing. Original storage write, single typing action, full-query assertions and waits remain unchanged. Capture can perturb input timing and does not establish cause. Existing focus diagnostics and notification responsiveness hypothesis retained. Native compile, receipt, AX/rendered value and pixels UNRUN on this packet. Metadata validation is not native qualification; merge held.",
-  "source_commit": "6ce0a7fa53c3f3e7021ee187d47a57bc1f65e792",
+  "title": "Flag-gated Search, diary keyboard and CookPlan cancellation receipts",
+  "summary": "Numeric bounded diagnostic receipts for Search input, diary keyboard notifications/focus and CookPlan cancellation boundaries. No production behavior, storage writes, OCR changes, input, waits or assertions change. Native receipt visibility, identity and currency must be verified before interpretation. Captures can perturb timing; receipts are not proof of focus or cancellation. Draft held, no merge.",
+  "source_commit": "b46568428c3c2fa354823630c7e2cdb60b6a373f",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -57,7 +57,7 @@
     },
     {
       "path": "Ate/Views/LibraryView.swift",
-      "blob": "0fd016d0837c1f56fac572527b92975370a21f53"
+      "blob": "e69cd22f23f56df789d33458935ee3f7925eeb31"
     },
     {
       "path": "Ate/Views/OnboardingView.swift",
@@ -69,7 +69,7 @@
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
+      "blob": "bbbb5c8f6c2598c6ca6c827c0333cacff867d527"
     },
     {
       "path": "Ate/Views/ShoppingListView.swift",
@@ -81,7 +81,19 @@
     },
     {
       "path": "Ate/Services/CookPlanNotifications.swift",
-      "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
+      "blob": "1a1fd42a5e655143c8e74aa03e65b2fae9932200"
+    },
+    {
+      "path": "Ate/App/FailureBoundaryDiagnostic.swift",
+      "blob": "5aea153ab4513b720609fc29f5fe43cac7eaab39"
+    },
+    {
+      "path": "Ate/Views/CookPlanSheet.swift",
+      "blob": "10a17f4522a9c8b23979a29bc77e3f6bc3f3e18f"
+    },
+    {
+      "path": "Ate/Views/NutritionDiaryView.swift",
+      "blob": "e03ff4382a1738eac02ba39f39ca4d32c198aa5a"
     }
   ]
 }

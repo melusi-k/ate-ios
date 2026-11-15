@@ -47,6 +47,13 @@ enum GeneratedStepQuality {
             || (ingredient.notes ?? "").lowercased().contains("to taste")
     }
 
+    /// A food descriptor is not a cooking command. Share the established
+    /// brown-sugar exception across completeness and heat/time checks.
+    /// Preserve any separate real browning action in the same instruction.
+    static func cookingActionWords(_ instruction: String) -> Set<String> {
+        words(instruction.lowercased().replacingOccurrences(of: "brown sugar", with: "sugar"))
+    }
+
     static func issues(_ card: RecipeCard) -> [String] {
         guard RecipeQuality.isGenerated(card) else { return [] }
         let steps = RecipeLogic.nonBlank(card.steps)
@@ -56,7 +63,7 @@ enum GeneratedStepQuality {
         // A five-minute browning action is not a complete generated chicken main.
         // Do not fabricate a finish or impose a step-count rule on cold/source recipes.
         if steps.count == 1, RecipeQuality.isMainDish(card) {
-            let method = words(steps[0].instruction)
+            let method = cookingActionWords(steps[0].instruction)
             if !method.isDisjoint(with: ["sear", "brown"]),
                method.isDisjoint(with: ["simmer", "boil", "bake", "roast", "braise", "steam", "grill", "internal", "centre", "center", "serve"]) {
                 gaps.append("The method stops after browning. Explain how to finish cooking this main dish and check doneness; do not invent missing source steps.")
@@ -106,8 +113,7 @@ enum GeneratedStepQuality {
                 gaps.append("Step \(step.order) mixes a stovetop method with an oven-style temperature; clarify the heat cue.")
             }
             // 'brown sugar' is an ingredient, not a command to brown it.
-            let actionText = step.instruction.lowercased().replacingOccurrences(of: "brown sugar", with: "sugar")
-            guard !words(actionText).isDisjoint(with: heatActions) else { continue }
+            guard !cookingActionWords(step.instruction).isDisjoint(with: heatActions) else { continue }
             // Scan the complete instruction: compound actions such as rub,
             // cover and bake must not evade the check after the fifth word.
             if (step.timeSeconds ?? 0) <= 0 && Durations.seconds(in: step.instruction) == nil {

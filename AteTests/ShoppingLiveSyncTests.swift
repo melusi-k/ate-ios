@@ -34,11 +34,16 @@ final class ShoppingLiveSyncTests: XCTestCase {
         XCTAssertEqual(result.data["item"], local)
         XCTAssertEqual(result.push, ["item"])
     }
-    func testRecipeEqualTimestampContractUnchanged() {
+    func testMergedEqualTimestampRecipesAndShoppingTakeServerPayload() {
         let remote = SyncRecord(user_id: "u", kind: "recipe", id: "r", data: AnyJSON(Data("server".utf8)), updated_at: 10, deleted: false)
         let local = Data("local".utf8)
         let result = SyncMerge.merge(local: .init(data: ["r": local], stamps: ["r": 10], tombstones: [:]), remote: [remote])
-        XCTAssertEqual(result.data["r"], local)
+        XCTAssertEqual(result.data["r"], Data("server".utf8))
+        XCTAssertTrue(result.push.isEmpty)
+        let shoppingRemote = SyncRecord(user_id: "u", kind: "shopping", id: "s", data: AnyJSON(Data("shopping-server".utf8)), updated_at: 10, deleted: false)
+        let shopping = SyncMerge.merge(local: .init(data: ["s": local], stamps: ["s": 10], tombstones: [:]), remote: [shoppingRemote])
+        XCTAssertEqual(shopping.data["s"], Data("shopping-server".utf8))
+        XCTAssertTrue(shopping.push.isEmpty)
     }
     func testLocalEditClockNeverRepeatsOrGoesBackwards() {
         XCTAssertEqual(ShoppingSyncCadence.nextStamp(now: 10, prior: 10), 11)
@@ -136,6 +141,25 @@ final class ShoppingSyncLifecycleTests: XCTestCase {
         XCTAssertEqual(transport.pulls, 1, "Request during pull must queue, not recursively overlap")
         XCTAssertEqual(transport.pushes, 1)
     }
+    func testOwnerBoundReentrantSyncKeepsOnePullAndOnePush() async throws {
+        let requested = FileManager.default.temporaryDirectory.appendingPathComponent("OwnerShoppingSync-\(UUID())")
+        try FileManager.default.createDirectory(at: requested, withIntermediateDirectories: false)
+        let root = requested.resolvingSymlinksInPath().standardizedFileURL
+        defer { try? FileManager.default.removeItem(at: root) }
+        let transport = ControlledSync()
+        let tested = make(transport)
+        let gate = try AccountWriterGate(directory: root, resetControlExists: { false })
+        let lifecycle = FoodJournalConsumerLifecycle(gate: gate, admittedLease: try gate.captureWriter(),
+            session: tested.session, currentSession: { tested.session })
+        tested.journalConsumerTasks = FoodJournalConsumerTasks(lifecycle: lifecycle)
+        transport.duringPull = { await tested.syncNow() }
+        await tested.syncNow(reconcileShoppingPush: false)
+        XCTAssertEqual(transport.pulls, 1, "Owner-bound reentrant request must not overlap")
+        XCTAssertEqual(transport.pushes, 1)
+        try lifecycle.validate()
+        tested.journalConsumerTasks = nil
+    }
+
     func testLocalAdditionDuringPullIsIncludedRatherThanOverwritten() async {
         let transport = ControlledSync()
         let store = make(transport)

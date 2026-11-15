@@ -1,12 +1,15 @@
 from pathlib import Path
 import hashlib
+from test_menu_favourite_capture import restore_menu_capture_ui
 import unittest
 ROOT=Path(__file__).resolve().parents[2]
 class DogWaitPhaseDiagnosticTests(unittest.TestCase):
     def test_original_entire_test_files_survive_only_diagnostics(self):
         cases=[('AteUITests/AteUITests.swift','library-reorder-after-longpress','cae9f4db8b33808430f2e9b575ddd9f7c45662e0d2df0942d84b441cf67a2d92'),('AteUITests/KeyFlowsQATests.swift','8-after-exit-before-timerbar-query','c07bdfa3a5a831f9fac67e546a6ab6607e73f141f7f6793cd8d1d6c6bb69d629')]
         for file,pixel,digest in cases:
-            s=(ROOT/file).read_text().replace('launch(["-qaDogWaitPhaseDiagnostic"])','launch()').replace(', "-qaDogWaitPhaseDiagnostic"','').replace(', "-qaQA8ExitFileDiagnostic"','')
+            s=(ROOT/file).read_text()
+            if file == "AteUITests/AteUITests.swift": s=restore_menu_capture_ui(s)
+            s=s.replace('launch(["-qaDogWaitPhaseDiagnostic"])','launch()').replace(', "-qaDogWaitPhaseDiagnostic"','').replace(', "-qaQA8ExitFileDiagnostic"','')
             s=s.replace('\n        shot("'+pixel+'")','')
             self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),digest)
     def test_flagged_bounded_main_actor_sampler(self):

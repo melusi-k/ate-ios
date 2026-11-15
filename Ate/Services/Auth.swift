@@ -309,21 +309,42 @@ final class MockAuth: AuthService {
 
 enum Keychain {
     static let service = "com.melusik.ate.auth"
-    static func save(_ data: Data?, account: String) {
+    struct Operations {
+        var update: ([String: Any], [String: Any]) -> OSStatus
+        var add: ([String: Any]) -> OSStatus
+        var delete: ([String: Any]) -> OSStatus
+        static var live: Operations {
+            Operations(update: { SecItemUpdate($0 as CFDictionary, $1 as CFDictionary) },
+                       add: { SecItemAdd($0 as CFDictionary, nil) },
+                       delete: { SecItemDelete($0 as CFDictionary) })
+        }
+    }
+
+    /// Update preserves existing bytes when the OS refuses the write. Add only for a
+    /// genuinely missing item. Never delete valid credentials to replace them.
+    @discardableResult
+    static func save(_ data: Data?, account: String, operations: Operations = .live) -> Bool {
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
                                 kSecAttrAccount as String: account]
-        let deleted = SecItemDelete(q as CFDictionary)
-        if account == "session", deleted != errSecSuccess && deleted != errSecItemNotFound {
-            DiagnosticHistory.shared.record(.authCredentialDeleteFailed)
+        guard let data else {
+            let status = operations.delete(q)
+            let success = status == errSecSuccess || status == errSecItemNotFound
+            if account == "session", !success { DiagnosticHistory.shared.record(.authCredentialDeleteFailed) }
+            return success
         }
-        guard let data else { return }
+        let values: [String: Any] = [kSecValueData as String: data,
+                                    kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock]
+        let updated = operations.update(q, values)
+        if updated == errSecSuccess { return true }
+        guard updated == errSecItemNotFound else {
+            if account == "session" { DiagnosticHistory.shared.record(.authCredentialSaveFailed) }
+            return false
+        }
         var add = q
-        add[kSecValueData as String] = data
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        let added = SecItemAdd(add as CFDictionary, nil)
-        if account == "session", added != errSecSuccess {
-            DiagnosticHistory.shared.record(.authCredentialSaveFailed)
-        }
+        for (key, value) in values { add[key] = value }
+        let status = operations.add(add)
+        if account == "session", status != errSecSuccess { DiagnosticHistory.shared.record(.authCredentialSaveFailed) }
+        return status == errSecSuccess
     }
     static func load(account: String) -> Data? {
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,

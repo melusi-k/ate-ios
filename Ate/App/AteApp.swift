@@ -6,9 +6,7 @@ import UserNotifications
 import OSLog
 import Foundation
 import Dispatch
-import Foundation
 import UIKit
-import OSLog
 #endif
 
 @main
@@ -859,6 +857,12 @@ enum PresentationReturnDiagnostic {
                 to: cache.appendingPathComponent("presentation-return-diagnostic.txt"), options: .atomic)
         } catch {
             logger.error("Presentation return numeric evidence file write failed")
+        }
+    }
+}
+#endif
+
+#if DEBUG
 /// Notification timing only. Never queries content, focus, or first responders.
 @MainActor enum SearchFocusDiagnostic {
     private static var tokens: [NSObjectProtocol] = []

@@ -1,7 +1,7 @@
 {
   "title": "Dormant Journal and nutrition goals sync preparation",
-  "summary": "Recipe-detail geometry feedback hypothesis retains live clearance and diagnostic capture. Sync fixture hypothesis qualifies five remaining legacy-shadowed JournalEntry references as Ate.JournalEntry. No app runtime change in this packet. Native layout, matrix convergence, edit preservation and legacy upgrade UNRUN. No assertion, timeout, retry or budget changes. Metadata guard is not qualification; merge held.",
-  "source_commit": "b09efa4a0014fa02251b3595c673f27429119ff3",
+  "summary": "Recipe-detail geometry feedback hypothesis retains live clearance and diagnostic capture. Sync fixture hypothesis qualifies five legacy-shadowed JournalEntry sites as Ate.JournalEntry. Single-test DEBUG+UITesting screen receipts bracket original openDiary calls. No app runtime, shared helper, assertion, timeout, retry or budget changes. Native layout, matrix convergence, edit preservation, legacy upgrade, diary responsiveness and pixels UNRUN. Captures may perturb timing. Metadata guard is not qualification; merge held.",
+  "source_commit": "49665536aef5ac95ab58b48854daa70b97235965",
   "evidence": [
     {
       "path": "Ate/Insights/InsightLifecycle.swift",

@@ -48,12 +48,17 @@ targets:
     platform: iOS
     sources:
       - path: Ate
+        excludes:
+          - Resources/ProductUpdates
+      # Preserve the catalog subdirectory expected by Bundle.main. A target-level
+      # resources key does not stop recursive sources from flattening this JSON.
+      - path: Ate/Resources/ProductUpdates
+        type: folder
+        buildPhase: resources
       - path: Shared
       - path: SharedWidgets
     resources:
       - path: Ate/Resources/BuildNotes.md
-      - path: Ate/Resources/ProductUpdates
-        type: folder
     dependencies:
       - target: AteWidgets
       - target: AteShare

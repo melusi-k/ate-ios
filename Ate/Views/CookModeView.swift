@@ -1,5 +1,18 @@
 import SwiftUI
 
+#if DEBUG
+/// Numeric receipt only; bounded process-local console evidence, no private payloads.
+@MainActor enum AccountAssertionDiagnostic {
+    private static var count = 0
+    static func record(_ phase: Int, value: Double = 0) {
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaAccountAssertionDiagnostic"), count < 32 else { return }
+        count += 1
+        print("ACCOUNT-ASSERTION phase=\(phase) count=\(count) uptime=\(ProcessInfo.processInfo.systemUptime) value=\(value)")
+    }
+}
+#endif
+
 struct CookModeView: View {
     let recipeID: String
     let offerPolicy: CookReflectionOfferPolicy
@@ -103,6 +116,9 @@ struct CookModeView: View {
         .sheet(item: $reflectionOffer, onDismiss: {
             // Single exit owner for every way out of the offer: leave Cook Mode once, then hand a chosen
             // "Add a note" to the host. Done and swipe-down only leave.
+#if DEBUG
+            AccountAssertionDiagnostic.record(21)
+#endif
             let write = writeRequest
             writeRequest = nil
             exit()
@@ -111,7 +127,12 @@ struct CookModeView: View {
             CookReflectionOfferSheet(event: event, showReflectionNudge: showReflectionNudge,
                                      onShown: { if showReflectionNudge { offerPolicy.markShown(on: Date()) } },
                                      onWrite: { writeRequest = event; reflectionOffer = nil },
-                                     onNotNow: { reflectionOffer = nil })
+                                     onNotNow: {
+#if DEBUG
+                                         AccountAssertionDiagnostic.record(20)
+#endif
+                                         reflectionOffer = nil
+                                     })
         }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false; voice.stop() }
         .onChange(of: index) {
@@ -157,11 +178,20 @@ struct CookModeView: View {
         onCompleted?(event)
         showReflectionNudge = offerPolicy.shouldOffer(on: Date())
         reflectionOffer = event
+#if DEBUG
+        AccountAssertionDiagnostic.record(19)
+#endif
     }
 
     private func exit() {
+#if DEBUG
+        AccountAssertionDiagnostic.record(22)
+#endif
         store.timers.cleanupIdle(recipeID: recipeID)
         if let onExit { onExit() } else if !store.path.isEmpty { store.path.removeLast() }
+#if DEBUG
+        AccountAssertionDiagnostic.record(23)
+#endif
     }
 
     /// "4 minutes 12 seconds" for VoiceOver instead of "4:12".

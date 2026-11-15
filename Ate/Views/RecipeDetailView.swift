@@ -61,6 +61,12 @@ struct RecipeDetailView: View {
                             }
                             .buttonStyle(.ate(.secondary, full: true))
                             .accessibilityIdentifier("recipe.plan")
+                            #if DEBUG
+                            .modifier(FailureBoundaryReceipt(surface: .cookPlan))
+                            .onChange(of: planning) { _, value in
+                                FailureBoundaryDiagnostic.record(.cookPlan, 40, value ? 1 : 0)
+                            }
+                            #endif
                             askCard(recipe)
                         }
                     }

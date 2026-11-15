@@ -198,3 +198,33 @@ final class CookPlanNotificationTests: XCTestCase {
     }
 
 }
+
+// Exercise the real off-Main boundary without contacting notification services.
+extension CookPlanNotificationTests {
+    func testBlockedSystemRemovalLeavesMainResponsiveAndDoesNotReturnEarly() async {
+        let started = expectation(description: "utility removal entered")
+        let release = DispatchSemaphore(value: 0)
+        var returned = false
+        let removal = Task { @MainActor in
+            await CookPlanNotificationRemoval.perform(ids: ["cook-r1"]) { ids in
+                XCTAssertFalse(Thread.isMainThread, "Blocking OS removal must not run on Main")
+                XCTAssertEqual(ids, ["cook-r1"], "Removal must preserve the requested identities")
+                started.fulfill()
+                release.wait()
+            }
+            returned = true
+        }
+        await fulfillment(of: [started], timeout: 2)
+        // This MainActor assertion runs while the synchronous boundary is blocked.
+        XCTAssertFalse(returned, "Ordered cleanup cannot report completion before OS removal returns")
+        release.signal()
+        await removal.value
+        XCTAssertTrue(returned)
+    }
+
+    func testEmptyRemovalDoesNotContactSystem() async {
+        await CookPlanNotificationRemoval.perform(ids: []) { _ in
+            XCTFail("No identifiers means no OS removal request")
+        }
+    }
+}

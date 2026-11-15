@@ -12,6 +12,10 @@ class DogfoodSavedSetupTests(unittest.TestCase):
         self.assertIn('guard menus || reorder || reorderAction || cook else { return }', source)
         self.assertIn('store.layout = LibraryLayout()', source)
         self.assertIn('if reorderAction { store.layout.sort = .myOrder }', source)
+        self.assertIn('guard menus || reorder || reorderAction else { return }', source)
+        self.assertIn('store.layout = LibraryLayout()', source)
+        self.assertIn('if reorderAction { store.layout.sort = .myOrder }', source)
+        self.assertIn('contains("-qaSavedRecipesForReorderAction")', source)
         self.assertIn('Date().timeIntervalSince1970 * 1000', source)
         self.assertIn('timeMinutes: 25', source)
         for forbidden in ['store.path', '.group =', '.favorite =', '.sortIndex =', 'CookingHistory', 'store.move']:

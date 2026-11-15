@@ -1,7 +1,7 @@
 {
   "title": "Main Shopping and Explore plus recipe import, Cook return and review improvements",
   "summary": "Normal two-parent union of main Shopping sync, offline Explore and Search diagnostics with recipe import quality, Cook return, Journal and review improvements. Both sides tests retained; Settings/About receipt type fix preserved. Chicken grounding and title hint still held for device golden set and pixels. Native compile, XCTest, offline-device checks and merged normal-text screenshots UNRUN; source checks and focus metadata are not qualification. Merge held for reviewer destination confirmation.",
-  "source_commit": "dc812fed178656b325b198badf0d9e6cb6ea8fd2",
+  "source_commit": "da18ba80b80bfb188819be935f9fce9304922746",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

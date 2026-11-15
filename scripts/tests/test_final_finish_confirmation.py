@@ -16,6 +16,8 @@ def restore_final_finish_confirmation(test, source):
 class FinalFinishConfirmationTests(unittest.TestCase):
     def test_all_original_ui_code_preserved(self):
         source=(ROOT/'AteUITests/AteUITests.swift').read_text()
+        from test_account_assertion_capture import restore_account_diagnostic
+        source=restore_account_diagnostic(self,source,'AteUITests/AteUITests.swift')
         self.assertEqual(hashlib.sha256(restore_final_finish_confirmation(self,source).encode()).hexdigest(), '44b91411ce19e71986601f66cb461efb248e953004f87ca67382432ef765d9ca')
     def test_finish_records_then_done_before_original_arrival(self):
         case=(ROOT/'AteUITests/AteUITests.swift').read_text().split('    func test06b_CookModeFinalStepAndFinish() {',1)[1].split('\n    func ',1)[0]

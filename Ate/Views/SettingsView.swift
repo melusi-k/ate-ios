@@ -230,14 +230,21 @@ struct SettingsView: View {
                         .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("aboutBuildNotesSection")
                         VStack(alignment: .leading, spacing: 2) {
+                            // Keep the visible heading independently exposed, as with build notes.
+                            // Selectable combined content may be an AX Other rather than StaticText.
                             Text("AI diagnostics").font(AteFont.body(12, .semibold))
-                            Text("Model: " + OnDeviceBackend.availabilityDescription)
-                            Text("Last generation: " + (GenerationLog.last?.summary ?? "none yet"))
-                                .accessibilityIdentifier("lastGeneration")
+                                .accessibilityIdentifier("aiDiagnosticsHeading")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Model: " + OnDeviceBackend.availabilityDescription)
+                                Text("Last generation: " + (GenerationLog.last?.summary ?? "none yet"))
+                                    .accessibilityIdentifier("lastGeneration")
+                            }
+                            .textSelection(.enabled)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityIdentifier("aiDiagnostics")
                         }
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
-                        .textSelection(.enabled)
-                        .accessibilityElement(children: .combine).accessibilityIdentifier("aiDiagnostics")
+                        .accessibilityElement(children: .contain)
                         LiveActivityDiagnosticsView()
                         if AppConfig.privacyURL != nil {
                             Button { activeSheet = .legal(.privacy) } label: {

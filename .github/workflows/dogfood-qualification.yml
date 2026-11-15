@@ -195,6 +195,13 @@ jobs:
 
           # A second immediate copy after existing log reads preserves any diagnostic-only
           # continuation, without waiting, restarting tests or changing the acceptance deadline.
+          # Bounded numeric layout/quality events share the existing QA8 diagnostic flag.
+          mkdir -p qa8-target-sample
+          if [ -n "${data_container:-}" ]; then
+            for evidence in "$data_container"/Library/Caches/qa8-detail-layout-*.txt; do
+              if [ -f "$evidence" ]; then cp "$evidence" qa8-target-sample/; fi
+            done
+          fi
           date -u '+%Y-%m-%dT%H:%M:%SZ' > dogfood-critical-window/qa8-exit-file/last-copy-utc.txt
           if [ -n "${data_container:-}" ] && [ -f "$data_container/Library/Caches/qa8-exit-diagnostic.txt" ]; then
             cp "$data_container/Library/Caches/qa8-exit-diagnostic.txt" dogfood-critical-window/qa8-exit-file/last-snapshot.txt

@@ -27,6 +27,9 @@ The strict ancestry/blob validator and all qualification requirements remain unc
 This split re-anchors the reviewed focus to the destination runtime commit above,
 not to the frozen aggregate branch. Activation remains OFF.
 
+## Bundle B exact source fold
+
+Reviewed runtime 539f721d19f8547787335433c30384cbae4ece7c folds #524bb7812e4 and #496c4cfa1b1 as merge commits onto #4974b376243. Only compile-check artifact-path conflicts needed manual union; both Shopping and Explore paths are retained. Strict source ancestry/blob validation is unchanged. No native, pixel or device acceptance. SharedInbox pushImage and its failing FJ-union regression are absent on all three source heads, so no speculative path patch was injected. Nutrition passed on retained #497/#522 artifacts; that is not a pass on this new combined head.
 ## Shared Cook state and bottom actions on #518
 
 Reviewed source d488db36ee4095c05e807d60fa9f5a456d491188 changes the guarded

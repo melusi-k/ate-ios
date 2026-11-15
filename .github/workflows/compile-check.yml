@@ -804,6 +804,41 @@ jobs:
           echo "::error::Insights acceptance failed. Later diagnostics were allowed to run, but the compile gate remains blocked until issue #195 is fixed."
           exit 1
 
+      - name: Retain expandable return diagnostic attachments
+        if: ${{ matrix.suite == 'presentation-creation' && always() }}
+        run: |
+          python3 - <<'PYEXPORT'
+          import os, pathlib, subprocess
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          source = root / 'ate-test-results/expandable-recipe-sheet.xcresult'
+          output = root / 'expandable-return-evidence'
+          output.mkdir(parents=True, exist_ok=True)
+          note = output / 'export-status.txt'
+          if not source.is_dir():
+              note.write_text('Source xcresult missing; captures unavailable.\n')
+          else:
+              try:
+                  result = subprocess.run(['xcrun', 'xcresulttool', 'export', 'attachments',
+                      '--path', str(source), '--output-path', str(output)],
+                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=60)
+                  note.write_text('export_exit=' + str(result.returncode) + '\n' + result.stdout)
+                  if result.returncode:
+                      print('::warning::Expandable return export failed; see export-status.txt')
+              except subprocess.TimeoutExpired:
+                  note.write_text('Export exceeded 60 seconds and was stopped; partial captures may remain.\n')
+                  print('::warning::Expandable return export timed out')
+              except OSError as error:
+                  note.write_text('Export could not start: ' + str(error) + '\n')
+                  print('::warning::Expandable return export unavailable')
+          PYEXPORT
+      - name: Upload expandable return diagnostic attachments
+        if: ${{ matrix.suite == 'presentation-creation' && always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: expandable-return-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/expandable-return-evidence
+          retention-days: 7
+
       - name: Upload test diagnostics
         if: always()
         uses: actions/upload-artifact@v7

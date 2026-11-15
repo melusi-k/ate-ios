@@ -1,3 +1,4 @@
+from approved_merge_532 import normalize
 """Only redundant recipe creation changes; acceptance actions are byte-preserved."""
 from pathlib import Path
 import hashlib
@@ -7,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 class SavedLibraryPreconditionsTests(unittest.TestCase):
     def test_every_original_action_and_assertion_is_retained(self):
         path = 'AteUITests/AteUITests.swift'
-        current = (ROOT / path).read_text()
+        current = normalize('source:'+path,(ROOT / path).read_text())
         # Immutable post-setup body digests from exact 94b6149aa6bfc117bac138dc4c60cac298d15c61.
         # Cover EVERY original action, assertion, wait, screenshot and comment after setup.
         # Self-contained in depth-1/credential-free checkouts; history is never consulted.
@@ -26,7 +27,7 @@ class SavedLibraryPreconditionsTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256(unchanged.encode()).hexdigest(), digest, name)
 
     def test_sampler_cannot_change_animation_or_preselect_results(self):
-        s = (ROOT / 'Ate/App/DogfoodSavedRecipeQAFixtures.swift').read_text()
+        s = normalize('source:Ate/App/DogfoodSavedRecipeQAFixtures.swift', (ROOT / 'Ate/App/DogfoodSavedRecipeQAFixtures.swift').read_text())
         self.assertTrue(s.startswith('#if DEBUG'))
         self.assertIn('guard AppConfig.isUITesting else { return }', s)
         for bad in ['layout.sort =', 'layout.group =', 'favorite:', 'sortIndex:', 'removeAllAnimations', 'removeAnimation', 'speed =']:

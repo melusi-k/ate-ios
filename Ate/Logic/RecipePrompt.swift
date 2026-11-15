@@ -103,13 +103,16 @@ enum RecipePrompt {
 
     /// Food photo where the user (or a confident label) named the dish.
     /// `ocr` is inlined only on the fallback path; with the readPhotoText tool the model fetches it on demand.
+    /// Photo recipes are guesses; location and persona do not establish origin.
+    static let photoGrounding = " Keep the source dish name. Do not assume South African origin from the cook's location or your specialty; omit unsupported cuisine claims from cuisine, tags and description. Any claimed infusion, sauce preparation or finishing action belongs in ordered steps with its ingredients, not only the note. Browning alone is not a finished chicken method."
+
     static func photo(dish: String, labels: [String], ocr: String, ocrViaTool: Bool = false) -> String {
         var p = "A photo shows this dish: \(dish). Write a traditional home-cook recipe for exactly that dish. List every visible structural component and make every component used in the steps a measured ingredient; never write a step using an unlisted wrapper, pastry, sauce, binder or filling."
         if !labels.isEmpty { p += " Image labels (generic hints only): \(labels.prefix(5).joined(separator: ", "))." }
         let o = ocr.trimmingCharacters(in: .whitespacesAndNewlines)
         if ocrViaTool { if !o.isEmpty { p += " The photo contains some printed text; call readPhotoText if it helps." } }
         else if !o.isEmpty { p += " Text visible in the photo: \(o.prefix(200))." }
-        return p + "\n" + glossary(for: dish + " " + o)
+        return p + photoGrounding + "\n" + glossary(for: dish + " " + o)
     }
 
     /// Food photo with no confident name: the model identifies the dish in the same pass (dishName first).

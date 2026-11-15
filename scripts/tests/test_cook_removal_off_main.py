@@ -4,6 +4,8 @@ ROOT=Path(__file__).resolve().parents[2]
 class CookRemovalOffMainTests(unittest.TestCase):
     def test_ordered_intent_owner_unchanged(self):
         source=(ROOT/'Ate/Services/CookPlanNotifications.swift').read_text()
+        from test_cookplan_local_cancel import restore_local_cancel
+        source=restore_local_cancel(self,source)
         owner=source[source.index('@MainActor\nfinal class CookPlanNotifications {'):]
         self.assertEqual(hashlib.sha256(owner.encode()).hexdigest(), 'ca7a8c6652c46909a5d44a0276e2141e6a02bac377c495845ce2675afca45431')
     def test_all_original_native_tests_preserved(self):

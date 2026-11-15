@@ -6,6 +6,8 @@ ROOT = Path(__file__).resolve().parents[2]
 class NutritionPretapDiagnosticTests(unittest.TestCase):
     def test_original_journey_survives_only_evidence_and_flag_insertion(self):
         source = (ROOT / 'AteUITests/NutritionDiaryUITests.swift').read_text()
+        from test_food_form_phase_brackets import restore_food_form_brackets
+        source=restore_food_form_brackets(self,source)
         import re
         source=re.sub(r'    private func startupDiagnosticMark\(_ phase: String\) \{.*?\n    \}\n', '', source, flags=re.S)
         source='\n'.join(line for line in source.split('\n') if 'startupDiagnosticMark(' not in line)

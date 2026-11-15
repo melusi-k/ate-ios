@@ -113,8 +113,17 @@ final class CookPlanNotifications {
 
     private func removeAndVerify(recipeID: String) async throws {
         let ids = [CookPlan.reminderID(recipeID: recipeID)]
+        #if DEBUG
+        FailureBoundaryDiagnostic.record(.cookPlan, 30)
+        #endif
         await client.remove(ids)
+        #if DEBUG
+        FailureBoundaryDiagnostic.record(.cookPlan, 31)
+        #endif
         let remaining = await client.pendingIDs()
+        #if DEBUG
+        FailureBoundaryDiagnostic.record(.cookPlan, 32, remaining.isDisjoint(with: ids) ? 0 : 1)
+        #endif
         guard remaining.isDisjoint(with: ids) else { throw CookPlanError.verificationFailed }
     }
 
@@ -146,6 +155,9 @@ final class CookPlanNotifications {
     }
 
     func cancel(recipeID: String) async throws {
+        #if DEBUG
+        FailureBoundaryDiagnostic.record(.cookPlan, 26)
+        #endif
         try await enqueue { _ in try await self.removeAndVerify(recipeID: recipeID) }.value
     }
     func cancelAll() async throws {

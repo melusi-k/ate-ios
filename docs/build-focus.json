@@ -1,11 +1,11 @@
 {
-  "title": "Named-photo recipe grounding and incomplete Chicken au Poivre regression",
-  "summary": "Cook returns to its retained recipe sheet. Named-photo grounding preserves the source dish, avoids unsupported regional claims and keeps method actions in steps. Generated ribs/wings conflicts get a review hint, never a rename or new gate. Chicken and title changes remain held for device golden set and pixels. This packet adds two default-on DEBUG SettingsAbout frame/screenshot receipts only. Original assertions, swipe bounds and allowances unchanged. Native compile, XCTest and new pixels UNRUN; metadata is not qualification.",
-  "source_commit": "73f13ac8da2b5cd007768de969a9f2de1f937977",
+  "title": "Main Shopping and Explore plus recipe import, Cook return and review improvements",
+  "summary": "Normal two-parent union of main Shopping sync, offline Explore and Search diagnostics with recipe import quality, Cook return, Journal and review improvements. Both sides tests retained; Settings/About receipt type fix preserved. Chicken grounding and title hint still held for device golden set and pixels. Native compile, XCTest, offline-device checks and merged normal-text screenshots UNRUN; source checks and focus metadata are not qualification. Merge held for reviewer destination confirmation.",
+  "source_commit": "dc812fed178656b325b198badf0d9e6cb6ea8fd2",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "33f2fad9610826696f9a72a98c12153ed11aca20"
+      "blob": "58409903255780d49bb4f15c85a59ffeade39e6a"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
@@ -64,20 +64,16 @@
       "blob": "1836b1a804dc8fd82c3703a15876bfc8d6f24d0f"
     },
     {
-      "path": "Ate/Views/ExploreView.swift",
-      "blob": "1049ba938a741b92dc0656e8d372fddc4b2f2f73"
-    },
-    {
-      "path": "Ate/Views/InsightsView.swift",
-      "blob": "3f38057fb07a065197672fab9c6f219ea06c17f1"
+      "path": "Ate/Services/JournalSuggestionService.swift",
+      "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
     },
     {
       "path": "Ate/Services/OnDeviceBackend.swift",
-      "blob": "3d4ecec4f6709160469145a75e910885db8f84aa"
+      "blob": "7bb3adadd8d30c83e9e2e98d4ff85e6fdebefe73"
     },
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "1b1cfdf573bf48a3cf932224522b3e58e0be904e"
+      "blob": "403fe3c3256f6c0255633503d943dba4377ddd56"
     },
     {
       "path": "Ate/Views/CookModeView.swift",
@@ -106,14 +102,6 @@
     {
       "path": "Ate/Views/JournalViews.swift",
       "blob": "ecf5db07291ed24c0bca35cc5cbbf4951e34efb4"
-    },
-    {
-      "path": "Ate/Views/JournalViews.swift",
-      "blob": "7e0375d362867507e781901318e32fde459f0e85"
-    },
-    {
-      "path": "Ate/Views/LibraryView.swift",
-      "blob": "0fd016d0837c1f56fac572527b92975370a21f53"
     },
     {
       "path": "Ate/Views/OnboardingView.swift",
@@ -154,6 +142,34 @@
     {
       "path": "Ate/Logic/GeneratedTitleReview.swift",
       "blob": "2e3d233b753c679fa7a4027b28a0a19378c94af9"
+    },
+    {
+      "path": "Ate/App/ExploreRetentionQAFixtures.swift",
+      "blob": "f98df83f7cbaba2e7a70ec2699a2791bde9ee17c"
+    },
+    {
+      "path": "Ate/Logic/SyncPayloadSafety.swift",
+      "blob": "a97407346934598d82dda7ffda52eed0c29aa46a"
+    },
+    {
+      "path": "Ate/Store/AppStore.swift",
+      "blob": "52f7b316e8805b7e7e1ef1a81a6857acc710aa3a"
+    },
+    {
+      "path": "Ate/Views/ExploreView.swift",
+      "blob": "1049ba938a741b92dc0656e8d372fddc4b2f2f73"
+    },
+    {
+      "path": "Ate/Views/LibraryView.swift",
+      "blob": "0fd016d0837c1f56fac572527b92975370a21f53"
+    },
+    {
+      "path": "Ate/Views/ShoppingListView.swift",
+      "blob": "031df522bdb2bae02452fe99f535835dae0d7c08"
+    },
+    {
+      "path": "Ate/Services/CookPlanNotifications.swift",
+      "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
     }
   ]
 }

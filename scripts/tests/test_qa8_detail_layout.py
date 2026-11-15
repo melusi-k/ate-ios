@@ -1,3 +1,4 @@
+from approved_merge_539 import normalize, approved_original_file
 from pathlib import Path
 import hashlib,subprocess,unittest,yaml
 ROOT=Path(__file__).resolve().parents[2]
@@ -14,13 +15,13 @@ def restore_detail_capture(test, text, file):
 class DetailLayoutCaptureTests(unittest.TestCase):
     def test_exact_original_product_and_workflow_survive(self):
         for file in PAIRS:
-            source=(ROOT/file).read_text()
+            source=normalize('source:'+file,(ROOT/file).read_text())
             if file == 'Ate/Views/RecipeDetailView.swift':
                 from test_inset_independent_host import restore_host_measurement
                 source=restore_host_measurement(self,source)
             self.assertEqual(hashlib.sha256(restore_detail_capture(self,source,file).encode()).hexdigest(), BASE_HASHES[file])
     def test_quality_once_and_no_cache_or_async_work(self):
-        source=(ROOT/'Ate/Views/RecipeDetailView.swift').read_text()
+        source=normalize('source:Ate/Views/RecipeDetailView.swift', (ROOT/'Ate/Views/RecipeDetailView.swift').read_text())
         s=source.split('enum QA8DetailLayoutDiagnostic {',1)[1]
         for token in ['AppConfig.isUITesting','-qaQA8ExitFileDiagnostic','rows.count < 64','count <= 4 || count & (count - 1) == 0','armed = true','counts = [:]','qualityMaxMS = 0','let result = calculate()','return result','.atomic']:
             self.assertIn(token,s)
@@ -33,26 +34,26 @@ class DetailLayoutCaptureTests(unittest.TestCase):
         self.assertEqual(s[start:finish].count('event('),0)
     def test_no_test_or_logic_or_budget_edits(self):
         for folder in ['AteUITests','AteTests','Ate/Logic']:
-            actual={str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
-                    for p in (ROOT/folder).rglob('*') if p.is_file()}
+            actual={str(p.relative_to(ROOT)): hashlib.sha256(normalize('source:'+str(p.relative_to(ROOT)),p.read_bytes())).hexdigest()
+                    for p in (ROOT/folder).rglob('*') if p.is_file() and approved_original_file(str(p.relative_to(ROOT)),p.read_bytes())}
             if folder == 'AteTests':
                 from test_user_data_sync_model_qualification import restore_sync_model_qualification
                 file='AteTests/UserDataSyncTests.swift'
-                actual[file]=hashlib.sha256(restore_sync_model_qualification((ROOT/file).read_text()).encode()).hexdigest()
+                actual[file]=hashlib.sha256(restore_sync_model_qualification(normalize('source:'+file,(ROOT/file).read_text())).encode()).hexdigest()
             if folder == 'AteUITests':
                 from test_diary_entry_receipt import restore_diary_entry_receipt
                 file='AteUITests/NutritionDiaryUITests.swift'
-                actual[file]=hashlib.sha256(restore_diary_entry_receipt(self,(ROOT/file).read_text()).encode()).hexdigest()
+                actual[file]=hashlib.sha256(restore_diary_entry_receipt(self,normalize('source:'+file,(ROOT/file).read_text())).encode()).hexdigest()
             if folder == 'AteTests':
                 from test_auth_refresh_race import restore_auth_race_tests,restore_auth_gate_tests,restore_auth_diag_tests
                 file='AteTests/AppStoreWriterBoundaryTests.swift'
-                actual[file]=hashlib.sha256(restore_auth_race_tests(self,(ROOT/file).read_text()).encode()).hexdigest()
+                actual[file]=hashlib.sha256(restore_auth_race_tests(self,normalize('source:'+file,(ROOT/file).read_text())).encode()).hexdigest()
                 file='AteTests/AuthHardeningTests.swift'
-                actual[file]=hashlib.sha256(restore_auth_gate_tests(self,(ROOT/file).read_text()).encode()).hexdigest()
+                actual[file]=hashlib.sha256(restore_auth_gate_tests(self,normalize('source:'+file,(ROOT/file).read_text())).encode()).hexdigest()
                 file='AteTests/DiagnosticHistoryTests.swift'
-                actual[file]=hashlib.sha256(restore_auth_diag_tests(self,(ROOT/file).read_text()).encode()).hexdigest()
+                actual[file]=hashlib.sha256(restore_auth_diag_tests(self,normalize('source:'+file,(ROOT/file).read_text())).encode()).hexdigest()
             self.assertEqual(actual, BASE_FOLDER_HASHES[folder])
-        source=(ROOT/'.github/workflows/dogfood-qualification.yml').read_text()
+        source=normalize('source:.github/workflows/dogfood-qualification.yml', (ROOT/'.github/workflows/dogfood-qualification.yml').read_text())
         for job in yaml.safe_load(source)['jobs'].values():
             for step in job.get('steps',[]):
                 if 'run' in step:

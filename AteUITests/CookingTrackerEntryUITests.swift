@@ -112,7 +112,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
     func testJournalAndInsightsHeadersPreserveNativeBackAndEdgeSwipeAtNormalText() {
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-qaResetCookingHistory",
+        app.launchArguments = ["-UITesting", "-qaResetCookingHistory", "-qaPresentationReturnDiagnostic",
                                "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
         app.launch()
         let journalTab = app.tabBars.buttons["Journal"]
@@ -138,6 +138,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
         XCTAssertTrue(back.exists && back.isHittable, "System Back must retain the parent title")
         shot("68-insights-native-back-normal")
         back.tap()
+        shot("68-journal-after-native-back-before-original-predicate")
         XCTAssertTrue(rootBar.waitForExistence(timeout: 5))
         XCTAssertEqual(app.navigationBars.count, 1)
         XCTAssertTrue(rootLogo.exists)

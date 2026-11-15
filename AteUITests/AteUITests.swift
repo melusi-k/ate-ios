@@ -60,6 +60,9 @@ final class AteUITests: XCTestCase {
     func launch(_ extra: [String] = []) -> XCUIApplication {
         app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"] + extra
+#if DEBUG
+        if name.contains("test06b_CookModeFinalStepAndFinish") { app.launchArguments += ["-qaAccountAssertionDiagnostic"] }
+#endif
         app.launch()
         return app
     }
@@ -257,7 +260,22 @@ final class AteUITests: XCTestCase {
         let completionDone = app.buttons["cookReflection.notNow"]
         wait(completionDone, 5)
         XCTAssertEqual(app.buttons.matching(identifier: "cookReflection.notNow").count, 1)
+#if DEBUG
+        if app.launchArguments.contains("-qaAccountAssertionDiagnostic") {
+            shot("final-done-before-tap")
+        }
+        defer {
+            if app.launchArguments.contains("-qaAccountAssertionDiagnostic") {
+                shot("final-done-end")
+                let a = XCTAttachment(string: app.buttons["Cook mode"].debugDescription)
+                a.name = "final-done-cook-arrival-query"; a.lifetime = .keepAlways; add(a)
+            }
+        }
+#endif
         completionDone.tap()
+#if DEBUG
+        if app.launchArguments.contains("-qaAccountAssertionDiagnostic") { shot("final-done-after-tap") }
+#endif
         wait(app.buttons["Cook mode"], 5)
     }
 

@@ -1,0 +1,33 @@
+{
+  "Ate/Views/CookModeView.swift": {
+    "base_sha256": "51835197b46eaa3e028d070890e9a3911ed3061efd1ac704dce18fc70105eef0",
+    "inverse": [
+      [
+        "            }\n\n            Spacer()\n            GeometryReader { viewport in\n                ScrollView(.vertical) {\n                    Text(Units.convertTemperatures(in: s.instruction, to: store.settings.units))\n                        .font(AteFont.display(UIScreen.main.bounds.width > 400 ? 34 : 30)).lineSpacing(2)\n                        .fixedSize(horizontal: false, vertical: true)\n                        .frame(maxWidth: .infinity, minHeight: viewport.size.height, alignment: .leading)\n                        .accessibilityLabel(\"Step \\(index + 1) of \\(n). \" + Units.convertTemperatures(in: s.instruction, to: store.settings.units))\n                        .accessibilityAddTraits(.isHeader)\n                        .accessibilityIdentifier(\"cookStepText\")\n                }\n                .scrollBounceBehavior(.basedOnSize)\n                .accessibilityIdentifier(\"cookStepScroll\")\n                .id(index) // A new step starts at its beginning, not the previous step's scroll offset.\n            }\n            if let range = Durations.rangeLabel(in: s.instruction), (s.timeSeconds ?? 0) > 0 {\n                Text(\"\\(range) \u00b7 timer set to the longer time\").font(AteFont.body(13)).foregroundStyle(Theme.warmForeground)\n                    .accessibilityIdentifier(\"cookTimerRange\")\n",
+        "            }\n\n            Spacer()\n            Text(Units.convertTemperatures(in: s.instruction, to: store.settings.units))\n                .font(AteFont.display(UIScreen.main.bounds.width > 400 ? 34 : 30)).lineSpacing(2)\n                .frame(maxWidth: .infinity, alignment: .leading)\n                .minimumScaleFactor(0.5)\n                .accessibilityLabel(\"Step \\(index + 1) of \\(n). \" + Units.convertTemperatures(in: s.instruction, to: store.settings.units))\n                .accessibilityAddTraits(.isHeader)\n                .accessibilityIdentifier(\"cookStepText\")\n            if let range = Durations.rangeLabel(in: s.instruction), (s.timeSeconds ?? 0) > 0 {\n                Text(\"\\(range) \u00b7 timer set to the longer time\").font(AteFont.body(13)).foregroundStyle(Theme.warmForeground)\n                    .accessibilityIdentifier(\"cookTimerRange\")\n"
+      ]
+    ]
+  },
+  "Ate/App/AteApp.swift": {
+    "base_sha256": "2cc1a798c9f4944bbe16dff99c366b4ebd91144f835dd00f54e00cfed80639fa",
+    "inverse": [
+      [
+        "        DogfoodSavedRecipeQAFixtures.prepare(st)\n        ExploreRetentionQAFixtures.prepare(st)\n        CookJournalQARoute.prepare(st)\n        CookReadableStepQAFixture.prepare(st)\n        #else\n        let st = AppStore(context: c?.mainContext)\n        #endif\n",
+        "        DogfoodSavedRecipeQAFixtures.prepare(st)\n        ExploreRetentionQAFixtures.prepare(st)\n        CookJournalQARoute.prepare(st)\n        #else\n        let st = AppStore(context: c?.mainContext)\n        #endif\n"
+      ]
+    ]
+  },
+  ".github/workflows/compile-check.yml": {
+    "base_sha256": "d98cdc61324b8bbcf8f18cd33ad89103f910bfada9cde5404e126ab7534ee22d",
+    "inverse": [
+      [
+        "          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/CookFinishAccessoryUITests \\\n            -only-testing:AteUITests/CookSharedStepUITests \\\n            -only-testing:AteUITests/CookReadableStepUITests \\\n            -only-testing:AteUITests/CoverageUITests/testBottomBarsDoNotOverlapRecipeDetail \\\n            -resultBundlePath \"$RUNNER_TEMP/ate-test-results/cook-finish-accessory.xcresult\" \\\n            -parallel-testing-enabled NO -test-timeouts-enabled YES \\\n",
+        "          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/CookFinishAccessoryUITests \\\n            -only-testing:AteUITests/CookSharedStepUITests \\\n            -only-testing:AteUITests/CoverageUITests/testBottomBarsDoNotOverlapRecipeDetail \\\n            -resultBundlePath \"$RUNNER_TEMP/ate-test-results/cook-finish-accessory.xcresult\" \\\n            -parallel-testing-enabled NO -test-timeouts-enabled YES \\\n"
+      ],
+      [
+        "          for test in testPushedFinishAboveResumeAccessoryPortrait testPushedFinishAboveResumeAccessoryLandscape; do\n            grep -qF \"CookFinishAccessoryUITests $test]' passed\" cook-finish-accessory.log || { echo \"::error::Missing named Cook Finish pass: $test\"; exit 1; }\n          done\n          for test in \"CookSharedStepUITests testExternalSharedStepChangeWhileCookIsOpenUpdatesCurrentStep\" \"CoverageUITests testBottomBarsDoNotOverlapRecipeDetail\" \"CookReadableStepUITests testLongInstructionScrollsWithoutMovingStepControls\"; do\n            grep -qF \"$test]' passed\" cook-finish-accessory.log || { echo \"::error::Missing named shared-state/detail-overlap pass: $test\"; exit 1; }\n          done\n      - name: Retain Cook Finish accessory captures\n",
+        "          for test in testPushedFinishAboveResumeAccessoryPortrait testPushedFinishAboveResumeAccessoryLandscape; do\n            grep -qF \"CookFinishAccessoryUITests $test]' passed\" cook-finish-accessory.log || { echo \"::error::Missing named Cook Finish pass: $test\"; exit 1; }\n          done\n          for test in \"CookSharedStepUITests testExternalSharedStepChangeWhileCookIsOpenUpdatesCurrentStep\" \"CoverageUITests testBottomBarsDoNotOverlapRecipeDetail\"; do\n            grep -qF \"$test]' passed\" cook-finish-accessory.log || { echo \"::error::Missing named shared-state/detail-overlap pass: $test\"; exit 1; }\n          done\n      - name: Retain Cook Finish accessory captures\n"
+      ]
+    ]
+  }
+}

@@ -190,7 +190,7 @@
           "parent_fragment": "        LiveDTProbe.installIfRequested()\n        SearchFocusDiagnostic.startIfRequested()\n        #endif\n        if AppConfig.isUITesting {\n            for k in [\"ate.timerprefs.v1\", \"ate.cookSession.v1\", CookCompletionOutbox.defaultsKey, CookReflectionOfferPolicy.defaultsKey, CookPlanStore.storageKey] { UserDefaults.standard.removeObject(forKey: k) }\n            if !ProcessInfo.processInfo.arguments.contains(\"-qaPreserveSettings\") {\n"
         },
         {
-          "merged_fragment": "        DogfoodSavedRecipeQAFixtures.prepare(st)\n        ExploreRetentionQAFixtures.prepare(st)\n        CookJournalQARoute.prepare(st)\n        DogfoodSavedRecipeQAFixtures.prepare(st)\n        #else\n        let st = AppStore(context: c?.mainContext)\n        #endif\n",
+          "merged_fragment": "        ExploreRetentionQAFixtures.prepare(st)\n        CookJournalQARoute.prepare(st)\n        DogfoodSavedRecipeQAFixtures.prepare(st)\n        #else\n        let st = AppStore(context: c?.mainContext)\n        #endif\n",
           "parent_fragment": "        DogfoodSavedRecipeQAFixtures.prepare(st)\n        ExploreRetentionQAFixtures.prepare(st)\n        CookJournalQARoute.prepare(st)\n        #else\n        let st = AppStore(context: c?.mainContext)\n        #endif\n"
         },
         {
@@ -228,7 +228,7 @@
           "parent_fragment": "        TabBarStyle.apply()\n        #if DEBUG\n        LiveDTProbe.installIfRequested()\n        #endif\n        if AppConfig.useFoodJournalProductionOwner {\n            container = nil\n"
         },
         {
-          "merged_fragment": "            precondition(st.foodJournalRuntime == nil, \"Legacy Insights QA fixture cannot mix with canonical runtime\")\n            st.shopping = InsightDestinationQAFixtures.shopping()\n        }\n        DogfoodSavedRecipeQAFixtures.prepare(st)\n        ExploreRetentionQAFixtures.prepare(st)\n        CookJournalQARoute.prepare(st)\n        DogfoodSavedRecipeQAFixtures.prepare(st)\n        #else\n",
+          "merged_fragment": "            precondition(st.foodJournalRuntime == nil, \"Legacy Insights QA fixture cannot mix with canonical runtime\")\n            st.shopping = InsightDestinationQAFixtures.shopping()\n        }\n        ExploreRetentionQAFixtures.prepare(st)\n        CookJournalQARoute.prepare(st)\n        DogfoodSavedRecipeQAFixtures.prepare(st)\n        #else\n",
           "parent_fragment": "            precondition(st.foodJournalRuntime == nil, \"Legacy Insights QA fixture cannot mix with canonical runtime\")\n            st.shopping = InsightDestinationQAFixtures.shopping()\n        }\n        CookJournalQARoute.prepare(st)\n        DogfoodSavedRecipeQAFixtures.prepare(st)\n        #else\n"
         },
         {

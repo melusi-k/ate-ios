@@ -18,7 +18,7 @@ struct SettingsAboutGeometryReceipt {
         let navigation = app.navigationBars["Settings"]
         let tabs = app.tabBars.firstMatch
         let accessory = app.descendants(matching: .any)["bottomAccessory"].firstMatch
-        print("SETTINGS-ABOUT-GEOMETRY \(checkpoint) visible=\(visible) heading=\(heading.identifier) row=\(geometry(heading)) window=\(geometry(window)) nav=\(geometry(navigation)) tab=\(geometry(tabs)) accessory=\(geometry(accessory))")
+        print("SETTINGS-ABOUT-GEOMETRY \(checkpoint) visible=\(visible) row=\(geometry(heading)) window=\(geometry(window)) nav=\(geometry(navigation)) tab=\(geometry(tabs)) accessory=\(geometry(accessory))")
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "settings-about-geometry-" + checkpoint
         screenshot.lifetime = .keepAlways

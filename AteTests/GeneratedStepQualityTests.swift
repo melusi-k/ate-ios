@@ -50,6 +50,34 @@ final class GeneratedStepQualityTests: XCTestCase {
         XCTAssertTrue(GeneratedStepQuality.issues(c).isEmpty)
     }
 
+    func testBrownSugarRubIsNotBrowningButActualBrownCommandIs() {
+        let rub = card(["brown sugar", "garlic"], [.init(order: 1, instruction: "Rub with brown sugar and garlic", timeSeconds: nil)])
+        XCTAssertTrue(GeneratedStepQuality.issues(rub).isEmpty)
+        let browning = card(["onion", "brown sugar"], [.init(order: 1, instruction: "Brown the onion with brown sugar until golden", timeSeconds: 300)])
+        XCTAssertTrue(GeneratedStepQuality.issues(browning).contains { $0.contains("stops after browning") })
+        XCTAssertEqual(browning.steps[0].instruction, "Brown the onion with brown sugar until golden")
+    }
+
+    func testBrownSugarDoesNotHideOtherCookingActions() {
+        let bake = card(["brown sugar", "garlic"], [.init(order: 1, instruction: "Rub with brown sugar and garlic, then bake", timeSeconds: nil)])
+        let gaps = GeneratedStepQuality.issues(bake)
+        XCTAssertTrue(gaps.contains { $0.contains("cooking time") })
+        XCTAssertTrue(gaps.contains { $0.contains("doneness cue") })
+        XCTAssertFalse(gaps.contains { $0.contains("stops after browning") })
+        let brown = card(["onion", "brown sugar"], [.init(order: 1, instruction: "Brown the onion with brown sugar", timeSeconds: nil)])
+        let brownGaps = GeneratedStepQuality.issues(brown)
+        XCTAssertTrue(brownGaps.contains { $0.contains("stops after browning") })
+        XCTAssertTrue(brownGaps.contains { $0.contains("cooking time") })
+        XCTAssertTrue(brownGaps.contains { $0.contains("doneness cue") })
+    }
+
+    func testBrownSugarSearingStillNeedsAMainDishFinish() {
+        let c = card(["pork ribs", "brown sugar"], [.init(order: 1, instruction: "Sear the ribs with brown sugar for 5 minutes until golden", timeSeconds: 300)])
+        XCTAssertTrue(GeneratedStepQuality.issues(c).contains { $0.contains("stops after browning") })
+        let complete = card(["pork ribs", "brown sugar"], [.init(order: 1, instruction: "Brown the ribs with brown sugar, then braise for 90 minutes until tender", timeSeconds: nil)])
+        XCTAssertTrue(GeneratedStepQuality.issues(complete).isEmpty)
+    }
+
     func testHeatVerbAfterFifthWordStillNeedsTimeAndCue() {
         let c = card(["pork ribs"], [.init(order: 1, instruction: "Arrange the ribs in the dish, cover and bake", timeSeconds: nil)])
         let gaps = GeneratedStepQuality.issues(c)

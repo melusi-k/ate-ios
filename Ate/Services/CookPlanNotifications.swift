@@ -145,6 +145,20 @@ final class CookPlanNotifications {
         }.value
     }
 
+    /// Local plan removal must not wait on notification XPC. Register cleanup in
+    /// the same ordered queue before the caller dismisses, preserving later adds.
+    /// Returning proves local removal only; failures still report unverified OS cleanup.
+    @discardableResult
+    func cancelLocally(recipeID: String, store: CookPlanStore,
+                       onRemovalFailure: @escaping @MainActor () -> Void) throws -> Task<Void, Never> {
+        try store.cancel(recipeID: recipeID)
+        let removal = enqueue { _ in try await self.removeAndVerify(recipeID: recipeID) }
+        return Task { @MainActor in
+            do { try await removal.value }
+            catch { onRemovalFailure() }
+        }
+    }
+
     func cancel(recipeID: String) async throws {
         try await enqueue { _ in try await self.removeAndVerify(recipeID: recipeID) }.value
     }

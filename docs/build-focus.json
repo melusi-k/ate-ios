@@ -1,11 +1,11 @@
 {
   "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Focus: Explore retention, live Shopping sync and Cook footer candidate. Library tab switches preserve collection; explicit all-Library still clears it. Settings test setup replaces one default swipe with one held clear-band drag; strict heading assertions remain unchanged. Add-sheet heartbeat and pre-title-query pixels are diagnostic only. OCR accuracy, 10s deadline and all budgets unchanged. Native UI qualification pending; CookCompletion, Settings and Insights bootstrap remain unresolved. Merge held.",
-  "source_commit": "fa338e1302deb7688a5b58f6ba4948b6902d1c38",
+  "summary": "Focus: Explore retention, live Shopping sync and Cook footer candidate. Library switches preserve collection; explicit all-Library clears it. Settings uses one held clear-band drag; strict assertions unchanged. Selected Explore test adds bounded DEBUG keyboard notifications, original short-circuit focus timing and failure pixels. No focus/content walks or polling. Add-sheet heartbeat remains diagnostic. Instrumentation may perturb timing, not a product fix. OCR/10s deadline/budgets unchanged. CookCompletion, Settings and Insights bootstrap unresolved; native acceptance unqualified. Merge held.",
+  "source_commit": "18cdac31035e570d9480d46d4b004a668bc2ac5e",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "151f652a4aabc7a564dba14ae3d35886ba08b527"
+      "blob": "617ac2bcc93d97510fbd6199ab21a248d4e420aa"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",

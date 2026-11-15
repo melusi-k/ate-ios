@@ -307,6 +307,18 @@ jobs:
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > files-cancel-system-diagnostic.log 2>&1
+      - name: Retain optional Files picker lifecycle diagnostic before other collectors
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          mkdir -p files-cancel-system-diagnostic-attachments
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > files-cancel-system-diagnostic-attachments/picker-copy-utc.txt
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> files-cancel-system-diagnostic-attachments/picker-container-errors.txt); then
+            if [ -f "$data_container/Library/Caches/files-picker-diagnostic.txt" ]; then
+              cp "$data_container/Library/Caches/files-picker-diagnostic.txt" files-cancel-system-diagnostic-attachments/files-picker-diagnostic.txt
+            else
+              echo 'Picker diagnostic missing; lifecycle unverified.' > files-cancel-system-diagnostic-attachments/picker-missing.txt
+            fi
+          fi
       - name: Record Files cancellation acceptance boundary
         if: always()
         env:

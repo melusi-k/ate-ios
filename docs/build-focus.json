@@ -1,7 +1,7 @@
 {
   "title": "Dormant Journal and nutrition goals sync preparation",
-  "summary": "Recipe-detail geometry feedback hypothesis retains live clearance and diagnostic capture. Sync fixture hypothesis qualifies five legacy-shadowed JournalEntry sites as Ate.JournalEntry. Single-test DEBUG+UITesting screen receipts bracket original openDiary calls. No app runtime, shared helper, assertion, timeout, retry or budget changes. Native layout, matrix convergence, edit preservation, legacy upgrade, diary responsiveness and pixels UNRUN. Captures may perturb timing. Metadata guard is not qualification; merge held.",
-  "source_commit": "49665536aef5ac95ab58b48854daa70b97235965",
+  "summary": "Auth hypothesis: share overlapping refresh requests per auth instance; stale unauthorized results cannot clear newer sessions. Local-only typed diagnostics distinguish rejection and credential storage failures, excluded from telemetry. Keychain atomic persistence is separate. Native compile, concurrency tests, device sign-in persistence and incident attribution UNRUN. Existing layout and diary gates retained. No assertion, timeout, retry or budget changes. Metadata pass is not qualification; merge held.",
+  "source_commit": "0bf9ea049f136be5ac600030da2d8cbbc5de167e",
   "evidence": [
     {
       "path": "Ate/Insights/InsightLifecycle.swift",
@@ -21,7 +21,7 @@
     },
     {
       "path": "Ate/Store/AppStore.swift",
-      "blob": "d6b925e418eed0f0e02e562f85511bb224a63566"
+      "blob": "6ef5214eb1ee3fcb26fa2b8beba343e4b4c8537b"
     },
     {
       "path": "Ate/Store/FamilySyncCommitJournal.swift",
@@ -42,6 +42,18 @@
     {
       "path": "Ate/Views/RecipeDetailView.swift",
       "blob": "232655dc9d70686ebc5639028c5a5249c7dd3fd8"
+    },
+    {
+      "path": "Ate/Services/Auth.swift",
+      "blob": "aae80ce8f5505414711313f5ac203ce5e10d1b31"
+    },
+    {
+      "path": "Ate/Services/DiagnosticHistory.swift",
+      "blob": "f39238d78be6b7ce8d5a533025b0685f7e762ed2"
+    },
+    {
+      "path": "Ate/Services/TelemetryClient.swift",
+      "blob": "ae69b98afc6879d6b771298eb7a8d3e9f3ed10db"
     }
   ]
 }

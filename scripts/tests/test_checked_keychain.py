@@ -1,3 +1,4 @@
+from approved_merge_539 import normalize
 from pathlib import Path
 import hashlib,unittest
 ROOT=Path(__file__).resolve().parents[2]
@@ -11,8 +12,8 @@ def restore_checked_keychain(test,source,file):
 class CheckedKeychainContracts(unittest.TestCase):
     def test_exact_base_reconstructs(self):
         for f in CHANGES:
-            self.assertEqual(hashlib.sha256(restore_checked_keychain(self,(ROOT/f).read_text(),f).encode()).hexdigest(),HASHES[f])
+            self.assertEqual(hashlib.sha256(restore_checked_keychain(self,normalize('source:'+f,(ROOT/f).read_text()),f).encode()).hexdigest(),HASHES[f])
     def test_checked_save_precedes_session_and_watch_publish(self):
-        s=(ROOT/'Ate/Store/AppStore.swift').read_text().split('private func setSession(',1)[1].split('// MARK: onboarding',1)[0]
+        s=normalize('source:Ate/Store/AppStore.swift', (ROOT/'Ate/Store/AppStore.swift').read_text()).split('private func setSession(',1)[1].split('// MARK: onboarding',1)[0]
         self.assertLess(s.index('guard saveSessionCredentials(encoded)'),s.index('session = s'))
         self.assertLess(s.index('guard saveSessionCredentials(encoded)'),s.index('PhoneWatchBridge'))

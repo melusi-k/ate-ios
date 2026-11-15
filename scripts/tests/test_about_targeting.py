@@ -1,3 +1,4 @@
+from approved_merge_535 import normalize
 from pathlib import Path
 import hashlib,unittest
 ROOT=Path(__file__).resolve().parents[2]
@@ -20,6 +21,6 @@ def restore_about_targeting(test,s):
 class AboutTargetingTests(unittest.TestCase):
     def test_every_original_line_preserved_except_targeting(self):
         from test_relay_return_capture import restore_relay_return_capture
-        source=restore_relay_return_capture(self,(ROOT/"AteUITests/CoverageUITests.swift").read_text(),'AteUITests/CoverageUITests.swift')
+        source=restore_relay_return_capture(self,normalize('source:AteUITests/CoverageUITests.swift', (ROOT/"AteUITests/CoverageUITests.swift").read_text()),'AteUITests/CoverageUITests.swift')
         s=restore_about_targeting(self,source)
         self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'0abc3487edc256853e0edc5843c620c58839085dbf16b3b6c6210831e8959b97')

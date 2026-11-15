@@ -28,9 +28,18 @@
           "imageAsset": "ProductUpdatesPlaceholder",
           "imageAlt": "Placeholder illustration of the product updates menu, not an app screenshot.",
           "title": "Replay at your own pace",
-          "body": "Choose View What's New on a release. Use Back and Next to read each page, then Done or Close to return to its notes.",
+          "body": "A new version opens its tour once, after onboarding. Swipe between pages, or use Back and Next. Done, Close or swiping the sheet away marks this version seen; replay it any time in Settings.",
           "placeholder": true
         }
+      ],
+      "stage": "Pilot candidate - 0.1.x technical version line, not stage approval",
+      "whatToTest": [
+        "Read this version's notes and swipe through its two-page tour.",
+        "Dismiss the launch tour, relaunch Ate, then replay it from Settings."
+      ],
+      "howToTest": [
+        "Open Settings > Release Notes > Product updates in Ate > View What's New.",
+        "Swipe between pages, use Back and Next, then Done or Close. The launch tour appears only until this version is dismissed. Saved notes and tour work offline."
       ]
     }
   ]

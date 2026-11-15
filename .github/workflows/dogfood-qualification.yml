@@ -138,6 +138,11 @@ jobs:
           if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> dogfood-critical-window/qa8-exit-file/container-errors.txt); then
             if [ -f "$data_container/Library/Caches/qa8-exit-diagnostic.txt" ]; then
               cp "$data_container/Library/Caches/qa8-exit-diagnostic.txt" dogfood-critical-window/qa8-exit-file/first-snapshot.txt
+              if [ -f "$data_container/Library/Caches/qa8-exit-scheduler.txt" ]; then
+                cp "$data_container/Library/Caches/qa8-exit-scheduler.txt" dogfood-critical-window/qa8-exit-file/first-scheduler-snapshot.txt
+              else
+                echo 'No background scheduler file found; scheduler entry/write unverified.' > dogfood-critical-window/qa8-exit-file/scheduler-missing.txt
+              fi
             else
               echo 'No phase file found; app start/flag/file write unverified.' > dogfood-critical-window/qa8-exit-file/missing.txt
             fi
@@ -166,6 +171,9 @@ jobs:
           date -u '+%Y-%m-%dT%H:%M:%SZ' > dogfood-critical-window/qa8-exit-file/last-copy-utc.txt
           if [ -n "${data_container:-}" ] && [ -f "$data_container/Library/Caches/qa8-exit-diagnostic.txt" ]; then
             cp "$data_container/Library/Caches/qa8-exit-diagnostic.txt" dogfood-critical-window/qa8-exit-file/last-snapshot.txt
+            if [ -f "$data_container/Library/Caches/qa8-exit-scheduler.txt" ]; then
+              cp "$data_container/Library/Caches/qa8-exit-scheduler.txt" dogfood-critical-window/qa8-exit-file/last-scheduler-snapshot.txt
+            fi
           fi
 
       - name: Retain UI-test photo-import phase diagnostics

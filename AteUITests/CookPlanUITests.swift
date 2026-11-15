@@ -5,6 +5,7 @@ final class CookPlanUITests: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaNutritionFixtures"]
+        app.launchArguments += ["-qaCookPlanCancelDiagnostic"]
         app.launch()
         let recipe = app.staticTexts["QA pap and rice"].firstMatch
         XCTAssertTrue(recipe.waitForExistence(timeout: 10))
@@ -38,8 +39,27 @@ final class CookPlanUITests: XCTestCase {
         shot.name = "cook-plan-saved-without-reminder"; shot.lifetime = .keepAlways
         add(shot)
         app.buttons["cookPlan.cancelPlan"].tap()
+        captureCancelReceipt(app, "after-original-cancel-tap")
         XCTAssertTrue(plan.waitForExistence(timeout: 10))
         plan.tap()
+        captureCancelReceipt(app, "before-original-final-assertion")
         XCTAssertFalse(app.buttons["cookPlan.cancelPlan"].exists)
+    }
+}
+
+extension CookPlanUITests {
+    private func captureCancelReceipt(_ app: XCUIApplication, _ phase: String) {
+        let editor = app.buttons["cookPlan.save"]
+        let detail = app.buttons["recipe.plan"]
+        let value: String?
+        if editor.exists { value = editor.value as? String }
+        else if detail.exists { value = detail.value as? String }
+        else { value = nil }
+        let body = "COOK-PLAN-CANCEL-RECEIPT phase=\(phase) " + (value ?? "receipt-unavailable")
+        print(body)
+        let attachment = XCTAttachment(string: body)
+        attachment.name = "cook-plan-cancel-receipt-" + phase
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }

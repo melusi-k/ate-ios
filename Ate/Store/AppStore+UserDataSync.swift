@@ -86,10 +86,13 @@ extension AppStore {
             userDataSyncStatus = .unavailable("family sync commit journal is not bound")
             return
         }
+        let capturedResetEpoch = journalPersonalResetEpoch
         do {
             let failures = try await transport.cycle(session: s) { snapshot, pushBatch, revalidate -> [String] in
                 // The session captured by syncNow may have moved on before the cycle opened.
-                guard session?.userID == s.userID else { return ["session changed during sync"] }
+                guard session?.userID == s.userID, journalPersonalResetEpoch == capturedResetEpoch else {
+                    return ["session or Journal reset changed during sync"]
+                }
 
                 // Strict replay of an interrupted earlier commit BEFORE staging, so this
                 // round plans from a consistent local base. A replay refusal (corrupt,
@@ -174,6 +177,9 @@ extension AppStore {
                 // Re-prove gate + session + generation before ANY local write: a reset or
                 // account change mid-cycle must leave local content untouched.
                 try revalidate()
+                guard session?.userID == s.userID, journalPersonalResetEpoch == capturedResetEpoch else {
+                    return ["session or Journal reset changed during sync"]
+                }
 
                 // ONE journaled commit for every local apply plus the metadata write. The
                 // second local read runs inside the admitted boundary before the intent is
@@ -194,8 +200,10 @@ extension AppStore {
                 }
                 return failures
             }
+            guard session == s, journalPersonalResetEpoch == capturedResetEpoch else { return }
             userDataSyncStatus = failures.isEmpty ? .synced : .unavailable(failures.joined(separator: " | "))
         } catch {
+            guard session == s, journalPersonalResetEpoch == capturedResetEpoch else { return }
             let e = UserDataSyncError.classify(error)
             if case .familyUnavailable = e { userDataSyncBackendUnavailable = true }
             if e == .generationChanged { clearFamilySyncStateForNewEpoch() }

@@ -282,7 +282,7 @@ extension JournalOpenStateUITests {
     }
 
     func testManualReflectionEditSaveCancelAndConfirmedDelete() throws {
-        composeFromHistory()
+        composeFromHistory(extra: ["-qaPresentationReturnDiagnostic"])
         let original = "Manual CRUD " + UUID().uuidString
         let changed = original + " edited"
         let compose = app.textViews["journal.compose.text"]
@@ -341,6 +341,7 @@ extension JournalOpenStateUITests {
         let cancelAction = try uniqueDeleteAlertAction(cancelConfirmation, identifier: "journal.delete.cancel", label: "Cancel")
         _ = try uniqueDeleteAlertAction(cancelConfirmation, identifier: "journal.delete.confirm", label: "Delete")
         cancelAction.tap()
+        shot("manual-crud-after-delete-cancel-before-original-predicate")
         waitUntilGone(app.staticTexts["Delete this journal entry?"])
         XCTAssertEqual(detail.label, changed, "Cancel must keep the reflection")
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()

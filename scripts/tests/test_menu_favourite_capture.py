@@ -37,6 +37,8 @@ class MenuFavouriteCaptureTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'765e4bd7d2b74fc6ac56ec719aa2127749a6c06614ae98428f79f4a66b2187ec')
     def test_original_file_3_unchanged(self):
         s=(ROOT/'.github/workflows/dogfood-qualification.yml').read_text()
+        from test_qa8_target_sample import restore_target_capture
+        s=restore_target_capture(self,s)
         self.assertEqual(s.count('            dogfood-critical-window\n            dogfood-menu-capture\n'),1)
         s=s.replace('            dogfood-critical-window\n            dogfood-menu-capture\n','            dogfood-critical-window\n',1)
         self.assertEqual(s.count('      - name: Retain Group28 menu liveness and toast phase files\n        if: always() && steps.critical_flows.outcome != \'skipped\' && steps.select_simulator.outputs.id != \'\'\n        env:\n          SIM_ID: ${{ steps.select_simulator.outputs.id }}\n        run: |\n          mkdir -p dogfood-menu-capture\n          date -u \'+%Y-%m-%dT%H:%M:%SZ\' > dogfood-menu-capture/copy-utc.txt\n          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> dogfood-menu-capture/container-errors.txt); then\n            found=0\n            for evidence in "$data_container"/Library/Caches/menu-wait-*.txt; do\n              if [ -f "$evidence" ]; then\n                cp "$evidence" dogfood-menu-capture/\n                found=1\n              fi\n            done\n            if [ "$found" -eq 0 ]; then\n              echo \'No menu samples retained; app start/flag/file write unverified.\' > dogfood-menu-capture/missing.txt\n            fi\n          fi\n\n      - name: Retain bounded critical-flow unified-log window'),1)

@@ -4,6 +4,7 @@ import SwiftData
 import UserNotifications
 #if DEBUG
 import Foundation
+import Dispatch
 import UIKit
 import OSLog
 #endif
@@ -19,7 +20,7 @@ struct AteApp: App {
         TabBarStyle.apply()
         #if DEBUG
         LiveDTProbe.installIfRequested()
-        SearchFocusDiagnostic.startIfRequested()
+        DogWaitPhaseDiagnostics.startIfRequested()
         #endif
         if AppConfig.isUITesting {
             for k in ["ate.timerprefs.v1", "ate.cookSession.v1", CookCompletionOutbox.defaultsKey, CookReflectionOfferPolicy.defaultsKey, CookPlanStore.storageKey] { UserDefaults.standard.removeObject(forKey: k) }
@@ -48,8 +49,6 @@ struct AteApp: App {
             precondition(st.foodJournalRuntime == nil, "Legacy Insights QA fixture cannot mix with canonical runtime")
             st.shopping = InsightDestinationQAFixtures.shopping()
         }
-        DogfoodSavedRecipeQAFixtures.prepare(st)
-        ExploreRetentionQAFixtures.prepare(st)
         CookJournalQARoute.prepare(st)
         #else
         let st = AppStore(context: c?.mainContext)
@@ -498,7 +497,7 @@ extension RootView {
                 case .search: store.searchPath = []
                 }
             }
-            store.selectTab(new)
+            store.select(new)
         })
     }
 }
@@ -736,34 +735,153 @@ extension AppAppearance {
 }
 
 #if DEBUG
-/// Notification timing only. Never queries content, focus, or first responders.
-@MainActor enum SearchFocusDiagnostic {
-    private static var tokens: [NSObjectProtocol] = []
-    private static var rows: [String] = []
-    static func startIfRequested() {
+enum DogWaitPhaseDiagnostics {
+    @MainActor private static var diagnosticsStarted = false
+    private static let animationLogger = Logger(subsystem: "com.melusik.ate", category: "DogWaitPhaseDiagnostic")
+
+    /// Nine read-only samples, only in explicitly flagged Dog journeys. No test waits,
+    /// synchronization changes, menu actions, animation cancellation or cover mutation.
+    @MainActor static func startIfRequested() {
         guard AppConfig.isUITesting,
-              ProcessInfo.processInfo.arguments.contains("-qaSearchFocusDiagnostic"), tokens.isEmpty else { return }
-        record(phase: 0, frame: .zero)
-        let names: [Notification.Name] = [UIResponder.keyboardWillShowNotification,
-            UIResponder.keyboardDidShowNotification, UIResponder.keyboardWillHideNotification,
-            UIResponder.keyboardDidHideNotification]
-        for (index, name) in names.enumerated() {
-            tokens.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { note in
-                MainActor.assumeIsolated {
-                    let frame = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue ?? .zero
-                    record(phase: index + 1, frame: frame)
+              ProcessInfo.processInfo.arguments.contains("-qaDogWaitPhaseDiagnostic"),
+              !diagnosticsStarted else { return }
+        diagnosticsStarted = true
+        QA8ExitFileDiagnostic.startIfRequested()
+        Task { @MainActor in
+            let started = ProcessInfo.processInfo.systemUptime
+            for offset in [15.0, 25, 45, 75, 105, 135, 165, 195, 225] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - started)
+                if remaining > 0 {
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
                 }
-            })
+                guard !Task.isCancelled else { return }
+                animationLogger.notice("scheduled=\(offset, privacy: .public) elapsed=\(ProcessInfo.processInfo.systemUptime - started, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public) main-actor-heartbeat")
+                recordAnimations(offset: offset)
+            }
         }
     }
-    private static func record(phase: Int, frame: CGRect) {
-        guard rows.count < 20,
+
+    @MainActor private static func recordAnimations(offset: Double) {
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows).prefix(8)
+        var visited = 0, observed = 0, emitted = 0
+        func inspect(_ layer: CALayer, depth: Int) {
+            guard visited < 2048, depth < 64 else { return }
+            visited += 1
+            for key in layer.animationKeys() ?? [] {
+                guard let animation = layer.animation(forKey: key) else { continue }
+                observed += 1
+                guard emitted < 64 else { continue }
+                emitted += 1
+                // Only animation structure and numeric timing. No view labels, recipe IDs,
+                // layer names, file paths, model values or content from the animation.
+                let kind = String(describing: type(of: animation))
+                animationLogger.notice("sample=\(offset, privacy: .public) layerIndex=\(visited, privacy: .public) depth=\(depth, privacy: .public) type=\(kind, privacy: .public) duration=\(animation.duration, privacy: .public) repeatCount=\(animation.repeatCount, privacy: .public) repeatDuration=\(animation.repeatDuration, privacy: .public) speed=\(animation.speed, privacy: .public)")
+            }
+            for child in layer.sublayers ?? [] { inspect(child, depth: depth + 1) }
+        }
+        for window in windows { inspect(window.layer, depth: 0) }
+        animationLogger.notice("sample=\(offset, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public) windows=\(windows.count, privacy: .public) visited=\(visited, privacy: .public) observed=\(observed, privacy: .public) emitted=\(emitted, privacy: .public) orientation=\(windows.first?.windowScene?.interfaceOrientation.rawValue ?? 0, privacy: .public)")
+        // No animations observed does not prove all UIKit/SwiftUI animation bookkeeping idle.
+        // System-process animations and framework completion tokens are outside this scan.
+    }
+
+}
+#endif
+
+#if DEBUG
+/// Numeric phase evidence independent of the unified-log store. No model/content reads.
+enum QA8ExitFileDiagnostic {
+    @MainActor private static var rows: [String] = []
+    @MainActor private static var started: Double = 0
+    @MainActor private static var exitObserved = false
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "QA8ExitFileDiagnostic")
+    private static var enabled: Bool {
+        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaQA8ExitFileDiagnostic")
+    }
+    @MainActor static func startIfRequested() {
+        guard enabled else { return }
+        rows = []
+        started = ProcessInfo.processInfo.systemUptime
+        if let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            try? FileManager.default.removeItem(at: cache.appendingPathComponent("qa8-exit-scheduler.txt"))
+        }
+        record("app-start")
+    }
+    @MainActor static func exitWillBegin() {
+        guard enabled, !exitObserved else { return }
+        exitObserved = true
+        record("exit-enter")
+        let phaseStart = ProcessInfo.processInfo.systemUptime
+        startBackgroundScheduler(phaseStart: phaseStart)
+        Task { @MainActor in
+            record("task-entered", phaseStart: phaseStart)
+            for offset in [0.0, 5, 15, 30, 45, 60, 90, 120] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 {
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch {
+                        record("task-sleep-error", scheduled: offset, phaseStart: phaseStart)
+                        return
+                    }
+                }
+                guard !Task.isCancelled else {
+                    record("task-cancelled", scheduled: offset, phaseStart: phaseStart)
+                    return
+                }
+                record("post-exit-heartbeat", scheduled: offset, phaseStart: phaseStart)
+            }
+        }
+        record("sampler-enqueued", phaseStart: phaseStart)
+    }
+    /// A private utility queue, independent of Swift's MainActor executor. One
+    /// bounded worker, ten atomic snapshots, no model/UI reads or repeated poll.
+    @MainActor private static func startBackgroundScheduler(phaseStart: Double) {
+        guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            record("scheduler-no-cache", phaseStart: phaseStart)
+            return
+        }
+        let destination = cache.appendingPathComponent("qa8-exit-scheduler.txt")
+        let pid = ProcessInfo.processInfo.processIdentifier
+        DispatchQueue(label: "com.melusik.ate.qa8-exit-scheduler", qos: .utility).async {
+            var schedulerRows: [String] = []
+            func write(_ phase: String, scheduled: Double = -1) {
+                guard schedulerRows.count < 10 else { return }
+                let now = ProcessInfo.processInfo.systemUptime
+                schedulerRows.append("pid=\(pid) phase=\(phase) uptime=\(now) scheduled=\(scheduled) phaseElapsed=\(now - phaseStart)")
+                do {
+                    try Data((schedulerRows.joined(separator: "\n") + "\n").utf8).write(to: destination, options: .atomic)
+                } catch {
+                    Logger(subsystem: "com.melusik.ate", category: "QA8ExitFileDiagnostic").error("QA8 scheduler evidence file write failed")
+                }
+            }
+            write("scheduler-entered")
+            for offset in [0.0, 5, 15, 30, 45, 60, 90, 120] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 { Thread.sleep(forTimeInterval: remaining) }
+                write("scheduler-fired", scheduled: offset)
+                Task { @MainActor in
+                    record("scheduler-main-delivery", scheduled: offset, phaseStart: phaseStart)
+                }
+            }
+            write("scheduler-complete")
+        }
+        record("scheduler-enqueued", phaseStart: phaseStart)
+    }
+    @MainActor static func exitDidReturn() {
+        guard enabled else { return }
+        record("exit-return")
+    }
+    @MainActor private static func record(_ phase: String, scheduled: Double = -1, phaseStart: Double? = nil) {
+        guard enabled, rows.count < 24,
               let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
-        rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime) x=\(frame.minX) y=\(frame.minY) width=\(frame.width) height=\(frame.height)")
+        let now = ProcessInfo.processInfo.systemUptime
+        // Fixed phase names and numeric timing only. At most twenty-four short rows per app launch.
+        rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) uptime=\(now) appElapsed=\(now - started) scheduled=\(scheduled) phaseElapsed=\(now - (phaseStart ?? started))")
         do {
-            try Data((rows.joined(separator: "\n") + "\n").utf8).write(to: cache.appendingPathComponent("search-focus-diagnostic.txt"), options: .atomic)
+            try Data((rows.joined(separator: "\n") + "\n").utf8).write(
+                to: cache.appendingPathComponent("qa8-exit-diagnostic.txt"), options: .atomic)
         } catch {
-            Logger(subsystem: "com.melusik.ate", category: "SearchFocusDiagnostic").error("Search focus numeric evidence write failed")
+            logger.error("QA8 numeric evidence file write failed")
         }
     }
 }

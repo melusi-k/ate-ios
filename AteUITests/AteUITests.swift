@@ -260,10 +260,9 @@ final class AteUITests: XCTestCase {
     }
 
     func testCookModeCompletionRecordsCookingDay() {
-        launch(["-qaAccountJourneyAnimationDiagnostic"])
         captureAddTitleQuery = true
         defer { captureAddTitleQuery = false }
-        launch(["-qaAddTitleQueryDiagnostic"])
+        launch(["-qaAccountJourneyAnimationDiagnostic", "-qaAddTitleQueryDiagnostic"])
         addPromptRecipe()
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))
@@ -1232,7 +1231,6 @@ final class AteUITests: XCTestCase {
         startupDiagnosticMark("group-launch-start")
         launch(["-qaSavedRecipesForGroupSort", "-qaStartupLivenessDiagnostic"])
         startupDiagnosticMark("group-launch-end")
-        launch(["-qaSavedRecipesForGroupSort"])
         pick("sortMenu", "A–Z")
         let a = text("Apple crumble"), z = text("Zesty tacos")
         wait(a)

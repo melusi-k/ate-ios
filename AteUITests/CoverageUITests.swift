@@ -231,7 +231,9 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(steps.exists && steps.isHittable, "Full recipe must allow scrolling to steps")
         let lastField = detailScroll.textFields["askField"]
         wait(lastField, 5)
-        for _ in 0..<5 where !lastField.isHittable { detailScroll.swipeUp() }
+        // Partial hittability is not full clearance. Keep the existing five-gesture
+        // budget and require the same visible band used for the first ingredient.
+        RecipeDetailVisibility.reveal(lastField, scroll: detailScroll, header: header, footer: cookFooter)
         XCTAssertTrue(lastField.isHittable, "Bottom content must remain reachable above the Cook footer")
         XCTAssertLessThanOrEqual(lastField.frame.maxY, cookFooter.frame.minY - 1,
                                  "At rest the final field must scroll completely clear of Cook mode")

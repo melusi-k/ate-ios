@@ -2,6 +2,8 @@ import SwiftUI
 
 struct RecipeDetailView: View {
     let recipeID: String
+    /// Presented recipe sheets own Cook above themselves; pushed detail keeps the root host.
+    var onCook: (() -> Void)? = nil
     @Environment(AppStore.self) private var store
     @Environment(\.bottomChromeMinY) private var bottomChromeMinY
     @State private var hostBottomY: CGFloat?
@@ -75,7 +77,8 @@ struct RecipeDetailView: View {
                     if !editing, store.recipe(recipeID) != nil {
                         Button {
                             store.beginCookSession(recipeID: recipeID, factor: factor)
-                            store.cookTarget = CookTarget(id: recipeID)
+                            if let onCook { onCook() }
+                            else { store.cookTarget = CookTarget(id: recipeID) }
                         } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
                             .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)
                             .padding(.bottom, footerChromeReserve)

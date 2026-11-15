@@ -1,11 +1,11 @@
 {
   "title": "Quieter Insights and new recipe suggestions",
-  "summary": "Focus: quieter Insights and honest new-recipe availability. Opt-in Tracker and Cook completion diagnostics record bounded layer animation timing and MainActor heartbeats without model, AX or content reads. Per-step UTC-bounded host/simulator logs retain process-ownership evidence. Original journeys, assertions and limits unchanged. Diagnostics do not fix or attribute launch, AX-query or animation delays. Native/pixel qualification pending; merge held.",
-  "source_commit": "641d86fee2ca428fa3bb0b08a0cc1c3b2822aa78",
+  "summary": "Focus: quieter Insights and honest new-recipe availability. Opt-in native Back diagnostics pair a bounded utility scheduler with MainActor heartbeat files and one post-Back pixel, plus existing Tracker/Cook animation diagnostics. Fixed numeric phases only, no model/UI queries. Original actions, predicates and budgets unchanged. Unresolved native Back, Settings-tab hittability and Cook-completion failures remain; this diagnostic may perturb timing and is not a fix or cause attribution. Native/pixel qualification pending; merge held.",
+  "source_commit": "6921fc4695848d1789230b38fc20ba17ee680504",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "5fa41d9704bda2bd1a1b396b3c1df70e0ff14c5e"
+      "blob": "17182b9be14eb33ad916e32073f272f525eeac60"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",

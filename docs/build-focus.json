@@ -1,7 +1,7 @@
 {
   "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Focus: Explore retention, live Shopping sync and Cook footer candidate. Library tab switches now preserve collection while explicit all-Library still clears it; Search query storage is unchanged. Add-sheet MainActor heartbeat and pre-title-query pixels are diagnostic only. OCR accuracy and 10s deadline, all assertions and budgets unchanged. Native collection-retention/UI qualification pending; SelectedCollection stall and Insights bootstrap unresolved. Merge held.",
-  "source_commit": "52b38e15d474d3f8ee591bba2e57ba931bd09a24",
+  "summary": "Focus: Explore retention, live Shopping sync and Cook footer candidate. Library tab switches preserve collection; explicit all-Library still clears it. Settings test setup replaces one default swipe with one held clear-band drag; strict heading assertions remain unchanged. Add-sheet heartbeat and pre-title-query pixels are diagnostic only. OCR accuracy, 10s deadline and all budgets unchanged. Native UI qualification pending; CookCompletion, Settings and Insights bootstrap remain unresolved. Merge held.",
+  "source_commit": "fa338e1302deb7688a5b58f6ba4948b6902d1c38",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

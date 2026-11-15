@@ -268,11 +268,76 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
     }
 
 
+    func testOldRefreshRejectionCannotClearNewSessionInEitherGraph() async {
+        for bound in [false, true] {
+            let auth = AuthSpy(); let store = makeStore(auth: auth, sync: SyncSpy())
+            var old = auth.base.make("fixture@example.test"); old.expiresAt = 0
+            var newer = old; newer.accessToken = "new-access"; newer.refreshToken = "new-refresh"
+            newer.expiresAt = 4_000_000_000
+            store.session = old
+            if bound {
+                store.journalWriterEffect = { try $0() }
+                store.journalWriterValidator = {}
+            }
+            auth.onRefresh = { _ in
+                store.session = newer
+                throw AuthError(.unauthorized, "fixture rejection")
+            }
+            await store.syncNow()
+            XCTAssertEqual(auth.refreshes, 1)
+            XCTAssertEqual(store.session, newer)
+            XCTAssertEqual(DiagnosticHistory.shared.entries.last?.kind, .authStaleRejectionIgnored)
+        }
+    }
+
+    func testOldSyncRejectionCannotClearNewSessionInEitherGraph() async {
+        for bound in [false, true] {
+            let auth = AuthSpy(); let sync = SyncSpy(); let store = makeStore(auth: auth, sync: sync)
+            let old = auth.base.make("fixture@example.test")
+            var newer = old; newer.accessToken = "new-access"; newer.refreshToken = "new-refresh"
+            store.session = old
+            if bound {
+                store.journalWriterEffect = { try $0() }
+                store.journalWriterValidator = {}
+            }
+            sync.onPull = {
+                store.session = newer
+                throw SyncError.unauthorized
+            }
+            await store.syncNow()
+            XCTAssertEqual(sync.pulls, 1)
+            XCTAssertEqual(store.session, newer)
+            XCTAssertEqual(DiagnosticHistory.shared.entries.last?.kind, .authStaleRejectionIgnored)
+        }
+    }
+
+    func testCurrentRejectionsStillExpireButInvalidWriterDoesNot() async {
+        for refresh in [false, true] {
+            for invalidWriter in [false, true] {
+                let auth = AuthSpy(); let sync = SyncSpy(); let store = makeStore(auth: auth, sync: sync)
+                var current = auth.base.make("fixture@example.test")
+                if refresh { current.expiresAt = 0 }
+                store.session = current
+                store.journalWriterEffect = { try $0() }
+                store.journalWriterValidator = {}
+                let reject: () -> Void = {
+                    if invalidWriter { store.journalWriterValidator = { throw StubError.boundaryRefused } }
+                }
+                auth.onRefresh = { _ in reject(); throw AuthError(.unauthorized, "fixture rejection") }
+                sync.onPull = { reject(); throw SyncError.unauthorized }
+                await store.syncNow()
+                if invalidWriter { XCTAssertEqual(store.session, current) }
+                else { XCTAssertNil(store.session); XCTAssertTrue(store.sessionExpired) }
+            }
+        }
+    }
+
     private final class AuthSpy: AuthService {
         let base = MockAuth()
         var signOuts = 0
         var deletes = 0
         var refreshes = 0
+        var onRefresh: ((AuthSession) async throws -> AuthSession)?
         func signIn(email: String, password: String) async throws -> AuthSession { base.make(email) }
         func signUp(email: String, password: String) async throws -> AuthSession? { base.make(email) }
         func sendMagicLink(email: String) async throws {}
@@ -281,6 +346,7 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
         func updatePassword(_ session: AuthSession, to password: String) async throws {}
         func refresh(_ session: AuthSession) async throws -> AuthSession {
             refreshes += 1
+            if let onRefresh { return try await onRefresh(session) }
             var value = session; value.expiresAt = Date().timeIntervalSince1970 + 3600
             return value
         }
@@ -294,7 +360,12 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
     private final class SyncSpy: SyncService {
         var pulls = 0
         var pushes = 0
-        func pull(session: AuthSession) async throws -> [SyncRecord] { pulls += 1; return [] }
+        var onPull: (() async throws -> [SyncRecord])?
+        func pull(session: AuthSession) async throws -> [SyncRecord] {
+            pulls += 1
+            if let onPull { return try await onPull() }
+            return []
+        }
         func push(_ records: [SyncRecord], session: AuthSession) async throws { pushes += 1 }
     }
 

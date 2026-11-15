@@ -1,10 +1,11 @@
+from approved_merge_523 import normalize
 from pathlib import Path
 import hashlib
 import unittest
 ROOT=Path(__file__).resolve().parents[2]
 class AddTitleQueryDiagnosticTests(unittest.TestCase):
     def test_all_original_tests_and_helpers_preserved(self):
-        source=(ROOT/'AteUITests/AteUITests.swift').read_text()
+        source=normalize('main:AteUITests/AteUITests.swift',(ROOT/'AteUITests/AteUITests.swift').read_text())
         source=source.replace('    private var captureAddTitleQuery = false\n','')
         source=source.replace('        captureAddTitleQuery = true\n        defer { captureAddTitleQuery = false }\n        launch(["-qaAddTitleQueryDiagnostic"])','        launch()')
         source=source.replace('        if captureAddTitleQuery { shot("cook-completion-before-add-title-query") }\n','')

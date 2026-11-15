@@ -1,3 +1,4 @@
+from approved_merge_532 import normalize
 from pathlib import Path
 import re
 import unittest
@@ -9,8 +10,8 @@ NAMES = ['test28_GroupSortAndMenus', 'test28_GroupRecentlyAdded', 'test28_GroupC
 
 class LibraryIndependentJourneyTests(unittest.TestCase):
     def test_every_journey_starts_clean_and_ci_requires_its_named_pass(self):
-        source = (ROOT / 'AteUITests/AteUITests.swift').read_text()
-        workflow = (ROOT / '.github/workflows/dogfood-qualification.yml').read_text()
+        source = normalize('source:AteUITests/AteUITests.swift', (ROOT / 'AteUITests/AteUITests.swift').read_text())
+        workflow = normalize('source:.github/workflows/dogfood-qualification.yml', (ROOT / '.github/workflows/dogfood-qualification.yml').read_text())
         for name in NAMES:
             body = source.split('    func ' + name + '() {', 1)[1].split('\n    func ', 1)[0]
             flags = {
@@ -31,7 +32,7 @@ class LibraryIndependentJourneyTests(unittest.TestCase):
         self.assertNotIn('retry', workflow.split('xcodebuild test -project', 1)[1].split('- name: Retain UI-test photo-import', 1)[0])
 
     def test_original_outcomes_and_short_toast_assertion_remain(self):
-        source = (ROOT / 'AteUITests/AteUITests.swift').read_text()
+        source = normalize('source:AteUITests/AteUITests.swift', (ROOT / 'AteUITests/AteUITests.swift').read_text())
         for outcome in ['"A–Z order"', '"section.Today"', '"section.Under 30 min"',
                         'pick("groupByMenu", "None")', '"Added to Favourites"',
                         'pick("sortMenu", "Favourites first")', 'app.buttons["Cook"]',

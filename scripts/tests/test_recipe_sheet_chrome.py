@@ -48,7 +48,12 @@ class RecipeSheetChromeTests(unittest.TestCase):
         for filename in ['CookReflectionOfferSheet.swift', 'BetaTestingView.swift']:
             self.assertNotIn('.borderedProminent', (ROOT / 'Ate/Views' / filename).read_text())
 
-    def test_entire_ui_file_unchanged(self):
+    def test_entire_ui_file_reconstructs_original_except_last_field_reveal(self):
         import hashlib
-        source=(ROOT/'AteUITests/CoverageUITests.swift').read_bytes()
+        source=(ROOT/'AteUITests/CoverageUITests.swift').read_text()
+        replacement = """        // Partial hittability is not full clearance. Keep the existing five-gesture
+        // budget and require the same visible band used for the first ingredient.
+        RecipeDetailVisibility.reveal(lastField, scroll: detailScroll, header: header, footer: cookFooter)"""
+        self.assertEqual(source.count(replacement), 1)
+        source=source.replace(replacement, "        for _ in 0..<5 where !lastField.isHittable { detailScroll.swipeUp() }").encode()
         self.assertEqual(hashlib.sha256(source).hexdigest(),'9426f1c479e994f769ade1f69ac0a55ee092532bc04d2bb1e70c639faf31525c')

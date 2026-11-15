@@ -1,4 +1,7 @@
 import SwiftUI
+#if DEBUG
+import OSLog
+#endif
 
 struct LibraryView: View {
     @Environment(AppStore.self) private var store
@@ -10,6 +13,9 @@ struct LibraryView: View {
     /// iOS 26: the Library tab has no field (.none); the search tab hosts it in the tab bar (.tabBar).
     var searchPlacement: SearchPlacement = .drawer
     @State private var showAdd = false
+    @State private var showExplore = false
+    @State private var exploreSelection: String?
+    @State private var exploreAddRequested = false
     @State private var addMode: WidgetLinks.AddMode?
     @State private var addPrompt: String?
     @State private var confirmDelete: RecipeCard?
@@ -25,7 +31,19 @@ struct LibraryView: View {
         get { searchPlacement == .tabBar ? searchQuery : libraryQuery }
         nonmutating set { if searchPlacement == .tabBar { searchQuery = newValue } else { libraryQuery = newValue } }
     }
-    private var queryBinding: Binding<String> { searchPlacement == .tabBar ? $searchQuery : $libraryQuery }
+    private var queryBinding: Binding<String> {
+        let original = searchPlacement == .tabBar ? $searchQuery : $libraryQuery
+#if DEBUG
+        if searchPlacement == .tabBar && SearchReceiptDiagnostic.enabled {
+            return Binding(get: { original.wrappedValue }, set: { value in
+                let event = SearchReceiptDiagnostic.begin(previous: original.wrappedValue.count, incoming: value.count)
+                original.wrappedValue = value
+                SearchReceiptDiagnostic.end(event: event, stored: original.wrappedValue.count)
+            })
+        }
+#endif
+        return original
+    }
 
     /// iOS 26 Search tab with no query yet: a search-first start, not a second Library browser.
     private var isSearchStart: Bool {
@@ -77,6 +95,23 @@ struct LibraryView: View {
             ExpandableRecipeDetailSheet(recipe: recipe, detent: $recipeSheetDetent)
                 .environment(store)
         }
+        .sheet(isPresented: $showExplore, onDismiss: {
+            // Sequence presentations through the actual dismissal callback, not a delay.
+            if let id = exploreSelection {
+                exploreSelection = nil
+                quickLookRecipe = store.recipe(id)
+            } else if exploreAddRequested {
+                exploreAddRequested = false
+                addMode = nil; addPrompt = nil; showAdd = true
+            }
+        }) {
+            NavigationStack {
+                ExploreView(onSelect: { id in exploreSelection = id; showExplore = false },
+                            onAdd: { exploreAddRequested = true; showExplore = false })
+            }
+            .environment(store)
+            .presentationDetents([.large])
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Same bottom system as recipe detail: sits directly above the stack's timer bar.
             // iOS 26: the tab bar's bottom accessory carries "Add recipe" instead (C-TAB-01).
@@ -92,7 +127,15 @@ struct LibraryView: View {
         .navigationTitle(store.filter.collection?.title ?? L10n.libraryTitle)
         .onAppear { store.bottomAddContext = .recipe }
         .ateRootNavigationChrome(logoID: "libraryLogo")
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { trailingMenu } }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if searchPlacement != .tabBar {
+                    Button { showExplore = true } label: { Label("Explore", systemImage: "safari") }
+                        .accessibilityIdentifier("library.explore")
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) { trailingMenu }
+        }
         .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd, initialMode: addMode, initialPrompt: addPrompt, pushesToSearchStack: searchPlacement == .tabBar, global: searchPlacement != .tabBar))
         .onChange(of: store.pendingSearch) { _, _ in adoptPendingSearch() }
         .onAppear { adoptPendingSearch() }
@@ -642,3 +685,41 @@ struct TodayJournalHubCard: View {
         .accessibilityIdentifier("library.todayJournalHub")
     }
 }
+
+#if DEBUG
+/// Opt-in numeric binding receipt only. No query text, focus or AX reads.
+@MainActor enum SearchReceiptDiagnostic {
+    static var enabled: Bool {
+        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaSearchFocusDiagnostic")
+    }
+    private static var events = 0
+    private static var rows: [String] = []
+    static func begin(previous: Int, incoming: Int) -> Int? {
+        guard enabled, events < 8 else { return nil }
+        events += 1
+        record(phase: 1, event: events, first: Double(previous), second: Double(incoming))
+        return events
+    }
+    static func end(event: Int?, stored: Int) {
+        guard let event else { return }
+        record(phase: 2, event: event, first: Double(stored), second: 0)
+        let scheduled = ProcessInfo.processInfo.systemUptime
+        DispatchQueue.global(qos: .utility).async {
+            let utility = ProcessInfo.processInfo.systemUptime
+            Task { @MainActor in
+                record(phase: 3, event: event, first: scheduled, second: utility)
+            }
+        }
+    }
+    private static func record(phase: Int, event: Int, first: Double, second: Double) {
+        guard rows.count < 24,
+              let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) event=\(event) uptime=\(ProcessInfo.processInfo.systemUptime) first=\(first) second=\(second)")
+        do {
+            try Data((rows.joined(separator: "\n") + "\n").utf8).write(to: cache.appendingPathComponent("search-receipt-diagnostic.txt"), options: .atomic)
+        } catch {
+            Logger(subsystem: "com.melusik.ate", category: "SearchReceiptDiagnostic").error("Search receipt numeric evidence write failed")
+        }
+    }
+}
+#endif

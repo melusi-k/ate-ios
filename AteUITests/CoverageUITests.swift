@@ -1036,7 +1036,20 @@ extension CoverageUITests {
         settingsTab.tap()
         let settingsForm = settingsContent()
         shot("82-settings-after-selected-tab-scroll-reset")
-        settingsForm.swipeDown()
+        // A default swipeDown travels only 200pt on the retained runtime. Use
+        // one held drag across the real clear Form band, not another gesture.
+        let formFrame = settingsForm.frame
+        let navigationFrame = settingsTitle.frame
+        let tabFrame = app.tabBars.firstMatch.frame
+        let clearTop = max(formFrame.minY, navigationFrame.maxY) + 8
+        let clearBottom = min(formFrame.maxY, tabFrame.minY) - 8
+        XCTAssertGreaterThan(clearBottom, clearTop, "Settings must expose a clear Form band")
+        let formOrigin = settingsForm.coordinate(withNormalizedOffset: .zero)
+        let dragStart = formOrigin.withOffset(CGVector(dx: formFrame.width / 2,
+                                                       dy: clearTop - formFrame.minY))
+        let dragEnd = formOrigin.withOffset(CGVector(dx: formFrame.width / 2,
+                                                     dy: clearBottom - formFrame.minY))
+        dragStart.press(forDuration: 0.1, thenDragTo: dragEnd, withVelocity: .slow, thenHoldForDuration: 0.1)
         shot("82-settings-tab-chrome-revealed")
         let hierarchy = XCTAttachment(string: app.debugDescription)
         hierarchy.name = "82-settings-after-top-boundary-scroll-hierarchy"

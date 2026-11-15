@@ -1,7 +1,7 @@
 {
-  "title": "Journal layout, published release history and recipe draft feedback",
-  "summary": "Sheet-owned Cook presentation hypothesis preserves the originating Library recipe detail after Finish and Done; default pushed-detail root route retained. Native compile, saved-sheet return, Exit, rotation, timers and optional-note handoff UNRUN. Existing tests and allowances unchanged. SettingsAbout allowance is separate; Nutrition exception unchanged. Metadata pass is not qualification; merge held.",
-  "source_commit": "215a92d4e2cfa147d84d186b75e7c118d2a19bd0",
+  "title": "Named-photo recipe grounding and incomplete Chicken au Poivre regression",
+  "summary": "Named photo prompts retain the source dish and avoid unsupported regional claims; claimed infusions and finishing actions belong in steps, not only notes. Exact build445 Chicken au Poivre fixture preserves field repair and incomplete-method gaps. Shared prompt budget and all prior assertions unchanged. Model-affecting: held for device golden set before merge. Native compile, XCTest, generation behavior and updated pixels UNRUN; source guards are not device qualification.",
+  "source_commit": "86674692dc5f6bffc008d70546f09fc53d1cec21",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -49,7 +49,7 @@
     },
     {
       "path": "Ate/Logic/RecipePrompt.swift",
-      "blob": "2f4c0819b970fceace88229361721658d2383489"
+      "blob": "12c7b9f7fd2be884bb7dfc9b9753dea8a6614a6d"
     },
     {
       "path": "Ate/Logic/RecipeQuality.swift",

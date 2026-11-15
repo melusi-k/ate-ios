@@ -1,11 +1,11 @@
 {
-  "title": "Library main-protein grouping",
-  "summary": "Focus: Library pork mapping and retained native journeys. Exact South African home-cooking persona restored with broader cuisine coverage. Failed-save persistence candidate finishes editing through real Return before unchanged Save/error/Cancel/relaunch checks; keyboard cause unproven. Nine bounded DEBUG Journal layer samples remain diagnostic only, not a fix. Tests and budgets unchanged. Native validation and physical-device acceptance pending. Merge held.",
-  "source_commit": "563c968b8336ca17d880f31c1ca1fedc685a7e5a",
+  "title": "Library protein grouping with main Shopping and offline Explore",
+  "summary": "Library main-protein grouping, pork mapping and exact South African home-cooking persona retained with main Shopping sync, offline Explore and Search diagnostics. Failed-save editing uses real Return before unchanged Save/error/Cancel/relaunch checks. Bounded Journal layer samples remain diagnostic, not a fix. Original native assertions, operations and budgets unchanged. Native compile, XCTest, live sync and merged normal-text pixels UNRUN; source checks are not qualification. Merge held for Reviewer destination confirmation.",
+  "source_commit": "087ee3d18c1b9f0d73c3fc9eda97a3179d430447",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "f33c283ecace7237f9ce50d8d8e04bc707b9cca8"
+      "blob": "72b741549ee8bd80b56cfb4ecef0681f96c9e467"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
@@ -33,7 +33,7 @@
     },
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "e25f2c8a67877b5a6d362d8b64a0d9a0da52f5f9"
+      "blob": "c6ca14de1fc90831163bc4f8b2764396e25a0a7d"
     },
     {
       "path": "Ate/Views/Components.swift",
@@ -70,6 +70,38 @@
     {
       "path": "Ate/Views/RecipeDetailView.swift",
       "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
-      }
+    },
+    {
+      "path": "Ate/App/ExploreRetentionQAFixtures.swift",
+      "blob": "f98df83f7cbaba2e7a70ec2699a2791bde9ee17c"
+    },
+    {
+      "path": "Ate/Logic/SyncPayloadSafety.swift",
+      "blob": "a97407346934598d82dda7ffda52eed0c29aa46a"
+    },
+    {
+      "path": "Ate/Store/AppStore.swift",
+      "blob": "52f7b316e8805b7e7e1ef1a81a6857acc710aa3a"
+    },
+    {
+      "path": "Ate/Views/ExploreView.swift",
+      "blob": "1049ba938a741b92dc0656e8d372fddc4b2f2f73"
+    },
+    {
+      "path": "Ate/Views/LibraryView.swift",
+      "blob": "0fd016d0837c1f56fac572527b92975370a21f53"
+    },
+    {
+      "path": "Ate/Views/ShoppingListView.swift",
+      "blob": "031df522bdb2bae02452fe99f535835dae0d7c08"
+    },
+    {
+      "path": "Ate/Services/OnDeviceBackend.swift",
+      "blob": "2caf8558181d9f0273f267fc78e6973d14f367c7"
+    },
+    {
+      "path": "Ate/Services/CookPlanNotifications.swift",
+      "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
+    }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "title": "Main Shopping and Explore with native offline release notes and launch tour",
   "summary": "Main Shopping sync, offline Explore and bounded Search diagnostics retained with native offline Settings release notes and unseen-version launch tour. Incoming URLs interrupt without consuming seen state, then route after dismissal. Dedicated native qualification lane retained. No Notelet or remote release-note loading. Source checks are not native qualification: compile, XCTest and merged normal-text pixels UNRUN. Merge held for Reviewer destination confirmation.",
-  "source_commit": "fd1a95d97a42b591a60fb3d0a58d9e21da85d0ea",
+  "source_commit": "9b1afe2cd42b7a7e9ca429eed352a4b57efc85ef",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

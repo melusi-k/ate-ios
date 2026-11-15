@@ -43,6 +43,14 @@ class DetailLayoutCaptureTests(unittest.TestCase):
                 from test_diary_entry_receipt import restore_diary_entry_receipt
                 file='AteUITests/NutritionDiaryUITests.swift'
                 actual[file]=hashlib.sha256(restore_diary_entry_receipt(self,(ROOT/file).read_text()).encode()).hexdigest()
+            if folder == 'AteTests':
+                from test_auth_refresh_race import restore_auth_race_tests,restore_auth_gate_tests,restore_auth_diag_tests
+                file='AteTests/AppStoreWriterBoundaryTests.swift'
+                actual[file]=hashlib.sha256(restore_auth_race_tests(self,(ROOT/file).read_text()).encode()).hexdigest()
+                file='AteTests/AuthHardeningTests.swift'
+                actual[file]=hashlib.sha256(restore_auth_gate_tests(self,(ROOT/file).read_text()).encode()).hexdigest()
+                file='AteTests/DiagnosticHistoryTests.swift'
+                actual[file]=hashlib.sha256(restore_auth_diag_tests(self,(ROOT/file).read_text()).encode()).hexdigest()
             self.assertEqual(actual, BASE_FOLDER_HASHES[folder])
         source=(ROOT/'.github/workflows/dogfood-qualification.yml').read_text()
         for job in yaml.safe_load(source)['jobs'].values():

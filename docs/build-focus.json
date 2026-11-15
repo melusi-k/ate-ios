@@ -1,7 +1,7 @@
 {
   "title": "Recipe sheet clarity, Cook contrast and duplicate display rows",
-  "summary": "Focus: recipe-sheet chrome, sibling-clipped scroll viewport above the opaque Cook footer, and saved Group28 preconditions. Existing ingredient, final-field, servings and detent acceptance unchanged. Opt-in normal-text Journal diagnostics retain bounded animation/MainActor samples and UTC logs. No model reads. Native geometry, hit testing, editing, detents and pixels remain unqualified; merge held.",
-  "source_commit": "5a8a14861947744490904430b8113cffce54955f",
+  "summary": "Focus: recipe-sheet chrome, sibling-clipped scroll viewport above the opaque Cook footer, and saved Group28 preconditions. Last-field test navigation now uses the existing bounded whole-field reveal helper; strict geometry assertions remain unchanged. Opt-in normal-text Journal diagnostics retain bounded animation/MainActor samples and UTC logs. No model reads. Native geometry, hit testing, editing, detents and pixels remain unqualified; merge held.",
+  "source_commit": "bb2942caafe85bc8fa7067a39cb39a7ff4bab1d1",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

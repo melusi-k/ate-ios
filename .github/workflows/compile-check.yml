@@ -168,6 +168,7 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
+            -only-testing:AteUITests/JournalPersonalResetUITests \
             -only-testing:AteUITests/CookPlanUITests \
             -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreensWithoutDynamicType \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
@@ -197,6 +198,9 @@ jobs:
             "CookPlanUITests testSavedRecipePlanWithoutReminderCanBeReopenedAndCancelled]' passed" \
             "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
             "NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed" \
+            "JournalPersonalResetUITests testSettingsClearAllRemovesVisibleJournal]' passed" \
+            "JournalPersonalResetUITests testExplicitSignOutKeepRecipesRemovesVisibleJournal]' passed" \
+            "JournalPersonalResetUITests testExpiredTokenPreservesVisibleJournal]' passed" \
             "AccessibilityAuditUITests testAuditNutritionScreensWithoutDynamicType]' passed"; do
             grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }
           done

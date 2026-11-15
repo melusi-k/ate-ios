@@ -1,4 +1,5 @@
 import XCTest
+import Security
 @testable import Ate
 
 final class AuthHardeningTests: XCTestCase {
@@ -119,5 +120,55 @@ extension AuthHardeningTests {
         let second = try await gate.refresh(other) { other }
         XCTAssertEqual(first, a)
         XCTAssertEqual(second, b)
+    }
+}
+
+extension AuthHardeningTests {
+    func testCredentialUpdateNeverDeletesAndPreservesQueryScope() {
+        var calls: [String] = []
+        let bytes = Data("fixture".utf8)
+        let operations = Keychain.Operations(update: { query, values in
+            calls.append("update")
+            XCTAssertEqual(query[kSecAttrService as String] as? String, Keychain.service)
+            XCTAssertEqual(query[kSecAttrAccount as String] as? String, "fixture")
+            XCTAssertEqual(values[kSecValueData as String] as? Data, bytes)
+            return errSecSuccess
+        }, add: { _ in calls.append("add"); return errSecSuccess },
+           delete: { _ in calls.append("delete"); return errSecSuccess })
+        XCTAssertTrue(Keychain.save(bytes, account: "fixture", operations: operations))
+        XCTAssertEqual(calls, ["update"])
+    }
+
+    func testCredentialMissingAddsButOtherUpdateFailuresDoNotMutateAgain() {
+        for status in [errSecItemNotFound, errSecInteractionNotAllowed, errSecAuthFailed] {
+            var calls: [String] = []
+            let operations = Keychain.Operations(update: { _, _ in calls.append("update"); return status },
+                add: { _ in calls.append("add"); return errSecSuccess },
+                delete: { _ in calls.append("delete"); return errSecSuccess })
+            XCTAssertEqual(Keychain.save(Data("fixture".utf8), account: "fixture", operations: operations),
+                           status == errSecItemNotFound)
+            XCTAssertEqual(calls, status == errSecItemNotFound ? ["update", "add"] : ["update"])
+        }
+    }
+
+    func testCredentialAddFailureIsFalseWithoutDeleteOrRetry() {
+        var calls: [String] = []
+        let operations = Keychain.Operations(update: { _, _ in calls.append("update"); return errSecItemNotFound },
+            add: { _ in calls.append("add"); return errSecDuplicateItem },
+            delete: { _ in calls.append("delete"); return errSecSuccess })
+        XCTAssertFalse(Keychain.save(Data("fixture".utf8), account: "fixture", operations: operations))
+        XCTAssertEqual(calls, ["update", "add"])
+    }
+
+    func testCredentialRemovalChecksStatusAndMissingIsAlreadyRemoved() {
+        for status in [errSecSuccess, errSecItemNotFound, errSecInteractionNotAllowed] {
+            var calls: [String] = []
+            let operations = Keychain.Operations(update: { _, _ in calls.append("update"); return errSecSuccess },
+                add: { _ in calls.append("add"); return errSecSuccess },
+                delete: { _ in calls.append("delete"); return status })
+            XCTAssertEqual(Keychain.save(nil, account: "fixture", operations: operations),
+                           status == errSecSuccess || status == errSecItemNotFound)
+            XCTAssertEqual(calls, ["delete"])
+        }
     }
 }

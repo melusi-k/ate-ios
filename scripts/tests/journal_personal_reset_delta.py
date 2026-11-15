@@ -6,7 +6,7 @@ No Git checkout or network access is required by these contracts.
 import hashlib, json
 from pathlib import Path
 FIXTURE = Path(__file__).with_name('journal_personal_reset_delta.json')
-FIXTURE_SHA256 = '3530d5d68cbd4e1a194ec532da6181753c92f89f8040bf95b16186c229d05ca4'
+FIXTURE_SHA256 = '33c75e0caa26e72777793323f419e2cc5afa3508378b0d1d51e0738454f8ce7d'
 def restore(key, raw):
     binary = isinstance(raw, bytes)
     text = raw.decode() if binary else raw

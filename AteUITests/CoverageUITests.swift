@@ -333,8 +333,11 @@ final class CoverageUITests: XCTestCase {
         // isHittable=false for these visible, selectable SwiftUI rows. Prove actual
         // viewport clearance instead of spending the existing swipe budget seeking
         // a tappable parent. Keep the same directional bounds and content assertions.
+        #if DEBUG
+        var settingsAboutGeometryReceipt = SettingsAboutGeometryReceipt()
+        #endif
         func revealReadOnlySettingsRow(_ heading: XCUIElement) {
-            func fullyVisible() -> Bool {
+            func evaluatedFullyVisible() -> Bool {
                 guard heading.exists else { return false }
                 let row = heading.frame
                 let window = app.windows.firstMatch
@@ -361,6 +364,13 @@ final class CoverageUITests: XCTestCase {
                 return !row.isEmpty && !row.isInfinite && !row.isNull
                     && row.minX >= screen.minX && row.maxX <= screen.maxX
                     && row.minY >= top && row.maxY <= bottom
+            }
+            func fullyVisible() -> Bool {
+                let visible = evaluatedFullyVisible()
+                #if DEBUG
+                settingsAboutGeometryReceipt.observe(visible: visible, heading: heading, app: app)
+                #endif
+                return visible
             }
             var swipes = 0
             while !fullyVisible() && swipes < 25 { timerSettings.swipeUp(); swipes += 1 }

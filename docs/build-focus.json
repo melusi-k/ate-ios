@@ -1,7 +1,7 @@
 {
   "title": "Dormant Journal and nutrition goals sync preparation",
-  "summary": "Dormant Journal and goals sync preparation; shipping and host binding OFF. Sync tests use canonical fixture paths and targeted valid-day inputs; suspended test fakes register waiters atomically. Group28 adds opt-in paired MainActor/utility timing, fixed Favourite toast phases and capture around original taps/wait. The after-tap screenshot can consume a short toast window; absence is not regression proof. QA8 post-Exit diagnostics retained. No assertions or budgets weakened. Native qualification unverified; migration unapplied, no production writes. Merge held.",
-  "source_commit": "9235b4549d0399d68c45a508544f28f113f3ec2d",
+  "summary": "Dormant Journal and goals sync preparation; shipping and host binding OFF. Goals upload fixture seeds an explicit-kind reflection so onPush really runs; original 1800/nil-stamp checks retained. Capture-only matrix boundary and SwiftData schema/access markers investigate Optional cast and nil-kind crashes. Canonical fixtures, atomic waiters and Group28/QA8 diagnostics retained. No assertions or budgets weakened. Native qualification unverified; crashes unresolved, migration unapplied, no production writes. Focus refresh is metadata only. Merge held.",
+  "source_commit": "4cd765a0c99e2875e1636ccaadac47360d1241ac",
   "evidence": [
     {
       "path": "Ate/Insights/InsightLifecycle.swift",

@@ -49,6 +49,7 @@ struct AteApp: App {
             st.shopping = InsightDestinationQAFixtures.shopping()
         }
         DogfoodSavedRecipeQAFixtures.prepare(st)
+        ExploreRetentionQAFixtures.prepare(st)
         CookJournalQARoute.prepare(st)
         RecipeSheetQAFixtures.prepare(st)
         LibraryProteinQAFixtures.prepare(st)

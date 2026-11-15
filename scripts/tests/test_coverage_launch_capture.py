@@ -10,6 +10,8 @@ def restore_coverage_workflow(s):
 class CoverageLaunchContracts(unittest.TestCase):
     def test_original_file_0_unchanged(self):
         s=(ROOT/'AteUITests/CoverageUITests.swift').read_text()
+        from test_about_targeting import restore_about_targeting
+        s=restore_about_targeting(self,s)
         self.assertEqual(s.count('    func testBottomBarsDoNotOverlapRecipeDetail() {\n        captureCoverageLaunch = true\n        defer { captureCoverageLaunch = false }\n        launch(["-simulateOffline"])\n        coverageLaunchMark("body-after-launch")'),1)
         s=s.replace('    func testBottomBarsDoNotOverlapRecipeDetail() {\n        captureCoverageLaunch = true\n        defer { captureCoverageLaunch = false }\n        launch(["-simulateOffline"])\n        coverageLaunchMark("body-after-launch")','    func testBottomBarsDoNotOverlapRecipeDetail() {\n        launch(["-simulateOffline"])',1)
         self.assertEqual(s.count('        app = XCUIApplication(); app.launchArguments = ["-UITesting"] + extra\n        if captureCoverageLaunch {\n            coverageLaunchMark("before-pixels")\n            shot("coverage-launch-before-original-call")\n            coverageLaunchMark("launch-enter")\n        }\n        defer {\n            if captureCoverageLaunch {\n                coverageLaunchMark("launch-scope-exit")\n                shot("coverage-launch-scope-exit")\n            }\n        }\n        app.launch()\n        coverageLaunchMark("launch-return")\n        return app'),1)

@@ -567,6 +567,9 @@ jobs:
         run: |
           STEP_START=$(date +%s)
           set +e
+          mkdir -p tracker-month-window
+          date -u '+%Y-%m-%d %H:%M:%S' > tracker-month-window/start-utc.txt
+          trap 'date -u "+%Y-%m-%d %H:%M:%S" > tracker-month-window/end-utc.txt' EXIT
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cooking-tracker-ui-tests.xcresult" -only-testing:AteUITests/CookingTrackerEntryUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1
           status=$?
           set -e
@@ -583,6 +586,23 @@ jobs:
           fi
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" tracker-ui.log | tail -n 30
+      - name: Retain Tracker month diagnostic window
+        if: ${{ matrix.suite == 'account-cooking' && always() }}
+        run: |
+          mkdir -p tracker-month-window
+          if [ -s tracker-month-window/start-utc.txt ] && [ -s tracker-month-window/end-utc.txt ]; then
+            start_utc=$(cat tracker-month-window/start-utc.txt)
+            end_utc=$(cat tracker-month-window/end-utc.txt)
+            predicate='process == "Ate" OR process == "AteUITests-Runner" OR subsystem == "com.melusik.ate"'
+            /usr/bin/log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > tracker-month-window/host-unified.log 2>&1 || \
+              echo 'Host collection failed; see retained output.' >> tracker-month-window/errors.txt
+            xcrun simctl spawn "$SIM_ID" log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > tracker-month-window/simulator-unified.log 2>&1 || \
+              echo 'Simulator collection failed; see retained output.' >> tracker-month-window/errors.txt
+          else
+            echo 'Start/end missing; no covered window claimed.' > tracker-month-window/errors.txt
+          fi
       - name: Shared navigation header regressions (#68)
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
@@ -757,6 +777,7 @@ jobs:
           name: compile-regression-diagnostics-${{ matrix.suite }}-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
+            tracker-month-window
             *.log
             ${{ runner.temp }}/ate-test-results/draft-quality-repair-attachments
             build.log

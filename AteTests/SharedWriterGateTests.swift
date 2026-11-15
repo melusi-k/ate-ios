@@ -500,4 +500,34 @@ final class SharedWriterGateTests: XCTestCase {
         XCTAssertEqual(WidgetSnapshot.load(d), first)
         XCTAssertEqual(reloads, 1, "No displayed timeline input changed")
     }
+    func testExtensionEntryCapturesOriginalOwnerAndRefusesPendingResetAndArchiveRecovery() throws {
+        try fixture { directory in
+            SharedWriterBoundary.resetForTesting()
+            defer { SharedWriterBoundary.resetForTesting() }
+            let app = try AccountWriterGate(directory: directory, resetControlExists: { false })
+            var archiveRefuses = false
+            XCTAssertTrue(SharedWriterBoundary.installExtensionStartup(makeBoundary: {
+                try SharedFileWriterGate(directory: directory, resetPending: {
+                    try SharedResetControl.exists(directory: directory)
+                }, archive: SharedArchiveNestedLeaseBoundary { work in
+                    guard !archiveRefuses else { throw TestError.unresolvedArchive }
+                    try SharedArchiveNestedUnit.run(directory: directory, work)
+                }).makeBoundary()
+            }))
+            let original = SharedWriterBoundary.current
+            try original.withEffect { }
+            try app.acquireResetGate()
+            XCTAssertThrowsError(try SharedWriterBoundary.current.withEffect { XCTFail("Reset in flight") })
+            app.releaseResetGate()
+            XCTAssertThrowsError(try original.withEffect { XCTFail("Captured old writer") })
+            try SharedWriterBoundary.current.withEffect { } // independent new invocation
+            let control = directory.appendingPathComponent(SharedResetControl.fileName)
+            try Data("invalid control".utf8).write(to: control)
+            XCTAssertThrowsError(try SharedWriterBoundary.current.withEffect { XCTFail("Present corrupt control") })
+            try FileManager.default.removeItem(at: control)
+            archiveRefuses = true
+            XCTAssertThrowsError(try SharedWriterBoundary.current.withEffect { XCTFail("Archive unresolved") })
+        }
+    }
+
 }

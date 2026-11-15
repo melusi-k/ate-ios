@@ -36,7 +36,10 @@ final class TimerCenter {
 
     private(set) var timers: [ActiveTimer] = [] { didSet { persist() } }
 
-    init() {
+    @ObservationIgnored let notificationQueue: OrderedTimerNotifications
+    init(writerBoundary: FoodJournalWriterBoundary = .legacy, validateOwner: @escaping () throws -> Void = {}) {
+        self.writerBoundary = writerBoundary
+        self.notificationQueue = OrderedTimerNotifications(validate: validateOwner)
         if AppConfig.isUITesting { TimerSnapshot.save([]); return }
         timers = TimerSnapshot.load().map {
             ActiveTimer(recipeID: $0.recipeID, recipeTitle: $0.recipeTitle, stepIndex: $0.stepIndex, stepCount: $0.stepCount,
@@ -109,7 +112,7 @@ final class TimerCenter {
             if let existing = timer(TimerMath.quickRecipeID, 0) { t = existing; if t.isRunning { return } }
             t.endDate = Date().addingTimeInterval(TimeInterval(t.pausedRemaining > 0 ? t.pausedRemaining : total))
             upsert(t)
-            TimerAlerts.schedule(id: t.id, step: 1, recipeTitle: t.recipeTitle, at: t.endDate!, prefs: prefsProvider())
+            scheduleNotification(t, step: 1)
             LiveActivities.startOrUpdate(t)
         }
     }
@@ -140,7 +143,7 @@ final class TimerCenter {
             if t.pausedRemaining <= 0 { t.pausedRemaining = total }
             t.endDate = Date().addingTimeInterval(TimeInterval(t.pausedRemaining))
             upsert(t)
-            TimerAlerts.schedule(id: t.id, step: stepIndex + 1, recipeTitle: t.recipeTitle, at: t.endDate!, prefs: prefsProvider())
+            scheduleNotification(t, step: stepIndex + 1)
             LiveActivities.startOrUpdate(t)
         }
     }
@@ -151,7 +154,7 @@ final class TimerCenter {
             t.pausedRemaining = t.remaining()
             t.endDate = nil
             upsert(t)
-            TimerAlerts.cancel(id: id)
+            notificationQueue.cancel("ate.timer." + id)
             LiveActivities.startOrUpdate(t)
         }
     }
@@ -167,7 +170,7 @@ final class TimerCenter {
             if t.pausedRemaining <= 0 { t.pausedRemaining = t.total }
             t.endDate = Date().addingTimeInterval(TimeInterval(t.pausedRemaining))
             upsert(t)
-            TimerAlerts.schedule(id: t.id, step: t.stepIndex + 1, recipeTitle: t.recipeTitle, at: t.endDate!, prefs: prefsProvider())
+            scheduleNotification(t, step: t.stepIndex + 1)
             LiveActivities.startOrUpdate(t)
         }
     }
@@ -178,7 +181,7 @@ final class TimerCenter {
             t.endDate = nil
             t.pausedRemaining = t.total
             upsert(t)
-            TimerAlerts.cancel(id: id)
+            notificationQueue.cancel("ate.timer." + id)
             LiveActivities.startOrUpdate(t)
         }
     }
@@ -186,7 +189,7 @@ final class TimerCenter {
     func stop(_ id: String) {
         try? writerBoundary.withEffect {
             timers.removeAll { $0.id == id }
-            TimerAlerts.cancel(id: id)
+            notificationQueue.cancel("ate.timer." + id)
             LiveActivities.end(id)
         }
     }
@@ -217,6 +220,13 @@ final class TimerCenter {
                 LiveActivities.end(t.id, finished: t)
             }
         }
+    }
+
+    private func scheduleNotification(_ timer: ActiveTimer, step: Int) {
+        guard let end = timer.endDate else { return }
+        if let request = TimerAlerts.request(id: timer.id, step: step, recipeTitle: timer.recipeTitle, at: end, prefs: prefsProvider()) {
+            notificationQueue.schedule(request)
+        } else { notificationQueue.cancel("ate.timer." + timer.id) }
     }
 
     private func upsert(_ t: ActiveTimer) {
@@ -306,10 +316,16 @@ enum LiveActivities {
     /// a completion arriving after an await is fenced off when the writer epoch moved.
     /// The default always passes, preserving today's behavior.
     static var validateWriter: () throws -> Void = {}
+    static var consumerTasks: FoodJournalConsumerTasks?
+
+    private static func launch(_ operation: @escaping @MainActor () async throws -> Void) {
+        if let consumerTasks { try? consumerTasks.launch(operation) }
+        else { Task { try? await operation() } }
+    }
 
     static var enabled: Bool {
         #if canImport(ActivityKit)
-        if AppConfig.isUITesting { return false }
+        if AppConfig.isUITesting || !SharedContainer.isAvailable { return false }
         return ActivityAuthorizationInfo().areActivitiesEnabled
         #else
         return false
@@ -343,11 +359,13 @@ enum LiveActivities {
         }
         let content = ActivityContent(state: state(t), staleDate: t.endDate?.addingTimeInterval(60))
         if let a = activity(t.id) {
-            Task {
+            let validate = validateWriter
+            launch {
+                try validate()
                 await a.update(content)
                 // Post-await completion fence: the record is a write; a stale completion
                 // (writer epoch moved during the await) is dropped, never written.
-                guard (try? validateWriter()) != nil else { return }
+                guard !Task.isCancelled, (try? validate()) != nil else { return }
                 LiveActivityDiagnostics.record("updated \(a.id.prefix(8)) state=\(String(describing: a.activityState))")
             }
         } else {
@@ -369,11 +387,13 @@ enum LiveActivities {
         #if canImport(ActivityKit)
         guard let a = activity(id) else { return }
         let st = finished.map { state($0, finished: true) } ?? a.content.state
-        Task {
+        let validate = validateWriter
+        launch {
+            try validate()
             await a.end(ActivityContent(state: st, staleDate: nil),
                         dismissalPolicy: finished == nil ? .immediate : .after(Date().addingTimeInterval(120)))
             // Post-await completion fence: nothing may publish after the epoch moved.
-            guard (try? validateWriter()) != nil else { return }
+            guard !Task.isCancelled, (try? validate()) != nil else { return }
         }
         #endif
     }

@@ -125,6 +125,9 @@ struct LibraryView: View {
         .modifier(LibrarySearch(query: queryBinding, placement: searchPlacement, prompt: "Search \(store.recipes.count) recipe\(store.recipes.count == 1 ? "" : "s")"))
         .textInputAutocapitalization(.never)
         .navigationTitle(store.filter.collection?.title ?? L10n.libraryTitle)
+        #if DEBUG
+        .task { await CookPlanRootQueryDiagnostic.observeIfRequested(surface: String(describing: searchPlacement)) }
+        #endif
         .onAppear { store.bottomAddContext = .recipe }
         .ateRootNavigationChrome(logoID: "libraryLogo")
         .toolbar {
@@ -685,6 +688,28 @@ struct TodayJournalHubCard: View {
         .accessibilityIdentifier("library.todayJournalHub")
     }
 }
+
+#if DEBUG
+/// Opt-in root-query evidence only. Does not read storage, AX or mutate view state.
+private enum CookPlanRootQueryDiagnostic {
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "CookPlanRootQueryDiagnostic")
+
+    @MainActor static func observeIfRequested(surface: String) async {
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaCookPlanRootQueryDiagnostic") else { return }
+        let started = ProcessInfo.processInfo.systemUptime
+        let trace = UUID().uuidString
+        for offset in [0.0, 15, 30, 60, 90, 120, 180] {
+            let remaining = offset - (ProcessInfo.processInfo.systemUptime - started)
+            if remaining > 0 {
+                do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
+            }
+            guard !Task.isCancelled else { return }
+            logger.notice("trace=\(trace, privacy: .public) surface=\(surface, privacy: .public) scheduled=\(offset, privacy: .public) elapsed=\(ProcessInfo.processInfo.systemUptime - started, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public) main-actor-heartbeat")
+        }
+    }
+}
+#endif
 
 #if DEBUG
 /// Opt-in numeric binding receipt only. No query text, focus or AX reads.

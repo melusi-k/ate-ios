@@ -23,7 +23,7 @@ enum SharedWriterControl {
 /// while activation is off; canonical production startup installs the real
 /// boundary in every process before ordinary use (see SharedWriterGateComposition).
 final class SharedWriterBoundary {
-    enum Failure: Error { case effectNotPerformed, repeatedEffect }
+    enum Failure: Error { case effectNotPerformed, repeatedEffect, ownerContextRequired }
     private let lock = NSRecursiveLock()
     private var active = false
     private let perform: (() throws -> Void) throws -> Void
@@ -47,15 +47,53 @@ final class SharedWriterBoundary {
         SharedWriterBoundary(perform: outerPerform)
     }
 
+    /// Inherited by structured/unstructured child Tasks, never looked up from a
+    /// mutable current-graph slot after an await. Extensions keep their own install.
+    @TaskLocal private static var capturedOwner: SharedWriterBoundary?
+
+    static func withCapturedOwner<T>(_ owner: SharedWriterBoundary, _ work: () throws -> T) rethrows -> T {
+        try $capturedOwner.withValue(owner, operation: work)
+    }
+    static func withCapturedOwner<T>(_ owner: SharedWriterBoundary,
+                                     operation: () async throws -> T) async rethrows -> T {
+        try await $capturedOwner.withValue(owner, operation: operation)
+    }
+
+    /// App startup installs this ONCE. Outside an explicit captured owner's effect
+    /// or task context, shared writes refuse. There is no mutable owner router.
+    static let requiresCapturedOwner = SharedWriterBoundary { _ in
+        throw Failure.ownerContextRequired
+    }
+
     private static let installLock = NSRecursiveLock()
     private static var installed: SharedWriterBoundary?
+    private static var extensionProvider: (() throws -> SharedWriterBoundary)?
 
     /// The boundary shared writers use by default. Read at every call site, so a
     /// boundary installed during startup applies to writers reached afterwards.
     static var current: SharedWriterBoundary {
+        if let capturedOwner { return capturedOwner }
+        // AppIntent execution can start without the WidgetBundle initializer.
+        // Fail-closed bootstrap therefore also lives at the shared write entry.
+        if Bundle.main.bundleURL.pathExtension == "appex" { installExtensionStartup() }
         installLock.lock()
         defer { installLock.unlock() }
+        if let extensionProvider {
+            return (try? extensionProvider()) ?? .requiresCapturedOwner
+        }
         return installed ?? .legacy
+    }
+
+    @discardableResult
+    static func installExtensionStartup(makeBoundary: @escaping () throws -> SharedWriterBoundary = { try SharedWriterGateComposition.makeExtensionBoundary() }) -> Bool {
+        installLock.lock(); defer { installLock.unlock() }
+        if installed != nil { return true }
+        // Capture a boundary PER entry, not per process. The returned instance
+        // stays tied to its original epoch across awaits. A later independent
+        // intent may enter the new epoch only after strict control admission.
+        extensionProvider = makeBoundary
+        installed = .requiresCapturedOwner
+        return true
     }
 
     /// One-way install of the production boundary. Returns false and changes
@@ -74,6 +112,7 @@ final class SharedWriterBoundary {
         installLock.lock()
         defer { installLock.unlock() }
         installed = nil
+        extensionProvider = nil
     }
 
     func withEffect<T>(_ work: () throws -> T) throws -> T {
@@ -352,7 +391,7 @@ enum SharedWriterGateComposition {
         guard let container else {
             throw ResolutionError.appGroupUnavailable
         }
-        let directory = container.appendingPathComponent(SharedWriterControl.directoryName, isDirectory: true)
+        let directory = container.resolvingSymlinksInPath().appendingPathComponent(SharedWriterControl.directoryName, isDirectory: true)
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }

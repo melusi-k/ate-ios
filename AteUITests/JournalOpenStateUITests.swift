@@ -545,7 +545,7 @@ extension JournalOpenStateUITests {
 
     /// Normal-size coverage, separate from the retained original cross-size case.
     func testJournalRootAddAtNormalTextAndSidebarRoundTrip() {
-        launch(extra: ["-qaMockHealth", "empty", "-UIPreferredContentSizeCategoryName",
+        launch(extra: ["-qaJournalAnimationDiagnostic", "-qaMockHealth", "empty", "-UIPreferredContentSizeCategoryName",
                        "UICTContentSizeCategoryL"])
         defer { XCUIDevice.shared.orientation = .portrait }
         openJournal()
@@ -570,6 +570,7 @@ extension JournalOpenStateUITests {
         wait(toolbarAdd)
         XCTAssertTrue(toolbarAdd.isHittable, "The sidebar root must retain a reachable journal action")
         toolbarAdd.tap()
+        shot("manual-09-normal-after-new-entry-tap")
         let editor = app.textViews["journal.compose.text"]
         wait(editor)
         shot("manual-09-normal-composer-before-tap")
@@ -577,6 +578,7 @@ extension JournalOpenStateUITests {
         print(app.debugDescription)
         print("JOURNAL-NORMAL-COMPOSER-BEFORE-TAP-AX-END")
         editor.tap()
+        shot("manual-09-normal-after-editor-tap")
         editor.typeText("Generic normal-size draft")
         XCUIDevice.shared.orientation = .portrait
         wait(editor)

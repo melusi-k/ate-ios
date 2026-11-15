@@ -230,7 +230,7 @@ struct JournalEntryDetailView: View {
                             }
                         }
                     }
-                    let images = e.mediaFileNames.compactMap { UIImage(contentsOfFile: JournalStore.mediaURL($0).path) }
+                    let images = e.mediaFileNames.compactMap { UIImage(contentsOfFile: store.journalStore.boundMediaURL($0).path) }
                     if !e.mediaFileNames.isEmpty {
                         Section("Media") {
                             ScrollView(.horizontal) {
@@ -516,7 +516,7 @@ final class JournalReflectionDraft {
 struct JournalReflectionCard: View {
     @Environment(AppStore.self) private var store
     @FocusState private var editorFocused: Bool
-    @State private var model = InsightsModel.shared
+    private var model: InsightsModel { store.insightsModel }
     @AppStorage(JournalingSuggestionsGate.settingKey) private var journalingEnabled = false
     @State private var openRecipe: RecipeSheetTarget?
 

@@ -163,7 +163,8 @@ enum UnifiedArchiveStartupRecovery {
     /// Reconciles the store to the recorded image: existing rows update in place under the
     /// same unique identity, only missing identities insert, only extra identities delete,
     /// one throwing save. json bytes are restored verbatim.
-    static func restoreRecipeShopping(_ image: ArchiveRecipeShoppingImage, container: ModelContainer) throws {
+    static func restoreRecipeShopping(_ image: ArchiveRecipeShoppingImage, container: ModelContainer,
+                                      save: (ModelContext) throws -> Void = { try $0.save() }) throws {
         let ctx = ModelContext(container)
         ctx.autosaveEnabled = false
         let recipeRows = try ctx.fetch(FetchDescriptor<RecipeEntity>())
@@ -188,7 +189,7 @@ enum UnifiedArchiveStartupRecovery {
             }
         }
         for row in shoppingRows where !keepShopping.contains(row.id) { ctx.delete(row) }
-        try ctx.save()
+        do { try save(ctx) } catch { ctx.rollback(); throw error }
     }
 
     // MARK: - journal + media

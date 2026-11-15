@@ -3,8 +3,13 @@ import WatchKit
 
 @main
 struct AteWatchApp: App {
-    @State private var store = WatchStore()
-    @State private var wrist = WristTimer()
+    @State private var store: WatchStore
+    @State private var wrist: WristTimer
+    init() {
+        WatchTimerStore.writerBoundary = WatchWriterBoundary(perform: { try $0() })
+        _store = State(initialValue: WatchStore())
+        _wrist = State(initialValue: WristTimer())
+    }
     var body: some Scene {
         WindowGroup {
             RootView().environment(store).environment(wrist)

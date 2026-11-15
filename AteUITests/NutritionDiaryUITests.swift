@@ -185,39 +185,35 @@ final class NutritionDiaryUITests: XCTestCase {
         element.tap()
     }
 
-    /// Typing before the keyboard finishes its appear animation can drop characters on a
-    /// loaded CI simulator. Wait for the keyboard before sending text. When the keyboard was
-    /// already up for a previous field, its existence proves nothing about THIS field's focus,
-    /// so the typed text is checked against the field's own value - the documented outcome of
-    /// the interaction. A miss (tap eaten by the bar/keyboard, previous field still focused)
-    /// costs one measured re-centre, re-tap and retype, then fails loudly with a screenshot in
-    /// the diagnostics artifact.
+    /// Focus and wait for the keyboard, replace the whole existing value, then
+    /// type once. A double-tap selects one word, so replaying a multiword value
+    /// after a mismatch can corrupt it ("My lunch" became "My My lunch").
+    /// A missed input fails with evidence; never repair it by typing it again.
     private func typeAfterKeyboard(_ element: XCUIElement, in app: XCUIApplication, surface: GeometrySurface, _ text: String, file: StaticString = #filePath, line: UInt = #line) {
         tapWhenHittable(element, in: app, surface: surface, file: file, line: line)
         // scrollToHittable may have dismissed a keyboard that occluded this field, so
         // prior existence proves nothing: always wait for the keyboard before typing.
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the focused field", file: file, line: line)
-        // Clear any default value first: typeText inserts at the cursor, so typing into a
-        // prefilled field appends (CI: "servingbowl" passed a substring check for "bowl",
-        // #179). The shipped defaults are single tokens; a double-tap selects the word so
-        // typing replaces it, and the outcome is checked by exact equality below.
-        if let current = element.value as? String, !current.isEmpty {
-            element.doubleTap()
+        // Empty text fields can expose their placeholder as value. It is not
+        // editable content and must not trigger selection gestures.
+        if let current = element.value as? String,
+           !current.isEmpty, current != element.placeholderValue {
+            element.press(forDuration: 1.2)
+            let selectAll = app.menuItems["Select All"]
+            guard selectAll.waitForExistence(timeout: 5), selectAll.isHittable else {
+                XCTFail("Existing field content must expose Select All before replacement", file: file, line: line)
+                return
+            }
+            selectAll.tap()
         }
         element.typeText(text)
-        if (element.value as? String) != text {
-            _ = scrollToHittable(element, in: app, surface: surface)
-            element.tap()
-            element.doubleTap()
-            element.typeText(text)
-        }
         let landed = (element.value as? String) ?? ""
         if landed != text {
             let shot = XCTAttachment(screenshot: app.screenshot())
             shot.name = "typeAfterKeyboard-missed"
             shot.lifetime = .keepAlways
             add(shot)
-            XCTFail("Typed text did not land in the field (value after retry: \"\(landed)\")", file: file, line: line)
+            XCTFail("Typed text did not land in the field (value after single input: \"\(landed)\")", file: file, line: line)
         }
     }
 

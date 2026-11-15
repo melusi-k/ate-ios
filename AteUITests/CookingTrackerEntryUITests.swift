@@ -42,7 +42,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
     }
 
     func testMonthNavigationAndFutureMonthRestriction() {
-        let app = launchTracker()
+        let app = launchTracker(["-qaTrackerMonthAXDiagnostic"])
         let month = app.staticTexts["tracker.displayedMonth"]
         XCTAssertTrue(month.waitForExistence(timeout: 5))
         shot("tracker-month-view")
@@ -56,6 +56,12 @@ final class CookingTrackerEntryUITests: XCTestCase {
             object: month
         )
         XCTAssertEqual(XCTWaiter.wait(for: [movedToPreviousMonth], timeout: 3), .completed)
+        // Evidence follows the original predicate. No retry/replacement of its result.
+        shot("tracker-month-after-original-previous-predicate")
+        print("TRACKER-MONTH-AFTER-PREDICATE-LABEL-BEGIN")
+        print(month.label)
+        print(month.debugDescription)
+        print("TRACKER-MONTH-AFTER-PREDICATE-LABEL-END")
 
         let next = app.buttons["tracker.nextMonth"]
         XCTAssertTrue(next.isHittable)

@@ -129,12 +129,24 @@ private struct CookingDotGrid: View {
         calendar.isDate(displayedMonth, equalTo: Date(), toGranularity: .month)
     }
 
+    /// Fixed phase and calendar numbers only; explicit Month QA flag, no content.
+    private func traceMonth(_ phase: String, date: Date) {
+        #if DEBUG
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaTrackerMonthAXDiagnostic") else { return }
+        Logger(subsystem: "com.melusik.ate", category: "TrackerMonthAXDiagnostic")
+            .notice("phase=\(phase, privacy: .public) pid=\(ProcessInfo.processInfo.processIdentifier, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public) year=\(calendar.component(.year, from: date), privacy: .public) month=\(calendar.component(.month, from: date), privacy: .public)")
+        #endif
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack {
                 Button {
                     if let previous = calendar.date(byAdding: .month, value: -1, to: displayedMonth) {
+                        traceMonth("previous-before", date: displayedMonth)
                         withAnimation(Motion.anim(.snappy)) { displayedMonth = previous }
+                        traceMonth("previous-after", date: displayedMonth)
                     }
                 } label: {
                     Image(systemName: "chevron.left").frame(width: 44, height: 44)
@@ -214,6 +226,7 @@ private struct CookingDotGrid: View {
             }
         }
         .onChange(of: displayedMonth) { _, month in
+            traceMonth("month-on-change", date: month)
             if let selectedDate, !calendar.isDate(selectedDate, equalTo: month, toGranularity: .month) {
                 self.selectedDate = nil
             }

@@ -8,9 +8,10 @@ import WidgetKit
 @Observable
 @MainActor
 final class WatchStore: NSObject {
-    var session: WatchBridgePayload.Session?
-    var recipes: [WatchRecipe] = []
-    var shopping: [WatchShoppingItem] = []
+    private(set) var session: WatchBridgePayload.Session?
+    private var content: WatchOwnedContent
+    var recipes: [WatchRecipe] { content.recipes }
+    var shopping: [WatchShoppingItem] { content.shopping }
     var phoneCook: [WatchBridgePayload.CookMirror] = []
     var status: String?
     var loading = false
@@ -19,35 +20,43 @@ final class WatchStore: NSObject {
     private let base: URL? = (Bundle.main.object(forInfoDictionaryKey: "AteSupabaseURL") as? String).flatMap(URL.init(string:))
     private let key = (Bundle.main.object(forInfoDictionaryKey: "AteSupabasePublishableKey") as? String) ?? ""
     private let cacheURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("watch-cache.json")
-    private struct Cache: Codable { var recipes: [WatchRecipe]; var shopping: [WatchShoppingItem] }
 
     /// Writer seam (#245, lane 3): production watch wiring injects the real boundary
     /// before ordinary use; `.legacy` preserves today's behavior exactly.
-    @ObservationIgnored var writerBoundary: WatchWriterBoundary = .legacy
+    @ObservationIgnored var writerBoundary = WatchWriterBoundary(perform: { try $0() })
 
     override init() {
+        let saved = UserDefaults.standard.data(forKey: "ate.watch.session")
+            .flatMap { try? JSONDecoder().decode(WatchBridgePayload.Session.self, from: $0) }
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("watch-cache.json")
+        session = saved
+        content = WatchOwnedContent(session: saved, cacheURL: url)
         super.init()
-        if let d = UserDefaults.standard.data(forKey: "ate.watch.session") { session = try? JSONDecoder().decode(WatchBridgePayload.Session.self, from: d) }
-        if let d = try? Data(contentsOf: cacheURL), let c = try? JSONDecoder().decode(Cache.self, from: d) { recipes = c.recipes; shopping = c.shopping }
         if WCSession.isSupported() { WCSession.default.delegate = self; WCSession.default.activate() }
     }
 
     var signedIn: Bool { session != nil }
 
     @discardableResult
-    private func setSession(_ s: WatchBridgePayload.Session?) -> Bool {
-        (try? writerBoundary.withEffect {
-            // A session change invalidates every in-flight network result (epoch fence).
-            writerBoundary.invalidateEpoch()
-            session = s
-            UserDefaults.standard.set(s.flatMap { try? JSONEncoder().encode($0) }, forKey: "ate.watch.session")
+    private func setSession(_ next: WatchBridgePayload.Session?) -> Bool {
+        do {
+            try writerBoundary.withEffect {
+                writerBoundary.invalidateEpoch()
+                // Clear/quarantine before changing the visible identity. A disk
+                // error leaves BOTH content and public identity signed out.
+                session = nil; phoneCook = []; pendingEmail = nil
+                do { try content.transition(to: next, cacheURL: cacheURL) }
+                catch { try? content.transition(to: nil, cacheURL: cacheURL); throw error }
+                let bytes = try next.map { try JSONEncoder().encode($0) }
+                UserDefaults.standard.set(bytes, forKey: "ate.watch.session")
+                guard UserDefaults.standard.data(forKey: "ate.watch.session") == bytes else {
+                    try? content.transition(to: nil, cacheURL: cacheURL)
+                    throw WatchOwnedContent.Failure.unavailable
+                }
+                session = next
+            }
             return true
-        }) == true
-    }
-    private func saveCache() {
-        try? writerBoundary.withEffect {
-            if let d = try? JSONEncoder().encode(Cache(recipes: recipes, shopping: shopping)) { try? d.write(to: cacheURL, options: .atomic) }
-        }
+        } catch { status = "Couldn't verify saved account data. Sign in again."; return false }
     }
 
     // MARK: HTTP
@@ -92,22 +101,23 @@ final class WatchStore: NSObject {
             // Epoch re-check after the network await: a sign-out during verification
             // must not be undone by the stale reply.
             guard (try? writerBoundary.validateEpoch(epoch)) != nil else { return }
-            setSession(s); pendingEmail = nil; status = nil
+            guard setSession(s) else { return }; pendingEmail = nil; status = nil
             await refresh()
         } catch { status = error.localizedDescription }
     }
     func signOut() {
-        try? writerBoundary.withEffect {
-            setSession(nil); recipes = []; shopping = []; saveCache()
-        }
+        _ = setSession(nil)
     }
 
     private func validToken() async -> String? {
         guard var s = session, let base else { return nil }
         if WatchAuthRequests.needsRefresh(expiresAt: s.expiresAt) {
             let epoch = writerBoundary.captureEpoch()
-            guard let d = try? await send(WatchAuthRequests.refreshURL(base: base), body: ["refresh_token": s.refreshToken]),
-                  let n = parseSession(d), n.userID == s.userID else { status = "Session expired - sign in again."; return nil }
+            let data = try? await send(WatchAuthRequests.refreshURL(base: base), body: ["refresh_token": s.refreshToken])
+            guard session == s, (try? writerBoundary.validateEpoch(epoch)) != nil else { return nil }
+            guard let data, let n = parseSession(data), n.userID == s.userID else {
+                status = "Session expired - sign in again."; return nil
+            }
             // Epoch re-check after the network await: only the current session may be written.
             guard (try? writerBoundary.validateEpoch(epoch)) != nil else { return nil }
             guard setSession(n) else { status = "Couldn't update your sign-in. Try again."; return nil }
@@ -120,46 +130,79 @@ final class WatchStore: NSObject {
     func refresh() async {
         guard let base else { return }
         loading = true; defer { loading = false }
+        var responseSession = session
         do {
             try await writerBoundary.publishAfterToken(token: { await validToken() }, isCurrentToken: { session?.accessToken == $0 }, fetch: { token in
-                let d = try await send(WatchAuthRequests.rowsURL(base: base), method: "GET", body: nil, bearer: token)
-                return WatchRows.decode(try JSONDecoder().decode([WatchRow].self, from: d))
-            }, publish: { out in
-                recipes = out.recipes; shopping = out.shopping; saveCache(); status = nil
+                let original = session
+                responseSession = original
+                let d = try await send(base.appendingPathComponent("rest/v1/rpc/account_data_snapshot"), body: [:], bearer: token)
+                guard session == original else { throw WatchWriterBoundary.Failure.staleEpoch }
+                guard let owner = original?.userID else { throw WatchWriterBoundary.Failure.staleEpoch }
+                let snapshot = try WatchAccountSnapshot.decode(d, ownerID: owner)
+                return (snapshot, original)
+            }, publish: { result in
+                guard let expected = result.1, session == expected else { throw WatchWriterBoundary.Failure.staleEpoch }
+                try content.publish(result.0, session: expected, cacheURL: cacheURL)
+                status = nil
             })
         } catch WatchWriterBoundary.Failure.staleEpoch {
             // Dropped stale result: the current session's refresh owns the state.
         } catch WatchWriterBoundary.Failure.effectNotPerformed, WatchWriterBoundary.Failure.repeatedEffect {
             // A boundary defect is not a network failure: never claim "offline".
+            guard session == responseSession else { return }
             status = "Couldn't refresh your recipes. Try again."
-        } catch { status = "Offline — showing saved recipes." }
+        } catch {
+            guard session == responseSession else { return }
+            status = content.recipes.isEmpty && content.shopping.isEmpty
+                ? "Offline. No verified recipes are saved for this account."
+                : "Offline. Showing this account's saved recipes."
+        }
     }
 
     func toggle(_ item: WatchShoppingItem) async {
-        let (n, row) = WatchRows.toggled(item, nowMs: Int64(Date().timeIntervalSince1970 * 1000))
-        try? writerBoundary.withEffect {
-            if let i = shopping.firstIndex(where: { $0.id == item.id }) { shopping[i] = n }
-            saveCache()
-        }
+        guard let base, let originalSession = session else { return }
+        let capture: WatchOwnedContent.Toggle
+        do {
+            capture = try writerBoundary.withEffect {
+                try content.prepareToggle(item, session: originalSession,
+                    nowMs: Int64(Date().timeIntervalSince1970 * 1000), cacheURL: cacheURL)
+            }
+        } catch { status = "Shopping changed. Refresh before trying again."; return }
         WKInterfaceDevice.current().play(.click)
-        guard let base, let s = session, let token = await validToken() else { return }
+        guard let token = await validToken() else { return }
         let epoch = writerBoundary.captureEpoch()
-        let body: [String: Any] = ["user_id": s.userID, "kind": "shopping", "id": row.id,
-                                   "data": (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(row.data))) ?? NSNull(),
-                                   "updated_at": row.updated_at, "deleted": false]
-        var c = URLComponents(url: base.appendingPathComponent("rest/v1/user_recipes"), resolvingAgainstBaseURL: false)!
-        c.queryItems = [URLQueryItem(name: "on_conflict", value: "user_id,kind,id")]
-        _ = try? await send(c.url!, body: [body], bearer: token, prefer: "resolution=merge-duplicates,return=minimal")
-        // Epoch re-check after the network await: the remote write already happened and
-        // is never rolled back, but a session change mid-flight leaves the optimistic
-        // local state suspect - reconcile it to the server instead of keeping it.
-        if (try? writerBoundary.validateEpoch(epoch)) == nil { await refresh() }
+        do {
+            try content.validate(capture, session: session)
+            guard token == capture.session.accessToken else { throw WatchWriterBoundary.Failure.staleEpoch }
+            let row = capture.row
+            let dataObject = try JSONSerialization.jsonObject(with: JSONEncoder().encode(row.data ?? .null))
+            let body: [String: Any] = ["p_caller_generation": capture.generation, "p_kind": "shopping", "p_id": row.id,
+                "p_data": dataObject, "p_updated_at": row.updated_at, "p_deleted": false]
+            _ = try await send(base.appendingPathComponent("rest/v1/rpc/put_user_recipe"), body: body, bearer: token)
+            try writerBoundary.validateEpoch(epoch)
+            try content.validate(capture, session: session)
+        } catch {
+            // An old request must never invalidate/publish status into a new owner.
+            guard session == capture.session else {
+                // Token refresh is permitted to fetch NEW rows, never to retry
+                // the old item under its new session/generation.
+                if session?.userID == capture.session.userID { await refresh() }
+                return
+            }
+            content.invalidate(capture)
+            status = "Shopping update was not confirmed. Refreshing your account."
+            await refresh()
+        }
     }
 
     fileprivate func apply(_ p: WatchBridgePayload) {
         try? writerBoundary.withEffect {
-            if p.signedOut { signOut() }
-            if let s = p.session, s != session { setSession(s); Task { await refresh() } }
+            if p.signedOut { signOut(); return }
+            if let s = p.session, s != session {
+                guard setSession(s) else { return }
+                Task { await refresh() }
+            }
+            guard session != nil else { return }
             phoneCook = p.cook
         }
     }

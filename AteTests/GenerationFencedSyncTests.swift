@@ -68,7 +68,7 @@ final class GenerationFencedSyncTests: XCTestCase {
         let adapter = make { request in
             let body = try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any]
             generations.append((body["p_caller_generation"] as! NSNumber).int64Value)
-            if generations.count == 2 { return self.response(#"{"code":"40001"}"#, status: 409) }
+            if generations.count == 2 { return self.response(#"{"code":"PT409"}"#, status: 409) }
             return self.response("null")
         }
         do { try await adapter.push([row("a"), row("b"), row("c")], capture: capture(7)); XCTFail("partial batch accepted") }

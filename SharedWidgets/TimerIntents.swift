@@ -21,36 +21,42 @@ enum IntentRelay {
 enum SharedTimerOps {
     /// The whole load/apply/save runs inside the writer boundary, so a timer
     /// command from a widget, control or Siri can never interleave with the app's
-    /// own timer writes. Notification rescheduling and the widget reload are hints
-    /// computed from the committed before/after and run after the boundary.
+    /// own timer writes. A durable nonpersonal OS-submission token is installed
+    /// under that same effect, before releasing the flock. Reset/auth rotation
+    /// refuse until all awaited notification adds finish and the token is removed.
+    /// No flock crosses a suspension.
     static func run(_ cmd: TimerMath.Command, id: String,
-                    boundary: SharedWriterBoundary = .current) {
+                    boundary: SharedWriterBoundary = .current) async {
         if let r = IntentRelay.timer { r(cmd, id); return }
-        guard let pair = try? boundary.withEffect({ () -> (before: [TimerSnapshot], after: [TimerSnapshot]) in
+        guard let pair = try? boundary.withEffect({ () -> (before: [TimerSnapshot], after: [TimerSnapshot], submission: SharedNotificationSubmission.Token) in
+            let submission = try SharedNotificationSubmission.begin(directory: SharedWriterGateComposition.controlDirectory())
             let before = TimerSnapshot.load()
             let after = TimerMath.apply(cmd, id: id, to: before)
             TimerSnapshot.save(after, boundary: boundary)
-            return (before, after)
+            return (before, after, submission)
         }) else { return } // boundary refused: leave state, notifications and UI unchanged
-        reschedule(before: pair.before, after: pair.after)
+        await reschedule(before: pair.before, after: pair.after)
+        try? pair.submission.finish()
         WidgetKinds.reload([WidgetKinds.timers])
     }
 
-    static func kitchenToggle(boundary: SharedWriterBoundary = .current) -> String {
+    static func kitchenToggle(boundary: SharedWriterBoundary = .current) async -> String {
         if let r = IntentRelay.kitchenToggle { return r() }
-        guard let result = try? boundary.withEffect({ () -> (before: [TimerSnapshot], after: [TimerSnapshot], action: String) in
+        guard let result = try? boundary.withEffect({ () -> (before: [TimerSnapshot], after: [TimerSnapshot], action: String, submission: SharedNotificationSubmission.Token) in
+            let submission = try SharedNotificationSubmission.begin(directory: SharedWriterGateComposition.controlDirectory())
             let before = TimerSnapshot.load()
             let res = TimerMath.kitchenToggle(before)
             TimerSnapshot.save(res.list, boundary: boundary)
-            return (before, res.list, res.action)
+            return (before, res.list, res.action, submission)
         }) else { return "unavailable" } // boundary refused: nothing changed
-        reschedule(before: result.before, after: result.after)
+        await reschedule(before: result.before, after: result.after)
+        try? result.submission.finish()
         WidgetKinds.reload([WidgetKinds.timers])
         return result.action
     }
 
     /// Keeps the "timer done" notifications right when the app isn't running (same ids as TimerAlerts).
-    static func reschedule(before: [TimerSnapshot], after: [TimerSnapshot]) {
+    static func reschedule(before: [TimerSnapshot], after: [TimerSnapshot]) async {
         let c = UNUserNotificationCenter.current()
         let ids = Set(before.map(TimerMath.id)).union(after.map(TimerMath.id))
         c.removePendingNotificationRequests(withIdentifiers: ids.map { "ate.timer." + $0 })
@@ -62,7 +68,7 @@ enum SharedTimerOps {
             content.sound = .default
             content.interruptionLevel = .timeSensitive
             let trig = UNTimeIntervalNotificationTrigger(timeInterval: max(1, end.timeIntervalSinceNow), repeats: false)
-            c.add(UNNotificationRequest(identifier: "ate.timer." + TimerMath.id(t), content: content, trigger: trig))
+            try? await c.add(UNNotificationRequest(identifier: "ate.timer." + TimerMath.id(t), content: content, trigger: trig))
         }
     }
 }
@@ -76,7 +82,7 @@ struct ToggleTimerIntent: LiveActivityIntent {
     @Parameter(title: "Timer") var timerID: String
     init() {}
     init(timerID: String) { self.timerID = timerID }
-    @MainActor func perform() async throws -> some IntentResult { SharedTimerOps.run(.toggle, id: timerID); return .result() }
+    @MainActor func perform() async throws -> some IntentResult { await SharedTimerOps.run(.toggle, id: timerID); return .result() }
 }
 
 struct StopTimerIntent: LiveActivityIntent {
@@ -85,7 +91,7 @@ struct StopTimerIntent: LiveActivityIntent {
     @Parameter(title: "Timer") var timerID: String
     init() {}
     init(timerID: String) { self.timerID = timerID }
-    @MainActor func perform() async throws -> some IntentResult { SharedTimerOps.run(.stop, id: timerID); return .result() }
+    @MainActor func perform() async throws -> some IntentResult { await SharedTimerOps.run(.stop, id: timerID); return .result() }
 }
 
 /// Siri / Shortcuts: act on the next timer.
@@ -94,7 +100,7 @@ struct PauseTimersIntent: LiveActivityIntent {
     static let description = IntentDescription("Pauses the ate timer that ends next.")
     @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let t = TimerMath.ordered(TimerSnapshot.load()).first(where: { $0.endDate != nil }) else { return .result(dialog: "No timer is running.") }
-        SharedTimerOps.run(.pause, id: TimerMath.id(t)); return .result(dialog: "Paused \(t.recipeTitle).")
+        await SharedTimerOps.run(.pause, id: TimerMath.id(t)); return .result(dialog: "Paused \(t.recipeTitle).")
     }
 }
 
@@ -103,7 +109,7 @@ struct ResumeTimersIntent: LiveActivityIntent {
     static let description = IntentDescription("Resumes the paused ate timer.")
     @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let t = TimerMath.ordered(TimerSnapshot.load()).first(where: { $0.endDate == nil }) else { return .result(dialog: "No timer is paused.") }
-        SharedTimerOps.run(.resume, id: TimerMath.id(t)); return .result(dialog: "Resumed \(t.recipeTitle).")
+        await SharedTimerOps.run(.resume, id: TimerMath.id(t)); return .result(dialog: "Resumed \(t.recipeTitle).")
     }
 }
 
@@ -112,7 +118,7 @@ struct StopTimersIntent: LiveActivityIntent {
     static let description = IntentDescription("Stops the ate timer that ends next.")
     @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let t = TimerMath.next(TimerSnapshot.load()) else { return .result(dialog: "No timers to stop.") }
-        SharedTimerOps.run(.stop, id: TimerMath.id(t)); return .result(dialog: "Stopped \(t.recipeTitle).")
+        await SharedTimerOps.run(.stop, id: TimerMath.id(t)); return .result(dialog: "Stopped \(t.recipeTitle).")
     }
 }
 
@@ -121,7 +127,7 @@ struct KitchenTimerIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Kitchen timer"
     static let description = IntentDescription("Starts a 5-minute kitchen timer, or pauses / resumes the running one.")
     @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
-        let a = SharedTimerOps.kitchenToggle()
+        let a = await SharedTimerOps.kitchenToggle()
         return .result(dialog: "Timer \(a).")
     }
 }

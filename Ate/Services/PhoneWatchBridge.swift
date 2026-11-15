@@ -15,7 +15,7 @@ final class PhoneWatchBridge: NSObject {
 
     func activate() {
         #if canImport(WatchConnectivity)
-        guard !AppConfig.isUITesting, WCSession.isSupported() else { return }
+        guard !AppConfig.isUITesting, SharedContainer.isAvailable, WCSession.isSupported() else { return }
         WCSession.default.delegate = self
         WCSession.default.activate()
         #endif
@@ -58,7 +58,7 @@ extension PhoneWatchBridge: WCSessionDelegate {
     nonisolated func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: Error?) {
         // Read-only republish of the current in-memory mirror: not a mutation, so it
         // deliberately stays outside the writer boundary (reads advance no generation).
-        Task { @MainActor in self.push() }
+        Task { @MainActor in try? self.writerBoundary.withEffect { self.push() } }
     }
     nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
     nonisolated func sessionDidDeactivate(_ session: WCSession) { session.activate() }

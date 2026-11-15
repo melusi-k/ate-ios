@@ -9,7 +9,14 @@ final class FoodJournalWriterBoundary {
     private var active = false
     private let perform: (() throws -> Void) throws -> Void
 
-    init(perform: @escaping (() throws -> Void) throws -> Void) {
+    private let captureSharedWrites: Bool
+    lazy var sharedBoundary: SharedWriterBoundary = .adapting { [weak self] work in
+        guard let self else { throw SharedWriterBoundary.Failure.ownerContextRequired }
+        try self.withEffect(work)
+    }
+
+    init(captureSharedWrites: Bool = false, perform: @escaping (() throws -> Void) throws -> Void) {
+        self.captureSharedWrites = captureSharedWrites
         self.perform = perform
     }
 
@@ -28,7 +35,9 @@ final class FoodJournalWriterBoundary {
             performed = true
             active = true
             defer { active = false }
-            result = .some(try work())
+            if captureSharedWrites {
+                result = .some(try SharedWriterBoundary.withCapturedOwner(sharedBoundary, work))
+            } else { result = .some(try work()) }
         }
         guard performed, let result else { throw Failure.effectNotPerformed }
         return result

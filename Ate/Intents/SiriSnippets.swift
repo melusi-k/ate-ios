@@ -105,7 +105,7 @@ enum SnippetCovers {
         await withTaskGroup(of: Void.self) { g in
             g.addTask { @MainActor in
                 for r in missing {
-                    if let res = await CoverStore.shared.resolve(r, allowGenerate: false) {
+                    if let res = await store.coverStore.resolve(r, allowGenerate: false) {
                         store.setCover(r.id, file: res.file, imageURL: res.imageURL)
                     }
                 }

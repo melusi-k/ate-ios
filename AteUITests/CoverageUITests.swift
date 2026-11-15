@@ -281,9 +281,26 @@ final class CoverageUITests: XCTestCase {
         shot("collection-filtered-library")
         tab("Settings")
         let settings = settingsContent()
-        let export = settings.buttons["settings.export"]; scrollTo(export); wait(export, 3)
-        XCTAssertTrue(settings.buttons["settings.import"].exists)
-        XCTAssertTrue(settings.buttons["settings.replayOnboarding"].exists)
+        let export = settings.buttons["settings.export"]
+        // Form rows are lazy: revealing Export does not prove later Tools rows
+        // have been materialized. Fulfil each control's own reachability setup.
+        for identifier in ["settings.export", "settings.import", "settings.replayOnboarding"] {
+            let control = settings.buttons[identifier]
+            scrollTo(control)
+            // Capture before assertions because continueAfterFailure is false.
+            if !control.exists || !control.isHittable {
+                shot("settings-tools-unreachable-" + identifier)
+                print("SETTINGS-TOOLS-FAILURE \(identifier) hierarchy begin")
+                let hierarchy = app.debugDescription
+                let attachment = XCTAttachment(string: hierarchy)
+                attachment.name = "settings-tools-unreachable-" + identifier + "-hierarchy"
+                attachment.lifetime = .keepAlways; add(attachment)
+                print(hierarchy)
+                print("SETTINGS-TOOLS-FAILURE \(identifier) hierarchy end")
+            }
+            wait(control, 3)
+            XCTAssertTrue(control.isHittable, "Each Tools control must be reachable after its own scroll: \(identifier)")
+        }
         shot("settings-tools")
         // Check Settings before opening Export. Keep the exact identifiers and
         // original scroll/wait budgets, querying the Form's actual Switch elements.

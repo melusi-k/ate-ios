@@ -13,15 +13,13 @@ struct CookModeView: View {
     /// not navigate before its own dismissal completes. With no host closure, no offer is shown.
     var onReflect: ((CookCompletionEvent) -> Void)? = nil
     @Environment(AppStore.self) private var store
-    @Environment(\.bottomChromeMinY) private var bottomChromeMinY
-    @State private var hostBottomY: CGFloat?
+    @Environment(\.pushedCookChromeHeight) private var pushedCookChromeHeight
     private var footerChromeReserve: CGFloat {
-        // The pushed host may keep its resume/timer accessory while hiding tabs.
-        // Measure the obscured band, not a device-specific capsule height. Modal
-        // Cook owns its whole safe area and must not reserve the underlying root.
+        // The pushed host owns a live measured resume/timer band. Modal Cook
+        // owns its whole safe area and never reserves underlying root chrome.
         guard store.cookTarget == nil, !store.isAtTabRoot,
-              let hostBottomY, let bottomChromeMinY else { return 0 }
-        return max(0, hostBottomY - bottomChromeMinY) + 8
+              pushedCookChromeHeight > 0 else { return 0 }
+        return pushedCookChromeHeight + 8
     }
     @State private var finishState = CookFinishState()
     @State private var reflectionOffer: CookCompletionEvent?
@@ -67,11 +65,6 @@ struct CookModeView: View {
                 RecipeNotFoundView(title: "Nothing to cook here", onBack: exit)
             }
         }
-        .background(GeometryReader { geometry in
-            Color.clear.preference(key: CookHostBottomYKey.self,
-                                   value: geometry.frame(in: .global).maxY)
-        })
-        .onPreferenceChange(CookHostBottomYKey.self) { hostBottomY = $0 }
         .foregroundStyle(Theme.warmForeground)
         .toolbar(.hidden, for: .navigationBar)
         // A pushed cook is full-screen work too. The tab bar otherwise overlays
@@ -459,12 +452,5 @@ struct TimerRow: View {
                 .background(Theme.card, in: Capsule()).overlay(Capsule().stroke(Theme.border))
                 .shadow(color: Theme.brown.opacity(0.15), radius: 10, y: 4)
         } else { row }
-    }
-}
-
-private struct CookHostBottomYKey: PreferenceKey {
-    static var defaultValue: CGFloat? { nil }
-    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
-        if let next = nextValue() { value = next }
     }
 }

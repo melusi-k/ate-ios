@@ -4,6 +4,7 @@ import ActivityKit
 
 @main
 struct AteWidgetsBundle: WidgetBundle {
+    init() { SharedWriterBoundary.installExtensionStartup() }
     var body: some Widget {
         CookTimerLiveActivity()
         ActiveTimersWidget()

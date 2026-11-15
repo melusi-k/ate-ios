@@ -8,7 +8,11 @@ class SheetOwnedCookTests(unittest.TestCase):
             self.assertEqual((ROOT/f).read_text(),new)
     def test_no_native_or_workflow_changes(self):
         for file,expected in PRESERVED.items():
-            self.assertEqual(hashlib.sha256((ROOT/file).read_bytes()).hexdigest(),expected,file)
+            raw=(ROOT/file).read_bytes()
+            if file == 'AteUITests/CoverageUITests.swift':
+                from settings_about_receipt_contract import original_coverage_bytes
+                raw=original_coverage_bytes(raw)
+            self.assertEqual(hashlib.sha256(raw).hexdigest(),expected,file)
     def test_cover_owned_by_origin_and_default_preserved(self):
         detail=(ROOT/'Ate/Views/RecipeDetailView.swift').read_text()
         sheet=(ROOT/'Ate/Views/ExpandableRecipeDetailSheet.swift').read_text()

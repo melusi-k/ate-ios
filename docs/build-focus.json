@@ -1,7 +1,7 @@
 {
   "title": "Journal layout, published release history and recipe draft feedback",
-  "summary": "Import review candidate: generated ingredients retain food identity and deduplicate repeated prep without guessing measures. Total/Prep/Cook labels distinguish the 17/12/5-minute example. A sear-only main method and ambiguous herb units raise review gaps; unused black pepper/water gaps remain. Save still requires editing or confirmation for low-confidence drafts. No renaming from pixels or invented steps. Existing repair feedback and Library/Settings diagnostics retained. Native tests and UI pixels unverified; this refresh only repairs pinned runtime metadata. Merge held.",
-  "source_commit": "9c8dc9e1112e2a700c57ae3d4be8f0e7773956f8",
+  "summary": "Photo-import review keeps Total/Prep/Cook labels, honest incomplete-main guidance, editable uncertain units and the Save gate. Fixes a step-quality regression: brown sugar is an ingredient descriptor, not a browning command; both action checks now share the existing normalization. Real sear/brown actions and time/doneness requirements remain active. Original native assertion preserved, regressions added. Native unit/full-gate rerun UNRUN; separate Account and Presentation failures unresolved. Merge held.",
+  "source_commit": "ca3822ccc03b4a95ce401e1ee8d1a15e8f0576dc",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -25,7 +25,7 @@
     },
     {
       "path": "Ate/Logic/GeneratedStepQuality.swift",
-      "blob": "598aa805549ad845a39be2e6a2a375447c18bc06"
+      "blob": "ab88f3fc8c3e2dca6f60f24fa926a6c6af9aa61f"
     },
     {
       "path": "Ate/Logic/IngredientFieldNormalization.swift",

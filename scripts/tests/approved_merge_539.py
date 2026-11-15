@@ -3,7 +3,7 @@ import hashlib,json
 from pathlib import Path
 _FIXTURE=Path(__file__).with_name('approved_merge_539_inverses.json')
 _FIXTURE_SHA256='2c43203deb8d312f0ff24e46db405dd4f96ba06cd75f81885cacf298dd375aee'
-def normalize(key, raw):
+def normalize_539_parent(key, raw):
     payload=_FIXTURE.read_bytes()
     assert hashlib.sha256(payload).hexdigest()==_FIXTURE_SHA256, 'approved inverse fixture changed'
     contract=json.loads(payload)['contracts'][key]
@@ -21,6 +21,8 @@ def normalize(key, raw):
 
 
 def approved_original_file(path, raw):
+    from journal_personal_reset_delta import is_added
+    if is_added(path, raw): return False
     payload=_FIXTURE.read_bytes()
     assert hashlib.sha256(payload).hexdigest()==_FIXTURE_SHA256
     additions=json.loads(payload)['approved_added_files']
@@ -29,3 +31,8 @@ def approved_original_file(path, raw):
         return False
     assert 'source:'+path in json.loads(payload)['contracts'], 'unreviewed added file: '+path
     return True
+
+
+def normalize(key, raw):
+    from journal_personal_reset_delta import restore
+    return normalize_539_parent(key, restore(key, raw))

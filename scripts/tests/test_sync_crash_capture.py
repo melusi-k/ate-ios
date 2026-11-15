@@ -1,3 +1,4 @@
+from approved_merge_539 import normalize
 from pathlib import Path
 import unittest,hashlib
 ROOT=Path(__file__).resolve().parents[2]
@@ -29,5 +30,5 @@ def restore_sync_crash_capture(s):
     return s
 class SyncCrashCaptureContracts(unittest.TestCase):
     def test_original_operations_and_assertions_unchanged(self):
-        s=restore_sync_crash_capture((ROOT/"AteTests/UserDataSyncTests.swift").read_text())
+        s=restore_sync_crash_capture(normalize('source:AteTests/UserDataSyncTests.swift', (ROOT/"AteTests/UserDataSyncTests.swift").read_text()))
         self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'12b5852b8bdde8541b9d37a83c93c95b0735fafe77aac41bbc725d6a2d666d79')

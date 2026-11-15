@@ -42,7 +42,7 @@ class JournalPersonalResetContracts(unittest.TestCase):
         self.assertLess(session.index('nextOwner != previousOwner'),session.index('try eraseJournalPersonalData()'))
         self.assertLess(session.index('try eraseJournalPersonalData()'),session.index('guard saveSessionCredentials(encoded)'))
         self.assertIn('?? journalOwnerFingerprint ?? meta.userID.map',session)
-        self.assertIn('if let nextOwner { journalOwnerFingerprint = nextOwner }',session)
+        self.assertIn('if let owner = nextOwner ?? previousOwner { journalOwnerFingerprint = owner }',session)
     def test_store_media_backups_and_drafts_are_in_inventory(self):
         source=(ROOT/'Ate/Store/AppStore+JournalPersonalReset.swift').read_text()
         for token in ['let journal = journalStore', 'inventory.journal === journal', 'inventory.defaults === defaults',

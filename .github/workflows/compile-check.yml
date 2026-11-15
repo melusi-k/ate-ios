@@ -418,6 +418,15 @@ jobs:
       - name: Retain Explore full log, failure details and console screenshot fallback
         if: ${{ matrix.suite == 'presentation-creation' && always() }}
         run: |
+          mkdir -p "$RUNNER_TEMP/explore-evidence"
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > "$RUNNER_TEMP/explore-evidence/focus-copy-utc.txt"
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> "$RUNNER_TEMP/explore-evidence/focus-container-errors.txt"); then
+            if [ -f "$data_container/Library/Caches/search-focus-diagnostic.txt" ]; then
+              cp "$data_container/Library/Caches/search-focus-diagnostic.txt" "$RUNNER_TEMP/explore-evidence/search-focus-diagnostic.txt"
+            else
+              echo 'Focus file missing; notification timing unverified.' > "$RUNNER_TEMP/explore-evidence/focus-missing.txt"
+            fi
+          fi
           python3 scripts/retain-explore-evidence.py --log explore-discovery.log \
             --result "$RUNNER_TEMP/ate-test-results/explore-discovery.xcresult" \
             --output "$RUNNER_TEMP/explore-evidence"

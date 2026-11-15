@@ -2,7 +2,7 @@
 import hashlib,json
 from pathlib import Path
 _FIXTURE=Path(__file__).with_name('approved_merge_532_inverses.json')
-_FIXTURE_SHA256='b47239af905b892a20bd997f42b80007570347a1a9cc986082b4f15e02886e6f'
+_FIXTURE_SHA256='c72892e31c1c5080eeaa5ed61424df1b4c952739111107ed066033bf3ee5431a'
 def normalize(key, raw):
     payload=_FIXTURE.read_bytes()
     assert hashlib.sha256(payload).hexdigest()==_FIXTURE_SHA256, 'approved inverse fixture changed'

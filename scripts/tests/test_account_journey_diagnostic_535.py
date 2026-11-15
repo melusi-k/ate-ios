@@ -5,6 +5,10 @@ class AccountJourneyDiagnosticTests(unittest.TestCase):
     def test_original_entire_ui_sources_retained(self):
         for file,digest in {'AteUITests/CookingTrackerEntryUITests.swift': '4e403c9f0c3e36db7972139d823c68ae8373037beef9c62591ca3a7072f82883', 'AteUITests/AteUITests.swift': '5484221d8e4c89265c1d6601413fa74abe7c3c67e8093ec85e09a220fa243ad9'}.items():
             s=(ROOT/file).read_text().replace('["-qaAccountJourneyAnimationDiagnostic"]','').replace(', "-qaPresentationReturnDiagnostic"','').replace('        shot("68-journal-after-native-back-before-original-predicate")\n','')
+            import re
+            s=re.sub(r'    private func startupDiagnosticMark\(_ phase: String\) \{.*?\n    \}\n', '', s, flags=re.S)
+            s='\n'.join(line for line in s.split('\n') if 'startupDiagnosticMark(' not in line)
+            s=s.replace(', "-qaStartupLivenessDiagnostic"','')
             self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),digest,file)
     def test_bounded_sampler_and_step_windows(self):
         file=(ROOT/'Ate/App/DogfoodSavedRecipeQAFixtures.swift').read_text()

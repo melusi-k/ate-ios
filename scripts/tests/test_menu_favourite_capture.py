@@ -28,6 +28,8 @@ class MenuFavouriteCaptureTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'633e7645d74cccfca814d02c9a3ce99874b8811bfc327718082c04ddc43a2dfa')
     def test_original_file_2_unchanged(self):
         s=(ROOT/'Ate/Store/AppStore.swift').read_text()
+        from test_auth_refresh_race import restore_auth_refresh
+        s=restore_auth_refresh(self,s,'Ate/Store/AppStore.swift')
         self.assertEqual(s.count('            #if DEBUG\n            if message == "Added to Favourites" { MenuWaitCapture.event(toast?.id == t.id ? "favourite-toast-expiring-current" : "favourite-toast-expiring-replaced") }\n            #endif\n            if toast?.id == t.id { withAnimation(Motion.anim()) { toast = nil }; toastAction = nil }'),1)
         s=s.replace('            #if DEBUG\n            if message == "Added to Favourites" { MenuWaitCapture.event(toast?.id == t.id ? "favourite-toast-expiring-current" : "favourite-toast-expiring-replaced") }\n            #endif\n            if toast?.id == t.id { withAnimation(Motion.anim()) { toast = nil }; toastAction = nil }','            if toast?.id == t.id { withAnimation(Motion.anim()) { toast = nil }; toastAction = nil }',1)
         self.assertEqual(s.count('        withAnimation(Motion.anim()) { toast = t }\n        #if DEBUG\n        if message == "Added to Favourites" { MenuWaitCapture.event("favourite-toast-assigned") }\n        #endif'),1)

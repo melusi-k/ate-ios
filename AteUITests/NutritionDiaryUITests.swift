@@ -403,7 +403,23 @@ final class NutritionDiaryUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-resetNutritionDiary", "-failDiarySaves"]
         app.launch()
+#if DEBUG
+        let receiptEnabled = app.launchArguments.contains("-UITesting")
+        func entryReceipt(_ phase: Int) {
+            guard receiptEnabled else { return }
+            print("DIARY-ENTRY phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime)")
+            let receipt = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            receipt.name = "diary-entry-phase-\(phase)"
+            receipt.lifetime = .keepAlways
+            add(receipt)
+            print("DIARY-ENTRY phase=\(phase) screenshot-return uptime=\(ProcessInfo.processInfo.systemUptime)")
+        }
+        entryReceipt(1)
+#endif
         openDiary(app)
+#if DEBUG
+        entryReceipt(2)
+#endif
         openLogForm(app)
         typeAfterKeyboard(app.textFields["nutritionDiary.foodName"], in: app, surface: .logFood, "My lunch")
         let save = app.navigationBars["Log food"].buttons["nutritionDiary.save"]
@@ -423,7 +439,13 @@ final class NutritionDiaryUITests: XCTestCase {
         let relaunched = XCUIApplication()
         relaunched.launchArguments = ["-UITesting"]
         relaunched.launch()
+#if DEBUG
+        entryReceipt(3)
+#endif
         openDiary(relaunched)
+#if DEBUG
+        entryReceipt(4)
+#endif
         XCTAssertTrue(diaryRows(relaunched, containing: "My lunch").allElementsBoundByIndex.isEmpty,
                       "a failed save must not persist the entry")
         XCTAssertTrue(scrollToHittable(relaunched.staticTexts["Nothing logged"], in: relaunched, surface: .diary), "Failed save should leave the relaunched diary empty")

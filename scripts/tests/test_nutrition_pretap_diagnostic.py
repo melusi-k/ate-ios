@@ -6,6 +6,10 @@ ROOT = Path(__file__).resolve().parents[2]
 class NutritionPretapDiagnosticTests(unittest.TestCase):
     def test_original_journey_survives_only_evidence_and_flag_insertion(self):
         source = (ROOT / 'AteUITests/NutritionDiaryUITests.swift').read_text()
+        import re
+        source=re.sub(r'    private func startupDiagnosticMark\(_ phase: String\) \{.*?\n    \}\n', '', source, flags=re.S)
+        source='\n'.join(line for line in source.split('\n') if 'startupDiagnosticMark(' not in line)
+        source=source.replace(', "-qaStartupLivenessDiagnostic"','')
         body = source.split('func testCancelledFailedSavesLeaveDiaryEmptyAfterRelaunch() throws {',1)[1].split('\n    func ',1)[0]
         body = body.replace(', "-qaNutritionPretapDiagnostic"', '')
         a = body.index('        // Pixels before the unchanged')

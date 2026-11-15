@@ -657,6 +657,16 @@ jobs:
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
+          mkdir -p coverage-launch-lifecycle
+          date -u '+%Y-%m-%d %H:%M:%S' > coverage-launch-lifecycle/start-utc.txt
+          python3 scripts/capture-cookplan-process-lifecycle.py --sim-id "$SIM_ID" --output coverage-launch-lifecycle > coverage-launch-lifecycle/collector-status.txt 2>&1 &
+          coverage_lifecycle_pid=$!
+          stop_coverage_lifecycle() {
+            kill "$coverage_lifecycle_pid" 2>/dev/null || true
+            wait "$coverage_lifecycle_pid" || true
+          }
+          trap stop_coverage_lifecycle EXIT
+          coverage_status=0
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/CookFinishAccessoryUITests \
             -only-testing:AteUITests/CookSharedStepUITests \
@@ -664,7 +674,15 @@ jobs:
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-finish-accessory.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
-            CODE_SIGNING_ALLOWED=NO > cook-finish-accessory.log 2>&1 || { tail -120 cook-finish-accessory.log; exit 1; }
+            CODE_SIGNING_ALLOWED=NO > cook-finish-accessory.log 2>&1 || coverage_status=$?
+          date -u '+%Y-%m-%d %H:%M:%S' > coverage-launch-lifecycle/end-utc.txt
+          stop_coverage_lifecycle
+          trap - EXIT
+          python3 scripts/capture-coverage-launch-window.py --sim-id "$SIM_ID" --output coverage-launch-lifecycle || echo 'Coverage launch log collector failed; qualification status unchanged.'
+          # Metadata and test markers survive an artifact DNS failure in this job log.
+          tail -5 coverage-launch-lifecycle/process-metadata.jsonl || true
+          grep -F 'COVERAGE-LAUNCH' cook-finish-accessory.log || true
+          if [ "$coverage_status" -ne 0 ]; then tail -120 cook-finish-accessory.log; exit 1; fi
           for test in testPushedFinishAboveResumeAccessoryPortrait testPushedFinishAboveResumeAccessoryLandscape; do
             grep -qF "CookFinishAccessoryUITests $test]' passed" cook-finish-accessory.log || { echo "::error::Missing named Cook Finish pass: $test"; exit 1; }
           done
@@ -795,6 +813,7 @@ jobs:
           path: |
             tracker-query-window
             cook-completion-window
+            coverage-launch-lifecycle
             *.log
             ${{ runner.temp }}/ate-test-results/draft-quality-repair-attachments
             ${{ runner.temp }}/ate-test-results/insights-evidence-navigation-attachments

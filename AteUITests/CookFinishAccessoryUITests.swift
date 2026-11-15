@@ -26,7 +26,13 @@ final class CookFinishAccessoryUITests: XCTestCase {
         let clear = NSPredicate { _, _ in
             finish.exists && finish.isHittable && finish.frame.height > 0 && finish.frame.maxY <= mini.frame.minY
         }
+        #if DEBUG
+        if !landscape { ReturnBoundaryReceipt.capture(app, phase: "cook-portrait-before-clear-query") }
+        #endif
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: clear, object: finish)], timeout: 10), .completed)
+        #if DEBUG
+        if !landscape { ReturnBoundaryReceipt.capture(app, phase: "cook-portrait-after-clear-query") }
+        #endif
         XCTAssertEqual(app.buttons.matching(identifier: "cookFinish").count, 1)
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = landscape ? "cook-finish-clear-of-resume-landscape" : "cook-finish-clear-of-resume-portrait"

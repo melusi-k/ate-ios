@@ -23,8 +23,9 @@ enum RecipeQuality {
     /// Top guesses for the question, model's own name first (pre-filled).
     static func guesses(_ c: RecipeCard) -> [String] {
         var seen = Set<String>()
-        return ([c.title] + (c.aiAlternatives ?? [])).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty && $0 != "Unknown dish" && seen.insert($0.lowercased()).inserted }.prefix(5).map { $0 }
+        let guesses = ([c.title] + (c.aiAlternatives ?? [])).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && $0 != "Unknown dish" && seen.insert($0.lowercased()).inserted }
+        return c.source == .photoGuess ? PhotoGuess.questionSuggestions(guesses) : Array(guesses.prefix(5))
     }
 
     static let ovenWords = ["bake", "roast", "oven", "grill in the oven", "broil"]

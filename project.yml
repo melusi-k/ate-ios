@@ -52,6 +52,8 @@ targets:
       - path: SharedWidgets
     resources:
       - path: Ate/Resources/BuildNotes.md
+      - path: Ate/Resources/ProductUpdates
+        type: folder
     dependencies:
       - target: AteWidgets
       - target: AteShare

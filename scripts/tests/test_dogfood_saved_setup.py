@@ -31,7 +31,7 @@ class DogfoodSavedSetupTests(unittest.TestCase):
                          'app.buttons["Favourite"].firstMatch.tap()', 'z.press(forDuration: 1.2)',
                          'XCTAssertTrue(app.buttons["Share"].exists)', 'XCTAssertTrue(app.buttons["Add to shopping list"].exists)']:
             self.assertIn(expected, menus)
-        for expected in ['-qaSavedRecipesForReorder', 'pick("sortMenu", "My order")',
+        for expected in ['-qaSavedRecipesForDogfoodReorder', 'pick("sortMenu", "My order")',
                          'XCTAssertLessThan(second.frame.minY, first.frame.minY', 'first.press(forDuration: 1.2)',
                          'app.buttons["Move up"].tap()', 'XCTAssertLessThan(text("First dish").frame.minY, text("Second dish").frame.minY',
                          'thenDragTo: text("Second dish")']:

@@ -1,5 +1,8 @@
 import SwiftUI
 import PhotosUI
+#if DEBUG
+import OSLog
+#endif
 
 struct AddRecipeSheet: View {
     enum Mode: String, CaseIterable { case link = "Link", image = "Image", prompt = "Prompt"
@@ -45,6 +48,11 @@ struct AddRecipeSheet: View {
     @State private var saving = false
     @State private var live: RecipeStreamPreview?
     @State private var confirmedDraft = false
+    @State private var repairError: String?
+    @State private var repairAttempt = DraftRepairAttempt()
+    @State private var generationAttempt = DraftGenerationAttempt()
+    @State private var photoInputAttempt = DraftInputAttempt()
+    @State private var coverInputAttempt = DraftInputAttempt()
     /// Name the user confirmed in "What dish is this?" (C-AI-01); the regenerated card is not asked about again.
     @State private var confirmedDish: String?
     @Environment(\.dismiss) private var dismiss
@@ -66,6 +74,9 @@ struct AddRecipeSheet: View {
         .interactiveDismissDisabled(hasUnsaved)
         // Proper nav bar: Cancel sits in a solid bar instead of floating over the cover while scrolling.
         .navigationTitle(draft == nil ? "Add recipe" : "Review your card")
+        #if DEBUG
+        .task { await AddTitleQueryDiagnostic.observeIfRequested() }
+        #endif
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.visible, for: .navigationBar)
         .presentationDragIndicator(.visible)
@@ -73,12 +84,23 @@ struct AddRecipeSheet: View {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { if hasUnsaved { confirmDiscard = true } else { dismiss() } }.accessibilityIdentifier("addCancel")
                     .confirmationDialog("Discard this recipe?", isPresented: $confirmDiscard, titleVisibility: .visible) {
-                        Button("Discard", role: .destructive) { DraftStore.shared.clear(); dismiss() }
+                        Button("Discard", role: .destructive) {
+                            invalidateRepair()
+                            invalidateGeneration()
+                            invalidateInputLoads()
+                            DraftStore.shared.clear()
+                            dismiss()
+                        }
                         Button("Keep editing", role: .cancel) {}
                     }
             }
         }
-        .onDisappear { if !loading && !hasUnsaved { DraftStore.shared.clear() } }
+        .onDisappear {
+            invalidateRepair()
+            invalidateGeneration()
+            invalidateInputLoads()
+            if !loading && !hasUnsaved { DraftStore.shared.clear() }
+        }
         .task {
             OnDeviceBackend.prewarm()
             if let m = initialMode, draft == nil {
@@ -94,19 +116,30 @@ struct AddRecipeSheet: View {
             if let d = SharedInbox.imageData(it) { mode = .image; imageData = d }
             else if let u = it.url { mode = .link; link = u }
             else if let t = it.text { mode = .prompt; prompt = t }
-            await generate()
+            startGeneration()
         }
         .fullScreenCover(isPresented: $showCamera) {
-            CameraPicker { img in imageData = img.jpegData(compressionQuality: 0.85) }.ignoresSafeArea()
+            CameraPicker { img in
+                photoInputAttempt.invalidate()
+                imageData = img.jpegData(compressionQuality: 0.85)
+            }.ignoresSafeArea()
         }
         .fullScreenCover(isPresented: $showCoverCamera) {
             CameraPicker { img in setUserCover(img) }.ignoresSafeArea()
         }
         .onChange(of: coverItem) { _, item in
-            Task { if let d = try? await item?.loadTransferable(type: Data.self), let img = UIImage(data: d) { setUserCover(img) } }
+            let recipeID = draft?.id
+            coverInputAttempt.start(load: { try? await item?.loadTransferable(type: Data.self) }) { data in
+                guard let recipeID, draft?.id == recipeID, !saving,
+                      let data, let image = UIImage(data: data) else { return }
+                setUserCover(image)
+            }
         }
         .onChange(of: photoItem) { _, item in
-            Task { imageData = try? await item?.loadTransferable(type: Data.self) }
+            photoInputAttempt.start(load: { try? await item?.loadTransferable(type: Data.self) }) { data in
+                guard !saving else { return }
+                imageData = data
+            }
         }
     }
 
@@ -133,7 +166,7 @@ struct AddRecipeSheet: View {
                     Image(systemName: "photo.badge.plus").font(.title).foregroundStyle(Theme.primary)
                     Text(imageData == nil ? "Upload a screenshot or a food photo" : "Image ready — tap to replace")
                         .font(AteFont.body(14, .medium))
-                    Text("Screenshots of a recipe are read word for word. A photo of a dish gets a guessed recipe you can edit.")
+                    Text("Recipe screenshots use detected text, not an AI rewrite. Check OCR wording against the original. Clear Ingredients and numbered Method sections are required. A dish photo gets a guessed recipe you can edit.")
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity).padding(32)
@@ -191,11 +224,11 @@ struct AddRecipeSheet: View {
                 Label(q.errorDescription ?? "", systemImage: "questionmark.circle").font(AteFont.body(14))
                     .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("photoDishQuestion")
                 Text("What dish is this?").font(AteFont.body(14, .semibold))
-                TextField(q.spread ? "e.g. mogodu, ujeqe, morogo" : "e.g. mogodu", text: $dishAnswer)
+                TextField(q.spread ? "e.g. mogodu, ujeqe, morogo" : (mode == .image ? "e.g. fish with butter sauce and fennel salad" : "e.g. mogodu"), text: $dishAnswer)
                     .textFieldStyle(.roundedBorder).accessibilityIdentifier("photoDishField")
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
-                        ForEach(q.suggestions, id: \.self) { s in
+                        ForEach(q.spread || mode != .image ? q.suggestions : PhotoGuess.questionSuggestions(q.suggestions), id: \.self) { s in
                             let on = spreadPicks.contains(s)
                             Button(s) {
                                 if q.spread { if on { spreadPicks.remove(s) } else { spreadPicks.insert(s) } } else { dishAnswer = s }
@@ -205,6 +238,10 @@ struct AddRecipeSheet: View {
                         }
                     }
                 }
+                if !q.spread && mode == .image {
+                    Text("These are choices, not confirmed identifications. You can name the dish and any sauce, garnish or side you want included.")
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                }
                 if q.spread {
                     Text("Pick one dish, or several to make a card for each (the first opens for review, the rest are saved).")
                         .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
@@ -213,12 +250,12 @@ struct AddRecipeSheet: View {
             .padding(14).frame(maxWidth: .infinity, alignment: .leading)
             .sheetCard(Theme.secondary)
         } else if let error {
-            ErrorRetryCard(message: error, retryID: "generateRetry") { Task { await generate() } }
+            ErrorRetryCard(message: error, retryID: "generateRetry") { startGeneration() }
         }
 
         if loading, let p = live { StreamPreviewCard(preview: p) }
 
-        Button { Task { await generate() } } label: {
+        Button { startGeneration() } label: {
             HStack { if loading { ProgressView().tint(Theme.primaryForeground); Text("Cooking up your card…") }
                      else { Image(systemName: "sparkles"); Text(mode == .link ? "Import recipe" : mode == .image ? "Read image" : "Generate recipe") } }
         }
@@ -236,18 +273,34 @@ struct AddRecipeSheet: View {
         }
         if let d = draft, RecipeQuality.needsInput(d), !didEdit, !confirmedDraft {
             VStack(alignment: .leading, spacing: 6) {
+                // An identifier on the enclosing VStack propagates to its Buttons
+                // on iOS 27, hiding their distinct repair/confirm identifiers.
                 Label("Draft, needs your input", systemImage: "exclamationmark.bubble").font(AteFont.body(14, .semibold))
+                    .accessibilityIdentifier("draftNeedsInput")
                 if (d.aiConfidence ?? 1) < RecipeQuality.threshold {
                     Text("Ate is only \(d.aiConfidence ?? 0, format: .percent.precision(.fractionLength(0))) sure this is \(d.title).").font(AteFont.body(13))
                 }
                 ForEach(RecipeQuality.issues(d), id: \.self) { Text("• " + $0).font(AteFont.body(13)) }
+                if RecipeQuality.isGenerated(d), !RecipeQuality.shortfall(d).isEmpty {
+                    Button(loading ? "Repairing draft…" : "Repair these gaps") {
+                        repairDraft()
+                    }
+                    .buttonStyle(.ate(.secondary, height: 44))
+                    .disabled(loading || saving)
+                    .accessibilityIdentifier("repairDraftQuality")
+                    Text("Repairs this draft using the listed gaps. It does not choose a different dish.")
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                }
+                if let repairError {
+                    Text(repairError).font(AteFont.body(13)).foregroundStyle(Theme.destructive)
+                        .accessibilityIdentifier("repairDraftError")
+                }
                 Text("Edit the card, or confirm it's right, before saving.").font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
                 Button("It's right, let me save") { confirmedDraft = true }.buttonStyle(.ate(.secondary, height: 36))
                     .accessibilityIdentifier("confirmDraft")
             }
             .padding(12).frame(maxWidth: .infinity, alignment: .leading)
             .sheetCard(Theme.warm.opacity(0.5))
-            .accessibilityIdentifier("draftNeedsInput")
         }
         if let n = draft?.aiNote { Text(n).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aiNote") }
         Text("Fix anything the AI got wrong, then save it to your library.")
@@ -261,6 +314,7 @@ struct AddRecipeSheet: View {
         HStack(spacing: 8) {
             Button(saving ? "Saving…" : "Save recipe") {
                 guard !saving, let d = draft else { return }
+                invalidateInputLoads()
                 saving = true                       // P0: one save per draft; double taps are ignored
                 DraftStore.shared.clear()           // the stored draft must not be restored (and saved again) later
                 BetaQA.shared.pass("A-EDIT-01", note: (didEdit ? "Edited and saved" : "Reviewed and saved") + " “\(d.title)”")
@@ -269,9 +323,9 @@ struct AddRecipeSheet: View {
                 DiagnosticHistory.shared.record(.recipeSaved)
             }
                 .buttonStyle(.ate(.primary, full: true)).accessibilityIdentifier("saveRecipe")
-                .disabled(saving || (draft.map { RecipeQuality.needsInput($0) } ?? false) && !didEdit && !confirmedDraft)
+                .disabled(saving || loading || (draft.map { RecipeQuality.needsInput($0) } ?? false) && !didEdit && !confirmedDraft)
             Button(editing ? "Preview" : "Edit") { editing.toggle(); didEdit = true }.buttonStyle(.ate(.secondary))
-            Button { Task { await generate() } } label: {
+            Button { startGeneration() } label: {
                 Image(systemName: "arrow.clockwise").rotationEffect(.degrees(loading ? 360 : 0))
                     .animation(loading ? Motion.anim(.linear(duration: 1).repeatForever(autoreverses: false)) : Motion.anim(), value: loading)
             }
@@ -307,7 +361,7 @@ struct AddRecipeSheet: View {
                         .disabled(CoverStore.shared.isLoading(d.id))
                 }
                 if d.coverImage != nil && d.coverImage != CoverStore.removed {
-                    Button { CoverStore.shared.removeFiles(recipeID: d.id); draft?.coverImage = CoverStore.removed } label: {
+                    Button { coverInputAttempt.invalidate(); CoverStore.shared.removeFiles(recipeID: d.id); draft?.coverImage = CoverStore.removed } label: {
                         Label("Remove", systemImage: "xmark")
                     }.buttonStyle(.ate(.ghost, height: 36)).accessibilityIdentifier("removeCover")
                 }
@@ -317,6 +371,7 @@ struct AddRecipeSheet: View {
     }
 
     private func setUserCover(_ img: UIImage) {
+        coverInputAttempt.invalidate()
         guard let id = draft?.id, let name = CoverStore.shared.save(img, recipeID: id, source: .userPhoto) else { return }
         draft?.coverImage = name
     }
@@ -368,10 +423,12 @@ struct AddRecipeSheet: View {
                 .foregroundColor: UIColor.black
             ]
             ("Pancakes" as NSString).draw(at: CGPoint(x: 56, y: 36), withAttributes: title)
-            ("Ingredients" as NSString).draw(at: CGPoint(x: 56, y: 140), withAttributes: body)
+            ("Serves: 2" as NSString).draw(at: CGPoint(x: 56, y: 100), withAttributes: body)
+            ("Ingredients" as NSString).draw(at: CGPoint(x: 56, y: 160), withAttributes: body)
             ("200 g flour" as NSString).draw(at: CGPoint(x: 56, y: 245), withAttributes: body)
             ("2 eggs" as NSString).draw(at: CGPoint(x: 56, y: 350), withAttributes: body)
-            ("Cook for 2 minutes" as NSString).draw(at: CGPoint(x: 56, y: 455), withAttributes: body)
+            ("Method" as NSString).draw(at: CGPoint(x: 56, y: 440), withAttributes: body)
+            ("1. Cook for 2 minutes." as NSString).draw(at: CGPoint(x: 56, y: 510), withAttributes: body)
         }.pngData()
     }
 
@@ -434,12 +491,68 @@ struct AddRecipeSheet: View {
         return nil
     }
 
-    private func generate() async {
+    private func invalidateRepair() {
+        guard repairAttempt.isRunning else { return }
+        repairAttempt.invalidate()
+        loading = false
+    }
+
+    private func repairDraft() {
+        guard !loading, !saving, let original = draft else { return }
+        if store.settings.onDeviceOnly {
+            store.show("Private mode is on - turn it off in Settings to use AI.", error: true)
+            return
+        }
+        loading = true
+        repairError = nil
+        let request = ParseRequest(mode: .rewrite, text: mode == .prompt ? prompt : nil,
+            currentRecipe: original, repairQuality: true)
+        repairAttempt.start(operation: {
+            try await store.backend.parseRecipe(request)
+        }, apply: { result in
+            // Admission has already been rechecked after await. Also refuse
+            // edits made during repair before any state or DraftStore write.
+            guard draft == original else {
+                throw BackendError(message: "Your draft changed during repair. The repair was not applied.")
+            }
+            let repaired = try RecipeDraftRepair.accept(result, replacing: original)
+            draft = repaired
+            didEdit = false
+            confirmedDraft = false
+            DraftStore.shared.saveDraft(repaired)
+        }, failed: { error in
+            repairError = error.localizedDescription
+        }, finished: {
+            loading = false
+        })
+    }
+
+    private func invalidateGeneration() {
+        generationAttempt.invalidate()
+        OnDeviceBackend.partialSink = nil
+        live = nil
+        loading = false
+    }
+
+    private func invalidateInputLoads() {
+        photoInputAttempt.invalidate()
+        coverInputAttempt.invalidate()
+    }
+
+    private func startGeneration() {
+        guard !loading, !saving else { return }
+        invalidateInputLoads()
+        generationAttempt.start { token in await generate(token: token) }
+    }
+
+    private func generate(token: UUID) async {
         // The UI disables generation while loading, but keep the lifecycle safe against rapid or programmatic duplicate taps.
         guard !loading else { return }
         if store.settings.onDeviceOnly {
             store.show("Private mode is on — turn it off in Settings to use AI.", error: true); return
         }
+        let mode = self.mode
+        let link = self.link
         let diagnostic = mode == .image ? PhotoImportDiagnostics.begin() : nil
         diagnostic?.mark(.generationStarted)
         var req: ParseRequest
@@ -474,12 +587,21 @@ struct AddRecipeSheet: View {
             if dishes.count > 1 {
                 let rest = Array(dishes.dropFirst())
                 let base = req
-                Task {
+                generationAttempt.startChild(token) {
+                    var saved = 0
                     for d in rest {
+                        guard generationAttempt.isCurrent(token) else { return }
                         var r = base; r.text = d
-                        if var c = try? await store.backend.parseRecipe(r) { c.origin = .photo; store.add(RecipeLogic.normalize(c)) }
+                        if var c = try? await store.backend.parseRecipe(r) {
+                            guard generationAttempt.isCurrent(token) else { return }
+                            c.origin = .photo
+                            store.add(RecipeLogic.normalize(c))
+                            saved += 1
+                        }
                     }
-                    if !rest.isEmpty { store.show("Saved \(rest.count) more card\(rest.count == 1 ? "" : "s") from the spread") }
+                    generationAttempt.publish(token) {
+                        if saved > 0 { store.show("Saved \(saved) more card\(saved == 1 ? "" : "s") from the spread") }
+                    }
                 }
             }
         }
@@ -487,18 +609,21 @@ struct AddRecipeSheet: View {
         loading = true
         error = nil; socialError = nil; socialReason = nil
         live = nil
-        OnDeviceBackend.partialSink = { p in live = p }
+        OnDeviceBackend.partialSink = { p in _ = generationAttempt.publish(token) { live = p } }
         DraftStore.shared.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""),
                                 imageData: recoveryImageData)
         // Keep pending input on failure or while asking the user to identify an uncertain dish.
         // DraftStore.saveDraft clears it on success; Cancel/Discard clears it explicitly.
         defer {
-            loading = false; OnDeviceBackend.partialSink = nil; live = nil
-            diagnostic?.mark(.generationFinished)
+            generationAttempt.publish(token) {
+                loading = false; OnDeviceBackend.partialSink = nil; live = nil
+                diagnostic?.mark(.generationFinished)
+            }
         }
         do {
             let started = Date()
             var card = try await store.backend.parseRecipe(req)
+            guard generationAttempt.isCurrent(token) else { return }
             diagnostic?.mark(.backendReturned)
             card.origin = mode == .link ? .link : (mode == .image ? .photo : .prompt)
             if mode == .link, let u = URL(string: link.trimmingCharacters(in: .whitespaces)) { card.sourceURL = SocialLinks.clean(u).absoluteString }
@@ -531,21 +656,25 @@ struct AddRecipeSheet: View {
             case .prompt: BetaQA.shared.pass("A-CREATE-04", note: "Prompt → card, \(src)")
             }
         } catch let e as SocialCaptionError {
+            guard generationAttempt.isCurrent(token) else { return }
             diagnostic?.mark(.generationFailed)
             socialError = e.platform
             socialReason = e.reason
             BetaQA.shared.pass("A-CREATE-02", note: "No caption on \(e.platform): friendly Prompt offer shown")
             Haptics.warning()
         } catch let e as PhotoNeedsDishError {
+            guard generationAttempt.isCurrent(token) else { return }
             diagnostic?.mark(.dishQuestion)
             dishQuestion = e
             Haptics.warning()
         } catch is CancellationError {
+            guard generationAttempt.isCurrent(token) else { return }
             diagnostic?.mark(.generationFailed)
             // Cancellation is a terminal attempt outcome, not a model failure. Keep the
             // persisted request so the user can retry without re-entering their input.
             self.error = Self.interruptedMessage
         } catch let e {
+            guard generationAttempt.isCurrent(token) else { return }
             diagnostic?.mark(.generationFailed)
             let msg = (e is URLError) ? Net.friendly(e) : e.localizedDescription
             self.error = msg
@@ -585,3 +714,24 @@ extension View {
         else { background(fill, in: RoundedRectangle(cornerRadius: 14)) }
     }
 }
+
+#if DEBUG
+/// One explicitly flagged Cook-completion journey, no UI, model or AX reads.
+private enum AddTitleQueryDiagnostic {
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "AddTitleQueryDiagnostic")
+    @MainActor static func observeIfRequested() async {
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaAddTitleQueryDiagnostic") else { return }
+        let trace = UUID().uuidString
+        let started = ProcessInfo.processInfo.systemUptime
+        for offset in [0.0, 15, 30, 60, 90, 120, 150] {
+            let remaining = offset - (ProcessInfo.processInfo.systemUptime - started)
+            if remaining > 0 {
+                do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
+            }
+            guard !Task.isCancelled else { return }
+            logger.notice("trace=\(trace, privacy: .public) scheduled=\(offset, privacy: .public) elapsed=\(ProcessInfo.processInfo.systemUptime - started, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public) main-actor-heartbeat")
+        }
+    }
+}
+#endif

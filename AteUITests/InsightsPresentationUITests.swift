@@ -462,4 +462,54 @@ final class InsightsPresentationUITests: XCTestCase {
         hub.tap()
         wait(title)
     }
+    func testSettingsReleaseNotesAndReplayableTourAtNormalText() {
+        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
+        wait(app.tabBars.buttons["Settings"], 15)
+        app.tabBars.buttons["Settings"].tap()
+        wait(app.navigationBars["Settings"])
+        let notes = app.buttons["settings.releaseNotes"]
+        for _ in 0..<8 {
+            if notes.exists && notes.isHittable { break }
+            app.swipeUp()
+        }
+        wait(notes); XCTAssertTrue(notes.isHittable)
+        XCTAssertFalse(app.buttons["settings.roadmap"].exists)
+        shot("release-notes-01-settings-normal")
+        notes.tap()
+        let release = app.buttons["release.product-updates-introduction"]
+        wait(release); shot("release-notes-02-list")
+        release.tap()
+        wait(app.buttons["release.whatsNew"])
+        shot("release-notes-03-detail")
+        app.buttons["release.whatsNew"].tap()
+        wait(any("whatsNew.page"))
+        XCTAssertEqual(any("whatsNew.page").label, "1 of 2")
+        wait(any("whatsNew.placeholder"))
+        let firstContext = any("whatsNew.releaseContext.0")
+        wait(firstContext)
+        XCTAssertTrue(firstContext.label.contains("Product updates in Ate"))
+        XCTAssertTrue(firstContext.label.contains("Version 0.1.0"))
+        XCTAssertTrue(firstContext.isHittable, "Selected release identity must be readable in the tour")
+        let selectedReleaseContext = firstContext.label
+        shot("release-notes-04-first-page")
+        app.buttons["whatsNew.next"].tap()
+        XCTAssertEqual(any("whatsNew.page").label, "2 of 2")
+        let secondContext = any("whatsNew.releaseContext.1")
+        wait(secondContext)
+        XCTAssertEqual(secondContext.label, selectedReleaseContext, "Swiping pages must retain the selected release identity")
+        XCTAssertTrue(secondContext.isHittable)
+        shot("release-notes-05-last-page")
+        app.buttons["Back"].tap()
+        XCTAssertEqual(any("whatsNew.page").label, "1 of 2")
+        app.buttons["whatsNew.close"].tap()
+        wait(app.buttons["release.whatsNew"])
+        app.buttons["release.whatsNew"].tap()
+        wait(any("whatsNew.page"))
+        XCTAssertEqual(any("whatsNew.page").label, "1 of 2")
+        app.buttons["whatsNew.next"].tap()
+        app.buttons["whatsNew.next"].tap()
+        wait(app.buttons["release.whatsNew"])
+        shot("release-notes-06-replayed-done")
+    }
+
 }

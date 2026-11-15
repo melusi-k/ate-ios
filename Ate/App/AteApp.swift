@@ -2,6 +2,11 @@ import SwiftUI
 import Combine
 import SwiftData
 import UserNotifications
+#if DEBUG
+import Foundation
+import UIKit
+import OSLog
+#endif
 
 @main
 struct AteApp: App {
@@ -14,6 +19,7 @@ struct AteApp: App {
         TabBarStyle.apply()
         #if DEBUG
         LiveDTProbe.installIfRequested()
+        SearchFocusDiagnostic.startIfRequested()
         #endif
         if AppConfig.isUITesting {
             for k in ["ate.timerprefs.v1", "ate.cookSession.v1", CookCompletionOutbox.defaultsKey, CookReflectionOfferPolicy.defaultsKey, CookPlanStore.storageKey] { UserDefaults.standard.removeObject(forKey: k) }
@@ -35,7 +41,15 @@ struct AteApp: App {
         container = c
         #if DEBUG
         let upgradeRuntime = CanonicalUpgradeQARoute.prepareIfRequested()
-        let st = AppStore(context: c?.mainContext, foodJournalRuntime: upgradeRuntime ?? CookJournalQARoute.runtime())
+        let st = AppStore(context: c?.mainContext,
+                          nutritionDiaryRepository: InsightDestinationQAFixtures.repository(),
+                          foodJournalRuntime: upgradeRuntime ?? CookJournalQARoute.runtime())
+        if InsightDestinationQAFixtures.requested {
+            precondition(st.foodJournalRuntime == nil, "Legacy Insights QA fixture cannot mix with canonical runtime")
+            st.shopping = InsightDestinationQAFixtures.shopping()
+        }
+        DogfoodSavedRecipeQAFixtures.prepare(st)
+        ExploreRetentionQAFixtures.prepare(st)
         CookJournalQARoute.prepare(st)
         DogfoodSavedRecipeQAFixtures.prepare(st)
         #else
@@ -105,7 +119,7 @@ struct TimerBarInset: ViewModifier {
         content.safeAreaInset(edge: .bottom, spacing: 0) {
             // iOS 26: at tab roots the timer lives in the tab bar's bottom accessory, so the inset only shows on pushed screens.
             if store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot) {
-                Group {
+                VStack(spacing: 0) {
                     if let session = store.cookSession { CookSessionMiniPlayer(session: session) }
                     if !store.timers.timers.isEmpty { TimerBar() }
                 }
@@ -485,7 +499,7 @@ extension RootView {
                 case .search: store.searchPath = []
                 }
             }
-            store.select(new)
+            store.selectTab(new)
         })
     }
 }
@@ -514,7 +528,11 @@ struct RouteView: View {
                                                goalsRepository: runtime.goalsRepository,
                                                repair: runtime.repair, associationStore: nil)
                 } else {
+#if DEBUG
+                    NutritionDiaryView(repository: InsightDestinationQAFixtures.repository(prepare: false))
+#else
                     NutritionDiaryView()
+#endif
                 }
             case .nutritionGoals: NutritionGoalsView(repository: store.journalGoalsRepository)
             }
@@ -717,3 +735,37 @@ extension AppAppearance {
         switch self { case .system: return nil; case .light: return .light; case .dark: return .dark }
     }
 }
+
+#if DEBUG
+/// Notification timing only. Never queries content, focus, or first responders.
+@MainActor enum SearchFocusDiagnostic {
+    private static var tokens: [NSObjectProtocol] = []
+    private static var rows: [String] = []
+    static func startIfRequested() {
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaSearchFocusDiagnostic"), tokens.isEmpty else { return }
+        record(phase: 0, frame: .zero)
+        let names: [Notification.Name] = [UIResponder.keyboardWillShowNotification,
+            UIResponder.keyboardDidShowNotification, UIResponder.keyboardWillHideNotification,
+            UIResponder.keyboardDidHideNotification]
+        for (index, name) in names.enumerated() {
+            tokens.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { note in
+                MainActor.assumeIsolated {
+                    let frame = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue ?? .zero
+                    record(phase: index + 1, frame: frame)
+                }
+            })
+        }
+    }
+    private static func record(phase: Int, frame: CGRect) {
+        guard rows.count < 20,
+              let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime) x=\(frame.minX) y=\(frame.minY) width=\(frame.width) height=\(frame.height)")
+        do {
+            try Data((rows.joined(separator: "\n") + "\n").utf8).write(to: cache.appendingPathComponent("search-focus-diagnostic.txt"), options: .atomic)
+        } catch {
+            Logger(subsystem: "com.melusik.ate", category: "SearchFocusDiagnostic").error("Search focus numeric evidence write failed")
+        }
+    }
+}
+#endif

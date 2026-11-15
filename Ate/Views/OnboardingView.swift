@@ -24,7 +24,10 @@ struct OnboardingView: View {
                     Spacer()
                     if page < pages.count {
                         Button("Skip") { withAnimation(Motion.anim()) { page = pages.count } }
-                            .font(AteFont.body(15, .medium)).tint(Theme.mutedForeground).accessibilityIdentifier("onboardingSkip")
+                            .font(AteFont.body(15, .medium)).tint(Theme.mutedForeground)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
+                            .accessibilityIdentifier("onboardingSkip")
                     }
                 }.frame(height: 44).padding(.horizontal, 20)
 
@@ -68,8 +71,11 @@ struct OnboardingView: View {
             Spacer()
             Image(systemName: p.icon).font(.largeTitle.weight(.semibold)).imageScale(.large).foregroundStyle(Theme.primary)
                 .frame(width: 128, height: 128).background(Theme.secondary, in: Circle())
+                .accessibilityHidden(true)
             Text(p.title).font(AteFont.display(30)).multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
             Text(p.body).font(AteFont.body(16)).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(); Spacer()
         }.padding(.horizontal, 32)
     }

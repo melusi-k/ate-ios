@@ -595,8 +595,14 @@ final class CoverageUITests: XCTestCase {
         shot("backend-down-retry-card")
         app.buttons["generateRetry"].tap()
         wait(app.buttons["generateRetry"], 10)
-        app.swipeDown(velocity: .fast)  // close the sheet
-        sleep(1)
+        // Failed input is intentionally retained by interactiveDismissDisabled.
+        // Use the actual explicit discard route; a swipe leaves a blocking sheet
+        // and the historical tab taps then had hit point (-1,-1).
+        let cancel = app.buttons["addCancel"]
+        wait(cancel); cancel.tap()
+        let discard = app.buttons["Discard"]
+        wait(discard); discard.tap()
+        XCTAssertTrue(cancel.waitForNonExistence(timeout: 5), "Discard must actually close Add before tab navigation")
         tab("Library")
         wait(text("Keep this stew"), 5)
         // Signed-in sync against a failing server keeps the library too.
@@ -913,8 +919,13 @@ extension CoverageUITests {
         wait(app.buttons["Add recipe"])
         XCTAssertFalse(app.buttons["Cook mode"].exists)
         tab("Settings")
-        wait(app.buttons["settings.betaTesting"])
-        app.buttons["settings.betaTesting"].tap()
+        let beta = app.buttons["settings.betaTesting"]
+        // Beta & diagnostics is below everyday Settings. Lazy Form rows are not
+        // necessarily materialized at initial load; reveal before resolving.
+        scrollTo(beta, max: 6)
+        wait(beta)
+        XCTAssertTrue(beta.isHittable)
+        beta.tap()
         let back2 = app.navigationBars.buttons.element(boundBy: 0)
         wait(back2); back2.tap()
         wait(app.buttons["settings.betaTesting"])
@@ -1010,5 +1021,67 @@ extension CoverageUITests {
         wait(app.images["settings.logo"])
         app.swipeUp()
         XCTAssertTrue(settingsTitle.exists, "The navigation bar must remain present while Settings scrolls")
+
+        // Scroll-down minimizes native tab chrome. Re-selecting Settings can
+        // return its Form to the first row without expanding that chrome on the
+        // current runtime. Follow re-selection with one real downward Form
+        // gesture, then verify the first section. Re-selection alone does not
+        // prove that a lazy first-row element is ready. This is a scroll-to-top action,
+        // not a repeated Journal tap or a wait for an unreachable hidden tab.
+        let settingsTab = app.tabBars.buttons["Settings"]
+        XCTAssertTrue(settingsTab.isSelected,
+                      "Settings must remain selected after its scroll")
+        shot("82-settings-after-scroll-before-tab-reveal")
+        XCTAssertTrue(settingsTab.isHittable, "The selected minimized Settings tab must be reachable")
+        settingsTab.tap()
+        let settingsForm = settingsContent()
+        shot("82-settings-after-selected-tab-scroll-reset")
+        // A default swipeDown travels only 200pt on the retained runtime. Use
+        // one held drag across the real clear Form band, not another gesture.
+        let formFrame = settingsForm.frame
+        let navigationFrame = settingsTitle.frame
+        let tabFrame = app.tabBars.firstMatch.frame
+        let clearTop = max(formFrame.minY, navigationFrame.maxY) + 8
+        let clearBottom = min(formFrame.maxY, tabFrame.minY) - 8
+        XCTAssertGreaterThan(clearBottom, clearTop, "Settings must expose a clear Form band")
+        let formOrigin = settingsForm.coordinate(withNormalizedOffset: .zero)
+        let dragStart = formOrigin.withOffset(CGVector(dx: formFrame.width / 2,
+                                                       dy: clearTop - formFrame.minY))
+        let dragEnd = formOrigin.withOffset(CGVector(dx: formFrame.width / 2,
+                                                     dy: clearBottom - formFrame.minY))
+        dragStart.press(forDuration: 0.1, thenDragTo: dragEnd, withVelocity: .slow, thenHoldForDuration: 0.1)
+        shot("82-settings-tab-chrome-revealed")
+        let hierarchy = XCTAttachment(string: app.debugDescription)
+        hierarchy.name = "82-settings-after-top-boundary-scroll-hierarchy"
+        hierarchy.lifetime = .keepAlways
+        add(hierarchy)
+        let firstSection = settingsForm.staticTexts["accountSyncTitle"]
+        wait(firstSection)
+        XCTAssertEqual(firstSection.label, "Account & sync",
+                       "The first Settings section must retain its account and sync heading")
+        XCTAssertTrue(firstSection.isHittable,
+                      "The scroll-to-top interaction must expose the first Settings section")
+        // #82 uses the current Journal root, not the historical Tracker title or
+        // pushed Cooking History route. Keep every strict tab/arrival/header
+        // assertion; the reveal gesture is setup, never a substitute destination.
+        tab("Journal")
+        let journalTitle = app.navigationBars["Journal"]
+        wait(journalTitle)
+        wait(app.images["journal.logo"])
+        XCTAssertEqual(app.navigationBars.count, 1, "Journal must have one navigation header")
+        let timeline = any("journal.timelineLink")
+        wait(timeline)
+        XCTAssertGreaterThanOrEqual(timeline.frame.minY, journalTitle.frame.minY,
+                                    "Journal root content must begin below its shared navigation title")
+        let addEntry = app.buttons["journal.newEntry"]
+        wait(addEntry)
+        XCTAssertTrue(addEntry.isHittable, "Journal New entry must be reachable initially")
+        shot("82-journal-root-header-initial")
+        app.swipeUp()
+        XCTAssertTrue(journalTitle.exists, "Journal navigation header must remain present after scrolling")
+        XCTAssertTrue(app.images["journal.logo"].exists, "Journal keeps the shared root logo after scrolling")
+        XCTAssertEqual(app.navigationBars.count, 1, "Scrolling Journal must not introduce a duplicate header")
+        XCTAssertTrue(addEntry.isHittable, "Journal New entry must stay reachable after scrolling")
+        shot("82-journal-root-header-after-scroll")
     }
 }

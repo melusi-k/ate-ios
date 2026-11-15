@@ -442,4 +442,109 @@ final class InsightsAcceptanceUITests: XCTestCase {
         shot.name = "journal-normal-reflection-sample-provenance"; shot.lifetime = .keepAlways; add(shot)
     }
 
+    private func launchSeededDestinations() {
+        app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-qaResetCookingHistory", "-qaResetInsightLifecycle",
+                               "-qaInsightDestinations", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launch()
+        let journal = app.tabBars.buttons["Journal"]
+        wait(journal); journal.tap()
+        wait(app.navigationBars["Journal"])
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub); hub.tap()
+        wait(app.navigationBars["Insights & Cooking History"])
+    }
+
+    private func seededShot(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+
+    /// These actions dismiss their pushed hub before switching tabs. Assert the
+    /// resulting Journal root, rather than assuming a preserved pushed stack.
+    private func returnToSeededInsight(_ id: String) {
+        let journal = app.tabBars.buttons["Journal"]
+        wait(journal); journal.tap()
+        wait(app.navigationBars["Journal"])
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        wait(hub); hub.tap()
+        wait(app.navigationBars["Insights & Cooking History"])
+        let action = app.buttons["insights.progress.action." + id]
+        reveal(action)
+        XCTAssertTrue(action.exists && action.isHittable, "Opening a destination must not dismiss unchanged evidence")
+        seededShot("195-" + id + "-retained-after-return-normal")
+    }
+
+    func testSeededShoppingInsightOpensRealListAndRetainsSuggestion() {
+        launchSeededDestinations()
+        let action = app.buttons["insights.progress.action.shopping-multi-recipe"]
+        reveal(action)
+        let evidence = app.staticTexts["insights.progress.evidence.shopping-multi-recipe"]
+        wait(evidence)
+        XCTAssertTrue(evidence.label.contains("Shopping list and recipe sources"), evidence.label)
+        seededShot("195-shopping-insight-before-action-normal")
+        action.tap()
+        wait(app.navigationBars["Shopping list"])
+        XCTAssertTrue(app.tabBars.buttons["Shopping"].isSelected)
+        let rice = app.buttons["shopping.edit.qa-insight-rice"]
+        wait(rice)
+        XCTAssertTrue(rice.isHittable, "Destination must contain the real seeded pending item")
+        wait(app.staticTexts["3 to buy"])
+        seededShot("195-shopping-real-seeded-destination-normal")
+        // Reaching lower Shopping content can minimize iOS 26 tab chrome. One
+        // reverse content gesture reveals it before the one Journal tap. No retry.
+        app.scrollViews.firstMatch.swipeDown()
+        XCTAssertTrue(app.tabBars.buttons["Journal"].exists)
+        seededShot("195-shopping-tab-chrome-revealed-normal")
+        returnToSeededInsight("shopping-multi-recipe")
+    }
+
+    func testSeededDiaryInsightOpensRealDiaryAndRetainsSuggestion() {
+        launchSeededDestinations()
+        let action = app.buttons["insights.progress.action.nutrition-diary-coverage"]
+        reveal(action)
+        let evidence = app.staticTexts["insights.progress.evidence.nutrition-diary-coverage"]
+        wait(evidence)
+        XCTAssertTrue(evidence.label.contains("Locally stored food diary"), evidence.label)
+        XCTAssertTrue(evidence.label.contains("Last 7 days"), evidence.label)
+        seededShot("195-diary-insight-before-action-normal")
+        action.tap()
+        let diary = app.navigationBars["Food diary"]
+        wait(diary)
+        XCTAssertEqual(app.navigationBars.count, 1)
+        let rows = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "nutritionDiary.entry."))
+        // Food diary is a lazy List: daily and weekly totals precede the meal rows.
+        // The final-head failure AX/pixels show those totals, not an empty diary.
+        // Scroll the one mounted diary list before asking for its three real records.
+        let lists = app.collectionViews
+        XCTAssertEqual(lists.count, 1, "Food diary must own one visible content list")
+        let list = lists.element(boundBy: 0)
+        wait(list)
+        seededShot("195-diary-destination-before-meal-scroll-normal")
+        for _ in 0..<4 where rows.count < 3 { list.swipeUp() }
+        wait(rows.firstMatch)
+        XCTAssertEqual(rows.count, 3, "The actual diary must read the three synthetic records")
+        let food = rows.matching(NSPredicate(format: "label CONTAINS %@", "QA insight food 1")).firstMatch
+        wait(food)
+        seededShot("195-diary-real-seeded-destination-normal")
+        let back = diary.buttons["Settings"]
+        wait(back); back.tap()
+        wait(app.navigationBars["Settings"])
+        let settingsTab = app.tabBars.buttons["Settings"]
+        XCTAssertEqual(app.tabBars.buttons.matching(identifier: "Settings").count, 1,
+                       "Back must expose exactly one selected Settings capsule")
+        XCTAssertTrue(settingsTab.isSelected)
+        XCTAssertTrue(settingsTab.isHittable, "The selected Settings capsule must be reachable")
+        seededShot("195-diary-settings-before-tab-expansion-normal")
+        // Diary's real-row scroll can minimize the system tab bar. Native Back
+        // returns to Settings but does not promise an expanded tab strip. Expand
+        // once through its selected capsule, just like the strict header journey;
+        // then retain the single Journal tap and all hub/evidence assertions.
+        settingsTab.tap()
+        wait(app.navigationBars["Settings"])
+        XCTAssertTrue(settingsTab.isSelected, "Expanding chrome must not switch destinations")
+        seededShot("195-diary-settings-after-tab-expansion-normal")
+        returnToSeededInsight("nutrition-diary-coverage")
+    }
+
 }

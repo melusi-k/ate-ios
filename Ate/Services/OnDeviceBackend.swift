@@ -1,4 +1,7 @@
 import Foundation
+#if DEBUG
+import Darwin
+#endif
 import Vision
 import OSLog
 import UIKit
@@ -14,11 +17,14 @@ final class OnDeviceBackend: BackendService {
     let sharing: BackendService
     private let loadPageHTML: (String) async throws -> String
     private let modelAvailable: () -> Bool
+    private let readImageText: (String) async throws -> String
     init(fallback: BackendService, sharing: BackendService? = nil,
          loadPageHTML: @escaping (String) async throws -> String = OnDeviceBackend.fetchHTML,
-         modelAvailable: @escaping () -> Bool = { OnDeviceBackend.isModelAvailable }) {
+         modelAvailable: @escaping () -> Bool = { OnDeviceBackend.isModelAvailable },
+         readImageText: @escaping (String) async throws -> String = { try await OnDeviceBackend.ocr(dataURL: $0) }) {
         self.fallback = fallback; self.sharing = sharing ?? fallback
         self.loadPageHTML = loadPageHTML; self.modelAvailable = modelAvailable
+        self.readImageText = readImageText
     }
 
     static var isModelAvailable: Bool {
@@ -56,9 +62,17 @@ final class OnDeviceBackend: BackendService {
     }
 
     private func parseRecipeResult(_ request: ParseRequest) async throws -> RecipeCard {
+        if request.mode == .rewrite, request.repairQuality != true,
+           let original = request.currentRecipe,
+           RecipeRewriteScope.noOpMessage(for: original, request: request.text ?? "") != nil {
+            return original
+        }
         // Links: structured schema.org/Recipe data first (no AI needed), then the model.
         try Task.checkCancellation()
         if request.mode == .url { _ = try Self.recipeURL(request.text ?? "") }
+        // Pasted adverts must be refused before fallback, session allocation or
+        // streamed preview. A fabricated disambiguation name cannot bypass this.
+        if request.mode == .prompt { try SourceRecipeFidelity.rejectUngroundedText(request.text ?? "") }
         var pageHTML: String?
         var socialCaption: String?
         if request.mode == .url, let u = URL(string: (request.text ?? "").trimmingCharacters(in: .whitespaces)),
@@ -81,10 +95,28 @@ final class OnDeviceBackend: BackendService {
                 return RecipeLogic.normalize(card)
             }
         }
+        // OCR source imports bypass both the creative model and Demo fallback.
+        // A dish hint cannot turn a detected recipe screenshot into a photo guess.
+        var imageText: String?
+        if request.mode == .image {
+            let text = try await readImageText(request.imageDataUrl ?? "")
+            try GenerationCancellation.check()
+            try SourceRecipeFidelity.rejectUngroundedText(text)
+            imageText = text
+            if PhotoGuess.isScreenshotText(text) {
+                return try ScreenshotRecipeImport.card(from: text)
+            }
+        }
         try Task.checkCancellation()
         guard modelAvailable() else {
+            if SourceRecipeFidelity.inlineCaption(socialCaption ?? request.text ?? "") != nil {
+                throw BackendError(message: "On-device AI isn't available to extract this recipe. No demo recipe was substituted; keep the source and enter it manually or try again when the model is ready.")
+            }
             let card = try await fallback.parseRecipe(request)
             try GenerationCancellation.check()
+            if request.mode == .rewrite, request.repairQuality != true, let original = request.currentRecipe {
+                return try RecipeRewriteScope.accept(card, original: original, request: request.text ?? "")
+            }
             return card
         }
         var source: RecipeSource = .appleIntelligence
@@ -101,12 +133,24 @@ final class OnDeviceBackend: BackendService {
         var contextUser = request.text ?? ""
         var contextSource = ""
         var sourceIsLongForm = false
+        var fidelity: SourceRecipeFidelity.Contract? = request.repairQuality == true
+            ? SourceRecipeFidelity.inlineCaption(request.text ?? "") : nil
         switch request.mode {
         case .prompt:
-            prompt = RecipePrompt.prompt(request.text ?? "")
+            let text = request.text ?? ""
+            fidelity = SourceRecipeFidelity.inlineCaption(text)
+            if let fidelity {
+                // A full recipe pasted in Prompt is extraction, not a request to
+                // replace it with the shared creative example's quantities.
+                prompt = RecipePrompt.social(caption: fidelity.text); input = .social
+                contextSource = fidelity.text; contextUser = ""
+            } else {
+                prompt = RecipePrompt.prompt(text)
+            }
         case .url where socialCaption != nil:
             prompt = RecipePrompt.social(caption: socialCaption!); input = .social
             contextSource = socialCaption!  // short dish-defining source
+            fidelity = SourceRecipeFidelity.inlineCaption(socialCaption!)
         case .url:
             let page: String
             if let html = pageHTML { page = String(Self.htmlToText(html).prefix(3500)) }
@@ -114,7 +158,8 @@ final class OnDeviceBackend: BackendService {
             prompt = RecipePrompt.page(page); input = .link
             contextSource = page; sourceIsLongForm = true
         case .image:
-            let text = try await Self.ocr(dataURL: request.imageDataUrl ?? "")
+            let text = imageText ?? ""
+            try SourceRecipeFidelity.rejectUngroundedText(text)
             photoOCR = text
             let hint = (request.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             if PhotoGuess.isScreenshotText(text) && hint.isEmpty {
@@ -150,11 +195,19 @@ final class OnDeviceBackend: BackendService {
             var c = request.currentRecipe ?? RecipeCard()
             c.imageURL = nil; c.sourceURL = nil
             let json = (try? String(data: JSONEncoder().encode(c), encoding: .utf8)) ?? ""
-            prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"; input = .rewrite
+            if request.repairQuality == true {
+                prompt = try RecipeDraftRepair.instruction(for: c)
+                source = c.source
+            } else {
+                prompt = "Rewrite per \"\(request.text ?? "")\":\n\(json)"
+            }
+            input = .rewrite
             reviseID = c.id
         }
         let ctx = RecipePrompt.context(userText: contextUser, sourceText: contextSource, sourceIsLongForm: sourceIsLongForm)
-        var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx)
+        var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx,
+                                           emitPreview: fidelity == nil,
+                                           reuseSession: request.mode != .rewrite || request.repairQuality == true)
         // Never show a confident recipe for an object the camera saw instead of food.
         // Send the user back through the dish question so the next pass is grounded by a human label.
         // The structured card defaults to .manual; quality guards need the actual
@@ -164,7 +217,7 @@ final class OnDeviceBackend: BackendService {
             throw PhotoNeedsDishError(suggestions: PhotoGuess.suggestions(labels: visionLabels, ocrText: photoOCR), spread: false)
         }
         // Too thin, or missing what the photo shows: regenerate ONCE with the gaps spelled out.
-        let gaps = RecipeQuality.shortfall(card, labels: visibleLabels)
+        let gaps = RecipeQuality.shortfall(card, labels: visibleLabels) + (fidelity?.issues(card) ?? [])
         if request.mode != .rewrite, !gaps.isEmpty {
             // Repair, don't re-roll. Prefer the same session: generate() keys it by card.id, so the
             // failed draft is still in the transcript and the instruction prefix is not re-paid.
@@ -181,11 +234,15 @@ final class OnDeviceBackend: BackendService {
                 retryReviseID = nil
             }
             card = try await GenerationCancellation.optionalRepair(original: card, operation: {
-                var again = try await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx)
+                var again = try await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx, emitPreview: fidelity == nil)
                 again.source = source
                 return again
             }, prefer: { again, previous in
-                RecipeQuality.shortfall(again, labels: visibleLabels).count < RecipeQuality.shortfall(previous, labels: visibleLabels).count
+                let nextFidelity = fidelity?.issues(again) ?? []
+                let oldFidelity = fidelity?.issues(previous) ?? []
+                if !nextFidelity.isEmpty { return false }
+                if !oldFidelity.isEmpty { return true }
+                return RecipeDraftRepair.automaticImproves(again, over: previous, labels: visibleLabels)
             })
         }
         try GenerationCancellation.check()
@@ -196,6 +253,7 @@ final class OnDeviceBackend: BackendService {
             let extra = PhotoGuess.suggestions(labels: visionLabels, ocrText: "")
             var seen = Set([card.title.lowercased()])
             card.aiAlternatives = ((card.aiAlternatives ?? []) + extra).filter { seen.insert($0.lowercased()).inserted }
+            card.aiNote = [card.aiNote, PhotoGuess.plateLimitNote].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n\n")
         }
         if let r = reviseID { await Self.rekeySession(from: card.id, to: r) }
         card.source = source; card.generatedAt = Date().timeIntervalSince1970 * 1000
@@ -205,7 +263,19 @@ final class OnDeviceBackend: BackendService {
         if request.mode == .rewrite, let cur = request.currentRecipe {
             card.id = cur.id; card.createdAt = cur.createdAt; card.favorite = cur.favorite; card.sortIndex = cur.sortIndex; card.lastCookedAt = cur.lastCookedAt; card.source = .appleIntelligence; card.imageURL = cur.imageURL; card.sourceURL = cur.sourceURL
         }
-        return RecipeLogic.normalize(card)
+        var normalized = RecipeLogic.normalize(card)
+        if request.repairQuality == true, let original = request.currentRecipe {
+            normalized = try RecipeDraftRepair.accept(normalized, replacing: original)
+        }
+        if request.mode == .rewrite, request.repairQuality != true, let original = request.currentRecipe {
+            normalized = try RecipeRewriteScope.accept(normalized, original: original, request: request.text ?? "")
+        }
+        if let fidelity, !fidelity.issues(normalized).isEmpty {
+            // Never present an altered extraction as a 95%-confidence recipe or
+            // invent new source quantities in order to pass a quality check.
+            throw BackendError(message: "Ate couldn't preserve this recipe's source quantities, ingredients or times. No card was accepted. Try again or enter it manually.")
+        }
+        return normalized
     }
 
     func publish(_ card: RecipeCard) async throws -> String { try await sharing.publish(card) }
@@ -262,14 +332,15 @@ final class OnDeviceBackend: BackendService {
 
     @MainActor
     static func generate(_ prompt: String, input: RecipePrompt.Input = .prompt, photoDataURL: String? = nil,
-                         reviseID: String? = nil, context: RecipePrompt.Context = .init()) async throws -> RecipeCard {
+                         reviseID: String? = nil, context: RecipePrompt.Context = .init(),
+                         emitPreview: Bool = true, reuseSession: Bool = true) async throws -> RecipeCard {
         try GenerationCancellation.check()
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
             var tools: [any Tool] = [RegionalDishTool()]
             if let photoDataURL { tools.append(PhotoTextTool(dataURL: photoDataURL)) }
             let session: LanguageModelSession
-            if let id = reviseID, let s = sessions[id] { session = s }                       // Ask Ate: same session
+            if reuseSession, let id = reviseID, let s = sessions[id] { session = s }                       // Ask Ate: same session
             else if input == .prompt, photoDataURL == nil, let w = warm { session = w; warm = nil } // prewarmed
             else { session = makeSession(tools: tools, input: input) }
             do {
@@ -278,11 +349,11 @@ final class OnDeviceBackend: BackendService {
                 // Code-along 205: Prompt { } builder with conditional context lines and a one-shot GenRecipe example;
                 // with the example in place the JSON schema is left out of the prompt (A/B: -qaIncludeSchema).
                 let lines = RecipePrompt.contextLines(context)
-                let isRevision = reviseID != nil && sessions[reviseID!] != nil
+                let isRevision = reuseSession && reviseID != nil && sessions[reviseID!] != nil
                 let fullPrompt = Prompt {
                     prompt
                     if !lines.isEmpty { lines.joined(separator: "\n") }
-                    if !isRevision {
+                    if !isRevision && input != .rewrite {
                         RecipePrompt.exampleLead
                         GenRecipe.exampleMogodu
                     }
@@ -292,7 +363,7 @@ final class OnDeviceBackend: BackendService {
                                                     options: GenerationOptions(sampling: .greedy))
                 for try await snap in stream {
                     try GenerationCancellation.check()
-                    partialSink?(RecipeStreamPreview(snap.content))
+                    if emitPreview { partialSink?(RecipeStreamPreview(snap.content)) }
                 }
                 let res = try await stream.collect()
                 try GenerationCancellation.check()
@@ -475,8 +546,8 @@ final class OnDeviceBackend: BackendService {
     /// Shared by real image generation, demo fallback and the model's readPhotoText tool.
     static let ocrDeadlineSeconds: TimeInterval = 10
 
-    static func ocr(dataURL: String) async throws -> String {
-        let diagnostic = PhotoImportDiagnostics.begin()
+    static func ocr(dataURL: String, diagnostic suppliedDiagnostic: PhotoImportDiagnostics? = nil) async throws -> String {
+        let diagnostic = suppliedDiagnostic ?? PhotoImportDiagnostics.begin()
         diagnostic?.mark(.decodeStarted)
         let b64 = dataURL.components(separatedBy: ",").last ?? ""
         guard let data = Data(base64Encoded: b64), let cg = UIImage(data: data)?.cgImage else {
@@ -486,29 +557,59 @@ final class OnDeviceBackend: BackendService {
         diagnostic?.mark(.decodeCompleted)
         diagnostic?.mark(.workerQueued)
         let cancellation = OCRRequestCancellation()
-        return try await OCRTerminalResult.run(timeout: ocrDeadlineSeconds, cancel: { cancellation.cancel() }) { finish in
-            DispatchQueue.global(qos: .userInitiated).async {
-                diagnostic?.mark(.workerStarted)
-                // Read synchronous perform's result on this worker. Completion must not
-                // depend on Vision calling a request callback, and must happen only once
-                // even when a slow worker finishes after the deadline.
-                let req = VNRecognizeTextRequest()
-                req.recognitionLevel = .accurate
-                req.usesLanguageCorrection = true
-                cancellation.install { req.cancel() }
-                diagnostic?.mark(.performStarted)
-                do {
-                    try VNImageRequestHandler(cgImage: cg).perform([req])
-                    diagnostic?.mark(.performReturned)
-                    let lines = (req.results ?? []).compactMap { $0.topCandidates(1).first?.string }
-                    diagnostic?.mark(.ocrCompleted)
-                    finish(.success(lines.joined(separator: "\n")))
-                } catch {
-                    diagnostic?.mark(.performFailed)
-                    diagnostic?.mark(.ocrFailed)
-                    finish(.failure(error))
+        do {
+            let text = try await OCRTerminalResult.run(timeout: ocrDeadlineSeconds,
+                // Timer firing is observed even if success already won the terminal race.
+                onDeadline: { diagnostic?.mark(.deadlineFired) },
+                cancel: { diagnostic?.mark(.cancellationRequested); cancellation.cancel() }) { finish in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    diagnostic?.mark(.workerStarted)
+                    // Read synchronous perform's result on this worker. Completion must not
+                    // depend on Vision calling a request callback, and must happen only once
+                    // even when a slow worker finishes after the deadline.
+                    #if DEBUG
+                    let cpuCapture = suppliedDiagnostic?.cpuCapture()
+                    cpuCapture?.mark("request-create-enter")
+                    #endif
+                    let req = VNRecognizeTextRequest()
+                    req.recognitionLevel = .accurate
+                    req.usesLanguageCorrection = true
+                    cancellation.install { req.cancel() }
+                    #if DEBUG
+                    cpuCapture?.mark("request-configured")
+                    #endif
+                    diagnostic?.mark(.performStarted)
+                    do {
+                        let handler = VNImageRequestHandler(cgImage: cg)
+                        #if DEBUG
+                        cpuCapture?.mark("handler-created-perform-enter")
+                        #endif
+                        try handler.perform([req])
+                        #if DEBUG
+                        cpuCapture?.mark("perform-return")
+                        #endif
+                        diagnostic?.mark(.performReturned)
+                        let lines = (req.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+                        #if DEBUG
+                        cpuCapture?.mark("candidates-extracted")
+                        #endif
+                        diagnostic?.mark(.ocrCompleted)
+                        finish(.success(lines.joined(separator: "\n")))
+                    } catch {
+                        #if DEBUG
+                        cpuCapture?.mark("perform-error")
+                        #endif
+                        diagnostic?.mark(.performFailed)
+                        diagnostic?.mark(.ocrFailed)
+                        finish(.failure(error))
+                    }
                 }
             }
+            diagnostic?.mark(.callerReturned)
+            return text
+        } catch {
+            diagnostic?.mark(.callerFailed)
+            throw error
         }
     }
 }
@@ -561,11 +662,13 @@ final class OCRTerminalResult: @unchecked Sendable {
         callback?(result)
     }
 
-    static func run(timeout: TimeInterval, cancel: @escaping @Sendable () -> Void = {},
+    static func run(timeout: TimeInterval, onDeadline: @escaping @Sendable () -> Void = {},
+                    cancel: @escaping @Sendable () -> Void = {},
                     start: (@escaping @Sendable (Result<String, Error>) -> Void) -> Void) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             let terminal = OCRTerminalResult { continuation.resume(with: $0) }
             DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + timeout) {
+                onDeadline()
                 terminal.finish(.failure(DeadlineExceeded()))
                 cancel()
             }
@@ -739,6 +842,7 @@ struct PhotoImportDiagnostics: Sendable {
         case backendReturned, draftAssigned, dishQuestion, generationFailed, generationFinished
         case decodeStarted, decodeRejected, decodeCompleted, workerQueued, workerStarted
         case performStarted, performReturned, performFailed, ocrCallback, ocrCompleted, ocrFailed
+        case deadlineFired, cancellationRequested, callerReturned, callerFailed
     }
 
     private static let log = Logger(subsystem: "com.melusik.ate", category: "photo-import-phases")
@@ -750,8 +854,38 @@ struct PhotoImportDiagnostics: Sendable {
         return Self(id: UUID().uuidString, started: ProcessInfo.processInfo.systemUptime)
     }
 
+    #if DEBUG
+    /// Explicit synthetic real-Vision unit fixtures only. No XCTest/process-name inference.
+    static func syntheticVisionFixture() -> Self {
+        Self(id: UUID().uuidString, started: ProcessInfo.processInfo.systemUptime)
+    }
+    #endif
+
     func mark(_ phase: Phase) {
         let elapsedMs = Int((ProcessInfo.processInfo.systemUptime - started) * 1_000)
         Self.log.notice("trace=\(id, privacy: .public) phase=\(phase.rawValue, privacy: .public) elapsed_ms=\(elapsedMs, privacy: .public)")
     }
 }
+
+#if DEBUG
+extension PhotoImportDiagnostics {
+    /// Two actual OCR unit fixtures opt in via their already-supplied diagnostic.
+    /// Per-worker six-point maximum, no polling or synchronization/timeout decision.
+    func cpuCapture() -> OCRCPUPhaseCapture { OCRCPUPhaseCapture(trace: id) }
+}
+
+struct OCRCPUPhaseCapture {
+    let trace: String
+    private let started = ProcessInfo.processInfo.systemUptime
+    private let startedCPU = clock()
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "photo-import-cpu")
+    func mark(_ phase: String) {
+        let wall = ProcessInfo.processInfo.systemUptime - started
+        let cpu = Double(clock() - startedCPU) / Double(CLOCKS_PER_SEC)
+        let info = ProcessInfo.processInfo
+        // CPU is THIS PROCESS aggregate, not Vision service or host CPU. Ratios
+        // are diagnostic only, never proof of contention or an optimization verdict.
+        Self.logger.notice("trace=\(trace, privacy: .public) phase=\(phase, privacy: .public) wall_s=\(wall, privacy: .public) process_cpu_s=\(cpu, privacy: .public) active_cpus=\(info.activeProcessorCount, privacy: .public) thermal=\(info.thermalState.rawValue, privacy: .public) uptime=\(info.systemUptime, privacy: .public)")
+    }
+}
+#endif

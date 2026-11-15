@@ -80,4 +80,41 @@ final class JournalReflectionConsumerTests: XCTestCase {
                        "Keep after failed save")
     }
 
+    func testStableIdentityDeleteAfterEditVerifiesCommittedAbsenceAndPreservesSibling() throws {
+        let journal = JournalStore(inMemory: true)
+        let id = try journal.saveManual(text: "Selected original")
+        let other = try journal.saveManual(text: "Untouched sibling")
+        let retained = try XCTUnwrap(journal.readEntry(id))
+        journal.update(retained, text: "Selected edited")
+        XCTAssertTrue(journal.deleteReflection(id: id))
+        XCTAssertNil(try journal.readEntry(id))
+        XCTAssertEqual(try journal.readReflections().map(\.id), [other])
+        XCTAssertEqual(try journal.readEntry(other)?.text, "Untouched sibling")
+    }
+
+    func testStableIdentityDeleteRejectsUncommittedWriterThenExplicitRetrySucceeds() throws {
+        let journal = JournalStore(inMemory: true)
+        let id = try journal.saveManual(text: "Retain until committed")
+        let uncommitted = JournalStore(container: journal.container, openState: .ok,
+            writeReflectionContext: { _ in /* Deliberately no save, not a success */ })
+        XCTAssertFalse(uncommitted.deleteReflection(id: id))
+        XCTAssertEqual(try journal.readEntry(id)?.text, "Retain until committed")
+        XCTAssertTrue(journal.deleteReflection(id: id))
+        XCTAssertNil(try journal.readEntry(id))
+    }
+
+    func testStableIdentityDeleteCannotRemoveUnknownKindOrMissingID() throws {
+        let journal = JournalStore(inMemory: true)
+        let context = try XCTUnwrap(journal.container).mainContext
+        let future = Ate.JournalEntry(prompt: "", text: "Future kind", state: nil)
+        future.kindRaw = "future-kind"
+        let id = future.id
+        context.insert(future); try context.save()
+        XCTAssertFalse(journal.deleteReflection(id: id))
+        XCTAssertFalse(journal.deleteReflection(id: "missing"))
+        XCTAssertFalse(journal.deleteReflection(id: ""))
+        XCTAssertTrue(try ModelContext(try XCTUnwrap(journal.container))
+            .fetch(FetchDescriptor<Ate.JournalEntry>()).contains { $0.id == id })
+    }
+
 }

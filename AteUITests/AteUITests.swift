@@ -2,6 +2,7 @@ import XCTest
 
 final class AteUITests: XCTestCase {
     var app: XCUIApplication!
+    private var captureAddTitleQuery = false
 
     override func setUp() {
         continueAfterFailure = false
@@ -109,6 +110,7 @@ final class AteUITests: XCTestCase {
     /// Opens Add sheet, picks a tab, generates via mock and saves; ends on Recipe detail.
     func addRecipe(tab: String, input: ((XCUIApplication) -> Void)?, shotPrefix: String) {
         app.buttons["Add recipe"].tap()
+        if captureAddTitleQuery { shot("cook-completion-before-add-title-query") }
         wait(text("Add a recipe"))
         app.buttons[tab].tap()
         input?(app)
@@ -258,7 +260,9 @@ final class AteUITests: XCTestCase {
     }
 
     func testCookModeCompletionRecordsCookingDay() {
-        launch()
+        captureAddTitleQuery = true
+        defer { captureAddTitleQuery = false }
+        launch(["-qaAddTitleQueryDiagnostic"])
         addPromptRecipe()
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))
@@ -273,10 +277,17 @@ final class AteUITests: XCTestCase {
         }
         wait(finish, 5)
         finish.tap()
+        // Finish confirms the saved cook before returning to recipe detail. Do not
+        // query background buttons/tabs through the still-present completion sheet.
+        wait(app.staticTexts["cookCompletion.recorded"], 5)
+        let completionDone = app.buttons["cookReflection.notNow"]
+        wait(completionDone, 5)
+        XCTAssertEqual(app.buttons.matching(identifier: "cookReflection.notNow").count, 1)
+        completionDone.tap()
         wait(app.buttons["Cook mode"], 5)
 
         // Completion must update the persistent Tracker, not merely dismiss Cook Mode.
-        tab("Journal")
+        tabFromRecipeDetail("Journal", recipeTitle: "Miso salmon for two")
         // Journal is the tab root; Insights & Cooking History is its one named route.
         let hub = app.buttons["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
@@ -1203,8 +1214,8 @@ final class AteUITests: XCTestCase {
     }
 
     func test28_GroupSortAndMenus() {
-        // Creation has independent end-to-end coverage. These journeys own
-        // the real Library menus/actions, not two unrelated generation flows.
+        // Recipe creation has separate end-to-end coverage; keep this budget
+        // for real native menus and their asserted Library actions.
         launch(["-qaSavedRecipesForGroupSort"])
         pick("sortMenu", "A–Z")
         let a = text("Apple crumble"), z = text("Zesty tacos")
@@ -1273,6 +1284,8 @@ final class AteUITests: XCTestCase {
     }
 
     func test29_ReorderMyOrder() {
+        // Recipe creation has separate end-to-end coverage; keep this budget
+        // for real native menus and their asserted Library actions.
         launch(["-qaSavedRecipesForDogfoodReorder"])
         pick("sortMenu", "My order")
         let first = text("First dish"), second = text("Second dish")
@@ -1281,8 +1294,8 @@ final class AteUITests: XCTestCase {
     }
 
     func test29b_ReorderMyOrderActions() {
-        // The selection journey exercises My order. Preselect only that mode;
-        // unordered cards and all real action results remain unseeded.
+        // Sort selection is exercised by test29. These cards still have no
+        // explicit positions; Move up must perform the real ordering change.
         launch(["-qaSavedRecipesForReorderAction"])
         let first = text("First dish"), second = text("Second dish")
         wait(first)

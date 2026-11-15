@@ -3,6 +3,14 @@ import SwiftUI
 struct RecipeDetailView: View {
     let recipeID: String
     @Environment(AppStore.self) private var store
+    @Environment(\.bottomChromeMinY) private var bottomChromeMinY
+    @State private var hostBottomY: CGFloat?
+    private var footerChromeReserve: CGFloat {
+        guard let hostBottomY, let bottomChromeMinY else { return 0 }
+        // NavigationStack does not consistently propagate its outer timer inset
+        // to a pushed detail. Reserve only its measured obscured band.
+        return max(0, hostBottomY - bottomChromeMinY) + 8
+    }
     @State private var factor: Double = 1
     @State private var editing = false
     @State private var planning = false
@@ -61,24 +69,32 @@ struct RecipeDetailView: View {
                     .pageWidth()
                 }
                 .accessibilityIdentifier("recipe.detail.scroll")
+                // The scrolling viewport owns its Cook inset. Keeping it outside
+                // the measured host mixes nested safe areas as timer chrome returns.
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if !editing, store.recipe(recipeID) != nil {
+                        Button {
+                            store.beginCookSession(recipeID: recipeID, factor: factor)
+                            store.cookTarget = CookTarget(id: recipeID)
+                        } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
+                            .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)
+                            .padding(.bottom, footerChromeReserve)
+                            .frame(maxWidth: .infinity)
+                            .background(Theme.background.ignoresSafeArea(edges: .bottom))
+                    }
+                }
             } else {
                 RecipeNotFoundView(title: "Recipe not found")
             }
         }
+        .background(GeometryReader { geometry in
+            Color.clear.preference(key: RecipeDetailHostBottomYKey.self,
+                                   value: geometry.frame(in: .global).maxY)
+        })
+        .onPreferenceChange(RecipeDetailHostBottomYKey.self) { hostBottomY = $0 }
         .toolbar(.hidden, for: .tabBar)   // full-height detail; Cook mode pinned at the bottom, never under the tab bar
         .navigationTitle(store.recipe(recipeID)?.title ?? "Recipe")
         .navigationBarTitleDisplayMode(.inline)
-        // Bottom area, one system: this inset (Cook mode) sits directly above the stack's timer bar inset.
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !editing, store.recipe(recipeID) != nil {
-                Button {
-                    store.beginCookSession(recipeID: recipeID, factor: factor)
-                    store.cookTarget = CookTarget(id: recipeID)
-                } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
-                    .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)
-                    .frame(maxWidth: .infinity)
-            }
-        }
         .toolbar {
             if let recipe = store.recipe(recipeID) {
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -196,8 +212,8 @@ struct RecipeDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Label("This recipe looks thin", systemImage: "exclamationmark.bubble").font(AteFont.body(14, .semibold))
                     ForEach(gaps, id: \.self) { Text("• " + $0).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground) }
-                    Button { ask = RecipeQuality.improvePrompt(recipe); Task { await rewrite(recipe) } } label: {
-                        Label("Improve with AI", systemImage: "wand.and.sparkles")
+                    Button { Task { await rewrite(recipe, repairQuality: true) } } label: {
+                        Label("Repair these gaps", systemImage: "wand.and.sparkles")
                     }.buttonStyle(.ate(.secondary, height: 40)).disabled(asking).accessibilityIdentifier("improveWithAI")
                 }
             }
@@ -212,14 +228,21 @@ struct RecipeDetailView: View {
         .cardSurface(padding: 16)
     }
 
-    private func rewrite(_ recipe: RecipeCard) async {
+    private func rewrite(_ recipe: RecipeCard, repairQuality: Bool = false) async {
         let q = ask.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return }
+        guard !asking, repairQuality || !q.isEmpty else { return }
+        if !repairQuality, let message = RecipeRewriteScope.noOpMessage(for: recipe, request: q) {
+            ask = ""; store.show(message); return
+        }
         if store.settings.onDeviceOnly { store.show("Private mode is on — turn it off in Settings to use AI.", error: true); return }
         asking = true
         defer { asking = false }
         do {
-            var card = try await store.backend.parseRecipe(ParseRequest(mode: .rewrite, text: q, currentRecipe: recipe))
+            var card = try await store.backend.parseRecipe(ParseRequest(mode: .rewrite, text: repairQuality ? nil : q, currentRecipe: recipe, repairQuality: repairQuality))
+            guard store.recipe(recipe.id) == recipe else {
+                throw BackendError(message: "Your recipe changed while AI was working. The result was not applied.")
+            }
+            if !repairQuality { card = try RecipeRewriteScope.accept(card, original: recipe, request: q) }
             card.id = recipe.id; card.createdAt = recipe.createdAt
             store.update(RecipeLogic.normalize(card))
             ask = ""
@@ -255,5 +278,12 @@ struct RecipeDetailView: View {
             shareFallbackRecipe = recipe
             shareFallbackAlertPresented = true
         }
+    }
+}
+
+private struct RecipeDetailHostBottomYKey: PreferenceKey {
+    static var defaultValue: CGFloat? { nil }
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
+        if let next = nextValue() { value = next }
     }
 }

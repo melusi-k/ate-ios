@@ -43,6 +43,42 @@ final class JournalOpenStateUITests: XCTestCase {
                        "Still presented: \(element)", file: file, line: line)
     }
 
+    /// Final #527 AX contains one native action as an equal-frame parent/child
+    /// Button chain. Count distinct terminal actions, not framework wrappers.
+    /// Two sibling leaves still fail even if their frames happen to overlap.
+    private func uniqueDeleteAlertAction(_ alert: XCUIElement, identifier: String, label: String,
+                                         file: StaticString = #filePath, line: UInt = #line) throws -> XCUIElement {
+        XCTAssertEqual(app.alerts.count, 1, "Exactly one visible delete alert is allowed", file: file, line: line)
+        let matches = alert.buttons.matching(identifier: identifier)
+        XCTAssertGreaterThan(matches.count, 0, "The named action must exist", file: file, line: line)
+        XCTAssertEqual(alert.buttons.matching(NSPredicate(format: "label == %@", label)).count, matches.count,
+                       "No same-label action may escape the identity check", file: file, line: line)
+        var leaves: [XCUIElement] = []
+        for index in 0..<matches.count {
+            let candidate = matches.element(boundBy: index)
+            XCTAssertEqual(candidate.label, label, "Every alias must name the same decision", file: file, line: line)
+            let descendants = candidate.descendants(matching: .button)
+            let nested = descendants.matching(identifier: identifier)
+            XCTAssertEqual(descendants.count, nested.count, "An alias cannot contain a different action", file: file, line: line)
+            if nested.count == 0 { leaves.append(candidate) }
+        }
+        XCTAssertEqual(leaves.count, 1, "Exactly one distinct visible \(label) action is allowed", file: file, line: line)
+        guard leaves.count == 1 else {
+            throw NSError(domain: "JournalDeleteActionIdentity", code: 1)
+        }
+        let action = leaves[0]  // proven unique terminal action, never arbitrary firstMatch
+        let frame = action.frame
+        XCTAssertFalse(frame.isEmpty, "Action must have visible area", file: file, line: line)
+        XCTAssertTrue(alert.frame.contains(frame), "Action must be inside the one alert", file: file, line: line)
+        for index in 0..<matches.count {
+            let alias = matches.element(boundBy: index)
+            XCTAssertEqual(alias.frame, frame, "Nested aliases must occupy exactly the same action frame", file: file, line: line)
+            XCTAssertTrue(alias.isEnabled, "No disabled duplicate decision may be hidden", file: file, line: line)
+        }
+        XCTAssertTrue(action.isHittable, "The unique visible action must be tappable", file: file, line: line)
+        return action
+    }
+
     private func any(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch
     }
@@ -198,7 +234,54 @@ extension JournalOpenStateUITests {
         shot("timeline-saved-reflection-back")
     }
 
-    func testManualReflectionEditSaveCancelAndConfirmedDelete() {
+    func testReflectionEditFailureRetainsDraftThenRetryCommitsAndRefreshesHistory() throws {
+        composeFromHistory(extra: ["-qaReflectionEditFailureOnce"])
+        let original = "Reflection failure " + UUID().uuidString
+        let compose = app.textViews["journal.compose.text"]
+        compose.tap(); compose.typeText(original)
+        app.buttons["journal.compose.save"].tap()
+        wait(app.navigationBars["Journal"])
+        let saved = app.descendants(matching: .any).matching(identifier: "journal.entry")
+            .matching(NSPredicate(format: "label CONTAINS %@", original)).firstMatch
+        wait(saved); saved.tap()
+        let detail = any("journal.detail.text")
+        wait(detail); XCTAssertEqual(detail.label, original)
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Edit"].tap()
+        let editor = app.textViews["journal.edit.text"]
+        wait(editor); editor.tap(); editor.typeText(" retained draft")
+        let retainedDraft = try XCTUnwrap(editor.value as? String)
+        // The editor retains exact user input after failure. A successful update
+        // follows JournalStore's existing whitespace/newline normalization.
+        let committedText = retainedDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertFalse(committedText.isEmpty)
+        XCTAssertNotEqual(committedText, original, "Retry must commit an actual edit")
+        app.navigationBars["Edit entry"].buttons["journal.edit.save"].tap()
+        wait(any("journal.edit.error"))
+        XCTAssertTrue(editor.exists, "Failed commit must not dismiss editor")
+        XCTAssertEqual(editor.value as? String, retainedDraft, "Failed commit must keep exact draft")
+        shot("reflection-edit-failure-retained-draft")
+        app.navigationBars["Edit entry"].buttons["journal.edit.save"].tap()
+        waitUntilGone(editor)
+        wait(detail); XCTAssertEqual(detail.label, committedText)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        wait(app.navigationBars["Journal"])
+        let edited = app.descendants(matching: .any).matching(identifier: "journal.entry")
+            .matching(NSPredicate(format: "label CONTAINS %@", committedText)).firstMatch
+        wait(edited)
+        shot("reflection-edit-retry-refreshed-history")
+    }
+
+    /// Keep actual alert evidence before a strict uniqueness failure stops the method.
+    /// Diagnostic only: does not choose/hide a match or change any assertion.
+    private func retainDeleteAlertEvidence(_ alert: XCUIElement, phase: String) {
+        shot("delete-alert-" + phase)
+        let hierarchy = XCTAttachment(string: alert.debugDescription + "\nAPP\n" + app.debugDescription)
+        hierarchy.name = "delete-alert-" + phase + "-AX"
+        hierarchy.lifetime = .keepAlways
+        add(hierarchy)
+    }
+
+    func testManualReflectionEditSaveCancelAndConfirmedDelete() throws {
         composeFromHistory()
         let original = "Manual CRUD " + UUID().uuidString
         let changed = original + " edited"
@@ -219,7 +302,7 @@ extension JournalOpenStateUITests {
         wait(editor)
         XCTAssertEqual(editor.value as? String, original)
         editor.tap(); editor.typeText(" discarded draft")
-        app.navigationBars["Edit entry"].buttons["Cancel"].tap()
+        app.navigationBars["Edit entry"].buttons["journal.edit.cancel"].tap()
         waitUntilGone(editor)
         XCTAssertEqual(detail.label, original, "Cancel must not save the draft")
 
@@ -231,7 +314,7 @@ extension JournalOpenStateUITests {
         editor.press(forDuration: 1.2)
         let selectAll = app.menuItems["Select All"]
         wait(selectAll); selectAll.tap(); editor.typeText(changed)
-        app.navigationBars["Edit entry"].buttons["Save"].tap()
+        app.navigationBars["Edit entry"].buttons["journal.edit.save"].tap()
         waitUntilGone(editor)
         app.navigationBars.buttons.element(boundBy: 0).tap()
         wait(app.navigationBars["Journal"])
@@ -245,19 +328,72 @@ extension JournalOpenStateUITests {
 
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
         wait(app.staticTexts["Delete this journal entry?"])
-        app.buttons["Cancel"].tap()
+        let cancelConfirmation = app.alerts["Delete this journal entry?"]
+        retainDeleteAlertEvidence(cancelConfirmation, phase: "crud-cancel-before-count")
+        let cancelAction = try uniqueDeleteAlertAction(cancelConfirmation, identifier: "journal.delete.cancel", label: "Cancel")
+        _ = try uniqueDeleteAlertAction(cancelConfirmation, identifier: "journal.delete.confirm", label: "Delete")
+        cancelAction.tap()
         waitUntilGone(app.staticTexts["Delete this journal entry?"])
         XCTAssertEqual(detail.label, changed, "Cancel must keep the reflection")
         app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
         wait(app.staticTexts["Delete this journal entry?"])
         shot("manual-crud-delete-confirmation")
-        app.buttons["Delete"].tap()
+        let confirmation = app.alerts["Delete this journal entry?"]
+        wait(confirmation)
+        retainDeleteAlertEvidence(confirmation, phase: "crud-confirm-before-count")
+        let confirmButton = try uniqueDeleteAlertAction(confirmation, identifier: "journal.delete.confirm", label: "Delete")
+        _ = try uniqueDeleteAlertAction(confirmation, identifier: "journal.delete.cancel", label: "Cancel")
+        confirmButton.tap()
+        // Capture the post-confirmation state even when the unchanged detail
+        // dismissal assertion fails. No back navigation or retry hides failure.
+        shot("manual-crud-after-confirmed-delete")
+        XCTAssertFalse(app.staticTexts["journal.delete.error"].exists,
+                       "Confirmed deletion must commit and verify, not only dismiss an alert")
         waitUntilGone(detail)
         wait(app.navigationBars["Journal"])
         XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "journal.entry")
             .matching(NSPredicate(format: "label CONTAINS %@", original)).firstMatch.exists,
             "Confirmed deletion must remove the created reflection from history")
         shot("manual-crud-confirmed-deleted-history")
+    }
+
+    func testConfirmedDeleteFailureKeepsDetailAndExplicitRetryRemovesEntry() throws {
+        launch(extra: ["-qaReflectionDeleteFailureOnce"])
+        app.tabBars.buttons["Journal"].tap()
+        wait(app.buttons["journal.newEntry"])
+        app.buttons["journal.newEntry"].tap()
+        let original = "Delete retry " + UUID().uuidString
+        let compose = app.textViews["journal.compose.text"]
+        wait(compose); compose.tap(); compose.typeText(original)
+        app.buttons["journal.compose.save"].tap()
+        wait(app.navigationBars["Journal"])
+        let row = app.descendants(matching: .any).matching(identifier: "journal.entry")
+            .matching(NSPredicate(format: "label CONTAINS %@", original)).firstMatch
+        wait(row); row.tap()
+        let detail = any("journal.detail.text")
+        wait(detail)
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
+        let alert = app.alerts["Delete this journal entry?"]
+        wait(alert)
+        retainDeleteAlertEvidence(alert, phase: "failure-retry-before-count")
+        let failedSaveDelete = try uniqueDeleteAlertAction(alert, identifier: "journal.delete.confirm", label: "Delete")
+        _ = try uniqueDeleteAlertAction(alert, identifier: "journal.delete.cancel", label: "Cancel")
+        failedSaveDelete.tap()
+        let error = app.staticTexts["journal.delete.error"]
+        wait(error)
+        XCTAssertEqual(detail.label, original, "Failed commit must not discard the detail")
+        XCTAssertTrue(app.navigationBars["Journal entry"].exists)
+        shot("manual-delete-failure-retained-detail")
+        app.buttons["journal.detail.menu"].tap(); app.buttons["Delete"].tap()
+        wait(alert)
+        retainDeleteAlertEvidence(alert, phase: "failure-retry-before-count")
+        let explicitRetryDelete = try uniqueDeleteAlertAction(alert, identifier: "journal.delete.confirm", label: "Delete")
+        _ = try uniqueDeleteAlertAction(alert, identifier: "journal.delete.cancel", label: "Cancel")
+        explicitRetryDelete.tap()
+        shot("manual-delete-explicit-retry-result")
+        waitUntilGone(detail)
+        wait(app.navigationBars["Journal"])
+        XCTAssertFalse(row.exists, "Only successful explicit retry may remove the target from history")
     }
 
     func testManualCancelKeepsDraftUntilExplicitDiscard() {

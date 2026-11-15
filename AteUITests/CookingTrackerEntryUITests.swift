@@ -7,9 +7,9 @@ final class CookingTrackerEntryUITests: XCTestCase {
         a.lifetime = .keepAlways
         add(a)
     }
-    private func launchTracker() -> XCUIApplication {
+    private func launchTracker(_ extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
+        app.launchArguments = ["-UITesting", "-qaResetCookingHistory"] + extra
         app.launch()
         let journalTab = app.tabBars.buttons["Journal"]
         XCTAssertTrue(journalTab.waitForExistence(timeout: 10), "Journal should be a first-class tab")
@@ -84,4 +84,73 @@ final class CookingTrackerEntryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Nothing recorded for this day."].waitForExistence(timeout: 5))
         shot("tracker-day-details")
     }
+    func testEmptyMonthSummaryFollowsCalendarAtNormalText() {
+        let app = launchTracker(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
+        let summary = app.staticTexts["tracker.monthSummary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        XCTAssertEqual(summary.label, "Recorded this month: 0 cooking days · 0 distinct recipes")
+        shot("tracker-month-summary-current-normal")
+        app.buttons["tracker.previousMonth"].tap()
+        XCTAssertEqual(summary.label, "Recorded this month: 0 cooking days · 0 distinct recipes")
+        shot("tracker-month-summary-previous-normal")
+        app.buttons["tracker.nextMonth"].tap()
+        XCTAssertTrue(summary.exists)
+        XCTAssertFalse(app.buttons["tracker.nextMonth"].isEnabled)
+    }
+
+    /// #68: native push/Back and the interactive edge gesture share one header owner.
+    /// No custom Back implementation, gesture fallback, re-tap or navigation retry.
+    func testJournalAndInsightsHeadersPreserveNativeBackAndEdgeSwipeAtNormalText() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-qaResetCookingHistory",
+                               "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launch()
+        let journalTab = app.tabBars.buttons["Journal"]
+        XCTAssertTrue(journalTab.waitForExistence(timeout: 10))
+        journalTab.tap()
+        let rootBar = app.navigationBars["Journal"]
+        let hub = app.descendants(matching: .any)["journal.insightsHistory"].firstMatch
+        let rootLogo = app.images["journal.logo"]
+        XCTAssertTrue(rootBar.waitForExistence(timeout: 10))
+        XCTAssertEqual(app.navigationBars.count, 1)
+        XCTAssertTrue(rootLogo.exists)
+        XCTAssertTrue(hub.waitForExistence(timeout: 5))
+        XCTAssertTrue(hub.isHittable)
+        shot("68-journal-root-normal")
+
+        hub.tap()
+        let pushedBar = app.navigationBars["Insights & Cooking History"]
+        XCTAssertTrue(pushedBar.waitForExistence(timeout: 5))
+        XCTAssertEqual(app.navigationBars.count, 1)
+        XCTAssertFalse(app.images["insights.logo"].exists, "Pushed Insights must not install root chrome")
+        XCTAssertFalse(rootLogo.exists, "Root logo must not compete with the pushed Back button")
+        let back = pushedBar.buttons["Journal"]
+        XCTAssertTrue(back.exists && back.isHittable, "System Back must retain the parent title")
+        shot("68-insights-native-back-normal")
+        back.tap()
+        XCTAssertTrue(rootBar.waitForExistence(timeout: 5))
+        XCTAssertEqual(app.navigationBars.count, 1)
+        XCTAssertTrue(rootLogo.exists)
+        XCTAssertTrue(hub.exists && hub.isHittable, "Back must restore the original Journal content")
+        shot("68-journal-after-native-back-normal")
+
+        hub.tap()
+        XCTAssertTrue(pushedBar.waitForExistence(timeout: 5))
+        XCTAssertTrue(pushedBar.buttons["Journal"].isHittable)
+        // Start at the real leading edge and finish well inside the same window.
+        // This is the interactive pop gesture, not an app swipe or a Back fallback.
+        let window = app.windows.firstMatch
+        let edge = window.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.5))
+        let finish = window.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5))
+        edge.press(forDuration: 0.1, thenDragTo: finish)
+        XCTAssertTrue(rootBar.waitForExistence(timeout: 5), "Interactive edge swipe must restore Journal")
+        XCTAssertFalse(pushedBar.exists)
+        XCTAssertEqual(app.navigationBars.count, 1)
+        XCTAssertTrue(rootLogo.exists)
+        XCTAssertTrue(hub.exists && hub.isHittable)
+        XCTAssertTrue(journalTab.isSelected)
+        shot("68-journal-after-edge-swipe-normal")
+    }
+
 }

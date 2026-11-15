@@ -160,4 +160,71 @@ final class CookPlanNotificationTests: XCTestCase {
         XCTAssertEqual(client.ids, ["ate.timer.keep"])
     }
 
+    func testDeniedPermissionCannotClaimReconciledWhenOldReminderRemovalFails() async throws {
+        let client = CookPlanFakeNotificationClient()
+        client.permitted = false; client.refuseRemoval = true
+        let p = plan()
+        client.ids.insert(p.reminderID)
+        let adapter = CookPlanNotifications(client: client)
+        do {
+            try await adapter.reconcile(plans: [p], recipes: [RecipeCard(id: p.recipeID, title: "Soup")])
+            XCTFail("A retained reminder is not verified absence")
+        } catch {
+            XCTAssertEqual(error as? CookPlanError, .verificationFailed)
+        }
+        XCTAssertTrue(client.ids.contains(p.reminderID))
+        XCTAssertTrue(client.ids.contains("ate.timer.keep"))
+        XCTAssertTrue(client.adds.isEmpty)
+    }
+
+    func testDeletedRecipeReminderRemovalMustVerifyBeforeOtherReminderAdds() async throws {
+        let client = CookPlanFakeNotificationClient(); client.refuseRemoval = true
+        let p = plan()
+        let deleted = CookPlan.reminderID(recipeID: "deleted")
+        client.ids.insert(deleted)
+        let adapter = CookPlanNotifications(client: client)
+        do {
+            try await adapter.reconcile(plans: [p], recipes: [RecipeCard(id: p.recipeID, title: "Soup")])
+            XCTFail("Failed obsolete cleanup must stop before adding desired reminders")
+        } catch {
+            XCTAssertEqual(error as? CookPlanError, .verificationFailed)
+        }
+        XCTAssertTrue(client.ids.contains(deleted))
+        XCTAssertTrue(client.adds.isEmpty)
+        client.refuseRemoval = false
+        try await adapter.reconcile(plans: [p], recipes: [RecipeCard(id: p.recipeID, title: "Soup")])
+        XCTAssertEqual(client.ids, ["ate.timer.keep", p.reminderID])
+        XCTAssertEqual(client.adds, [p.scheduledAt])
+    }
+
+}
+
+// Exercise the real off-Main boundary without contacting notification services.
+extension CookPlanNotificationTests {
+    func testBlockedSystemRemovalLeavesMainResponsiveAndDoesNotReturnEarly() async {
+        let started = expectation(description: "utility removal entered")
+        let release = DispatchSemaphore(value: 0)
+        var returned = false
+        let removal = Task { @MainActor in
+            await CookPlanNotificationRemoval.perform(ids: ["cook-r1"]) { ids in
+                XCTAssertFalse(Thread.isMainThread, "Blocking OS removal must not run on Main")
+                XCTAssertEqual(ids, ["cook-r1"], "Removal must preserve the requested identities")
+                started.fulfill()
+                release.wait()
+            }
+            returned = true
+        }
+        await fulfillment(of: [started], timeout: 2)
+        // This MainActor assertion runs while the synchronous boundary is blocked.
+        XCTAssertFalse(returned, "Ordered cleanup cannot report completion before OS removal returns")
+        release.signal()
+        await removal.value
+        XCTAssertTrue(returned)
+    }
+
+    func testEmptyRemovalDoesNotContactSystem() async {
+        await CookPlanNotificationRemoval.perform(ids: []) { _ in
+            XCTFail("No identifiers means no OS removal request")
+        }
+    }
 }

@@ -3,6 +3,21 @@ import Foundation
 /// Food photo (no recipe text) → likely dish → drafted recipe.
 enum PhotoGuess {
     /// Screenshot of a recipe vs. a photo with stray text (a label, a menu word).
+    /// Keep editable generic classes in view instead of five near-identical
+    /// guesses from one family. These are user choices, not identified labels.
+    static func questionSuggestions(_ guesses: [String]) -> [String] {
+        var seen = Set<String>()
+        let unique = guesses.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
+        var result = Array(unique.prefix(3))
+        for generic in ["Fish", "Vegetable dish"] where !result.contains(where: { $0.caseInsensitiveCompare(generic) == .orderedSame }) {
+            result.append(generic)
+        }
+        return result
+    }
+
+    static let plateLimitNote = "This is a guessed recipe, not a reconstruction of the whole plate. Unidentified garnishes, sauces and sides were left out. Add any you want before cooking."
+
     static func isScreenshotText(_ text: String) -> Bool {
         let words = text.split { $0.isWhitespace }.count
         let lines = text.split(separator: "\n").count

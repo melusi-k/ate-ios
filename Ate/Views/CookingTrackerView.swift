@@ -163,6 +163,13 @@ private struct CookingDotGrid: View {
                 .accessibilityIdentifier("tracker.nextMonth")
             }
 
+            let monthSummary = CookingMonthSummary.make(events: history.events, month: displayedMonth, calendar: calendar)
+            Text(monthSummary.text)
+                .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityLabel("Recorded this month: " + monthSummary.text)
+                .accessibilityIdentifier("tracker.monthSummary")
+
             LazyVGrid(columns: columns, spacing: 7) {
                 ForEach(Array(weekdays.enumerated()), id: \.offset) { _, weekday in
                     Text(weekday.uppercased())

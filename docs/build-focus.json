@@ -1,7 +1,7 @@
 {
   "title": "Named-photo recipe grounding and incomplete Chicken au Poivre regression",
-  "summary": "Named photo prompts retain the source dish and avoid unsupported regional claims; claimed infusions and finishing actions belong in steps, not only notes. Exact build445 Chicken au Poivre fixture preserves field repair and incomplete-method gaps. Shared prompt budget and all prior assertions unchanged. Model-affecting: held for device golden set before merge. Native compile, XCTest, generation behavior and updated pixels UNRUN; source guards are not device qualification. Generated-only review hint for an exclusive ribs versus wings mismatch supported by both ingredients and method. No silent rename or changed save/repair gate. Mixed cuts, no method evidence and non-generated cards excluded. Tests preserve original sticky-ribs acceptance assertions. Native compile, XCTest and actual review pixels UNRUN; label placement awaits device verification. Source metadata is not qualification; merge held.",
-  "source_commit": "82c15bc3a9eeab88386c6618e705739cf4562020",
+  "summary": "Cook returns to its retained recipe sheet. Named-photo grounding preserves the source dish, avoids unsupported regional claims and keeps method actions in steps. Generated ribs/wings conflicts get a review hint, never a rename or new gate. Chicken and title changes remain held for device golden set and pixels. This packet adds two default-on DEBUG SettingsAbout frame/screenshot receipts only. Original assertions, swipe bounds and allowances unchanged. Native compile, XCTest and new pixels UNRUN; metadata is not qualification.",
+  "source_commit": "73f13ac8da2b5cd007768de969a9f2de1f937977",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

@@ -144,6 +144,9 @@ jobs:
               mark("simulator-readiness-complete", sim_id=sim, runtime=runtime, authority="bootstatus-return-zero")
               mark("unchanged-four-tests-next")
           PYREADINESS
+          mkdir -p journal-return-window
+          date -u '+%Y-%m-%d %H:%M:%S' > journal-return-window/start-utc.txt
+          trap 'date -u "+%Y-%m-%d %H:%M:%S" > journal-return-window/end-utc.txt' EXIT
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/JournalOpenStateUITests \
             -only-testing:AteTests/JournalReflectionEditTests \
@@ -165,6 +168,32 @@ jobs:
             grep -qF "$evidence" journal-open-state-ui.log || { echo "::error::Missing reflection edit pass: $evidence"; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" journal-open-state-ui.log | tail -40
+      - name: Retain immediate Journal return diagnostic window
+        if: always()
+        run: |
+          mkdir -p journal-return-window
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > journal-return-window/collection-start-utc.txt
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> journal-return-window/container-errors.txt); then
+            for evidence in presentation-return-diagnostic.txt presentation-return-scheduler.txt; do
+              if [ -f "$data_container/Library/Caches/$evidence" ]; then
+                cp "$data_container/Library/Caches/$evidence" "journal-return-window/$evidence"
+              else
+                echo "$evidence missing; no liveness conclusion." >> journal-return-window/errors.txt
+              fi
+            done
+          else
+            echo 'Container inaccessible; no file liveness conclusion.' >> journal-return-window/errors.txt
+          fi
+          if [ -s journal-return-window/start-utc.txt ] && [ -s journal-return-window/end-utc.txt ]; then
+            start_utc=$(cat journal-return-window/start-utc.txt)
+            end_utc=$(cat journal-return-window/end-utc.txt)
+            predicate='process == "Ate" OR process == "AteUITests-Runner" OR subsystem == "com.melusik.ate" OR process == "testmanagerd"'
+            /usr/bin/log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug --predicate "$predicate" > journal-return-window/host-unified.log 2>&1 || echo 'Host collection failed.' >> journal-return-window/errors.txt
+            xcrun simctl spawn "$SIM_ID" log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug --predicate "$predicate" > journal-return-window/simulator-unified.log 2>&1 || echo 'Simulator collection failed.' >> journal-return-window/errors.txt
+          else
+            echo 'UTC markers missing; no covered window claimed.' >> journal-return-window/errors.txt
+          fi
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > journal-return-window/collection-end-utc.txt
       - name: Qualify dormant reset composition on its exact candidate branch
         if: github.head_ref == 'prep/account-reset-composition'
         run: |
@@ -334,6 +363,7 @@ jobs:
           name: journal-open-state-ui-${{ github.run_number }}
           path: |
             journal-open-state-ui.log
+            journal-return-window
             files-cancel-system-diagnostic.log
             files-cancel-system-diagnostic-attachments
             ${{ runner.temp }}/ate-test-results/files-cancel-system-diagnostic.xcresult

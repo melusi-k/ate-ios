@@ -64,6 +64,31 @@ final class CoverageUITests: XCTestCase {
             n += 1
         }
     }
+    /// Opt-in diagnostic reads can perturb AX timing; never retry or navigate here.
+    func captureJournalTabMetrics(_ phase: String) {
+#if DEBUG
+        guard app.launchArguments.contains("-UITesting"),
+              app.launchArguments.contains("-qaJournalTabMetrics") else { return }
+        let start = Date()
+        var rows = ["phase=\(phase) timingPerturbingAXReads=true"]
+        for name in ["Library", "Shopping", "Journal", "Settings", "Search"] {
+            let button = app.tabBars.buttons[name]
+            let exists = button.exists
+            if exists {
+                let frame = button.frame
+                let selected = button.isSelected
+                let hittable = button.isHittable
+                rows.append("tab=\(name) exists=true selected=\(selected) hittable=\(hittable) frame=\(frame) elapsed=\(Date().timeIntervalSince(start))")
+            } else {
+                rows.append("tab=\(name) exists=false elapsed=\(Date().timeIntervalSince(start))")
+            }
+        }
+        let attachment = XCTAttachment(string: rows.joined(separator: "\n"))
+        attachment.name = "journal-tab-metrics-\(phase)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+#endif
+    }
     func tab(_ name: String) {
         var n = 0
         while !app.tabBars.firstMatch.exists && n < 4 {
@@ -74,6 +99,7 @@ final class CoverageUITests: XCTestCase {
         let b = app.tabBars.buttons[name]
         if name == "Journal" {
             XCTAssertTrue(b.waitForExistence(timeout: 5), "Journal must be selected through its tab, not a pushed-screen back button")
+            captureJournalTabMetrics("before-hittable-waiter")
             let hittable = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == true AND hittable == true"), object: b)
             XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed,
@@ -1003,7 +1029,7 @@ extension CoverageUITests {
 extension CoverageUITests {
     /// Issue #68: root navigation chrome remains visible and large titles do not cover first content.
     func testNavigationHeadersRemainStableOnShoppingAndSettings() {
-        launch()
+        launch(["-qaJournalTabMetrics"])
         tab("Shopping")
         let shoppingTitle = app.navigationBars["Shopping list"]
         wait(shoppingTitle)
@@ -1035,6 +1061,7 @@ extension CoverageUITests {
         XCTAssertTrue(settingsTab.isHittable, "The selected minimized Settings tab must be reachable")
         settingsTab.tap()
         shot("82-settings-tab-chrome-revealed")
+        captureJournalTabMetrics("after-selected-settings-reveal")
         // #82 uses the current Journal root, not the historical Tracker title or
         // pushed Cooking History route. Keep every strict tab/arrival/header
         // assertion; the reveal gesture is setup, never a substitute destination.

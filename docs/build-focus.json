@@ -1,7 +1,7 @@
 {
-  "title": "Dormant family sync with main Shopping, Explore and bounded diagnostics",
-  "summary": "Dormant Journal/nutrition sync stays OFF. Main Shopping/Explore/Search retained with stale-auth protection, one Cook inset, original and saved-setup native journeys. Return receipts are diagnostic. Fixture-only credential storage and an autorelease scope test native-failure hypotheses; no product fix or native pass claimed. Original assertions and budgets unchanged except explicitly reviewed recipe tie now server-wins, matching retained source. Native compile/XCTest/pixels UNRUN. Merge held for Reviewer destination confirmation.",
-  "source_commit": "f4027cae2548fb296f61a7287535ff1264dde50e",
+  "title": "Account-scoped Journal reset with dormant sync preparation",
+  "summary": "Explicit sign-out, different-account sign-in and Clear all erase actual Journal rows, meals, media, backups and drafts; token expiry preserves them. Goals retained on Journal-only erase. Owner fingerprint survives pre-upgrade unsynced expiry. Dormant sync stays OFF; production untouched. Independent source review and Python PASS, native compilation/XCTest/pixels UNRUN. Draft held.",
+  "source_commit": "0b2f4abc488bdceba8223c02b912de1320dae01c",
   "evidence": [
     {
       "path": "Ate/Insights/InsightLifecycle.swift",
@@ -17,11 +17,11 @@
     },
     {
       "path": "Ate/Store/AppStore+UserDataSync.swift",
-      "blob": "6bc1985e0124fa7aa350cd51cb0bbdc7217a6652"
+      "blob": "391ddb0edfcfea7fdae344981e384bb9098c78dd"
     },
     {
       "path": "Ate/Store/AppStore.swift",
-      "blob": "7eadfef6dde7ee4827cde02f54b368b9b2580609"
+      "blob": "882fd06139e2df7f7361496d7650587088010ff6"
     },
     {
       "path": "Ate/Store/FamilySyncCommitJournal.swift",
@@ -93,7 +93,7 @@
     },
     {
       "path": "Ate/Views/InsightsView.swift",
-      "blob": "3f38057fb07a065197672fab9c6f219ea06c17f1"
+      "blob": "a2cef3495c1a24ad556b2389f2511b6afd1927cb"
     },
     {
       "path": "Ate/Views/JournalDeleteConfirmation.swift",
@@ -122,6 +122,22 @@
     {
       "path": "Ate/Services/CookPlanNotifications.swift",
       "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
+    },
+    {
+      "path": "Ate/Store/AppStore+JournalAccountActions.swift",
+      "blob": "effad2f139c92d64e85a95083443d0c5442e2a63"
+    },
+    {
+      "path": "Ate/Store/AppStore+JournalPersonalReset.swift",
+      "blob": "cba7be8e1f2b4e9da5fa51b4c334ff4b99642349"
+    },
+    {
+      "path": "Ate/Views/AccountCard.swift",
+      "blob": "b26977d012e470aa127e5f20bc81b9678a0f3465"
+    },
+    {
+      "path": "Ate/Views/SettingsView.swift",
+      "blob": "bdd9640e0e84c557eba392425012b53a3da15c1c"
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Focus: Explore retention, live Shopping sync and Cook footer candidate. Library switches preserve collection; explicit all-Library clears it. Settings uses one held clear-band drag; strict assertions unchanged. Selected Explore test adds bounded DEBUG keyboard notifications, original short-circuit focus timing and failure pixels. No focus/content walks or polling. Add-sheet heartbeat remains diagnostic. Instrumentation may perturb timing, not a product fix. OCR/10s deadline/budgets unchanged. CookCompletion, Settings and Insights bootstrap unresolved; native acceptance unqualified. Merge held.",
-  "source_commit": "18cdac31035e570d9480d46d4b004a668bc2ac5e",
+  "summary": "Explore retention, live Shopping sync and Cook footer candidate. Library preserves collection; explicit all-Library clears it. Settings keeps its held drag and strict assertions. Explore focus and add-sheet heartbeat remain diagnostic. Synthetic OCR adds DEBUG request/handler/perform phase wall/process-CPU samples only; process CPU excludes host and Vision services. OCR 10s deadline, 8s assertion and budgets unchanged. Prior OCR deadline misses and Insights bootstrap unresolved. Native qualification unverified; this focus refresh fixes pre-build metadata only. Merge held.",
+  "source_commit": "a32e793fa0ce37681cee3498f8a7e767e6eed1a9",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -77,7 +77,7 @@
     },
     {
       "path": "Ate/Services/OnDeviceBackend.swift",
-      "blob": "4561826dfb30db147b00e95e3860eeff3e344c53"
+      "blob": "2caf8558181d9f0273f267fc78e6973d14f367c7"
     }
   ]
 }

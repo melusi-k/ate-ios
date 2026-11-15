@@ -1,7 +1,7 @@
 {
   "title": "Dormant Journal and nutrition goals sync preparation",
-  "summary": "Dormant Journal and goals sync preparation; shipping and host binding OFF. Goals upload fixture seeds an explicit-kind reflection so onPush really runs; original 1800/nil-stamp checks retained. Capture-only matrix boundary and SwiftData schema/access markers investigate Optional cast and nil-kind crashes. Canonical fixtures, atomic waiters and Group28/QA8 diagnostics retained. No assertions or budgets weakened. Native qualification unverified; crashes unresolved, migration unapplied, no production writes. Focus refresh is metadata only. Merge held.",
-  "source_commit": "4cd765a0c99e2875e1636ccaadac47360d1241ac",
+  "summary": "Dormant Journal and goals sync preparation remains OFF. Goals fixture, schema/crash markers and targeted QA8 stack capture retained. Adds bounded DEBUG-only post-Exit quality-call timing and existing geometry callback counts/values to distinguish slow work from repeated layout. Seven native stack samples suggest layout work, not a proven cause. Group28 allowance breach remains separate. No quality checks, product layout, assertions or budgets changed. New native capture UNRUN; merge held, production migration unapplied.",
+  "source_commit": "120b0b673a4776fe4a6fe3056a5bda6a245178d8",
   "evidence": [
     {
       "path": "Ate/Insights/InsightLifecycle.swift",
@@ -38,6 +38,10 @@
     {
       "path": "Ate/Views/JournalViews.swift",
       "blob": "b3b9da1beb17d289c5a18e618b81424637488839"
+    },
+    {
+      "path": "Ate/Views/RecipeDetailView.swift",
+      "blob": "987d8197e376f8d0002da2ed90e215dfadb91718"
     }
   ]
 }

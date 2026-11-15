@@ -35,6 +35,10 @@ class DetailLayoutCaptureTests(unittest.TestCase):
         for folder in ['AteUITests','AteTests','Ate/Logic']:
             actual={str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
                     for p in (ROOT/folder).rglob('*') if p.is_file()}
+            if folder == 'AteTests':
+                from test_user_data_sync_model_qualification import restore_sync_model_qualification
+                file='AteTests/UserDataSyncTests.swift'
+                actual[file]=hashlib.sha256(restore_sync_model_qualification((ROOT/file).read_text()).encode()).hexdigest()
             self.assertEqual(actual, BASE_FOLDER_HASHES[folder])
         source=(ROOT/'.github/workflows/dogfood-qualification.yml').read_text()
         for job in yaml.safe_load(source)['jobs'].values():

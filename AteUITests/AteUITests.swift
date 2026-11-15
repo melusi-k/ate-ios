@@ -253,6 +253,11 @@ final class AteUITests: XCTestCase {
         XCTAssertEqual(finish.label, "Finish cooking")
         shot("cook-last-step")
         finish.tap()
+        wait(app.staticTexts["cookCompletion.recorded"], 5)
+        let completionDone = app.buttons["cookReflection.notNow"]
+        wait(completionDone, 5)
+        XCTAssertEqual(app.buttons.matching(identifier: "cookReflection.notNow").count, 1)
+        completionDone.tap()
         wait(app.buttons["Cook mode"], 5)
     }
 

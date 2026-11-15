@@ -269,9 +269,28 @@ final class CoverageUITests: XCTestCase {
         shot("recipe-sheet-expanded-landscape")
         app.buttons["recipeSheet.collapse"].tap()
         wait(expand, 3)
+#if DEBUG
+        print("SHEET-RETURN phase=before-landscape-close uptime=\(ProcessInfo.processInfo.systemUptime)")
+        shot("sheet-return-before-landscape-close")
+        defer {
+            print("SHEET-RETURN phase=end uptime=\(ProcessInfo.processInfo.systemUptime)")
+            shot("sheet-return-end")
+        }
+#endif
         app.buttons["recipeSheet.close"].tap()
+#if DEBUG
+        print("SHEET-RETURN phase=close-return uptime=\(ProcessInfo.processInfo.systemUptime)")
+        shot("sheet-return-after-landscape-close")
+#endif
         XCTAssertTrue(expand.waitForNonExistence(timeout: 3))
+#if DEBUG
+        print("SHEET-RETURN phase=before-original-grid-query uptime=\(ProcessInfo.processInfo.systemUptime)")
+        shot("sheet-return-before-original-grid-query")
+#endif
         wait(card, 5)
+#if DEBUG
+        print("SHEET-RETURN phase=after-original-grid-query uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
         // iPhone landscape uses LandscapeSplitView's sidebar, not a TabBar.
         let librarySidebar = app.buttons["sidebar.Library"]
         XCTAssertTrue(librarySidebar.isSelected)

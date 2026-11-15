@@ -1,11 +1,11 @@
 {
   "title": "Quieter Insights and new recipe suggestions",
-  "summary": "Focus: quieter Insights and honest new-recipe availability. Opt-in native Back diagnostics pair a bounded utility scheduler with MainActor heartbeat files and one post-Back pixel, plus existing Tracker/Cook animation diagnostics. Fixed numeric phases only, no model/UI queries. Original actions, predicates and budgets unchanged. Unresolved native Back, Settings-tab hittability and Cook-completion failures remain; this diagnostic may perturb timing and is not a fix or cause attribution. Native/pixel qualification pending; merge held.",
-  "source_commit": "6921fc4695848d1789230b38fc20ba17ee680504",
+  "summary": "Focus: Insights and Journal navigation. Opt-in native Back diagnostics retain paired bounded scheduler/MainActor timing; the path observer is not UIKit transition completion. Selected Nutrition and Group28 journeys add paired startup liveness through 240s and monotonic markers around existing helpers, without extra UI queries. Numeric-only diagnostics may perturb timing, not a product fix or cause attribution. Original actions, assertions and budgets unchanged. Settings, animation-notification and AX latency remain unresolved; native/pixel acceptance unqualified. Merge held.",
+  "source_commit": "0763dc72a028f3d550cb92624c0fa14eabc554c7",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "17182b9be14eb33ad916e32073f272f525eeac60"
+      "blob": "6c29147b6d95233166312389b0e161a751ae9d7a"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",

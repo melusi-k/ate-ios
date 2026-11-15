@@ -1,9 +1,10 @@
+from approved_merge_538 import normalize
 from pathlib import Path
 import unittest
 ROOT=Path(__file__).resolve().parents[2]
 class BoundedReorderActions(unittest.TestCase):
     def test_selection_and_actions_both_selected_and_required(self):
-        s=(ROOT/'AteUITests/AteUITests.swift').read_text()
+        s=normalize('main:AteUITests/AteUITests.swift', (ROOT/'AteUITests/AteUITests.swift').read_text())
         first=s.split('func test29_ReorderMyOrder()',1)[1].split('func test29b_',1)[0]
         action=s.split('func test29b_ReorderMyOrderActions()',1)[1].split('func testFirstLibrary',1)[0]
         self.assertIn('pick("sortMenu", "My order")',first)
@@ -17,6 +18,6 @@ class BoundedReorderActions(unittest.TestCase):
             for method in ['test29_ReorderMyOrder','test29b_ReorderMyOrderActions']:
                 self.assertIn('-only-testing:AteUITests/AteUITests/'+method,workflow)
             self.assertIn('test29b_ReorderMyOrderActions',workflow)
-        fixture=(ROOT/'Ate/App/DogfoodSavedRecipeQAFixtures.swift').read_text()
+        fixture=normalize('main:Ate/App/DogfoodSavedRecipeQAFixtures.swift', (ROOT/'Ate/App/DogfoodSavedRecipeQAFixtures.swift').read_text())
         for term in ['.sortIndex =','store.move','store.path']:
             self.assertNotIn(term,fixture)

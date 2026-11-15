@@ -33,7 +33,12 @@ struct JournalDeleteConfirmation: UIViewControllerRepresentable {
         host.update(requested: isPresented, onDelete: {
             isPresented = false
             onDelete()
-        }, onCancel: { isPresented = false })
+        }, onCancel: {
+            isPresented = false
+            #if DEBUG
+            PresentationReturnDiagnostic.returnedIfRequested()
+            #endif
+        })
     }
 
     static func dismantleUIViewController(_ host: Host, coordinator: ()) {

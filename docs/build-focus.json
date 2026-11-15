@@ -1,7 +1,7 @@
 {
   "title": "Food Journal owner qualification plus main Settings, Insights, Cook and Journal",
-  "summary": "Focus: dormant owner-scoped Food Journal sync, shipping activation OFF. Existing Library and CookPlan diagnostics remain. Journal root-normal/sidebar journey now adds nine opt-in DEBUG animation samples and pixels after New Entry/editor taps. Original actions, queries, waits, assertions and budgets unchanged. Diagnostics may affect timing; no stall fix or native qualification claimed. Prior red remains evidence; current native/pixels pending and merge held.",
-  "source_commit": "c810b609b4513b2a49e583973fa0ea81c739603e",
+  "summary": "Focus: dormant owner-scoped Food Journal sync, shipping activation OFF. Existing Library, CookPlan and Journal root diagnostics remain. Tracker Month now adds opt-in DEBUG numeric transition phases plus pixels and AX label reads after the original Previous assertion. Original actions, predicates, waits, assertions and budgets are unchanged. Diagnostics may affect timing; no product fix, native qualification or device pass claimed. Prior reds remain evidence; current native/pixels pending and merge held.",
+  "source_commit": "f08ecbe49530ee58eaac022df16af106a996f968",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -37,7 +37,7 @@
     },
     {
       "path": "Ate/Views/CookingTrackerView.swift",
-      "blob": "6b209b692702c03311ec3feba3bf3632202e9bc1"
+      "blob": "0291066abaf9bb54b0d12da489d2a590288ddaa2"
     },
     {
       "path": "Ate/Views/CookModeView.swift",

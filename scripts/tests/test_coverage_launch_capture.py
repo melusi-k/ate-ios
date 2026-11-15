@@ -10,6 +10,8 @@ def restore_coverage_workflow(s):
 class CoverageLaunchContracts(unittest.TestCase):
     def test_original_file_0_unchanged(self):
         s=(ROOT/'AteUITests/CoverageUITests.swift').read_text()
+        from test_relay_return_capture import restore_relay_return_capture
+        s=restore_relay_return_capture(self,s,'AteUITests/CoverageUITests.swift')
         from test_about_targeting import restore_about_targeting
         s=restore_about_targeting(self,s)
         self.assertEqual(s.count('    func testBottomBarsDoNotOverlapRecipeDetail() {\n        captureCoverageLaunch = true\n        defer { captureCoverageLaunch = false }\n        launch(["-simulateOffline"])\n        coverageLaunchMark("body-after-launch")'),1)
@@ -21,6 +23,8 @@ class CoverageLaunchContracts(unittest.TestCase):
         self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'d0d4a8761d0dd7a1d833d8ad7e0d0d45e6a9ec04ec2913c7f3482f3b1ef4922a')
     def test_original_file_1_unchanged(self):
         s=(ROOT/'.github/workflows/compile-check.yml').read_text()
+        from test_relay_return_capture import restore_relay_return_capture
+        s=restore_relay_return_capture(self,s,'.github/workflows/compile-check.yml')
         self.assertEqual(s.count('            cook-completion-window\n            coverage-launch-lifecycle\n'),1)
         s=s.replace('            cook-completion-window\n            coverage-launch-lifecycle\n','            cook-completion-window\n',1)
         self.assertEqual(s.count('            CODE_SIGNING_ALLOWED=NO > cook-finish-accessory.log 2>&1 || coverage_status=$?\n          date -u \'+%Y-%m-%d %H:%M:%S\' > coverage-launch-lifecycle/end-utc.txt\n          stop_coverage_lifecycle\n          trap - EXIT\n          python3 scripts/capture-coverage-launch-window.py --sim-id "$SIM_ID" --output coverage-launch-lifecycle || echo \'Coverage launch log collector failed; qualification status unchanged.\'\n          # Metadata and test markers survive an artifact DNS failure in this job log.\n          tail -5 coverage-launch-lifecycle/process-metadata.jsonl || true\n          grep -F \'COVERAGE-LAUNCH\' cook-finish-accessory.log || true\n          if [ "$coverage_status" -ne 0 ]; then tail -120 cook-finish-accessory.log; exit 1; fi'),1)

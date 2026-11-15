@@ -157,7 +157,7 @@ final class DataArchiveTests: XCTestCase {
         XCTAssertTrue(try fixture.goals.load().isEmpty)
     }
 
-    func testSignOutKeepingLocalDataPreservesNutritionDiaryAndGoals() async throws {
+    func testSignOutKeepingRecipesClearsNutritionDiaryButPreservesGoals() async throws {
         let fixture = makeStore()
         defer { fixture.defaults.removePersistentDomain(forName: fixture.suite) }
         let entry = NutritionDiaryEntry(foodName: "Lunch", date: .now, meal: .lunch, quantity: 1,
@@ -172,7 +172,7 @@ final class DataArchiveTests: XCTestCase {
 
         await fixture.store.signOut(removeLocalData: false)
 
-        XCTAssertEqual(fixture.diary.load(), [entry])
+        XCTAssertTrue(fixture.diary.load().isEmpty)
         XCTAssertEqual(try fixture.goals.load(), goals)
     }
 
@@ -226,8 +226,14 @@ final class DataArchiveTests: XCTestCase {
             defaults: defaults,
             storage: FileNutritionGoalsStorage(fileURL: directory.appendingPathComponent("goals.json"))
         )
+        let journal = JournalStore(inMemory: true)
         let store = AppStore(context: nil, backend: MockBackend(), nutritionDiaryRepository: diary,
-                             nutritionGoalsRepository: goals)
+                             nutritionGoalsRepository: goals, journalStoreOverride: journal)
+        store.journalPersonalResetInventory = JournalLocalReset(journal: journal, defaults: defaults,
+            goalsStorage: goals.storage, mediaDirectory: directory.appendingPathComponent("media"),
+            migrationBackupDirectory: directory.appendingPathComponent("legacy"),
+            repairBackupDirectory: directory.appendingPathComponent("corrupt"), preservationDirectory: nil,
+            storeFileURL: directory.appendingPathComponent("Test.store"))
         // Hermetic credential effect: these tests cover AppStore boundaries, not simulator Keychain entitlements.
         // Explicit credential-refusal tests replace this seam after construction.
         var credentialBytes: Data?

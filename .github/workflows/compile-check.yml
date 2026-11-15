@@ -535,6 +535,18 @@ jobs:
         if: ${{ matrix.suite == 'account-cooking' && always() }}
         run: |
           mkdir -p tracker-query-window
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > tracker-query-window/collection-start-utc.txt
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> tracker-query-window/container-errors.txt); then
+            for evidence in presentation-return-diagnostic.txt presentation-return-scheduler.txt; do
+              if [ -f "$data_container/Library/Caches/$evidence" ]; then
+                cp "$data_container/Library/Caches/$evidence" "tracker-query-window/$evidence"
+              else
+                echo "$evidence missing; no liveness conclusion." >> tracker-query-window/errors.txt
+              fi
+            done
+          else
+            echo 'Container inaccessible; no file liveness conclusion.' >> tracker-query-window/errors.txt
+          fi
           if [ -s tracker-query-window/start-utc.txt ]; then
             start_utc=$(cat tracker-query-window/start-utc.txt)
             if [ ! -s tracker-query-window/end-utc.txt ]; then
@@ -551,6 +563,7 @@ jobs:
           else
             echo 'Start marker missing; no covered window claimed.' > tracker-query-window/errors.txt
           fi
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > tracker-query-window/collection-end-utc.txt
       - name: Shared navigation header regressions (#68)
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |

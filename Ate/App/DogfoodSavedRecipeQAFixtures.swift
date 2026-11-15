@@ -3,8 +3,6 @@ import Foundation
 
 /// Precondition data for menu/reorder and Cook Mode. Only the explicit action-only
 /// flag selects My order; card positions and action results are never seeded.
-/// Precondition data for menu/reorder journeys. Only the explicit action-only
-/// flag preselects My order; neither card order nor action results are seeded.
 enum DogfoodSavedRecipeQAFixtures {
     @MainActor static func prepare(_ store: AppStore) {
         guard AppConfig.isUITesting else { return }
@@ -15,8 +13,6 @@ enum DogfoodSavedRecipeQAFixtures {
         let cook = args.contains("-qaSavedRecipeForCookMode")
         guard menus || reorder || reorderAction || cook else { return }
         precondition([menus, reorder, reorderAction, cook].filter { $0 }.count == 1, "Choose exactly one Dogfood saved-recipe fixture")
-        guard menus || reorder || reorderAction else { return }
-        precondition([menus, reorder, reorderAction].filter { $0 }.count == 1, "Choose exactly one Dogfood saved-recipe fixture")
         store.filter.clear()
         store.layout = LibraryLayout()
         if reorderAction { store.layout.sort = .myOrder }

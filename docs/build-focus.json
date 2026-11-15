@@ -1,35 +1,43 @@
 {
-  "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Opt-in Search receipt diagnostics record only bounded numeric binding lengths and utility/Main timing. Original storage write, single typing action, full-query assertions and waits remain unchanged. Capture can perturb input timing and does not establish cause. Existing focus diagnostics and notification responsiveness hypothesis retained. Native compile, receipt, AX/rendered value and pixels UNRUN on this packet. Metadata validation is not native qualification; merge held.",
-  "source_commit": "6ce0a7fa53c3f3e7021ee187d47a57bc1f65e792",
+  "title": "Library protein grouping with main Shopping and offline Explore",
+  "summary": "Library main-protein grouping, pork mapping and exact South African home-cooking persona retained with main Shopping sync, offline Explore and Search diagnostics. Failed-save editing uses real Return before unchanged Save/error/Cancel/relaunch checks. Bounded Journal layer samples remain diagnostic, not a fix. Original native assertions, operations and budgets unchanged. Native compile, XCTest, live sync and merged normal-text pixels UNRUN; source checks are not qualification. Merge held for Reviewer destination confirmation.",
+  "source_commit": "087ee3d18c1b9f0d73c3fc9eda97a3179d430447",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "617ac2bcc93d97510fbd6199ab21a248d4e420aa"
+      "blob": "72b741549ee8bd80b56cfb4ecef0681f96c9e467"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "e6014247fd0676c1ef77bbbf1a33a894c54da8b2"
+      "blob": "05333d3d5c4a65eb283ac16f9a8fe743812facdf"
     },
     {
-      "path": "Ate/App/ExploreRetentionQAFixtures.swift",
-      "blob": "f98df83f7cbaba2e7a70ec2699a2791bde9ee17c"
+      "path": "Ate/App/LibraryProteinQAFixtures.swift",
+      "blob": "4ab0be3ad8cc1ae9460c5831ed984d655e630cfa"
     },
     {
-      "path": "Ate/Logic/SyncPayloadSafety.swift",
-      "blob": "a97407346934598d82dda7ffda52eed0c29aa46a"
+      "path": "Ate/App/RecipeSheetQAFixtures.swift",
+      "blob": "05d1732d13b096e8e2027bc73f8094cbb90d8164"
+    },
+    {
+      "path": "Ate/Logic/RecipeFilter.swift",
+      "blob": "5da0fcd8e7310c4a98c0828098b7228645a6cb63"
+    },
+    {
+      "path": "Ate/Logic/RecipePrompt.swift",
+      "blob": "cb4cff899b02f22cb4f5b33a0daccedc8b4eddc0"
     },
     {
       "path": "Ate/Services/JournalSuggestionService.swift",
       "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
     },
     {
-      "path": "Ate/Store/AppStore.swift",
-      "blob": "52f7b316e8805b7e7e1ef1a81a6857acc710aa3a"
-    },
-    {
       "path": "Ate/Views/AddRecipeSheet.swift",
       "blob": "c6ca14de1fc90831163bc4f8b2764396e25a0a7d"
+    },
+    {
+      "path": "Ate/Views/Components.swift",
+      "blob": "c73565ac3e15e879ee994f6e68db5bbd509ae530"
     },
     {
       "path": "Ate/Views/CookModeView.swift",
@@ -38,10 +46,6 @@
     {
       "path": "Ate/Views/CookingTrackerView.swift",
       "blob": "6b209b692702c03311ec3feba3bf3632202e9bc1"
-    },
-    {
-      "path": "Ate/Views/ExploreView.swift",
-      "blob": "1049ba938a741b92dc0656e8d372fddc4b2f2f73"
     },
     {
       "path": "Ate/Views/InsightsView.swift",
@@ -56,10 +60,6 @@
       "blob": "7e0375d362867507e781901318e32fde459f0e85"
     },
     {
-      "path": "Ate/Views/LibraryView.swift",
-      "blob": "0fd016d0837c1f56fac572527b92975370a21f53"
-    },
-    {
       "path": "Ate/Views/OnboardingView.swift",
       "blob": "ae031e11f4c03dfbdb810c8290aa0fb3329a036b"
     },
@@ -70,6 +70,26 @@
     {
       "path": "Ate/Views/RecipeDetailView.swift",
       "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
+    },
+    {
+      "path": "Ate/App/ExploreRetentionQAFixtures.swift",
+      "blob": "f98df83f7cbaba2e7a70ec2699a2791bde9ee17c"
+    },
+    {
+      "path": "Ate/Logic/SyncPayloadSafety.swift",
+      "blob": "a97407346934598d82dda7ffda52eed0c29aa46a"
+    },
+    {
+      "path": "Ate/Store/AppStore.swift",
+      "blob": "52f7b316e8805b7e7e1ef1a81a6857acc710aa3a"
+    },
+    {
+      "path": "Ate/Views/ExploreView.swift",
+      "blob": "1049ba938a741b92dc0656e8d372fddc4b2f2f73"
+    },
+    {
+      "path": "Ate/Views/LibraryView.swift",
+      "blob": "0fd016d0837c1f56fac572527b92975370a21f53"
     },
     {
       "path": "Ate/Views/ShoppingListView.swift",

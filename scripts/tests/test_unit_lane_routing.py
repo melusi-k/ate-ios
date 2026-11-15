@@ -36,7 +36,8 @@ class UnitLaneRoutingTests(unittest.TestCase):
         inputs = ['DraftInputAttemptTests/testLaterPhotoSelectionWinsEvenWhenOldLoaderIgnoresCancellation', 'DraftInputAttemptTests/testDiscardSaveOrDisappearInvalidationRefusesLateInput', 'DraftInputAttemptTests/testCoverSelectionCannotWriteDifferentRegeneratedDraft']
         # Both parents' named requirements remain independently explicit. Only
         # shared entries are deduplicated; neither side can silently replace the other.
-        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs))
+        roadmap = ['ProductRoadmapTests/testEmptyCatalogAndAllStatusesRoundTripInReviewedOrder', 'ProductRoadmapTests/testInvalidSchemaUnknownStatusDuplicateIdentityAndBlankCopyRefuse', 'ProductRoadmapTests/testVotingRemainsUnavailableWithoutClaimingAcceptedOrQueuedVotes']
+        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + roadmap))
         actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()
         self.assertEqual(actual, union)
         self.assertEqual(len(actual), len(set(actual)), "Required native names must be unique")

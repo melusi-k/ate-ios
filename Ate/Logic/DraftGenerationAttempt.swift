@@ -6,6 +6,7 @@ import Foundation
 final class DraftGenerationAttempt {
     private var token: UUID?
     private var task: Task<Void, Never>?
+    private var deadline: Task<Void, Never>?
     private var children: [UUID: Task<Void, Never>] = [:]
     var isRunning: Bool { task != nil }
 
@@ -20,21 +21,31 @@ final class DraftGenerationAttempt {
 
     func invalidate() {
         token = nil
+        deadline?.cancel(); deadline = nil
         task?.cancel(); task = nil
         for child in children.values { child.cancel() }
         children.removeAll()
     }
 
-    func start(_ work: @escaping @MainActor (UUID) async -> Void) {
+    func start(timeoutNanoseconds: UInt64 = 60_000_000_000,
+               timedOut: @escaping @MainActor () -> Void = {},
+               _ work: @escaping @MainActor (UUID) async -> Void) {
         guard !isRunning else { return }
         invalidate()
         let value = UUID()
         token = value
+        deadline = Task { @MainActor [weak self] in
+            do { try await Task.sleep(nanoseconds: timeoutNanoseconds) } catch { return }
+            guard let self, self.token == value, self.task != nil else { return }
+            self.invalidate()
+            timedOut()
+        }
         task = Task { @MainActor [weak self] in
             guard let self, self.isCurrent(value) else { return }
             await work(value)
             guard self.token == value else { return }
             self.task = nil
+            self.deadline?.cancel(); self.deadline = nil
             // Retain admission for spread children until discard/disappear or
             // the next primary attempt, even after the first review card arrives.
         }

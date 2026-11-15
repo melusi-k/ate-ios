@@ -67,7 +67,9 @@ enum SourceRecipeFidelity {
         guard parts.count >= 2, parts.allSatisfy({
             $0.range(of: #"^\d+(?:[./]\d+)?\s+[^\d]+$"#, options: .regularExpression) != nil
         }) else { return nil }
-        let ingredients = parts.map(IngredientParser.parse)
+        // Source extraction preserves the written name; generated normalization
+        // may later move prep into notes without changing the source contract.
+        let ingredients = parts.map { IngredientParser.parse($0, preserveSourceName: true) }
         guard ingredients.allSatisfy({ $0.quantity > 0 && !$0.name.isEmpty }),
               Set(ingredients.map { $0.name.lowercased() }).count == ingredients.count else { return nil }
         let method = String(source[end.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)

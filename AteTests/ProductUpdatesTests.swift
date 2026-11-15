@@ -2,6 +2,30 @@ import XCTest
 @testable import Ate
 
 final class ProductUpdatesTests: XCTestCase {
+    func testRealHostBundleContainsReadableCatalogInRequiredDirectory() throws {
+        let url = try XCTUnwrap(Bundle.main.url(forResource: "catalog", withExtension: "json",
+                                               subdirectory: "ProductUpdates"))
+        XCTAssertEqual(url.deletingLastPathComponent().lastPathComponent, "ProductUpdates")
+        let catalog = try XCTUnwrap(ProductUpdatesCatalog.load(), "Load the actual Ate host bundle, not a test fixture")
+        XCTAssertFalse(catalog.releases.isEmpty)
+        XCTAssertTrue(catalog.releases.contains { $0.id == "product-updates-introduction" })
+        XCTAssertFalse(catalog.visibleReleases(build: 445, channel: "beta").isEmpty)
+        XCTAssertFalse(catalog.visibleReleases(build: 445, channel: "release").isEmpty)
+    }
+
+    func testRealHostBundleListsPublishedBuildsNewestFirstAsSeparateReleases() throws {
+        let catalog = try XCTUnwrap(ProductUpdatesCatalog.load())
+        let builds = catalog.publishedBuildReleases(build: 445, channel: "beta")
+        XCTAssertGreaterThan(builds.count, 1)
+        XCTAssertEqual(Array(builds.prefix(5)).map(\.buildNumber), [445, 444, 443, 442, 441])
+        XCTAssertEqual(builds.first?.id, "build-445-TierA")
+        XCTAssertEqual(builds.first?.title, "Build 445")
+        XCTAssertTrue(builds.first?.summary.contains("Bundle A") == true)
+        XCTAssertEqual(Set(builds.map(\.id)).count, builds.count)
+        XCTAssertFalse(builds.contains { $0.id == "latest-build" || $0.id == "product-updates-introduction" })
+        XCTAssertFalse(catalog.publishedBuildReleases(build: 442, channel: "release").contains { ($0.buildNumber ?? 0) > 442 })
+    }
+
     private func data(_ releases: String = "[]", schema: Int = 1) -> Data {
         Data("{\"schemaVersion\":\(schema),\"releases\":\(releases)}".utf8)
     }

@@ -337,11 +337,14 @@ final class OnDeviceBackend: BackendService {
         try GenerationCancellation.check()
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
+            let structureEnabled = RecipeGenerationToolGate.applies(enabled: RecipeGenerationToolGate.enabled, input: input)
+            let structureReceipt = RecipeStructureReceipt()
             var tools: [any Tool] = [RegionalDishTool()]
+            if structureEnabled { tools.append(RecipeGenerationTool(receipt: structureReceipt)) }
             if let photoDataURL { tools.append(PhotoTextTool(dataURL: photoDataURL)) }
             let session: LanguageModelSession
-            if reuseSession, let id = reviseID, let s = sessions[id] { session = s }                       // Ask Ate: same session
-            else if input == .prompt, photoDataURL == nil, let w = warm { session = w; warm = nil } // prewarmed
+            if !structureEnabled, reuseSession, let id = reviseID, let s = sessions[id] { session = s }                       // Ask Ate: same session
+            else if !structureEnabled, input == .prompt, photoDataURL == nil, let w = warm { session = w; warm = nil } // prewarmed
             else { session = makeSession(tools: tools, input: input) }
             do {
                 // Extraction, not creative writing: greedy decoding keeps the card grounded in the text.
@@ -349,9 +352,12 @@ final class OnDeviceBackend: BackendService {
                 // Code-along 205: Prompt { } builder with conditional context lines and a one-shot GenRecipe example;
                 // with the example in place the JSON schema is left out of the prompt (A/B: -qaIncludeSchema).
                 let lines = RecipePrompt.contextLines(context)
-                let isRevision = reuseSession && reviseID != nil && sessions[reviseID!] != nil
+                let isRevision = !structureEnabled && reuseSession && reviseID != nil && sessions[reviseID!] != nil
                 let fullPrompt = Prompt {
                     prompt
+                    if structureEnabled {
+                        "Before the final recipe, call structureRecipe with every ingredient and ordered step. Copy its accepted structure exactly into the final recipe. A missing, invalid or mismatched tool result rejects this generation. Never invent a missing source amount to pass validation."
+                    }
                     if !lines.isEmpty { lines.joined(separator: "\n") }
                     if !isRevision && input != .rewrite {
                         RecipePrompt.exampleLead
@@ -367,8 +373,12 @@ final class OnDeviceBackend: BackendService {
                 }
                 let res = try await stream.collect()
                 try GenerationCancellation.check()
+                if structureEnabled {
+                    let signature = try RecipeGenerationTool.validate(ingredients: res.content.ingredients, steps: res.content.steps)
+                    try await structureReceipt.require(signature)
+                }
                 let card = res.content.card
-                sessions[card.id] = session
+                if !structureEnabled { sessions[card.id] = session }
                 if sessions.count > 8, let k = sessions.keys.first(where: { $0 != card.id }) { sessions[k] = nil }
                 return card
             } catch {
@@ -711,8 +721,8 @@ struct RegionalDishTool: Tool {
 @Generable
 struct GenIngredient {
     @Guide(description: "Realistic numeric amount for the servings; 0 only for 'to taste'", .range(0...5000)) var quantity: Double
-    @Guide(description: "Metric or short unit: g, kg, ml, l, tbsp, tsp, cloves, pcs, or empty") var unit: String
-    @Guide(description: "Ingredient name, e.g. 'beef short rib'") var name: String
+    @Guide(description: "Metric or short unit: g, kg, ml, l, tbsp, tsp, cloves, pcs, or empty. For meat cuts such as wings and ribs, use an explicit piece count (pcs) or weight (g/kg); never an ambiguous bare amount such as 1 wings. Preserve any supplied source count or weight; do not invent one.") var unit: String
+    @Guide(description: "Ingredient food name, e.g. 'beef short rib' or 'onion'. Never put the food in unit or put only preparation in name. For 1 onion diced: quantity 1, unit pcs, name onion, prep diced.") var name: String
     @Guide(description: "Optional prep, e.g. 'finely chopped'") var prep: String?
 }
 

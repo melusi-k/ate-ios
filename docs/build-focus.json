@@ -1,7 +1,7 @@
 {
-  "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Opt-in Search receipt diagnostics record only bounded numeric binding lengths and utility/Main timing. Original storage write, single typing action, full-query assertions and waits remain unchanged. Capture can perturb input timing and does not establish cause. Existing focus diagnostics and notification responsiveness hypothesis retained. Native compile, receipt, AX/rendered value and pixels UNRUN on this packet. Metadata validation is not native qualification; merge held.",
-  "source_commit": "6ce0a7fa53c3f3e7021ee187d47a57bc1f65e792",
+  "title": "Journal layout, release history and scoped recipe tool",
+  "summary": "Source Journal geometry, release/roadmap, prompt/source-prep and scoped generation tool retained with main Shopping/Explore/Search and OCR diagnostics. Prompt/social tool defaults ON; DEBUG opt-out and fail-closed guards intact. All original native actions/assertions retained alongside separate My order selection. One fixture prepare. Food Journal shipping/anonymous sign-in OFF. Native compile/XCTest/pixels and paired F13 device golden UNRUN (0 attempts); golden required before merge. Held for Reviewer destination confirmation.",
+  "source_commit": "bd00476adfdf10bed98943136d9c4a9caf3ef916",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -9,39 +9,91 @@
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
-      "blob": "e6014247fd0676c1ef77bbbf1a33a894c54da8b2"
+      "blob": "3bb0bad1416be8a2325d48e10b07ce9f2de46b46"
     },
     {
-      "path": "Ate/App/ExploreRetentionQAFixtures.swift",
-      "blob": "f98df83f7cbaba2e7a70ec2699a2791bde9ee17c"
+      "path": "Ate/App/ProductReleaseNotesQAFixture.swift",
+      "blob": "84b9076c88a88907d1e509c467792d99a88db40a"
     },
     {
-      "path": "Ate/Logic/SyncPayloadSafety.swift",
-      "blob": "a97407346934598d82dda7ffda52eed0c29aa46a"
+      "path": "Ate/Logic/DraftGenerationAttempt.swift",
+      "blob": "f22b96a67d824317ba30b2bd4f49b2265e45cd1a"
+    },
+    {
+      "path": "Ate/Logic/DraftRepairAttempt.swift",
+      "blob": "0b9b7e8d57209793854693340f993821b44642af"
+    },
+    {
+      "path": "Ate/Logic/GeneratedStepQuality.swift",
+      "blob": "2a88810dc9673bb769f33d92e9f6ef59a6627296"
+    },
+    {
+      "path": "Ate/Logic/IngredientFieldNormalization.swift",
+      "blob": "b66cafdb0a93743232842a1555aadb878cc59a0a"
+    },
+    {
+      "path": "Ate/Logic/JSONLD.swift",
+      "blob": "f76d00a4138a4f6997d5cbe728b9c07224e7f847"
+    },
+    {
+      "path": "Ate/Logic/ProductUpdates.swift",
+      "blob": "96340d356f52d94c1a5873030b404a9d7bccce06"
+    },
+    {
+      "path": "Ate/Logic/RecipeDraftRepair.swift",
+      "blob": "de0396c1a8ae1728a9b684816875630286eccf42"
+    },
+    {
+      "path": "Ate/Logic/RecipeLogic.swift",
+      "blob": "9303555fd8cc9f9e8a5ff3862c946875b1a868e3"
+    },
+    {
+      "path": "Ate/Logic/RecipePrompt.swift",
+      "blob": "e6a1821db213fb154ca35313b54f85818f6c8835"
+    },
+    {
+      "path": "Ate/Logic/RecipeQuality.swift",
+      "blob": "215982e2ed176f9cebbfa5f0d376be4b86aeebe1"
+    },
+    {
+      "path": "Ate/Logic/RecipeStructureValidation.swift",
+      "blob": "5792586be083ec8c383e4599a2393d14c5dc8b28"
+    },
+    {
+      "path": "Ate/Logic/RepairFeedback.swift",
+      "blob": "b6ece9703106cf2a759f0b3df1ffe9b391bbaa9b"
+    },
+    {
+      "path": "Ate/Logic/SourceRecipeFidelity.swift",
+      "blob": "1836b1a804dc8fd82c3703a15876bfc8d6f24d0f"
     },
     {
       "path": "Ate/Services/JournalSuggestionService.swift",
       "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
     },
     {
-      "path": "Ate/Store/AppStore.swift",
-      "blob": "52f7b316e8805b7e7e1ef1a81a6857acc710aa3a"
+      "path": "Ate/Services/OnDeviceBackend.swift",
+      "blob": "c404a49a8dce45c39f681b30d80837670635fb6e"
+    },
+    {
+      "path": "Ate/Services/RecipeGenerationTool.swift",
+      "blob": "918a048ab3068a885e77c5b42f5c85ad5861eed9"
     },
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "c6ca14de1fc90831163bc4f8b2764396e25a0a7d"
+      "blob": "fdd160fdabc4fa7f5e3be55ceb01c858711476e6"
     },
     {
       "path": "Ate/Views/CookModeView.swift",
       "blob": "203f46cec2a7b69e8f17a11f1c771a982441b9bc"
     },
     {
-      "path": "Ate/Views/CookingTrackerView.swift",
-      "blob": "6b209b692702c03311ec3feba3bf3632202e9bc1"
+      "path": "Ate/Views/CookedJournalReflectionComposer.swift",
+      "blob": "d8d088d29051cdcd68390eede80a31bf48d073c0"
     },
     {
-      "path": "Ate/Views/ExploreView.swift",
-      "blob": "1049ba938a741b92dc0656e8d372fddc4b2f2f73"
+      "path": "Ate/Views/CookingTrackerView.swift",
+      "blob": "6b209b692702c03311ec3feba3bf3632202e9bc1"
     },
     {
       "path": "Ate/Views/InsightsView.swift",
@@ -52,12 +104,12 @@
       "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
     },
     {
-      "path": "Ate/Views/JournalViews.swift",
-      "blob": "7e0375d362867507e781901318e32fde459f0e85"
+      "path": "Ate/Views/JournalTimelineView.swift",
+      "blob": "1f106d23b97803a9f7385486e0ed9841e316b5ec"
     },
     {
-      "path": "Ate/Views/LibraryView.swift",
-      "blob": "0fd016d0837c1f56fac572527b92975370a21f53"
+      "path": "Ate/Views/JournalViews.swift",
+      "blob": "ecf5db07291ed24c0bca35cc5cbbf4951e34efb4"
     },
     {
       "path": "Ate/Views/OnboardingView.swift",
@@ -65,19 +117,51 @@
     },
     {
       "path": "Ate/Views/ProductUpdatesViews.swift",
-      "blob": "3de31c5f54026a0a5b3b8a3c83c36e5c3244d03e"
+      "blob": "4b1407a5580b39ae6561de5c33d21f25b9e647f7"
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",
       "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
     },
     {
-      "path": "Ate/Views/ShoppingListView.swift",
-      "blob": "031df522bdb2bae02452fe99f535835dae0d7c08"
+      "path": "Ate/Logic/ProductRoadmap.swift",
+      "blob": "184a1a3649ad1df897a46b784dcd550a0f33ca7a"
     },
     {
-      "path": "Ate/Services/OnDeviceBackend.swift",
-      "blob": "2caf8558181d9f0273f267fc78e6973d14f367c7"
+      "path": "Ate/Views/ProductRoadmapView.swift",
+      "blob": "235b2da14a5eb4bc90cb9c749c312117971162b5"
+    },
+    {
+      "path": "Ate/Views/SettingsView.swift",
+      "blob": "ae8ffbf9487aaeb061a755c1f7238ad5defdc2ca"
+    },
+    {
+      "path": "Ate/Views/CanonicalNutritionDiaryView.swift",
+      "blob": "98218458484b40253ed7c90caa8fd9cd73849710"
+    },
+    {
+      "path": "Ate/App/ExploreRetentionQAFixtures.swift",
+      "blob": "f98df83f7cbaba2e7a70ec2699a2791bde9ee17c"
+    },
+    {
+      "path": "Ate/Logic/SyncPayloadSafety.swift",
+      "blob": "a97407346934598d82dda7ffda52eed0c29aa46a"
+    },
+    {
+      "path": "Ate/Store/AppStore.swift",
+      "blob": "52f7b316e8805b7e7e1ef1a81a6857acc710aa3a"
+    },
+    {
+      "path": "Ate/Views/ExploreView.swift",
+      "blob": "1049ba938a741b92dc0656e8d372fddc4b2f2f73"
+    },
+    {
+      "path": "Ate/Views/LibraryView.swift",
+      "blob": "0fd016d0837c1f56fac572527b92975370a21f53"
+    },
+    {
+      "path": "Ate/Views/ShoppingListView.swift",
+      "blob": "031df522bdb2bae02452fe99f535835dae0d7c08"
     },
     {
       "path": "Ate/Services/CookPlanNotifications.swift",

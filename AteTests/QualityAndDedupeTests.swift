@@ -279,7 +279,9 @@ final class PhotoRegressionTests: XCTestCase {
         let labels = PhotoGuess.distinctFoods(Self.cheeseSandwich, minConfidence: 0.25).map(\.0)
         let gaps = RecipeQuality.shortfall(thinSandwich(), labels: labels)
         XCTAssertTrue(gaps.contains { $0.contains("at least 3 ingredients") })
-        XCTAssertTrue(gaps.contains { $0.contains("at least 3 steps") })
+        XCTAssertFalse(gaps.contains { $0.contains("at least 3 steps") }, "Do not demand filler steps; missing ingredients remain real gaps")
+        XCTAssertEqual(RecipeQuality.shortfall(thinSandwich()), RecipeQuality.issues(thinSandwich()),
+                       "The review must show every quality gap used by explicit repair")
         XCTAssertTrue(gaps.contains { $0.contains("bread") && $0.contains("lettuce") })
         XCTAssertFalse(gaps.contains { $0.contains("sandwich,") }, "the dish itself isn't an ingredient")
     }

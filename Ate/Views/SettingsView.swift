@@ -197,6 +197,9 @@ struct SettingsView: View {
                         }
                     }
                     Section("Product") {
+                        NavigationLink { ProductRoadmapView() } label: {
+                            Label("Roadmap", systemImage: "map")
+                        }.accessibilityIdentifier("settings.roadmap")
                         NavigationLink { ProductReleaseNotesView() } label: {
                             Label("Release Notes", systemImage: "doc.text")
                         }.accessibilityIdentifier("settings.releaseNotes")

@@ -226,6 +226,45 @@ jobs:
         run: |
           mkdir -p cooking-journal-screenshots/raw
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/cooking-journal-host.xcresult" --output-path cooking-journal-screenshots/raw
+      - name: Bounded 445 device fixes normal-text acceptance
+        if: ${{ always() && steps.build.outcome == 'success' && github.head_ref == 'fix/445-journal-release-notes' }}
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/ate-test-results"
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/InsightsPresentationUITests/testSettingsReleaseNotesAndReplayableTourAtNormalText \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testJournalRootReflectionPlacementDraftAndSaveWithoutHealth \
+            -only-testing:AteUITests/CookReflectionUITests/testKeepLaterReopensSameDraftAcrossRotation \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/device-fixes-445.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > device-fixes-445.log 2>&1 || \
+            { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" device-fixes-445.log || true; tail -120 device-fixes-445.log; exit 1; }
+          # A successful process with no selected tests is not acceptance.
+          python3 - <<'PYVERIFY'
+          import pathlib
+          import re
+          log = pathlib.Path('device-fixes-445.log').read_text()
+          required = [
+              ('InsightsPresentationUITests', 'testSettingsReleaseNotesAndReplayableTourAtNormalText'),
+              ('InsightsAcceptanceUITests', 'testJournalRootReflectionPlacementDraftAndSaveWithoutHealth'),
+              ('CookReflectionUITests', 'testKeepLaterReopensSameDraftAcrossRotation'),
+          ]
+          for suite, method in required:
+              pattern = r"Test Case '-\[AteUITests\." + suite + ' ' + method + r"\]' passed"
+              if not re.search(pattern, log):
+                  raise SystemExit('Missing executed PASS: ' + suite + '/' + method)
+          print('All three bounded 445 device-fix journeys executed and passed.')
+          PYVERIFY
+      - name: Export 445 device fixes raw attachments
+        if: ${{ always() && steps.build.outcome == 'success' && github.head_ref == 'fix/445-journal-release-notes' }}
+        run: |
+          mkdir -p device-fixes-445-attachments/raw
+          if [ -d "$RUNNER_TEMP/ate-test-results/device-fixes-445.xcresult" ]; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/device-fixes-445.xcresult" --output-path device-fixes-445-attachments/raw
+          else
+            echo 'No 445 result bundle was produced; retain the individual log for diagnosis.'
+          fi
       # Owner-approved acceptance boundary: genuine Files is a system integration diagnostic,
       # not a CI qualification pass. Its unchanged cancellation test remains required on device.
       - name: Real Files cancellation - NON-QUALIFYING system diagnostic
@@ -304,6 +343,9 @@ jobs:
             insights-presentation.log
             insights-screenshots
             ${{ runner.temp }}/ate-test-results/insights-presentation.xcresult
+            device-fixes-445.log
+            device-fixes-445-attachments
+            ${{ runner.temp }}/ate-test-results/device-fixes-445.xcresult
             cooking-journal-host.log
             cooking-journal-screenshots
             ${{ runner.temp }}/ate-test-results/cooking-journal-host.xcresult

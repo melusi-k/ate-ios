@@ -108,6 +108,7 @@ jobs:
             -only-testing:AteUITests/KeyFlowsQATests/testQA8_Timers \
             -only-testing:AteUITests/AteUITests/test28_GroupSortAndMenus \
             -only-testing:AteUITests/AteUITests/test29_ReorderMyOrder \
+            -only-testing:AteUITests/AteUITests/test29a_ReorderMyOrderSelection \
             -only-testing:AteUITests/AteUITests/test29b_ReorderMyOrderActions \
             -resultBundlePath build/DogfoodCriticalFlows.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
@@ -121,6 +122,7 @@ jobs:
           for test in test28_GroupSortAndMenus test29_ReorderMyOrder test29b_ReorderMyOrderActions; do
             grep -qF "AteUITests $test]' passed" dogfood-critical-flows.log || { echo "::error::missing named Library pass: $test"; exit 1; }
           done
+          grep -qF "AteUITests test29a_ReorderMyOrderSelection]' passed" dogfood-critical-flows.log || { echo "::error::missing separate selection pass"; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" dogfood-critical-flows.log | tail -50
 
       - name: Retain UI-test photo-import phase diagnostics

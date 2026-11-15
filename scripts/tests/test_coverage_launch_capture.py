@@ -1,3 +1,4 @@
+from approved_merge_535 import normalize
 from pathlib import Path
 import unittest,hashlib
 ROOT=Path(__file__).resolve().parents[2]
@@ -9,7 +10,7 @@ def restore_coverage_workflow(s):
 
 class CoverageLaunchContracts(unittest.TestCase):
     def test_original_file_0_unchanged(self):
-        s=(ROOT/'AteUITests/CoverageUITests.swift').read_text()
+        s=normalize('source:AteUITests/CoverageUITests.swift', (ROOT/'AteUITests/CoverageUITests.swift').read_text())
         from test_relay_return_capture import restore_relay_return_capture
         s=restore_relay_return_capture(self,s,'AteUITests/CoverageUITests.swift')
         from test_about_targeting import restore_about_targeting
@@ -22,7 +23,7 @@ class CoverageLaunchContracts(unittest.TestCase):
         s=s.replace('    private var captureCoverageLaunch = false\n    private func coverageLaunchMark(_ phase: String) {\n        guard captureCoverageLaunch else { return }\n        print("COVERAGE-LAUNCH phase=\\(phase) uptime=\\(ProcessInfo.processInfo.systemUptime)")\n    }\n\n    @discardableResult\n    func launch','    @discardableResult\n    func launch',1)
         self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'d0d4a8761d0dd7a1d833d8ad7e0d0d45e6a9ec04ec2913c7f3482f3b1ef4922a')
     def test_original_file_1_unchanged(self):
-        s=(ROOT/'.github/workflows/compile-check.yml').read_text()
+        s=normalize('source:.github/workflows/compile-check.yml', (ROOT/'.github/workflows/compile-check.yml').read_text())
         from test_relay_return_capture import restore_relay_return_capture
         s=restore_relay_return_capture(self,s,'.github/workflows/compile-check.yml')
         self.assertEqual(s.count('            cook-completion-window\n            coverage-launch-lifecycle\n'),1)
@@ -55,7 +56,7 @@ class CoverageLaunchCollectorTests(unittest.TestCase):
                     self.assertNotIn('terminate',command)
                     self.assertNotIn('launch',command)
     def test_no_new_ax_reads_or_mutations(self):
-        s=(ROOT/'AteUITests/CoverageUITests.swift').read_text()
+        s=normalize('source:AteUITests/CoverageUITests.swift', (ROOT/'AteUITests/CoverageUITests.swift').read_text())
         capture=s.split('private var captureCoverageLaunch')[1].split('    func shot(')[0]
         for token in ['.state','.exists','.processID','waitForExistence','terminate()']:
             self.assertNotIn(token,capture)

@@ -1,3 +1,4 @@
+from test_search_live_receipt_diagnostic import original_source
 from pathlib import Path
 import hashlib
 import unittest
@@ -12,6 +13,7 @@ class TabCollectionRetentionTests(unittest.TestCase):
         self.assertIn('case .library: filter.collection = nil; tab = t',store)
     def test_original_explore_native_assertions_untouched(self):
         source=(ROOT/'AteUITests/ExploreUITests.swift').read_text()
+        source=original_source('AteUITests/ExploreUITests.swift',source)
         source=source.replace(', "-qaSearchFocusDiagnostic"','')
         source=source.replace('    override func tearDown() {\n        if name.contains("testExploreDismissPreservesCollectionAndSearchQuery") {\n            shot("explore-search-focus-before-teardown-termination")\n        }\n        XCUIDevice.shared.orientation = .portrait; app.terminate()\n    }','    override func tearDown() { XCUIDevice.shared.orientation = .portrait; app.terminate() }')
         source=source.replace('        var diagnosticEvaluations = 0\n        let readyForInput = XCTNSPredicateExpectation(predicate: NSPredicate { object, _ in\n            let began = ProcessInfo.processInfo.systemUptime\n            if diagnosticEvaluations < 20 {\n                print("SEARCH-FOCUS-PREDICATE-START evaluation=\\(diagnosticEvaluations + 1) uptime=\\(began)")\n            }\n            var focused: Bool? = nil\n            var keyboardPresent: Bool? = nil\n            defer {\n                if diagnosticEvaluations < 20 {\n                    diagnosticEvaluations += 1\n                    print("SEARCH-FOCUS-PREDICATE evaluation=\\(diagnosticEvaluations) start=\\(began) end=\\(ProcessInfo.processInfo.systemUptime) focus=\\(focused.map { $0 ? 1 : 0 } ?? -1) keyboard=\\(keyboardPresent.map { $0 ? 1 : 0 } ?? -1)")\n                }\n            }\n            guard let field = object as? XCUIElement,\n                  field.responds(to: focusSelector) else { return false }\n            focused = field.value(forKey: "hasKeyboardFocus") as? Bool\n            guard focused == true else { return false }\n            keyboardPresent = keyboard.exists\n            return keyboardPresent == true\n        }, object: search)','        let readyForInput = XCTNSPredicateExpectation(predicate: NSPredicate { object, _ in\n            guard let field = object as? XCUIElement,\n                  field.responds(to: focusSelector),\n                  (field.value(forKey: "hasKeyboardFocus") as? Bool) == true else { return false }\n            return keyboard.exists\n        }, object: search)')

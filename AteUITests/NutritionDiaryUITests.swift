@@ -302,15 +302,27 @@ final class NutritionDiaryUITests: XCTestCase {
     }
 
     /// Shared navigation: Settings tab -> Food diary screen.
+    private func startupDiagnosticMark(_ phase: String) {
+        guard name.contains("testCancelledFailedSavesLeaveDiaryEmptyAfterRelaunch") else { return }
+        print("STARTUP-TEST phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime)")
+    }
     private func openDiary(_ app: XCUIApplication) {
+        startupDiagnosticMark("open-diary-start")
+        defer { startupDiagnosticMark("open-diary-end") }
         let settings = app.tabBars.buttons["Settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
+        startupDiagnosticMark("settings-tap-start")
         settings.tap()
+        startupDiagnosticMark("settings-tap-end")
         let diaryEntry = app.buttons["settings.nutritionDiary"]
         // SwiftUI does not materialise this below-fold cell until Settings is scrolled.
         // Reveal it before asserting presence, then keep the actual screen assertion below.
+        startupDiagnosticMark("settings-reveal-start")
         XCTAssertTrue(scrollToHittable(diaryEntry, in: app, surface: .settings), "Settings should expose Food diary inside the clear band")
+        startupDiagnosticMark("settings-reveal-end")
+        startupDiagnosticMark("settings-diary-tap-start")
         tapWhenHittable(diaryEntry, in: app, surface: .settings)
+        startupDiagnosticMark("settings-diary-tap-end")
         XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10), "Food diary screen should open")
     }
 
@@ -401,16 +413,22 @@ final class NutritionDiaryUITests: XCTestCase {
     /// repeated layout checks of the retry presentation test into its execution budget.
     func testCancelledFailedSavesLeaveDiaryEmptyAfterRelaunch() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-resetNutritionDiary", "-failDiarySaves", "-qaNutritionPretapDiagnostic"]
+        app.launchArguments = ["-UITesting", "-resetNutritionDiary", "-failDiarySaves", "-qaNutritionPretapDiagnostic", "-qaStartupLivenessDiagnostic"]
+        startupDiagnosticMark("initial-launch-start")
         app.launch()
+        startupDiagnosticMark("initial-launch-end")
         openDiary(app)
+        startupDiagnosticMark("open-log-form-start")
         openLogForm(app)
+        startupDiagnosticMark("open-log-form-end")
         // Pixels before the unchanged pre-tap geometry/keyboard query, no extra AX query.
         let preGeometry = XCTAttachment(screenshot: app.screenshot())
         preGeometry.name = "nutrition-failed-save-before-food-name-geometry"
         preGeometry.lifetime = .keepAlways
         add(preGeometry)
+        startupDiagnosticMark("food-name-input-start")
         typeAfterKeyboard(app.textFields["nutritionDiary.foodName"], in: app, surface: .logFood, "My lunch")
+        startupDiagnosticMark("food-name-input-end")
         let save = app.navigationBars["Log food"].buttons["nutritionDiary.save"]
         let formError = app.descendants(matching: .any)["nutritionDiary.formError"]
         for _ in 0..<2 {
@@ -426,8 +444,10 @@ final class NutritionDiaryUITests: XCTestCase {
         XCTAssertTrue(scrollToHittable(app.staticTexts["Nothing logged"], in: app, surface: .diary), "Failed attempts must leave an empty diary")
         app.terminate()
         let relaunched = XCUIApplication()
-        relaunched.launchArguments = ["-UITesting"]
+        relaunched.launchArguments = ["-UITesting", "-qaStartupLivenessDiagnostic"]
+        startupDiagnosticMark("relaunch-start")
         relaunched.launch()
+        startupDiagnosticMark("relaunch-end")
         openDiary(relaunched)
         XCTAssertTrue(diaryRows(relaunched, containing: "My lunch").allElementsBoundByIndex.isEmpty,
                       "a failed save must not persist the entry")

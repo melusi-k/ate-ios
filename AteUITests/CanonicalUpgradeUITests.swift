@@ -7,6 +7,12 @@ final class CanonicalUpgradeUITests: XCTestCase {
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
     }
+    override func tearDown() {
+        if name.contains("testActualFilesPickerCancellationDoesNotShowImportErrorOrAddMeal") {
+            shot("files-picker-before-teardown")
+        }
+        super.tearDown()
+    }
     private func shot(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
@@ -149,6 +155,9 @@ final class CanonicalUpgradeUITests: XCTestCase {
     private func launchBackupWorld(failVerification: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaCanonicalUpgrade", UUID().uuidString]
+        if name.contains("testActualFilesPickerCancellationDoesNotShowImportErrorOrAddMeal") {
+            app.launchArguments.append("-qaFilesPickerDiagnostic")
+        }
         if failVerification { app.launchArguments.append("-qaRestoreVerificationFailure") }
         app.launch()
         XCTAssertTrue(app.buttons["upgradeQA.backupReview"].waitForExistence(timeout: 20))

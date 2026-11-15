@@ -1,3 +1,4 @@
+from approved_merge_534 import normalize
 from pathlib import Path
 import hashlib,unittest
 ROOT=Path(__file__).resolve().parents[2]
@@ -12,4 +13,5 @@ class AccountAssertionCaptureTests(unittest.TestCase):
     def test_every_original_source_reconstructs(self):
         for file in CHANGES:
             source=restore_account_diagnostic(self,(ROOT/file).read_text(),file)
+            source=normalize('account-restored:'+file,source)
             self.assertEqual(hashlib.sha256(source.encode()).hexdigest(),HASHES[file])

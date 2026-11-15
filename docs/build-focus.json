@@ -1,7 +1,7 @@
 {
   "title": "Dormant Journal and nutrition goals sync preparation",
-  "summary": "Auth hypothesis: share overlapping refresh requests per auth instance; stale unauthorized results cannot clear newer sessions. Local-only typed diagnostics distinguish rejection and credential storage failures, excluded from telemetry. Keychain atomic persistence is separate. Native compile, concurrency tests, device sign-in persistence and incident attribution UNRUN. Existing layout and diary gates retained. No assertion, timeout, retry or budget changes. Metadata pass is not qualification; merge held.",
-  "source_commit": "0bf9ea049f136be5ac600030da2d8cbbc5de167e",
+  "summary": "Auth hypotheses share overlapping refresh and reject stale revocation; local-only diagnostics exclude auth events from telemetry. Follow-up updates Keychain without delete-before-add and checks persistence before session/watch publish. Native compile, concurrency, Security API, relaunch persistence and incident attribution UNRUN. Existing layout/diary gates retained. No assertion, timeout, retry or budget changes. Metadata is not qualification; merge held.",
+  "source_commit": "61d7016fdd3f90e475604b10565f7f03e82fa1bf",
   "evidence": [
     {
       "path": "Ate/Insights/InsightLifecycle.swift",
@@ -21,7 +21,7 @@
     },
     {
       "path": "Ate/Store/AppStore.swift",
-      "blob": "6ef5214eb1ee3fcb26fa2b8beba343e4b4c8537b"
+      "blob": "16430a7603de938507b4e4abb6ab8153c3ef2f52"
     },
     {
       "path": "Ate/Store/FamilySyncCommitJournal.swift",
@@ -45,7 +45,7 @@
     },
     {
       "path": "Ate/Services/Auth.swift",
-      "blob": "aae80ce8f5505414711313f5ac203ce5e10d1b31"
+      "blob": "9c3891562bedab90eea2a29bc36286cbf685aa27"
     },
     {
       "path": "Ate/Services/DiagnosticHistory.swift",

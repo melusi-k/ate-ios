@@ -22,20 +22,37 @@ enum IngredientFieldNormalization {
         return unit
     }
 
+    /// Join preparation once without losing distinct preparation details.
+    static func preparation(_ first: String?, _ second: String?) -> String? {
+        let pieces = [first, second].compactMap { $0 }.flatMap { $0.components(separatedBy: ";") }
+        var seen = Set<String>()
+        let unique = pieces.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
+        return unique.isEmpty ? nil : unique.joined(separator: "; ")
+    }
+
+    /// Presentation does not invent a sprig, clove or gram measure from "herb".
+    /// Keep the original unit in the draft for the quality warning and editor.
+    static func displayUnit(_ ingredient: Ingredient, generated: Bool) -> String {
+        if generated && ["herb", "herbs"].contains(ingredient.unit.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)) { return "" }
+        return ingredient.unit
+    }
+
     static func normalizeGenerated(_ original: Ingredient) -> Ingredient {
         var ingredient = original
         let nameWords = Set(original.name.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init))
         if !nameWords.isEmpty, nameWords.isSubset(of: preparationWords), let food = foodInUnit(original) {
             ingredient.name = food
             ingredient.unit = "pcs"
-            ingredient.notes = [original.name, original.notes].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "; ")
+            ingredient.notes = preparation(original.name, original.notes)
         } else {
             let split = splitPreparation(original.name)
             if let prep = split.prep {
                 ingredient.name = split.name
-                ingredient.notes = [prep, original.notes].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "; ")
+                ingredient.notes = preparation(prep, original.notes)
             }
         }
+        ingredient.notes = preparation(ingredient.notes, nil)
         return ingredient
     }
 

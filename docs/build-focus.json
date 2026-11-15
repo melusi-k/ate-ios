@@ -1,11 +1,15 @@
 {
-  "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Opt-in Search receipt diagnostics record only bounded numeric binding lengths and utility/Main timing. Original storage write, single typing action, full-query assertions and waits remain unchanged. Capture can perturb input timing and does not establish cause. Existing focus diagnostics and notification responsiveness hypothesis retained. Native compile, receipt, AX/rendered value and pixels UNRUN on this packet. Metadata validation is not native qualification; merge held.",
-  "source_commit": "6ce0a7fa53c3f3e7021ee187d47a57bc1f65e792",
+  "title": "Journal navigation and cooking reflections",
+  "summary": "Inactive agentic workflow preparation stays OFF: all eight sources and compiled locks unchanged. Main Shopping/Explore/Search and journal/cooking reflections retained. Saved setup, My order selection and real reorder action journeys preserve original assertions and budgets. Exactly one fixture prepare. Native compile/XCTest/pixels UNRUN. No workflow activation, anonymous sign-in, production writes or acceptance claim; merge held for Reviewer destination confirmation.",
+  "source_commit": "28d32514530a1f6b5d40573ae86d80aef1dc6d28",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "617ac2bcc93d97510fbd6199ab21a248d4e420aa"
+      "blob": "eec92a60375eff7ad27fbc90ab12171915099a82"
+    },
+    {
+      "path": "Ate/Views/JournalViews.swift",
+      "blob": "7e0375d362867507e781901318e32fde459f0e85"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
@@ -50,10 +54,6 @@
     {
       "path": "Ate/Views/JournalDeleteConfirmation.swift",
       "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
-    },
-    {
-      "path": "Ate/Views/JournalViews.swift",
-      "blob": "7e0375d362867507e781901318e32fde459f0e85"
     },
     {
       "path": "Ate/Views/LibraryView.swift",

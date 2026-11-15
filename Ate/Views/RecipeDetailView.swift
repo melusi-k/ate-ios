@@ -31,56 +31,59 @@ struct RecipeDetailView: View {
         ZStack(alignment: .bottom) {
             Theme.background.ignoresSafeArea()
             if let recipe = store.recipe(recipeID) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        if editing {
-                            VStack(spacing: 16) {
-                                RecipeEditor(recipe: Binding(get: { store.recipe(recipeID) ?? recipe },
-                                                             set: { store.update($0) }))
-                                Button("Done") { editing = false }.buttonStyle(.ate(.primary, full: true))
-                                    .accessibilityIdentifier("recipeEditor.done")
-                            }.cardSurface(padding: 20)
-                        } else {
-                            Picker("Servings", selection: $factor) {
-                                ForEach([1.0, 2.0, 3.0], id: \.self) { f in Text("\(Int(f))×").tag(f) }
-                            }
-                            .pickerStyle(.segmented).controlSize(.large)
-                            .accessibilityIdentifier("servingsPicker")
-                            .accessibilityHint("Scales ingredient amounts. Cooking times stay the same.")
-                            RecipeHero(recipe: recipe)
-                            SourceBadge(source: recipe.source)
-                            RecipeCardView(recipe: recipe, factor: factor, units: store.settings.units)
-                            RecipeNutritionView(recipe: RecipeLogic.scaled(recipe, factor: factor))
-                            Button {
-                                store.addToShopping(recipe, factor: factor)
-                                store.show("Added to your shopping list")
-                            } label: { Label("Add to shopping list", systemImage: "text.badge.plus") }
+                VStack(spacing: 0) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            if editing {
+                                VStack(spacing: 16) {
+                                    RecipeEditor(recipe: Binding(get: { store.recipe(recipeID) ?? recipe },
+                                                                 set: { store.update($0) }))
+                                    Button("Done") { editing = false }.buttonStyle(.ate(.primary, full: true))
+                                        .accessibilityIdentifier("recipeEditor.done")
+                                }.cardSurface(padding: 20)
+                            } else {
+                                Picker("Servings", selection: $factor) {
+                                    ForEach([1.0, 2.0, 3.0], id: \.self) { f in Text("\(Int(f))×").tag(f) }
+                                }
+                                .pickerStyle(.segmented).controlSize(.large)
+                                .accessibilityIdentifier("servingsPicker")
+                                .accessibilityHint("Scales ingredient amounts. Cooking times stay the same.")
+                                RecipeHero(recipe: recipe)
+                                SourceBadge(source: recipe.source)
+                                RecipeCardView(recipe: recipe, factor: factor, units: store.settings.units)
+                                RecipeNutritionView(recipe: RecipeLogic.scaled(recipe, factor: factor))
+                                Button {
+                                    store.addToShopping(recipe, factor: factor)
+                                    store.show("Added to your shopping list")
+                                } label: { Label("Add to shopping list", systemImage: "text.badge.plus") }
+                                    .buttonStyle(.ate(.secondary, full: true))
+                                Button { planning = true } label: {
+                                    Label("Cook this on...", systemImage: "calendar.badge.plus")
+                                }
                                 .buttonStyle(.ate(.secondary, full: true))
-                            Button { planning = true } label: {
-                                Label("Cook this on...", systemImage: "calendar.badge.plus")
+                                .accessibilityIdentifier("recipe.plan")
+                                askCard(recipe)
                             }
-                            .buttonStyle(.ate(.secondary, full: true))
-                            .accessibilityIdentifier("recipe.plan")
-                            askCard(recipe)
                         }
+                        .foregroundStyle(Theme.foreground)
+                        .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 16)
+                        .pageWidth()
                     }
-                    .foregroundStyle(Theme.foreground)
-                    .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 16)
-                    .pageWidth()
-                }
-                .accessibilityIdentifier("recipe.detail.scroll")
-                // The scrolling viewport owns its Cook inset. Keeping it outside
-                // the measured host mixes nested safe areas as timer chrome returns.
-                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    .accessibilityIdentifier("recipe.detail.scroll")
+                    .contentShape(Rectangle())
+                    .clipped()
+                    // The footer is a sibling, not an overlay/safe-area adjustment on a
+                    // full-height scroll view. Its entire measured height, including
+                    // timer reserve, reduces the actual scroll and hit-test viewport.
                     if !editing, store.recipe(recipeID) != nil {
-                        Button {
-                            store.beginCookSession(recipeID: recipeID, factor: factor)
-                            store.cookTarget = CookTarget(id: recipeID)
-                        } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
-                            .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)
-                            .padding(.bottom, footerChromeReserve)
-                            .frame(maxWidth: .infinity)
-                            .background(Theme.background.ignoresSafeArea(edges: .bottom))
+                            Button {
+                                store.beginCookSession(recipeID: recipeID, factor: factor)
+                                store.cookTarget = CookTarget(id: recipeID)
+                            } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
+                                .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)
+                                .padding(.bottom, footerChromeReserve)
+                                .frame(maxWidth: .infinity)
+                                .background(Theme.background.ignoresSafeArea(edges: .bottom))
                     }
                 }
             } else {

@@ -144,6 +144,9 @@ jobs:
               mark("simulator-readiness-complete", sim_id=sim, runtime=runtime, authority="bootstatus-return-zero")
               mark("unchanged-four-tests-next")
           PYREADINESS
+          mkdir -p journal-rootnormal-window
+          date -u '+%Y-%m-%d %H:%M:%S' > journal-rootnormal-window/start-utc.txt
+          trap 'date -u "+%Y-%m-%d %H:%M:%S" > journal-rootnormal-window/end-utc.txt' EXIT
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/JournalOpenStateUITests \
             -only-testing:AteTests/JournalReflectionEditTests \
@@ -165,6 +168,26 @@ jobs:
             grep -qF "$evidence" journal-open-state-ui.log || { echo "::error::Missing reflection edit pass: $evidence"; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" journal-open-state-ui.log | tail -40
+      - name: Retain covered Journal rootnormal unified-log window
+        if: always()
+        run: |
+          mkdir -p journal-rootnormal-window
+          if [ -s journal-rootnormal-window/start-utc.txt ]; then
+            start_utc=$(cat journal-rootnormal-window/start-utc.txt)
+            if [ ! -s journal-rootnormal-window/end-utc.txt ]; then
+              date -u '+%Y-%m-%d %H:%M:%S' > journal-rootnormal-window/end-utc.txt
+            fi
+            end_utc=$(cat journal-rootnormal-window/end-utc.txt)
+            predicate='process == "Ate" OR process == "AteUITests-Runner" OR subsystem == "com.melusik.ate"'
+            /usr/bin/log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > journal-rootnormal-window/host-unified.log 2>&1 || \
+              echo 'Host collection failed; see retained output.' >> journal-rootnormal-window/errors.txt
+            xcrun simctl spawn "$SIM_ID" log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > journal-rootnormal-window/simulator-unified.log 2>&1 || \
+              echo 'Simulator collection failed; see retained output.' >> journal-rootnormal-window/errors.txt
+          else
+            echo 'Start marker missing; no covered window claimed.' > journal-rootnormal-window/errors.txt
+          fi
       - name: Qualify dormant reset composition on its exact candidate branch
         if: github.head_ref == 'prep/account-reset-composition'
         run: |
@@ -233,12 +256,35 @@ jobs:
         if: ${{ always() && steps.build.outcome == 'success' }}
         continue-on-error: true
         run: |
+          mkdir -p files-cancel-window
+          date -u '+%Y-%m-%d %H:%M:%S' > files-cancel-window/start-utc.txt
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > files-cancel-window/collection-context.txt
+          xcrun simctl list devices booted >> files-cancel-window/collection-context.txt 2>&1 || true
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/CanonicalUpgradeUITests/testActualFilesPickerCancellationDoesNotShowImportErrorOrAddMeal \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/files-cancel-system-diagnostic.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > files-cancel-system-diagnostic.log 2>&1
+      - name: Retain optional Files invocation unified-log window
+        if: ${{ always() && steps.files_cancel_diagnostic.outcome != 'skipped' }}
+        run: |
+          # Separate window: earlier launch diagnostics finish before this optional test.
+          mkdir -p files-cancel-window
+          end_utc=$(date -u '+%Y-%m-%d %H:%M:%S')
+          printf '%s\n' "$end_utc" > files-cancel-window/end-utc.txt
+          if [ -s files-cancel-window/start-utc.txt ]; then
+            start_utc=$(cat files-cancel-window/start-utc.txt)
+            predicate='process == "Ate" OR process == "AteUITests-Runner" OR subsystem == "com.melusik.ate" OR process CONTAINS "DocumentManager" OR process CONTAINS "fileprovider"'
+            /usr/bin/log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > files-cancel-window/host-unified.log 2>&1 || \
+              echo 'Host log collection failed; see retained output.' >> files-cancel-window/collection-context.txt
+            xcrun simctl spawn "$SIM_ID" log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > files-cancel-window/simulator-unified.log 2>&1 || \
+              echo 'Simulator log collection failed; see retained output.' >> files-cancel-window/collection-context.txt
+          else
+            echo 'Optional test start marker missing; no covered log window claimed.' >> files-cancel-window/collection-context.txt
+          fi
       - name: Record Files cancellation acceptance boundary
         if: always()
         env:
@@ -295,7 +341,9 @@ jobs:
           name: journal-open-state-ui-${{ github.run_number }}
           path: |
             journal-open-state-ui.log
+            journal-rootnormal-window
             files-cancel-system-diagnostic.log
+            files-cancel-window
             files-cancel-system-diagnostic-attachments
             ${{ runner.temp }}/ate-test-results/files-cancel-system-diagnostic.xcresult
             reset-composition.log

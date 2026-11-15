@@ -19,6 +19,7 @@ struct AteApp: App {
         TabBarStyle.apply()
         #if DEBUG
         LiveDTProbe.installIfRequested()
+        JournalAnimationDiagnostics.startIfRequested()
         SearchFocusDiagnostic.startIfRequested()
         #endif
         if AppConfig.isUITesting {
@@ -48,9 +49,12 @@ struct AteApp: App {
             precondition(st.foodJournalRuntime == nil, "Legacy Insights QA fixture cannot mix with canonical runtime")
             st.shopping = InsightDestinationQAFixtures.shopping()
         }
-        DogfoodSavedRecipeQAFixtures.prepare(st)
         ExploreRetentionQAFixtures.prepare(st)
         CookJournalQARoute.prepare(st)
+        IngredientDisplayQAFixtures.prepare(st)
+        DogfoodSavedRecipeQAFixtures.prepare(st)
+        RecipeSheetQAFixtures.prepare(st)
+        FocusedJourneyQAFixtures.prepare(st)
         #else
         let st = AppStore(context: c?.mainContext)
         #endif

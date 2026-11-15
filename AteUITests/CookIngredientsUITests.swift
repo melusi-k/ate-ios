@@ -43,7 +43,7 @@ final class CookIngredientsUITests: XCTestCase {
         let navigation = app.navigationBars["Add recipe"]
         XCTAssertTrue(navigation.exists && !navigation.frame.isEmpty && navigation.isHittable,
                       "Add recipe must be the active sheet before querying its heading")
-        let sheetContent = app.scrollViews.containing(.textField, identifier: "linkField").firstMatch
+        let sheetContent = app.scrollViews["addRecipe.content"]
         wait(sheetContent.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Add a recipe")).firstMatch)
         app.buttons["Prompt"].tap()
         let e = app.textViews["promptEditor"]; e.tap(); e.typeText("Miso salmon for two")
@@ -204,8 +204,14 @@ final class CookIngredientsUITests: XCTestCase {
     }
 
     /// Normal-size coverage, separate from the retained original cross-size case.
+    // Autoclosures preserve the original AX evaluation count/order and && short circuit.
+    private func riceRead<T>(_ phase: String, _ read: @autoclosure () -> T) -> T {
+        print("RICE-AX phase=\(phase) edge=start uptime=\(ProcessInfo.processInfo.systemUptime)")
+        defer { print("RICE-AX phase=\(phase) edge=end uptime=\(ProcessInfo.processInfo.systemUptime)") }
+        return read()
+    }
     func testCookIngredientSheetNormalTextAccessibilityAndImperial() {
-        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL", "-qaImperialUnits"])
+        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL", "-qaImperialUnits", "-qaRiceQueryDiagnostic"])
         addPromptRecipe()
 
         let detailPicker = app.segmentedControls["servingsPicker"]
@@ -268,20 +274,27 @@ final class CookIngredientsUITests: XCTestCase {
 
         // Imperial conversion in the checklist: rice 150 g x 2 renders in ounces.
         // At this text size the last row can be offscreen; scroll the sheet to reach it if so.
+        shot("rice-before-original-predicate")
         let riceQuery = NSPredicate(format: "identifier == %@ AND label CONTAINS %@", "cookIngredient.4", "oz")
         var rice = app.buttons.matching(riceQuery).firstMatch
         // A row can exist in the hierarchy while still clipped at the scroll edge, and
         // isHittable alone has proven unreliable; keep scrolling until the row is fully
         // inside the sheet's visible frame and tappable, as a user would.
-        for _ in 0..<8 where !(rice.exists && rice.isHittable && visibleFrame().contains(rice.frame)) {
+        for _ in 0..<8 where !(riceRead("exists", rice.exists) && riceRead("hittable", rice.isHittable) && riceRead("contained", visibleFrame().contains(rice.frame))) {
             scroll.swipeUp()
+            shot("rice-after-original-scroll-action")
             rice = app.buttons.matching(riceQuery).firstMatch
         }
+        shot("rice-after-last-original-action")
+        print("RICE-AX phase=wait edge=start uptime=\(ProcessInfo.processInfo.systemUptime)")
         wait(rice, 5)
+        print("RICE-AX phase=wait edge=end uptime=\(ProcessInfo.processInfo.systemUptime)")
+        print("RICE-AX phase=assertions edge=start uptime=\(ProcessInfo.processInfo.systemUptime)")
         XCTAssertTrue(rice.label.contains("11 oz"), rice.label)
         XCTAssertTrue(rice.label.contains("rice"), rice.label)
         XCTAssertTrue(rice.isHittable, "rice row not tappable at normal text size")
         XCTAssertTrue(visibleFrame().contains(rice.frame), "rice row not fully within the sheet's visible frame: \(rice.frame) vs \(scroll.frame)")
+        print("RICE-AX phase=assertions edge=end uptime=\(ProcessInfo.processInfo.systemUptime)")
         shot("cook-ingredients-sheet-normal-text-imperial")
     }
 

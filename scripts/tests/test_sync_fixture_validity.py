@@ -1,3 +1,4 @@
+from approved_merge_539 import normalize
 from test_sync_crash_capture import restore_sync_crash_capture
 from pathlib import Path
 from test_goals_upload_fixture import restore_goals_upload_fixture
@@ -5,7 +6,7 @@ import unittest,hashlib,re
 ROOT=Path(__file__).resolve().parents[2]
 class SyncFixtureValidityTests(unittest.TestCase):
     def test_only_fixture_inputs_change(self):
-        s=restore_goals_upload_fixture(restore_sync_crash_capture((ROOT/'AteTests/UserDataSyncTests.swift').read_text()))
+        s=restore_goals_upload_fixture(restore_sync_crash_capture(normalize('source:AteTests/UserDataSyncTests.swift', (ROOT/'AteTests/UserDataSyncTests.swift').read_text())))
         self.assertEqual(s.count('let url = FileManager.default.temporaryDirectory\n            .appendingPathComponent(UUID().uuidString, isDirectory: true).standardizedFileURL'),1)
         s=s.replace('let url = FileManager.default.temporaryDirectory\n            .appendingPathComponent(UUID().uuidString, isDirectory: true).standardizedFileURL','let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)')
         self.assertEqual(s.count('directory = FileManager.default.temporaryDirectory\n            .appendingPathComponent(UUID().uuidString, isDirectory: true).standardizedFileURL'),1)
@@ -24,12 +25,12 @@ class SyncFixtureValidityTests(unittest.TestCase):
         s=s.replace('        XCTAssertEqual(directory, directory.standardizedFileURL, "Fixture must meet the production journal path contract")\n','')
         self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'293a28696a59dd8f952f10d158b13289a9021fe12c63fcc32fc407c0864735bb')
     def test_production_guards_remain_strict(self):
-        source=(ROOT/'Ate/Store/FamilySyncCommitJournal.swift').read_text()
+        source=normalize('source:Ate/Store/FamilySyncCommitJournal.swift', (ROOT/'Ate/Store/FamilySyncCommitJournal.swift').read_text())
         self.assertIn('directory.standardizedFileURL == directory',source)
         self.assertIn('lstat(directory.path, &st) == 0',source)
-        source=(ROOT/'Ate/Services/UserDataSync.swift').read_text()
+        source=normalize('source:Ate/Services/UserDataSync.swift', (ROOT/'Ate/Services/UserDataSync.swift').read_text())
         self.assertLess(source.index('meal entry without a valid day key'),source.index('invalid quantity'))
-        source=(ROOT/'AteTests/UserDataSyncTests.swift').read_text()
+        source=normalize('source:AteTests/UserDataSyncTests.swift', (ROOT/'AteTests/UserDataSyncTests.swift').read_text())
         missing=source.split('func testValidatorRequiresDayKeyForMeals()',1)[1].split('func ',1)[0]
         self.assertIn('meal entry without a valid day key',missing)
         self.assertNotIn('2026-11-14',missing)

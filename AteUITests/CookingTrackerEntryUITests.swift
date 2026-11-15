@@ -10,6 +10,9 @@ final class CookingTrackerEntryUITests: XCTestCase {
     private func launchTracker(_ extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"] + extra
+#if DEBUG
+        if name.contains("testMonthNavigationAndFutureMonthRestriction") { app.launchArguments += ["-qaAccountAssertionDiagnostic"] }
+#endif
         app.launch()
         let journalTab = app.tabBars.buttons["Journal"]
         XCTAssertTrue(journalTab.waitForExistence(timeout: 10), "Journal should be a first-class tab")
@@ -51,6 +54,13 @@ final class CookingTrackerEntryUITests: XCTestCase {
         let previous = app.buttons["tracker.previousMonth"]
         XCTAssertTrue(previous.isHittable)
         previous.tap()
+#if DEBUG
+        if app.launchArguments.contains("-qaAccountAssertionDiagnostic") {
+            shot("tracker-after-previous-tap")
+            let a = XCTAttachment(string: month.debugDescription)
+            a.name = "tracker-after-previous-month-query"; a.lifetime = .keepAlways; add(a)
+        }
+#endif
         let movedToPreviousMonth = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "label != %@", currentMonth),
             object: month
@@ -60,6 +70,13 @@ final class CookingTrackerEntryUITests: XCTestCase {
         let next = app.buttons["tracker.nextMonth"]
         XCTAssertTrue(next.isHittable)
         next.tap()
+#if DEBUG
+        if app.launchArguments.contains("-qaAccountAssertionDiagnostic") {
+            shot("tracker-after-next-tap")
+            let a = XCTAttachment(string: month.debugDescription)
+            a.name = "tracker-after-next-month-query"; a.lifetime = .keepAlways; add(a)
+        }
+#endif
         let returnedToCurrentMonth = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "label == %@", currentMonth),
             object: month

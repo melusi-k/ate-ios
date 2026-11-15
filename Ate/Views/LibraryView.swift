@@ -710,3 +710,41 @@ private enum CookPlanRootQueryDiagnostic {
     }
 }
 #endif
+
+#if DEBUG
+/// Opt-in numeric binding receipt only. No query text, focus or AX reads.
+@MainActor enum SearchReceiptDiagnostic {
+    static var enabled: Bool {
+        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaSearchFocusDiagnostic")
+    }
+    private static var events = 0
+    private static var rows: [String] = []
+    static func begin(previous: Int, incoming: Int) -> Int? {
+        guard enabled, events < 8 else { return nil }
+        events += 1
+        record(phase: 1, event: events, first: Double(previous), second: Double(incoming))
+        return events
+    }
+    static func end(event: Int?, stored: Int) {
+        guard let event else { return }
+        record(phase: 2, event: event, first: Double(stored), second: 0)
+        let scheduled = ProcessInfo.processInfo.systemUptime
+        DispatchQueue.global(qos: .utility).async {
+            let utility = ProcessInfo.processInfo.systemUptime
+            Task { @MainActor in
+                record(phase: 3, event: event, first: scheduled, second: utility)
+            }
+        }
+    }
+    private static func record(phase: Int, event: Int, first: Double, second: Double) {
+        guard rows.count < 24,
+              let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) event=\(event) uptime=\(ProcessInfo.processInfo.systemUptime) first=\(first) second=\(second)")
+        do {
+            try Data((rows.joined(separator: "\n") + "\n").utf8).write(to: cache.appendingPathComponent("search-receipt-diagnostic.txt"), options: .atomic)
+        } catch {
+            Logger(subsystem: "com.melusik.ate", category: "SearchReceiptDiagnostic").error("Search receipt numeric evidence write failed")
+        }
+    }
+}
+#endif

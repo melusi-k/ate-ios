@@ -1,4 +1,7 @@
 import Foundation
+#if DEBUG
+import Darwin
+#endif
 import Vision
 import OSLog
 import UIKit
@@ -553,8 +556,8 @@ final class OnDeviceBackend: BackendService {
     /// Shared by real image generation, demo fallback and the model's readPhotoText tool.
     static let ocrDeadlineSeconds: TimeInterval = 10
 
-    static func ocr(dataURL: String) async throws -> String {
-        let diagnostic = PhotoImportDiagnostics.begin()
+    static func ocr(dataURL: String, diagnostic suppliedDiagnostic: PhotoImportDiagnostics? = nil) async throws -> String {
+        let diagnostic = suppliedDiagnostic ?? PhotoImportDiagnostics.begin()
         diagnostic?.mark(.decodeStarted)
         let b64 = dataURL.components(separatedBy: ",").last ?? ""
         guard let data = Data(base64Encoded: b64), let cg = UIImage(data: data)?.cgImage else {
@@ -564,29 +567,59 @@ final class OnDeviceBackend: BackendService {
         diagnostic?.mark(.decodeCompleted)
         diagnostic?.mark(.workerQueued)
         let cancellation = OCRRequestCancellation()
-        return try await OCRTerminalResult.run(timeout: ocrDeadlineSeconds, cancel: { cancellation.cancel() }) { finish in
-            DispatchQueue.global(qos: .userInitiated).async {
-                diagnostic?.mark(.workerStarted)
-                // Read synchronous perform's result on this worker. Completion must not
-                // depend on Vision calling a request callback, and must happen only once
-                // even when a slow worker finishes after the deadline.
-                let req = VNRecognizeTextRequest()
-                req.recognitionLevel = .accurate
-                req.usesLanguageCorrection = true
-                cancellation.install { req.cancel() }
-                diagnostic?.mark(.performStarted)
-                do {
-                    try VNImageRequestHandler(cgImage: cg).perform([req])
-                    diagnostic?.mark(.performReturned)
-                    let lines = (req.results ?? []).compactMap { $0.topCandidates(1).first?.string }
-                    diagnostic?.mark(.ocrCompleted)
-                    finish(.success(lines.joined(separator: "\n")))
-                } catch {
-                    diagnostic?.mark(.performFailed)
-                    diagnostic?.mark(.ocrFailed)
-                    finish(.failure(error))
+        do {
+            let text = try await OCRTerminalResult.run(timeout: ocrDeadlineSeconds,
+                // Timer firing is observed even if success already won the terminal race.
+                onDeadline: { diagnostic?.mark(.deadlineFired) },
+                cancel: { diagnostic?.mark(.cancellationRequested); cancellation.cancel() }) { finish in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    diagnostic?.mark(.workerStarted)
+                    // Read synchronous perform's result on this worker. Completion must not
+                    // depend on Vision calling a request callback, and must happen only once
+                    // even when a slow worker finishes after the deadline.
+                    #if DEBUG
+                    let cpuCapture = suppliedDiagnostic?.cpuCapture()
+                    cpuCapture?.mark("request-create-enter")
+                    #endif
+                    let req = VNRecognizeTextRequest()
+                    req.recognitionLevel = .accurate
+                    req.usesLanguageCorrection = true
+                    cancellation.install { req.cancel() }
+                    #if DEBUG
+                    cpuCapture?.mark("request-configured")
+                    #endif
+                    diagnostic?.mark(.performStarted)
+                    do {
+                        let handler = VNImageRequestHandler(cgImage: cg)
+                        #if DEBUG
+                        cpuCapture?.mark("handler-created-perform-enter")
+                        #endif
+                        try handler.perform([req])
+                        #if DEBUG
+                        cpuCapture?.mark("perform-return")
+                        #endif
+                        diagnostic?.mark(.performReturned)
+                        let lines = (req.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+                        #if DEBUG
+                        cpuCapture?.mark("candidates-extracted")
+                        #endif
+                        diagnostic?.mark(.ocrCompleted)
+                        finish(.success(lines.joined(separator: "\n")))
+                    } catch {
+                        #if DEBUG
+                        cpuCapture?.mark("perform-error")
+                        #endif
+                        diagnostic?.mark(.performFailed)
+                        diagnostic?.mark(.ocrFailed)
+                        finish(.failure(error))
+                    }
                 }
             }
+            diagnostic?.mark(.callerReturned)
+            return text
+        } catch {
+            diagnostic?.mark(.callerFailed)
+            throw error
         }
     }
 }
@@ -639,11 +672,13 @@ final class OCRTerminalResult: @unchecked Sendable {
         callback?(result)
     }
 
-    static func run(timeout: TimeInterval, cancel: @escaping @Sendable () -> Void = {},
+    static func run(timeout: TimeInterval, onDeadline: @escaping @Sendable () -> Void = {},
+                    cancel: @escaping @Sendable () -> Void = {},
                     start: (@escaping @Sendable (Result<String, Error>) -> Void) -> Void) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             let terminal = OCRTerminalResult { continuation.resume(with: $0) }
             DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + timeout) {
+                onDeadline()
                 terminal.finish(.failure(DeadlineExceeded()))
                 cancel()
             }
@@ -817,6 +852,7 @@ struct PhotoImportDiagnostics: Sendable {
         case backendReturned, draftAssigned, dishQuestion, generationFailed, generationFinished
         case decodeStarted, decodeRejected, decodeCompleted, workerQueued, workerStarted
         case performStarted, performReturned, performFailed, ocrCallback, ocrCompleted, ocrFailed
+        case deadlineFired, cancellationRequested, callerReturned, callerFailed
     }
 
     private static let log = Logger(subsystem: "com.melusik.ate", category: "photo-import-phases")
@@ -828,8 +864,38 @@ struct PhotoImportDiagnostics: Sendable {
         return Self(id: UUID().uuidString, started: ProcessInfo.processInfo.systemUptime)
     }
 
+    #if DEBUG
+    /// Explicit synthetic real-Vision unit fixtures only. No XCTest/process-name inference.
+    static func syntheticVisionFixture() -> Self {
+        Self(id: UUID().uuidString, started: ProcessInfo.processInfo.systemUptime)
+    }
+    #endif
+
     func mark(_ phase: Phase) {
         let elapsedMs = Int((ProcessInfo.processInfo.systemUptime - started) * 1_000)
         Self.log.notice("trace=\(id, privacy: .public) phase=\(phase.rawValue, privacy: .public) elapsed_ms=\(elapsedMs, privacy: .public)")
     }
 }
+
+#if DEBUG
+extension PhotoImportDiagnostics {
+    /// Two actual OCR unit fixtures opt in via their already-supplied diagnostic.
+    /// Per-worker six-point maximum, no polling or synchronization/timeout decision.
+    func cpuCapture() -> OCRCPUPhaseCapture { OCRCPUPhaseCapture(trace: id) }
+}
+
+struct OCRCPUPhaseCapture {
+    let trace: String
+    private let started = ProcessInfo.processInfo.systemUptime
+    private let startedCPU = clock()
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "photo-import-cpu")
+    func mark(_ phase: String) {
+        let wall = ProcessInfo.processInfo.systemUptime - started
+        let cpu = Double(clock() - startedCPU) / Double(CLOCKS_PER_SEC)
+        let info = ProcessInfo.processInfo
+        // CPU is THIS PROCESS aggregate, not Vision service or host CPU. Ratios
+        // are diagnostic only, never proof of contention or an optimization verdict.
+        Self.logger.notice("trace=\(trace, privacy: .public) phase=\(phase, privacy: .public) wall_s=\(wall, privacy: .public) process_cpu_s=\(cpu, privacy: .public) active_cpus=\(info.activeProcessorCount, privacy: .public) thermal=\(info.thermalState.rawValue, privacy: .public) uptime=\(info.systemUptime, privacy: .public)")
+    }
+}
+#endif

@@ -108,16 +108,17 @@ jobs:
             -only-testing:AteUITests/KeyFlowsQATests/testQA8_Timers \
             -only-testing:AteUITests/AteUITests/test28_GroupSortAndMenus \
             -only-testing:AteUITests/AteUITests/test29_ReorderMyOrder \
+            -only-testing:AteUITests/AteUITests/test29b_ReorderMyOrderActions \
             -resultBundlePath build/DogfoodCriticalFlows.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > dogfood-critical-flows.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" dogfood-critical-flows.log || true; tail -100 dogfood-critical-flows.log; exit 1; }
           total=$(sed -nE 's/^[[:space:]]*Executed ([0-9]+) tests?,.*/\1/p' dogfood-critical-flows.log | tail -1)
-          if ! [[ "$total" =~ ^[0-9]+$ ]] || [ "$total" -lt 9 ]; then
-            echo "::error::critical flow selection must execute at least nine tests; got ${total:-missing}"
+          if ! [[ "$total" =~ ^[0-9]+$ ]] || [ "$total" -lt 12 ]; then
+            echo "::error::critical flow selection must execute at least twelve tests; got ${total:-missing}"
             exit 1
           fi
-          for test in test28_GroupSortAndMenus test29_ReorderMyOrder; do
+          for test in test28_GroupSortAndMenus test29_ReorderMyOrder test29b_ReorderMyOrderActions; do
             grep -qF "AteUITests $test]' passed" dogfood-critical-flows.log || { echo "::error::missing named Library pass: $test"; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" dogfood-critical-flows.log | tail -50

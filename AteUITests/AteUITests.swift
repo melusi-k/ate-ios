@@ -2,6 +2,7 @@ import XCTest
 
 final class AteUITests: XCTestCase {
     var app: XCUIApplication!
+    private var captureAddTitleQuery = false
 
     override func setUp() {
         continueAfterFailure = false
@@ -109,6 +110,7 @@ final class AteUITests: XCTestCase {
     /// Opens Add sheet, picks a tab, generates via mock and saves; ends on Recipe detail.
     func addRecipe(tab: String, input: ((XCUIApplication) -> Void)?, shotPrefix: String) {
         app.buttons["Add recipe"].tap()
+        if captureAddTitleQuery { shot("cook-completion-before-add-title-query") }
         wait(text("Add a recipe"))
         app.buttons[tab].tap()
         input?(app)
@@ -278,7 +280,9 @@ final class AteUITests: XCTestCase {
     }
 
     func testCookModeCompletionRecordsCookingDay() {
-        launch()
+        captureAddTitleQuery = true
+        defer { captureAddTitleQuery = false }
+        launch(["-qaAddTitleQueryDiagnostic"])
         addPromptRecipe()
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))
@@ -1304,6 +1308,15 @@ final class AteUITests: XCTestCase {
         // for real native menus and their asserted Library actions.
         launch(["-qaSavedRecipesForDogfoodReorder"])
         pick("sortMenu", "My order")
+        let first = text("First dish"), second = text("Second dish")
+        wait(first)
+        XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
+    }
+
+    func test29b_ReorderMyOrderActions() {
+        // Sort selection is exercised by test29. These cards still have no
+        // explicit positions; Move up must perform the real ordering change.
+        launch(["-qaSavedRecipesForReorderAction"])
         let first = text("First dish"), second = text("Second dish")
         wait(first)
         XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")

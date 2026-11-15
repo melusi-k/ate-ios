@@ -1,39 +1,68 @@
 import XCTest
+import Foundation
 @testable import Ate
 
 /// Native UNRUN. No HealthKit, model or widget/default side effects.
+/// Atomic registration prevents a read arriving between the count check and waiter install.
+/// The fake may be called on the generic async executor while the test awaits on MainActor.
 private final class SuspendedInsightHealth: HealthKitServicing {
-    var access: HealthAccess = .requested
+    private let lock = NSLock()
+    private var storedAccess: HealthAccess = .requested
+    var access: HealthAccess {
+        get { lock.withLock { storedAccess } }
+        set { lock.withLock { storedAccess = newValue } }
+    }
     var lastError: String?
-    var reads: [CheckedContinuation<HealthSummary, Never>] = []
-    var onRead: (() -> Void)?
+    private var storedReads: [CheckedContinuation<HealthSummary, Never>] = []
+    private var waiters: [(Int, CheckedContinuation<Void, Never>)] = []
+    var reads: [CheckedContinuation<HealthSummary, Never>] { lock.withLock { storedReads } }
     func requestAccess() async -> HealthAccess { access }
     func summary(days: Int) async -> HealthSummary {
         await withCheckedContinuation { continuation in
-            reads.append(continuation); onRead?()
+            let ready = lock.withLock {
+                storedReads.append(continuation)
+                let ready = waiters.filter { storedReads.count >= $0.0 }.map { $0.1 }
+                waiters.removeAll { storedReads.count >= $0.0 }
+                return ready
+            }
+            for waiter in ready { waiter.resume() }
         }
     }
     func waitForRead(_ count: Int) async {
-        if reads.count >= count { return }
         await withCheckedContinuation { continuation in
-            onRead = { [weak self] in
-                if let self, self.reads.count >= count { self.onRead = nil; continuation.resume() }
+            let alreadyReady = lock.withLock {
+                if storedReads.count >= count { return true }
+                waiters.append((count, continuation))
+                return false
             }
+            if alreadyReady { continuation.resume() }
         }
     }
 }
 private final class SuspendedInsightPrompts {
-    var reads: [CheckedContinuation<[JournalPrompt], Never>] = []
-    var onRead: (() -> Void)?
+    private let lock = NSLock()
+    private var storedReads: [CheckedContinuation<[JournalPrompt], Never>] = []
+    private var waiters: [(Int, CheckedContinuation<Void, Never>)] = []
+    var reads: [CheckedContinuation<[JournalPrompt], Never>] { lock.withLock { storedReads } }
     func make(_ insight: HealthInsight) async -> [JournalPrompt] {
-        await withCheckedContinuation { continuation in reads.append(continuation); onRead?() }
+        await withCheckedContinuation { continuation in
+            let ready = lock.withLock {
+                storedReads.append(continuation)
+                let ready = waiters.filter { storedReads.count >= $0.0 }.map { $0.1 }
+                waiters.removeAll { storedReads.count >= $0.0 }
+                return ready
+            }
+            for waiter in ready { waiter.resume() }
+        }
     }
     func waitForRead(_ count: Int) async {
-        if reads.count >= count { return }
         await withCheckedContinuation { continuation in
-            onRead = { [weak self] in
-                if let self, self.reads.count >= count { self.onRead = nil; continuation.resume() }
+            let alreadyReady = lock.withLock {
+                if storedReads.count >= count { return true }
+                waiters.append((count, continuation))
+                return false
             }
+            if alreadyReady { continuation.resume() }
         }
     }
 }

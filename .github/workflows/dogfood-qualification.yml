@@ -112,7 +112,9 @@ jobs:
             -only-testing:AteUITests/AteUITests/test28_FavouriteSwipeAndSort \
             -only-testing:AteUITests/AteUITests/test28_ContextMenuAddsShoppingAndShowsFeedback \
             -only-testing:AteUITests/AteUITests/test29_ReorderMyOrder \
+            -only-testing:AteUITests/AteUITests/test29a_MyOrderSelectionOnly \
             -only-testing:AteUITests/AteUITests/test29_DragMyOrder \
+            -only-testing:AteUITests/AteUITests/test29b_ReorderMyOrderActions \
             -resultBundlePath build/DogfoodCriticalFlows.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
@@ -122,7 +124,7 @@ jobs:
             echo "::error::critical flow selection must execute at least sixteen tests; got ${total:-missing}"
             exit 1
           fi
-          for test in test28_GroupSortAndMenus test28_GroupRecentlyAdded test28_GroupCookTime test28_FavouriteSwipeAndSort test28_ContextMenuAddsShoppingAndShowsFeedback test29_ReorderMyOrder test29_DragMyOrder; do
+          for test in test28_GroupSortAndMenus test28_GroupRecentlyAdded test28_GroupCookTime test28_FavouriteSwipeAndSort test28_ContextMenuAddsShoppingAndShowsFeedback test29_ReorderMyOrder test29_DragMyOrder test29a_MyOrderSelectionOnly test29b_ReorderMyOrderActions; do
             grep -qF "AteUITests $test]' passed" dogfood-critical-flows.log || { echo "::error::missing named Library pass: $test"; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" dogfood-critical-flows.log | tail -50

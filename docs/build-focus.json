@@ -1,7 +1,7 @@
 {
   "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Explore retention, live Shopping sync and Cook footer candidate. Library preserves collection; explicit all-Library clears it. Settings keeps its held drag and strict assertions. Explore focus and add-sheet heartbeat remain diagnostic. Synthetic OCR adds DEBUG request/handler/perform phase wall/process-CPU samples only; process CPU excludes host and Vision services. OCR 10s deadline, 8s assertion and budgets unchanged. Prior OCR deadline misses and Insights bootstrap unresolved. Native qualification unverified; this focus refresh fixes pre-build metadata only. Merge held.",
-  "source_commit": "a32e793fa0ce37681cee3498f8a7e767e6eed1a9",
+  "summary": "Cook-plan removal responsiveness hypothesis: synchronous pending/delivered notification removals run on an awaited utility queue, not Main. Ordered intent cleanup and pending-ID verification remain unchanged; OFF plans still clear obsolete reminders. No timeout, retry or native assertion changes. Existing app focus and diagnostics retained. Native compile, responsiveness, reminders, saved-plan reopening/cancellation and pixels UNRUN on this patch. Metadata validation is not native qualification; merge held.",
+  "source_commit": "6707415ec9518497ce72fc383b05720fbb9d69a0",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -78,6 +78,10 @@
     {
       "path": "Ate/Services/OnDeviceBackend.swift",
       "blob": "2caf8558181d9f0273f267fc78e6973d14f367c7"
+    },
+    {
+      "path": "Ate/Services/CookPlanNotifications.swift",
+      "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
     }
   ]
 }

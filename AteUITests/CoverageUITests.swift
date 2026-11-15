@@ -245,7 +245,12 @@ final class CoverageUITests: XCTestCase {
         wait(servings, 5)
         // The preserved hierarchy must keep detail state, not reconstruct a new recipe view.
         // Scroll upward within the visible detail if expansion preserved a lower position.
-        for _ in 0..<5 where !servings.isHittable { detailScroll.swipeDown() }
+        // Medium detent prioritizes native sheet resizing over downward content
+        // scrolling. Expand once before returning through the retained detail.
+        shot("recipe-sheet-reexpanded-medium-before-return-to-servings")
+        fully.tap()
+        RecipeDetailVisibility.reveal(servings, scroll: detailScroll, header: header, footer: cookFooter)
+        shot("recipe-sheet-reexpanded-full-after-return-to-servings")
         XCTAssertTrue(servings.isHittable, "Retained detail must allow scrolling back to servings")
         XCTAssertTrue(servings.buttons["2×"].isSelected, "Collapsing and expanding must retain servings")
         app.buttons["recipeSheet.close"].tap()

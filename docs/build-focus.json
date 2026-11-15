@@ -1,7 +1,7 @@
 {
   "title": "Quieter Insights and new recipe suggestions",
   "summary": "Focus: Insights and Journal navigation. Opt-in native Back diagnostics retain paired bounded scheduler/MainActor timing; the path observer is not UIKit transition completion. Selected Nutrition and Group28 journeys add paired startup liveness through 240s and monotonic markers around existing helpers, without extra UI queries. Numeric-only diagnostics may perturb timing, not a product fix or cause attribution. Original actions, assertions and budgets unchanged. Settings, animation-notification and AX latency remain unresolved; native/pixel acceptance unqualified. Merge held.",
-  "source_commit": "0763dc72a028f3d550cb92624c0fa14eabc554c7",
+  "source_commit": "5099f06e0a316d80add93c6d22d9c57454dd81db",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

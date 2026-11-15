@@ -8,9 +8,29 @@ final class CoverageUITests: XCTestCase {
 
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
 
+    private var captureCoverageLaunch = false
+    private func coverageLaunchMark(_ phase: String) {
+        guard captureCoverageLaunch else { return }
+        print("COVERAGE-LAUNCH phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime)")
+    }
+
     @discardableResult
     func launch(_ extra: [String] = []) -> XCUIApplication {
-        app = XCUIApplication(); app.launchArguments = ["-UITesting"] + extra; app.launch(); return app
+        app = XCUIApplication(); app.launchArguments = ["-UITesting"] + extra
+        if captureCoverageLaunch {
+            coverageLaunchMark("before-pixels")
+            shot("coverage-launch-before-original-call")
+            coverageLaunchMark("launch-enter")
+        }
+        defer {
+            if captureCoverageLaunch {
+                coverageLaunchMark("launch-scope-exit")
+                shot("coverage-launch-scope-exit")
+            }
+        }
+        app.launch()
+        coverageLaunchMark("launch-return")
+        return app
     }
     func shot(_ name: String) {
         let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
@@ -884,7 +904,10 @@ extension CoverageUITests {
     /// Bottom area is one system: Cook mode sits above the (single) timer bar, the Ask Ate field scrolls clear of both,
     /// and the offline banner lives at the top.
     func testBottomBarsDoNotOverlapRecipeDetail() {
+        captureCoverageLaunch = true
+        defer { captureCoverageLaunch = false }
         launch(["-simulateOffline"])
+        coverageLaunchMark("body-after-launch")
         addPrompt("miso salmon")
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of"))

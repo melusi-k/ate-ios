@@ -15,17 +15,19 @@ enum DogfoodSavedRecipeQAFixtures {
         let favourite = args.contains("-qaSavedRecipesForFavourite")
         let context = args.contains("-qaSavedZestyForContext")
         let reorder = args.contains("-qaSavedRecipesForDogfoodReorder")
-        guard menus || apple || favourite || context || reorder else { return }
-        precondition([menus, apple, favourite, context, reorder].filter { $0 }.count == 1)
+        let reorderAction = args.contains("-qaSavedRecipesForReorderAction")
+        guard menus || apple || favourite || context || reorder || reorderAction else { return }
+        precondition([menus, apple, favourite, context, reorder, reorderAction].filter { $0 }.count == 1)
         startAnimationDiagnostics()
         store.filter.clear()
         store.layout = LibraryLayout()
+        if reorderAction { store.layout.sort = .myOrder }
         let now = Date().timeIntervalSince1970 * 1000
         if apple || context {
             store.recipes = [card(id: "qa-dogfood-single", title: apple ? "Apple crumble" : "Zesty tacos", createdAt: now)]
         } else {
-            let first = card(id: "qa-dogfood-first", title: reorder ? "First dish" : (favourite ? "Apple crumble" : "Zesty tacos"), createdAt: now - 1000)
-            let second = card(id: "qa-dogfood-second", title: reorder ? "Second dish" : (favourite ? "Zesty tacos" : "Apple crumble"), createdAt: now)
+            let first = card(id: "qa-dogfood-first", title: (reorder || reorderAction) ? "First dish" : (favourite ? "Apple crumble" : "Zesty tacos"), createdAt: now - 1000)
+            let second = card(id: "qa-dogfood-second", title: (reorder || reorderAction) ? "Second dish" : (favourite ? "Zesty tacos" : "Apple crumble"), createdAt: now)
             store.recipes = [second, first]
         }
     }

@@ -1,7 +1,7 @@
 {
   "title": "Journal layout, published release history and recipe draft feedback",
-  "summary": "Focus: Journal and release notes. Opt-in Delete Cancel diagnostics pair a bounded utility scheduler with MainActor timing files and one post-Cancel pixel. The callback marker follows the original state assignment, not UIKit dismissal completion. Fixed numeric phases only, no model/UI queries. Original actions, predicates and budgets unchanged. Settings, Journal and other native failures remain unresolved; this diagnostic may perturb timing and is not a product fix or cause attribution. Native/pixel qualification pending; merge held.",
-  "source_commit": "2754269b04445b04083241a4505ba2a9f500d830",
+  "summary": "Focus: Journal root, manual reflection and release notes. Delete-Cancel retains paired bounded scheduler/MainActor timing; callback is not UIKit dismissal completion. Optional Files test adds opt-in DEBUG lifecycle metadata from the real picker subclass and teardown pixels. No file contents, URLs, focus walks or presentation changes. Production and unflagged picker construction remain unchanged. Diagnostics may perturb timing, not a product fix. Original actions, assertions and budgets unchanged. Native acceptance remains unqualified at this head; merge held.",
+  "source_commit": "49feeea31b183c31755141966a2312e19f0d4f06",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

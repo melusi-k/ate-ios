@@ -1,6 +1,9 @@
 import SwiftUI
 import PhotosUI
 import OSLog
+#if DEBUG
+import OSLog
+#endif
 
 struct AddRecipeSheet: View {
     enum Mode: String, CaseIterable { case link = "Link", image = "Image", prompt = "Prompt"
@@ -72,6 +75,9 @@ struct AddRecipeSheet: View {
         .interactiveDismissDisabled(hasUnsaved)
         // Proper nav bar: Cancel sits in a solid bar instead of floating over the cover while scrolling.
         .navigationTitle(draft == nil ? "Add recipe" : "Review your card")
+        #if DEBUG
+        .task { await AddTitleQueryDiagnostic.observeIfRequested() }
+        #endif
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.visible, for: .navigationBar)
         .presentationDragIndicator(.visible)
@@ -756,6 +762,22 @@ private struct DraftRestoreSnapshotDiagnostics: Sendable {
 
     func mark(_ phase: String) {
         Self.logger.notice("trace=\(id, privacy: .public) phase=\(phase, privacy: .public) elapsed=\(ProcessInfo.processInfo.systemUptime - started, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public)")
+/// One explicitly flagged Cook-completion journey, no UI, model or AX reads.
+private enum AddTitleQueryDiagnostic {
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "AddTitleQueryDiagnostic")
+    @MainActor static func observeIfRequested() async {
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaAddTitleQueryDiagnostic") else { return }
+        let trace = UUID().uuidString
+        let started = ProcessInfo.processInfo.systemUptime
+        for offset in [0.0, 15, 30, 60, 90, 120, 150] {
+            let remaining = offset - (ProcessInfo.processInfo.systemUptime - started)
+            if remaining > 0 {
+                do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
+            }
+            guard !Task.isCancelled else { return }
+            logger.notice("trace=\(trace, privacy: .public) scheduled=\(offset, privacy: .public) elapsed=\(ProcessInfo.processInfo.systemUptime - started, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public) main-actor-heartbeat")
+        }
     }
 }
 #endif

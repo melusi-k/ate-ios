@@ -103,7 +103,8 @@ final class OCRTerminalResultTests: XCTestCase {
         let original = try XCTUnwrap(AddRecipeSheet.sampleImage())
         let image = AddRecipeSheet.prepareImage(original).requestAndRecovery
         let started = Date()
-        let text = try await OnDeviceBackend.ocr(dataURL: "data:image/jpeg;base64," + image.base64EncodedString())
+        let text = try await OnDeviceBackend.ocr(dataURL: "data:image/jpeg;base64," + image.base64EncodedString(),
+            diagnostic: .syntheticVisionFixture())
         let elapsed = Date().timeIntervalSince(started)
         let timing = "OCR_TIMING sample pixels=800x600 seconds=\(elapsed)"
         print(timing)
@@ -141,7 +142,8 @@ final class OCRTerminalResultTests: XCTestCase {
         let image = AddRecipeSheet.prepareImage(original).requestAndRecovery
         let pixels = try XCTUnwrap(UIImage(data: image)?.cgImage)
         let started = Date()
-        let text = try await OnDeviceBackend.ocr(dataURL: "data:image/jpeg;base64," + image.base64EncodedString())
+        let text = try await OnDeviceBackend.ocr(dataURL: "data:image/jpeg;base64," + image.base64EncodedString(),
+            diagnostic: .syntheticVisionFixture())
         let elapsed = Date().timeIntervalSince(started)
         let timing = "OCR_TIMING tall pixels=\(pixels.width)x\(pixels.height) seconds=\(elapsed)"
         print(timing)

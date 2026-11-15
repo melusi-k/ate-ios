@@ -94,11 +94,18 @@ jobs:
           SIM_ID="${{ steps.select_simulator.outputs.id }}"
           xcrun simctl boot "$SIM_ID" || true
           xcrun simctl bootstatus "$SIM_ID" -b
+          mkdir -p qa8-target-sample
+          python3 scripts/capture-qa8-target-sample.py --sim-id "$SIM_ID" --output qa8-target-sample > qa8-target-sample/collector-console.txt 2>&1 &
+          qa8_sample_pid=$!
+          stop_qa8_sample() {
+            kill "$qa8_sample_pid" 2>/dev/null || true
+            wait "$qa8_sample_pid" || true
+          }
           # QA1 flow = the exact three cases below; keep in sync with QA1_REQUIRED_CASES
           # in scripts/qa-summary.py and scripts/release/readiness.py.
           mkdir -p dogfood-critical-window
           date -u '+%Y-%m-%d %H:%M:%S' > dogfood-critical-window/start-utc.txt
-          trap 'date -u "+%Y-%m-%d %H:%M:%S" > dogfood-critical-window/end-utc.txt' EXIT
+          trap 'date -u "+%Y-%m-%d %H:%M:%S" > dogfood-critical-window/end-utc.txt; stop_qa8_sample' EXIT
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
             -only-testing:AteUITests/KeyFlowsQATests/testQA1_AddFromURL_JSONLD \
             -only-testing:AteUITests/KeyFlowsQATests/testQA1_AddFromURL_InstagramCaption \
@@ -248,6 +255,7 @@ jobs:
           name: dogfood-qualification-${{ github.run_number }}
           path: |
             dogfood-critical-flows.log
+            qa8-target-sample
             dogfood-critical-window
             dogfood-menu-capture
             dogfood-photo-import-phases.log

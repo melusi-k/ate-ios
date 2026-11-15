@@ -39,14 +39,33 @@ final class SystemCookPlanNotificationClient: CookPlanNotificationClient {
             trigger: UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)))
     }
     func remove(_ ids: [String]) async {
-        center.removePendingNotificationRequests(withIdentifiers: ids)
-        center.removeDeliveredNotifications(withIdentifiers: ids)
+        await CookPlanNotificationRemoval.perform(ids: ids) { ids in
+            let center = UNUserNotificationCenter.current()
+            center.removePendingNotificationRequests(withIdentifiers: ids)
+            center.removeDeliveredNotifications(withIdentifiers: ids)
+        }
     }
     func removeAllDelivered() async {
         let delivered = await center.deliveredNotifications()
         let ids = delivered.map { $0.request.identifier }
             .filter { $0.hasPrefix(CookPlan.reminderPrefix) }
-        center.removeDeliveredNotifications(withIdentifiers: ids)
+        await CookPlanNotificationRemoval.perform(ids: ids) { ids in
+            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
+        }
+    }
+}
+
+/// Synchronous notification removal may block in XPC. Keep it off Main while
+/// awaiting its return so the existing intent queue and verification stay ordered.
+enum CookPlanNotificationRemoval {
+    static func perform(ids: [String], operation: @escaping @Sendable ([String]) -> Void) async {
+        guard !ids.isEmpty else { return }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            DispatchQueue.global(qos: .utility).async {
+                operation(ids)
+                continuation.resume()
+            }
+        }
     }
 }
 

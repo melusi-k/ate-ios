@@ -11,7 +11,8 @@ command -v xcodegen >/dev/null 2>&1 || {
   exit 1
 }
 
-BASE_VERSION="$(python3 - <<'PY'
+read_base_version() {
+  python3 - <<'PY'
 import re
 from pathlib import Path
 text = Path("project.yml").read_text()
@@ -20,7 +21,8 @@ if not match:
     raise SystemExit("Could not read major.minor from MARKETING_VERSION in project.yml")
 print(match.group(1))
 PY
-)"
+}
+BASE_VERSION="$(read_base_version)"
 BUILD_NUMBER="$(git rev-list --count HEAD)"
 SHORT_SHA="$(git rev-parse --short=7 HEAD)"
 LOCAL_VERSION="${BASE_VERSION}.${BUILD_NUMBER}"

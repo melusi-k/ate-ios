@@ -69,6 +69,20 @@ struct RecipeDetailView: View {
                     .pageWidth()
                 }
                 .accessibilityIdentifier("recipe.detail.scroll")
+                // The scrolling viewport owns its Cook inset. Keeping it outside
+                // the measured host mixes nested safe areas as timer chrome returns.
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if !editing, store.recipe(recipeID) != nil {
+                        Button {
+                            store.beginCookSession(recipeID: recipeID, factor: factor)
+                            store.cookTarget = CookTarget(id: recipeID)
+                        } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
+                            .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)
+                            .padding(.bottom, footerChromeReserve)
+                            .frame(maxWidth: .infinity)
+                            .background(Theme.background.ignoresSafeArea(edges: .bottom))
+                    }
+                }
             } else {
                 RecipeNotFoundView(title: "Recipe not found")
             }
@@ -81,18 +95,6 @@ struct RecipeDetailView: View {
         .toolbar(.hidden, for: .tabBar)   // full-height detail; Cook mode pinned at the bottom, never under the tab bar
         .navigationTitle(store.recipe(recipeID)?.title ?? "Recipe")
         .navigationBarTitleDisplayMode(.inline)
-        // Bottom area, one system: this inset (Cook mode) sits directly above the stack's timer bar inset.
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !editing, store.recipe(recipeID) != nil {
-                Button {
-                    store.beginCookSession(recipeID: recipeID, factor: factor)
-                    store.cookTarget = CookTarget(id: recipeID)
-                } label: { Label("Cook mode", systemImage: "frying.pan").padding(.horizontal, 10) }
-                    .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)
-                    .padding(.bottom, footerChromeReserve)
-                    .frame(maxWidth: .infinity)
-            }
-        }
         .toolbar {
             if let recipe = store.recipe(recipeID) {
                 ToolbarItemGroup(placement: .topBarTrailing) {

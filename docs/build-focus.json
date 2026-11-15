@@ -28,8 +28,8 @@
       "blob": "747fd4dbdc9db3c801d2adbbdbd2887e628379c3"
     },
     {
-      "path": "Ate/Views/ProductUpdatesViews.swift",
-      "blob": "3de31c5f54026a0a5b3b8a3c83c36e5c3244d03e"
+      "path": "Ate/App/ExploreRetentionQAFixtures.swift",
+      "blob": "f98df83f7cbaba2e7a70ec2699a2791bde9ee17c"
     },
     {
       "path": "Ate/Views/InsightsView.swift",
@@ -54,6 +54,14 @@
     {
       "path": "Ate/Views/JournalDeleteConfirmation.swift",
       "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
+    },
+    {
+      "path": "Ate/Views/JournalViews.swift",
+      "blob": "7e0375d362867507e781901318e32fde459f0e85"
+    },
+    {
+      "path": "Ate/Views/LibraryView.swift",
+      "blob": "0fd016d0837c1f56fac572527b92975370a21f53"
     },
     {
       "path": "Ate/Views/OnboardingView.swift",

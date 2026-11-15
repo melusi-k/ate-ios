@@ -1,5 +1,5 @@
 from pathlib import Path
-import subprocess,unittest
+import hashlib,unittest
 ROOT=Path(__file__).resolve().parents[2]
 BLOCK='''        wait(app.staticTexts["cookCompletion.recorded"], 5)
         let completionDone = app.buttons["cookReflection.notNow"]
@@ -15,9 +15,8 @@ def restore_final_finish_confirmation(test, source):
     return source.replace(case,restored,1)
 class FinalFinishConfirmationTests(unittest.TestCase):
     def test_all_original_ui_code_preserved(self):
-        baseline=subprocess.check_output(['git','show','bc45b9588799da4eb1c603eb9e6dfe28e5918ed4:AteUITests/AteUITests.swift'],cwd=ROOT,text=True)
         source=(ROOT/'AteUITests/AteUITests.swift').read_text()
-        self.assertEqual(restore_final_finish_confirmation(self,source),baseline)
+        self.assertEqual(hashlib.sha256(restore_final_finish_confirmation(self,source).encode()).hexdigest(), '44b91411ce19e71986601f66cb461efb248e953004f87ca67382432ef765d9ca')
     def test_finish_records_then_done_before_original_arrival(self):
         case=(ROOT/'AteUITests/AteUITests.swift').read_text().split('    func test06b_CookModeFinalStepAndFinish() {',1)[1].split('\n    func ',1)[0]
         actions=['finish.tap()', 'wait(app.staticTexts["cookCompletion.recorded"], 5)', 'wait(completionDone, 5)', 'XCTAssertEqual(app.buttons.matching(identifier: "cookReflection.notNow").count, 1)', 'completionDone.tap()', 'wait(app.buttons["Cook mode"], 5)']

@@ -1,7 +1,7 @@
 {
   "title": "Main Shopping and Explore plus recipe import, Cook return and review improvements",
-  "summary": "Patch-forward534: independently exposed AI diagnostics heading, selectable combined details unchanged; removed unsafe diagnostic identifier interpolation only. Original CoverageUITests frozen. Independent302PythonPASS8.496s. Original test32 named pass plus actual About screenshot still required; nativeUNRUN. Earlier8c326e4c native results superseded. Held.",
-  "source_commit": "95c8374548913e2ea43acb2688d2bca3ee155669",
+  "summary": "534About heading plus CookPlan local cancel: local verified removal and immediate dismiss, ordered OS cleanup with distinct failure warning; existing UI assertions and budgets frozen. Independent305PythonPASS8.678s. Four new native units and original CookPlan case, actual dismissal/reopen/relaunch plus About test32/pixels required. NativeUNRUN; priorheads superseded. Held.",
+  "source_commit": "3031b8bad9dd0a65ca023058c7a7cde3e584a983",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -169,7 +169,7 @@
     },
     {
       "path": "Ate/Services/CookPlanNotifications.swift",
-      "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
+      "blob": "bf74d06afb60899f97b80349781db4335b50467f"
     }
   ]
 }

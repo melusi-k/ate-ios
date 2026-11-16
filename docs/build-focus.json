@@ -1,7 +1,7 @@
 {
-  "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Opt-in Search receipt diagnostics record only bounded numeric binding lengths and utility/Main timing. Original storage write, single typing action, full-query assertions and waits remain unchanged. Capture can perturb input timing and does not establish cause. Existing focus diagnostics and notification responsiveness hypothesis retained. Native compile, receipt, AX/rendered value and pixels UNRUN on this packet. Metadata validation is not native qualification; merge held.",
-  "source_commit": "6ce0a7fa53c3f3e7021ee187d47a57bc1f65e792",
+  "title": "Named menu dish reconstruction provenance",
+  "summary": "Recognized promo without recipe signals gets source-absence draft note and saved description. Dish-name confidence is not recipe accuracy. Suppress provisional previews until notice attached. Thresholds/OCR/content unchanged.246PythonPASS7.980s; native/realmodel/pixelsUNRUN. Held.",
+  "source_commit": "4759710e9ca5f52ddc930e0ebbc4c4a977eef4b0",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -29,7 +29,7 @@
     },
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "c6ca14de1fc90831163bc4f8b2764396e25a0a7d"
+      "blob": "07f72215cbde35c476eb50b2209fd00ce3daf3f3"
     },
     {
       "path": "Ate/Views/CookModeView.swift",
@@ -77,11 +77,15 @@
     },
     {
       "path": "Ate/Services/OnDeviceBackend.swift",
-      "blob": "2caf8558181d9f0273f267fc78e6973d14f367c7"
+      "blob": "6f2a5089638fe9faf8fa3b87e4e31d595ed7599f"
     },
     {
       "path": "Ate/Services/CookPlanNotifications.swift",
       "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
+    },
+    {
+      "path": "Ate/Logic/NamedDishProvenance.swift",
+      "blob": "a3bb15466cf9b7e63a43b54e2aa91690bc3c6f76"
     }
   ]
 }

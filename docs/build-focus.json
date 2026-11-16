@@ -1,7 +1,7 @@
 {
   "title": "Main Shopping and Explore with Cook portrait boundary diagnostics",
   "summary": "Main Shopping sync, offline Explore and Search diagnostics retained with Cook, Account and startup diagnostics. Two DEBUG portrait return-boundary receipts capture screenshot then hierarchy before the existing clear predicate query and only after it returns. Original native predicate, waiter, allowances and actions unchanged. Capture may perturb timing and does not prove cause. Native compile, XCTest and merged normal-text pixels UNRUN. Historical whole-file guard conflicts require Reviewer review; merge held.",
-  "source_commit": "243b4276aa9f8ee18d10f9c5718341e2db6a76e9",
+  "source_commit": "da77934ea7bb9933f5d204b7bb01d5034e693f8a",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -57,7 +57,7 @@
     },
     {
       "path": "Ate/Views/InsightsView.swift",
-      "blob": "33c474b62dfe48fe28c61ee891130a75887fd0a7"
+      "blob": "622751cf0a0251e01373083b85788481a82a258e"
     },
     {
       "path": "Ate/Views/JournalDeleteConfirmation.swift",

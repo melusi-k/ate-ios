@@ -117,7 +117,11 @@ final class ShoppingSyncCaptureUITests: XCTestCase {
         XCTAssertTrue(status.waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["shopping.localOnly"].exists)
         let ready = NSPredicate(format: "exists == true AND enabled == true AND hittable == true")
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: refresh)], timeout: 10), .completed)
+        let initialReadyResult = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: refresh)], timeout: 10)
+        if initialReadyResult != .completed {
+            refreshDiagnostics("pre-refresh-ready-failure", refresh: refresh, status: status)
+        }
+        XCTAssertEqual(initialReadyResult, .completed)
         let synced = NSPredicate(format: "label BEGINSWITH %@", "Synced")
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: synced, object: status)], timeout: 10), .completed)
         shot("shopping-signed-in-before-refresh-" + (landscape ? "landscape" : "portrait"))

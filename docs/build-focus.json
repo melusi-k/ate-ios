@@ -1,7 +1,7 @@
 {
   "title": "Readable full-size long Cook instructions",
   "summary": "Keep30/34pt Cook instruction font with vertical overflow scrolling, no0.5scaling. Step controls stay outside instruction scroll; step changes reset offset. DEBUGsyntheticfixture.245PythonPASS7.984s; native/pixelsUNRUN. Held.",
-  "source_commit": "390148cf40e5bad61a00f47e12dcf55f63d0cd27",
+  "source_commit": "604de9bdb71cca44faa45d83aee47a5ca21a5020",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -33,7 +33,7 @@
     },
     {
       "path": "Ate/Views/CookModeView.swift",
-      "blob": "bd58193c9228adc08daa9f0a81c7439e5f5fe197"
+      "blob": "37ce17bbc6eabea11bb509606fc17c474d391212"
     },
     {
       "path": "Ate/Views/CookingTrackerView.swift",

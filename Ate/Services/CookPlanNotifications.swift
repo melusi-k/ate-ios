@@ -89,8 +89,11 @@ final class CookPlanNotifications {
         let previous = tail
         let task = Task { @MainActor in
             defer { if token == self.generation { self.tail = nil } }
+            CookPlanCancelDiagnostic.record(.queueWait)
             _ = try? await previous?.value
+            CookPlanCancelDiagnostic.record(.queueAdmitted)
             try await work(token)
+            CookPlanCancelDiagnostic.record(.queueReturned)
         }
         tail = task
         return task
@@ -113,8 +116,12 @@ final class CookPlanNotifications {
 
     private func removeAndVerify(recipeID: String) async throws {
         let ids = [CookPlan.reminderID(recipeID: recipeID)]
+        CookPlanCancelDiagnostic.record(.removeBegin)
         await client.remove(ids)
+        CookPlanCancelDiagnostic.record(.removeReturned)
+        CookPlanCancelDiagnostic.record(.verifyBegin)
         let remaining = await client.pendingIDs()
+        CookPlanCancelDiagnostic.record(.verifyReturned)
         guard remaining.isDisjoint(with: ids) else { throw CookPlanError.verificationFailed }
     }
 

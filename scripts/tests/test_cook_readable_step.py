@@ -5,6 +5,8 @@ ROOT=Path(__file__).resolve().parents[2]
 FIXTURE=Path(__file__).with_name('cook_readable_step_delta.json')
 FIXTURE_SHA='e9111fcc7a07c0ab7ecff34934de6ac8810cd3b66a34da5b9cf8906d6c030e7b'
 def restore_readable_step(file, raw):
+    from audit_cook_retry_delta import restore
+    raw=restore(file,raw)
     payload=FIXTURE.read_bytes()
     assert hashlib.sha256(payload).hexdigest()==FIXTURE_SHA
     spec=json.loads(payload)[file]

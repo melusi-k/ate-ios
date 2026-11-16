@@ -377,11 +377,19 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
     }
 
     private func refuseSessionPublish(_ store: AppStore, afterWork: Bool,
-                                      reached: XCTestExpectation? = nil) {
+                                      reached: XCTestExpectation? = nil,
+                                      precedingEffects: Int = 0) {
         var depth = 0
+        var remainingPrecedingEffects = precedingEffects
         store.journalWriterValidator = {}
         store.journalWriterEffect = { work in
             if depth > 0 { return try work() }
+            if remainingPrecedingEffects > 0 {
+                remainingPrecedingEffects -= 1
+                depth += 1
+                defer { depth -= 1 }
+                return try work()
+            }
             depth += 1
             defer { depth -= 1; reached?.fulfill() }
             if afterWork { try work() }
@@ -459,7 +467,9 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
                 store.session = original
                 store.recipes = [card("keep")]
                 store.showOnboarding = false
-                refuseSessionPublish(store, afterWork: afterWork)
+                // Sign-out verifies Journal cleanup in one preceding effect. Target
+                // session publication, not that earlier destructive cleanup boundary.
+                refuseSessionPublish(store, afterWork: afterWork, precedingEffects: deleting ? 0 : 1)
                 if deleting {
                     let error = await store.deleteAccount()
                     XCTAssertNotNil(error)
@@ -475,6 +485,28 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
                 XCTAssertFalse(store.showOnboarding)
                 XCTAssertEqual(store.session, afterWork ? nil : original)
             }
+        }
+    }
+
+    func testSignOutCleanupEffectFailureDoesNotReachSessionPublicationOrRecipeWipe() async {
+        for afterWork in [false, true] {
+            let auth = AuthSpy()
+            let store = makeStore(auth: auth)
+            let original = auth.base.make("owner@example.com")
+            store.session = original
+            store.recipes = [card("keep")]
+            store.showOnboarding = false
+            var credentialWrites = 0
+            store.saveSessionCredentials = { _ in credentialWrites += 1; return true }
+            refuseSessionPublish(store, afterWork: afterWork)
+            await store.signOut(removeLocalData: true)
+            XCTAssertEqual(auth.signOuts, 1)
+            XCTAssertEqual(credentialWrites, 0)
+            XCTAssertEqual(store.session, original)
+            XCTAssertEqual(store.recipes.map(\.id), ["keep"])
+            XCTAssertFalse(store.showOnboarding)
+            XCTAssertTrue(store.toast?.message.contains("Journal cleanup could not be verified") == true)
+            XCTAssertEqual(store.toast?.isError, true)
         }
     }
 

@@ -81,8 +81,9 @@ final class CookGoldenCaptureUITests: XCTestCase {
         let scroll = app.scrollViews["recipe.detail.scroll"]
         wait(scroll)
         scroll.swipeUp()
-        goldenCook(large ? "cook-golden-large-midscroll" : "cook-golden-medium-midscroll")
-        goldenFinalAsk(scroll, name: large ? "cook-golden-large-finalAsk" : "cook-golden-medium-finalAsk")
+        XCTAssertTrue(fully.waitForNonExistence(timeout: 5), "Scroll promotes medium to large before scrolling content")
+        goldenCook(large ? "cook-golden-large-midscroll" : "cook-golden-promoted-large-midscroll")
+        goldenFinalAsk(scroll, name: large ? "cook-golden-large-finalAsk" : "cook-golden-promoted-large-finalAsk")
         app.buttons["recipeSheet.close"].tap()
         XCTAssertTrue(expand.waitForNonExistence(timeout: 5))
     }
@@ -99,6 +100,31 @@ final class CookGoldenCaptureUITests: XCTestCase {
         XCTAssertLessThanOrEqual(ask.frame.maxY, cook.frame.minY, "Final content must clear floating Cook")
         XCTAssertFalse(ask.frame.intersects(cook.frame))
         goldenCook(name)
+    }
+
+    /// Separate real-running-timer layout proof. Does NOT replace the Start timer regression.
+    func testCookGoldenRunningTimerBottomBars() {
+        launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL",
+                "-simulateOffline", "-qaCookGoldenRunningTimer"])
+        let cook = app.buttons["Cook mode"]
+        let bar = app.buttons["timerBarOpen"].firstMatch
+        let pause = app.buttons["Pause bar timer"]
+        let banner = app.descendants(matching: .any)["offlineBanner"].firstMatch
+        wait(cook); wait(bar); wait(pause); wait(banner)
+        XCTAssertEqual(app.buttons.matching(identifier: "timerBarOpen").count, 1)
+        XCTAssertTrue(pause.isHittable, "Timer must be really running, not paused for a screenshot")
+        XCTAssertTrue((bar.value as? String)?.contains("left") == true)
+        XCTAssertLessThan(banner.frame.midY, app.frame.midY)
+        let nav = app.navigationBars.firstMatch
+        if nav.exists { XCTAssertGreaterThanOrEqual(banner.frame.minY + 1, nav.frame.maxY) }
+        XCTAssertLessThanOrEqual(cook.frame.maxY, bar.frame.minY + 1)
+        goldenCook("cook-golden-running-timer-bottom-bars")
+        let scroll = app.scrollViews["recipe.detail.scroll"]
+        wait(scroll)
+        goldenFinalAsk(scroll, name: "cook-golden-running-timer-finalAsk")
+        let ask = app.textFields["askField"]
+        XCTAssertFalse(ask.frame.intersects(bar.frame))
+        XCTAssertTrue(pause.exists, "Keep timer running through final Ask evidence")
     }
 
     func testCookGoldenMediumDetent() { goldenSheet(large: false) }

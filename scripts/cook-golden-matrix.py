@@ -8,12 +8,13 @@ import plistlib
 import subprocess
 
 CASES = {
-    'CookGoldenCaptureUITests/testCookGoldenMediumDetent': ['cook-golden-medium', 'cook-golden-medium-midscroll', 'cook-golden-medium-finalAsk'],
+    'CookGoldenCaptureUITests/testCookGoldenMediumDetent': ['cook-golden-medium', 'cook-golden-promoted-large-midscroll', 'cook-golden-promoted-large-finalAsk'],
     'CookGoldenCaptureUITests/testCookGoldenLargeDetent': ['cook-golden-large', 'cook-golden-large-midscroll', 'cook-golden-large-finalAsk'],
     'CookGoldenCaptureUITests/testCookGoldenPushedDetail': ['cook-golden-pushed', 'cook-golden-pushed-midscroll', 'cook-golden-pushed-finalAsk', 'cook-golden-pushed-opened-cook'],
     'CookFinishAccessoryUITests/testPushedFinishAboveResumeAccessoryPortrait': ['cook-finish-clear-of-resume-portrait'],
     'CookFinishAccessoryUITests/testPushedFinishAboveResumeAccessoryLandscape': ['cook-finish-clear-of-resume-landscape'],
     'CookSharedStepUITests/testExternalSharedStepChangeWhileCookIsOpenUpdatesCurrentStep': [],
+    'CookGoldenCaptureUITests/testCookGoldenRunningTimerBottomBars': ['cook-golden-running-timer-bottom-bars', 'cook-golden-running-timer-finalAsk'],
     'CoverageUITests/testBottomBarsDoNotOverlapRecipeDetail': ['detail-bottom-bars'],
 }
 

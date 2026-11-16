@@ -14,7 +14,8 @@ jobs:
     # PR branch filters target the BASE branch, so constrain the exact head here.
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.head.ref == 'ci/542-focused-cook-goldens' &&
+      ((github.event.pull_request.head.ref == 'ci/542-focused-cook-goldens' ||
+        github.event.pull_request.head.ref == 'fix/551-detent-and-timer-evidence') &&
        github.event.pull_request.head.repo.full_name == github.repository &&
        contains(github.event.pull_request.labels.*.name, 'run:cook-goldens') &&
        (github.event.action == 'synchronize' ||

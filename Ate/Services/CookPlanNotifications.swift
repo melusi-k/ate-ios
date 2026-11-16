@@ -113,8 +113,12 @@ final class CookPlanNotifications {
 
     private func removeAndVerify(recipeID: String) async throws {
         let ids = [CookPlan.reminderID(recipeID: recipeID)]
+        CleanupPhaseDiagnostic.record(.singleRemoveBegin)
         await client.remove(ids)
+        CleanupPhaseDiagnostic.record(.singleRemoveReturned)
+        CleanupPhaseDiagnostic.record(.singleVerifyBegin)
         let remaining = await client.pendingIDs()
+        CleanupPhaseDiagnostic.record(.singleVerifyReturned)
         guard remaining.isDisjoint(with: ids) else { throw CookPlanError.verificationFailed }
     }
 
@@ -150,11 +154,19 @@ final class CookPlanNotifications {
     }
     func cancelAll() async throws {
         try await enqueue { _ in
+            CleanupPhaseDiagnostic.record(.allPendingBegin)
             let pending = await self.client.pendingIDs()
+            CleanupPhaseDiagnostic.record(.allPendingReturned)
             let ids = pending.filter { $0.hasPrefix(CookPlan.reminderPrefix) }
+            CleanupPhaseDiagnostic.record(.allRemoveBegin)
             await self.client.remove(Array(ids))
+            CleanupPhaseDiagnostic.record(.allRemoveReturned)
+            CleanupPhaseDiagnostic.record(.allDeliveredBegin)
             await self.client.removeAllDelivered()
+            CleanupPhaseDiagnostic.record(.allDeliveredReturned)
+            CleanupPhaseDiagnostic.record(.allVerifyBegin)
             let remaining = await self.client.pendingIDs()
+            CleanupPhaseDiagnostic.record(.allVerifyReturned)
             guard remaining.allSatisfy({ !$0.hasPrefix(CookPlan.reminderPrefix) }) else {
                 throw CookPlanError.verificationFailed
             }

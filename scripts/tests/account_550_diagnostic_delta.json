@@ -1,0 +1,52 @@
+{
+  ".github/workflows/compile-check.yml": {
+    "base_sha256": "7185a0e566ca22443a9557b897de4aafdbea7a0feb77cfe0ac75a474e2fa2384",
+    "head_sha256": "656ea1baccf34c25293d1e2036ca57581abb6587e3367f1509bb4b21b593a5f4",
+    "inverse": [
+      [
+        "      - name: Retain UI-test Settings export control-flow trace\n        if: ${{ matrix.suite == 'account-cooking' && always() }}\n        run: |\n          if [ -f settings-about-145.log ]; then\n            xcrun simctl spawn \"$SIM_ID\" log show --style compact --last 30m \\\n              --predicate 'subsystem == \"com.melusik.ate\" AND category == \"settings-export-diagnostic\"' \\\n              > settings-export-diagnostic.log 2>&1 || {\n                echo \"::warning::Settings export trace collection failed; inspect settings-export-diagnostic.log\"\n              }\n          fi\n\n",
+        ""
+      ]
+    ]
+  },
+  "Ate/Views/SettingsView.swift": {
+    "base_sha256": "3e0c4203375e854a8cc124baab377b0d4facdcc47632065d5c893d243bdc069a",
+    "head_sha256": "48a894241be36639ba327b3c9eeb1632d12f05d53c9386acc8cb76f0287dabc4",
+    "inverse": [
+      [
+        "import OSLog\n",
+        ""
+      ],
+      [
+        "                            exportDiagnostic(\"action-entered\")\n                            guard !exporting else {\n                                exportDiagnostic(\"already-exporting-refused\")\n                                return\n                            }\n",
+        "                            guard !exporting else { return }\n"
+      ],
+      [
+        "                                        exportDiagnostic(\"temporary-file-failed\")\n",
+        ""
+      ],
+      [
+        "                                    exportDiagnostic(\"share-state-set\")\n",
+        ""
+      ],
+      [
+        "                                    exportDiagnostic(\"capture-failed\")\n",
+        ""
+      ],
+      [
+        "    /// Trace control flow only. Never log exported bytes, file URLs or account data.\n    /// No UI, retries, waits or alternate export route are introduced.\n    private func exportDiagnostic(_ event: String) {\n        guard AppConfig.isUITesting else { return }\n        Logger(subsystem: \"com.melusik.ate\", category: \"settings-export-diagnostic\")\n            .notice(\"event=\\(event, privacy: .public) uptime=\\(ProcessInfo.processInfo.systemUptime, privacy: .public)\")\n    }\n\n",
+        ""
+      ]
+    ]
+  },
+  "AteUITests/ShoppingSyncCaptureUITests.swift": {
+    "base_sha256": "d7e6358820b5952bae8184e9fb43b54051c49e6372977bfc21dd8c7494b9bc23",
+    "head_sha256": "954b7823fb17e027788da046e5acf14c4d2a2a34f8c33e3f0bdc143b59a300d6",
+    "inverse": [
+      [
+        "        let initialReadyResult = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: refresh)], timeout: 10)\n        if initialReadyResult != .completed {\n            refreshDiagnostics(\"pre-refresh-ready-failure\", refresh: refresh, status: status)\n        }\n        XCTAssertEqual(initialReadyResult, .completed)\n",
+        "        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: refresh)], timeout: 10), .completed)\n"
+      ]
+    ]
+  }
+}

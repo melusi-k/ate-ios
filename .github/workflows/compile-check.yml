@@ -549,6 +549,17 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > settings-about-145.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" settings-about-145.log || true; tail -120 settings-about-145.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" settings-about-145.log | tail -40
 
+      - name: Retain UI-test Settings export control-flow trace
+        if: ${{ matrix.suite == 'account-cooking' && always() }}
+        run: |
+          if [ -f settings-about-145.log ]; then
+            xcrun simctl spawn "$SIM_ID" log show --style compact --last 30m \
+              --predicate 'subsystem == "com.melusik.ate" AND category == "settings-export-diagnostic"' \
+              > settings-export-diagnostic.log 2>&1 || {
+                echo "::warning::Settings export trace collection failed; inspect settings-export-diagnostic.log"
+              }
+          fi
+
       - name: Account-switch sync failure preserves local library (#34)
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |

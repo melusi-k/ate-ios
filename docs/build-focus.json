@@ -1,7 +1,7 @@
 {
-  "title": "Readable full-size long Cook instructions",
-  "summary": "Keep30/34pt Cook instruction font with vertical overflow scrolling, no0.5scaling. Step controls stay outside instruction scroll; step changes reset offset. DEBUGsyntheticfixture.245PythonPASS7.984s; native/pixelsUNRUN. Held.",
-  "source_commit": "604de9bdb71cca44faa45d83aee47a5ca21a5020",
+  "title": "Account diagnostics and inherited Cook readability for #550",
+  "summary": "Retain #550 Shopping pre-refresh failure evidence and Settings export control-flow diagnostics with unchanged assertions/budgets. Integrates current #545 readable Cook steps and truthful Dismiss audit layer. No assertion cure claimed; original reds retained. Native compile/typecheck/XCTest/pixels UNRUN.",
+  "source_commit": "60014a7dab61fa67601ee03a45fdbd2880dc8a55",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -86,6 +86,10 @@
     {
       "path": "Ate/App/CookReadableStepQAFixture.swift",
       "blob": "7c66b69b4b91d08527d680ff9a08377017b996cd"
+    },
+    {
+      "path": "Ate/Views/SettingsView.swift",
+      "blob": "8e88dae39594ca7a728f7065b3141efc10e16eb5"
     }
   ]
 }

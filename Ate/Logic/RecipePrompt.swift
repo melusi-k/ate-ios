@@ -345,7 +345,7 @@ struct PhotoNeedsDishError: LocalizedError, Equatable {
     let suggestions: [String]
     let spread: Bool
     var errorDescription: String? {
-        spread ? "This looks like a spread of several dishes. Pick one, or make a card for each."
+        spread ? "There may be more than one dish here. Tell ate what you want to make, or choose one or more below."
                : "Not sure what this dish is. Tell ate what it is for a better recipe."
     }
 }

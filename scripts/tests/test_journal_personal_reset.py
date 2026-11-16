@@ -1,3 +1,4 @@
+from cleanup_phase_delta import restore as restore_cleanup
 """Branch contracts only. Native compilation, XCTest and pixels remain UNRUN."""
 import hashlib, json, unittest
 from pathlib import Path
@@ -17,7 +18,7 @@ class JournalPersonalResetContracts(unittest.TestCase):
         data = json.loads(FIXTURE.read_bytes())
         for key, value in data.items():
             if key == '_added_files': continue
-            raw = (ROOT/key.removeprefix('source:')).read_text()
+            raw = restore_cleanup(key,(ROOT/key.removeprefix('source:')).read_text())
             for fragment in value['inverse']:
                 new = fragment['new']
                 for changed in [raw.replace(new, '', 1), raw + new, raw.replace(new, new+'// mutation\n', 1)]:

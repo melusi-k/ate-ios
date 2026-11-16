@@ -1,7 +1,7 @@
 {
   "title": "Main features with live Shopping sync and offline Explore",
   "summary": "Opt-in Search receipt diagnostics record only bounded numeric binding lengths and utility/Main timing. Original storage write, single typing action, full-query assertions and waits remain unchanged. Capture can perturb input timing and does not establish cause. Existing focus diagnostics and notification responsiveness hypothesis retained. Native compile, receipt, AX/rendered value and pixels UNRUN on this packet. Metadata validation is not native qualification; merge held.",
-  "source_commit": "6ce0a7fa53c3f3e7021ee187d47a57bc1f65e792",
+  "source_commit": "55daaa0b9100210c1792635123441cffb68b9c63",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -73,7 +73,7 @@
     },
     {
       "path": "Ate/Views/ShoppingListView.swift",
-      "blob": "031df522bdb2bae02452fe99f535835dae0d7c08"
+      "blob": "3275a486f594956a577a343a82f93ad032b766c2"
     },
     {
       "path": "Ate/Services/OnDeviceBackend.swift",

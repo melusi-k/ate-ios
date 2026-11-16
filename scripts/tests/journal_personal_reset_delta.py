@@ -22,6 +22,8 @@ def restore(key, raw):
     return text.encode() if binary else text
 
 def is_added(path, raw):
+    from journal_reset_test_seams_delta import restore as restore_seams
+    raw = restore_seams("source:" + path, raw)
     payload = FIXTURE.read_bytes()
     assert hashlib.sha256(payload).hexdigest() == FIXTURE_SHA256
     added = json.loads(payload).get('_added_files', {})

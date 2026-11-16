@@ -36,4 +36,5 @@ def approved_original_file(path, raw):
 def normalize(key, raw):
     from journal_personal_reset_delta import restore
     from journal_snapshot_mirror_delta import restore as restore_snapshot_mirror
-    return normalize_539_parent(key, restore(key, restore_snapshot_mirror(key, raw)))
+    from journal_reset_test_seams_delta import restore as restore_seams
+    return normalize_539_parent(key, restore(key, restore_snapshot_mirror(key, restore_seams(key, raw))))

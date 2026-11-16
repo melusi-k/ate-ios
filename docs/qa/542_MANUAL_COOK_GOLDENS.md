@@ -1,3 +1,5 @@
+> Superseded capture/selector counts: see 551_PROMOTION_TIMER_FOLLOWUP.md. Medium scrolling promotes to large; no sustained-medium claim. Matrix now8 selectors/15 captures, original regression still required.
+
 # Manual Cook golden matrix
 
 Base #542 65e7b1ca6d0dbc755b3587228df94ce95d5a244e. Manual workflow_dispatch or explicitly labeled same-repository head ci/542-focused-cook-goldens (pull_request labeled/synchronize only), distinct run-ID concurrency group and cancel-in-progress false. The PR job additionally requires run:cook-goldens; adding other labels cannot start it. Remove that label after this qualification to disarm subsequent synchronize events. No standard lane changed. No product changes. Medium/large are recipe sheet detents at normal text (UICTContentSizeCategoryL), not Dynamic Type coverage.

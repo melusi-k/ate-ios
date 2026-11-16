@@ -360,7 +360,7 @@ final class OnDeviceBackend: BackendService {
                 }
                 let stream = session.streamResponse(to: fullPrompt, generating: GenRecipe.self,
                                                     includeSchemaInPrompt: RecipePrompt.includeSchemaInPrompt || isRevision,
-                                                    options: GenerationOptions(sampling: .greedy))
+                                                    options: GenerationOptions(samplingMode: .greedy))
                 for try await snap in stream {
                     try GenerationCancellation.check()
                     if emitPreview { partialSink?(RecipeStreamPreview(snap.content)) }

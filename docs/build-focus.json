@@ -1,7 +1,7 @@
 {
-  "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Opt-in Search receipt diagnostics record only bounded numeric binding lengths and utility/Main timing. Original storage write, single typing action, full-query assertions and waits remain unchanged. Capture can perturb input timing and does not establish cause. Existing focus diagnostics and notification responsiveness hypothesis retained. Native compile, receipt, AX/rendered value and pixels UNRUN on this packet. Metadata validation is not native qualification; merge held.",
-  "source_commit": "6ce0a7fa53c3f3e7021ee187d47a57bc1f65e792",
+  "title": "Current Foundation Models greedy sampling initializer",
+  "summary": "Initializer argument label only: samplingMode replaces deprecated sampling; greedy and implicit defaults unchanged. Independent243PythonPASS8.309s. Native current-Xcode compile, clean-warning check and generation/device comparison UNRUN. Locale formatting and recommended settings clauses of115 OPEN. Held.",
+  "source_commit": "1ae0093a316c520faf536e6c1300867070ba4488",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -77,7 +77,7 @@
     },
     {
       "path": "Ate/Services/OnDeviceBackend.swift",
-      "blob": "2caf8558181d9f0273f267fc78e6973d14f367c7"
+      "blob": "451c50be78b58da7891d76444978472a1aa4448e"
     },
     {
       "path": "Ate/Services/CookPlanNotifications.swift",

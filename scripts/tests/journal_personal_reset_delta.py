@@ -8,6 +8,8 @@ from pathlib import Path
 FIXTURE = Path(__file__).with_name('journal_personal_reset_delta.json')
 FIXTURE_SHA256 = '33c75e0caa26e72777793323f419e2cc5afa3508378b0d1d51e0738454f8ce7d'
 def restore(key, raw):
+    from cleanup_phase_delta import restore as restore_cleanup
+    raw=restore_cleanup(key,raw)
     binary = isinstance(raw, bytes)
     text = raw.decode() if binary else raw
     payload = FIXTURE.read_bytes()

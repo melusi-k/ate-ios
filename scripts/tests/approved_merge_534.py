@@ -4,6 +4,8 @@ from pathlib import Path
 _FIXTURE=Path(__file__).with_name('approved_merge_534_inverses.json')
 _FIXTURE_SHA256='868b4b0572258c5381d8c029ecd044f19e80a30e4e58a79f398fce4d18013f82'
 def normalize(key, raw):
+    from tracker_query_sample_delta import restore
+    raw = restore(key, raw)
     payload=_FIXTURE.read_bytes()
     assert hashlib.sha256(payload).hexdigest()==_FIXTURE_SHA256, 'approved inverse fixture changed'
     contract=json.loads(payload)['contracts'][key]

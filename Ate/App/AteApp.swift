@@ -53,6 +53,15 @@ struct AteApp: App {
         }
         DogfoodSavedRecipeQAFixtures.prepare(st)
         ExploreRetentionQAFixtures.prepare(st)
+        if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaJournalResetMemoryCredentials") {
+            // These mock-auth Journal routes test reset/expiry, not OS Keychain entitlements.
+            // Explicit per-process seam only: production credential validation is unchanged.
+            var credentialBytes: Data?
+            st.saveSessionCredentials = { data in
+                credentialBytes = data
+                return credentialBytes == data
+            }
+        }
         CookJournalQARoute.prepare(st)
         #else
         let st = AppStore(context: c?.mainContext)

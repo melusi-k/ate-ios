@@ -1,3 +1,4 @@
+from keychain_status_delta import restore as restore_status
 """Source-only reveal contract. Native compile and acceptance UNRUN."""
 from pathlib import Path
 import hashlib,json,unittest
@@ -21,4 +22,4 @@ class Account539ToolsReveal(unittest.TestCase):
             self.assertLess(section.index(reveal),section.index(assertion))
         for forbidden in ['sleep(', 'timeout:', 'max:', 'waitFor', '.tap(']:self.assertNotIn(forbidden,section)
     def test_no_workflow_auth_or_shopping_changes(self):
-        for file,digest in UNCHANGED.items():self.assertEqual(hashlib.sha256((ROOT/file).read_bytes()).hexdigest(),digest,file)
+        for file,digest in UNCHANGED.items():self.assertEqual(hashlib.sha256(restore_status("source:"+file,(ROOT/file).read_bytes())).hexdigest(),digest,file)

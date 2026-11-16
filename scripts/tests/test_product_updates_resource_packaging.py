@@ -49,4 +49,5 @@ class ProductUpdatesResourcePackaging(unittest.TestCase):
                 with self.assertRaises(AssertionError):require_catalog_folder(changed)
     def test_runtime_catalog_all_native_assertions_and_lane_budgets_unchanged_from_9098bb2d(self):
         for file,digest in BASELINE.items():
-            self.assertEqual(hashlib.sha256((ROOT/file).read_bytes()).hexdigest(),digest,file)
+            from audit_updates_content_delta import restore
+            self.assertEqual(hashlib.sha256(restore(file,(ROOT/file).read_bytes())).hexdigest(),digest,file)

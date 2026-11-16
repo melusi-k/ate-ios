@@ -1,7 +1,7 @@
 {
-  "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Opt-in Search receipt diagnostics record only bounded numeric binding lengths and utility/Main timing. Original storage write, single typing action, full-query assertions and waits remain unchanged. Capture can perturb input timing and does not establish cause. Existing focus diagnostics and notification responsiveness hypothesis retained. Native compile, receipt, AX/rendered value and pixels UNRUN on this packet. Metadata validation is not native qualification; merge held.",
-  "source_commit": "6ce0a7fa53c3f3e7021ee187d47a57bc1f65e792",
+  "title": "Unbroken cover control labels at normal text size",
+  "summary": "Wrap whole intrinsic-width cover controls instead of compressing fixed HStack. Existing handlers/conditions/ids and44ptstyle unchanged.244PythonPASS7.974s; focusednewUIselector mustbeexplicitlyrun, native/pixelsUNRUN. Held.",
+  "source_commit": "a3d87ff56e9502870b6d5ee1277e48a1b69b9a05",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -29,7 +29,7 @@
     },
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "c6ca14de1fc90831163bc4f8b2764396e25a0a7d"
+      "blob": "0805bb7e3bc81eaa3236da2503b74de19b53c29a"
     },
     {
       "path": "Ate/Views/CookModeView.swift",

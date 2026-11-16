@@ -1,7 +1,7 @@
 {
-  "title": "Readable full-size long Cook instructions",
-  "summary": "Keep30/34pt Cook instruction font with vertical overflow scrolling, no0.5scaling. Step controls stay outside instruction scroll; step changes reset offset. DEBUGsyntheticfixture.245PythonPASS7.984s; native/pixelsUNRUN. Held.",
-  "source_commit": "390148cf40e5bad61a00f47e12dcf55f63d0cd27",
+  "title": "Journal post-run snapshot mirror port for #545",
+  "summary": "Harness-only mirror port from #539. Moves PNG encoding and print output after XCTest, retaining original keepAlways attachments. Assertions, waits, budgets, product source and full Journal lane unchanged. Independent251PythonPASS; native/typecheckUNRUN. Not a proven cure for prior AX overrun. Held draft.",
+  "source_commit": "1f2e32e652bd79f39395e5528946d34ec42014b5",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",

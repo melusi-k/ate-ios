@@ -1,0 +1,30 @@
+{
+  "Ate/Services/CookPlanNotifications.swift": {
+    "base": "4948a4701ea465790e97d29a357d76e08d9031c25ca865aa051809aa1e1c2c55",
+    "patched": "9b7c3263caa00e16dc34895dd1576ca2f654ca04a4ff96fef5484b8af00a437b",
+    "fragments": [
+      {
+        "old": "        let previous = tail\n        let task = Task { @MainActor in\n            defer { if token == self.generation { self.tail = nil } }\n            _ = try? await previous?.value\n            try await work(token)\n        }\n        tail = task\n        return task\n",
+        "new": "        let previous = tail\n        let task = Task { @MainActor in\n            defer { if token == self.generation { self.tail = nil } }\n            CookPlanCancelDiagnostic.record(.queueWait)\n            _ = try? await previous?.value\n            CookPlanCancelDiagnostic.record(.queueAdmitted)\n            try await work(token)\n            CookPlanCancelDiagnostic.record(.queueReturned)\n        }\n        tail = task\n        return task\n"
+      },
+      {
+        "old": "\n    private func removeAndVerify(recipeID: String) async throws {\n        let ids = [CookPlan.reminderID(recipeID: recipeID)]\n        await client.remove(ids)\n        let remaining = await client.pendingIDs()\n        guard remaining.isDisjoint(with: ids) else { throw CookPlanError.verificationFailed }\n    }\n\n",
+        "new": "\n    private func removeAndVerify(recipeID: String) async throws {\n        let ids = [CookPlan.reminderID(recipeID: recipeID)]\n        CookPlanCancelDiagnostic.record(.removeBegin)\n        await client.remove(ids)\n        CookPlanCancelDiagnostic.record(.removeReturned)\n        CookPlanCancelDiagnostic.record(.verifyBegin)\n        let remaining = await client.pendingIDs()\n        CookPlanCancelDiagnostic.record(.verifyReturned)\n        guard remaining.isDisjoint(with: ids) else { throw CookPlanError.verificationFailed }\n    }\n\n"
+      }
+    ]
+  },
+  "Ate/Views/CookPlanSheet.swift": {
+    "base": "75fb68558b403342dcbd9d790c48e16410c2b1122f52fa93c020b8de6c182d9e",
+    "patched": "3f5670057888b22c826658c60ea83786a11eacd946f4f9744edc5980cb92ff60",
+    "fragments": [
+      {
+        "old": "                            if let reminderStatus { Text(reminderStatus).font(.footnote) }\n                            Button(\"Cancel cooking plan\", role: .destructive) { cancel() }\n                                .accessibilityIdentifier(\"cookPlan.cancelPlan\")\n                        }\n                    }\n                } else {\n",
+        "new": "                            if let reminderStatus { Text(reminderStatus).font(.footnote) }\n                            Button(\"Cancel cooking plan\", role: .destructive) { cancel() }\n                                .accessibilityIdentifier(\"cookPlan.cancelPlan\")\n                                .accessibilityValue(CookPlanCancelDiagnostic.summary)\n                        }\n                    }\n                } else {\n"
+      },
+      {
+        "old": "    }\n\n    private func cancel() {\n        busy = true\n        Task { @MainActor in\n            do {\n                try store.cookPlanStore.cancel(recipeID: recipeID)\n                try await store.cookPlanNotifications.cancel(recipeID: recipeID)\n                busy = false\n                store.show(\"Cooking plan cancelled\")\n                dismiss()\n            } catch {\n                busy = false\n                problem = \"Cancellation could not be verified. Try again to remove the reminder.\"\n            }\n",
+        "new": "    }\n\n    private func cancel() {\n        CookPlanCancelDiagnostic.record(.cancelEntered)\n        busy = true\n        Task { @MainActor in\n            do {\n                try store.cookPlanStore.cancel(recipeID: recipeID)\n                CookPlanCancelDiagnostic.record(.localDeleteReturned)\n                try await store.cookPlanNotifications.cancel(recipeID: recipeID)\n                CookPlanCancelDiagnostic.record(.cancelOSReturned)\n                busy = false\n                store.show(\"Cooking plan cancelled\")\n                CookPlanCancelDiagnostic.record(.dismissRequested)\n                dismiss()\n            } catch {\n                CookPlanCancelDiagnostic.record(.cancelFailed)\n                busy = false\n                problem = \"Cancellation could not be verified. Try again to remove the reminder.\"\n            }\n"
+      }
+    ]
+  }
+}

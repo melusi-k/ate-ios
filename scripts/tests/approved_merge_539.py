@@ -37,4 +37,5 @@ def normalize(key, raw):
     from journal_personal_reset_delta import restore
     from journal_snapshot_mirror_delta import restore as restore_snapshot_mirror
     from journal_reset_test_seams_delta import restore as restore_seams
-    return normalize_539_parent(key, restore(key, restore_snapshot_mirror(key, restore_seams(key, raw))))
+    from account_539_tools_reveal_delta import restore as restore_tools_reveal
+    return normalize_539_parent(key, restore(key, restore_snapshot_mirror(key, restore_seams(key, restore_tools_reveal(key, raw)))))

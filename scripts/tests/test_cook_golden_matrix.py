@@ -18,6 +18,7 @@ class CookGoldenMatrixTests(unittest.TestCase):
         self.assertEqual(workflow[True], {'workflow_dispatch': None, 'pull_request': {'types': ['labeled', 'synchronize']}})
         gate = workflow['jobs']['cook-goldens']['if']
         self.assertIn("github.event.pull_request.head.ref == 'ci/542-focused-cook-goldens'", gate)
+        self.assertIn("github.event.pull_request.head.ref == 'fix/551-detent-and-timer-evidence'", gate)
         self.assertIn('github.event.pull_request.head.repo.full_name == github.repository', gate)
         self.assertIn("contains(github.event.pull_request.labels.*.name, 'run:cook-goldens')", gate)
         self.assertIn("github.event.label.name == 'run:cook-goldens'", gate)
@@ -50,6 +51,8 @@ class CookGoldenMatrixTests(unittest.TestCase):
                 expression = expression.replace(key, values[key])
             return eval(expression.replace('&&', ' and ').replace('||', ' or '), {'__builtins__': {}})
         self.assertTrue(allowed())
+        self.assertTrue(allowed(head='fix/551-detent-and-timer-evidence'))
+        self.assertTrue(allowed(head='fix/551-detent-and-timer-evidence', action='synchronize', label=''))
         self.assertTrue(allowed(action='synchronize', label=''))
         self.assertTrue(allowed(event='workflow_dispatch', head='', labels=False))
         self.assertFalse(allowed(head='other-branch'))

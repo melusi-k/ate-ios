@@ -75,7 +75,6 @@ struct LiveActivityDiagnosticsView: View {
                 .tint(Theme.primary)
         }
         .id(tick)
-        .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in tick += 1 }
         .font(AteFont.body(12))
         .foregroundStyle(Theme.mutedForeground)
         .textSelection(.enabled)

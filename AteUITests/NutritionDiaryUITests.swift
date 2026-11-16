@@ -13,6 +13,13 @@ final class NutritionDiaryUITests: XCTestCase {
     /// against the measured frame until the element's centre sits inside the clear band
     /// between the top bar and the keyboard before tapping.
 
+    // FOOD-FORM-DIAGNOSTIC-BEGIN
+    private func foodFormMark(_ phase: String) {
+        guard name.contains("testFoodDiaryOpensAndExplicitlyLogsFoodWithUnavailableValues") else { return }
+        print("FOOD-FORM phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime)")
+    }
+    // FOOD-FORM-DIAGNOSTIC-END
+
     /// Explicit caller-owned screen context. Do not infer the active screen from a
     /// global identifier search while another sheet may be present.
     private enum GeometrySurface {
@@ -83,6 +90,8 @@ final class NutritionDiaryUITests: XCTestCase {
     private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication, surface: GeometrySurface, max: Int = 12) -> Bool {
         // Clear band top: measured from the on-screen navigation bar when one is present;
         // the 120pt fallback matches the pinned CI simulator (402x874) inline-bar sheets.
+        foodFormMark("geometry-nav-start")
+        defer { foodFormMark("geometry-return") }
         let navBar: XCUIElement
         if let title = surface.navigationTitle {
             navBar = app.navigationBars[title]
@@ -92,7 +101,9 @@ final class NutritionDiaryUITests: XCTestCase {
         } else {
             navBar = app.navigationBars.firstMatch
         }
+        foodFormMark("geometry-nav-validation-return")
         let navFrame = navBar.exists ? navBar.frame : .zero
+        foodFormMark("geometry-nav-frame-return")
         let topBound: CGFloat = !navFrame.isEmpty ? navFrame.maxY + 4 : 120
         var attempts = 0
         var blockedUps = 0
@@ -110,7 +121,9 @@ final class NutritionDiaryUITests: XCTestCase {
             // Never judge mid-bounce: after any scroll the frame must settle before band
             // and hittability are read (CI: not-hittable verdict on a fully visible field
             // during scroll settling fed the sourceName oscillation, #179).
+            foodFormMark("geometry-element-settle-start")
             let frame = settledFrame(of: element)
+            foodFormMark("geometry-element-settle-return")
             // Save is the only navigation-chrome target passed by these journeys.
             // Verify REAL membership in the expected active form navigation bar,
             // not app-wide navigation/toolbar matches for every content button.
@@ -121,8 +134,12 @@ final class NutritionDiaryUITests: XCTestCase {
                 return element.isHittable
             }
             let keyboard = app.keyboards.firstMatch
+            foodFormMark("geometry-keyboard-exists-start")
             let keyboardUp = keyboard.exists
+            foodFormMark("geometry-keyboard-exists-return")
+            foodFormMark("geometry-bottom-start")
             let bottomBound = bottomClearBound(app, keyboard: keyboardUp ? keyboard : nil, surface: surface)
+            foodFormMark("geometry-bottom-return")
             if frame.midY >= topBound && frame.midY <= bottomBound {
                 if element.isHittable { return true }
                 blockedInBand += 1
@@ -193,10 +210,14 @@ final class NutritionDiaryUITests: XCTestCase {
     /// costs one measured re-centre, re-tap and retype, then fails loudly with a screenshot in
     /// the diagnostics artifact.
     private func typeAfterKeyboard(_ element: XCUIElement, in app: XCUIApplication, surface: GeometrySurface, _ text: String, file: StaticString = #filePath, line: UInt = #line) {
+        foodFormMark("input-reveal-start")
         tapWhenHittable(element, in: app, surface: surface, file: file, line: line)
+        foodFormMark("input-reveal-return")
         // scrollToHittable may have dismissed a keyboard that occluded this field, so
         // prior existence proves nothing: always wait for the keyboard before typing.
+        foodFormMark("input-keyboard-start")
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Keyboard should appear for the focused field", file: file, line: line)
+        foodFormMark("input-keyboard-return")
         // Clear any default value first: typeText inserts at the cursor, so typing into a
         // prefilled field appends (CI: "servingbowl" passed a substring check for "bowl",
         // #179). The shipped defaults are single tokens; a double-tap selects the word so
@@ -224,11 +245,15 @@ final class NutritionDiaryUITests: XCTestCase {
     func testFoodDiaryOpensAndExplicitlyLogsFoodWithUnavailableValues() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-resetNutritionDiary"]
+        foodFormMark("launch-start")
         app.launch()
+        foodFormMark("launch-return")
 
         let settings = app.tabBars.buttons["Settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
+        foodFormMark("settings-tap-start")
         settings.tap()
+        foodFormMark("settings-tap-return")
         let diaryEntry = app.buttons["settings.nutritionDiary"]
         var attempts = 0
         while !(diaryEntry.exists && diaryEntry.isHittable) && attempts < 8 {
@@ -236,38 +261,58 @@ final class NutritionDiaryUITests: XCTestCase {
             attempts += 1
         }
         XCTAssertTrue(diaryEntry.waitForExistence(timeout: 10))
+        foodFormMark("diary-tap-start")
         diaryEntry.tap()
+        foodFormMark("diary-tap-return")
         XCTAssertTrue(scrollToHittable(app.staticTexts["Nothing logged"], in: app, surface: .diary), "Empty diary state should be reachable below totals")
         XCTAssertTrue(app.staticTexts["Nothing logged"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Unavailable"].firstMatch.exists)
 
         let accessoryAdd = app.buttons["accessoryAdd"].firstMatch
+        foodFormMark("accessory-probe-start")
         if accessoryAdd.waitForExistence(timeout: 2) {
+            foodFormMark("accessory-probe-present")
             XCTAssertEqual(accessoryAdd.label, "Log food")
             accessoryAdd.tap()
         } else {
+            foodFormMark("accessory-probe-absent-fallback-start")
             app.buttons["nutritionDiary.add"].tap()
+            foodFormMark("fallback-add-return")
         }
         let foodName = app.textFields["nutritionDiary.foodName"]
         XCTAssertTrue(foodName.waitForExistence(timeout: 5))
+        foodFormMark("food-name-input-start")
         typeAfterKeyboard(foodName, in: app, surface: .logFood, "My lunch")
+        foodFormMark("food-name-input-return")
+        foodFormMark("quantity-unit-input-start")
         typeAfterKeyboard(app.textFields["nutritionDiary.quantityUnit"], in: app, surface: .logFood, "bowl")
+        foodFormMark("quantity-unit-input-return")
         let sourceName = app.textFields["nutritionDiary.sourceName"]
+        foodFormMark("source-name-input-start")
         typeAfterKeyboard(sourceName, in: app, surface: .logFood, "My notes")
+        foodFormMark("source-name-input-return")
         let sourcePicker = app.descendants(matching: .any)["nutritionDiary.source"].firstMatch
         XCTAssertTrue(sourcePicker.waitForExistence(timeout: 5))
+        foodFormMark("source-picker-tap-start")
         tapWhenHittable(sourcePicker, in: app, surface: .logFood)
+        foodFormMark("source-picker-tap-return")
         let externalSource = app.buttons["External record (not verified by Ate)"]
         XCTAssertTrue(externalSource.waitForExistence(timeout: 5))
         let sourcePageCapture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         sourcePageCapture.name = "nutrition-source-choice-sheet"
         sourcePageCapture.lifetime = .keepAlways
         add(sourcePageCapture)
+        foodFormMark("external-source-tap-start")
         externalSource.tap()
+        foodFormMark("external-source-tap-return")
         XCTAssertNotEqual(sourceName.value as? String, "You")
         XCTAssertNotEqual(sourceName.value as? String, "My notes")
+        foodFormMark("external-source-name-input-start")
         typeAfterKeyboard(sourceName, in: app, surface: .logFood, "Test food database")
+        foodFormMark("external-source-name-input-return")
+        foodFormMark("save-tap-start")
         tapWhenHittable(app.navigationBars["Log food"].buttons["nutritionDiary.save"], in: app, surface: .logFood)
+        foodFormMark("save-tap-return")
 
         XCTAssertTrue(app.staticTexts["Unavailable"].firstMatch.exists)
         let savedRow = diaryRows(app, containing: "My lunch").firstMatch
@@ -302,15 +347,27 @@ final class NutritionDiaryUITests: XCTestCase {
     }
 
     /// Shared navigation: Settings tab -> Food diary screen.
+    private func startupDiagnosticMark(_ phase: String) {
+        guard name.contains("testCancelledFailedSavesLeaveDiaryEmptyAfterRelaunch") else { return }
+        print("STARTUP-TEST phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime)")
+    }
     private func openDiary(_ app: XCUIApplication) {
+        startupDiagnosticMark("open-diary-start")
+        defer { startupDiagnosticMark("open-diary-end") }
         let settings = app.tabBars.buttons["Settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
+        startupDiagnosticMark("settings-tap-start")
         settings.tap()
+        startupDiagnosticMark("settings-tap-end")
         let diaryEntry = app.buttons["settings.nutritionDiary"]
         // SwiftUI does not materialise this below-fold cell until Settings is scrolled.
         // Reveal it before asserting presence, then keep the actual screen assertion below.
+        startupDiagnosticMark("settings-reveal-start")
         XCTAssertTrue(scrollToHittable(diaryEntry, in: app, surface: .settings), "Settings should expose Food diary inside the clear band")
+        startupDiagnosticMark("settings-reveal-end")
+        startupDiagnosticMark("settings-diary-tap-start")
         tapWhenHittable(diaryEntry, in: app, surface: .settings)
+        startupDiagnosticMark("settings-diary-tap-end")
         XCTAssertTrue(app.navigationBars["Food diary"].waitForExistence(timeout: 10), "Food diary screen should open")
     }
 
@@ -401,11 +458,22 @@ final class NutritionDiaryUITests: XCTestCase {
     /// repeated layout checks of the retry presentation test into its execution budget.
     func testCancelledFailedSavesLeaveDiaryEmptyAfterRelaunch() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-resetNutritionDiary", "-failDiarySaves"]
+        app.launchArguments = ["-UITesting", "-resetNutritionDiary", "-failDiarySaves", "-qaNutritionPretapDiagnostic", "-qaStartupLivenessDiagnostic"]
+        startupDiagnosticMark("initial-launch-start")
         app.launch()
+        startupDiagnosticMark("initial-launch-end")
         openDiary(app)
+        startupDiagnosticMark("open-log-form-start")
         openLogForm(app)
+        startupDiagnosticMark("open-log-form-end")
+        // Pixels before the unchanged pre-tap geometry/keyboard query, no extra AX query.
+        let preGeometry = XCTAttachment(screenshot: app.screenshot())
+        preGeometry.name = "nutrition-failed-save-before-food-name-geometry"
+        preGeometry.lifetime = .keepAlways
+        add(preGeometry)
+        startupDiagnosticMark("food-name-input-start")
         typeAfterKeyboard(app.textFields["nutritionDiary.foodName"], in: app, surface: .logFood, "My lunch")
+        startupDiagnosticMark("food-name-input-end")
         let save = app.navigationBars["Log food"].buttons["nutritionDiary.save"]
         let formError = app.descendants(matching: .any)["nutritionDiary.formError"]
         for _ in 0..<2 {
@@ -421,8 +489,10 @@ final class NutritionDiaryUITests: XCTestCase {
         XCTAssertTrue(scrollToHittable(app.staticTexts["Nothing logged"], in: app, surface: .diary), "Failed attempts must leave an empty diary")
         app.terminate()
         let relaunched = XCUIApplication()
-        relaunched.launchArguments = ["-UITesting"]
+        relaunched.launchArguments = ["-UITesting", "-qaStartupLivenessDiagnostic"]
+        startupDiagnosticMark("relaunch-start")
         relaunched.launch()
+        startupDiagnosticMark("relaunch-end")
         openDiary(relaunched)
         XCTAssertTrue(diaryRows(relaunched, containing: "My lunch").allElementsBoundByIndex.isEmpty,
                       "a failed save must not persist the entry")

@@ -26,9 +26,7 @@ struct CookingMonthSummary: Equatable {
         }
         return Self(cookingDays: days, distinctRecipes: recipes.count)
     }
-    var text: String {
-        let dayLabel = cookingDays == 1 ? "day" : "days"
-        let recipeLabel = distinctRecipes == 1 ? "recipe" : "recipes"
-        return "\(cookingDays) cooking \(dayLabel) · \(distinctRecipes) distinct \(recipeLabel)"
-    }
+    var daysText: String { "\(cookingDays) \(cookingDays == 1 ? "day" : "days") cooked" }
+    var recipesText: String { "\(distinctRecipes) \(distinctRecipes == 1 ? "recipe" : "recipes")" }
+    var text: String { daysText + " · " + recipesText }
 }

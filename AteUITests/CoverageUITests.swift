@@ -8,9 +8,29 @@ final class CoverageUITests: XCTestCase {
 
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
 
+    private var captureCoverageLaunch = false
+    private func coverageLaunchMark(_ phase: String) {
+        guard captureCoverageLaunch else { return }
+        print("COVERAGE-LAUNCH phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime)")
+    }
+
     @discardableResult
     func launch(_ extra: [String] = []) -> XCUIApplication {
-        app = XCUIApplication(); app.launchArguments = ["-UITesting"] + extra; app.launch(); return app
+        app = XCUIApplication(); app.launchArguments = ["-UITesting"] + extra
+        if captureCoverageLaunch {
+            coverageLaunchMark("before-pixels")
+            shot("coverage-launch-before-original-call")
+            coverageLaunchMark("launch-enter")
+        }
+        defer {
+            if captureCoverageLaunch {
+                coverageLaunchMark("launch-scope-exit")
+                shot("coverage-launch-scope-exit")
+            }
+        }
+        app.launch()
+        coverageLaunchMark("launch-return")
+        return app
     }
     func shot(_ name: String) {
         let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
@@ -51,16 +71,16 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(e.waitForExistence(timeout: t), "Missing \(e)", file: file, line: line)
     }
     /// Search both directions for lazy rows. Callers with a known section order can choose the first direction.
-    func scrollTo(_ e: XCUIElement, max: Int = 25, searchDownFirst: Bool = true) {
+    func scrollTo(_ e: XCUIElement, max: Int = 25, searchDownFirst: Bool = true, surface: XCUIElement? = nil) {
         _ = e.waitForExistence(timeout: 2)
         var n = 0
         while !(e.exists && e.isHittable) && n < max {
-            if searchDownFirst { app.swipeUp() } else { app.swipeDown() }
+            if searchDownFirst { (surface ?? app).swipeUp() } else { (surface ?? app).swipeDown() }
             n += 1
         }
         n = 0
         while !(e.exists && e.isHittable) && n < max * 2 {
-            if searchDownFirst { app.swipeDown() } else { app.swipeUp() }
+            if searchDownFirst { (surface ?? app).swipeDown() } else { (surface ?? app).swipeUp() }
             n += 1
         }
     }
@@ -249,9 +269,28 @@ final class CoverageUITests: XCTestCase {
         shot("recipe-sheet-expanded-landscape")
         app.buttons["recipeSheet.collapse"].tap()
         wait(expand, 3)
+#if DEBUG
+        print("SHEET-RETURN phase=before-landscape-close uptime=\(ProcessInfo.processInfo.systemUptime)")
+        shot("sheet-return-before-landscape-close")
+        defer {
+            print("SHEET-RETURN phase=end uptime=\(ProcessInfo.processInfo.systemUptime)")
+            shot("sheet-return-end")
+        }
+#endif
         app.buttons["recipeSheet.close"].tap()
+#if DEBUG
+        print("SHEET-RETURN phase=close-return uptime=\(ProcessInfo.processInfo.systemUptime)")
+        shot("sheet-return-after-landscape-close")
+#endif
         XCTAssertTrue(expand.waitForNonExistence(timeout: 3))
+#if DEBUG
+        print("SHEET-RETURN phase=before-original-grid-query uptime=\(ProcessInfo.processInfo.systemUptime)")
+        shot("sheet-return-before-original-grid-query")
+#endif
         wait(card, 5)
+#if DEBUG
+        print("SHEET-RETURN phase=after-original-grid-query uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
         // iPhone landscape uses LandscapeSplitView's sidebar, not a TabBar.
         let librarySidebar = app.buttons["sidebar.Library"]
         XCTAssertTrue(librarySidebar.isSelected)
@@ -294,12 +333,10 @@ final class CoverageUITests: XCTestCase {
         // Settings uses lazily materialized rows: scroll to each toggle before asserting it exists.
         // Export is in Tools, below Timer notifications. Search toward the earlier section first,
         // retaining the opposite-direction fallback if the viewport differs.
-        scrollTo(settingsQuietHours, searchDownFirst: false); wait(settingsQuietHours, 3)
+        scrollTo(settingsQuietHours, searchDownFirst: false, surface: timerSettings); wait(settingsQuietHours, 3)
         XCTAssertTrue(settingsQuietHours.isHittable, "Quiet hours toggle should be reachable in Timer notifications")
-        scrollTo(settingsStepAlerts); wait(settingsStepAlerts, 3)
+        scrollTo(settingsStepAlerts, surface: timerSettings); wait(settingsStepAlerts, 3)
         XCTAssertTrue(settingsStepAlerts.isHittable, "Step-by-step alerts toggle should be reachable in Timer notifications")
-        let about = timerSettings.staticTexts["aboutVersion"]; scrollTo(about); wait(about, 3)
-        XCTAssertTrue(about.label.contains("(build "))
         // The SwiftUI combined container is not consistently hittable across simulator
         // runtimes, even when its child heading is visible. Scroll to the stable visible
         // heading so this journey cannot spend minutes swiping toward a non-hittable parent.
@@ -342,6 +379,8 @@ final class CoverageUITests: XCTestCase {
             while !fullyVisible() && swipes < 50 { timerSettings.swipeDown(); swipes += 1 }
             XCTAssertTrue(fullyVisible(), "Settings read-only row must clear the live Settings navigation, tab bar and bottom accessory")
         }
+        let about = timerSettings.staticTexts["aboutVersion"]; revealReadOnlySettingsRow(about); wait(about, 3)
+        XCTAssertTrue(about.label.contains("(build "))
         let buildNotesHeading = timerSettings.staticTexts["aboutBuildNotesHeading"]
         revealReadOnlySettingsRow(buildNotesHeading); wait(buildNotesHeading, 3)
         let buildNotes = timerSettings.staticTexts["aboutBuildNotes"].firstMatch
@@ -360,10 +399,87 @@ final class CoverageUITests: XCTestCase {
         revealReadOnlySettingsRow(transparency); wait(transparency, 3)
         shot("settings-about")
 
-        // About is below Tools. Return toward the earlier Export row first,
-        // rather than spending the full downward search at the bottom of Settings.
-        // Keep the same bounded opposite-direction fallback and all export assertions.
-        scrollTo(export, searchDownFirst: false)
+        // Export is an interactive row. A stale/lazy AX node can be hittable
+        // behind chrome; prove full clearance before allowing its original tap.
+        func exportTargetSnapshot() -> (row: CGRect, clear: CGRect)? {
+            let window = app.windows.firstMatch
+            let navigation = app.navigationBars["Settings"]
+            let tabs = app.tabBars.firstMatch
+            guard window.exists, navigation.exists, tabs.exists, timerSettings.exists,
+                  export.exists, export.isEnabled, export.elementType == .button,
+                  export.identifier == "settings.export" else { return nil }
+            let screen = window.frame
+            let form = timerSettings.frame
+            let nav = navigation.frame
+            let tab = tabs.frame
+            let row = export.frame
+            let frames = [screen, form, nav, tab, row]
+            guard frames.allSatisfy({ !$0.isEmpty && !$0.isNull && !$0.isInfinite }) else { return nil }
+            let top = max(screen.minY, max(form.minY, nav.maxY)) + 8
+            var bottom = min(screen.maxY, min(form.maxY, tab.minY)) - 8
+            let accessory = app.descendants(matching: .any)["bottomAccessory"].firstMatch
+            if accessory.exists {
+                let frame = accessory.frame
+                guard !frame.isEmpty, !frame.isNull, !frame.isInfinite else { return nil }
+                if frame.intersects(screen) { bottom = min(bottom, frame.minY - 8) }
+            }
+            let left = max(screen.minX, form.minX) + 8
+            let right = min(screen.maxX, form.maxX) - 8
+            guard bottom > top, right > left else { return nil }
+            return (row, CGRect(x: left, y: top, width: right - left, height: bottom - top))
+        }
+        func exportFullyClear() -> Bool {
+            guard let first = exportTargetSnapshot(), first.clear.contains(first.row),
+                  export.isHittable,
+                  let second = exportTargetSnapshot(), second.clear.contains(second.row),
+                  first.row == second.row, first.clear == second.clear else { return false }
+            return true
+        }
+        func dragInsideSettings(towardEarlier: Bool) {
+            let window = app.windows.firstMatch.frame
+            let nav = app.navigationBars["Settings"].frame
+            let tabs = app.tabBars.firstMatch.frame
+            let form = timerSettings.frame
+            let top = max(window.minY, max(form.minY, nav.maxY)) + 16
+            var bottom = min(window.maxY, min(form.maxY, tabs.minY)) - 16
+            let frames = [window, nav, tabs, form]
+            guard frames.allSatisfy({ !$0.isEmpty && !$0.isNull && !$0.isInfinite }) else { return }
+            let accessory = app.descendants(matching: .any)["bottomAccessory"].firstMatch
+            if accessory.exists {
+                let frame = accessory.frame
+                guard !frame.isEmpty, !frame.isNull, !frame.isInfinite else { return }
+                if frame.intersects(window) { bottom = min(bottom, frame.minY - 16) }
+            }
+            guard bottom > top else { return }
+            let origin = timerSettings.coordinate(withNormalizedOffset: .zero)
+            let upper = origin.withOffset(CGVector(dx: form.width / 2, dy: top - form.minY))
+            let lower = origin.withOffset(CGVector(dx: form.width / 2, dy: bottom - form.minY))
+            if towardEarlier { upper.press(forDuration: 0.1, thenDragTo: lower) }
+            else { lower.press(forDuration: 0.1, thenDragTo: upper) }
+        }
+        // Retain the original bounded 25-earlier/50-later search and 2s existence
+        // wait. Only gesture surface and readiness are stricter; no tap retries.
+        _ = export.waitForExistence(timeout: 2)
+        var exportSwipes = 0
+        while !exportFullyClear() && exportSwipes < 25 {
+            dragInsideSettings(towardEarlier: true); exportSwipes += 1
+        }
+        exportSwipes = 0
+        while !exportFullyClear() && exportSwipes < 50 {
+            dragInsideSettings(towardEarlier: false); exportSwipes += 1
+        }
+        let exportClear = exportFullyClear()
+        if let snapshot = exportTargetSnapshot() {
+            print("SETTINGS-EXPORT-PRETAP row=\(snapshot.row) clear=\(snapshot.clear) ready=\(exportClear)")
+        } else {
+            print("SETTINGS-EXPORT-PRETAP geometry=unavailable ready=false")
+        }
+        shot("settings-export-before-original-tap")
+        XCTAssertTrue(exportClear, "Export row must be fully inside the live Settings clear band before tapping")
+        guard exportClear, exportFullyClear() else {
+            XCTFail("Export target moved or is clipped; no off-band tap is allowed")
+            return
+        }
         export.tap()
         shot("settings-export-immediately-after-tap")
         print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-BEGIN")
@@ -747,7 +863,7 @@ final class CoverageUITests: XCTestCase {
         app.buttons["saveRecipe"].tap()
         wait(app.buttons["Cook mode"], 10)
         app.terminate()
-        launch(["-qaPersistDraft"])
+        launch(["-qaPersistDraft", "-qaDraftRestoreSnapshotDiagnostic"])
         app.buttons["Add recipe"].tap()
         wait(text("Add a recipe"))
         // Retain final-relaunch evidence before the original negative query.
@@ -884,7 +1000,10 @@ extension CoverageUITests {
     /// Bottom area is one system: Cook mode sits above the (single) timer bar, the Ask Ate field scrolls clear of both,
     /// and the offline banner lives at the top.
     func testBottomBarsDoNotOverlapRecipeDetail() {
+        captureCoverageLaunch = true
+        defer { captureCoverageLaunch = false }
         launch(["-simulateOffline"])
+        coverageLaunchMark("body-after-launch")
         addPrompt("miso salmon")
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of"))

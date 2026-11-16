@@ -107,7 +107,7 @@ jobs:
           trap cleanup EXIT
           # One environment-readiness phase only: never install or launch Ate here.
           python3 - <<'PYREADINESS'
-          import datetime, json, os, subprocess, time
+          import datetime, json, os, runpy, subprocess, time
           def mark(phase, **fields):
               print(json.dumps(dict(phase=phase, utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                                     monotonic_ns=time.monotonic_ns(), **fields)), flush=True)
@@ -137,7 +137,8 @@ jobs:
               if len(matches) != 1:
                   raise SystemExit("Selected simulator identity is no longer unique/available")
               runtime, device = matches[0]
-              if runtime.rsplit(".", 1)[-1] != "iOS-27-0" or device["name"] != "iPhone 18 Pro":
+              selector = runpy.run_path("scripts/select-ios-simulator.py")
+              if selector["runtime_version"](runtime) is None or device["name"] != selector["EXPECTED_DEVICE"]:
                   raise SystemExit("Selected simulator identity/runtime mismatch")
               mark("simulator-identity-verified", sim_id=sim, runtime=runtime, state_before_boot=device["state"])
               run(["xcrun", "simctl", "bootstatus", sim, "-b"], 180)

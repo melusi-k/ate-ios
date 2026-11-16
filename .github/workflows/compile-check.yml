@@ -165,6 +165,14 @@ jobs:
           set -o pipefail
           # Clean process so launch arguments are real (same rationale as other UI shards).
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          mkdir -p cookplan-process-lifecycle
+          python3 scripts/capture-cookplan-process-lifecycle.py --sim-id "$SIM_ID" --output cookplan-process-lifecycle > cookplan-process-lifecycle/collector-status.txt 2>&1 &
+          lifecycle_pid=$!
+          stop_lifecycle() {
+            kill "$lifecycle_pid" 2>/dev/null || true
+            wait "$lifecycle_pid" || true
+          }
+          trap stop_lifecycle EXIT
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
@@ -174,6 +182,8 @@ jobs:
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > nutrition-ui-tests.log 2>&1 || status=$?
+          stop_lifecycle
+          trap - EXIT
           # Export screenshots, hierarchy snapshots and audit attachments on every outcome,
           # including successful runs, so merge-gate pixel evidence is retained.
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/nutrition-ui-attachments" 2>/dev/null || true
@@ -202,6 +212,24 @@ jobs:
           done
           grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
 
+      - name: Retain selected Nutrition startup liveness
+        if: always()
+        run: |
+          mkdir -p nutrition-startup-liveness
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > nutrition-startup-liveness/copy-utc.txt
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> nutrition-startup-liveness/container-errors.txt); then
+            found=0
+            for evidence in "$data_container"/Library/Caches/startup-liveness-*.txt; do
+              if [ -f "$evidence" ]; then
+                cp "$evidence" nutrition-startup-liveness/
+                found=1
+              fi
+            done
+            if [ "$found" -eq 0 ]; then
+              echo 'No startup samples retained; liveness unverified.' > nutrition-startup-liveness/missing.txt
+            fi
+          fi
+
       - name: Upload nutrition UI diagnostics (early)
         if: always()
         uses: actions/upload-artifact@v7
@@ -213,6 +241,8 @@ jobs:
           if-no-files-found: warn
           path: |
             nutrition-ui-tests.log
+            cookplan-process-lifecycle
+            nutrition-startup-liveness
             ${{ runner.temp }}/ate-test-results/nutrition-ui-tests.xcresult
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
 
@@ -239,6 +269,8 @@ jobs:
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
+            cookplan-process-lifecycle
+            nutrition-startup-liveness
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log
@@ -342,11 +374,22 @@ jobs:
             -only-testing:AteUITests/InsightsAcceptanceUITests/testJournalRootReflectionLabelsSampleHealthPrompts \
             -only-testing:AteUITests/InsightsAcceptanceUITests/testSeededShoppingInsightOpensRealListAndRetainsSuggestion \
             -only-testing:AteUITests/InsightsAcceptanceUITests/testSeededDiaryInsightOpensRealDiaryAndRetainsSuggestion \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testExploreOpensNewSuggestionsNotLibraryAndUnavailableAIIsHonest \
+            -only-testing:AteUITests/CookReflectionUITests/testSavedCookNoteAppearsUnderRecipeOnCookedDayAtNormalText \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > insights-evidence-navigation.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" insights-evidence-navigation.log || true; tail -120 insights-evidence-navigation.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" insights-evidence-navigation.log | tail -40
+
+      - name: Retain Insights normal-size captures
+        if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.insights_acceptance.outcome != 'skipped') }}
+        run: |
+          if [ -d "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" ]; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation.xcresult" \
+              --output-path "$RUNNER_TEMP/ate-test-results/insights-evidence-navigation-attachments" \
+              || { echo '::warning::Insights attachment export unavailable; inspect retained xcresult, no pixel acceptance'; }
+          fi
 
       - name: Retain UI-test day-sheet presentation trace
         if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.insights_acceptance.outcome != 'skipped') }}
@@ -567,6 +610,9 @@ jobs:
         run: |
           STEP_START=$(date +%s)
           set +e
+          mkdir -p tracker-query-window
+          date -u '+%Y-%m-%d %H:%M:%S' > tracker-query-window/start-utc.txt
+          trap 'date -u "+%Y-%m-%d %H:%M:%S" > tracker-query-window/end-utc.txt' EXIT
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cooking-tracker-ui-tests.xcresult" -only-testing:AteUITests/CookingTrackerEntryUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1
           status=$?
           set -e
@@ -583,6 +629,39 @@ jobs:
           fi
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" tracker-ui.log | tail -n 30
+      - name: Retain tracker-query-window unified-log window
+        if: ${{ matrix.suite == 'account-cooking' && always() }}
+        run: |
+          mkdir -p tracker-query-window
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > tracker-query-window/collection-start-utc.txt
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> tracker-query-window/container-errors.txt); then
+            for evidence in presentation-return-diagnostic.txt presentation-return-scheduler.txt; do
+              if [ -f "$data_container/Library/Caches/$evidence" ]; then
+                cp "$data_container/Library/Caches/$evidence" "tracker-query-window/$evidence"
+              else
+                echo "$evidence missing; no liveness conclusion." >> tracker-query-window/errors.txt
+              fi
+            done
+          else
+            echo 'Container inaccessible; no file liveness conclusion.' >> tracker-query-window/errors.txt
+          fi
+          if [ -s tracker-query-window/start-utc.txt ]; then
+            start_utc=$(cat tracker-query-window/start-utc.txt)
+            if [ ! -s tracker-query-window/end-utc.txt ]; then
+              date -u '+%Y-%m-%d %H:%M:%S' > tracker-query-window/end-utc.txt
+            fi
+            end_utc=$(cat tracker-query-window/end-utc.txt)
+            predicate='process == "Ate" OR process == "AteUITests-Runner" OR subsystem == "com.melusik.ate" OR process == "runningboardd" OR process == "SpringBoard" OR process == "testmanagerd" OR process == "launchd_sim"'
+            /usr/bin/log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > tracker-query-window/host-unified.log 2>&1 || \
+              echo 'Host collection failed; see retained output.' >> tracker-query-window/errors.txt
+            xcrun simctl spawn "$SIM_ID" log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > tracker-query-window/simulator-unified.log 2>&1 || \
+              echo 'Simulator collection failed; see retained output.' >> tracker-query-window/errors.txt
+          else
+            echo 'Start marker missing; no covered window claimed.' > tracker-query-window/errors.txt
+          fi
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > tracker-query-window/collection-end-utc.txt
       - name: Shared navigation header regressions (#68)
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
@@ -600,6 +679,9 @@ jobs:
         run: |
           STEP_START=$(date +%s)
           set +e
+          mkdir -p cook-completion-window
+          date -u '+%Y-%m-%d %H:%M:%S' > cook-completion-window/start-utc.txt
+          trap 'date -u "+%Y-%m-%d %H:%M:%S" > cook-completion-window/end-utc.txt' EXIT
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-mode-history-ui-tests.xcresult" -only-testing:AteUITests/AteUITests/test06_CookMode -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > cook-mode-history.log 2>&1
           status=$?
           set -e
@@ -617,10 +699,40 @@ jobs:
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" cook-mode-history.log | tail -n 30
 
+      - name: Retain cook-completion-window unified-log window
+        if: ${{ matrix.suite == 'account-cooking' && always() }}
+        run: |
+          mkdir -p cook-completion-window
+          if [ -s cook-completion-window/start-utc.txt ]; then
+            start_utc=$(cat cook-completion-window/start-utc.txt)
+            if [ ! -s cook-completion-window/end-utc.txt ]; then
+              date -u '+%Y-%m-%d %H:%M:%S' > cook-completion-window/end-utc.txt
+            fi
+            end_utc=$(cat cook-completion-window/end-utc.txt)
+            predicate='process == "Ate" OR process == "AteUITests-Runner" OR subsystem == "com.melusik.ate" OR process == "runningboardd" OR process == "SpringBoard" OR process == "testmanagerd" OR process == "launchd_sim"'
+            /usr/bin/log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > cook-completion-window/host-unified.log 2>&1 || \
+              echo 'Host collection failed; see retained output.' >> cook-completion-window/errors.txt
+            xcrun simctl spawn "$SIM_ID" log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > cook-completion-window/simulator-unified.log 2>&1 || \
+              echo 'Simulator collection failed; see retained output.' >> cook-completion-window/errors.txt
+          else
+            echo 'Start marker missing; no covered window claimed.' > cook-completion-window/errors.txt
+          fi
       - name: Cook Finish above retained resume accessory
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
           set -o pipefail
+          mkdir -p coverage-launch-lifecycle
+          date -u '+%Y-%m-%d %H:%M:%S' > coverage-launch-lifecycle/start-utc.txt
+          python3 scripts/capture-cookplan-process-lifecycle.py --sim-id "$SIM_ID" --output coverage-launch-lifecycle > coverage-launch-lifecycle/collector-status.txt 2>&1 &
+          coverage_lifecycle_pid=$!
+          stop_coverage_lifecycle() {
+            kill "$coverage_lifecycle_pid" 2>/dev/null || true
+            wait "$coverage_lifecycle_pid" || true
+          }
+          trap stop_coverage_lifecycle EXIT
+          coverage_status=0
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/CookFinishAccessoryUITests \
             -only-testing:AteUITests/CookSharedStepUITests \
@@ -628,7 +740,15 @@ jobs:
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-finish-accessory.xcresult" \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
-            CODE_SIGNING_ALLOWED=NO > cook-finish-accessory.log 2>&1 || { tail -120 cook-finish-accessory.log; exit 1; }
+            CODE_SIGNING_ALLOWED=NO > cook-finish-accessory.log 2>&1 || coverage_status=$?
+          date -u '+%Y-%m-%d %H:%M:%S' > coverage-launch-lifecycle/end-utc.txt
+          stop_coverage_lifecycle
+          trap - EXIT
+          python3 scripts/capture-coverage-launch-window.py --sim-id "$SIM_ID" --output coverage-launch-lifecycle || echo 'Coverage launch log collector failed; qualification status unchanged.'
+          # Metadata and test markers survive an artifact DNS failure in this job log.
+          tail -5 coverage-launch-lifecycle/process-metadata.jsonl || true
+          grep -F 'COVERAGE-LAUNCH' cook-finish-accessory.log || true
+          if [ "$coverage_status" -ne 0 ]; then tail -120 cook-finish-accessory.log; exit 1; fi
           for test in testPushedFinishAboveResumeAccessoryPortrait testPushedFinishAboveResumeAccessoryLandscape; do
             grep -qF "CookFinishAccessoryUITests $test]' passed" cook-finish-accessory.log || { echo "::error::Missing named Cook Finish pass: $test"; exit 1; }
           done
@@ -750,6 +870,41 @@ jobs:
           echo "::error::Insights acceptance failed. Later diagnostics were allowed to run, but the compile gate remains blocked until issue #195 is fixed."
           exit 1
 
+      - name: Retain expandable return diagnostic attachments
+        if: ${{ matrix.suite == 'presentation-creation' && always() }}
+        run: |
+          python3 - <<'PYEXPORT'
+          import os, pathlib, subprocess
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          source = root / 'ate-test-results/expandable-recipe-sheet.xcresult'
+          output = root / 'expandable-return-evidence'
+          output.mkdir(parents=True, exist_ok=True)
+          note = output / 'export-status.txt'
+          if not source.is_dir():
+              note.write_text('Source xcresult missing; captures unavailable.\n')
+          else:
+              try:
+                  result = subprocess.run(['xcrun', 'xcresulttool', 'export', 'attachments',
+                      '--path', str(source), '--output-path', str(output)],
+                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=60)
+                  note.write_text('export_exit=' + str(result.returncode) + '\n' + result.stdout)
+                  if result.returncode:
+                      print('::warning::Expandable return export failed; see export-status.txt')
+              except subprocess.TimeoutExpired:
+                  note.write_text('Export exceeded 60 seconds and was stopped; partial captures may remain.\n')
+                  print('::warning::Expandable return export timed out')
+              except OSError as error:
+                  note.write_text('Export could not start: ' + str(error) + '\n')
+                  print('::warning::Expandable return export unavailable')
+          PYEXPORT
+      - name: Upload expandable return diagnostic attachments
+        if: ${{ matrix.suite == 'presentation-creation' && always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: expandable-return-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/expandable-return-evidence
+          retention-days: 7
+
       - name: Upload test diagnostics
         if: always()
         uses: actions/upload-artifact@v7
@@ -757,8 +912,12 @@ jobs:
           name: compile-regression-diagnostics-${{ matrix.suite }}-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
+            tracker-query-window
+            cook-completion-window
+            coverage-launch-lifecycle
             *.log
             ${{ runner.temp }}/ate-test-results/draft-quality-repair-attachments
+            ${{ runner.temp }}/ate-test-results/insights-evidence-navigation-attachments
             build.log
             app-clip-build.log
             app-clip-tests.log
@@ -775,6 +934,8 @@ jobs:
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
+            cookplan-process-lifecycle
+            nutrition-startup-liveness
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log

@@ -156,7 +156,7 @@ final class HealthInsightTests: XCTestCase {
     func testRecipeProgressInsightCollectionFallback() {
         let input = RecipeProgressInsightInput(savedRecipeCount: 3, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: ["Soup", "Salad", "Oats"])
         let result = RecipeProgressInsightService.fallback(for: input)
-        XCTAssertEqual(result?.title, "Your recipe collection is taking shape")
+        XCTAssertEqual(result?.title, "Try something new")
         XCTAssertEqual(result?.generated, false)
         XCTAssertTrue(result?.evidence.contains("saved recipe collection") == true)
     }
@@ -208,7 +208,7 @@ final class HealthInsightTests: XCTestCase {
         let input = RecipeProgressInsightInput(savedRecipeCount: 3, cookedRecipeCount: 0, cookingDayCount: 0, mostCookedRecipe: nil, recipeTitles: ["Soup", "Salad", "Oats"])
         let result = await RecipeProgressInsightService.insight(for: input, useModel: false)
         XCTAssertEqual(result?.generated, false)
-        XCTAssertEqual(result?.title, "Your recipe collection is taking shape")
+        XCTAssertEqual(result?.title, "Try something new")
     }
 
     func testInsightsTileOrderPreservesKnownOrderAndAddsNewTiles() {

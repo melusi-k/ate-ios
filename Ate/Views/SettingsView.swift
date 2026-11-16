@@ -1,4 +1,5 @@
 import SwiftUI
+import OSLog
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
@@ -146,18 +147,25 @@ struct SettingsView: View {
                     }
                     Section {
                         Button {
-                            guard !exporting else { return }
+                            exportDiagnostic("action-entered")
+                            guard !exporting else {
+                                exportDiagnostic("already-exporting-refused")
+                                return
+                            }
                             exporting = true
                             Task { @MainActor in
                                 defer { exporting = false }
                                 do {
                                     let data = try await store.exportUserData()
                                     guard let url = writeTemp("ate-data.json", data) else {
+                                        exportDiagnostic("temporary-file-failed")
                                         store.show("Your data export couldn't be created. Please try again.", error: true)
                                         return
                                     }
                                     activeSheet = .share(ShareItems(items: [url]))
+                                    exportDiagnostic("share-state-set")
                                 } catch {
+                                    exportDiagnostic("capture-failed")
                                     store.show("Your data couldn't be exported. Please try again.", error: true)
                                 }
                             }
@@ -319,6 +327,14 @@ struct SettingsView: View {
                 store.settingsPath = [.beta]
             }
         }
+    }
+
+    /// Trace control flow only. Never log exported bytes, file URLs or account data.
+    /// No UI, retries, waits or alternate export route are introduced.
+    private func exportDiagnostic(_ event: String) {
+        guard AppConfig.isUITesting else { return }
+        Logger(subsystem: "com.melusik.ate", category: "settings-export-diagnostic")
+            .notice("event=\(event, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public)")
     }
 
     private func importSelectedData() {

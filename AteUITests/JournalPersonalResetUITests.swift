@@ -7,7 +7,7 @@ final class JournalPersonalResetUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
     private func launch(_ extra: [String] = []) {
         app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-qaJournalMomentEntry"] + extra
+        app.launchArguments = ["-UITesting", "-qaJournalMomentEntry", "-qaJournalResetMemoryCredentials"] + extra
         app.launch()
     }
     private func wait(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
@@ -15,7 +15,10 @@ final class JournalPersonalResetUITests: XCTestCase {
     }
     private func tab(_ title: String) {
         let button = app.tabBars.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", title)).firstMatch
-        wait(button); button.tap()
+        // Scrolling Settings minimises the native tab bar to its selected tab.
+        // Reveal the real tab through content scrolling before its one tap.
+        for _ in 0..<6 where !button.exists { app.swipeDown() }
+        wait(button); XCTAssertTrue(button.isHittable); button.tap()
     }
     private func signIn() {
         tab("Settings")

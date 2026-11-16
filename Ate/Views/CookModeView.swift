@@ -89,7 +89,8 @@ struct CookModeView: View {
             }
         }
         .alert("Could not save this cook", isPresented: Binding(get: { finishProblem != nil }, set: { if !$0 { finishProblem = nil } })) {
-            Button("Try again", role: .cancel) { finishProblem = nil }
+            // A partial finish may already have cleared the session. Dismiss never repeats a write.
+            Button("Dismiss", role: .cancel) { finishProblem = nil }
             if finishProblem == .unreadable {
                 Button("Set aside and continue") { finishProblem = nil; setAsideAndFinish() }
             }

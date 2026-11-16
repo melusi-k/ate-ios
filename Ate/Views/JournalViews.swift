@@ -140,6 +140,7 @@ struct JournalListView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { store.beginManualJournal() } label: { Label("New journal entry", systemImage: "square.and.pencil") }
                     .accessibilityIdentifier("journal.newEntry")
+                    .accessibilityValue(CleanupPhaseDiagnostic.summary)
             }
         }
         .onChange(of: store.journalRevision) { _, _ in reload() }

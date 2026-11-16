@@ -296,7 +296,7 @@ struct SettingsView: View {
             Text("New recipes, shopping items and diary entries will be added. Existing matching items stay on this iPhone. If this archive contains nutrition goals and app preferences, they replace the current ones.")
         }
         .confirmationDialog("Clear your library and Food Journal?", isPresented: $confirmClear, titleVisibility: .visible) {
-            Button("Clear all", role: .destructive) { Task { if await store.clearLibrary() { store.show("Library cleared, including Food Journal") } } }
+            Button("Clear all", role: .destructive) { CleanupPhaseDiagnostic.record(.clearConfirmed); Task { if await store.clearLibrary() { store.show("Library cleared, including Food Journal") } } }
         } message: {
             Text("Recipes, Food Journal entries, reflections and their local media and backups will be removed from this iPhone. This cannot be undone.")
         }

@@ -12,10 +12,17 @@ spec = importlib.util.spec_from_file_location('golden', ROOT / 'scripts/cook-gol
 m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 
 class CookGoldenMatrixTests(unittest.TestCase):
-    def test_dispatch_only_no_standard_cancellation_and_shell_valid(self):
+    def test_dispatch_or_exact_labeled_head_no_cancellation_and_shell_valid(self):
         raw = (ROOT / '.github/workflows/cook-golden-matrix.yml').read_text()
         workflow = yaml.safe_load(raw)
-        self.assertEqual(workflow[True], {'workflow_dispatch': None})
+        self.assertEqual(workflow[True], {'workflow_dispatch': None, 'pull_request': {'types': ['labeled', 'synchronize']}})
+        gate = workflow['jobs']['cook-goldens']['if']
+        self.assertIn("github.event.pull_request.head.ref == 'ci/542-focused-cook-goldens'", gate)
+        self.assertIn('github.event.pull_request.head.repo.full_name == github.repository', gate)
+        self.assertIn("contains(github.event.pull_request.labels.*.name, 'run:cook-goldens')", gate)
+        self.assertIn("github.event.label.name == 'run:cook-goldens'", gate)
+        self.assertIn("github.event.action == 'synchronize'", gate)
+        self.assertIn('ref: ${{ github.event.pull_request.head.sha || github.sha }}', raw)
         self.assertFalse(workflow['concurrency']['cancel-in-progress'])
         self.assertIn('github.run_id', workflow['concurrency']['group'])
         self.assertIn('-default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240', raw)
@@ -23,6 +30,33 @@ class CookGoldenMatrixTests(unittest.TestCase):
         for step in workflow['jobs']['cook-goldens']['steps']:
             if 'run' in step:
                 self.assertEqual(subprocess.run(['bash', '-n'], input=step['run'], text=True, capture_output=True).returncode, 0)
+
+    def test_pr_gate_allowlist_truth_table(self):
+        raw = (ROOT / '.github/workflows/cook-golden-matrix.yml').read_text()
+        gate = yaml.safe_load(raw)['jobs']['cook-goldens']['if'].strip()
+        def allowed(head='ci/542-focused-cook-goldens', repository='owner/repo', labels=True,
+                    action='labeled', label='run:cook-goldens', event='pull_request'):
+            values = {
+                'github.event_name': repr(event),
+                'github.event.pull_request.head.ref': repr(head),
+                'github.event.pull_request.head.repo.full_name': repr(repository),
+                'github.repository': repr('owner/repo'),
+                "contains(github.event.pull_request.labels.*.name, 'run:cook-goldens')": repr(labels),
+                'github.event.action': repr(action),
+                'github.event.label.name': repr(label),
+            }
+            expression = gate
+            for key in sorted(values, key=len, reverse=True):
+                expression = expression.replace(key, values[key])
+            return eval(expression.replace('&&', ' and ').replace('||', ' or '), {'__builtins__': {}})
+        self.assertTrue(allowed())
+        self.assertTrue(allowed(action='synchronize', label=''))
+        self.assertTrue(allowed(event='workflow_dispatch', head='', labels=False))
+        self.assertFalse(allowed(head='other-branch'))
+        self.assertFalse(allowed(repository='fork/repo'))
+        self.assertFalse(allowed(labels=False))
+        self.assertFalse(allowed(label='other-label'))
+        self.assertFalse(allowed(action='opened'))
 
     def test_only_new_tests_are_opted_in_and_detents_are_not_text_sizes(self):
         source = (ROOT / 'AteUITests/CookGoldenCaptureUITests.swift').read_text()

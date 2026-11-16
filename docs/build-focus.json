@@ -1,7 +1,7 @@
 {
-  "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Opt-in Search receipt diagnostics record only bounded numeric binding lengths and utility/Main timing. Original storage write, single typing action, full-query assertions and waits remain unchanged. Capture can perturb input timing and does not establish cause. Existing focus diagnostics and notification responsiveness hypothesis retained. Native compile, receipt, AX/rendered value and pixels UNRUN on this packet. Metadata validation is not native qualification; merge held.",
-  "source_commit": "6ce0a7fa53c3f3e7021ee187d47a57bc1f65e792",
+  "title": "Ordinary Food diary Log again prefill",
+  "summary": "Collapsed add-only local-history suggestions prefill existing form without saving. Original storage/validation/helper unchanged, source provenance cleared, current date/day/meal kept.243PythonPASS8.153s. Two new units and explicit new UI selector plus four normal-text screenshots UNRUN; existing ordinary diary regressions required. Canonical FoodJournal shipping OFF. Held.",
+  "source_commit": "d1ecb8db331bffe514068e65728f5653766787ca",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -82,6 +82,10 @@
     {
       "path": "Ate/Services/CookPlanNotifications.swift",
       "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
+    },
+    {
+      "path": "Ate/Views/NutritionDiaryView.swift",
+      "blob": "571fd7c5b5c68b96b83e755d5e1ba5cd4e177333"
     }
   ]
 }

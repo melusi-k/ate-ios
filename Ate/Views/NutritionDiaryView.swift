@@ -284,7 +284,8 @@ struct NutritionDiaryView: View {
         }
         .sheet(isPresented: $store.showNutritionDiaryEntry) {
             NavigationStack {
-                NutritionDiaryEntryForm(date: selectedDate, dayKey: selectedDayKey) { entry in
+                NutritionDiaryEntryForm(date: selectedDate, dayKey: selectedDayKey,
+                                         frequentFoods: NutritionFrequentFoods.topFoods(in: entries)) { entry in
                     let outcome = NutritionDiaryMutation.appending(entry, to: entries, persist: persist)
                     entries = outcome.entries
                     // Only a fully saved entry dismisses the sheet or appears in the list. On failure
@@ -409,6 +410,7 @@ private struct NutritionDiaryEntryForm: View {
     let date: Date
     let dayKey: String
     let existing: NutritionDiaryEntry?
+    let frequentFoods: [NutritionFrequentFood]
     /// nil means the entry reached the store and the sheet can close; a message means the save
     /// failed and the form shows it while keeping the draft.
     let onSave: (NutritionDiaryEntry) -> String?
@@ -429,10 +431,12 @@ private struct NutritionDiaryEntryForm: View {
 
     /// Seeds a new form, or every field from an entry being edited (#179 edit behaviour).
     init(date: Date, dayKey: String, existing: NutritionDiaryEntry? = nil,
+         frequentFoods: [NutritionFrequentFood] = [],
          onSave: @escaping (NutritionDiaryEntry) -> String?) {
         self.date = existing?.date ?? date
         self.dayKey = existing?.dayKey ?? dayKey
         self.existing = existing
+        self.frequentFoods = frequentFoods
         self.onSave = onSave
         _foodName = State(initialValue: existing?.foodName ?? "")
         _meal = State(initialValue: existing?.meal ?? .lunch)
@@ -455,6 +459,24 @@ private struct NutritionDiaryEntryForm: View {
         _errorMessage = State(initialValue: nil)
     }
 
+    /// Reuse only the person's saved snapshot. Identity, date and selected meal
+    /// remain this new form's; no persistence or catalogue verification is implied.
+    private func repeatFood(_ food: NutritionFrequentFood) {
+        guard existing == nil else { return }
+        let draft = NutritionFrequentFoods.draft(from: food, dayKey: dayKey)
+        foodName = draft.foodName
+        quantity = draft.quantity
+        quantityUnit = draft.quantityUnit
+        servings = draft.servings
+        source = draft.source
+        sourceName = draft.sourceName
+        sourceIdentifier = draft.sourceIdentifier
+        verificationNote = draft.verificationNote
+        nutrientText = draft.nutrientText
+        errorMessage = nil
+        focusedField = nil
+    }
+
     /// Shortest round-trippable form: editing and saving without touching a field must
     /// never lose precision, and no grouping separator may enter the decimal pad.
     /// NutritionDiaryNumber.parse accepts the period separator in any locale.
@@ -467,6 +489,31 @@ private struct NutritionDiaryEntryForm: View {
             // Validation errors belong at the top: with the keyboard up, a message rendered
             // at the bottom of this long form is hidden exactly when the user needs it.
             if let errorMessage { Section { Text(errorMessage).foregroundStyle(.red).accessibilityIdentifier("nutritionDiary.formError") } }
+            if existing == nil && !frequentFoods.isEmpty {
+                Section {
+                    DisclosureGroup("Log again") {
+                        ForEach(Array(frequentFoods.enumerated()), id: \.offset) { index, food in
+                            Button { repeatFood(food) } label: {
+                                HStack {
+                                    Text(food.foodName)
+                                    Spacer()
+                                    Text("logged \(food.timesLogged)x")
+                                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                                }
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Log \(food.foodName) again")
+                            .accessibilityHint("Fills this form from your last entry. Review and save to log it.")
+                            .accessibilityIdentifier("nutritionDiary.frequent.\(index)")
+                        }
+                        Text("From your own entries. Values copy as last logged, not as verified nutrition. Review them before saving; nothing is logged until you tap Save.")
+                            .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                    }
+                    .accessibilityIdentifier("nutritionDiary.frequentChoices")
+                }
+            }
             Section("Food consumed") {
                 TextField("Food or recipe name", text: $foodName)
                     .focused($focusedField, equals: "foodName")

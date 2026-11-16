@@ -101,3 +101,19 @@ class CookGoldenMatrixTests(unittest.TestCase):
                 manifest[0]['testIdentifier'] = 'Other/test()'
                 (raw / 'manifest.json').write_text(json.dumps(manifest))
                 with self.assertRaises(ValueError): m.verify(raw, log, out)
+
+    def test_timer_layout_is_additive_not_a_regression_replacement(self):
+        self.assertIn('CoverageUITests/testBottomBarsDoNotOverlapRecipeDetail', m.CASES)
+        self.assertIn('CookGoldenCaptureUITests/testCookGoldenRunningTimerBottomBars', m.CASES)
+        source = (ROOT / 'AteUITests/CookGoldenCaptureUITests.swift').read_text()
+        self.assertIn('pause.isHittable', source)
+        self.assertIn('cook-golden-promoted-large-midscroll', source)
+        self.assertNotIn('cook-golden-medium-midscroll', source)
+        self.assertIn('fully.waitForNonExistence(timeout: 5)', source)
+        route = (ROOT / 'Ate/App/CookGoldenTimerQARoute.swift').read_text()
+        self.assertTrue(route.startswith('#if DEBUG'))
+        self.assertIn('AppConfig.isUITesting', route)
+        self.assertIn('store.timers.start(recipe: recipe, stepIndex: 0)', route)
+        self.assertNotIn('pause(', route)
+        self.assertNotIn('sleep', route)
+        self.assertNotIn('TimerCenter', source)

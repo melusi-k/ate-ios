@@ -21,6 +21,10 @@ def normalize_539_parent(key, raw):
 
 
 def approved_original_file(path, raw):
+    from cleanup_phase_delta import restore as restore_cleanup
+    raw=restore_cleanup("source:"+path,raw)
+    from keychain_status_delta import is_added as status_added
+    if status_added(path,raw):return False
     from journal_personal_reset_delta import is_added
     if is_added(path, raw): return False
     payload=_FIXTURE.read_bytes()
@@ -34,6 +38,8 @@ def approved_original_file(path, raw):
 
 
 def normalize(key, raw):
+    from keychain_status_delta import restore as restore_status
+    raw=restore_status(key,raw)
     from journal_personal_reset_delta import restore
     from journal_snapshot_mirror_delta import restore as restore_snapshot_mirror
     from journal_reset_test_seams_delta import restore as restore_seams

@@ -261,6 +261,7 @@ jobs:
             production-channel-production.log
             settings-sync.log
             tracker-ui.log
+            tracker-query-sample
             cook-mode-history.log
             navigation-header-tests.log
             share-publish-outage-tests.log
@@ -613,9 +614,17 @@ jobs:
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
           STEP_START=$(date +%s)
+          # Advisory single stack capture only if the original month AX Find stays blocked.
+          rm -f tracker-ui.log tracker-query-sample.stop
+          python3 scripts/sample-tracker-query.py --log tracker-ui.log --output tracker-query-sample --simulator "$SIM_ID" --stop tracker-query-sample.stop &
+          tracker_sampler=$!
+          trap 'touch tracker-query-sample.stop; wait "$tracker_sampler" 2>/dev/null || true' EXIT
           set +e
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cooking-tracker-ui-tests.xcresult" -only-testing:AteUITests/CookingTrackerEntryUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1
           status=$?
+          touch tracker-query-sample.stop
+          wait "$tracker_sampler" 2>/dev/null || true
+          trap - EXIT
           set -e
           STEP_END=$(date +%s)
           echo "::notice::CI_TIMING step=cooking-tracker-ui-tests duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
@@ -851,6 +860,7 @@ jobs:
             production-channel-production.log
             settings-sync.log
             tracker-ui.log
+            tracker-query-sample
             cook-mode-history.log
             navigation-header-tests.log
             share-publish-outage-tests.log

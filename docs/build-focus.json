@@ -1,11 +1,11 @@
 {
-  "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Opt-in Search receipt diagnostics record only bounded numeric binding lengths and utility/Main timing. Original storage write, single typing action, full-query assertions and waits remain unchanged. Capture can perturb input timing and does not establish cause. Existing focus diagnostics and notification responsiveness hypothesis retained. Native compile, receipt, AX/rendered value and pixels UNRUN on this packet. Metadata validation is not native qualification; merge held.",
-  "source_commit": "6ce0a7fa53c3f3e7021ee187d47a57bc1f65e792",
+  "title": "Readable full-size long Cook instructions",
+  "summary": "Keep30/34pt Cook instruction font with vertical overflow scrolling, no0.5scaling. Step controls stay outside instruction scroll; step changes reset offset. DEBUGsyntheticfixture.245PythonPASS7.984s; native/pixelsUNRUN. Held.",
+  "source_commit": "604de9bdb71cca44faa45d83aee47a5ca21a5020",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "617ac2bcc93d97510fbd6199ab21a248d4e420aa"
+      "blob": "938c67ca087108ea9b703c080d123a001e942fd8"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
@@ -33,7 +33,7 @@
     },
     {
       "path": "Ate/Views/CookModeView.swift",
-      "blob": "203f46cec2a7b69e8f17a11f1c771a982441b9bc"
+      "blob": "37ce17bbc6eabea11bb509606fc17c474d391212"
     },
     {
       "path": "Ate/Views/CookingTrackerView.swift",
@@ -82,6 +82,10 @@
     {
       "path": "Ate/Services/CookPlanNotifications.swift",
       "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
+    },
+    {
+      "path": "Ate/App/CookReadableStepQAFixture.swift",
+      "blob": "7c66b69b4b91d08527d680ff9a08377017b996cd"
     }
   ]
 }

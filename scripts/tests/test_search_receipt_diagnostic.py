@@ -14,6 +14,8 @@ class SearchReceiptTests(unittest.TestCase):
             source=source.replace(new,old,1)
         self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), 'dded325b47238833a7fd993cafbc8f5f9c03ab2daa896af4466d240651bfd5d1')
         workflow=(ROOT/'.github/workflows/compile-check.yml').read_text()
+        from test_cook_readable_step import restore_readable_step
+        workflow=restore_readable_step('.github/workflows/compile-check.yml',workflow)
         self.assertEqual(workflow.count(WORKFLOW),1)
         self.assertEqual(hashlib.sha256(workflow.replace(WORKFLOW,'',1).encode()).hexdigest(), 'bd947a85e736a87bdc887475e0908050e4f8718f2314b34ce5cb07b03ea871c3')
     def test_native_input_contract_entire_file_unchanged(self):

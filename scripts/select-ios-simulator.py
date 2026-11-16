@@ -1,22 +1,30 @@
 #!/usr/bin/env python3
-"""Select the required iPhone 18 Pro / iOS 27.0 simulator for CI tests."""
+"""Select the required iPhone 18 Pro / available iOS 27.x simulator for CI tests."""
 
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from typing import Any
 
 EXPECTED_DEVICE = "iPhone 18 Pro"
-EXPECTED_RUNTIME = "iOS-27-0"
-EXPECTED_RUNTIME_LABEL = "iOS 27.0"
+EXPECTED_RUNTIME_MAJOR = 27
+EXPECTED_RUNTIME_LABEL = "iOS 27.x"
+
+
+def runtime_version(runtime: str) -> tuple[int, ...] | None:
+    """Accept only numeric stable iOS 27 runtimes, not other platforms or majors."""
+    match = re.fullmatch(rf"(?:com\.apple\.CoreSimulator\.SimRuntime\.)?iOS-({EXPECTED_RUNTIME_MAJOR})-(\d+)(?:-(\d+))?", runtime)
+    return tuple(int(part or 0) for part in match.groups()) if match else None
 
 
 def select_device(devices: dict[str, list[dict[str, Any]]]) -> str | None:
-    matches: list[str] = []
+    matches: list[tuple[tuple[int, ...], str]] = []
     for runtime, entries in devices.items():
-        if runtime.rsplit(".", 1)[-1] != EXPECTED_RUNTIME:
+        version = runtime_version(runtime)
+        if version is None:
             continue
         for device in entries:
             if (
@@ -24,8 +32,11 @@ def select_device(devices: dict[str, list[dict[str, Any]]]) -> str | None:
                 and device.get("isAvailable", True)
                 and device.get("udid")
             ):
-                matches.append(str(device["udid"]))
-    return sorted(matches)[0] if matches else None
+                matches.append((version, str(device["udid"])))
+    if not matches:
+        return None
+    latest = max(version for version, _ in matches)
+    return min(udid for version, udid in matches if version == latest)
 
 
 def main() -> int:
@@ -51,7 +62,7 @@ def main() -> int:
         ]
         print(
             f"ERROR: required {EXPECTED_DEVICE} simulator on {EXPECTED_RUNTIME_LABEL} "
-            "is not available. Use the xcode-27 runner image with Xcode 27.1; "
+            "is not available. Use an available iOS 27.x runtime; "
             "no fallback device will be selected.",
             file=sys.stderr,
         )
@@ -59,7 +70,9 @@ def main() -> int:
         print("\n".join(available) if available else "(none)", file=sys.stderr)
         return 1
 
-    print(f"Selected {EXPECTED_DEVICE} on iOS 27.0: {udid}", file=sys.stderr)
+    runtime = next(runtime for runtime, entries in devices.items()
+                   if any(str(device.get("udid")) == udid for device in entries))
+    print(f"Selected {EXPECTED_DEVICE} on {runtime}: {udid}", file=sys.stderr)
     print(udid)
     return 0
 

@@ -32,18 +32,52 @@ enum GeneratedStepQuality {
         return tokens.intersection(foods)
     }
 
+    /// Only plain pantry names. Compound ingredients (lemon pepper, chilli oil,
+    /// salted butter) retain their substantive ingredient-use check.
+    static func isPlainPantrySeasoning(_ ingredient: Ingredient) -> Bool {
+        let name = ingredient.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        if name == "salt" || name == "oil" { return true }
+        guard name == "pepper" else { return false }
+        let prep = words(ingredient.notes ?? "")
+        // Bare/countable pepper or vegetable prep is not the pantry spice.
+        guard prep.isDisjoint(with: ["slice", "sliced", "dice", "diced", "chop", "chopped", "stuff", "stuffed", "strip", "halved"]) else { return false }
+        let unit = ingredient.unit.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        return ["tsp", "teaspoon", "teaspoons", "tbsp", "tablespoon", "tablespoons", "pinch", "pinches", "to taste"].contains(unit)
+            || !prep.isDisjoint(with: ["ground", "grounded", "grind", "grinding", "spice"])
+            || (ingredient.notes ?? "").lowercased().contains("to taste")
+    }
+
+    /// A food descriptor is not a cooking command. Share the established
+    /// brown-sugar exception across completeness and heat/time checks.
+    /// Preserve any separate real browning action in the same instruction.
+    static func cookingActionWords(_ instruction: String) -> Set<String> {
+        words(instruction.lowercased().replacingOccurrences(of: "brown sugar", with: "sugar"))
+    }
+
     static func issues(_ card: RecipeCard) -> [String] {
         guard RecipeQuality.isGenerated(card) else { return [] }
         let steps = RecipeLogic.nonBlank(card.steps)
         let allStepWords = words(steps.map(\.instruction).joined(separator: " "))
-        let ingredientWords = words(card.ingredients.map(\.name).joined(separator: " "))
+        let ingredientWords = words(card.ingredients.map(IngredientFieldNormalization.identity).joined(separator: " "))
         var gaps: [String] = []
+        // A five-minute browning action is not a complete generated chicken main.
+        // Do not fabricate a finish or impose a step-count rule on cold/source recipes.
+        if steps.count == 1, RecipeQuality.isMainDish(card) {
+            let method = cookingActionWords(steps[0].instruction)
+            if !method.isDisjoint(with: ["sear", "brown"]),
+               method.isDisjoint(with: ["simmer", "boil", "bake", "roast", "braise", "steam", "grill", "internal", "centre", "center", "serve"]) {
+                gaps.append("The method stops after browning. Explain how to finish cooking this main dish and check doneness; do not invent missing source steps.")
+            }
+        }
+        for ingredient in card.ingredients where ["herb", "herbs"].contains(ingredient.unit.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)) {
+            gaps.append("Clarify the measure for \(ingredient.name); herb is not a measurement unit.")
+        }
         // Explicit collective use can be legitimate (dressings, batter, spice mixes).
         // Do not pretend to prove individual usage when the wording is collective.
         let collective = steps.contains { $0.instruction.lowercased().contains("all ingredients") || $0.instruction.lowercased().contains("remaining ingredients") }
         if !collective {
-            for ingredient in card.ingredients {
-                let ingredientAnchors = anchors(ingredient.name)
+            for ingredient in card.ingredients where !isPlainPantrySeasoning(ingredient) {
+                let ingredientAnchors = anchors(IngredientFieldNormalization.identity(ingredient))
                 if !ingredientAnchors.isEmpty && ingredientAnchors.isDisjoint(with: allStepWords) {
                     gaps.append("Explain when to use \(ingredient.name); it is listed but never used in the steps.")
                 }
@@ -58,6 +92,19 @@ enum GeneratedStepQuality {
             if food == "oil", !listed.isDisjoint(with: ["butter", "ghee", "fat"]) { continue }
             gaps.append("Step mentions \(food), but it is not in the ingredients; reconcile it without inventing source facts.")
         }
+        // A named paste is a distinct ingredient, not proved by listing one
+        // component or a different paste. Keep this a bounded food vocabulary,
+        // not a claim to understand arbitrary prose or invent missing amounts.
+        let namedPastes = ["achari paste", "tomato paste", "curry paste", "chilli paste", "ginger paste", "garlic paste"]
+        func containsPhrase(_ text: String, _ phrase: String) -> Bool {
+            let normalized = text.lowercased().split(whereSeparator: { !$0.isLetter }).joined(separator: " ")
+            return (" " + normalized + " ").contains(" " + phrase + " ")
+        }
+        for paste in namedPastes where steps.contains(where: { containsPhrase($0.instruction, paste) }) {
+            if !card.ingredients.contains(where: { containsPhrase(IngredientFieldNormalization.identity($0), paste) }) {
+                gaps.append("Step mentions \(paste), but it is not in the ingredients; reconcile it without inventing source facts.")
+            }
+        }
         for step in steps {
             let tokens = words(step.instruction)
             if !tokens.isDisjoint(with: ["sauté", "saute", "simmer"]),
@@ -66,8 +113,7 @@ enum GeneratedStepQuality {
                 gaps.append("Step \(step.order) mixes a stovetop method with an oven-style temperature; clarify the heat cue.")
             }
             // 'brown sugar' is an ingredient, not a command to brown it.
-            let actionText = step.instruction.lowercased().replacingOccurrences(of: "brown sugar", with: "sugar")
-            guard !words(actionText).isDisjoint(with: heatActions) else { continue }
+            guard !cookingActionWords(step.instruction).isDisjoint(with: heatActions) else { continue }
             // Scan the complete instruction: compound actions such as rub,
             // cover and bake must not evade the check after the fifth word.
             if (step.timeSeconds ?? 0) <= 0 && Durations.seconds(in: step.instruction) == nil {

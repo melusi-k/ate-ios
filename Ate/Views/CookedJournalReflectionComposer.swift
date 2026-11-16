@@ -86,37 +86,47 @@ struct CookedJournalReflectionHost: ViewModifier {
     }
 }
 
-/// Explicit recovery entry point, including after relaunch or a suppressed/dismissed optional offer.
-struct PendingCookedReflectionSection: View {
-    @Environment(AppStore.self) private var store
-    @State private var pending: [CookCompletionEvent] = []
-    @State private var readFailed = false
+/// Loading belongs to the containing List's lifecycle, never to a hidden List row.
+@MainActor
+struct PendingCookedReflectionState {
+    var pending: [CookCompletionEvent] = []
+    var readFailed = false
 
-    private var offered: [CookCompletionEvent] { store.availableCookedReflections(queued: pending) }
-
-    var body: some View {
-        if !pending.isEmpty || readFailed || !offered.isEmpty {
-            Section("Notes about cooking") {
-                if readFailed {
-                    Text("Ate could not read its saved cooks. This is not an empty history.")
-                    Button("Try again", action: reload)
-                }
-                ForEach(offered) { event in
-                    Button("Write about \(event.recipeTitle)") { store.requestCookedReflection(event) }
-                        .accessibilityIdentifier("cookJournal.pending.\(event.id)")
-                }
-            }
-        }
-        // An always-present loader is needed even when there are initially no visible rows.
-        Color.clear.frame(height: 0).listRowInsets(EdgeInsets())
-            .listRowSeparator(.hidden).listRowBackground(Color.clear)
-            .environment(\.defaultMinListRowHeight, 0)
-            .onAppear(perform: reload)
-            .onChange(of: store.journalRevision) { _, _ in reload() }
-    }
-
-    private func reload() {
+    mutating func reload(store: AppStore) {
         do { pending = try store.cookJournalOutbox.load(); readFailed = false }
         catch { pending = []; readFailed = true }
+    }
+}
+
+/// Explicit recovery entry point, including after relaunch or a dismissed optional offer.
+struct PendingCookedReflectionSection: View {
+    @Environment(AppStore.self) private var store
+    let state: PendingCookedReflectionState
+    let retry: () -> Void
+
+    private var offered: [CookCompletionEvent] { store.availableCookedReflections(queued: state.pending) }
+
+    var body: some View {
+        if !state.pending.isEmpty || state.readFailed || !offered.isEmpty {
+            Section {
+                // Put the title inside the card, not in a native section header. All home
+                // cards then share the same outer gap instead of adding header clearance.
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Notes about cooking").font(AteFont.body(15, .semibold))
+                    if state.readFailed {
+                        Text("Ate could not read its saved cooks. This is not an empty history.")
+                        Button("Try again", action: retry)
+                    }
+                    ForEach(offered) { event in
+                        Button("Write about \(event.recipeTitle)") { store.requestCookedReflection(event) }
+                            .accessibilityIdentifier("cookJournal.pending.\(event.id)")
+                    }
+                }
+                .buttonStyle(.borderless)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("journal.cookingNotesCard")
+            }
+        }
     }
 }

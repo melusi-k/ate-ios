@@ -61,6 +61,9 @@ final class AteUITests: XCTestCase {
     func launch(_ extra: [String] = []) -> XCUIApplication {
         app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"] + extra
+#if DEBUG
+        if name.contains("test06b_CookModeFinalStepAndFinish") { app.launchArguments += ["-qaAccountAssertionDiagnostic"] }
+#endif
         app.launch()
         return app
     }
@@ -205,9 +208,21 @@ final class AteUITests: XCTestCase {
         shot("library-after-delete")
     }
 
+    /// Saved data only. Enter the real Library sheet and Cook UI; never seed
+    /// a session, current step, timer or completed outcome.
+    private func openSavedCookRecipe() {
+        launch(["-qaSavedRecipeForCookMode"])
+        let card = app.buttons["listCard"].firstMatch
+        wait(card); card.tap()
+        let expand = app.buttons["expandRecipeDetails"]
+        wait(expand, 5); expand.tap()
+        let full = app.buttons["recipeSheet.expandFully"]
+        wait(full, 3); full.tap()
+        wait(app.buttons["Cook mode"], 10)
+    }
+
     func test06_CookMode() {
-        launch()
-        addPromptRecipe()
+        openSavedCookRecipe()
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))
         XCTAssertFalse(app.buttons["Back"].isEnabled)
@@ -227,6 +242,14 @@ final class AteUITests: XCTestCase {
         app.buttons["Pause timer"].tap()
         app.buttons["Reset timer"].tap()
         wait(text("10:00"))
+    }
+
+    func test06b_CookModeFinalStepAndFinish() {
+        openSavedCookRecipe()
+        app.buttons["Cook mode"].tap()
+        wait(text("Step 1 of 4"))
+        app.buttons["Next step"].tap(); app.buttons["Next step"].tap()
+        wait(text("Step 3 of 4"))
         app.buttons["Next step"].tap()
         wait(text("Step 4 of 4"))
         XCTAssertFalse(app.buttons["Next step"].exists, "The final step should offer explicit completion, not a disabled Next step.")
@@ -235,6 +258,26 @@ final class AteUITests: XCTestCase {
         XCTAssertEqual(finish.label, "Finish cooking")
         shot("cook-last-step")
         finish.tap()
+        wait(app.staticTexts["cookCompletion.recorded"], 5)
+        let completionDone = app.buttons["cookReflection.notNow"]
+        wait(completionDone, 5)
+        XCTAssertEqual(app.buttons.matching(identifier: "cookReflection.notNow").count, 1)
+#if DEBUG
+        if app.launchArguments.contains("-qaAccountAssertionDiagnostic") {
+            shot("final-done-before-tap")
+        }
+        defer {
+            if app.launchArguments.contains("-qaAccountAssertionDiagnostic") {
+                shot("final-done-end")
+                let a = XCTAttachment(string: app.buttons["Cook mode"].debugDescription)
+                a.name = "final-done-cook-arrival-query"; a.lifetime = .keepAlways; add(a)
+            }
+        }
+#endif
+        completionDone.tap()
+#if DEBUG
+        if app.launchArguments.contains("-qaAccountAssertionDiagnostic") { shot("final-done-after-tap") }
+#endif
         wait(app.buttons["Cook mode"], 5)
     }
 

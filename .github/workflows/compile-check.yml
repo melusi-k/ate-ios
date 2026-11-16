@@ -165,6 +165,9 @@ jobs:
           set -o pipefail
           # Clean process so launch arguments are real (same rationale as other UI shards).
           xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          mkdir -p nutrition-query-window
+          date -u '+%Y-%m-%d %H:%M:%S' > nutrition-query-window/start-utc.txt
+          trap 'date -u "+%Y-%m-%d %H:%M:%S" > nutrition-query-window/end-utc.txt' EXIT
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
@@ -202,6 +205,27 @@ jobs:
           done
           grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
 
+      - name: Retain bounded nutrition query diagnostic window
+        if: always()
+        run: |
+          mkdir -p nutrition-query-window
+          if [ -s nutrition-query-window/start-utc.txt ]; then
+            start_utc=$(cat nutrition-query-window/start-utc.txt)
+            if [ ! -s nutrition-query-window/end-utc.txt ]; then
+              date -u '+%Y-%m-%d %H:%M:%S' > nutrition-query-window/end-utc.txt
+            fi
+            end_utc=$(cat nutrition-query-window/end-utc.txt)
+            predicate='process == "Ate" OR process == "AteUITests-Runner" OR subsystem == "com.melusik.ate"'
+            /usr/bin/log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > nutrition-query-window/host-unified.log 2>&1 || \
+              echo 'Host collection failed; see retained output.' >> nutrition-query-window/errors.txt
+            xcrun simctl spawn "$SIM_ID" log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug \
+              --predicate "$predicate" > nutrition-query-window/simulator-unified.log 2>&1 || \
+              echo 'Simulator collection failed; see retained output.' >> nutrition-query-window/errors.txt
+          else
+            echo 'Start marker missing; no covered window claimed.' > nutrition-query-window/errors.txt
+          fi
+
       - name: Upload nutrition UI diagnostics (early)
         if: always()
         uses: actions/upload-artifact@v7
@@ -213,6 +237,8 @@ jobs:
           if-no-files-found: warn
           path: |
             nutrition-ui-tests.log
+            nutrition-query-window
+            ${{ runner.temp }}/ate-test-results/roadmap-reader-attachments
             ${{ runner.temp }}/ate-test-results/nutrition-ui-tests.xcresult
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
 
@@ -235,10 +261,13 @@ jobs:
             production-channel-production.log
             settings-sync.log
             tracker-ui.log
+            tracker-query-sample
             cook-mode-history.log
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
+            nutrition-query-window
+            ${{ runner.temp }}/ate-test-results/roadmap-reader-attachments
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log
@@ -246,6 +275,8 @@ jobs:
             ${{ runner.temp }}/ate-test-results/shopping-sync-attachments
             ${{ runner.temp }}/ate-test-results/explore-attachments
             ${{ runner.temp }}/ate-test-results/cook-finish-accessory-attachments
+            ${{ runner.temp }}/ate-test-results/cook-mode-history-ui-tests-attachments
+            ${{ runner.temp }}/ate-test-results/cooking-tracker-ui-tests-attachments
 
   regression-suites:
     name: regression suite (${{ matrix.suite }})
@@ -263,7 +294,7 @@ jobs:
       matrix:
         include:
           - suite: presentation-creation
-            required_logs: insights-evidence-navigation.log share-publish-outage-tests.log interrupted-generation-retry-lifecycle.log transient-generation-retry.log expandable-recipe-sheet-tests.log
+            required_logs: roadmap-reader.log insights-evidence-navigation.log share-publish-outage-tests.log interrupted-generation-retry-lifecycle.log transient-generation-retry.log expandable-recipe-sheet-tests.log
           - suite: account-cooking
             required_logs: settings-sync.log production-channel-production.log settings-about-145.log account-switch-sync-failure-library.log tracker-ui.log navigation-header-tests.log cook-mode-history.log cook-ingredients-tests.log
     env:
@@ -347,6 +378,23 @@ jobs:
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > insights-evidence-navigation.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" insights-evidence-navigation.log || true; tail -120 insights-evidence-navigation.log; exit 1; }
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" insights-evidence-navigation.log | tail -40
+
+      - name: Bundled roadmap reader acceptance (#74)
+        if: ${{ matrix.suite == 'presentation-creation' && (!cancelled() && steps.build.outcome == 'success') }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/InsightsPresentationUITests/testSettingsRoadmapEmptyCatalogAndUnavailableVotingAtNormalText \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/roadmap-reader.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > roadmap-reader.log 2>&1 || { tail -120 roadmap-reader.log; exit 1; }
+          python3 scripts/verify-roadmap-reader-results.py roadmap-reader.log
+      - name: Retain roadmap reader screenshots
+        if: ${{ always() && matrix.suite == 'presentation-creation' && steps.build.outcome == 'success' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/ate-test-results/roadmap-reader-attachments"
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/roadmap-reader.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/roadmap-reader-attachments" || true
 
       - name: Retain UI-test day-sheet presentation trace
         if: ${{ matrix.suite == 'presentation-creation' && (always() && steps.insights_acceptance.outcome != 'skipped') }}
@@ -566,9 +614,17 @@ jobs:
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
         run: |
           STEP_START=$(date +%s)
+          # Advisory single stack capture only if the original month AX Find stays blocked.
+          rm -f tracker-ui.log tracker-query-sample.stop
+          python3 scripts/sample-tracker-query.py --log tracker-ui.log --output tracker-query-sample --simulator "$SIM_ID" --stop tracker-query-sample.stop &
+          tracker_sampler=$!
+          trap 'touch tracker-query-sample.stop; wait "$tracker_sampler" 2>/dev/null || true' EXIT
           set +e
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cooking-tracker-ui-tests.xcresult" -only-testing:AteUITests/CookingTrackerEntryUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1
           status=$?
+          touch tracker-query-sample.stop
+          wait "$tracker_sampler" 2>/dev/null || true
+          trap - EXIT
           set -e
           STEP_END=$(date +%s)
           echo "::notice::CI_TIMING step=cooking-tracker-ui-tests duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
@@ -600,7 +656,7 @@ jobs:
         run: |
           STEP_START=$(date +%s)
           set +e
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-mode-history-ui-tests.xcresult" -only-testing:AteUITests/AteUITests/test06_CookMode -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > cook-mode-history.log 2>&1
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-mode-history-ui-tests.xcresult" -only-testing:AteUITests/AteUITests/test06_CookMode -only-testing:AteUITests/AteUITests/test06b_CookModeFinalStepAndFinish -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > cook-mode-history.log 2>&1
           status=$?
           set -e
           STEP_END=$(date +%s)
@@ -616,6 +672,39 @@ jobs:
           fi
 
           grep -E "Test Case .* (passed|failed)|Executed|Test Suite .* (passed|failed)" cook-mode-history.log | tail -n 30
+
+          for test in test06_CookMode test06b_CookModeFinalStepAndFinish; do
+            grep -qF "AteUITests $test]' passed" cook-mode-history.log || { echo "::error::Missing bounded Cook Mode pass: $test"; exit 1; }
+          done
+
+      - name: Retain Account month and completion assertion captures
+        if: ${{ matrix.suite == 'account-cooking' && always() }}
+        run: |
+          python3 - <<'PYEXPORT'
+          import os, pathlib, subprocess
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'ate-test-results'
+          for name in ['cook-mode-history-ui-tests', 'cooking-tracker-ui-tests']:
+              source = root / (name + '.xcresult')
+              output = root / (name + '-attachments')
+              output.mkdir(parents=True, exist_ok=True)
+              note = output / 'export-status.txt'
+              if not source.is_dir():
+                  note.write_text('Source xcresult missing; captures unavailable.\n')
+                  continue
+              try:
+                  result = subprocess.run(['xcrun', 'xcresulttool', 'export', 'attachments',
+                      '--path', str(source), '--output-path', str(output)],
+                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=60)
+                  note.write_text('export_exit=' + str(result.returncode) + '\n' + result.stdout)
+                  if result.returncode:
+                      print('::warning::Attachment export failed for ' + name + '; see export-status.txt')
+              except subprocess.TimeoutExpired:
+                  note.write_text('Attachment export exceeded 60 seconds and was stopped; partial captures may remain.\n')
+                  print('::warning::Attachment export timed out for ' + name)
+              except OSError as error:
+                  note.write_text('Attachment export could not start: ' + str(error) + '\n')
+                  print('::warning::Attachment export unavailable for ' + name)
+          PYEXPORT
 
       - name: Cook Finish above retained resume accessory
         if: ${{ matrix.suite == 'account-cooking' && (always() && steps.build.outcome == 'success') }}
@@ -771,10 +860,13 @@ jobs:
             production-channel-production.log
             settings-sync.log
             tracker-ui.log
+            tracker-query-sample
             cook-mode-history.log
             navigation-header-tests.log
             share-publish-outage-tests.log
             nutrition-ui-tests.log
+            nutrition-query-window
+            ${{ runner.temp }}/ate-test-results/roadmap-reader-attachments
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
             ${{ runner.temp }}/ate-test-results/*.xcresult
             cook-ingredients-tests.log
@@ -782,6 +874,8 @@ jobs:
             ${{ runner.temp }}/ate-test-results/shopping-sync-attachments
             ${{ runner.temp }}/ate-test-results/explore-attachments
             ${{ runner.temp }}/ate-test-results/cook-finish-accessory-attachments
+            ${{ runner.temp }}/ate-test-results/cook-mode-history-ui-tests-attachments
+            ${{ runner.temp }}/ate-test-results/cooking-tracker-ui-tests-attachments
 
   regressions:
     # Preserve the original required-check context. Matrix skips, cancellation or

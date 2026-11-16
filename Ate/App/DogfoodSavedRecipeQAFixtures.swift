@@ -1,8 +1,8 @@
 #if DEBUG
 import Foundation
 
-/// Precondition data for menu/reorder journeys. Only the explicit action-only
-/// flag preselects My order; neither card order nor action results are seeded.
+/// Precondition data for menu/reorder and Cook Mode. Only the explicit action-only
+/// flag selects My order; card positions and action results are never seeded.
 enum DogfoodSavedRecipeQAFixtures {
     @MainActor static func prepare(_ store: AppStore) {
         guard AppConfig.isUITesting else { return }
@@ -10,12 +10,17 @@ enum DogfoodSavedRecipeQAFixtures {
         let menus = args.contains("-qaSavedRecipesForGroupSort")
         let reorder = args.contains("-qaSavedRecipesForDogfoodReorder")
         let reorderAction = args.contains("-qaSavedRecipesForReorderAction")
-        guard menus || reorder || reorderAction else { return }
-        precondition([menus, reorder, reorderAction].filter { $0 }.count == 1, "Choose exactly one Dogfood saved-recipe fixture")
+        let cook = args.contains("-qaSavedRecipeForCookMode")
+        guard menus || reorder || reorderAction || cook else { return }
+        precondition([menus, reorder, reorderAction, cook].filter { $0 }.count == 1, "Choose exactly one Dogfood saved-recipe fixture")
         store.filter.clear()
         store.layout = LibraryLayout()
         if reorderAction { store.layout.sort = .myOrder }
         let now = Date().timeIntervalSince1970 * 1000
+        if cook {
+            store.recipes = [card(id: "qa-cook-mode-saved", title: "Miso salmon for two", createdAt: now)]
+            return
+        }
         let first = card(id: "qa-dogfood-first", title: menus ? "Zesty tacos" : "First dish", createdAt: now - 1000)
         let second = card(id: "qa-dogfood-second", title: menus ? "Apple crumble" : "Second dish", createdAt: now)
         store.recipes = [second, first]

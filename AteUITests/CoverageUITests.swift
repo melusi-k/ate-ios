@@ -64,6 +64,31 @@ final class CoverageUITests: XCTestCase {
             n += 1
         }
     }
+    /// Opt-in diagnostic reads can perturb AX timing; never retry or navigate here.
+    func captureJournalTabMetrics(_ phase: String) {
+#if DEBUG
+        guard app.launchArguments.contains("-UITesting"),
+              app.launchArguments.contains("-qaJournalTabMetrics") else { return }
+        let start = Date()
+        var rows = ["phase=\(phase) timingPerturbingAXReads=true"]
+        for name in ["Library", "Shopping", "Journal", "Settings", "Search"] {
+            let button = app.tabBars.buttons[name]
+            let exists = button.exists
+            if exists {
+                let frame = button.frame
+                let selected = button.isSelected
+                let hittable = button.isHittable
+                rows.append("tab=\(name) exists=true selected=\(selected) hittable=\(hittable) frame=\(frame) elapsed=\(Date().timeIntervalSince(start))")
+            } else {
+                rows.append("tab=\(name) exists=false elapsed=\(Date().timeIntervalSince(start))")
+            }
+        }
+        let attachment = XCTAttachment(string: rows.joined(separator: "\n"))
+        attachment.name = "journal-tab-metrics-\(phase)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+#endif
+    }
     func tab(_ name: String) {
         var n = 0
         while !app.tabBars.firstMatch.exists && n < 4 {
@@ -74,6 +99,7 @@ final class CoverageUITests: XCTestCase {
         let b = app.tabBars.buttons[name]
         if name == "Journal" {
             XCTAssertTrue(b.waitForExistence(timeout: 5), "Journal must be selected through its tab, not a pushed-screen back button")
+            captureJournalTabMetrics("before-hittable-waiter")
             let hittable = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == true AND hittable == true"), object: b)
             XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed,
@@ -307,8 +333,11 @@ final class CoverageUITests: XCTestCase {
         // isHittable=false for these visible, selectable SwiftUI rows. Prove actual
         // viewport clearance instead of spending the existing swipe budget seeking
         // a tappable parent. Keep the same directional bounds and content assertions.
+        #if DEBUG
+        var settingsAboutGeometryReceipt = SettingsAboutGeometryReceipt()
+        #endif
         func revealReadOnlySettingsRow(_ heading: XCUIElement) {
-            func fullyVisible() -> Bool {
+            func evaluatedFullyVisible() -> Bool {
                 guard heading.exists else { return false }
                 let row = heading.frame
                 let window = app.windows.firstMatch
@@ -335,6 +364,13 @@ final class CoverageUITests: XCTestCase {
                 return !row.isEmpty && !row.isInfinite && !row.isNull
                     && row.minX >= screen.minX && row.maxX <= screen.maxX
                     && row.minY >= top && row.maxY <= bottom
+            }
+            func fullyVisible() -> Bool {
+                let visible = evaluatedFullyVisible()
+                #if DEBUG
+                settingsAboutGeometryReceipt.observe(visible: visible, heading: heading, app: app)
+                #endif
+                return visible
             }
             var swipes = 0
             while !fullyVisible() && swipes < 25 { timerSettings.swipeUp(); swipes += 1 }
@@ -1003,7 +1039,7 @@ extension CoverageUITests {
 extension CoverageUITests {
     /// Issue #68: root navigation chrome remains visible and large titles do not cover first content.
     func testNavigationHeadersRemainStableOnShoppingAndSettings() {
-        launch()
+        launch(["-qaJournalTabMetrics"])
         tab("Shopping")
         let shoppingTitle = app.navigationBars["Shopping list"]
         wait(shoppingTitle)
@@ -1051,6 +1087,7 @@ extension CoverageUITests {
                                                      dy: clearBottom - formFrame.minY))
         dragStart.press(forDuration: 0.1, thenDragTo: dragEnd, withVelocity: .slow, thenHoldForDuration: 0.1)
         shot("82-settings-tab-chrome-revealed")
+        captureJournalTabMetrics("after-selected-settings-reveal")
         let hierarchy = XCTAttachment(string: app.debugDescription)
         hierarchy.name = "82-settings-after-top-boundary-scroll-hierarchy"
         hierarchy.lifetime = .keepAlways

@@ -34,6 +34,25 @@ enum GeneratedRecipeConsistency {
         return stepMinutes + prepMinutes
     }
 
+    /// Labels only: never changes the duration or guesses a prep allowance.
+    static func timeLabels(_ card: RecipeCard) -> [String] {
+        var labels: [String] = []
+        if let total = card.timeMinutes, total > 0 { labels.append("Total \(total) min") }
+        guard RecipeQuality.isGenerated(card), let prep = prepMinutes(in: card.aiNote ?? ""),
+              let total = card.timeMinutes, total >= prep else { return labels }
+        var seconds = 0
+        for duration in RecipeLogic.nonBlank(card.steps).compactMap(\.timeSeconds) where duration > 0 {
+            guard duration <= Durations.maxTotalMinutes * 60 - seconds else { return labels }
+            seconds += duration
+        }
+        guard seconds > 0 else { return labels }
+        let cooking = (seconds + 59) / 60
+        guard totalMinutes(stepMinutes: cooking, prepMinutes: prep) == total else { return labels }
+        labels.append("Prep \(prep) min")
+        labels.append("Cook \(cooking) min")
+        return labels
+    }
+
     static func issues(_ card: RecipeCard) -> [String] {
         guard RecipeQuality.isGenerated(card) else { return [] }
         var gaps: [String] = []

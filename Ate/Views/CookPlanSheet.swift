@@ -122,18 +122,17 @@ struct CookPlanSheet: View {
     }
 
     private func cancel() {
-        busy = true
-        Task { @MainActor in
-            do {
-                try store.cookPlanStore.cancel(recipeID: recipeID)
-                try await store.cookPlanNotifications.cancel(recipeID: recipeID)
-                busy = false
-                store.show("Cooking plan cancelled")
-                dismiss()
-            } catch {
-                busy = false
-                problem = "Cancellation could not be verified. Try again to remove the reminder."
+        guard !busy else { return }
+        do {
+            try store.cookPlanNotifications.cancelLocally(recipeID: recipeID, store: store.cookPlanStore) {
+                store.show("Cooking plan removed, but reminder removal could not be verified. Check iPhone notifications before the planned time.", error: true)
             }
+            existing = nil
+            // This confirms the verified local change, not completion of OS cleanup.
+            store.show("Cooking plan removed")
+            dismiss()
+        } catch {
+            problem = "Cooking plan removal could not be verified. Reopen the plan and try again."
         }
     }
 }

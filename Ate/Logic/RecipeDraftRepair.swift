@@ -51,7 +51,12 @@ enum RecipeDraftRepair {
         // Do not trade a missing bread/quantity gap for a different failure. Every
         // remaining gap must already have existed and at least one must be fixed.
         guard newGaps.isStrictSubset(of: oldGaps) else {
-            throw BackendError(message: "Ate couldn't repair these gaps without introducing another problem. Your original draft is unchanged; edit it or try repair again.")
+            let added = newGaps.subtracting(oldGaps).sorted()
+            if !added.isEmpty {
+                throw BackendError(message: "The repair added a new problem: " + added.joined(separator: " ")
+                    + " Your original draft is unchanged.")
+            }
+            throw BackendError(message: "The repair did not fix any of the listed gaps. Your original draft is unchanged; edit it or try repair again.")
         }
         return repaired
     }

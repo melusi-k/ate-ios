@@ -527,7 +527,16 @@ struct MealBackupDocumentPicker: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
         context.coordinator.trace("create")
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json], asCopy: false)
+        let picker: UIDocumentPickerViewController
+#if DEBUG
+        if MealBackupPickerDiagnostic.enabled {
+            picker = DiagnosticMealBackupDocumentPicker(forOpeningContentTypes: [.json], asCopy: false)
+        } else {
+            picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json], asCopy: false)
+        }
+#else
+        picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json], asCopy: false)
+#endif
         picker.allowsMultipleSelection = false
         picker.delegate = context.coordinator
         return picker
@@ -567,8 +576,51 @@ struct MealBackupDocumentPicker: UIViewControllerRepresentable {
         }
 
         func trace(_ phase: String) {
+#if DEBUG
+            MealBackupPickerDiagnostic.record(phase: phase, controller: nil)
+#endif
             // Uptime is monotonic. Markers observe lifecycle only and never gate presentation.
             Self.logger.info("phase=\(phase, privacy: .public) instance=\(self.diagnosticID, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public)")
         }
     }
 }
+
+#if DEBUG
+/// Opt-in observation only. The production picker type and presentation remain unchanged.
+@MainActor private final class DiagnosticMealBackupDocumentPicker: UIDocumentPickerViewController {
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        MealBackupPickerDiagnostic.record(phase: "did-appear", controller: self)
+    }
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        MealBackupPickerDiagnostic.record(phase: "did-disappear", controller: self)
+    }
+}
+
+@MainActor private enum MealBackupPickerDiagnostic {
+    static var enabled: Bool {
+        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaFilesPickerDiagnostic")
+    }
+    private static var rows: [String] = []
+    static func record(phase: String, controller: UIViewController?) {
+        guard enabled, rows.count < 20 else { return }
+        func className(_ value: AnyObject?) -> String {
+            value.map { NSStringFromClass(type(of: $0)) } ?? "nil"
+        }
+        // No item titles, accessibility labels, file names, paths or URLs are recorded.
+        let nav = controller?.navigationController
+        let item = controller?.navigationItem
+        let frame = controller?.viewIfLoaded?.frame ?? .zero
+        let row = "pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime) controller=\(className(controller)) parent=\(className(controller?.parent)) presenting=\(className(controller?.presentingViewController)) navigation=\(className(nav)) style=\(controller?.modalPresentationStyle.rawValue ?? -99) navHidden=\(nav.map { $0.isNavigationBarHidden ? 1 : 0 } ?? -1) leftCount=\(item?.leftBarButtonItems?.count ?? -1) rightCount=\(item?.rightBarButtonItems?.count ?? -1) frame=\(frame.origin.x),\(frame.origin.y),\(frame.width),\(frame.height)"
+        rows.append(row)
+        guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        do {
+            try (rows.joined(separator: "\n") + "\n").write(to: cache.appendingPathComponent("files-picker-diagnostic.txt"), atomically: true, encoding: .utf8)
+        } catch {
+            // Numeric-only failure marker: never emit an NSError file path.
+            print("FILES-PICKER-DIAGNOSTIC writeFailed=1")
+        }
+    }
+}
+#endif

@@ -48,12 +48,14 @@ targets:
     platform: iOS
     sources:
       - path: Ate
+        excludes:
+          - Resources/ProductUpdates
       - path: Shared
       - path: SharedWidgets
-    resources:
-      - path: Ate/Resources/BuildNotes.md
+      # Keep the directory: the loader deliberately requires ProductUpdates/catalog.json.
       - path: Ate/Resources/ProductUpdates
         type: folder
+        buildPhase: resources
     dependencies:
       - target: AteWidgets
       - target: AteShare

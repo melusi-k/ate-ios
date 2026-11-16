@@ -9,7 +9,7 @@ class DogfoodSavedSetupTests(unittest.TestCase):
         self.assertTrue(source.startswith('#if DEBUG\n'))
         self.assertTrue(source.rstrip().endswith('#endif'))
         self.assertIn('guard AppConfig.isUITesting else { return }', source)
-        self.assertIn('guard menus || reorder || reorderAction else { return }', source)
+        self.assertIn('guard menus || reorder || reorderAction || cook else { return }', source)
         self.assertIn('store.layout = LibraryLayout()', source)
         self.assertIn('if reorderAction { store.layout.sort = .myOrder }', source)
         self.assertIn('contains("-qaSavedRecipesForReorderAction")', source)

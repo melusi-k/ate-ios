@@ -144,6 +144,9 @@ jobs:
               mark("simulator-readiness-complete", sim_id=sim, runtime=runtime, authority="bootstatus-return-zero")
               mark("unchanged-four-tests-next")
           PYREADINESS
+          mkdir -p journal-return-window
+          date -u '+%Y-%m-%d %H:%M:%S' > journal-return-window/start-utc.txt
+          trap 'date -u "+%Y-%m-%d %H:%M:%S" > journal-return-window/end-utc.txt' EXIT
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/JournalOpenStateUITests \
             -only-testing:AteTests/JournalReflectionEditTests \
@@ -165,6 +168,32 @@ jobs:
             grep -qF "$evidence" journal-open-state-ui.log || { echo "::error::Missing reflection edit pass: $evidence"; exit 1; }
           done
           grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" journal-open-state-ui.log | tail -40
+      - name: Retain immediate Journal return diagnostic window
+        if: always()
+        run: |
+          mkdir -p journal-return-window
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > journal-return-window/collection-start-utc.txt
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> journal-return-window/container-errors.txt); then
+            for evidence in presentation-return-diagnostic.txt presentation-return-scheduler.txt; do
+              if [ -f "$data_container/Library/Caches/$evidence" ]; then
+                cp "$data_container/Library/Caches/$evidence" "journal-return-window/$evidence"
+              else
+                echo "$evidence missing; no liveness conclusion." >> journal-return-window/errors.txt
+              fi
+            done
+          else
+            echo 'Container inaccessible; no file liveness conclusion.' >> journal-return-window/errors.txt
+          fi
+          if [ -s journal-return-window/start-utc.txt ] && [ -s journal-return-window/end-utc.txt ]; then
+            start_utc=$(cat journal-return-window/start-utc.txt)
+            end_utc=$(cat journal-return-window/end-utc.txt)
+            predicate='process == "Ate" OR process == "AteUITests-Runner" OR subsystem == "com.melusik.ate" OR process == "testmanagerd"'
+            /usr/bin/log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug --predicate "$predicate" > journal-return-window/host-unified.log 2>&1 || echo 'Host collection failed.' >> journal-return-window/errors.txt
+            xcrun simctl spawn "$SIM_ID" log show --start "$start_utc" --end "$end_utc" --timezone UTC --style compact --info --debug --predicate "$predicate" > journal-return-window/simulator-unified.log 2>&1 || echo 'Simulator collection failed.' >> journal-return-window/errors.txt
+          else
+            echo 'UTC markers missing; no covered window claimed.' >> journal-return-window/errors.txt
+          fi
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > journal-return-window/collection-end-utc.txt
       - name: Qualify dormant reset composition on its exact candidate branch
         if: github.head_ref == 'prep/account-reset-composition'
         run: |
@@ -226,6 +255,45 @@ jobs:
         run: |
           mkdir -p cooking-journal-screenshots/raw
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/cooking-journal-host.xcresult" --output-path cooking-journal-screenshots/raw
+      - name: Bounded 445 device fixes normal-text acceptance
+        if: ${{ always() && steps.build.outcome == 'success' && github.head_ref == 'fix/445-journal-release-notes' }}
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/ate-test-results"
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/InsightsPresentationUITests/testSettingsReleaseNotesAndReplayableTourAtNormalText \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testJournalRootReflectionPlacementDraftAndSaveWithoutHealth \
+            -only-testing:AteUITests/CookReflectionUITests/testKeepLaterReopensSameDraftAcrossRotation \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/device-fixes-445.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > device-fixes-445.log 2>&1 || \
+            { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" device-fixes-445.log || true; tail -120 device-fixes-445.log; exit 1; }
+          # A successful process with no selected tests is not acceptance.
+          python3 - <<'PYVERIFY'
+          import pathlib
+          import re
+          log = pathlib.Path('device-fixes-445.log').read_text()
+          required = [
+              ('InsightsPresentationUITests', 'testSettingsReleaseNotesAndReplayableTourAtNormalText'),
+              ('InsightsAcceptanceUITests', 'testJournalRootReflectionPlacementDraftAndSaveWithoutHealth'),
+              ('CookReflectionUITests', 'testKeepLaterReopensSameDraftAcrossRotation'),
+          ]
+          for suite, method in required:
+              pattern = r"Test Case '-\[AteUITests\." + suite + ' ' + method + r"\]' passed"
+              if not re.search(pattern, log):
+                  raise SystemExit('Missing executed PASS: ' + suite + '/' + method)
+          print('All three bounded 445 device-fix journeys executed and passed.')
+          PYVERIFY
+      - name: Export 445 device fixes raw attachments
+        if: ${{ always() && steps.build.outcome == 'success' && github.head_ref == 'fix/445-journal-release-notes' }}
+        run: |
+          mkdir -p device-fixes-445-attachments/raw
+          if [ -d "$RUNNER_TEMP/ate-test-results/device-fixes-445.xcresult" ]; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/device-fixes-445.xcresult" --output-path device-fixes-445-attachments/raw
+          else
+            echo 'No 445 result bundle was produced; retain the individual log for diagnosis.'
+          fi
       # Owner-approved acceptance boundary: genuine Files is a system integration diagnostic,
       # not a CI qualification pass. Its unchanged cancellation test remains required on device.
       - name: Real Files cancellation - NON-QUALIFYING system diagnostic
@@ -239,6 +307,18 @@ jobs:
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
             CODE_SIGNING_ALLOWED=NO > files-cancel-system-diagnostic.log 2>&1
+      - name: Retain optional Files picker lifecycle diagnostic before other collectors
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          mkdir -p files-cancel-system-diagnostic-attachments
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > files-cancel-system-diagnostic-attachments/picker-copy-utc.txt
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> files-cancel-system-diagnostic-attachments/picker-container-errors.txt); then
+            if [ -f "$data_container/Library/Caches/files-picker-diagnostic.txt" ]; then
+              cp "$data_container/Library/Caches/files-picker-diagnostic.txt" files-cancel-system-diagnostic-attachments/files-picker-diagnostic.txt
+            else
+              echo 'Picker diagnostic missing; lifecycle unverified.' > files-cancel-system-diagnostic-attachments/picker-missing.txt
+            fi
+          fi
       - name: Record Files cancellation acceptance boundary
         if: always()
         env:
@@ -295,6 +375,7 @@ jobs:
           name: journal-open-state-ui-${{ github.run_number }}
           path: |
             journal-open-state-ui.log
+            journal-return-window
             files-cancel-system-diagnostic.log
             files-cancel-system-diagnostic-attachments
             ${{ runner.temp }}/ate-test-results/files-cancel-system-diagnostic.xcresult
@@ -304,6 +385,9 @@ jobs:
             insights-presentation.log
             insights-screenshots
             ${{ runner.temp }}/ate-test-results/insights-presentation.xcresult
+            device-fixes-445.log
+            device-fixes-445-attachments
+            ${{ runner.temp }}/ate-test-results/device-fixes-445.xcresult
             cooking-journal-host.log
             cooking-journal-screenshots
             ${{ runner.temp }}/ate-test-results/cooking-journal-host.xcresult

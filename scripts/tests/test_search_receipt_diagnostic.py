@@ -1,3 +1,4 @@
+from approved_merge_534 import normalize
 from pathlib import Path
 import hashlib,unittest
 ROOT=Path(__file__).resolve().parents[2]
@@ -8,12 +9,12 @@ BINDING='    private var queryBinding: Binding<String> {\n        let original =
 WORKFLOW='            if [ -f "$data_container/Library/Caches/search-receipt-diagnostic.txt" ]; then\n              cp "$data_container/Library/Caches/search-receipt-diagnostic.txt" "$RUNNER_TEMP/explore-evidence/search-receipt-diagnostic.txt"\n            else\n              echo \'Receipt file missing; binding delivery unverified.\' > "$RUNNER_TEMP/explore-evidence/receipt-missing.txt"\n            fi\n'
 class SearchReceiptTests(unittest.TestCase):
     def test_exact_original_library_and_workflow_reconstruct(self):
-        source=(ROOT/'Ate/Views/LibraryView.swift').read_text()
+        source=normalize('main:Ate/Views/LibraryView.swift', (ROOT/'Ate/Views/LibraryView.swift').read_text())
         for new,old in [(IMPORTS,''),(BINDING,OLD),(HELPER,'')]:
             self.assertEqual(source.count(new),1)
             source=source.replace(new,old,1)
         self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), 'dded325b47238833a7fd993cafbc8f5f9c03ab2daa896af4466d240651bfd5d1')
-        workflow=(ROOT/'.github/workflows/compile-check.yml').read_text()
+        workflow=normalize('main:.github/workflows/compile-check.yml', (ROOT/'.github/workflows/compile-check.yml').read_text())
         self.assertEqual(workflow.count(WORKFLOW),1)
         self.assertEqual(hashlib.sha256(workflow.replace(WORKFLOW,'',1).encode()).hexdigest(), 'bd947a85e736a87bdc887475e0908050e4f8718f2314b34ce5cb07b03ea871c3')
     def test_native_input_contract_entire_file_unchanged(self):

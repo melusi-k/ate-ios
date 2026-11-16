@@ -7,6 +7,8 @@ struct ExpandableRecipeDetailSheet: View {
     @Binding var detent: PresentationDetent
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppStore.self) private var store
+    @State private var cookTarget: CookTarget?
 
     @State private var detailLoaded = false
 
@@ -69,7 +71,9 @@ struct ExpandableRecipeDetailSheet: View {
             ZStack(alignment: .top) {
                 if detailLoaded {
                     NavigationStack {
-                        RecipeDetailView(recipeID: recipe.id)
+                        RecipeDetailView(recipeID: recipe.id, onCook: {
+                            cookTarget = CookTarget(id: recipe.id)
+                        })
                     }
                     .opacity(isCompact ? 0 : 1)
                     .allowsHitTesting(!isCompact)
@@ -84,6 +88,20 @@ struct ExpandableRecipeDetailSheet: View {
         }
         .background(Theme.background)
         .foregroundStyle(Theme.foreground)
+        // Present above this sheet, not from the root beneath it. Dismissing Cook
+        // leaves the same recipe detail and detent alive rather than closing its host.
+        .fullScreenCover(item: $cookTarget, onDismiss: {
+            store.cookJournalModalDismissing = false
+            store.presentPendingCookedReflection()
+        }) { target in
+            NavigationStack {
+                JournalBoundCookMode(recipeID: target.id, onExit: {
+                    store.cookJournalModalDismissing = true
+                    cookTarget = nil
+                })
+            }
+            .environment(store)
+        }
         .presentationDetents(availableDetents, selection: $detent)
         .presentationDragIndicator(.visible)
         .presentationContentInteraction(.resizes)

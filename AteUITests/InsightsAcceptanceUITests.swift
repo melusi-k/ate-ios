@@ -370,7 +370,22 @@ final class InsightsAcceptanceUITests: XCTestCase {
         XCTAssertEqual(field.value as? String, seed, "Returning to Journal must retain the same draft")
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "journal-normal-root-reflection-retained"; shot.lifetime = .keepAlways; add(shot)
-        let save = app.buttons["insights.save"]; reveal(save); save.tap()
+        let save = app.buttons["insights.save"]; reveal(save)
+        let card = app.cells.containing(.any, identifier: "journal.reflection").firstMatch
+        let accessory = app.descendants(matching: .any)["bottomAccessory"].firstMatch
+        wait(card); wait(accessory)
+        // Reach the end of the scroll content. Hittable alone is insufficient:
+        // a partly covered cell may still expose a tappable point.
+        for _ in 0..<4 where card.frame.maxY + 12 > accessory.frame.minY {
+            app.swipeUp()
+        }
+        let clearanceShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        clearanceShot.name = "journal-normal-reflect-save-clearance"
+        clearanceShot.lifetime = .keepAlways; add(clearanceShot)
+        XCTAssertLessThanOrEqual(card.frame.maxY + 11, accessory.frame.minY,
+                                 "The whole Reflect card, including Save and footer, must scroll above the accessory")
+        XCTAssertTrue(save.isHittable)
+        save.tap()
         let saved = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", seed)).firstMatch
         reveal(saved); saved.tap()
         wait(app.staticTexts["journal.detail.text"])
@@ -433,9 +448,36 @@ final class InsightsAcceptanceUITests: XCTestCase {
         let connect = app.buttons["insights.connect"]; reveal(connect); connect.tap()
         wait(app.staticTexts["insights.state"])
         app.navigationBars["Insights & Cooking History"].buttons["Journal"].tap()
-        let badge = app.descendants(matching: .any)["journal.reflection.sampleBadge"].firstMatch
-        reveal(badge)
+        // Label propagates its identifier to both Image and StaticText on iOS.
+        // Measure the visible provenance words, not the decorative test-tube icon.
+        let badges = app.staticTexts.matching(identifier: "journal.reflection.sampleBadge")
+        let badge = badges.firstMatch
+        wait(badge, 15)
+        XCTAssertEqual(badges.count, 1, "Journal must expose one sample provenance text")
+        XCTAssertEqual(badge.label, "Sample data")
+        var swipes = 0
+        while !badge.isHittable && swipes < 6 {
+            // Back preserves Journal's scroll position. An above-header badge
+            // needs a downward swipe; upward-only reveal moves it farther away.
+            let search = app.searchFields.firstMatch
+            let navigation = app.navigationBars["Journal"]
+            let top = max(navigation.frame.maxY, search.exists ? search.frame.maxY : navigation.frame.maxY)
+            if badge.frame.midY < top {
+                app.swipeDown()
+            } else {
+                app.swipeUp()
+            }
+            swipes += 1
+        }
+        let provenance = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        provenance.name = "journal-sample-provenance-after-directional-reveal"
+        provenance.lifetime = .keepAlways; add(provenance)
         XCTAssertTrue(badge.isHittable, "Moved sample prompts must retain their sample provenance")
+        let headerBottom = max(app.navigationBars["Journal"].frame.maxY, app.searchFields.firstMatch.frame.maxY)
+        XCTAssertGreaterThanOrEqual(badge.frame.minY, headerBottom,
+                                    "Sample provenance must be below the resting navigation/search header")
+        XCTAssertLessThanOrEqual(badge.frame.maxY, app.tabBars.firstMatch.frame.minY,
+                                "Sample provenance must remain above the tab bar")
         let prompt = app.buttons["insights.prompt"].firstMatch
         wait(prompt)
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())

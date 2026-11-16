@@ -48,6 +48,33 @@ extension View {
     }
 }
 
+/// A single outer gap for Journal cards; reserve the actual floating accessory/tab band.
+/// contentMargins changes the scrollable content, not the list's rows or the chrome.
+enum JournalHomeMetrics {
+    static let sectionGap: CGFloat = 12
+    static let clearance: CGFloat = 12
+    static func bottomMargin(listBottomY: CGFloat?, chromeMinY: CGFloat?) -> CGFloat {
+        guard let listBottomY, let chromeMinY else { return 0 }
+        return max(0, listBottomY - chromeMinY) + clearance
+    }
+}
+
+struct JournalHomeLayout: ViewModifier {
+    @Environment(\.bottomChromeMinY) private var chromeMinY
+    @State private var listBottomY: CGFloat?
+    func body(content: Content) -> some View {
+        content
+            .scrollContentBackground(.hidden)
+            .background(Theme.background)
+            .foregroundStyle(Theme.foreground)
+            .tint(Theme.primary)
+            .listSectionSpacing(.custom(JournalHomeMetrics.sectionGap))
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { listBottomY = $0 }
+            .contentMargins(.bottom, JournalHomeMetrics.bottomMargin(listBottomY: listBottomY, chromeMinY: chromeMinY),
+                            for: .scrollContent)
+    }
+}
+
 /// More › Journal: every Ate journal entry, newest first, with search.
 struct JournalListView: View {
     @Environment(AppStore.self) private var store
@@ -59,6 +86,7 @@ struct JournalListView: View {
     var isTabRoot = false
     @State private var readState: JournalListScreenState = .loading
     @State private var query = ""
+    @State private var pendingCooking = PendingCookedReflectionState()
 
     private var state: JournalListScreenState { stateOverride ?? readState }
 
@@ -85,7 +113,8 @@ struct JournalListView: View {
         let openState = openStateOverride ?? store.journalStore.openState
         let content = JournalListContent.make(state: state, openState: openState, filteredCount: filtered.count)
         List {
-            PendingCookedReflectionSection()
+            Group {
+            PendingCookedReflectionSection(state: pendingCooking) { pendingCooking.reload(store: store) }
             Section {
                 NavigationLink { JournalTimelineView() } label: { Label("Timeline", systemImage: "calendar.day.timeline.left") }
                     .accessibilityIdentifier("journal.timelineLink")
@@ -131,7 +160,12 @@ struct JournalListView: View {
                         .accessibilityIdentifier("journal.entry")
                 }
             }
+            }
+            .listRowBackground(Theme.card)
         }
+        .modifier(JournalHomeLayout())
+        .onAppear { pendingCooking.reload(store: store) }
+        .onChange(of: store.journalRevision) { _, _ in pendingCooking.reload(store: store) }
         .scrollDismissesKeyboard(.interactively)
         .searchableWhenReadable(Self.controlsVisible(for: state), text: $query)
         .navigationTitle("Journal")

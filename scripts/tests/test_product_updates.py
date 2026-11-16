@@ -14,7 +14,13 @@ class ProductUpdatesTests(unittest.TestCase):
                 images = ROOT / 'Ate/Resources/Assets.xcassets' / (slide['imageAsset'] + '.imageset')
                 for image in json.loads((images / 'Contents.json').read_text())['images']:
                     self.assertTrue((images / image['filename']).is_file())
-        self.assertIn('path: Ate/Resources/ProductUpdates\n        type: folder', (ROOT / 'project.yml').read_text())
+        spec = (ROOT / 'project.yml').read_text().split('  Ate:', 1)[1].split('    dependencies:', 1)[0]
+        self.assertNotIn('    resources:', spec)
+        self.assertIn('excludes:\n          - Resources/ProductUpdates', spec)
+        self.assertIn('path: Ate/Resources/ProductUpdates\n        type: folder\n        buildPhase: resources', spec)
+        native = (ROOT / 'AteTests/ProductUpdatesTests.swift').read_text()
+        self.assertIn('Bundle.main.url(forResource: "catalog"', native)
+        self.assertIn('ProductUpdatesCatalog.load()', native)
     def test_local_only_routes_and_preserved_technical_build_notes(self):
         ui = (ROOT / 'Ate/Views/ProductUpdatesViews.swift').read_text()
         model = (ROOT / 'Ate/Logic/ProductUpdates.swift').read_text()

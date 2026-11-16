@@ -33,6 +33,8 @@ struct ShoppingListView: View {
                                 .accessibilityIdentifier("shopping.syncStatus")
                             Spacer()
                             Button("Sync now") { Task { await store.syncNow() } }
+                                .frame(minWidth: 44, minHeight: 44)
+                                .contentShape(Rectangle())
                                 .disabled(store.syncState == .syncing)
                                 .accessibilityIdentifier("shopping.syncNow")
                         }

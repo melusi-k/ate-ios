@@ -31,7 +31,7 @@ class DuoExplorationTests(unittest.TestCase):
         self.assertIn("-only-testing:AteUITests/DuoExplorationUITests", workflow)
         selector = (ROOT / "scripts/select-ios-simulator.py").read_text()
         self.assertIn('EXPECTED_DEVICE = "iPhone 18 Pro"', selector)
-        self.assertIn('EXPECTED_RUNTIME = "iOS-27-0"', selector)
+        self.assertIn('EXPECTED_RUNTIME_MAJOR = 27', selector)
 
 class DuoCaptureVerdictTests(unittest.TestCase):
     def setUp(self):

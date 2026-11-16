@@ -1,7 +1,7 @@
 {
-  "title": "Journal post-run snapshot mirror port for #545",
-  "summary": "Harness-only mirror port from #539. Moves PNG encoding and print output after XCTest, retaining original keepAlways attachments. Assertions, waits, budgets, product source and full Journal lane unchanged. Independent251PythonPASS; native/typecheckUNRUN. Not a proven cure for prior AX overrun. Held draft.",
-  "source_commit": "1f2e32e652bd79f39395e5528946d34ec42014b5",
+  "title": "Account assertion diagnostics for #550",
+  "summary": "Diagnostic-only: preserve Shopping pre-refresh failed readiness terms after its unchanged 10s waiter; retain UI-test-only Settings export action/share-state trace. No cure claimed, both observed assertion reds retained. No retries, test allowance changes or alternate export route. Native compile/typecheck/XCTest/device acceptance UNRUN.",
+  "source_commit": "deeb8d86498110d362525af73b3e359f296d0afd",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -86,6 +86,10 @@
     {
       "path": "Ate/App/CookReadableStepQAFixture.swift",
       "blob": "7c66b69b4b91d08527d680ff9a08377017b996cd"
+    },
+    {
+      "path": "Ate/Views/SettingsView.swift",
+      "blob": "8e88dae39594ca7a728f7065b3141efc10e16eb5"
     }
   ]
 }

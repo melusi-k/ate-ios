@@ -1,0 +1,58 @@
+name: Manual Cook golden matrix
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+# Unique group, no cancellation of this or any standard lane.
+concurrency:
+  group: cook-golden-manual-${{ github.run_id }}
+  cancel-in-progress: false
+jobs:
+  cook-goldens:
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '27.1'
+      - run: brew install xcodegen && xcodegen generate
+      - name: Build exact selected head
+        run: |
+          set -euo pipefail
+          mkdir -p cook-goldens
+          { git rev-parse HEAD; xcodebuild -version; shasum -a 256 AteUITests/CookGoldenCaptureUITests.swift; } > cook-goldens/provenance.txt
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -derivedDataPath build/CookGoldens CODE_SIGNING_ALLOWED=NO > cook-goldens/build.log 2>&1
+      - name: Run exact Cook selectors once
+        run: |
+          set -euo pipefail
+          XCTESTRUN=$(find build/CookGoldens/Build/Products -maxdepth 1 -name '*.xctestrun' -print)
+          test -n "$XCTESTRUN" && test "$(printf '%s\n' "$XCTESTRUN" | wc -l | tr -d ' ')" = 1
+          python3 scripts/cook-golden-matrix.py configure --xctestrun "$XCTESTRUN"
+          python3 scripts/cook-golden-matrix.py select > cook-goldens/selectors.txt
+          selectors=()
+          while IFS= read -r selector; do selectors+=("$selector"); done < cook-goldens/selectors.txt
+          xcodebuild test-without-building -xctestrun "$XCTESTRUN" -destination "id=$SIM_ID" \
+            "${selectors[@]}" -resultBundlePath cook-goldens/matrix.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 \
+            CODE_SIGNING_ALLOWED=NO > cook-goldens/matrix.log 2>&1
+      - name: Export and require named golden captures
+        if: always()
+        run: |
+          set -euo pipefail
+          xcrun xcresulttool export attachments --path cook-goldens/matrix.xcresult --output-path cook-goldens/raw
+          python3 scripts/cook-golden-matrix.py verify --raw cook-goldens/raw --log cook-goldens/matrix.log --output cook-goldens/named
+      - name: Retain evidence on every outcome
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cook-goldens-${{ github.sha }}-${{ github.run_attempt }}
+          path: cook-goldens
+          if-no-files-found: error

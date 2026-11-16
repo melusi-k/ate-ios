@@ -86,4 +86,6 @@ class JournalSnapshotMirrorTests(unittest.TestCase):
         for addition in additions:
             self.assertEqual(source.count(addition), 1)
             source = source.replace(addition, '', 1)
+        from journal_runtime_readiness_delta import restore as restore_runtime_readiness
+        source = restore_runtime_readiness(source)
         self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), '0bd051599259cdb676b361f920e646dea7d08a0cca9730cec6d3cdcca833a83f')

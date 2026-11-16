@@ -95,6 +95,18 @@ final class InsightsAcceptanceUITests: XCTestCase {
         let prompt = app.textViews["promptEditor"]
         wait(prompt)
         prompt.tap()
+        // A returned tap does not prove that the editor owns keyboard input.
+        // Fail before the single type event if focus never arrived; never retap
+        // or retype to hide a missed setup interaction.
+        let promptFocus = XCTNSPredicateExpectation(
+            predicate: NSPredicate { object, _ in
+                guard let editor = object as? XCUIElement,
+                      editor.responds(to: NSSelectorFromString("hasKeyboardFocus")),
+                      editor.value(forKey: "hasKeyboardFocus") as? Bool == true else { return false }
+                return self.app.keyboards.firstMatch.exists
+            }, object: prompt)
+        XCTAssertEqual(XCTWaiter.wait(for: [promptFocus], timeout: 5), .completed,
+                       "Prompt editor must own keyboard focus before the single recipe input")
         prompt.typeText("Miso salmon for two")
         app.buttons["generateButton"].tap()
         wait(app.staticTexts["Review your card"], 15)

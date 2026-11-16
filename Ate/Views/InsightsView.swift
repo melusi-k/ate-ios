@@ -329,7 +329,7 @@ struct InsightsView: View {
                         .disabled(model.loading || recipeProgressLoading)
                         .accessibilityIdentifier("insights.refresh")
                         Button(isEditingInsightOrder ? "Done" : "Edit") {
-                            withAnimation(.snappy) { isEditingInsightOrder.toggle() }
+                            withAnimation(Motion.anim(.snappy)) { isEditingInsightOrder.toggle() }
                         }
                         .font(AteFont.body(14, .semibold))
                         .accessibilityIdentifier("insights.order.edit")
@@ -347,12 +347,12 @@ struct InsightsView: View {
                                         .foregroundStyle(Theme.mutedForeground)
                                     Spacer()
                                     Button { moveVisibleInsightTile(tileID, offset: -1) } label: {
-                                        Image(systemName: "arrow.up").frame(width: 36, height: 36)
+                                        Image(systemName: "arrow.up").frame(width: 44, height: 44).contentShape(Rectangle())
                                     }
                                     .disabled(visibleInsightTileIDs.first == tileID)
                                     .accessibilityLabel("Move \(insightTileTitle(tileID)) up")
                                     Button { moveVisibleInsightTile(tileID, offset: 1) } label: {
-                                        Image(systemName: "arrow.down").frame(width: 36, height: 36)
+                                        Image(systemName: "arrow.down").frame(width: 44, height: 44).contentShape(Rectangle())
                                     }
                                     .disabled(visibleInsightTileIDs.last == tileID)
                                     .accessibilityLabel("Move \(insightTileTitle(tileID)) down")

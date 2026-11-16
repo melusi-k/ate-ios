@@ -288,7 +288,12 @@ final class CoverageUITests: XCTestCase {
         tab("Settings")
         let settings = settingsContent()
         let export = settings.buttons["settings.export"]; scrollTo(export); wait(export, 3)
+        // Form rows are lazy: reaching Export does not materialize every later row.
+        // Reveal each retained identifier with the existing bounded helper before
+        // its unchanged existence assertion. No new wait or swipe limit.
+        scrollTo(settings.buttons["settings.import"])
         XCTAssertTrue(settings.buttons["settings.import"].exists)
+        scrollTo(settings.buttons["settings.replayOnboarding"])
         XCTAssertTrue(settings.buttons["settings.replayOnboarding"].exists)
         shot("settings-tools")
         // Check Settings before opening Export. Keep the exact identifiers and

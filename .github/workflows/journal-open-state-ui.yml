@@ -289,6 +289,10 @@ jobs:
                   shutil.copy(os.path.join(raw, a["exportedFileName"]), dest)
           PY
           ls -la ui-screenshots || true
+      - name: Mirror retained Journal screenshots after XCTest
+        if: always()
+        run: |
+          python3 scripts/mirror-journal-snapshots.py --raw-directory ui-screenshots/raw --output journal-snapshot-mirror.log
       - name: Upload diagnostics
         if: always()
         uses: actions/upload-artifact@v7
@@ -296,6 +300,7 @@ jobs:
           name: journal-open-state-ui-${{ github.run_number }}
           path: |
             journal-open-state-ui.log
+            journal-snapshot-mirror.log
             files-cancel-system-diagnostic.log
             files-cancel-system-diagnostic-attachments
             ${{ runner.temp }}/ate-test-results/files-cancel-system-diagnostic.xcresult

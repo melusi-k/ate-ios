@@ -89,6 +89,7 @@ struct AteApp: App {
     var body: some Scene {
         WindowGroup {
             rootContent
+                .modifier(ProductUpdatesLaunchHost())
                 .environment(store)
                 .preferredColorScheme(store.settings.appearance.preferredColorScheme)
                 .onOpenURL { store.handle(url: $0) }

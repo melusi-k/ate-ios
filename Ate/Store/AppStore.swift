@@ -1746,7 +1746,12 @@ final class AppStore {
         select(.shopping)
     }
 
+    var productUpdatesIncomingWork = ProductUpdatesIncomingWork()
+
     func handle(url: URL) {
+        // A real onOpenURL or universal link takes priority over launch notes.
+        // If a tour is onscreen, its dismissal completes before routing the URL.
+        guard productUpdatesIncomingWork.receive(url) else { return }
         if url.scheme == "ate", url.host == "import" { checkInbox(); return }
         if url.scheme == "ate", url.host == "open", url.pathComponents.filter({ $0 != "/" }).isEmpty { return }   // "Open ate" placeholder
         if let target = WidgetLinks.parse(url) {

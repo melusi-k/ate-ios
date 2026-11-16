@@ -1,6 +1,6 @@
 import Foundation
 
-struct ProductUpdatesCatalog: Decodable {
+struct ProductUpdatesCatalog: Codable {
     let schemaVersion: Int
     let releases: [ProductRelease]
 
@@ -29,13 +29,13 @@ struct ProductUpdatesCatalog: Decodable {
             .sorted { $0.minimumBuild == $1.minimumBuild ? $0.id > $1.id : $0.minimumBuild > $1.minimumBuild }
     }
 }
-struct ProductRelease: Decodable, Identifiable {
-    struct Change: Decodable {
-        enum Kind: String, Decodable, Hashable { case added, improved, fixed }
+struct ProductRelease: Codable, Identifiable {
+    struct Change: Codable {
+        enum Kind: String, Codable, Hashable { case added, improved, fixed }
         let kind: Kind
         let text: String
     }
-    struct Slide: Decodable, Identifiable {
+    struct Slide: Codable, Identifiable {
         let id: String
         let imageAsset: String
         let imageAlt: String
@@ -51,4 +51,7 @@ struct ProductRelease: Decodable, Identifiable {
     let summary: String
     let changes: [Change]
     let slides: [Slide]
+    let stage: String?
+    let whatToTest: [String]?
+    let howToTest: [String]?
 }

@@ -314,9 +314,13 @@ enum Keychain {
         var add: ([String: Any]) -> OSStatus
         var delete: ([String: Any]) -> OSStatus
         static var live: Operations {
-            Operations(update: { SecItemUpdate($0 as CFDictionary, $1 as CFDictionary) },
-                       add: { SecItemAdd($0 as CFDictionary, nil) },
-                       delete: { SecItemDelete($0 as CFDictionary) })
+            Operations(update: { query, values in
+                KeychainStatusDiagnostic.shared.capture(.update) { SecItemUpdate(query as CFDictionary, values as CFDictionary) }
+            }, add: { query in
+                KeychainStatusDiagnostic.shared.capture(.add) { SecItemAdd(query as CFDictionary, nil) }
+            }, delete: { query in
+                KeychainStatusDiagnostic.shared.capture(.delete) { SecItemDelete(query as CFDictionary) }
+            })
         }
     }
 
@@ -351,7 +355,7 @@ enum Keychain {
                                 kSecAttrAccount as String: account, kSecReturnData as String: true,
                                 kSecMatchLimit as String: kSecMatchLimitOne]
         var out: CFTypeRef?
-        let status = SecItemCopyMatching(q as CFDictionary, &out)
+        let status = KeychainStatusDiagnostic.shared.capture(.read) { SecItemCopyMatching(q as CFDictionary, &out) }
         if account == "session", status != errSecSuccess && status != errSecItemNotFound {
             DiagnosticHistory.shared.record(.authCredentialReadFailed)
         }

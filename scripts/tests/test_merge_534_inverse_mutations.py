@@ -51,6 +51,8 @@ class Merge534InverseMutationTests(unittest.TestCase):
             if key.startswith('account-restored:'):
                 continue
             raw=(ROOT/contract['path']).read_text()
+            from tracker_query_sample_delta import restore as restore_query_sample
+            raw=restore_query_sample(key,raw)
             for fragment in contract['inverse_fragments']:
                 old=fragment['merged_fragment']
                 with self.subTest(contract=key,fragment=old[:60]):

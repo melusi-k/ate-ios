@@ -1,6 +1,6 @@
 # Manual Cook golden matrix
 
-Base #542 65e7b1ca6d0dbc755b3587228df94ce95d5a244e. Manual workflow_dispatch only, distinct run-ID concurrency group and cancel-in-progress false. No standard lane changed. No product changes. Medium/large are recipe sheet detents at normal text (UICTContentSizeCategoryL), not Dynamic Type coverage.
+Base #542 65e7b1ca6d0dbc755b3587228df94ce95d5a244e. Manual workflow_dispatch or explicitly labeled same-repository head ci/542-focused-cook-goldens (pull_request labeled/synchronize only), distinct run-ID concurrency group and cancel-in-progress false. The PR job additionally requires run:cook-goldens; adding other labels cannot start it. Remove that label after this qualification to disarm subsequent synchronize events. No standard lane changed. No product changes. Medium/large are recipe sheet detents at normal text (UICTContentSizeCategoryL), not Dynamic Type coverage.
 
 New opt-in CookGoldenCaptureUITests follows existing CoverageUITests prompt/save → pushed detail and Library card → compact preview → expand medium → explicit large routes. Existing native tests stay byte-unchanged. Selector includes three new real journeys plus existing portrait/landscape retained accessory Finish, shared-step update and bottom-bars regressions. No assertion weakening, automatic retry, timeout/allowance increase, simulator wipe or app prewarming. New tests skip outside the explicit xctestrun environment opt-in; named-pass gate prevents skipped tests counting as success.
 
@@ -8,7 +8,7 @@ Required named captures: cook-golden-{medium,large,pushed}, each with -midscroll
 
 Selector verifies each exact test PASS and each capture under its own test manifest, unique PNG, path containment and native sips decode/dimensions. Copies unchanged PNGs under stable names and writes SHA/timestamp receipts. Entire xcresult/raw manifest/logs/provenance retained on every outcome. No live base64 stdout.
 
-Proof: manually dispatch cook-golden-matrix.yml on the hosted slice head. All seven selected tests must PASS once, all13 named PNGs decode and be inspected at normal text on iPhone18Pro; check medium/large sheet chrome, pushed state, midscroll content passing behind floating Cook and final Ask clearance. Confirm original Finish taps record completion and existing shared-step/bottom-bars assertions pass. This is focused evidence, not whole-app acceptance.
+Proof: apply run:cook-goldens to the held draft on the exact head branch above (or manually dispatch after the workflow exists on default). Checkout uses the exact PR head, not its synthetic merge commit. All seven selected tests must PASS once, all13 named PNGs decode and be inspected at normal text on iPhone18Pro; check medium/large sheet chrome, pushed state, midscroll content passing behind floating Cook and final Ask clearance. Confirm original Finish taps record completion and existing shared-step/bottom-bars assertions pass. This is focused evidence, not whole-app acceptance.
 
 Native/typecheck/patched pixels UNRUN here. Source test run evidence accompanies packet. Source PRs close only after reviewer confirms destination commit; branches kept.
 

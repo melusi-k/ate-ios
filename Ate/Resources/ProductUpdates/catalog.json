@@ -17,19 +17,19 @@
       "slides": [
         {
           "id": "find-product-updates",
-          "imageAsset": "ProductUpdatesPlaceholder",
-          "imageAlt": "Placeholder illustration of Ate product updates, not an app screenshot.",
+          "imageAsset": "ProductUpdatesBrand",
+          "imageAlt": "Ate logo.",
           "title": "Follow what's changing",
           "body": "Open Release Notes in Settings to read what changed. Each release keeps its own notes and optional tour.",
-          "placeholder": true
+          "placeholder": false
         },
         {
           "id": "replay-your-tour",
-          "imageAsset": "ProductUpdatesPlaceholder",
-          "imageAlt": "Placeholder illustration of the product updates menu, not an app screenshot.",
+          "imageAsset": "ProductUpdatesBrand",
+          "imageAlt": "Ate logo.",
           "title": "Replay at your own pace",
           "body": "A new version opens its tour once, after onboarding. Swipe between pages, or use Back and Next. Done, Close or swiping the sheet away marks this version seen; replay it any time in Settings.",
-          "placeholder": true
+          "placeholder": false
         }
       ],
       "stage": "Pilot candidate - 0.1.x technical version line, not stage approval",

@@ -9,6 +9,13 @@ WORKFLOW='            if [ -f "$data_container/Library/Caches/search-receipt-dia
 class SearchReceiptTests(unittest.TestCase):
     def test_exact_original_library_and_workflow_reconstruct(self):
         source=(ROOT/'Ate/Views/LibraryView.swift').read_text()
+        # Undo only reviewed #483 entry additions; retain original full-file hash.
+        self.assertEqual(source.count('    @State private var showPlanPicker = false\n'),1)
+        source=source.replace('    @State private var showPlanPicker = false\n',"",1)
+        self.assertEqual(source.count('        .cookPlanRecipePicker(isPresented: $showPlanPicker)\n'),1)
+        source=source.replace('        .cookPlanRecipePicker(isPresented: $showPlanPicker)\n',"",1)
+        self.assertEqual(source.count('            Section("Plan") {\n                Button { showPlanPicker = true } label: { Label("Plan a cook", systemImage: "calendar.badge.plus") }\n                    .accessibilityIdentifier("library.planCook")\n            }\n'),1)
+        source=source.replace('            Section("Plan") {\n                Button { showPlanPicker = true } label: { Label("Plan a cook", systemImage: "calendar.badge.plus") }\n                    .accessibilityIdentifier("library.planCook")\n            }\n',"",1)
         for new,old in [(IMPORTS,''),(BINDING,OLD),(HELPER,'')]:
             self.assertEqual(source.count(new),1)
             source=source.replace(new,old,1)

@@ -5,12 +5,26 @@ import XCTest
 /// Runs as its own ui-suite shard so the whole suite fits the job timeout.
 final class CoverageUITests: XCTestCase {
     var app: XCUIApplication!
+    private var failureHitPoint: CGPoint?
+    private var windowHitDiagnosticRequested: Bool {
+        name.contains("test40_AccountSwitchSyncFailurePreservesLocalLibrary") ||
+        name.contains("testNavigationHeadersRemainStableOnShoppingAndSettings")
+    }
+    override func record(_ issue: XCTIssue) {
+        if windowHitDiagnosticRequested, let point = failureHitPoint {
+            WindowHitFailureRequest.capture(point: point, test: name, issue: issue, owner: self)
+            failureHitPoint = nil
+        }
+        super.record(issue)
+    }
 
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
 
     @discardableResult
     func launch(_ extra: [String] = []) -> XCUIApplication {
-        app = XCUIApplication(); app.launchArguments = ["-UITesting"] + extra; app.launch(); return app
+        app = XCUIApplication(); app.launchArguments = ["-UITesting"] + extra
+        if windowHitDiagnosticRequested { app.launchArguments.append("-qaWindowHitFailure") }
+        app.launch(); return app
     }
     func shot(_ name: String) {
         let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
@@ -74,6 +88,10 @@ final class CoverageUITests: XCTestCase {
         let b = app.tabBars.buttons[name]
         if name == "Journal" {
             XCTAssertTrue(b.waitForExistence(timeout: 5), "Journal must be selected through its tab, not a pushed-screen back button")
+            if windowHitDiagnosticRequested {
+                let frame = b.frame
+                failureHitPoint = CGPoint(x: frame.midX, y: frame.midY)
+            }
             let hittable = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == true AND hittable == true"), object: b)
             XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed,
@@ -85,6 +103,7 @@ final class CoverageUITests: XCTestCase {
                            "Journal tab tap must land before looking for Journal content")
             XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 5),
                           "Selected Journal tab must show the Journal root before looking for its routes")
+            failureHitPoint = nil
         } else if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
     }
     func startPrompt(_ s: String) {
@@ -683,9 +702,12 @@ final class CoverageUITests: XCTestCase {
 
         // Sign out while keeping local recipes, then sign in as a different account while
         // the sync endpoint remains unavailable. The failed pull must not clear the old copy.
+        let diagnosticFrame = app.buttons["signOutButton"].frame
+        failureHitPoint = CGPoint(x: diagnosticFrame.midX, y: diagnosticFrame.midY)
         app.buttons["signOutButton"].tap()
         let keep = app.buttons["Sign out, keep recipes on this iPhone"]
         wait(keep, 5)
+        failureHitPoint = nil
         // A late native password sheet must not consume the original confirmation tap.
         let passwordPrompt = app.sheets["Save Password?"].firstMatch
         if passwordPrompt.exists && passwordPrompt.elementType == .sheet && passwordPrompt.label == "Save Password?" {

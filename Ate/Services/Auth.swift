@@ -82,10 +82,36 @@ struct AuthError: LocalizedError, Equatable {
     }
 }
 
+/// One in-flight request per original session, shared even when a waiting caller is
+/// cancelled. No tokens are logged or persisted here; completed flights are removed.
+actor AuthRefreshFlight {
+    private struct Flight {
+        let id: UUID
+        let session: AuthSession
+        let task: Task<AuthSession, Error>
+    }
+    private var flights: [Flight] = []
+    private(set) var waitingCallCount = 0
+    func refresh(_ session: AuthSession,
+                 operation: @escaping () async throws -> AuthSession) async throws -> AuthSession {
+        waitingCallCount += 1
+        defer { waitingCallCount -= 1 }
+        if let existing = flights.first(where: { $0.session == session }) {
+            return try await existing.task.value
+        }
+        let id = UUID()
+        let task = Task { try await operation() }
+        flights.append(Flight(id: id, session: session, task: task))
+        defer { flights.removeAll { $0.id == id } }
+        return try await task.value
+    }
+}
+
 /// Supabase Auth over REST (no SDK). Uses only the public publishable key; email links use PKCE.
 final class SupabaseAuth: AuthService {
     let baseURL: URL
     let key: String
+    private let refreshFlight = AuthRefreshFlight()
     static let redirect = "ate://auth-callback"
     init(baseURL: URL, key: String) { self.baseURL = baseURL; self.key = key }
 
@@ -169,9 +195,11 @@ final class SupabaseAuth: AuthService {
     }
 
     func refresh(_ session: AuthSession) async throws -> AuthSession {
-        guard let s = parse(try await call("token", query: [URLQueryItem(name: "grant_type", value: "refresh_token")],
-                                           body: ["refresh_token": session.refreshToken])) else { throw AuthError(.unauthorized, "Session expired. Sign in again.") }
-        return s
+        try await refreshFlight.refresh(session) { [self] in
+            guard let s = parse(try await call("token", query: [URLQueryItem(name: "grant_type", value: "refresh_token")],
+                                               body: ["refresh_token": session.refreshToken])) else { throw AuthError(.unauthorized, "Session expired. Sign in again.") }
+            return s
+        }
     }
 
     /// Parses `ate://auth-callback` in all shapes Supabase sends:
@@ -281,21 +309,56 @@ final class MockAuth: AuthService {
 
 enum Keychain {
     static let service = "com.melusik.ate.auth"
-    static func save(_ data: Data?, account: String) {
+    struct Operations {
+        var update: ([String: Any], [String: Any]) -> OSStatus
+        var add: ([String: Any]) -> OSStatus
+        var delete: ([String: Any]) -> OSStatus
+        static var live: Operations {
+            Operations(update: { query, values in
+                KeychainStatusDiagnostic.shared.capture(.update) { SecItemUpdate(query as CFDictionary, values as CFDictionary) }
+            }, add: { query in
+                KeychainStatusDiagnostic.shared.capture(.add) { SecItemAdd(query as CFDictionary, nil) }
+            }, delete: { query in
+                KeychainStatusDiagnostic.shared.capture(.delete) { SecItemDelete(query as CFDictionary) }
+            })
+        }
+    }
+
+    /// Update preserves existing bytes when the OS refuses the write. Add only for a
+    /// genuinely missing item. Never delete valid credentials to replace them.
+    @discardableResult
+    static func save(_ data: Data?, account: String, operations: Operations = .live) -> Bool {
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
                                 kSecAttrAccount as String: account]
-        SecItemDelete(q as CFDictionary)
-        guard let data else { return }
+        guard let data else {
+            let status = operations.delete(q)
+            let success = status == errSecSuccess || status == errSecItemNotFound
+            if account == "session", !success { DiagnosticHistory.shared.record(.authCredentialDeleteFailed) }
+            return success
+        }
+        let values: [String: Any] = [kSecValueData as String: data,
+                                    kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock]
+        let updated = operations.update(q, values)
+        if updated == errSecSuccess { return true }
+        guard updated == errSecItemNotFound else {
+            if account == "session" { DiagnosticHistory.shared.record(.authCredentialSaveFailed) }
+            return false
+        }
         var add = q
-        add[kSecValueData as String] = data
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        SecItemAdd(add as CFDictionary, nil)
+        for (key, value) in values { add[key] = value }
+        let status = operations.add(add)
+        if account == "session", status != errSecSuccess { DiagnosticHistory.shared.record(.authCredentialSaveFailed) }
+        return status == errSecSuccess
     }
     static func load(account: String) -> Data? {
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
                                 kSecAttrAccount as String: account, kSecReturnData as String: true,
                                 kSecMatchLimit as String: kSecMatchLimitOne]
         var out: CFTypeRef?
-        return SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess ? out as? Data : nil
+        let status = KeychainStatusDiagnostic.shared.capture(.read) { SecItemCopyMatching(q as CFDictionary, &out) }
+        if account == "session", status != errSecSuccess && status != errSecItemNotFound {
+            DiagnosticHistory.shared.record(.authCredentialReadFailed)
+        }
+        return status == errSecSuccess ? out as? Data : nil
     }
 }

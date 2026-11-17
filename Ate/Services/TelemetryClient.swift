@@ -10,7 +10,8 @@ final class TelemetryClient {
     private init() {}
 
     func record(_ kind: DiagnosticEvent.Kind, at date: Date) {
-        guard !AppConfig.isUITesting,
+        guard !DiagnosticEvent.isLocalOnly(kind),
+              !AppConfig.isUITesting,
               AppConfig.isBetaChannel(AppConfig.channel),
               let baseURL = AppConfig.supabaseURL,
               !AppConfig.supabasePublishableKey.isEmpty else { return }

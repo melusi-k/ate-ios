@@ -4,6 +4,7 @@ import SwiftData
 import UserNotifications
 #if DEBUG
 import Foundation
+import Dispatch
 import UIKit
 import OSLog
 #endif
@@ -19,6 +20,8 @@ struct AteApp: App {
         TabBarStyle.apply()
         #if DEBUG
         LiveDTProbe.installIfRequested()
+        DogWaitPhaseDiagnostics.startIfRequested()
+        MenuWaitCapture.startIfRequested()
         SearchFocusDiagnostic.startIfRequested()
         #endif
         if AppConfig.isUITesting {
@@ -50,6 +53,15 @@ struct AteApp: App {
         }
         DogfoodSavedRecipeQAFixtures.prepare(st)
         ExploreRetentionQAFixtures.prepare(st)
+        if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaJournalResetMemoryCredentials") {
+            // These mock-auth Journal routes test reset/expiry, not OS Keychain entitlements.
+            // Explicit per-process seam only: production credential validation is unchanged.
+            var credentialBytes: Data?
+            st.saveSessionCredentials = { data in
+                credentialBytes = data
+                return credentialBytes == data
+            }
+        }
         CookJournalQARoute.prepare(st)
         #else
         let st = AppStore(context: c?.mainContext)
@@ -196,7 +208,13 @@ struct RootView: View {
             // Collections are sidebar-only; back in portrait keep the filter but show the Library tab.
             if v != .compact, case .collection = store.tab { store.tab = .library }
         }
-        .onPreferenceChange(BottomChromeMinYKey.self) { bottomChromeMinY = $0 }
+        .onPreferenceChange(BottomChromeMinYKey.self) { value in
+            #if DEBUG
+            QA8DetailLayoutDiagnostic.event("root-chrome-min-y", value: value.map { Double($0) },
+                previous: bottomChromeMinY.map { Double($0) })
+            #endif
+            bottomChromeMinY = value
+        }
         .environment(\.bottomChromeMinY, bottomChromeMinY)
         .fullScreenCover(item: $store.cookTarget, onDismiss: { store.cookJournalModalDismissing = false; store.presentPendingCookedReflection() }) { target in
             NavigationStack { JournalBoundCookMode(recipeID: target.id, onExit: { store.cookJournalModalDismissing = true; store.cookTarget = nil }) }.environment(store)
@@ -734,6 +752,256 @@ extension AppAppearance {
         switch self { case .system: return nil; case .light: return .light; case .dark: return .dark }
     }
 }
+
+#if DEBUG
+enum DogWaitPhaseDiagnostics {
+    @MainActor private static var diagnosticsStarted = false
+    private static let animationLogger = Logger(subsystem: "com.melusik.ate", category: "DogWaitPhaseDiagnostic")
+
+    /// Nine read-only samples, only in explicitly flagged Dog journeys. No test waits,
+    /// synchronization changes, menu actions, animation cancellation or cover mutation.
+    @MainActor static func startIfRequested() {
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaDogWaitPhaseDiagnostic"),
+              !diagnosticsStarted else { return }
+        diagnosticsStarted = true
+        QA8ExitFileDiagnostic.startIfRequested()
+        Task { @MainActor in
+            let started = ProcessInfo.processInfo.systemUptime
+            for offset in [15.0, 25, 45, 75, 105, 135, 165, 195, 225] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - started)
+                if remaining > 0 {
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
+                }
+                guard !Task.isCancelled else { return }
+                animationLogger.notice("scheduled=\(offset, privacy: .public) elapsed=\(ProcessInfo.processInfo.systemUptime - started, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public) main-actor-heartbeat")
+                recordAnimations(offset: offset)
+            }
+        }
+    }
+
+    @MainActor private static func recordAnimations(offset: Double) {
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows).prefix(8)
+        var visited = 0, observed = 0, emitted = 0
+        func inspect(_ layer: CALayer, depth: Int) {
+            guard visited < 2048, depth < 64 else { return }
+            visited += 1
+            for key in layer.animationKeys() ?? [] {
+                guard let animation = layer.animation(forKey: key) else { continue }
+                observed += 1
+                guard emitted < 64 else { continue }
+                emitted += 1
+                // Only animation structure and numeric timing. No view labels, recipe IDs,
+                // layer names, file paths, model values or content from the animation.
+                let kind = String(describing: type(of: animation))
+                animationLogger.notice("sample=\(offset, privacy: .public) layerIndex=\(visited, privacy: .public) depth=\(depth, privacy: .public) type=\(kind, privacy: .public) duration=\(animation.duration, privacy: .public) repeatCount=\(animation.repeatCount, privacy: .public) repeatDuration=\(animation.repeatDuration, privacy: .public) speed=\(animation.speed, privacy: .public)")
+            }
+            for child in layer.sublayers ?? [] { inspect(child, depth: depth + 1) }
+        }
+        for window in windows { inspect(window.layer, depth: 0) }
+        animationLogger.notice("sample=\(offset, privacy: .public) uptime=\(ProcessInfo.processInfo.systemUptime, privacy: .public) windows=\(windows.count, privacy: .public) visited=\(visited, privacy: .public) observed=\(observed, privacy: .public) emitted=\(emitted, privacy: .public) orientation=\(windows.first?.windowScene?.interfaceOrientation.rawValue ?? 0, privacy: .public)")
+        // No animations observed does not prove all UIKit/SwiftUI animation bookkeeping idle.
+        // System-process animations and framework completion tokens are outside this scan.
+    }
+
+}
+#endif
+
+#if DEBUG
+/// Numeric phase evidence independent of the unified-log store. No model/content reads.
+enum QA8ExitFileDiagnostic {
+    @MainActor private static var rows: [String] = []
+    @MainActor private static var started: Double = 0
+    @MainActor private static var exitObserved = false
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "QA8ExitFileDiagnostic")
+    private static var enabled: Bool {
+        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaQA8ExitFileDiagnostic")
+    }
+    @MainActor static func startIfRequested() {
+        guard enabled else { return }
+        rows = []
+        started = ProcessInfo.processInfo.systemUptime
+        if let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            try? FileManager.default.removeItem(at: cache.appendingPathComponent("qa8-exit-scheduler.txt"))
+        }
+        record("app-start")
+    }
+    @MainActor static func exitWillBegin() {
+        guard enabled, !exitObserved else { return }
+        exitObserved = true
+        QA8DetailLayoutDiagnostic.beginExit()
+        record("exit-enter")
+        let phaseStart = ProcessInfo.processInfo.systemUptime
+        startBackgroundScheduler(phaseStart: phaseStart)
+        Task { @MainActor in
+            record("task-entered", phaseStart: phaseStart)
+            for offset in [0.0, 5, 15, 30, 45, 60, 90, 120] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 {
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch {
+                        record("task-sleep-error", scheduled: offset, phaseStart: phaseStart)
+                        return
+                    }
+                }
+                guard !Task.isCancelled else {
+                    record("task-cancelled", scheduled: offset, phaseStart: phaseStart)
+                    return
+                }
+                record("post-exit-heartbeat", scheduled: offset, phaseStart: phaseStart)
+            }
+        }
+        record("sampler-enqueued", phaseStart: phaseStart)
+    }
+    /// A private utility queue, independent of Swift's MainActor executor. One
+    /// bounded worker, ten atomic snapshots, no model/UI reads or repeated poll.
+    @MainActor private static func startBackgroundScheduler(phaseStart: Double) {
+        guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            record("scheduler-no-cache", phaseStart: phaseStart)
+            return
+        }
+        let destination = cache.appendingPathComponent("qa8-exit-scheduler.txt")
+        let pid = ProcessInfo.processInfo.processIdentifier
+        DispatchQueue(label: "com.melusik.ate.qa8-exit-scheduler", qos: .utility).async {
+            var schedulerRows: [String] = []
+            func write(_ phase: String, scheduled: Double = -1) {
+                guard schedulerRows.count < 10 else { return }
+                let now = ProcessInfo.processInfo.systemUptime
+                schedulerRows.append("pid=\(pid) phase=\(phase) uptime=\(now) scheduled=\(scheduled) phaseElapsed=\(now - phaseStart)")
+                do {
+                    try Data((schedulerRows.joined(separator: "\n") + "\n").utf8).write(to: destination, options: .atomic)
+                } catch {
+                    Logger(subsystem: "com.melusik.ate", category: "QA8ExitFileDiagnostic").error("QA8 scheduler evidence file write failed")
+                }
+            }
+            write("scheduler-entered")
+            for offset in [0.0, 5, 15, 30, 45, 60, 90, 120] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 { Thread.sleep(forTimeInterval: remaining) }
+                write("scheduler-fired", scheduled: offset)
+                Task { @MainActor in
+                    record("scheduler-main-delivery", scheduled: offset, phaseStart: phaseStart)
+                }
+            }
+            write("scheduler-complete")
+        }
+        record("scheduler-enqueued", phaseStart: phaseStart)
+    }
+    @MainActor static func exitDidReturn() {
+        guard enabled else { return }
+        record("exit-return")
+        QA8DetailLayoutDiagnostic.event("exit-return")
+    }
+    @MainActor private static func record(_ phase: String, scheduled: Double = -1, phaseStart: Double? = nil) {
+        guard enabled, rows.count < 24,
+              let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        // Fixed phase names and numeric timing only. At most twenty-four short rows per app launch.
+        rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) uptime=\(now) appElapsed=\(now - started) scheduled=\(scheduled) phaseElapsed=\(now - (phaseStart ?? started))")
+        do {
+            try Data((rows.joined(separator: "\n") + "\n").utf8).write(
+                to: cache.appendingPathComponent("qa8-exit-diagnostic.txt"), options: .atomic)
+        } catch {
+            logger.error("QA8 numeric evidence file write failed")
+        }
+    }
+}
+#endif
+
+#if DEBUG
+enum MenuWaitCapture {
+    @MainActor private static var rows: [String] = []
+    @MainActor private static var started: Double = 0
+    @MainActor private static var returnObserved = false
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "MenuWaitCapture")
+    private static var enabled: Bool {
+        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaMenuWaitCapture")
+    }
+    @MainActor static func startIfRequested() {
+        guard enabled else { return }
+        rows = []
+        started = ProcessInfo.processInfo.systemUptime
+        if let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            try? FileManager.default.removeItem(at: cache.appendingPathComponent("menu-wait-scheduler-\(ProcessInfo.processInfo.processIdentifier).txt"))
+        }
+        record("app-start")
+        returnedIfRequested()
+    }
+    @MainActor static func returnedIfRequested() {
+        guard enabled, !returnObserved else { return }
+        returnObserved = true
+        record("startup-sampler-start")
+        let phaseStart = ProcessInfo.processInfo.systemUptime
+        startBackgroundScheduler(phaseStart: phaseStart)
+        Task { @MainActor in
+            record("task-entered", phaseStart: phaseStart)
+            for offset in [0.0, 5, 15, 30, 60, 90, 120, 180, 240] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 {
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch {
+                        record("task-sleep-error", scheduled: offset, phaseStart: phaseStart)
+                        return
+                    }
+                }
+                guard !Task.isCancelled else {
+                    record("task-cancelled", scheduled: offset, phaseStart: phaseStart)
+                    return
+                }
+                record("main-heartbeat", scheduled: offset, phaseStart: phaseStart)
+            }
+        }
+        record("sampler-enqueued", phaseStart: phaseStart)
+    }
+    /// A private utility queue, independent of Swift's MainActor executor. One
+    /// bounded worker, ten atomic snapshots, no model/UI reads or repeated poll.
+    @MainActor private static func startBackgroundScheduler(phaseStart: Double) {
+        guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            record("scheduler-no-cache", phaseStart: phaseStart)
+            return
+        }
+        let destination = cache.appendingPathComponent("menu-wait-scheduler-\(ProcessInfo.processInfo.processIdentifier).txt")
+        let pid = ProcessInfo.processInfo.processIdentifier
+        DispatchQueue(label: "com.melusik.ate.menu-wait-scheduler", qos: .utility).async {
+            var schedulerRows: [String] = []
+            func write(_ phase: String, scheduled: Double = -1) {
+                guard schedulerRows.count < 12 else { return }
+                let now = ProcessInfo.processInfo.systemUptime
+                schedulerRows.append("pid=\(pid) phase=\(phase) uptime=\(now) scheduled=\(scheduled) phaseElapsed=\(now - phaseStart)")
+                do {
+                    try Data((schedulerRows.joined(separator: "\n") + "\n").utf8).write(to: destination, options: .atomic)
+                } catch {
+                    Logger(subsystem: "com.melusik.ate", category: "MenuWaitCapture").error("Menu wait scheduler evidence file write failed")
+                }
+            }
+            write("scheduler-entered")
+            for offset in [0.0, 5, 15, 30, 60, 90, 120, 180, 240] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 { Thread.sleep(forTimeInterval: remaining) }
+                write("scheduler-fired", scheduled: offset)
+                Task { @MainActor in
+                    record("scheduler-main-delivery", scheduled: offset, phaseStart: phaseStart)
+                }
+            }
+            write("scheduler-complete")
+        }
+        record("scheduler-enqueued", phaseStart: phaseStart)
+    }
+    @MainActor static func event(_ phase: String) { record(phase) }
+    @MainActor private static func record(_ phase: String, scheduled: Double = -1, phaseStart: Double? = nil) {
+        guard enabled, rows.count < 48,
+              let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        // Fixed phase names and numeric timing only. At most forty-eight short rows per app launch.
+        rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) uptime=\(now) appElapsed=\(now - started) scheduled=\(scheduled) phaseElapsed=\(now - (phaseStart ?? started))")
+        do {
+            try Data((rows.joined(separator: "\n") + "\n").utf8).write(
+                to: cache.appendingPathComponent("menu-wait-diagnostic-\(ProcessInfo.processInfo.processIdentifier).txt"), options: .atomic)
+        } catch {
+            logger.error("Menu wait numeric evidence file write failed")
+        }
+    }
+}
+#endif
 
 #if DEBUG
 /// Notification timing only. Never queries content, focus, or first responders.

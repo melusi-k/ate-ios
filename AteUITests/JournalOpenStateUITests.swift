@@ -14,7 +14,7 @@ import XCTest
 /// Presentation assertions belong in the real app.
 ///
 /// Screenshots of every state are attached to the result and exported into the log
-/// (SNAPSHOT-CHUNK base64) so review sees exactly what shipped, not just assertions.
+/// after XCTest (SNAPSHOT-CHUNK base64) so runner stdout cannot consume test budgets.
 final class JournalOpenStateUITests: XCTestCase {
     private var app: XCUIApplication!
 
@@ -87,23 +87,15 @@ final class JournalOpenStateUITests: XCTestCase {
         app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", s)).firstMatch
     }
 
-    /// Attaches a named screenshot and mirrors it into the log as chunked base64
-    /// so the exact rendered pixels can be recovered from CI logs alone.
+    /// Retain the full-resolution screenshot at this exact journey point.
+    /// CI mirrors these bytes only after XCTest finishes, so terminal writes
+    /// cannot block the runner inside a test's execution budget (#539).
     private func shot(_ name: String) {
         let screenshot = XCUIScreen.main.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
-        let b64 = screenshot.pngRepresentation.base64EncodedString()
-        print("SNAPSHOT-BEGIN \(name) \(b64.count)")
-        var i = b64.startIndex
-        while i < b64.endIndex {
-            let j = b64.index(i, offsetBy: 4000, limitedBy: b64.endIndex) ?? b64.endIndex
-            print("SNAPSHOT-CHUNK \(name) \(b64[i..<j])")
-            i = j
-        }
-        print("SNAPSHOT-END \(name)")
     }
 
     /// The journal timeline is the Journal tab root: one tab tap, no menu.

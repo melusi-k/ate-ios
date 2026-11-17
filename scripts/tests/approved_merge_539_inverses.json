@@ -1,0 +1,1434 @@
+{
+  "parents": {
+    "source": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+    "main": "4aa5e5ed62c84cba4bb9a9008ae35810956d91ae",
+    "receipt": "990009b24a7cbad2bd6780ba3ac744ffdab60760"
+  },
+  "contracts": {
+    "main:AteUITests/AteUITests.swift": {
+      "parent_sha": "4aa5e5ed62c84cba4bb9a9008ae35810956d91ae",
+      "path": "AteUITests/AteUITests.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "        wait(text(\"Your Kitchen\"), 5)\n    }\n\n    private var captureGroup28 = false\n    private func menuCaptureMark(_ phase: String) {\n        guard captureGroup28 else { return }\n        print(\"MENU-CAPTURE phase=\\(phase) uptime=\\(ProcessInfo.processInfo.systemUptime)\")\n    }\n\n    func pick(_ menu: String, _ option: String) {\n        XCTAssertTrue(menu == \"sortMenu\" || menu == \"groupByMenu\", \"Unknown picker contract\")\n        menuCaptureMark(\"browse-tap-enter\")\n        app.buttons[\"libraryBrowseMenu\"].firstMatch.tap()\n        menuCaptureMark(\"browse-tap-return\")\n        shot(\"library-browse-opened-\\(menu)-\\(option)\")\n        // Native iOS 27 popups expose the submenu label and icon but omit the\n        // SwiftUI Menu identifier. Scope to the actual open Collections menu,\n",
+          "parent_fragment": "        wait(text(\"Your Kitchen\"), 5)\n    }\n\n    func pick(_ menu: String, _ option: String) {\n        XCTAssertTrue(menu == \"sortMenu\" || menu == \"groupByMenu\", \"Unknown picker contract\")\n        app.buttons[\"libraryBrowseMenu\"].firstMatch.tap()\n        shot(\"library-browse-opened-\\(menu)-\\(option)\")\n        // Native iOS 27 popups expose the submenu label and icon but omit the\n        // SwiftUI Menu identifier. Scope to the actual open Collections menu,\n"
+        },
+        {
+          "merged_fragment": "        XCTAssertEqual(submenu.count, 1, \"Browse must expose one named arrange submenu\")\n        XCTAssertTrue(submenu.firstMatch.isHittable, \"Arrange submenu must be visible without scrolling\")\n        guard submenu.count == 1 && submenu.firstMatch.isHittable else { return }\n        menuCaptureMark(\"submenu-tap-enter\")\n        submenu.firstMatch.tap()\n        menuCaptureMark(\"submenu-tap-return\")\n        shot(\"library-browse-choice-\\(menu)-\\(option)\")\n        // The explicit submenu contains only its own choices; shared labels such as\n        // Recently added cannot accidentally select a collection in the parent popup.\n",
+          "parent_fragment": "        XCTAssertEqual(submenu.count, 1, \"Browse must expose one named arrange submenu\")\n        XCTAssertTrue(submenu.firstMatch.isHittable, \"Arrange submenu must be visible without scrolling\")\n        guard submenu.count == 1 && submenu.firstMatch.isHittable else { return }\n        submenu.firstMatch.tap()\n        shot(\"library-browse-choice-\\(menu)-\\(option)\")\n        // The explicit submenu contains only its own choices; shared labels such as\n        // Recently added cannot accidentally select a collection in the parent popup.\n"
+        },
+        {
+          "merged_fragment": "        XCTAssertEqual(choices.count, 1, \"Picker option must be unique in its submenu\")\n        XCTAssertTrue(choices.firstMatch.isHittable, \"Picker option must be visible without scrolling\")\n        guard choices.count == 1 && choices.firstMatch.isHittable else { return }\n        menuCaptureMark(\"choice-tap-enter\")\n        choices.firstMatch.tap()\n        menuCaptureMark(\"choice-tap-return\")\n    }\n\n    /// Journal menu journey: the Journal is the tab root with \"New journal entry\" as its primary\n",
+          "parent_fragment": "        XCTAssertEqual(choices.count, 1, \"Picker option must be unique in its submenu\")\n        XCTAssertTrue(choices.firstMatch.isHittable, \"Picker option must be visible without scrolling\")\n        guard choices.count == 1 && choices.firstMatch.isHittable else { return }\n        choices.firstMatch.tap()\n    }\n\n    /// Journal menu journey: the Journal is the tab root with \"New journal entry\" as its primary\n"
+        },
+        {
+          "merged_fragment": "        }\n    }\n\n    func test28_GroupSortAndMenusSavedSetup() {\n        // Recipe creation has separate end-to-end coverage; keep this budget\n        // for real native menus and their asserted Library actions.\n        launch([\"-qaSavedRecipesForGroupSort\"])\n",
+          "parent_fragment": "        }\n    }\n\n    func test28_GroupSortAndMenus() {\n        // Recipe creation has separate end-to-end coverage; keep this budget\n        // for real native menus and their asserted Library actions.\n        launch([\"-qaSavedRecipesForGroupSort\"])\n"
+        },
+        {
+          "merged_fragment": "        shot(\"library-swipe-leading\")\n        app.buttons[\"Favourite\"].firstMatch.tap()\n        wait(text(\"Added to Favourites\"), 3)\n        pick(\"sortMenu\", \"Favourites first\")\n        // context menu with preview\n        z.press(forDuration: 1.2)\n        wait(app.buttons[\"Cook\"], 3)\n        XCTAssertTrue(app.buttons[\"Share\"].exists)\n        XCTAssertTrue(app.buttons[\"Add to shopping list\"].exists)\n        shot(\"library-context-menu-full\")\n        app.buttons[\"Add to shopping list\"].tap()\n        wait(text(\"Added to your shopping list\"), 3)\n    }\n\n    func test28_GroupSortAndMenus() {\n        captureGroup28 = true\n        defer { captureGroup28 = false }\n        launch([\"-qaMenuWaitCapture\", \"-qaDogWaitPhaseDiagnostic\"])\n        addNamed(\"Zesty tacos\")\n        addNamed(\"Apple crumble\")\n        pick(\"sortMenu\", \"A\u2013Z\")\n        let a = text(\"Apple crumble\"), z = text(\"Zesty tacos\")\n        wait(a)\n        XCTAssertLessThan(a.frame.minY, z.frame.minY, \"A\u2013Z order\")\n        shot(\"library-sort-az\")\n        pick(\"groupByMenu\", \"Recently added\")\n        wait(app.descendants(matching: .any)[\"section.Today\"].firstMatch, 3)\n        shot(\"library-group-added\")\n        pick(\"groupByMenu\", \"Cook time\")\n        wait(app.descendants(matching: .any)[\"section.Under 30 min\"].firstMatch, 3)\n        shot(\"library-group-cooktime\")\n        pick(\"groupByMenu\", \"None\")\n        // leading swipe: favourite + add to list\n        a.swipeRight()\n        wait(app.buttons[\"Favourite\"].firstMatch, 3)\n        shot(\"library-swipe-leading\")\n        menuCaptureMark(\"favourite-before-pixels\")\n        shot(\"group28-favourite-before-tap\")\n        menuCaptureMark(\"favourite-tap-enter\")\n        app.buttons[\"Favourite\"].firstMatch.tap()\n        menuCaptureMark(\"favourite-tap-return\")\n        shot(\"group28-favourite-after-tap\")\n        menuCaptureMark(\"favourite-after-pixels-toast-wait-enter\")\n        defer {\n            menuCaptureMark(\"group28-exit\")\n            shot(\"group28-favourite-test-exit\")\n        }\n        wait(text(\"Added to Favourites\"), 3)\n        menuCaptureMark(\"favourite-toast-wait-return\")\n        pick(\"sortMenu\", \"Favourites first\")\n        // context menu with preview\n        z.press(forDuration: 1.2)\n",
+          "parent_fragment": "        shot(\"library-swipe-leading\")\n        app.buttons[\"Favourite\"].firstMatch.tap()\n        wait(text(\"Added to Favourites\"), 3)\n        pick(\"sortMenu\", \"Favourites first\")\n        // context menu with preview\n        z.press(forDuration: 1.2)\n"
+        },
+        {
+          "merged_fragment": "        app.buttons[\"authSubmit\"].tap()\n    }\n\n    func test29_ReorderMyOrderSavedSetup() {\n        // Recipe creation has separate end-to-end coverage; keep this budget\n        // for real native menus and their asserted Library actions.\n        launch([\"-qaSavedRecipesForDogfoodReorder\"])\n",
+          "parent_fragment": "        app.buttons[\"authSubmit\"].tap()\n    }\n\n    func test29_ReorderMyOrder() {\n        // Recipe creation has separate end-to-end coverage; keep this budget\n        // for real native menus and their asserted Library actions.\n        launch([\"-qaSavedRecipesForDogfoodReorder\"])\n"
+        },
+        {
+          "merged_fragment": "        let first = text(\"First dish\"), second = text(\"Second dish\")\n        wait(first)\n        XCTAssertLessThan(second.frame.minY, first.frame.minY, \"new (unordered) cards newest first\")\n    }\n\n    func test29_ReorderMyOrder() {\n        launch([\"-qaDogWaitPhaseDiagnostic\"])\n        addNamed(\"First dish\")\n        addNamed(\"Second dish\")\n        pick(\"sortMenu\", \"My order\")\n        let first = text(\"First dish\"), second = text(\"Second dish\")\n        wait(first)\n        XCTAssertLessThan(second.frame.minY, first.frame.minY, \"new (unordered) cards newest first\")\n        // accessible reorder: long-press \u2192 Move up\n        first.press(forDuration: 1.2)\n        shot(\"library-reorder-after-longpress\")\n        wait(app.buttons[\"Move up\"], 3)\n        shot(\"library-reorder-menu\")\n        app.buttons[\"Move up\"].tap()\n        sleep(1)\n        XCTAssertLessThan(text(\"First dish\").frame.minY, text(\"Second dish\").frame.minY, \"moved up\")\n        shot(\"library-reordered\")\n        // drag (best effort in the simulator)\n        text(\"First dish\").press(forDuration: 1.0, thenDragTo: text(\"Second dish\"))\n        sleep(1)\n        shot(\"library-reorder-drag\")\n    }\n\n    func test29b_ReorderMyOrderActions() {\n",
+          "parent_fragment": "        let first = text(\"First dish\"), second = text(\"Second dish\")\n        wait(first)\n        XCTAssertLessThan(second.frame.minY, first.frame.minY, \"new (unordered) cards newest first\")\n    }\n\n    func test29b_ReorderMyOrderActions() {\n"
+        }
+      ]
+    },
+    "main:Ate/Views/AddRecipeSheet.swift": {
+      "parent_sha": "4aa5e5ed62c84cba4bb9a9008ae35810956d91ae",
+      "path": "Ate/Views/AddRecipeSheet.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Services/TelemetryClient.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Services/TelemetryClient.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Services/Auth.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Services/Auth.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Services/DiagnosticHistory.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Services/DiagnosticHistory.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Store/AppStore.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Store/AppStore.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "        }\n    }\n\n    /// Switching tabs preserves the person's collection. An explicit sidebar Library\n    /// destination still uses select(.library) to request the unfiltered collection.\n    func selectTab(_ t: AppTab) {\n        if t == .library { tab = t }\n        else { select(t) }\n    }\n\n    /// Explicit destination selection applies a collection; Library clears it.\n    func select(_ t: AppTab) {\n        switch t {\n        case .collection(let c): filter.collection = c; tab = t\n",
+          "parent_fragment": "        }\n    }\n\n    /// Sidebar/tab selection of a collection applies its filter; Library clears it.\n    func select(_ t: AppTab) {\n        switch t {\n        case .collection(let c): filter.collection = c; tab = t\n"
+        },
+        {
+          "merged_fragment": "    private var recipeSnapshot: [String: RecipeCard] = [:]\n    private var shopSnapshot: [String: ShoppingItem] = [:]\n    private var syncTask: Task<Void, Never>?\n    private var syncInFlight = false\n    private var syncRequestedWhileBusy = false\n\n    let backend: BackendService\n    private let context: ModelContext?\n",
+          "parent_fragment": "    private var recipeSnapshot: [String: RecipeCard] = [:]\n    private var shopSnapshot: [String: ShoppingItem] = [:]\n    private var syncTask: Task<Void, Never>?\n\n    let backend: BackendService\n    private let context: ModelContext?\n"
+        },
+        {
+          "merged_fragment": "            for id in recipeSnapshot.keys where rNow[id] == nil { meta.recipeTombs[id] = t; meta.recipeStamps[id] = nil; changed = true }\n            recipeSnapshot = rNow\n            let sNow = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })\n            for (id, it) in sNow where shopSnapshot[id] != it {\n                meta.shopStamps[id] = ShoppingSyncCadence.nextStamp(now: t, prior: max(meta.shopStamps[id] ?? -1, meta.shopTombs[id] ?? -1))\n                meta.shopTombs[id] = nil; changed = true\n            }\n            for id in shopSnapshot.keys where sNow[id] == nil {\n                meta.shopTombs[id] = ShoppingSyncCadence.nextStamp(now: t, prior: max(meta.shopStamps[id] ?? -1, meta.shopTombs[id] ?? -1))\n                meta.shopStamps[id] = nil; changed = true\n            }\n            shopSnapshot = sNow\n            if changed { saveDefaults(meta, key: \"ate.sync.v1\"); scheduleSync() }\n        }\n    }\n\n    func scheduleSync(delay: Double = 1.5, reconcileShoppingPush: Bool = true) {\n        guard session != nil else { return }\n        syncTask?.cancel()\n        syncTask = Task { @MainActor in\n            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))\n            if Task.isCancelled { return }\n            await syncNow(reconcileShoppingPush: reconcileShoppingPush)\n        }\n    }\n\n",
+          "parent_fragment": "            for id in recipeSnapshot.keys where rNow[id] == nil { meta.recipeTombs[id] = t; meta.recipeStamps[id] = nil; changed = true }\n            recipeSnapshot = rNow\n            let sNow = Dictionary(shopping.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })\n            for (id, it) in sNow where shopSnapshot[id] != it { meta.shopStamps[id] = t; meta.shopTombs[id] = nil; changed = true }\n            for id in shopSnapshot.keys where sNow[id] == nil { meta.shopTombs[id] = t; meta.shopStamps[id] = nil; changed = true }\n            shopSnapshot = sNow\n            if changed { saveDefaults(meta, key: \"ate.sync.v1\"); scheduleSync() }\n        }\n    }\n\n    func scheduleSync(delay: Double = 1.5) {\n        guard session != nil else { return }\n        syncTask?.cancel()\n        syncTask = Task { @MainActor in\n            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))\n            if Task.isCancelled { return }\n            await syncNow()\n        }\n    }\n\n"
+        },
+        {
+          "merged_fragment": "        recovery = r\n    }\n\n    func syncNow(reconcileShoppingPush: Bool = true) async {\n        // MainActor is reentrant across network awaits. Serialize pull/merge/push\n        // so a slower old snapshot cannot overwrite a newer sync's local result.\n        if syncInFlight { syncRequestedWhileBusy = true; return }\n        syncInFlight = true\n        var needsShoppingReconciliation = false\n        defer {\n            syncInFlight = false\n            if syncRequestedWhileBusy {\n                syncRequestedWhileBusy = false\n                scheduleSync(delay: 0.2)\n            } else if needsShoppingReconciliation {\n                // One automatic receipt pull only. Missing/stale server rows must\n                // not create a self-sustaining fast upload loop.\n                scheduleSync(delay: 0.2, reconcileShoppingPush: false)\n            }\n        }\n        guard var s = session, let sync, let auth else { syncState = .signedOut; return }\n        syncState = .syncing\n        // Determine account ownership before any refresh or pull can fail. If this is a switch,\n",
+          "parent_fragment": "        recovery = r\n    }\n\n    func syncNow() async {\n        guard var s = session, let sync, let auth else { syncState = .signedOut; return }\n        syncState = .syncing\n        // Determine account ownership before any refresh or pull can fail. If this is a switch,\n"
+        },
+        {
+          "merged_fragment": "        // The writer boundary is never held across an await: capture the session before\n        // suspending and re-prove session + epoch after each await, before publishing.\n        var capturedSession = session\n        func syncOwnerStillCurrent() -> Bool {\n            // Even the legacy/unbound graph must reject an account switch while\n            // a network await is suspended. Canonical epoch checks remain extra.\n            session == capturedSession && validatePostAwaitPublish(capturedSession: capturedSession)\n        }\n        do {\n            if s.expiresAt < Date().timeIntervalSince1970 + 60 {\n                do {\n",
+          "parent_fragment": "        // The writer boundary is never held across an await: capture the session before\n        // suspending and re-prove session + epoch after each await, before publishing.\n        var capturedSession = session\n        do {\n            if s.expiresAt < Date().timeIntervalSince1970 + 60 {\n                do {\n"
+        },
+        {
+          "merged_fragment": "            BetaQA.shared.syncPulled(rows: remote.count)\n            // The pulled snapshot publishes only while the session and writer epoch captured\n            // before the await are still current.\n            guard syncOwnerStillCurrent() else {\n                syncState = .failed(Self.syncInterruptedMessage); return\n            }\n            // Validate the complete receipt before account cleanup, merge, stamps\n            // or local persistence. A bad remote row must not erase a good copy.\n            try SyncPayloadSafety.validate(remote, owner: s.userID)\n            if switchingAccounts {\n                // Keep failure classified as an incomplete switch until cleanup succeeds.\n                do { try await removeCookPlansBeforeErase(capturedSession: capturedSession) }\n                catch {\n                    guard syncOwnerStillCurrent() else {\n                        syncState = .failed(Self.syncInterruptedMessage); return\n                    }\n                    throw error\n                }\n            }\n            guard syncOwnerStillCurrent() else {\n                syncState = .failed(Self.syncInterruptedMessage); return\n            }\n            accountSwitchPullSucceeded = true\n            let out: [SyncRecord]\n",
+          "parent_fragment": "            BetaQA.shared.syncPulled(rows: remote.count)\n            // The pulled snapshot publishes only while the session and writer epoch captured\n            // before the await are still current.\n            guard validatePostAwaitPublish(capturedSession: capturedSession) else {\n                syncState = .failed(Self.syncInterruptedMessage); return\n            }\n            if switchingAccounts {\n                // Keep failure classified as an incomplete switch until cleanup succeeds.\n                do { try await removeCookPlansBeforeErase(capturedSession: capturedSession) }\n                catch {\n                    guard validatePostAwaitPublish(capturedSession: capturedSession) else {\n                        syncState = .failed(Self.syncInterruptedMessage); return\n                    }\n                    throw error\n                }\n            }\n            accountSwitchPullSucceeded = true\n            let out: [SyncRecord]\n"
+        },
+        {
+          "merged_fragment": "                    let dd = RecipeLogic.dedupe(recipes); recipes = dd.cards\n                    let newShop = sh.data.compactMapValues { try? dec.decode(ShoppingItem.self, from: $0) }\n                    var ordered = shopping.compactMap { newShop[$0.id] }\n                    for id in newShop.keys.sorted() where !ordered.contains(where: { $0.id == id }) {\n                        if let item = newShop[id] { ordered.append(item) }\n                    }\n                    shopping = ordered\n                    meta.recipeStamps = r.stamps; meta.recipeTombs = r.tombstones\n                    for id in dd.removedIDs { meta.recipeTombs[id] = nowMs(); meta.recipeStamps[id] = nil }   // merged duplicates delete remotely too\n",
+          "parent_fragment": "                    let dd = RecipeLogic.dedupe(recipes); recipes = dd.cards\n                    let newShop = sh.data.compactMapValues { try? dec.decode(ShoppingItem.self, from: $0) }\n                    var ordered = shopping.compactMap { newShop[$0.id] }\n                    for (id, it) in newShop where !ordered.contains(where: { $0.id == id }) { ordered.append(it) }\n                    shopping = ordered\n                    meta.recipeStamps = r.stamps; meta.recipeTombs = r.tombstones\n                    for id in dd.removedIDs { meta.recipeTombs[id] = nowMs(); meta.recipeStamps[id] = nil }   // merged duplicates delete remotely too\n"
+        },
+        {
+          "merged_fragment": "            try await sync.push(out, session: s)\n            // The push landed on the server; only the local completion publish is abandoned\n            // when the session or epoch moved during it.\n            guard syncOwnerStillCurrent() else {\n                syncState = .failed(Self.syncPushedButInterruptedMessage)\n                return\n            }\n            // An accepted upsert is not a receipt that our shopping value won a\n            // server-side conflict. Reconcile once more when we submitted rows.\n            if reconcileShoppingPush && out.contains(where: { $0.kind == \"shopping\" }) { needsShoppingReconciliation = true }\n            syncState = .synced(Date())\n            BetaQA.shared.syncSucceeded(pushed: out.count)\n            // Issue #34: Food Journal, insight states and nutrition goals ride the same\n",
+          "parent_fragment": "            try await sync.push(out, session: s)\n            // The push landed on the server; only the local completion publish is abandoned\n            // when the session or epoch moved during it.\n            guard validatePostAwaitPublish(capturedSession: capturedSession) else {\n                syncState = .failed(Self.syncPushedButInterruptedMessage)\n                return\n            }\n            syncState = .synced(Date())\n            BetaQA.shared.syncSucceeded(pushed: out.count)\n            // Issue #34: Food Journal, insight states and nutrition goals ride the same\n"
+        },
+        {
+          "merged_fragment": "            // Library/Cook.\n            await syncUserDataFamilies()\n        } catch SyncError.tableMissing {\n            guard syncOwnerStillCurrent() else { syncState = .failed(Self.syncInterruptedMessage); return }\n            if switchingAccounts && !accountSwitchPullSucceeded {\n                signOutAfterFailedAccountSwitch()\n            } else {\n",
+          "parent_fragment": "            // Library/Cook.\n            await syncUserDataFamilies()\n        } catch SyncError.tableMissing {\n            if switchingAccounts && !accountSwitchPullSucceeded {\n                signOutAfterFailedAccountSwitch()\n            } else {\n"
+        },
+        {
+          "merged_fragment": "        } catch SyncError.unauthorized {\n            expireSessionIfCurrent(capturedSession, reason: .authSyncRejected)\n        } catch {\n            guard syncOwnerStillCurrent() else { syncState = .failed(Self.syncInterruptedMessage); return }\n            if switchingAccounts && !accountSwitchPullSucceeded {\n                signOutAfterFailedAccountSwitch()\n            } else {\n",
+          "parent_fragment": "        } catch SyncError.unauthorized {\n            expireSessionIfCurrent(capturedSession, reason: .authSyncRejected)\n        } catch {\n            if switchingAccounts && !accountSwitchPullSucceeded {\n                signOutAfterFailedAccountSwitch()\n            } else {\n"
+        }
+      ]
+    },
+    "source:AteTests/AuthHardeningTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/AuthHardeningTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/AppStoreWriterBoundaryTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/AppStoreWriterBoundaryTests.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "                        .appendingPathComponent(UUID().uuidString))),\n                 foodJournalRuntime: nil,\n                 injectedAuth: auth, injectedSync: sync)\n        // Hermetic credential effect: these tests cover AppStore boundaries, not simulator Keychain entitlements.\n        // Explicit credential-refusal tests replace this seam after construction.\n        var credentialBytes: Data?\n        store.saveSessionCredentials = { data in\n            credentialBytes = data\n            return credentialBytes == data\n        }\n        stores.append(store)\n        return store\n    }\n",
+          "parent_fragment": "                        .appendingPathComponent(UUID().uuidString))),\n                 foodJournalRuntime: nil,\n                 injectedAuth: auth, injectedSync: sync)\n        stores.append(store)\n        return store\n    }\n"
+        }
+      ]
+    },
+    "source:Ate/App/AteApp.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/App/AteApp.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "        LiveDTProbe.installIfRequested()\n        DogWaitPhaseDiagnostics.startIfRequested()\n        MenuWaitCapture.startIfRequested()\n        SearchFocusDiagnostic.startIfRequested()\n        #endif\n        if AppConfig.isUITesting {\n            for k in [\"ate.timerprefs.v1\", \"ate.cookSession.v1\", CookCompletionOutbox.defaultsKey, CookReflectionOfferPolicy.defaultsKey, CookPlanStore.storageKey] { UserDefaults.standard.removeObject(forKey: k) }\n",
+          "parent_fragment": "        LiveDTProbe.installIfRequested()\n        DogWaitPhaseDiagnostics.startIfRequested()\n        MenuWaitCapture.startIfRequested()\n        #endif\n        if AppConfig.isUITesting {\n            for k in [\"ate.timerprefs.v1\", \"ate.cookSession.v1\", CookCompletionOutbox.defaultsKey, CookReflectionOfferPolicy.defaultsKey, CookPlanStore.storageKey] { UserDefaults.standard.removeObject(forKey: k) }\n"
+        },
+        {
+          "merged_fragment": "            precondition(st.foodJournalRuntime == nil, \"Legacy Insights QA fixture cannot mix with canonical runtime\")\n            st.shopping = InsightDestinationQAFixtures.shopping()\n        }\n        DogfoodSavedRecipeQAFixtures.prepare(st)\n        ExploreRetentionQAFixtures.prepare(st)\n        CookJournalQARoute.prepare(st)\n        #else\n        let st = AppStore(context: c?.mainContext)\n",
+          "parent_fragment": "            precondition(st.foodJournalRuntime == nil, \"Legacy Insights QA fixture cannot mix with canonical runtime\")\n            st.shopping = InsightDestinationQAFixtures.shopping()\n        }\n        CookJournalQARoute.prepare(st)\n        #else\n        let st = AppStore(context: c?.mainContext)\n"
+        },
+        {
+          "merged_fragment": "                case .search: store.searchPath = []\n                }\n            }\n            store.selectTab(new)\n        })\n    }\n}\n",
+          "parent_fragment": "                case .search: store.searchPath = []\n                }\n            }\n            store.select(new)\n        })\n    }\n}\n"
+        },
+        {
+          "merged_fragment": "    }\n}\n#endif\n\n#if DEBUG\n/// Notification timing only. Never queries content, focus, or first responders.\n@MainActor enum SearchFocusDiagnostic {\n    private static var tokens: [NSObjectProtocol] = []\n    private static var rows: [String] = []\n    static func startIfRequested() {\n        guard AppConfig.isUITesting,\n              ProcessInfo.processInfo.arguments.contains(\"-qaSearchFocusDiagnostic\"), tokens.isEmpty else { return }\n        record(phase: 0, frame: .zero)\n        let names: [Notification.Name] = [UIResponder.keyboardWillShowNotification,\n            UIResponder.keyboardDidShowNotification, UIResponder.keyboardWillHideNotification,\n            UIResponder.keyboardDidHideNotification]\n        for (index, name) in names.enumerated() {\n            tokens.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { note in\n                MainActor.assumeIsolated {\n                    let frame = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue ?? .zero\n                    record(phase: index + 1, frame: frame)\n                }\n            })\n        }\n    }\n    private static func record(phase: Int, frame: CGRect) {\n        guard rows.count < 20,\n              let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }\n        rows.append(\"pid=\\(ProcessInfo.processInfo.processIdentifier) phase=\\(phase) uptime=\\(ProcessInfo.processInfo.systemUptime) x=\\(frame.minX) y=\\(frame.minY) width=\\(frame.width) height=\\(frame.height)\")\n        do {\n            try Data((rows.joined(separator: \"\\n\") + \"\\n\").utf8).write(to: cache.appendingPathComponent(\"search-focus-diagnostic.txt\"), options: .atomic)\n        } catch {\n            Logger(subsystem: \"com.melusik.ate\", category: \"SearchFocusDiagnostic\").error(\"Search focus numeric evidence write failed\")\n        }\n    }\n}\n#endif\n",
+          "parent_fragment": "    }\n}\n#endif\n"
+        }
+      ]
+    },
+    "source:.github/workflows/dogfood-qualification.yml": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": ".github/workflows/dogfood-qualification.yml",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "            -only-testing:AteUITests/KeyFlowsQATests/testQA6_OpenShared \\\n            -only-testing:AteUITests/KeyFlowsQATests/testQA8_Timers \\\n            -only-testing:AteUITests/AteUITests/test28_GroupSortAndMenus \\\n            -only-testing:AteUITests/AteUITests/test28_GroupSortAndMenusSavedSetup \\\n            -only-testing:AteUITests/AteUITests/test29_ReorderMyOrder \\\n            -only-testing:AteUITests/AteUITests/test29_ReorderMyOrderSavedSetup \\\n            -only-testing:AteUITests/AteUITests/test29b_ReorderMyOrderActions \\\n            -resultBundlePath build/DogfoodCriticalFlows.xcresult \\\n            -parallel-testing-enabled NO -test-timeouts-enabled YES \\\n            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \\\n            CODE_SIGNING_ALLOWED=NO > dogfood-critical-flows.log 2>&1 || { grep -n -B 8 -A 12 -E \"error:|failed|XCTAssert|Testing failed|Fatal error\" dogfood-critical-flows.log || true; tail -100 dogfood-critical-flows.log; exit 1; }\n          total=$(sed -nE 's/^[[:space:]]*Executed ([0-9]+) tests?,.*/\\1/p' dogfood-critical-flows.log | tail -1)\n          if ! [[ \"$total\" =~ ^[0-9]+$ ]] || [ \"$total\" -lt 12 ]; then\n            echo \"::error::critical flow selection must execute at least twelve tests; got ${total:-missing}\"\n            exit 1\n          fi\n          for test in test28_GroupSortAndMenus test29_ReorderMyOrder test29b_ReorderMyOrderActions; do\n            grep -qF \"AteUITests $test]' passed\" dogfood-critical-flows.log || { echo \"::error::missing named Library pass: $test\"; exit 1; }\n          done\n          for test in test28_GroupSortAndMenusSavedSetup test29_ReorderMyOrderSavedSetup; do\n            grep -qF \"AteUITests $test]' passed\" dogfood-critical-flows.log || { echo \"::error::missing saved-setup Library pass: $test\"; exit 1; }\n          done\n          grep -E \"Test Case .* (passed|failed)|Executed|TEST SUCCEEDED\" dogfood-critical-flows.log | tail -50\n\n",
+          "parent_fragment": "            -only-testing:AteUITests/KeyFlowsQATests/testQA6_OpenShared \\\n            -only-testing:AteUITests/KeyFlowsQATests/testQA8_Timers \\\n            -only-testing:AteUITests/AteUITests/test28_GroupSortAndMenus \\\n            -only-testing:AteUITests/AteUITests/test29_ReorderMyOrder \\\n            -resultBundlePath build/DogfoodCriticalFlows.xcresult \\\n            -parallel-testing-enabled NO -test-timeouts-enabled YES \\\n            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \\\n            CODE_SIGNING_ALLOWED=NO > dogfood-critical-flows.log 2>&1 || { grep -n -B 8 -A 12 -E \"error:|failed|XCTAssert|Testing failed|Fatal error\" dogfood-critical-flows.log || true; tail -100 dogfood-critical-flows.log; exit 1; }\n          total=$(sed -nE 's/^[[:space:]]*Executed ([0-9]+) tests?,.*/\\1/p' dogfood-critical-flows.log | tail -1)\n          if ! [[ \"$total\" =~ ^[0-9]+$ ]] || [ \"$total\" -lt 9 ]; then\n            echo \"::error::critical flow selection must execute at least nine tests; got ${total:-missing}\"\n            exit 1\n          fi\n          for test in test28_GroupSortAndMenus test29_ReorderMyOrder; do\n            grep -qF \"AteUITests $test]' passed\" dogfood-critical-flows.log || { echo \"::error::missing named Library pass: $test\"; exit 1; }\n          done\n          grep -E \"Test Case .* (passed|failed)|Executed|TEST SUCCEEDED\" dogfood-critical-flows.log | tail -50\n\n"
+        }
+      ]
+    },
+    "source:AteUITests/AteUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/AteUITests.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "\nfinal class AteUITests: XCTestCase {\n    var app: XCUIApplication!\n    private var captureAddTitleQuery = false\n\n    override func setUp() {\n        continueAfterFailure = false\n",
+          "parent_fragment": "\nfinal class AteUITests: XCTestCase {\n    var app: XCUIApplication!\n\n    override func setUp() {\n        continueAfterFailure = false\n"
+        },
+        {
+          "merged_fragment": "    /// Opens Add sheet, picks a tab, generates via mock and saves; ends on Recipe detail.\n    func addRecipe(tab: String, input: ((XCUIApplication) -> Void)?, shotPrefix: String) {\n        app.buttons[\"Add recipe\"].tap()\n        if captureAddTitleQuery { shot(\"cook-completion-before-add-title-query\") }\n        wait(text(\"Add a recipe\"))\n        app.buttons[tab].tap()\n        input?(app)\n",
+          "parent_fragment": "    /// Opens Add sheet, picks a tab, generates via mock and saves; ends on Recipe detail.\n    func addRecipe(tab: String, input: ((XCUIApplication) -> Void)?, shotPrefix: String) {\n        app.buttons[\"Add recipe\"].tap()\n        wait(text(\"Add a recipe\"))\n        app.buttons[tab].tap()\n        input?(app)\n"
+        },
+        {
+          "merged_fragment": "    }\n\n    func testCookModeCompletionRecordsCookingDay() {\n        captureAddTitleQuery = true\n        defer { captureAddTitleQuery = false }\n        launch([\"-qaAddTitleQueryDiagnostic\"])\n        addPromptRecipe()\n        app.buttons[\"Cook mode\"].tap()\n        wait(text(\"Step 1 of 4\"))\n",
+          "parent_fragment": "    }\n\n    func testCookModeCompletionRecordsCookingDay() {\n        launch()\n        addPromptRecipe()\n        app.buttons[\"Cook mode\"].tap()\n        wait(text(\"Step 1 of 4\"))\n"
+        },
+        {
+          "merged_fragment": "        }\n    }\n\n    func test28_GroupSortAndMenusSavedSetup() {\n        // Recipe creation has separate end-to-end coverage; keep this budget\n        // for real native menus and their asserted Library actions.\n        launch([\"-qaSavedRecipesForGroupSort\"])\n        pick(\"sortMenu\", \"A\u2013Z\")\n        let a = text(\"Apple crumble\"), z = text(\"Zesty tacos\")\n        wait(a)\n        XCTAssertLessThan(a.frame.minY, z.frame.minY, \"A\u2013Z order\")\n        shot(\"library-sort-az\")\n        pick(\"groupByMenu\", \"Recently added\")\n        wait(app.descendants(matching: .any)[\"section.Today\"].firstMatch, 3)\n        shot(\"library-group-added\")\n        pick(\"groupByMenu\", \"Cook time\")\n        wait(app.descendants(matching: .any)[\"section.Under 30 min\"].firstMatch, 3)\n        shot(\"library-group-cooktime\")\n        pick(\"groupByMenu\", \"None\")\n        // leading swipe: favourite + add to list\n        a.swipeRight()\n        wait(app.buttons[\"Favourite\"].firstMatch, 3)\n        shot(\"library-swipe-leading\")\n        app.buttons[\"Favourite\"].firstMatch.tap()\n        wait(text(\"Added to Favourites\"), 3)\n        pick(\"sortMenu\", \"Favourites first\")\n        // context menu with preview\n        z.press(forDuration: 1.2)\n        wait(app.buttons[\"Cook\"], 3)\n        XCTAssertTrue(app.buttons[\"Share\"].exists)\n        XCTAssertTrue(app.buttons[\"Add to shopping list\"].exists)\n        shot(\"library-context-menu-full\")\n        app.buttons[\"Add to shopping list\"].tap()\n        wait(text(\"Added to your shopping list\"), 3)\n    }\n\n    func test28_GroupSortAndMenus() {\n        captureGroup28 = true\n        defer { captureGroup28 = false }\n",
+          "parent_fragment": "        }\n    }\n\n    func test28_GroupSortAndMenus() {\n        captureGroup28 = true\n        defer { captureGroup28 = false }\n"
+        },
+        {
+          "merged_fragment": "        app.buttons[\"authSubmit\"].tap()\n    }\n\n    func test29_ReorderMyOrderSavedSetup() {\n        // Recipe creation has separate end-to-end coverage; keep this budget\n        // for real native menus and their asserted Library actions.\n        launch([\"-qaSavedRecipesForDogfoodReorder\"])\n        pick(\"sortMenu\", \"My order\")\n        let first = text(\"First dish\"), second = text(\"Second dish\")\n        wait(first)\n        XCTAssertLessThan(second.frame.minY, first.frame.minY, \"new (unordered) cards newest first\")\n    }\n\n    func test29_ReorderMyOrder() {\n        launch([\"-qaDogWaitPhaseDiagnostic\"])\n        addNamed(\"First dish\")\n",
+          "parent_fragment": "        app.buttons[\"authSubmit\"].tap()\n    }\n\n    func test29_ReorderMyOrder() {\n        launch([\"-qaDogWaitPhaseDiagnostic\"])\n        addNamed(\"First dish\")\n"
+        },
+        {
+          "merged_fragment": "        // accessible reorder: long-press \u2192 Move up\n        first.press(forDuration: 1.2)\n        shot(\"library-reorder-after-longpress\")\n        wait(app.buttons[\"Move up\"], 3)\n        shot(\"library-reorder-menu\")\n        app.buttons[\"Move up\"].tap()\n        sleep(1)\n        XCTAssertLessThan(text(\"First dish\").frame.minY, text(\"Second dish\").frame.minY, \"moved up\")\n        shot(\"library-reordered\")\n        // drag (best effort in the simulator)\n        text(\"First dish\").press(forDuration: 1.0, thenDragTo: text(\"Second dish\"))\n        sleep(1)\n        shot(\"library-reorder-drag\")\n    }\n\n    func test29b_ReorderMyOrderActions() {\n        // Sort selection is exercised by test29. These cards still have no\n        // explicit positions; Move up must perform the real ordering change.\n        launch([\"-qaSavedRecipesForReorderAction\"])\n        let first = text(\"First dish\"), second = text(\"Second dish\")\n        wait(first)\n        XCTAssertLessThan(second.frame.minY, first.frame.minY, \"new (unordered) cards newest first\")\n        // accessible reorder: long-press \u2192 Move up\n        first.press(forDuration: 1.2)\n        wait(app.buttons[\"Move up\"], 3)\n        shot(\"library-reorder-menu\")\n        app.buttons[\"Move up\"].tap()\n",
+          "parent_fragment": "        // accessible reorder: long-press \u2192 Move up\n        first.press(forDuration: 1.2)\n        shot(\"library-reorder-after-longpress\")\n        wait(app.buttons[\"Move up\"], 3)\n        shot(\"library-reorder-menu\")\n        app.buttons[\"Move up\"].tap()\n"
+        }
+      ]
+    },
+    "source:AteUITests/KeyFlowsQATests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/KeyFlowsQATests.swift",
+      "inverse_fragments": []
+    },
+    "main:Ate/App/DogfoodSavedRecipeQAFixtures.swift": {
+      "parent_sha": "4aa5e5ed62c84cba4bb9a9008ae35810956d91ae",
+      "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
+      "inverse_fragments": []
+    },
+    "main:Ate/App/AteApp.swift": {
+      "parent_sha": "4aa5e5ed62c84cba4bb9a9008ae35810956d91ae",
+      "path": "Ate/App/AteApp.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "import UserNotifications\n#if DEBUG\nimport Foundation\nimport Dispatch\nimport UIKit\nimport OSLog\n#endif\n",
+          "parent_fragment": "import UserNotifications\n#if DEBUG\nimport Foundation\nimport UIKit\nimport OSLog\n#endif\n"
+        },
+        {
+          "merged_fragment": "        TabBarStyle.apply()\n        #if DEBUG\n        LiveDTProbe.installIfRequested()\n        DogWaitPhaseDiagnostics.startIfRequested()\n        MenuWaitCapture.startIfRequested()\n        SearchFocusDiagnostic.startIfRequested()\n        #endif\n        if AppConfig.isUITesting {\n",
+          "parent_fragment": "        TabBarStyle.apply()\n        #if DEBUG\n        LiveDTProbe.installIfRequested()\n        SearchFocusDiagnostic.startIfRequested()\n        #endif\n        if AppConfig.isUITesting {\n"
+        },
+        {
+          "merged_fragment": "            // Collections are sidebar-only; back in portrait keep the filter but show the Library tab.\n            if v != .compact, case .collection = store.tab { store.tab = .library }\n        }\n        .onPreferenceChange(BottomChromeMinYKey.self) { value in\n            #if DEBUG\n            QA8DetailLayoutDiagnostic.event(\"root-chrome-min-y\", value: value.map { Double($0) },\n                previous: bottomChromeMinY.map { Double($0) })\n            #endif\n            bottomChromeMinY = value\n        }\n        .environment(\\.bottomChromeMinY, bottomChromeMinY)\n        .fullScreenCover(item: $store.cookTarget, onDismiss: { store.cookJournalModalDismissing = false; store.presentPendingCookedReflection() }) { target in\n            NavigationStack { JournalBoundCookMode(recipeID: target.id, onExit: { store.cookJournalModalDismissing = true; store.cookTarget = nil }) }.environment(store)\n",
+          "parent_fragment": "            // Collections are sidebar-only; back in portrait keep the filter but show the Library tab.\n            if v != .compact, case .collection = store.tab { store.tab = .library }\n        }\n        .onPreferenceChange(BottomChromeMinYKey.self) { bottomChromeMinY = $0 }\n        .environment(\\.bottomChromeMinY, bottomChromeMinY)\n        .fullScreenCover(item: $store.cookTarget, onDismiss: { store.cookJournalModalDismissing = false; store.presentPendingCookedReflection() }) { target in\n            NavigationStack { JournalBoundCookMode(recipeID: target.id, onExit: { store.cookJournalModalDismissing = true; store.cookTarget = nil }) }.environment(store)\n"
+        },
+        {
+          "merged_fragment": "}\n\n#if DEBUG\nenum DogWaitPhaseDiagnostics {\n    @MainActor private static var diagnosticsStarted = false\n    private static let animationLogger = Logger(subsystem: \"com.melusik.ate\", category: \"DogWaitPhaseDiagnostic\")\n\n    /// Nine read-only samples, only in explicitly flagged Dog journeys. No test waits,\n    /// synchronization changes, menu actions, animation cancellation or cover mutation.\n    @MainActor static func startIfRequested() {\n        guard AppConfig.isUITesting,\n              ProcessInfo.processInfo.arguments.contains(\"-qaDogWaitPhaseDiagnostic\"),\n              !diagnosticsStarted else { return }\n        diagnosticsStarted = true\n        QA8ExitFileDiagnostic.startIfRequested()\n        Task { @MainActor in\n            let started = ProcessInfo.processInfo.systemUptime\n            for offset in [15.0, 25, 45, 75, 105, 135, 165, 195, 225] {\n                let remaining = offset - (ProcessInfo.processInfo.systemUptime - started)\n                if remaining > 0 {\n                    do { try await Task.sleep(for: .seconds(remaining)) } catch { return }\n                }\n                guard !Task.isCancelled else { return }\n                animationLogger.notice(\"scheduled=\\(offset, privacy: .public) elapsed=\\(ProcessInfo.processInfo.systemUptime - started, privacy: .public) uptime=\\(ProcessInfo.processInfo.systemUptime, privacy: .public) main-actor-heartbeat\")\n                recordAnimations(offset: offset)\n            }\n        }\n    }\n\n    @MainActor private static func recordAnimations(offset: Double) {\n        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }\n            .flatMap(\\.windows).prefix(8)\n        var visited = 0, observed = 0, emitted = 0\n        func inspect(_ layer: CALayer, depth: Int) {\n            guard visited < 2048, depth < 64 else { return }\n            visited += 1\n            for key in layer.animationKeys() ?? [] {\n                guard let animation = layer.animation(forKey: key) else { continue }\n                observed += 1\n                guard emitted < 64 else { continue }\n                emitted += 1\n                // Only animation structure and numeric timing. No view labels, recipe IDs,\n                // layer names, file paths, model values or content from the animation.\n                let kind = String(describing: type(of: animation))\n                animationLogger.notice(\"sample=\\(offset, privacy: .public) layerIndex=\\(visited, privacy: .public) depth=\\(depth, privacy: .public) type=\\(kind, privacy: .public) duration=\\(animation.duration, privacy: .public) repeatCount=\\(animation.repeatCount, privacy: .public) repeatDuration=\\(animation.repeatDuration, privacy: .public) speed=\\(animation.speed, privacy: .public)\")\n            }\n            for child in layer.sublayers ?? [] { inspect(child, depth: depth + 1) }\n        }\n        for window in windows { inspect(window.layer, depth: 0) }\n        animationLogger.notice(\"sample=\\(offset, privacy: .public) uptime=\\(ProcessInfo.processInfo.systemUptime, privacy: .public) windows=\\(windows.count, privacy: .public) visited=\\(visited, privacy: .public) observed=\\(observed, privacy: .public) emitted=\\(emitted, privacy: .public) orientation=\\(windows.first?.windowScene?.interfaceOrientation.rawValue ?? 0, privacy: .public)\")\n        // No animations observed does not prove all UIKit/SwiftUI animation bookkeeping idle.\n        // System-process animations and framework completion tokens are outside this scan.\n    }\n\n}\n#endif\n\n#if DEBUG\n/// Numeric phase evidence independent of the unified-log store. No model/content reads.\nenum QA8ExitFileDiagnostic {\n    @MainActor private static var rows: [String] = []\n    @MainActor private static var started: Double = 0\n    @MainActor private static var exitObserved = false\n    private static let logger = Logger(subsystem: \"com.melusik.ate\", category: \"QA8ExitFileDiagnostic\")\n    private static var enabled: Bool {\n        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains(\"-qaQA8ExitFileDiagnostic\")\n    }\n    @MainActor static func startIfRequested() {\n        guard enabled else { return }\n        rows = []\n        started = ProcessInfo.processInfo.systemUptime\n        if let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {\n            try? FileManager.default.removeItem(at: cache.appendingPathComponent(\"qa8-exit-scheduler.txt\"))\n        }\n        record(\"app-start\")\n    }\n    @MainActor static func exitWillBegin() {\n        guard enabled, !exitObserved else { return }\n        exitObserved = true\n        QA8DetailLayoutDiagnostic.beginExit()\n        record(\"exit-enter\")\n        let phaseStart = ProcessInfo.processInfo.systemUptime\n        startBackgroundScheduler(phaseStart: phaseStart)\n        Task { @MainActor in\n            record(\"task-entered\", phaseStart: phaseStart)\n            for offset in [0.0, 5, 15, 30, 45, 60, 90, 120] {\n                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)\n                if remaining > 0 {\n                    do { try await Task.sleep(for: .seconds(remaining)) } catch {\n                        record(\"task-sleep-error\", scheduled: offset, phaseStart: phaseStart)\n                        return\n                    }\n                }\n                guard !Task.isCancelled else {\n                    record(\"task-cancelled\", scheduled: offset, phaseStart: phaseStart)\n                    return\n                }\n                record(\"post-exit-heartbeat\", scheduled: offset, phaseStart: phaseStart)\n            }\n        }\n        record(\"sampler-enqueued\", phaseStart: phaseStart)\n    }\n    /// A private utility queue, independent of Swift's MainActor executor. One\n    /// bounded worker, ten atomic snapshots, no model/UI reads or repeated poll.\n    @MainActor private static func startBackgroundScheduler(phaseStart: Double) {\n        guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {\n            record(\"scheduler-no-cache\", phaseStart: phaseStart)\n            return\n        }\n        let destination = cache.appendingPathComponent(\"qa8-exit-scheduler.txt\")\n        let pid = ProcessInfo.processInfo.processIdentifier\n        DispatchQueue(label: \"com.melusik.ate.qa8-exit-scheduler\", qos: .utility).async {\n            var schedulerRows: [String] = []\n            func write(_ phase: String, scheduled: Double = -1) {\n                guard schedulerRows.count < 10 else { return }\n                let now = ProcessInfo.processInfo.systemUptime\n                schedulerRows.append(\"pid=\\(pid) phase=\\(phase) uptime=\\(now) scheduled=\\(scheduled) phaseElapsed=\\(now - phaseStart)\")\n                do {\n                    try Data((schedulerRows.joined(separator: \"\\n\") + \"\\n\").utf8).write(to: destination, options: .atomic)\n                } catch {\n                    Logger(subsystem: \"com.melusik.ate\", category: \"QA8ExitFileDiagnostic\").error(\"QA8 scheduler evidence file write failed\")\n                }\n            }\n            write(\"scheduler-entered\")\n            for offset in [0.0, 5, 15, 30, 45, 60, 90, 120] {\n                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)\n                if remaining > 0 { Thread.sleep(forTimeInterval: remaining) }\n                write(\"scheduler-fired\", scheduled: offset)\n                Task { @MainActor in\n                    record(\"scheduler-main-delivery\", scheduled: offset, phaseStart: phaseStart)\n                }\n            }\n            write(\"scheduler-complete\")\n        }\n        record(\"scheduler-enqueued\", phaseStart: phaseStart)\n    }\n    @MainActor static func exitDidReturn() {\n        guard enabled else { return }\n        record(\"exit-return\")\n        QA8DetailLayoutDiagnostic.event(\"exit-return\")\n    }\n    @MainActor private static func record(_ phase: String, scheduled: Double = -1, phaseStart: Double? = nil) {\n        guard enabled, rows.count < 24,\n              let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }\n        let now = ProcessInfo.processInfo.systemUptime\n        // Fixed phase names and numeric timing only. At most twenty-four short rows per app launch.\n        rows.append(\"pid=\\(ProcessInfo.processInfo.processIdentifier) phase=\\(phase) uptime=\\(now) appElapsed=\\(now - started) scheduled=\\(scheduled) phaseElapsed=\\(now - (phaseStart ?? started))\")\n        do {\n            try Data((rows.joined(separator: \"\\n\") + \"\\n\").utf8).write(\n                to: cache.appendingPathComponent(\"qa8-exit-diagnostic.txt\"), options: .atomic)\n        } catch {\n            logger.error(\"QA8 numeric evidence file write failed\")\n        }\n    }\n}\n#endif\n\n#if DEBUG\nenum MenuWaitCapture {\n    @MainActor private static var rows: [String] = []\n    @MainActor private static var started: Double = 0\n    @MainActor private static var returnObserved = false\n    private static let logger = Logger(subsystem: \"com.melusik.ate\", category: \"MenuWaitCapture\")\n    private static var enabled: Bool {\n        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains(\"-qaMenuWaitCapture\")\n    }\n    @MainActor static func startIfRequested() {\n        guard enabled else { return }\n        rows = []\n        started = ProcessInfo.processInfo.systemUptime\n        if let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {\n            try? FileManager.default.removeItem(at: cache.appendingPathComponent(\"menu-wait-scheduler-\\(ProcessInfo.processInfo.processIdentifier).txt\"))\n        }\n        record(\"app-start\")\n        returnedIfRequested()\n    }\n    @MainActor static func returnedIfRequested() {\n        guard enabled, !returnObserved else { return }\n        returnObserved = true\n        record(\"startup-sampler-start\")\n        let phaseStart = ProcessInfo.processInfo.systemUptime\n        startBackgroundScheduler(phaseStart: phaseStart)\n        Task { @MainActor in\n            record(\"task-entered\", phaseStart: phaseStart)\n            for offset in [0.0, 5, 15, 30, 60, 90, 120, 180, 240] {\n                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)\n                if remaining > 0 {\n                    do { try await Task.sleep(for: .seconds(remaining)) } catch {\n                        record(\"task-sleep-error\", scheduled: offset, phaseStart: phaseStart)\n                        return\n                    }\n                }\n                guard !Task.isCancelled else {\n                    record(\"task-cancelled\", scheduled: offset, phaseStart: phaseStart)\n                    return\n                }\n                record(\"main-heartbeat\", scheduled: offset, phaseStart: phaseStart)\n            }\n        }\n        record(\"sampler-enqueued\", phaseStart: phaseStart)\n    }\n    /// A private utility queue, independent of Swift's MainActor executor. One\n    /// bounded worker, ten atomic snapshots, no model/UI reads or repeated poll.\n    @MainActor private static func startBackgroundScheduler(phaseStart: Double) {\n        guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {\n            record(\"scheduler-no-cache\", phaseStart: phaseStart)\n            return\n        }\n        let destination = cache.appendingPathComponent(\"menu-wait-scheduler-\\(ProcessInfo.processInfo.processIdentifier).txt\")\n        let pid = ProcessInfo.processInfo.processIdentifier\n        DispatchQueue(label: \"com.melusik.ate.menu-wait-scheduler\", qos: .utility).async {\n            var schedulerRows: [String] = []\n            func write(_ phase: String, scheduled: Double = -1) {\n                guard schedulerRows.count < 12 else { return }\n                let now = ProcessInfo.processInfo.systemUptime\n                schedulerRows.append(\"pid=\\(pid) phase=\\(phase) uptime=\\(now) scheduled=\\(scheduled) phaseElapsed=\\(now - phaseStart)\")\n                do {\n                    try Data((schedulerRows.joined(separator: \"\\n\") + \"\\n\").utf8).write(to: destination, options: .atomic)\n                } catch {\n                    Logger(subsystem: \"com.melusik.ate\", category: \"MenuWaitCapture\").error(\"Menu wait scheduler evidence file write failed\")\n                }\n            }\n            write(\"scheduler-entered\")\n            for offset in [0.0, 5, 15, 30, 60, 90, 120, 180, 240] {\n                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)\n                if remaining > 0 { Thread.sleep(forTimeInterval: remaining) }\n                write(\"scheduler-fired\", scheduled: offset)\n                Task { @MainActor in\n                    record(\"scheduler-main-delivery\", scheduled: offset, phaseStart: phaseStart)\n                }\n            }\n            write(\"scheduler-complete\")\n        }\n        record(\"scheduler-enqueued\", phaseStart: phaseStart)\n    }\n    @MainActor static func event(_ phase: String) { record(phase) }\n    @MainActor private static func record(_ phase: String, scheduled: Double = -1, phaseStart: Double? = nil) {\n        guard enabled, rows.count < 48,\n              let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }\n        let now = ProcessInfo.processInfo.systemUptime\n        // Fixed phase names and numeric timing only. At most forty-eight short rows per app launch.\n        rows.append(\"pid=\\(ProcessInfo.processInfo.processIdentifier) phase=\\(phase) uptime=\\(now) appElapsed=\\(now - started) scheduled=\\(scheduled) phaseElapsed=\\(now - (phaseStart ?? started))\")\n        do {\n            try Data((rows.joined(separator: \"\\n\") + \"\\n\").utf8).write(\n                to: cache.appendingPathComponent(\"menu-wait-diagnostic-\\(ProcessInfo.processInfo.processIdentifier).txt\"), options: .atomic)\n        } catch {\n            logger.error(\"Menu wait numeric evidence file write failed\")\n        }\n    }\n}\n#endif\n\n#if DEBUG\n/// Notification timing only. Never queries content, focus, or first responders.\n@MainActor enum SearchFocusDiagnostic {\n    private static var tokens: [NSObjectProtocol] = []\n",
+          "parent_fragment": "}\n\n#if DEBUG\n/// Notification timing only. Never queries content, focus, or first responders.\n@MainActor enum SearchFocusDiagnostic {\n    private static var tokens: [NSObjectProtocol] = []\n"
+        }
+      ]
+    },
+    "source:AteTests/UserDataSyncTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/UserDataSyncTests.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "            defaults.removeObject(forKey: \"ate.sync.v1\")\n            let configuration = ModelConfiguration(\"matrix-\\(UUID().uuidString)\",\n                url: directory.appendingPathComponent(\"journal.sqlite\"))\n            // Bound Objective-C/SwiftData temporaries from the injected throwing commit.\n            // Keep the same strict weak-owner assertion outside the pool, before reopen.\n            weak var oldContainer: ModelContainer?\n            var journal: FamilySyncCommitJournal?\n            try autoreleasepool {\n            container = try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,\n                                           configurations: configuration)\n\n",
+          "parent_fragment": "            defaults.removeObject(forKey: \"ate.sync.v1\")\n            let configuration = ModelConfiguration(\"matrix-\\(UUID().uuidString)\",\n                url: directory.appendingPathComponent(\"journal.sqlite\"))\n            container = try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,\n                                           configurations: configuration)\n\n"
+        },
+        {
+          "merged_fragment": "            // Commit 1 completes.\n            try seed([payload(\"j-a\", \"v1\", 1_000_000)])\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=seed-return\")\n            journal = try makeJournal()\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=commit1-enter\")\n            _ = try journal!.commit(makeCommit(before: [payload(\"j-a\", \"v1\", 1_000_000)],\n                                              after: [payload(\"j-a\", \"v1c\", 1_000_000)],\n",
+          "parent_fragment": "            // Commit 1 completes.\n            try seed([payload(\"j-a\", \"v1\", 1_000_000)])\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=seed-return\")\n            var journal: FamilySyncCommitJournal? = try makeJournal()\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=commit1-enter\")\n            _ = try journal!.commit(makeCommit(before: [payload(\"j-a\", \"v1\", 1_000_000)],\n                                              after: [payload(\"j-a\", \"v1c\", 1_000_000)],\n"
+        },
+        {
+          "merged_fragment": "            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=commit2-return\")\n            // Release BOTH owners of the old container before opening the same store.\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=release-enter\")\n            oldContainer = container\n            journal = nil\n            container = nil\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=release-return\")\n            }\n            XCTAssertNil(oldContainer, \"the prior journal must not retain the old container\")\n            container = try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,\n                                           configurations: configuration)\n",
+          "parent_fragment": "            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=commit2-return\")\n            // Release BOTH owners of the old container before opening the same store.\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=release-enter\")\n            weak var oldContainer = container\n            journal = nil\n            container = nil\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=release-return\")\n            XCTAssertNil(oldContainer, \"the prior journal must not retain the old container\")\n            container = try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,\n                                           configurations: configuration)\n"
+        }
+      ]
+    },
+    "source:Ate/Views/RecipeDetailView.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Views/RecipeDetailView.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "                    .pageWidth()\n                }\n                .accessibilityIdentifier(\"recipe.detail.scroll\")\n                // The scrolling viewport owns its Cook inset. Keeping it outside\n                // the measured host mixes nested safe areas as timer chrome returns.\n                .safeAreaInset(edge: .bottom, spacing: 0) {\n                    if !editing, store.recipe(recipeID) != nil {\n                        Button {\n                            store.beginCookSession(recipeID: recipeID, factor: factor)\n                            store.cookTarget = CookTarget(id: recipeID)\n                        } label: { Label(\"Cook mode\", systemImage: \"frying.pan\").padding(.horizontal, 10) }\n                            .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)\n                            .padding(.bottom, footerChromeReserve)\n                            .frame(maxWidth: .infinity)\n                            .background(Theme.background.ignoresSafeArea(edges: .bottom))\n                    }\n                }\n            } else {\n                RecipeNotFoundView(title: \"Recipe not found\")\n            }\n",
+          "parent_fragment": "                    .pageWidth()\n                }\n                .accessibilityIdentifier(\"recipe.detail.scroll\")\n            } else {\n                RecipeNotFoundView(title: \"Recipe not found\")\n            }\n"
+        },
+        {
+          "merged_fragment": "        .toolbar(.hidden, for: .tabBar)   // full-height detail; Cook mode pinned at the bottom, never under the tab bar\n        .navigationTitle(store.recipe(recipeID)?.title ?? \"Recipe\")\n        .navigationBarTitleDisplayMode(.inline)\n        // Measure the outer inset host, not the content region reduced by the\n        // reserve that this measurement controls. Keep live parent/chrome changes.\n        .background(GeometryReader { geometry in\n",
+          "parent_fragment": "        .toolbar(.hidden, for: .tabBar)   // full-height detail; Cook mode pinned at the bottom, never under the tab bar\n        .navigationTitle(store.recipe(recipeID)?.title ?? \"Recipe\")\n        .navigationBarTitleDisplayMode(.inline)\n        // Bottom area, one system: this inset (Cook mode) sits directly above the stack's timer bar inset.\n        .safeAreaInset(edge: .bottom, spacing: 0) {\n            if !editing, store.recipe(recipeID) != nil {\n                Button {\n                    store.beginCookSession(recipeID: recipeID, factor: factor)\n                    store.cookTarget = CookTarget(id: recipeID)\n                } label: { Label(\"Cook mode\", systemImage: \"frying.pan\").padding(.horizontal, 10) }\n                    .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)\n                    .padding(.bottom, footerChromeReserve)\n                    .frame(maxWidth: .infinity)\n            }\n        }\n        // Measure the outer inset host, not the content region reduced by the\n        // reserve that this measurement controls. Keep live parent/chrome changes.\n        .background(GeometryReader { geometry in\n"
+        }
+      ]
+    },
+    "source:Ate/Views/Components.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Views/Components.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/DiagnosticHistoryTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/DiagnosticHistoryTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/NutritionDiaryUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/NutritionDiaryUITests.swift",
+      "inverse_fragments": []
+    },
+    "receipt:AteUITests/CoverageUITests.swift": {
+      "parent_sha": "990009b24a7cbad2bd6780ba3ac744ffdab60760",
+      "path": "AteUITests/CoverageUITests.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "        app.swipeUp()\n        XCTAssertTrue(settingsTitle.exists, \"The navigation bar must remain present while Settings scrolls\")\n\n        // Scroll-down minimizes native tab chrome. Re-selecting Settings can\n        // return its Form to the first row without expanding that chrome on the\n        // current runtime. Follow re-selection with one real downward Form\n        // gesture, then verify the first section. Re-selection alone does not\n        // prove that a lazy first-row element is ready. This is a scroll-to-top action,\n        // not a repeated Journal tap or a wait for an unreachable hidden tab.\n        let settingsTab = app.tabBars.buttons[\"Settings\"]\n        XCTAssertTrue(settingsTab.isSelected,\n                      \"Settings must remain selected after its scroll\")\n        shot(\"82-settings-after-scroll-before-tab-reveal\")\n        XCTAssertTrue(settingsTab.isHittable, \"The selected minimized Settings tab must be reachable\")\n        settingsTab.tap()\n        let settingsForm = settingsContent()\n        shot(\"82-settings-after-selected-tab-scroll-reset\")\n        // A default swipeDown travels only 200pt on the retained runtime. Use\n        // one held drag across the real clear Form band, not another gesture.\n        let formFrame = settingsForm.frame\n        let navigationFrame = settingsTitle.frame\n        let tabFrame = app.tabBars.firstMatch.frame\n        let clearTop = max(formFrame.minY, navigationFrame.maxY) + 8\n        let clearBottom = min(formFrame.maxY, tabFrame.minY) - 8\n        XCTAssertGreaterThan(clearBottom, clearTop, \"Settings must expose a clear Form band\")\n        let formOrigin = settingsForm.coordinate(withNormalizedOffset: .zero)\n        let dragStart = formOrigin.withOffset(CGVector(dx: formFrame.width / 2,\n                                                       dy: clearTop - formFrame.minY))\n        let dragEnd = formOrigin.withOffset(CGVector(dx: formFrame.width / 2,\n                                                     dy: clearBottom - formFrame.minY))\n        dragStart.press(forDuration: 0.1, thenDragTo: dragEnd, withVelocity: .slow, thenHoldForDuration: 0.1)\n        shot(\"82-settings-tab-chrome-revealed\")\n        let hierarchy = XCTAttachment(string: app.debugDescription)\n        hierarchy.name = \"82-settings-after-top-boundary-scroll-hierarchy\"\n        hierarchy.lifetime = .keepAlways\n        add(hierarchy)\n        let firstSection = settingsForm.staticTexts[\"accountSyncTitle\"]\n        wait(firstSection)\n        XCTAssertEqual(firstSection.label, \"Account & sync\",\n                       \"The first Settings section must retain its account and sync heading\")\n        XCTAssertTrue(firstSection.isHittable,\n                      \"The scroll-to-top interaction must expose the first Settings section\")\n        // #82 uses the current Journal root, not the historical Tracker title or\n        // pushed Cooking History route. Keep every strict tab/arrival/header\n        // assertion; the reveal gesture is setup, never a substitute destination.\n",
+          "parent_fragment": "        app.swipeUp()\n        XCTAssertTrue(settingsTitle.exists, \"The navigation bar must remain present while Settings scrolls\")\n\n        // The native tab bar minimizes on scroll-down. Apple documents two ways\n        // to expand it: tap its selected tab or scroll all the way to the top.\n        // One reverse swipe is not that contract: final #529 pixels still show\n        // Account & sync below the header and only the Settings/Search capsules.\n        // Expand through the visible selected Settings tab exactly once, then\n        // perform the existing single Journal navigation tap below.\n        let settingsTab = app.tabBars.buttons[\"Settings\"]\n        XCTAssertTrue(settingsTab.isSelected,\n                      \"Settings must remain selected after its scroll\")\n        shot(\"82-settings-after-scroll-before-tab-reveal\")\n        XCTAssertTrue(settingsTab.isHittable, \"The selected minimized Settings tab must be reachable\")\n        settingsTab.tap()\n        shot(\"82-settings-tab-chrome-revealed\")\n        // #82 uses the current Journal root, not the historical Tracker title or\n        // pushed Cooking History route. Keep every strict tab/arrival/header\n        // assertion; the reveal gesture is setup, never a substitute destination.\n"
+        }
+      ]
+    },
+    "receipt:AteUITests/ReturnBoundaryReceipt.swift": {
+      "parent_sha": "990009b24a7cbad2bd6780ba3ac744ffdab60760",
+      "path": "AteUITests/ReturnBoundaryReceipt.swift",
+      "inverse_fragments": []
+    },
+    "main:AteUITests/CoverageUITests.swift": {
+      "parent_sha": "4aa5e5ed62c84cba4bb9a9008ae35810956d91ae",
+      "path": "AteUITests/CoverageUITests.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "        wait(expand, 3)\n        app.buttons[\"recipeSheet.close\"].tap()\n        XCTAssertTrue(expand.waitForNonExistence(timeout: 3))\n        #if DEBUG\n        ReturnBoundaryReceipt.capture(app, phase: \"landscape-grid-close-before-query\")\n        #endif\n        wait(card, 5)\n        // iPhone landscape uses LandscapeSplitView's sidebar, not a TabBar.\n        let librarySidebar = app.buttons[\"sidebar.Library\"]\n        #if DEBUG\n        ReturnBoundaryReceipt.capture(app, phase: \"landscape-grid-close-after-query\")\n        #endif\n        XCTAssertTrue(librarySidebar.isSelected)\n        let shoppingSidebar = app.buttons[\"sidebar.Shopping list\"]\n        wait(shoppingSidebar, 5)\n",
+          "parent_fragment": "        wait(expand, 3)\n        app.buttons[\"recipeSheet.close\"].tap()\n        XCTAssertTrue(expand.waitForNonExistence(timeout: 3))\n        wait(card, 5)\n        // iPhone landscape uses LandscapeSplitView's sidebar, not a TabBar.\n        let librarySidebar = app.buttons[\"sidebar.Library\"]\n        XCTAssertTrue(librarySidebar.isSelected)\n        let shoppingSidebar = app.buttons[\"sidebar.Shopping list\"]\n        wait(shoppingSidebar, 5)\n"
+        }
+      ]
+    },
+    "source:Ate/Store/FamilySyncCommitJournal.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Store/FamilySyncCommitJournal.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Services/UserDataSync.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Services/UserDataSync.swift",
+      "inverse_fragments": []
+    },
+    "main:Ate/Views/RecipeDetailView.swift": {
+      "parent_sha": "4aa5e5ed62c84cba4bb9a9008ae35810956d91ae",
+      "path": "Ate/Views/RecipeDetailView.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "                RecipeNotFoundView(title: \"Recipe not found\")\n            }\n        }\n        .toolbar(.hidden, for: .tabBar)   // full-height detail; Cook mode pinned at the bottom, never under the tab bar\n        .navigationTitle(store.recipe(recipeID)?.title ?? \"Recipe\")\n        .navigationBarTitleDisplayMode(.inline)\n        // Measure the outer inset host, not the content region reduced by the\n        // reserve that this measurement controls. Keep live parent/chrome changes.\n        .background(GeometryReader { geometry in\n            Color.clear.preference(key: RecipeDetailHostBottomYKey.self,\n                                   value: geometry.frame(in: .global).maxY)\n        })\n        .onPreferenceChange(RecipeDetailHostBottomYKey.self) { value in\n            #if DEBUG\n            QA8DetailLayoutDiagnostic.event(\"detail-host-bottom\", value: value.map { Double($0) },\n                previous: hostBottomY.map { Double($0) }, reserve: Double(footerChromeReserve))\n            #endif\n            hostBottomY = value\n        }\n        .toolbar {\n            if let recipe = store.recipe(recipeID) {\n                ToolbarItemGroup(placement: .topBarTrailing) {\n",
+          "parent_fragment": "                RecipeNotFoundView(title: \"Recipe not found\")\n            }\n        }\n        .background(GeometryReader { geometry in\n            Color.clear.preference(key: RecipeDetailHostBottomYKey.self,\n                                   value: geometry.frame(in: .global).maxY)\n        })\n        .onPreferenceChange(RecipeDetailHostBottomYKey.self) { hostBottomY = $0 }\n        .toolbar(.hidden, for: .tabBar)   // full-height detail; Cook mode pinned at the bottom, never under the tab bar\n        .navigationTitle(store.recipe(recipeID)?.title ?? \"Recipe\")\n        .navigationBarTitleDisplayMode(.inline)\n        .toolbar {\n            if let recipe = store.recipe(recipeID) {\n                ToolbarItemGroup(placement: .topBarTrailing) {\n"
+        },
+        {
+          "merged_fragment": "    private func askCard(_ recipe: RecipeCard) -> some View {\n        VStack(alignment: .leading, spacing: 10) {\n            Text(\"Ask ate\").overline()\n            #if DEBUG\n            let gaps = QA8DetailLayoutDiagnostic.quality { RecipeQuality.issues(recipe) }\n            #else\n            let gaps = RecipeQuality.issues(recipe)\n            #endif\n            if !gaps.isEmpty {\n                VStack(alignment: .leading, spacing: 4) {\n                    Label(\"This recipe looks thin\", systemImage: \"exclamationmark.bubble\").font(AteFont.body(14, .semibold))\n",
+          "parent_fragment": "    private func askCard(_ recipe: RecipeCard) -> some View {\n        VStack(alignment: .leading, spacing: 10) {\n            Text(\"Ask ate\").overline()\n            let gaps = RecipeQuality.issues(recipe)\n            if !gaps.isEmpty {\n                VStack(alignment: .leading, spacing: 4) {\n                    Label(\"This recipe looks thin\", systemImage: \"exclamationmark.bubble\").font(AteFont.body(14, .semibold))\n"
+        },
+        {
+          "merged_fragment": "        if let next = nextValue() { value = next }\n    }\n}\n\n#if DEBUG\n/// Numeric-only, bounded instrumentation for the existing QA8 Exit diagnostic.\n/// No observable state, recipe content, new geometry queries, tasks or timers.\n@MainActor\nenum QA8DetailLayoutDiagnostic {\n    private static var counts: [String: Int] = [:]\n    private static var rows: [String] = []\n    private static var armed = false\n    private static var qualityMaxMS = 0.0\n    private static var enabled: Bool {\n        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains(\"-qaQA8ExitFileDiagnostic\")\n    }\n    static func beginExit() {\n        guard enabled else { return }\n        armed = true\n        counts = [:]\n        rows = []\n        qualityMaxMS = 0\n        event(\"exit-enter\")\n    }\n    static func quality<T>(_ calculate: () -> T) -> T {\n        guard enabled, armed else { return calculate() }\n        event(\"quality-begin\")\n        let started = ProcessInfo.processInfo.systemUptime\n        let result = calculate()\n        let elapsed = (ProcessInfo.processInfo.systemUptime - started) * 1000\n        qualityMaxMS = max(qualityMaxMS, elapsed)\n        event(\"quality-end\", value: elapsed, previous: qualityMaxMS)\n        return result\n    }\n    static func event(_ phase: String, value: Double? = nil, previous: Double? = nil, reserve: Double? = nil) {\n        guard enabled, armed, rows.count < 64 else { return }\n        let count = (counts[phase] ?? 0) + 1\n        counts[phase] = count\n        // First four then powers of two: bounded disk writes even if layout churns.\n        guard count <= 4 || count & (count - 1) == 0 else { return }\n        func number(_ value: Double?) -> String { value.map { String($0) } ?? \"nil\" }\n        rows.append(\"pid=\\(ProcessInfo.processInfo.processIdentifier) phase=\\(phase) count=\\(count) uptime=\\(ProcessInfo.processInfo.systemUptime) value=\\(number(value)) previous=\\(number(previous)) reserve=\\(number(reserve))\")\n        guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }\n        do {\n            try Data((rows.joined(separator: \"\\n\") + \"\\n\").utf8).write(\n                to: cache.appendingPathComponent(\"qa8-detail-layout-\\(ProcessInfo.processInfo.processIdentifier).txt\"), options: .atomic)\n        } catch {\n            // A numeric marker in the existing test log, not recipe/private values.\n            print(\"QA8-DETAIL numeric-file-write-failed\")\n        }\n    }\n}\n#endif\n",
+          "parent_fragment": "        if let next = nextValue() { value = next }\n    }\n}\n"
+        }
+      ]
+    },
+    "main:AteUITests/KeyFlowsQATests.swift": {
+      "parent_sha": "4aa5e5ed62c84cba4bb9a9008ae35810956d91ae",
+      "path": "AteUITests/KeyFlowsQATests.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "    // MARK: 8 \u2014 timers (start, pause, resume, timer bar, finish \u2192 chime/haptic, Live Activity request)\n\n    func testQA8_Timers() {\n        launch([\"-qaFastTimers\", \"-qaDogWaitPhaseDiagnostic\", \"-qaQA8ExitFileDiagnostic\"])\n        addPrompt(\"Timer test salmon\")\n        app.buttons[\"Cook mode\"].tap()\n        wait(text(\"Step 1 of 4\"))\n",
+          "parent_fragment": "    // MARK: 8 \u2014 timers (start, pause, resume, timer bar, finish \u2192 chime/haptic, Live Activity request)\n\n    func testQA8_Timers() {\n        launch([\"-qaFastTimers\"])\n        addPrompt(\"Timer test salmon\")\n        app.buttons[\"Cook mode\"].tap()\n        wait(text(\"Step 1 of 4\"))\n"
+        },
+        {
+          "merged_fragment": "        wait(app.buttons[\"Pause timer\"], 5)\n        shot(\"8-timer-running\")\n        app.buttons[\"Exit\"].tap()\n        shot(\"8-after-exit-before-timerbar-query\")\n        wait(app.buttons[\"timerBarOpen\"].firstMatch, 5)\n        shot(\"8-timer-bar\")\n        XCTAssertTrue(app.buttons[\"timerBarOpen\"].firstMatch.waitForNonExistence(timeout: 40), \"timer finished\")\n",
+          "parent_fragment": "        wait(app.buttons[\"Pause timer\"], 5)\n        shot(\"8-timer-running\")\n        app.buttons[\"Exit\"].tap()\n        wait(app.buttons[\"timerBarOpen\"].firstMatch, 5)\n        shot(\"8-timer-bar\")\n        XCTAssertTrue(app.buttons[\"timerBarOpen\"].firstMatch.waitForNonExistence(timeout: 40), \"timer finished\")\n"
+        }
+      ]
+    },
+    "source:AteTests/LegacyJournalStoreUpgradeTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/LegacyJournalStoreUpgradeTests.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/ArchiveDefaultsParticipant.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/ArchiveDefaultsParticipant.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/ArchiveNutritionParticipant.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/ArchiveNutritionParticipant.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/ArchiveRecipeShoppingParticipant.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/ArchiveRecipeShoppingParticipant.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/ArchiveRecoveryJournal.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/ArchiveRecoveryJournal.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/ArchiveStartupRecovery.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/ArchiveStartupRecovery.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/BetaChecklist.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/BetaChecklist.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/BuildNotes.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/BuildNotes.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/CookCompletion.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/CookCompletion.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/CookPlan.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/CookPlan.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/CookingHistory.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/CookingHistory.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/CookingMonthSummary.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/CookingMonthSummary.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/CoverLogic.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/CoverLogic.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/CuisineGlossary.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/CuisineGlossary.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/DraftGenerationAttempt.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/DraftGenerationAttempt.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/DraftInputAttempt.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/DraftInputAttempt.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/DraftRepairAttempt.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/DraftRepairAttempt.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/Durations.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/Durations.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/GeneratedRecipeConsistency.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/GeneratedRecipeConsistency.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/GeneratedStepQuality.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/GeneratedStepQuality.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/GenerationCancellation.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/GenerationCancellation.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/GenerationLog.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/GenerationLog.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/JSONLD.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/JSONLD.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/JournalArchive.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/JournalArchive.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/JournalArchiveFilesystemMedia.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/JournalArchiveFilesystemMedia.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/JournalArchiveRestore.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/JournalArchiveRestore.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/JournalTimeline.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/JournalTimeline.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/JournalingMomentMapper.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/JournalingMomentMapper.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/L10n.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/L10n.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/LegacyDiaryRepair.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/LegacyDiaryRepair.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/LibraryLayout.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/LibraryLayout.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/NutritionDiary.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/NutritionDiary.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/NutritionDiaryController.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/NutritionDiaryController.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/NutritionDiaryEditing.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/NutritionDiaryEditing.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/NutritionFoodCatalogue.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/NutritionFoodCatalogue.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/NutritionFrequentFoods.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/NutritionFrequentFoods.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/NutritionGoals.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/NutritionGoals.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/NutritionRecipeAssociation.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/NutritionRecipeAssociation.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/NutritionWeekTotals.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/NutritionWeekTotals.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/PasswordPolicy.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/PasswordPolicy.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/PhotoGuess.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/PhotoGuess.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/ProductUpdates.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/ProductUpdates.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/QAFixtures.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/QAFixtures.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/RecipeDraftRepair.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/RecipeDraftRepair.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/RecipeFilter.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/RecipeFilter.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/RecipeLogic.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/RecipeLogic.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/RecipeNutrition.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/RecipeNutrition.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/RecipePrompt.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/RecipePrompt.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/RecipeQuality.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/RecipeQuality.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/RecipeRewriteScope.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/RecipeRewriteScope.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/ReviewedMealBackup.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/ReviewedMealBackup.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/ScreenshotRecipeImport.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/ScreenshotRecipeImport.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/ShareFallbackRetry.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/ShareFallbackRetry.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/ShareLinks.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/ShareLinks.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/ShoppingLogic.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/ShoppingLogic.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/SocialLinks.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/SocialLinks.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/SourceRecipeFidelity.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/SourceRecipeFidelity.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/Transparency.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/Transparency.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/Units.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/Units.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/VoiceCommands.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/VoiceCommands.swift",
+      "inverse_fragments": []
+    },
+    "source:Ate/Logic/WidgetSnapshotBuilder.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "Ate/Logic/WidgetSnapshotBuilder.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/AccessibilityTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/AccessibilityTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/AccountGenerationPolicyTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/AccountGenerationPolicyTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/AccountGenerationReceiptStoreTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/AccountGenerationReceiptStoreTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/AccountResetCompositionTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/AccountResetCompositionTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/AccountWriterGateTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/AccountWriterGateTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/AppAppearanceTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/AppAppearanceTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/AppGroupResolverTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/AppGroupResolverTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ArchiveCaptureBindingTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ArchiveCaptureBindingTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ArchiveCentralOuterTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ArchiveCentralOuterTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ArchiveImportBindingTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ArchiveImportBindingTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ArchiveNutritionParticipantTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ArchiveNutritionParticipantTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ArchiveRecoveryJournalTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ArchiveRecoveryJournalTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ArchiveStartupRecoveryBindingTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ArchiveStartupRecoveryBindingTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/BetaChannelTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/BetaChannelTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CanonicalConsumerBindingTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CanonicalConsumerBindingTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CanonicalCookingConsumerTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CanonicalCookingConsumerTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CanonicalNutritionDiaryTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CanonicalNutritionDiaryTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CatalogueIntegrityTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CatalogueIntegrityTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ClearAllLocalDataTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ClearAllLocalDataTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ClearAllResetCoordinatorTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ClearAllResetCoordinatorTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CookCompletionTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CookCompletionTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CookPlanAccountSafetyTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CookPlanAccountSafetyTests.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "final class CookPlanAccountSafetyTests: XCTestCase {\n    enum Injected: Error { case clear }\n    private func store() -> AppStore {\n        let store = AppStore(context: nil, backend: MockBackend(),\n            cookPlanNotifications: CookPlanNotifications(client: CookPlanFakeNotificationClient()),\n            clearCookPlans: { throw Injected.clear }, authOverride: MockAuth(), syncOverride: MockSync())\n        // Hermetic credential effect: these tests cover AppStore boundaries, not simulator Keychain entitlements.\n        // Explicit credential-refusal tests replace this seam after construction.\n        var credentialBytes: Data?\n        store.saveSessionCredentials = { data in\n            credentialBytes = data\n            return credentialBytes == data\n        }\n        return store\n    }\n    private var accountB: AuthSession {\n        AuthSession(accessToken: \"mock\", refreshToken: \"mock\", expiresAt: Date().timeIntervalSince1970 + 3600,\n",
+          "parent_fragment": "final class CookPlanAccountSafetyTests: XCTestCase {\n    enum Injected: Error { case clear }\n    private func store() -> AppStore {\n        AppStore(context: nil, backend: MockBackend(),\n            cookPlanNotifications: CookPlanNotifications(client: CookPlanFakeNotificationClient()),\n            clearCookPlans: { throw Injected.clear }, authOverride: MockAuth(), syncOverride: MockSync())\n    }\n    private var accountB: AuthSession {\n        AuthSession(accessToken: \"mock\", refreshToken: \"mock\", expiresAt: Date().timeIntervalSince1970 + 3600,\n"
+        }
+      ]
+    },
+    "source:AteTests/CookPlanNotificationTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CookPlanNotificationTests.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "    }\n\n}\n\n// Exercise the real off-Main boundary without contacting notification services.\nextension CookPlanNotificationTests {\n    func testBlockedSystemRemovalLeavesMainResponsiveAndDoesNotReturnEarly() async {\n        let started = expectation(description: \"utility removal entered\")\n        let release = DispatchSemaphore(value: 0)\n        var returned = false\n        let removal = Task { @MainActor in\n            await CookPlanNotificationRemoval.perform(ids: [\"cook-r1\"]) { ids in\n                XCTAssertFalse(Thread.isMainThread, \"Blocking OS removal must not run on Main\")\n                XCTAssertEqual(ids, [\"cook-r1\"], \"Removal must preserve the requested identities\")\n                started.fulfill()\n                release.wait()\n            }\n            returned = true\n        }\n        await fulfillment(of: [started], timeout: 2)\n        // This MainActor assertion runs while the synchronous boundary is blocked.\n        XCTAssertFalse(returned, \"Ordered cleanup cannot report completion before OS removal returns\")\n        release.signal()\n        await removal.value\n        XCTAssertTrue(returned)\n    }\n\n    func testEmptyRemovalDoesNotContactSystem() async {\n        await CookPlanNotificationRemoval.perform(ids: []) { _ in\n            XCTFail(\"No identifiers means no OS removal request\")\n        }\n    }\n}\n",
+          "parent_fragment": "    }\n\n}\n"
+        }
+      ]
+    },
+    "source:AteTests/CookPlanTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CookPlanTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CookSessionIdentityTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CookSessionIdentityTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CookSessionTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CookSessionTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CookedJournalReflectionSessionTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CookedJournalReflectionSessionTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CookedJournalReflectionTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CookedJournalReflectionTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CookingHistoryTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CookingHistoryTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CookingMonthSummaryTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CookingMonthSummaryTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CookingTrackerPresentationTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CookingTrackerPresentationTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/CoverTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/CoverTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/DataArchiveTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/DataArchiveTests.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "        )\n        let store = AppStore(context: nil, backend: MockBackend(), nutritionDiaryRepository: diary,\n                             nutritionGoalsRepository: goals)\n        // Hermetic credential effect: these tests cover AppStore boundaries, not simulator Keychain entitlements.\n        // Explicit credential-refusal tests replace this seam after construction.\n        var credentialBytes: Data?\n        store.saveSessionCredentials = { data in\n            credentialBytes = data\n            return credentialBytes == data\n        }\n        return (store, diary, goals, defaults, suite, directory)\n    }\n}\n",
+          "parent_fragment": "        )\n        let store = AppStore(context: nil, backend: MockBackend(), nutritionDiaryRepository: diary,\n                             nutritionGoalsRepository: goals)\n        return (store, diary, goals, defaults, suite, directory)\n    }\n}\n"
+        }
+      ]
+    },
+    "source:AteTests/DraftGenerationAttemptTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/DraftGenerationAttemptTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/DraftInputAttemptTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/DraftInputAttemptTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/DraftRepairAttemptTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/DraftRepairAttemptTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/DraftStoreTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/DraftStoreTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/DurationTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/DurationTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/FileResetControlPersistenceTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/FileResetControlPersistenceTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/Fixtures/legacy_v1_store.json": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/Fixtures/legacy_v1_store.json",
+      "inverse_fragments": []
+    },
+    "source:AteTests/Fixtures/sync_fixtures.json": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/Fixtures/sync_fixtures.json",
+      "inverse_fragments": []
+    },
+    "source:AteTests/FoodJournalCoordinatorTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/FoodJournalCoordinatorTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/FoodJournalMigrationSnapshotTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/FoodJournalMigrationSnapshotTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/FoodJournalReviewedBackupRestoreTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/FoodJournalReviewedBackupRestoreTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/FoodJournalStoreTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/FoodJournalStoreTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/FoodJournalStoreTimelineTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/FoodJournalStoreTimelineTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/FoodJournalUpgradeFailureDiskTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/FoodJournalUpgradeFailureDiskTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/FoodJournalUpgradeReopenTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/FoodJournalUpgradeReopenTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/FoodJournalWriterBoundaryTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/FoodJournalWriterBoundaryTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/GeneratedRecipeConsistencyTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/GeneratedRecipeConsistencyTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/GeneratedStepQualityTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/GeneratedStepQualityTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/GeneratedTotalTimeTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/GeneratedTotalTimeTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/GenerationCancellationTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/GenerationCancellationTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/GenerationFencedSyncTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/GenerationFencedSyncTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/HardeningTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/HardeningTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/HealthEntitlementTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/HealthEntitlementTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/HealthInsightTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/HealthInsightTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/InsightDestinationQAFixturesTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/InsightDestinationQAFixturesTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/InsightDestinationRoutingTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/InsightDestinationRoutingTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/InsightLifecycleTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/InsightLifecycleTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/InsightsPresentationTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/InsightsPresentationTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/InsightsRefreshOwnershipTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/InsightsRefreshOwnershipTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JSONLDTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JSONLDTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalAccountActionBindingTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalAccountActionBindingTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalArchiveDiskReopenTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalArchiveDiskReopenTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalArchiveFilesystemMediaTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalArchiveFilesystemMediaTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalArchiveRestoreTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalArchiveRestoreTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalArchiveTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalArchiveTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalCurrentShapeUpgradeTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalCurrentShapeUpgradeTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalDeleteConfirmationTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalDeleteConfirmationTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalInstallReconciliationTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalInstallReconciliationTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalLocalOwnerIdentityTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalLocalOwnerIdentityTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalLocalResetTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalLocalResetTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalReadStateTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalReadStateTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalRecipeSnapshotTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalRecipeSnapshotTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalReflectionConsumerTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalReflectionConsumerTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalReflectionEditTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalReflectionEditTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalStoreRecoveryTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalStoreRecoveryTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalTextGuardTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalTextGuardTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalTimelineOrderTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalTimelineOrderTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalTimelineTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalTimelineTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalTimelineViewTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalTimelineViewTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/JournalWriterBoundaryCompositionTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/JournalWriterBoundaryCompositionTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/Lane3WriterBoundaryTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/Lane3WriterBoundaryTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/LegacyDiaryRepairTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/LegacyDiaryRepairTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/LibraryLayoutTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/LibraryLayoutTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/LogicTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/LogicTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ManualJournalTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ManualJournalTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/NutritionDiaryTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/NutritionDiaryTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/NutritionGoalsTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/NutritionGoalsTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/NutritionRecipeAssociationTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/NutritionRecipeAssociationTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/OCRTerminalResultTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/OCRTerminalResultTests.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "        let original = try XCTUnwrap(AddRecipeSheet.sampleImage())\n        let image = AddRecipeSheet.prepareImage(original).requestAndRecovery\n        let started = Date()\n        let text = try await OnDeviceBackend.ocr(dataURL: \"data:image/jpeg;base64,\" + image.base64EncodedString(),\n            diagnostic: .syntheticVisionFixture())\n        let elapsed = Date().timeIntervalSince(started)\n        let timing = \"OCR_TIMING sample pixels=800x600 seconds=\\(elapsed)\"\n        print(timing)\n",
+          "parent_fragment": "        let original = try XCTUnwrap(AddRecipeSheet.sampleImage())\n        let image = AddRecipeSheet.prepareImage(original).requestAndRecovery\n        let started = Date()\n        let text = try await OnDeviceBackend.ocr(dataURL: \"data:image/jpeg;base64,\" + image.base64EncodedString())\n        let elapsed = Date().timeIntervalSince(started)\n        let timing = \"OCR_TIMING sample pixels=800x600 seconds=\\(elapsed)\"\n        print(timing)\n"
+        },
+        {
+          "merged_fragment": "        let image = AddRecipeSheet.prepareImage(original).requestAndRecovery\n        let pixels = try XCTUnwrap(UIImage(data: image)?.cgImage)\n        let started = Date()\n        let text = try await OnDeviceBackend.ocr(dataURL: \"data:image/jpeg;base64,\" + image.base64EncodedString(),\n            diagnostic: .syntheticVisionFixture())\n        let elapsed = Date().timeIntervalSince(started)\n        let timing = \"OCR_TIMING tall pixels=\\(pixels.width)x\\(pixels.height) seconds=\\(elapsed)\"\n        print(timing)\n",
+          "parent_fragment": "        let image = AddRecipeSheet.prepareImage(original).requestAndRecovery\n        let pixels = try XCTUnwrap(UIImage(data: image)?.cgImage)\n        let started = Date()\n        let text = try await OnDeviceBackend.ocr(dataURL: \"data:image/jpeg;base64,\" + image.base64EncodedString())\n        let elapsed = Date().timeIntervalSince(started)\n        let timing = \"OCR_TIMING tall pixels=\\(pixels.width)x\\(pixels.height) seconds=\\(elapsed)\"\n        print(timing)\n"
+        }
+      ]
+    },
+    "source:AteTests/PhotoQuestionChoiceTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/PhotoQuestionChoiceTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ProductUpdatesTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ProductUpdatesTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/QualityAndDedupeTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/QualityAndDedupeTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/RecipeCleanupTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/RecipeCleanupTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/RecipeDraftRepairTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/RecipeDraftRepairTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/RecipeFilterTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/RecipeFilterTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/RecipeImportFailureTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/RecipeImportFailureTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/RecipeMatcherTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/RecipeMatcherTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/RecipeNutritionTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/RecipeNutritionTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/RecipePromptTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/RecipePromptTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/RecipeRewriteScopeTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/RecipeRewriteScopeTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ResetAwareStartupTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ResetAwareStartupTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ReviewedMealBackupTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ReviewedMealBackupTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ScreenshotRecipeImportTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ScreenshotRecipeImportTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/SentryBootstrapTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/SentryBootstrapTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/SettingsAIStatusTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/SettingsAIStatusTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/SettingsCopyTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/SettingsCopyTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ShareFallbackRetryTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ShareFallbackRetryTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ShareLinksSecurityTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ShareLinksSecurityTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/ShareLinksTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/ShareLinksTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/SharedInboxPathTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/SharedInboxPathTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/SharedInboxTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/SharedInboxTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/SharedStrictPersistenceTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/SharedStrictPersistenceTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/SharedWriterGateTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/SharedWriterGateTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/SiriRoutingTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/SiriRoutingTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/SiriSnippetTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/SiriSnippetTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/SocialAndPhotoTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/SocialAndPhotoTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/SourceRecipeFidelityTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/SourceRecipeFidelityTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/StoreRecoveryTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/StoreRecoveryTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/SyncFixtureTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/SyncFixtureTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/SystemCleanupCompletionTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/SystemCleanupCompletionTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/VoiceCommandTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/VoiceCommandTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/WatchLogicTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/WatchLogicTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteTests/WidgetsIntentsTests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteTests/WidgetsIntentsTests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/AccessibilityAuditUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/AccessibilityAuditUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/CanonicalNutritionAssociationUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/CanonicalNutritionAssociationUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/CanonicalUpgradeUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/CanonicalUpgradeUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/CookFinishAccessoryUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/CookFinishAccessoryUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/CookIngredientsUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/CookIngredientsUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/CookPlanUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/CookPlanUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/CookReflectionUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/CookReflectionUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/CookSharedStepUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/CookSharedStepUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/CookingTrackerEntryUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/CookingTrackerEntryUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/CoverageUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/CoverageUITests.swift",
+      "inverse_fragments": [
+        {
+          "merged_fragment": "        wait(expand, 3)\n        app.buttons[\"recipeSheet.close\"].tap()\n        XCTAssertTrue(expand.waitForNonExistence(timeout: 3))\n        #if DEBUG\n        ReturnBoundaryReceipt.capture(app, phase: \"landscape-grid-close-before-query\")\n        #endif\n        wait(card, 5)\n        // iPhone landscape uses LandscapeSplitView's sidebar, not a TabBar.\n        let librarySidebar = app.buttons[\"sidebar.Library\"]\n        #if DEBUG\n        ReturnBoundaryReceipt.capture(app, phase: \"landscape-grid-close-after-query\")\n        #endif\n        XCTAssertTrue(librarySidebar.isSelected)\n        let shoppingSidebar = app.buttons[\"sidebar.Shopping list\"]\n        wait(shoppingSidebar, 5)\n",
+          "parent_fragment": "        wait(expand, 3)\n        app.buttons[\"recipeSheet.close\"].tap()\n        XCTAssertTrue(expand.waitForNonExistence(timeout: 3))\n        wait(card, 5)\n        // iPhone landscape uses LandscapeSplitView's sidebar, not a TabBar.\n        let librarySidebar = app.buttons[\"sidebar.Library\"]\n        XCTAssertTrue(librarySidebar.isSelected)\n        let shoppingSidebar = app.buttons[\"sidebar.Shopping list\"]\n        wait(shoppingSidebar, 5)\n"
+        },
+        {
+          "merged_fragment": "        app.swipeUp()\n        XCTAssertTrue(settingsTitle.exists, \"The navigation bar must remain present while Settings scrolls\")\n\n        // Scroll-down minimizes native tab chrome. Re-selecting Settings can\n        // return its Form to the first row without expanding that chrome on the\n        // current runtime. Follow re-selection with one real downward Form\n        // gesture, then verify the first section. Re-selection alone does not\n        // prove that a lazy first-row element is ready. This is a scroll-to-top action,\n        // not a repeated Journal tap or a wait for an unreachable hidden tab.\n        let settingsTab = app.tabBars.buttons[\"Settings\"]\n        XCTAssertTrue(settingsTab.isSelected,\n                      \"Settings must remain selected after its scroll\")\n        shot(\"82-settings-after-scroll-before-tab-reveal\")\n        XCTAssertTrue(settingsTab.isHittable, \"The selected minimized Settings tab must be reachable\")\n        settingsTab.tap()\n        let settingsForm = settingsContent()\n        shot(\"82-settings-after-selected-tab-scroll-reset\")\n        // A default swipeDown travels only 200pt on the retained runtime. Use\n        // one held drag across the real clear Form band, not another gesture.\n        let formFrame = settingsForm.frame\n        let navigationFrame = settingsTitle.frame\n        let tabFrame = app.tabBars.firstMatch.frame\n        let clearTop = max(formFrame.minY, navigationFrame.maxY) + 8\n        let clearBottom = min(formFrame.maxY, tabFrame.minY) - 8\n        XCTAssertGreaterThan(clearBottom, clearTop, \"Settings must expose a clear Form band\")\n        let formOrigin = settingsForm.coordinate(withNormalizedOffset: .zero)\n        let dragStart = formOrigin.withOffset(CGVector(dx: formFrame.width / 2,\n                                                       dy: clearTop - formFrame.minY))\n        let dragEnd = formOrigin.withOffset(CGVector(dx: formFrame.width / 2,\n                                                     dy: clearBottom - formFrame.minY))\n        dragStart.press(forDuration: 0.1, thenDragTo: dragEnd, withVelocity: .slow, thenHoldForDuration: 0.1)\n        shot(\"82-settings-tab-chrome-revealed\")\n        let hierarchy = XCTAttachment(string: app.debugDescription)\n        hierarchy.name = \"82-settings-after-top-boundary-scroll-hierarchy\"\n        hierarchy.lifetime = .keepAlways\n        add(hierarchy)\n        let firstSection = settingsForm.staticTexts[\"accountSyncTitle\"]\n        wait(firstSection)\n        XCTAssertEqual(firstSection.label, \"Account & sync\",\n                       \"The first Settings section must retain its account and sync heading\")\n        XCTAssertTrue(firstSection.isHittable,\n                      \"The scroll-to-top interaction must expose the first Settings section\")\n        // #82 uses the current Journal root, not the historical Tracker title or\n        // pushed Cooking History route. Keep every strict tab/arrival/header\n        // assertion; the reveal gesture is setup, never a substitute destination.\n",
+          "parent_fragment": "        app.swipeUp()\n        XCTAssertTrue(settingsTitle.exists, \"The navigation bar must remain present while Settings scrolls\")\n\n        // The native tab bar minimizes on scroll-down. Apple documents two ways\n        // to expand it: tap its selected tab or scroll all the way to the top.\n        // One reverse swipe is not that contract: final #529 pixels still show\n        // Account & sync below the header and only the Settings/Search capsules.\n        // Expand through the visible selected Settings tab exactly once, then\n        // perform the existing single Journal navigation tap below.\n        let settingsTab = app.tabBars.buttons[\"Settings\"]\n        XCTAssertTrue(settingsTab.isSelected,\n                      \"Settings must remain selected after its scroll\")\n        shot(\"82-settings-after-scroll-before-tab-reveal\")\n        XCTAssertTrue(settingsTab.isHittable, \"The selected minimized Settings tab must be reachable\")\n        settingsTab.tap()\n        shot(\"82-settings-tab-chrome-revealed\")\n        // #82 uses the current Journal root, not the historical Tracker title or\n        // pushed Cooking History route. Keep every strict tab/arrival/header\n        // assertion; the reveal gesture is setup, never a substitute destination.\n"
+        }
+      ]
+    },
+    "source:AteUITests/DraftQualityRepairUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/DraftQualityRepairUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/DuoExplorationUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/DuoExplorationUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/InsightsAcceptanceUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/InsightsAcceptanceUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/InsightsPresentationUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/InsightsPresentationUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/JournalMenuCaptureUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/JournalMenuCaptureUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/JournalOpenStateUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/JournalOpenStateUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/NutritionGoalsUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/NutritionGoalsUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/NutritionProductionControlsUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/NutritionProductionControlsUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/ProductionChannelUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/ProductionChannelUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/SettingsAuditUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/SettingsAuditUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/SettingsClarificationUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/SettingsClarificationUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/SettingsOrganizationUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/SettingsOrganizationUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/ShoppingEditUndoUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/ShoppingEditUndoUITests.swift",
+      "inverse_fragments": []
+    },
+    "source:AteUITests/WidgetsIntentsUITests.swift": {
+      "parent_sha": "5ba15be97a96725535bcfbc1eb9d75359dee8fa3",
+      "path": "AteUITests/WidgetsIntentsUITests.swift",
+      "inverse_fragments": []
+    }
+  },
+  "approved_added_files": {
+    "AteTests/ExploreRetentionQAFixtureTests.swift": "a71ba4ef55d484fa7f46b20543b5efbb5b5f6d03c4111dff2e5712f6ffe458da",
+    "AteTests/PilotLocalDurabilityTests.swift": "dc6d63948d8e8feaa553d00baad2060c73c13be6d4447c7be299690d03404677",
+    "AteTests/SyncPayloadSafetyTests.swift": "8221d6c60f4ddd7ab42ccfdb6572e0c2310f9d0fcdd5a46b046f6a99a9a7bd23",
+    "AteTests/ShoppingLiveSyncTests.swift": "1ca75a89af343adc841f9ed4f2a778f48b22d394fa04cad256018bc0ec697319",
+    "AteTests/ExploreRecipesTests.swift": "8e013566bdcd94d1a67588d0e6185060600c3e116e2e5fe109c286deacbb31aa",
+    "AteTests/TabCollectionRetentionTests.swift": "deabe83efe42dc19e1a48dfc6c25032e8ec63982eea6ed5dd2560e39c1bbd80d",
+    "AteUITests/ShoppingSyncCaptureUITests.swift": "d7e6358820b5952bae8184e9fb43b54051c49e6372977bfc21dd8c7494b9bc23",
+    "AteUITests/ReturnBoundaryReceipt.swift": "da8706c6541ec662070bcfe309b1d92f98aa7933c210948d85cf3271771ccabd",
+    "AteUITests/ExploreUITests.swift": "5e300bda3a3f8ab02caae977a6d3906f0d1df4700b11d29cbbb443af6fcf1b25",
+    "Ate/Logic/SyncPayloadSafety.swift": "ff3dde32fcfba2724cf737b2a62501d28acc12b45c80be190c27c47430d5a26a",
+    "Ate/Logic/ExploreRecipes.swift": "c1b35865a9feac2250b73400e779930ce68ad3f3e1a410f4034a561276f4ac4d",
+    "Ate/Logic/ShoppingSyncCadence.swift": "86917b105f5e6cf729909d8aa51751e66f0351bbad74082bc5635b4d5ee53e55"
+  }
+}

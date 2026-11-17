@@ -46,6 +46,15 @@ struct InsightLifecycleStore {
         }
     }
 
+    /// Issue #34 sync export: every lifecycle record in this store's scope. Records are the
+    /// whole sync payload - status, evidence fingerprint and timestamps travel verbatim.
+    func exportRecords() -> [String: InsightLifecycleRecord] { records() }
+
+    /// Issue #34 sync apply: replaces the scope with the merged set. The merge already picked
+    /// the last-write-wins winner per id, so this is a storage write and never a status
+    /// transition: it cannot reopen a dismissed/resolved version the merge did not carry.
+    func applySyncedRecords(_ merged: [String: InsightLifecycleRecord]) { save(merged) }
+
     func record(for id: String) -> InsightLifecycleRecord? {
         records()[id]
     }

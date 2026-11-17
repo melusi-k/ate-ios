@@ -1,0 +1,7 @@
+{
+  "path": "AteUITests/CoverageUITests.swift",
+  "before_sha256": "a8d37fbcacf04a755fda7e384e059b7cf7fe966c664bfe01c04ba5dddb7cb688",
+  "after_sha256": "9fe4d6d3ad97d2405ad32a8257ed110a47b2c7f19e349aa94e6589b40e51f34b",
+  "new": "        // Form rows are lazy: reaching Export does not materialize every later row.\n        // Reveal each retained identifier with the existing bounded helper before\n        // its unchanged existence assertion. No new wait or swipe limit.\n        scrollTo(settings.buttons[\"settings.import\"])\n        XCTAssertTrue(settings.buttons[\"settings.import\"].exists)\n        scrollTo(settings.buttons[\"settings.replayOnboarding\"])\n        XCTAssertTrue(settings.buttons[\"settings.replayOnboarding\"].exists)",
+  "old": "        XCTAssertTrue(settings.buttons[\"settings.import\"].exists)\n        XCTAssertTrue(settings.buttons[\"settings.replayOnboarding\"].exists)"
+}

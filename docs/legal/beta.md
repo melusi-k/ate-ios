@@ -1,5 +1,7 @@
 # Beta tester terms
 
+Remote diagnostics are off by default, including beta builds. The current build blocks uploads pending readiness review. A future eligible beta build will require explicit, revocable opt-in under Settings > Diagnostics. Beta participation, feedback submission and local diagnostic export are not that consent. Turning it off cannot recall already received events; old local history is never replayed.
+
 _Last updated: 11 October 2026_
 
 These add to the [Terms of Use](terms.html) while you use a beta build of ate.

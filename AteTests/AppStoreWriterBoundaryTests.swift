@@ -63,6 +63,13 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
                         .appendingPathComponent(UUID().uuidString))),
                  foodJournalRuntime: nil,
                  injectedAuth: auth, injectedSync: sync)
+        // Hermetic credential effect: these tests cover AppStore boundaries, not simulator Keychain entitlements.
+        // Explicit credential-refusal tests replace this seam after construction.
+        var credentialBytes: Data?
+        store.saveSessionCredentials = { data in
+            credentialBytes = data
+            return credentialBytes == data
+        }
         stores.append(store)
         return store
     }
@@ -268,11 +275,76 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
     }
 
 
+    func testOldRefreshRejectionCannotClearNewSessionInEitherGraph() async {
+        for bound in [false, true] {
+            let auth = AuthSpy(); let store = makeStore(auth: auth, sync: SyncSpy())
+            var old = auth.base.make("fixture@example.test"); old.expiresAt = 0
+            var newer = old; newer.accessToken = "new-access"; newer.refreshToken = "new-refresh"
+            newer.expiresAt = 4_000_000_000
+            store.session = old
+            if bound {
+                store.journalWriterEffect = { try $0() }
+                store.journalWriterValidator = {}
+            }
+            auth.onRefresh = { _ in
+                store.session = newer
+                throw AuthError(.unauthorized, "fixture rejection")
+            }
+            await store.syncNow()
+            XCTAssertEqual(auth.refreshes, 1)
+            XCTAssertEqual(store.session, newer)
+            XCTAssertEqual(DiagnosticHistory.shared.entries.last?.kind, .authStaleRejectionIgnored)
+        }
+    }
+
+    func testOldSyncRejectionCannotClearNewSessionInEitherGraph() async {
+        for bound in [false, true] {
+            let auth = AuthSpy(); let sync = SyncSpy(); let store = makeStore(auth: auth, sync: sync)
+            let old = auth.base.make("fixture@example.test")
+            var newer = old; newer.accessToken = "new-access"; newer.refreshToken = "new-refresh"
+            store.session = old
+            if bound {
+                store.journalWriterEffect = { try $0() }
+                store.journalWriterValidator = {}
+            }
+            sync.onPull = {
+                store.session = newer
+                throw SyncError.unauthorized
+            }
+            await store.syncNow()
+            XCTAssertEqual(sync.pulls, 1)
+            XCTAssertEqual(store.session, newer)
+            XCTAssertEqual(DiagnosticHistory.shared.entries.last?.kind, .authStaleRejectionIgnored)
+        }
+    }
+
+    func testCurrentRejectionsStillExpireButInvalidWriterDoesNot() async {
+        for refresh in [false, true] {
+            for invalidWriter in [false, true] {
+                let auth = AuthSpy(); let sync = SyncSpy(); let store = makeStore(auth: auth, sync: sync)
+                var current = auth.base.make("fixture@example.test")
+                if refresh { current.expiresAt = 0 }
+                store.session = current
+                store.journalWriterEffect = { try $0() }
+                store.journalWriterValidator = {}
+                let reject: () -> Void = {
+                    if invalidWriter { store.journalWriterValidator = { throw StubError.boundaryRefused } }
+                }
+                auth.onRefresh = { _ in reject(); throw AuthError(.unauthorized, "fixture rejection") }
+                sync.onPull = { reject(); throw SyncError.unauthorized }
+                await store.syncNow()
+                if invalidWriter { XCTAssertEqual(store.session, current) }
+                else { XCTAssertNil(store.session); XCTAssertTrue(store.sessionExpired) }
+            }
+        }
+    }
+
     private final class AuthSpy: AuthService {
         let base = MockAuth()
         var signOuts = 0
         var deletes = 0
         var refreshes = 0
+        var onRefresh: ((AuthSession) async throws -> AuthSession)?
         func signIn(email: String, password: String) async throws -> AuthSession { base.make(email) }
         func signUp(email: String, password: String) async throws -> AuthSession? { base.make(email) }
         func sendMagicLink(email: String) async throws {}
@@ -281,6 +353,7 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
         func updatePassword(_ session: AuthSession, to password: String) async throws {}
         func refresh(_ session: AuthSession) async throws -> AuthSession {
             refreshes += 1
+            if let onRefresh { return try await onRefresh(session) }
             var value = session; value.expiresAt = Date().timeIntervalSince1970 + 3600
             return value
         }
@@ -294,16 +367,29 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
     private final class SyncSpy: SyncService {
         var pulls = 0
         var pushes = 0
-        func pull(session: AuthSession) async throws -> [SyncRecord] { pulls += 1; return [] }
+        var onPull: (() async throws -> [SyncRecord])?
+        func pull(session: AuthSession) async throws -> [SyncRecord] {
+            pulls += 1
+            if let onPull { return try await onPull() }
+            return []
+        }
         func push(_ records: [SyncRecord], session: AuthSession) async throws { pushes += 1 }
     }
 
     private func refuseSessionPublish(_ store: AppStore, afterWork: Bool,
-                                      reached: XCTestExpectation? = nil) {
+                                      reached: XCTestExpectation? = nil,
+                                      precedingEffects: Int = 0) {
         var depth = 0
+        var remainingPrecedingEffects = precedingEffects
         store.journalWriterValidator = {}
         store.journalWriterEffect = { work in
             if depth > 0 { return try work() }
+            if remainingPrecedingEffects > 0 {
+                remainingPrecedingEffects -= 1
+                depth += 1
+                defer { depth -= 1 }
+                return try work()
+            }
             depth += 1
             defer { depth -= 1; reached?.fulfill() }
             if afterWork { try work() }
@@ -381,7 +467,9 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
                 store.session = original
                 store.recipes = [card("keep")]
                 store.showOnboarding = false
-                refuseSessionPublish(store, afterWork: afterWork)
+                // Sign-out verifies Journal cleanup in one preceding effect. Target
+                // session publication, not that earlier destructive cleanup boundary.
+                refuseSessionPublish(store, afterWork: afterWork, precedingEffects: deleting ? 0 : 1)
                 if deleting {
                     let error = await store.deleteAccount()
                     XCTAssertNotNil(error)
@@ -397,6 +485,28 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
                 XCTAssertFalse(store.showOnboarding)
                 XCTAssertEqual(store.session, afterWork ? nil : original)
             }
+        }
+    }
+
+    func testSignOutCleanupEffectFailureDoesNotReachSessionPublicationOrRecipeWipe() async {
+        for afterWork in [false, true] {
+            let auth = AuthSpy()
+            let store = makeStore(auth: auth)
+            let original = auth.base.make("owner@example.com")
+            store.session = original
+            store.recipes = [card("keep")]
+            store.showOnboarding = false
+            var credentialWrites = 0
+            store.saveSessionCredentials = { _ in credentialWrites += 1; return true }
+            refuseSessionPublish(store, afterWork: afterWork)
+            await store.signOut(removeLocalData: true)
+            XCTAssertEqual(auth.signOuts, 1)
+            XCTAssertEqual(credentialWrites, 0)
+            XCTAssertEqual(store.session, original)
+            XCTAssertEqual(store.recipes.map(\.id), ["keep"])
+            XCTAssertFalse(store.showOnboarding)
+            XCTAssertTrue(store.toast?.message.contains("Journal cleanup could not be verified") == true)
+            XCTAssertEqual(store.toast?.isError, true)
         }
     }
 
@@ -448,4 +558,30 @@ final class AppStoreWriterBoundaryTests: XCTestCase {
         }
     }
 
+}
+
+extension AppStoreWriterBoundaryTests {
+    func testCredentialSaveFailureRefusesSignInAndPreservesCurrentSession() async {
+        let auth = AuthSpy(); let store = makeStore(auth: auth, sync: SyncSpy())
+        let original = auth.base.make("existing@example.test")
+        store.session = original
+        var attempts = 0
+        store.saveSessionCredentials = { data in attempts += 1; XCTAssertNotNil(data); return false }
+        let error = await store.signIn(email: "new@example.test", password: "fixture")
+        XCTAssertEqual(error?.message, AppStore.sessionWriteFailureMessage)
+        XCTAssertEqual(attempts, 1)
+        XCTAssertEqual(store.session, original)
+    }
+
+    func testCredentialRemovalFailureDoesNotClaimSessionExpired() {
+        let store = makeStore(auth: AuthSpy(), sync: SyncSpy())
+        let original = MockAuth().make("existing@example.test")
+        store.session = original
+        store.saveSessionCredentials = { data in XCTAssertNil(data); return false }
+        store.expireSession()
+        XCTAssertEqual(store.session, original)
+        XCTAssertFalse(store.sessionExpired)
+        guard case .failed(let message) = store.syncState else { return XCTFail("storage failure hidden") }
+        XCTAssertEqual(message, AppStore.sessionWriteFailureMessage)
+    }
 }

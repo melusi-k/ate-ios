@@ -85,3 +85,26 @@ final class DiagnosticHistoryTests: XCTestCase {
     }
 
 }
+
+extension DiagnosticHistoryTests {
+    func testAuthReasonsStayTypedLocalAndSurviveReopen() throws {
+        let kinds: [DiagnosticEvent.Kind] = [
+            .authRefreshRejected, .authSyncRejected, .authStaleRejectionIgnored,
+            .authStaleRefreshIgnored, .authAccountSwitchFailed, .authCredentialDeleteFailed,
+            .authCredentialSaveFailed, .authCredentialReadFailed, .authCredentialDecodeFailed
+        ]
+        let history = DiagnosticHistory(defaults: defaults, key: "local-auth-events")
+        for kind in kinds {
+            XCTAssertTrue(DiagnosticEvent.isLocalOnly(kind))
+            XCTAssertFalse(DiagnosticEvent(kind: kind).title.isEmpty)
+            history.record(kind)
+        }
+        let reopened = DiagnosticHistory(defaults: defaults, key: "local-auth-events")
+        XCTAssertEqual(reopened.entries.map(\.kind), kinds)
+        let report = reopened.exportReport(appVersion: "1", buildNumber: "1", osVersion: "fixture")
+        for kind in kinds { XCTAssertTrue(report.contains(kind.rawValue)) }
+        XCTAssertFalse(DiagnosticEvent.isLocalOnly(.recipeSaved))
+        reopened.clear()
+        XCTAssertTrue(reopened.entries.isEmpty)
+    }
+}

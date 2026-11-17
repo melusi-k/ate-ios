@@ -131,6 +131,7 @@ struct JournalTimelineView: View {
                     Button { store.beginManualJournal() } label: {
                         Label("New journal entry", systemImage: "square.and.pencil")
                     }.accessibilityIdentifier("journal.newEntry")
+                    .accessibilityValue(CleanupPhaseDiagnostic.summary)
                 }
             }
         }

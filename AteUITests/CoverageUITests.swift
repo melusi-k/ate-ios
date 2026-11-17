@@ -5,12 +5,26 @@ import XCTest
 /// Runs as its own ui-suite shard so the whole suite fits the job timeout.
 final class CoverageUITests: XCTestCase {
     var app: XCUIApplication!
+    private var failureHitPoint: CGPoint?
+    private var windowHitDiagnosticRequested: Bool {
+        name.contains("test40_AccountSwitchSyncFailurePreservesLocalLibrary") ||
+        name.contains("testNavigationHeadersRemainStableOnShoppingAndSettings")
+    }
+    override func record(_ issue: XCTIssue) {
+        if windowHitDiagnosticRequested, let point = failureHitPoint {
+            WindowHitFailureRequest.capture(point: point, test: name, issue: issue, owner: self)
+            failureHitPoint = nil
+        }
+        super.record(issue)
+    }
 
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
 
     @discardableResult
     func launch(_ extra: [String] = []) -> XCUIApplication {
-        app = XCUIApplication(); app.launchArguments = ["-UITesting"] + extra; app.launch(); return app
+        app = XCUIApplication(); app.launchArguments = ["-UITesting"] + extra
+        if windowHitDiagnosticRequested { app.launchArguments.append("-qaWindowHitFailure") }
+        app.launch(); return app
     }
     func shot(_ name: String) {
         let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
@@ -74,6 +88,10 @@ final class CoverageUITests: XCTestCase {
         let b = app.tabBars.buttons[name]
         if name == "Journal" {
             XCTAssertTrue(b.waitForExistence(timeout: 5), "Journal must be selected through its tab, not a pushed-screen back button")
+            if windowHitDiagnosticRequested {
+                let frame = b.frame
+                failureHitPoint = CGPoint(x: frame.midX, y: frame.midY)
+            }
             let hittable = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == true AND hittable == true"), object: b)
             XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed,
@@ -85,6 +103,7 @@ final class CoverageUITests: XCTestCase {
                            "Journal tab tap must land before looking for Journal content")
             XCTAssertTrue(app.navigationBars["Journal"].waitForExistence(timeout: 5),
                           "Selected Journal tab must show the Journal root before looking for its routes")
+            failureHitPoint = nil
         } else if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
     }
     func startPrompt(_ s: String) {
@@ -251,9 +270,15 @@ final class CoverageUITests: XCTestCase {
         wait(expand, 3)
         app.buttons["recipeSheet.close"].tap()
         XCTAssertTrue(expand.waitForNonExistence(timeout: 3))
+        #if DEBUG
+        ReturnBoundaryReceipt.capture(app, phase: "landscape-grid-close-before-query")
+        #endif
         wait(card, 5)
         // iPhone landscape uses LandscapeSplitView's sidebar, not a TabBar.
         let librarySidebar = app.buttons["sidebar.Library"]
+        #if DEBUG
+        ReturnBoundaryReceipt.capture(app, phase: "landscape-grid-close-after-query")
+        #endif
         XCTAssertTrue(librarySidebar.isSelected)
         let shoppingSidebar = app.buttons["sidebar.Shopping list"]
         wait(shoppingSidebar, 5)
@@ -282,7 +307,12 @@ final class CoverageUITests: XCTestCase {
         tab("Settings")
         let settings = settingsContent()
         let export = settings.buttons["settings.export"]; scrollTo(export); wait(export, 3)
+        // Form rows are lazy: reaching Export does not materialize every later row.
+        // Reveal each retained identifier with the existing bounded helper before
+        // its unchanged existence assertion. No new wait or swipe limit.
+        scrollTo(settings.buttons["settings.import"])
         XCTAssertTrue(settings.buttons["settings.import"].exists)
+        scrollTo(settings.buttons["settings.replayOnboarding"])
         XCTAssertTrue(settings.buttons["settings.replayOnboarding"].exists)
         shot("settings-tools")
         // Check Settings before opening Export. Keep the exact identifiers and
@@ -610,8 +640,10 @@ final class CoverageUITests: XCTestCase {
         app.buttons["openSignIn"].tap(); wait(app.staticTexts["authTitle"])
         replaceText(app.textFields["authEmail"], "cook@example.com")
         replaceText(app.secureTextFields["authPassword"], "password123")
+        monitorPasswordSaveInterruptions()
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
+        dismissPasswordSavePrompt(in: app)
         sleep(2)
         shot("backend-down-sync")
         tab("Library")
@@ -662,22 +694,36 @@ final class CoverageUITests: XCTestCase {
         wait(app.staticTexts["authTitle"])
         replaceText(app.textFields["authEmail"], "cook@example.com")
         replaceText(app.secureTextFields["authPassword"], "password123")
+        monitorPasswordSaveInterruptions()
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
+        dismissPasswordSavePrompt(in: app)
         wait(text("Sync failed"), 5)
 
         // Sign out while keeping local recipes, then sign in as a different account while
         // the sync endpoint remains unavailable. The failed pull must not clear the old copy.
+        let diagnosticFrame = app.buttons["signOutButton"].frame
+        failureHitPoint = CGPoint(x: diagnosticFrame.midX, y: diagnosticFrame.midY)
         app.buttons["signOutButton"].tap()
         let keep = app.buttons["Sign out, keep recipes on this iPhone"]
         wait(keep, 5)
+        failureHitPoint = nil
+        // A late native password sheet must not consume the original confirmation tap.
+        let passwordPrompt = app.sheets["Save Password?"].firstMatch
+        if passwordPrompt.exists && passwordPrompt.elementType == .sheet && passwordPrompt.label == "Save Password?" {
+            let notNow = passwordPrompt.buttons["Not Now"].firstMatch
+            let save = passwordPrompt.buttons["Save"].firstMatch
+            if notNow.exists && save.exists { notNow.tap() }
+        }
         keep.tap()
         wait(app.buttons["openSignIn"], 5)
         app.buttons["openSignIn"].tap()
         wait(app.staticTexts["authTitle"])
         replaceText(app.textFields["authEmail"], "other@example.com")
         replaceText(app.secureTextFields["authPassword"], "password123")
+        monitorPasswordSaveInterruptions()
         app.buttons["authSubmit"].tap()
+        dismissPasswordSavePrompt(in: app)
         // The failed pull may sign account B out before its account row is ever rendered.
         wait(text("Account switch couldn't be completed. Your previous library is safe on this iPhone. Reconnect and sign in again."), 5)
 
@@ -767,8 +813,10 @@ final class CoverageUITests: XCTestCase {
         app.buttons["openSignIn"].tap(); wait(app.staticTexts["authTitle"])
         replaceText(app.textFields["authEmail"], "cook@example.com")
         replaceText(app.secureTextFields["authPassword"], "password123")
+        monitorPasswordSaveInterruptions()
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
+        dismissPasswordSavePrompt(in: app)
         wait(text("Synced"), 10)
         XCTAssertFalse(text("Your session expired").exists)
         shot("auth-expired-session-refreshed")

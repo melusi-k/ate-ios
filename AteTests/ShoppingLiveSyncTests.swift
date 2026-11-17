@@ -34,11 +34,16 @@ final class ShoppingLiveSyncTests: XCTestCase {
         XCTAssertEqual(result.data["item"], local)
         XCTAssertEqual(result.push, ["item"])
     }
-    func testRecipeEqualTimestampContractUnchanged() {
+    func testMergedEqualTimestampRecipesAndShoppingTakeServerPayload() {
         let remote = SyncRecord(user_id: "u", kind: "recipe", id: "r", data: AnyJSON(Data("server".utf8)), updated_at: 10, deleted: false)
         let local = Data("local".utf8)
         let result = SyncMerge.merge(local: .init(data: ["r": local], stamps: ["r": 10], tombstones: [:]), remote: [remote])
-        XCTAssertEqual(result.data["r"], local)
+        XCTAssertEqual(result.data["r"], Data("server".utf8))
+        XCTAssertTrue(result.push.isEmpty)
+        let shoppingRemote = SyncRecord(user_id: "u", kind: "shopping", id: "s", data: AnyJSON(Data("shopping-server".utf8)), updated_at: 10, deleted: false)
+        let shopping = SyncMerge.merge(local: .init(data: ["s": local], stamps: ["s": 10], tombstones: [:]), remote: [shoppingRemote])
+        XCTAssertEqual(shopping.data["s"], Data("shopping-server".utf8))
+        XCTAssertTrue(shopping.push.isEmpty)
     }
     func testLocalEditClockNeverRepeatsOrGoesBackwards() {
         XCTAssertEqual(ShoppingSyncCadence.nextStamp(now: 10, prior: 10), 11)

@@ -19,9 +19,8 @@ import Foundation
 extension AppStore {
     private enum JournalAccountActionError: Error { case localWipeNotPerformed }
 
-    /// Unified "Clear all" (Settings): recipes plus the cook-completion context and
-    /// cooking history THROUGH the runtime's stores - never the legacy singletons.
-    /// Parity with the legacy action: diary/Journal meals are NOT cleared by it.
+    /// Unified "Clear all" also clears meals, reflections, media and insight states
+    /// through the actual runtime owner, never an unrelated Journal singleton.
     /// The account-wide Clear-all inventory (journal rows, media, goals, backups,
     /// adoption-preservation copies) is installed separately: central binds
     /// JournalLocalReset.components(validateWriterGate:) into the Clear-all coordinator.
@@ -35,6 +34,7 @@ extension AppStore {
         do {
             try effect {
                 performed = true
+                try self.eraseJournalPersonalData()
                 self.clearCookCompletionContext()   // cookJournalDefaults is runtime-aware
                 runtime.cookingHistory.clear()
                 self.recipes = []
@@ -70,12 +70,28 @@ extension AppStore {
         var report: ClearAllLocalData.Report?
         do {
             try effect {
-                guard self.wipeLocalData() else { throw JournalAccountActionError.localWipeNotPerformed }
+                self.lastJournalPersonalResetReport = nil
+                let wiped = self.wipeLocalData()
+                if let partial = self.lastJournalPersonalResetReport, !partial.complete {
+                    report = partial
+                    return
+                }
+                guard wiped else { throw JournalAccountActionError.localWipeNotPerformed }
                 // legacy stores + non-journal surfaces completed under the outer effect
                 runtime.cookingHistory.clear()  // the unified history, not the legacy singleton
-                report = try JournalLocalReset(runtime: runtime,
-                                               preservationDirectory: self.journalResetPreservationDirectory)
-                    .eraseAll(validateWriterGate: validate)
+                try validate()
+                // Remove-all retains its stronger verified goal erasure. The common
+                // Journal-only helper deliberately preserves goals for sign-out-keep.
+                let goals = [ClearAllLocalData.nutritionGoals(storage: runtime.goalsRepository.storage,
+                    validateWriterGate: validate),
+                    ClearAllLocalData.defaults(name: "nutrition-goals-defaults", store: runtime.defaults,
+                        keys: [DailyNutritionGoals.defaultsKey], validateWriterGate: validate)]
+                let goalReport = try ClearAllLocalData.execute(goals, requiredNames: Set(goals.map(\.name)),
+                    validateWriterGate: validate)
+                if let journal = self.lastJournalPersonalResetReport {
+                    report = ClearAllLocalData.Report(verifiedEmpty: journal.verifiedEmpty + goalReport.verifiedEmpty,
+                        failures: journal.failures + goalReport.failures)
+                }
             }
         } catch {
             return ClearAllLocalData.Report(verifiedEmpty: [], failures: [

@@ -42,11 +42,18 @@ final class JournalAccountActionBindingTests: XCTestCase {
     }
 
     private func makeStore(runtime: FoodJournalRuntime?) -> AppStore {
-        AppStore(context: nil, backend: MockBackend(),
+        let journal = runtime?.journal ?? JournalStore(inMemory: true)
+        let store = AppStore(context: nil, backend: MockBackend(),
                  nutritionDiaryRepository: NutritionDiaryRepository(defaults: defaults),
                  nutritionGoalsRepository: goalsRepo(),
-                 foodJournalRuntime: runtime,
+                 foodJournalRuntime: runtime, journalStoreOverride: journal,
                  cookPlanNotifications: CookPlanNotifications(client: CookPlanFakeNotificationClient()))
+        store.journalPersonalResetInventory = JournalLocalReset(journal: journal, defaults: defaults,
+            goalsStorage: goalsRepo().storage, mediaDirectory: root.appendingPathComponent("media"),
+            migrationBackupDirectory: root.appendingPathComponent("legacy"),
+            repairBackupDirectory: root.appendingPathComponent("corrupt"), preservationDirectory: nil,
+            storeFileURL: root.appendingPathComponent("Test.store"))
+        return store
     }
 
     private func sampleMeal(id: UUID = UUID(), name: String = "Pap and wors") -> NutritionDiaryEntry {

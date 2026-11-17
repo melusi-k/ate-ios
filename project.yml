@@ -65,6 +65,7 @@ targets:
         product: Sentry
     settings:
       base:
+        SWIFT_OBJC_BRIDGING_HEADER: Shared/WindowHitFailureNotify.h
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate
         CODE_SIGN_STYLE: "${ATE_SIGN_STYLE}"
         PROVISIONING_PROFILE_SPECIFIER: "${ATE_PROFILE_APP}"
@@ -281,6 +282,7 @@ targets:
       - target: Ate
     settings:
       base:
+        SWIFT_OBJC_BRIDGING_HEADER: Shared/WindowHitFailureNotify.h
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.melusik.ate.uitests
         TEST_TARGET_NAME: Ate

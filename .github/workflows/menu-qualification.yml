@@ -167,7 +167,9 @@ jobs:
             -derivedDataPath build/DerivedData \
             -only-testing:AteUITests/AteUITests/testSearchResultsOptionsMenu \
             -only-testing:AteUITests/AteUITests/test28_GroupSortAndMenus \
+            -only-testing:AteUITests/AteUITests/test28_GroupSortAndMenusSavedSetup \
             -only-testing:AteUITests/AteUITests/test29_ReorderMyOrder \
+            -only-testing:AteUITests/AteUITests/test29_ReorderMyOrderSavedSetup \
             -only-testing:AteUITests/AteUITests/test29b_ReorderMyOrderActions \
             -resultBundlePath build/MenuSearchUITests.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \

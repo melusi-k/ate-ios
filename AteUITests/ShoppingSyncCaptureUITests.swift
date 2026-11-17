@@ -82,6 +82,13 @@ final class ShoppingSyncCaptureUITests: XCTestCase {
     private func shopping() {
         let tab = app.tabBars.buttons["Shopping"]
         XCTAssertTrue(tab.waitForExistence(timeout: 10))
+        // Decline only the exact native password sheet before the original navigation tap.
+        let passwordPrompt = app.sheets["Save Password?"].firstMatch
+        if passwordPrompt.exists && passwordPrompt.elementType == .sheet && passwordPrompt.label == "Save Password?" {
+            let notNow = passwordPrompt.buttons["Not Now"].firstMatch
+            let save = passwordPrompt.buttons["Save"].firstMatch
+            if notNow.exists && save.exists { notNow.tap() }
+        }
         tab.tap()
         XCTAssertTrue(app.navigationBars["Shopping list"].waitForExistence(timeout: 10))
     }

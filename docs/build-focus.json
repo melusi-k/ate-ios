@@ -1,7 +1,7 @@
 {
   "title": "Account-scoped Journal reset with dormant sync preparation",
   "summary": "Account-scoped Journal reset baseline retained. This head adds one explicitly flagged DEBUG failure-only UIKit window/hit-test probe for AccountSwitch, NavigationHeaders and signed-in Shopping portrait. No product fix or native pass claimed; native compilation and probe delivery UNRUN.",
-  "source_commit": "f37d9b5b46a0e9dd477c6536346999a2bf29ef76",
+  "source_commit": "a98ea36d00f93369516f695770e0af24c4122863",
   "evidence": [
     {
       "path": "Ate/Insights/InsightLifecycle.swift",

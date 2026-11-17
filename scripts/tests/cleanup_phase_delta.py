@@ -5,6 +5,8 @@ FIXTURE=Path(__file__).with_suffix('.json')
 DIGEST='6a5d7ea1795ae82a3634a4abd2355b475a212911968d8c901a32116ffe4d7e0d'
 
 def restore(key,raw):
+    from sync_failure_owners_delta import restore as restore_failure_owners
+    raw=restore_failure_owners(key,raw)
     from password_save_prompt_delta import restore as restore_password_prompt
     if key.split(':',1)[-1] != 'AteUITests/CoverageUITests.swift':
         raw=restore_password_prompt(key,raw)

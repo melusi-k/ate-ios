@@ -1,6 +1,6 @@
 # Subprocessors and data map
 
-_Last updated: 20 October 2026_
+_Last updated: 17 November 2026_
 
 ## Who processes data for ate
 
@@ -11,7 +11,7 @@ _Last updated: 20 October 2026_
 | **GitHub (Releases)** | Hosting beta app downloads | Download logs | USA and global |
 | **Apple** | Apple Intelligence, Image Playground, Siri, Spotlight, HealthKit, Journaling Suggestions | Processed on your device under Apple's own terms; ate sends Apple nothing | On your device |
 
-There are no ads or external crash-reporting/analytics SDKs. Local diagnostic history is stored on the iPhone; recognized non-production builds also send allowlisted category-only events and coarse build metadata to Supabase. Production and unknown-channel builds do not send this telemetry; remote event rows are retained for up to 30 days.
+There are no ads or external crash-reporting/analytics SDKs. Local diagnostic history stays on the iPhone. Remote diagnostics are off by default and unavailable in the current build. A future readiness-reviewed non-production build must require explicit, revocable opt-in before sending new category-only events and coarse build metadata to Supabase. Production and unknown-channel builds never send telemetry; previously received remote rows expire under the receiver's up-to-30-day retention policy. No receiver retention revalidation is claimed by this source change.
 
 > ⚖️ **Lawyer review needed:** confirm the GitHub transfer basis (EU–US Data Privacy Framework and POPIA s72), and whether Apple counts as a processor here.
 
@@ -28,6 +28,6 @@ There are no ads or external crash-reporting/analytics SDKs. Local diagnostic hi
 | Photos, screenshots, voice | ✓ only | ✗ | ✗ |
 | AI prompts and results | ✓ only | ✗ (unless you save and sync the recipe) | ✗ |
 | Beta test results | ✓ | ✓ only if you upload | ✗ |
-| Non-production telemetry categories and build metadata | ✓ local history | ✓ by default on recognized non-production channels; up to 30 days | ✗ |
+| Non-production telemetry categories and build metadata | ✓ local history | Off by default; current build blocks all uploads. Future eligible builds require explicit revocable opt-in; up to 30 days after receipt | ✗ |
 
 Changes to this list are recorded in the [policy history](policy-history.html). Questions: **melusi.l.k@gmail.com**.

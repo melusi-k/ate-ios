@@ -1,6 +1,6 @@
 # ate Privacy Policy
 
-_Last updated: 23 October 2026 · [Earlier versions](policy-history.html)_
+_Last updated: 17 November 2026 · [Earlier versions](policy-history.html)_
 
 ate is a recipe app made by **Melusi Khumalo**, an individual developer based in South Africa ("I", "me"). I'm the responsible party (POPIA) and controller (GDPR) for the personal information described here. This policy explains what ate stores, where it's stored, and the choices you have. Questions: **melusi.l.k@gmail.com**.
 
@@ -9,12 +9,12 @@ ate is a recipe app made by **Melusi Khumalo**, an individual developer based in
 - If you create an account, ate stores your email address plus your synced recipes and shopping list so they show up on your other devices.
 - **Apple Health data is read on your iPhone only.** It's never uploaded, synced, shared or used for ads. See [Health data](health.html).
 - Recipe AI and Image Playground covers run **on your device** using Apple Intelligence. See [AI disclosure](ai.html).
-- No ads, cross-app tracking, or selling of data. Non-production builds send limited category-only telemetry to help improve reliability; production builds do not. See [Cookies and tracking](cookies.html).
+- No ads, cross-app tracking, or selling of data. Remote diagnostics are off by default on every channel and unavailable in the current build pending readiness review. A future eligible beta build would require explicit, revocable opt-in. See [Cookies and tracking](cookies.html).
 - You can delete your account and its data at any time from inside the app. See [Delete your account](delete-account/).
 
 ## What ate stores
 
-**On your device:** your recipe library, shopping list, timers, Insights journal entries, app settings and a small diagnostic event history. The diagnostic history records limited event categories (such as app launch, backgrounding, storage recovery and save failures) with timestamps. It does not record recipe content, prompts, account identifiers or raw error messages. It is capped at 200 events and can be exported or cleared in Settings › Diagnostic history. Recognized non-production builds also send allowlisted event categories and timestamps, plus app/build/channel metadata, to Supabase for up to 30 days. Production and unknown-channel builds do not send this telemetry. The remote payload excludes recipe content, prompts, account IDs and device IDs. To limit abuse, the receiver also keeps a one-way hash of the platform-provided client network address with request counts; the raw address is not stored by the app, and inactive hashes are deleted after two days. Clearing local history does not delete events already received remotely. Your other local data stays on the device unless you sign in to sync recipes and your list.
+**On your device:** your recipe library, shopping list, timers, Insights journal entries, app settings and a small diagnostic event history. The diagnostic history records limited event categories (such as app launch, backgrounding, storage recovery and save failures) with timestamps. It does not record recipe content, prompts, account identifiers or raw error messages. It is capped at 200 events and can be exported or cleared in Settings › Diagnostic history. Remote diagnostics are off by default and the current build cannot upload them. A future readiness-reviewed non-production build would require explicit consent in Settings > Diagnostics before sending new allowlisted event categories and timestamps, plus app/build/channel metadata, to Supabase for up to 30 days. Old local history is not replayed. Turning it off stops new requests and cancels in-flight requests, but cannot recall bytes already received. Production and unknown-channel builds never send this telemetry. The remote payload excludes recipe content, prompts, account IDs and device IDs. To limit abuse, the receiver also keeps a one-way hash of the platform-provided client network address with request counts; the raw address is not stored by the app, and inactive hashes are deleted after two days. Clearing local history does not delete events already received remotely. Your other local data stays on the device unless you sign in to sync recipes and your list.
 
 **If you create an account:**
 - **Account data:** your email address, a securely hashed password (if you use one) and basic sign-in records (when the account was created and last signed in).
@@ -49,14 +49,15 @@ ate uses **Apple Intelligence (Foundation Models) on your device** to turn links
 - The site uses no cookies, analytics or trackers, and its fonts are served from the site itself.
 
 ## What ate doesn't do
-- No advertising or third-party analytics SDK. Recognized non-production builds send a limited allowlist of diagnostic/product event categories and coarse build metadata to ate's existing Supabase project; production and unknown-channel builds do not. The event table contains no user, account or device identifier and is subject to 30-day retention. Supabase may process request metadata such as IP address for service security; the telemetry receiver uses a one-way hash of the platform-provided client address for rate limiting and deletes inactive hashes after two days.
+- No advertising or third-party analytics SDK. Remote diagnostics are off by default and unavailable in the current build. Any future enabled non-production build must first pass readiness review and require explicit, revocable opt-in to send a limited allowlist of diagnostic/product event categories and coarse build metadata to ate's existing Supabase project. Production and unknown-channel builds never send telemetry. The event table contains no user, account or device identifier and is subject to 30-day retention. Supabase may process request metadata such as IP address for service security; the telemetry receiver uses a one-way hash of the platform-provided client address for rate limiting and deletes inactive hashes after two days.
 - No tracking across apps or websites, and no selling or renting of your data.
 - No access to your contacts or location, and no photos beyond the single image you choose to import.
 
 ## Why I use your data (legal bases)
 - **To provide the service you asked for** (sign-in, sync, sharing). This is contract performance.
 - **Health data and Journaling Suggestions:** only with your explicit consent, given in Apple's permission sheet. You can withdraw it at any time in iOS Settings.
-- **To keep ate secure and working**, including category-only non-production reliability telemetry and beta test results. This is a legitimate interest; telemetry is not used for advertising or profiling.
+- **Remote diagnostics:** optional explicit consent, revocable in Settings > Diagnostics when available. The current release gate blocks remote uploads entirely. This does not replace legal review of receiver processing or retention.
+- **To keep ate secure and working**, including beta test results and service security. This is a legitimate interest; no advertising or profiling.
 - I don't use your data for marketing.
 
 > ⚖️ **Lawyer review needed:** confirm the legal bases, especially explicit consent for health data (POPIA s26–27, GDPR art. 9).

@@ -4,6 +4,7 @@ Every change to the Privacy Policy and Terms of Use is kept here.
 
 | Date | Document | What changed |
 |---|---|---|
+| 17 November 2026 | [Privacy Policy (current)](privacy.html), [data map](subprocessors.html), [cookies](cookies.html) | Remote diagnostics off by default on every channel and blocked by current release readiness; future eligible beta uploads require explicit revocable opt-in. Local history/export/clear remain separate. No receiver/legal readiness or offline retry qualification claimed. |
 | 23 October 2026 | [Privacy Policy (current)](privacy.html) | Disclosed category-only remote telemetry on recognized non-production channels, production/unknown-channel disablement, Supabase processing, and 30-day retention. |
 | 20 October 2026 | [Privacy Policy (current)](privacy.html) | Disclosed local diagnostic event history, its 200-event cap, user export/clear controls, and that no diagnostic data was sent to an external reporting provider. |
 | 11 October 2026 | [Privacy Policy (current)](privacy.html) | Share creation now requires sign-in; new shares are attributed to the account and removed on account deletion, while legacy anonymous shares remain removable by request. |

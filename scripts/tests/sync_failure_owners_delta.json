@@ -1,0 +1,46 @@
+{
+  "Ate/Store/JournalSyncBridge.swift": {
+    "base_sha256": "a073d8e9df57f3b7c8900acd0496a9c1b8ac1451cf2f5e577e6a9570baccc46d",
+    "patched_sha256": "ed3acdc65a4216bdce672841ed8950a0d0cade778f9972058b65cff03c2b8955",
+    "fragments": [
+      {
+        "old": "@MainActor\nenum JournalSyncBridge {\n    enum BridgeError: Error, Equatable {\n        case storeUnavailable\n",
+        "new": "@MainActor\nenum JournalSyncBridge {\n    #if DEBUG\n    // Opt-in weak diagnostics only. Never retains the context or its container.\n    static var captureWeakOwner = false\n    static weak var lastContext: ModelContext?\n    static var lastContextOperation = \"none\"\n    #endif\n\n    enum BridgeError: Error, Equatable {\n        case storeUnavailable\n"
+      },
+      {
+        "old": "        guard let container else { throw BridgeError.storeUnavailable }\n        let context = ModelContext(container)\n        context.autosaveEnabled = false\n        let entries: [JournalEntry]\n",
+        "new": "        guard let container else { throw BridgeError.storeUnavailable }\n        let context = ModelContext(container)\n        #if DEBUG\n        if captureWeakOwner {\n            lastContext = context\n            lastContextOperation = \"export\"\n        }\n        #endif\n        context.autosaveEnabled = false\n        let entries: [JournalEntry]\n"
+      },
+      {
+        "old": "        guard let container else { throw BridgeError.storeUnavailable }\n        let context = ModelContext(container)\n        context.autosaveEnabled = false\n        do {\n",
+        "new": "        guard let container else { throw BridgeError.storeUnavailable }\n        let context = ModelContext(container)\n        #if DEBUG\n        if captureWeakOwner {\n            lastContext = context\n            lastContextOperation = \"apply\"\n        }\n        #endif\n        context.autosaveEnabled = false\n        do {\n"
+      }
+    ]
+  },
+  "AteTests/UserDataSyncTests.swift": {
+    "base_sha256": "b5fd4db99990966f2f4f7f7ae498817b41b7bb157517953dd230ba3b9232ea67",
+    "patched_sha256": "8c6a4c9cb24cbd92fbd12098e2ad3f71bd311401eaf4903fc7b5dc39cee3416b",
+    "fragments": [
+      {
+        "old": "        let goals2 = DailyNutritionGoals(energyKcal: 2100, proteinGrams: nil, carbohydratesGrams: nil,\n                                         fatGrams: nil, fibreGrams: nil)\n        for boundary in FamilySyncCommitJournal.Boundary.allCases\n            where boundary != .beforeInsightApply && boundary != .afterInsightApply {\n",
+        "new": "        let goals2 = DailyNutritionGoals(energyKcal: 2100, proteinGrams: nil, carbohydratesGrams: nil,\n                                         fatGrams: nil, fibreGrams: nil)\n        defer { JournalSyncBridge.captureWeakOwner = false }\n        for boundary in FamilySyncCommitJournal.Boundary.allCases\n            where boundary != .beforeInsightApply && boundary != .afterInsightApply {\n"
+      },
+      {
+        "old": "        for boundary in FamilySyncCommitJournal.Boundary.allCases\n            where boundary != .beforeInsightApply && boundary != .afterInsightApply {\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=iteration-enter\")\n            // Fresh durable state per boundary, journal directory and store file together.\n",
+        "new": "        for boundary in FamilySyncCommitJournal.Boundary.allCases\n            where boundary != .beforeInsightApply && boundary != .afterInsightApply {\n            JournalSyncBridge.captureWeakOwner = boundary == .afterGoalsApply\n            JournalSyncBridge.lastContext = nil\n            JournalSyncBridge.lastContextOperation = \"none\"\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=iteration-enter\")\n            // Fresh durable state per boundary, journal directory and store file together.\n"
+      },
+      {
+        "old": "            // Keep the same strict weak-owner assertion outside the pool, before reopen.\n            weak var oldContainer: ModelContainer?\n            var journal: FamilySyncCommitJournal?\n            try autoreleasepool {\n",
+        "new": "            // Keep the same strict weak-owner assertion outside the pool, before reopen.\n            weak var oldContainer: ModelContainer?\n            weak var oldJournal: FamilySyncCommitJournal?\n            var journal: FamilySyncCommitJournal?\n            try autoreleasepool {\n"
+      },
+      {
+        "old": "            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=release-enter\")\n            oldContainer = container\n            journal = nil\n            container = nil\n",
+        "new": "            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=release-enter\")\n            oldContainer = container\n            oldJournal = journal\n            journal = nil\n            container = nil\n"
+      },
+      {
+        "old": "            container = nil\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=release-return\")\n            }\n            XCTAssertNil(oldContainer, \"the prior journal must not retain the old container\")\n",
+        "new": "            container = nil\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=release-return\")\n            }\n            // Failure-time observation only. No strong owner crosses the assertion.\n            if boundary == .afterGoalsApply && oldContainer != nil {\n                let journalAlive = oldJournal != nil\n                let contextAlive = JournalSyncBridge.lastContext != nil\n                let containerAlive = oldContainer != nil\n                let containerIdentity = oldContainer.map { String(describing: ObjectIdentifier($0)) } ?? \"nil\"\n                let diagnostic = \"SYNC-FAILURE-OWNERS boundary=afterGoalsApply journalAlive=\\(journalAlive) contextAlive=\\(contextAlive) contextOperation=\\(JournalSyncBridge.lastContextOperation) containerAlive=\\(containerAlive) containerIdentity=\\(containerIdentity) retainPath=unavailable\"\n                print(diagnostic)\n                let attachment = XCTAttachment(string: diagnostic)\n                attachment.name = \"sync-afterGoalsApply-failure-owners\"\n                attachment.lifetime = .keepAlways\n                add(attachment)\n            }\n            XCTAssertNil(oldContainer, \"the prior journal must not retain the old container\")\n"
+      }
+    ]
+  }
+}

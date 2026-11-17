@@ -9,6 +9,15 @@ WORKFLOW='            if [ -f "$data_container/Library/Caches/search-receipt-dia
 class SearchReceiptTests(unittest.TestCase):
     def test_exact_original_library_and_workflow_reconstruct(self):
         source=(ROOT/'Ate/Views/LibraryView.swift').read_text()
+        # Undo only the reviewed #506 layout increment, preserving the original full-file hash.
+        self.assertEqual(source.count('    @Environment(\\.bottomChromeMinY) private var bottomChromeMinY\n    @State private var scrollBottomY: CGFloat?\n    /// Reserve actual overlap in scroll content, not an opaque viewport band.\n    private var bottomContentClearance: CGFloat {\n        LibraryChromeClearance.reserve(hostBottom: scrollBottomY, chromeTop: bottomChromeMinY)\n    }\n'),1)
+        source=source.replace('    @Environment(\\.bottomChromeMinY) private var bottomChromeMinY\n    @State private var scrollBottomY: CGFloat?\n    /// Reserve actual overlap in scroll content, not an opaque viewport band.\n    private var bottomContentClearance: CGFloat {\n        LibraryChromeClearance.reserve(hostBottom: scrollBottomY, chromeTop: bottomChromeMinY)\n    }\n',"",1)
+        self.assertEqual(source.count('        .background(GeometryReader { geometry in\n            Color.clear.preference(key: LibraryScrollBottomKey.self, value: geometry.frame(in: .global).maxY)\n        })\n        .onPreferenceChange(LibraryScrollBottomKey.self) { scrollBottomY = $0 }\n'),1)
+        source=source.replace('        .background(GeometryReader { geometry in\n            Color.clear.preference(key: LibraryScrollBottomKey.self, value: geometry.frame(in: .global).maxY)\n        })\n        .onPreferenceChange(LibraryScrollBottomKey.self) { scrollBottomY = $0 }\n',"",1)
+        self.assertEqual(source.count('\nprivate struct LibraryScrollBottomKey: PreferenceKey {\n    static var defaultValue: CGFloat? { nil }\n    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {\n        if let next = nextValue() { value = next }\n    }\n}\n'),1)
+        source=source.replace('\nprivate struct LibraryScrollBottomKey: PreferenceKey {\n    static var defaultValue: CGFloat? { nil }\n    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {\n        if let next = nextValue() { value = next }\n    }\n}\n',"",1)
+        self.assertEqual(source.count('Color.clear.frame(height: bottomContentClearance).accessibilityHidden(true)'),2)
+        source=source.replace('Color.clear.frame(height: bottomContentClearance).accessibilityHidden(true)',"Color.clear.frame(height: 96)")
         for new,old in [(IMPORTS,''),(BINDING,OLD),(HELPER,'')]:
             self.assertEqual(source.count(new),1)
             source=source.replace(new,old,1)

@@ -1,7 +1,7 @@
 {
   "title": "Offline Roadmap with local vote preferences",
-  "summary": "Settings Roadmap lists bundled ideas and detail pages. Vote or unvote stores one local preference per idea on this installation; no submissions, community totals, account or network. Invalid catalog and unreadable saved preferences fail honestly. Source contracts passed; native compilation, persistence journey, airplane mode, VoiceOver and rendered pixels UNRUN. Launch-tour state unchanged.",
-  "source_commit": "2b720d2e0865e6e1866f282ce43cd60489466cab",
+  "summary": "Local Roadmap source plus corrected XcodeGen folder packaging for both Roadmap and Release Notes. Recursive flattened resources excluded; one ProductUpdates folder copied. Both strict loaders and all Roadmap assertions unchanged. Native actual-bundle release test and built-directory verifier added. Prior head failed packaging; fresh native build, bundle receipt and UI persistence evidence pending.",
+  "source_commit": "ad942ec7fc67a8b7d5e97f985cf0929359f6b414",
   "evidence": [
     {
       "path": "Ate/Logic/Roadmap.swift",

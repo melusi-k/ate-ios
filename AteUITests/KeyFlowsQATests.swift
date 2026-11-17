@@ -90,6 +90,7 @@ final class KeyFlowsQATests: XCTestCase {
         app.buttons["openSignIn"].tap()
         replace(app.textFields["authEmail"], "qa@example.com")
         let p = app.secureTextFields["authPassword"]; p.tap(); p.typeText("password123")
+        monitorPasswordSaveInterruptions()
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
         dismissPasswordSavePrompt(in: app)
@@ -376,6 +377,22 @@ final class KeyFlowsQATests: XCTestCase {
 }
 
 extension XCTestCase {
+    /// The native sheet can arrive after the existing bounded explicit check.
+    /// Let XCTest handle it only when it interrupts a real journey interaction.
+    func monitorPasswordSaveInterruptions() {
+        let monitor = addUIInterruptionMonitor(withDescription: "Known native password-save sheet") { element in
+            guard element.elementType == .sheet && element.label == "Save Password?" else { return false }
+            let notNow = element.buttons["Not Now"].firstMatch
+            let save = element.buttons["Save"].firstMatch
+            guard notNow.exists && save.exists else { return false }
+            notNow.tap()
+            return true
+        }
+        addTeardownBlock { [weak self] in
+            self?.removeUIInterruptionMonitor(monitor)
+        }
+    }
+
     /// Decline only the observed native password-save prompt, never arbitrary alerts.
     /// No retry or readiness bypass: the journey's original assertions still follow.
     func dismissPasswordSavePrompt(in app: XCUIApplication) {

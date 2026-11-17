@@ -15,6 +15,13 @@ import SwiftData
 /// the same presentation as a locally missing file.
 @MainActor
 enum JournalSyncBridge {
+    #if DEBUG
+    // Opt-in weak diagnostics only. Never retains the context or its container.
+    static var captureWeakOwner = false
+    static weak var lastContext: ModelContext?
+    static var lastContextOperation = "none"
+    #endif
+
     enum BridgeError: Error, Equatable {
         case storeUnavailable
         case unreadableRow(String)
@@ -30,6 +37,12 @@ enum JournalSyncBridge {
     static func export(container: ModelContainer?) throws -> [JournalEntrySyncPayload] {
         guard let container else { throw BridgeError.storeUnavailable }
         let context = ModelContext(container)
+        #if DEBUG
+        if captureWeakOwner {
+            lastContext = context
+            lastContextOperation = "export"
+        }
+        #endif
         context.autosaveEnabled = false
         let entries: [JournalEntry]
         let payloads: [JournalMealPayload]
@@ -87,6 +100,12 @@ enum JournalSyncBridge {
     static func apply(upserts: [JournalEntrySyncPayload], deletes: [String], container: ModelContainer?) throws {
         guard let container else { throw BridgeError.storeUnavailable }
         let context = ModelContext(container)
+        #if DEBUG
+        if captureWeakOwner {
+            lastContext = context
+            lastContextOperation = "apply"
+        }
+        #endif
         context.autosaveEnabled = false
         do {
             for id in deletes {

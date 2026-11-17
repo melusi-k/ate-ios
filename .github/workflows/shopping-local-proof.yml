@@ -1,0 +1,52 @@
+name: Local shopping conflict proof
+
+# Manual, disposable, free Linux lane. Never uses hosted project credentials.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install pinned disposable tooling
+        run: |
+          npm install --no-save --prefix "$RUNNER_TEMP/ate501-tools" supabase@3.2.0
+          python -m pip install 'psycopg[binary]==3.3.9'
+      - name: Bootstrap local-only schema slice
+        run: |
+          mkdir -p "$RUNNER_TEMP/ate501/supabase/migrations"
+          cp scripts/e2e/shopping-local/supabase/config.toml "$RUNNER_TEMP/ate501/supabase/config.toml"
+          cp supabase/migrations/20261010000000_user_recipes.sql "$RUNNER_TEMP/ate501/supabase/migrations/20261010000000_user_recipes.sql"
+          cp scripts/e2e/shopping-local/disposable-marker.sql "$RUNNER_TEMP/ate501/supabase/migrations/20261010000001_disposable_marker.sql"
+          # Local startup/status may contain ephemeral local credentials: never print or upload them.
+          "$RUNNER_TEMP/ate501-tools/node_modules/.bin/supabase" start --workdir "$RUNNER_TEMP/ate501" > "$RUNNER_TEMP/ate501-start-private.log" 2>&1
+          "$RUNNER_TEMP/ate501-tools/node_modules/.bin/supabase" status --workdir "$RUNNER_TEMP/ate501" -o json > "$RUNNER_TEMP/ate501-status-private.json"
+      - name: Assert actual races, mutation sensitivity and PostgREST RLS
+        run: |
+          python scripts/e2e/shopping_local_proof.py --status-file "$RUNNER_TEMP/ate501-status-private.json" --receipt "$RUNNER_TEMP/ate501-proof.json"
+      - name: Retain category-only exact-source receipt
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: local-shopping-proof-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ate501-proof.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove only this disposable local stack
+        if: always()
+        run: |
+          if [ -x "$RUNNER_TEMP/ate501-tools/node_modules/.bin/supabase" ]; then
+            "$RUNNER_TEMP/ate501-tools/node_modules/.bin/supabase" stop --workdir "$RUNNER_TEMP/ate501" --no-backup > "$RUNNER_TEMP/ate501-stop-private.log" 2>&1
+          fi
+          rm -f "$RUNNER_TEMP/ate501-status-private.json" "$RUNNER_TEMP/ate501-start-private.log" "$RUNNER_TEMP/ate501-stop-private.log"

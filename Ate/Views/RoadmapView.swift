@@ -50,7 +50,8 @@ struct RoadmapView: View {
                             .cardSurface(padding: 16)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityElement(children: .ignore)
+                    // Keep metadata on the actionable link, not a synthetic accessibility wrapper.
+                    .accessibilityAddTraits(.isButton)
                     .accessibilityLabel("\(card.title), \(card.statusLabel). \(card.summary)")
                     .accessibilityValue(votes.error != nil ? "Local preference unavailable" : (votes.contains(card.id) ? "Local vote saved on this iPhone" : "No local vote"))
                     .accessibilityHint("Opens idea details and the local vote button")

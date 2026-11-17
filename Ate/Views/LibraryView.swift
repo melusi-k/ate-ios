@@ -14,6 +14,7 @@ struct LibraryView: View {
     var searchPlacement: SearchPlacement = .drawer
     @State private var showAdd = false
     @State private var showExplore = false
+    @State private var showPlanPicker = false
     @State private var exploreSelection: String?
     @State private var exploreAddRequested = false
     @State private var addMode: WidgetLinks.AddMode?
@@ -95,6 +96,7 @@ struct LibraryView: View {
             ExpandableRecipeDetailSheet(recipe: recipe, detent: $recipeSheetDetent)
                 .environment(store)
         }
+        .cookPlanRecipePicker(isPresented: $showPlanPicker)
         .sheet(isPresented: $showExplore, onDismiss: {
             // Sequence presentations through the actual dismissal callback, not a delay.
             if let id = exploreSelection {
@@ -334,6 +336,10 @@ struct LibraryView: View {
     private var libraryMenu: some View {
         @Bindable var store = store
         return Menu {
+            Section("Plan") {
+                Button { showPlanPicker = true } label: { Label("Plan a cook", systemImage: "calendar.badge.plus") }
+                    .accessibilityIdentifier("library.planCook")
+            }
             Section("Collections") {
                 ForEach([RecipeCollection.quick, .favourites, .recentlyAdded, .recentlyCooked, .cookedMeals], id: \.self) { c in
                     Button { selectCollection(c) } label: {

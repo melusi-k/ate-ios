@@ -1,11 +1,63 @@
 {
-  "title": "Main features with live Shopping sync and offline Explore",
-  "summary": "Opt-in Search receipt diagnostics record only bounded numeric binding lengths and utility/Main timing. Original storage write, single typing action, full-query assertions and waits remain unchanged. Capture can perturb input timing and does not establish cause. Existing focus diagnostics and notification responsiveness hypothesis retained. Native compile, receipt, AX/rendered value and pixels UNRUN on this packet. Metadata validation is not native qualification; merge held.",
-  "source_commit": "6ce0a7fa53c3f3e7021ee187d47a57bc1f65e792",
+  "title": "Account-scoped Journal reset with dormant sync preparation",
+  "summary": "Explicit sign-out, different-account sign-in and Clear all erase actual Journal rows, meals, media, backups and drafts; token expiry preserves them. Goals retained on Journal-only erase. Owner fingerprint survives pre-upgrade unsynced expiry. Dormant sync stays OFF; production untouched. Independent source review and Python PASS, native compilation/XCTest/pixels UNRUN. Draft held.",
+  "source_commit": "64369941f32b4e2ba6addee98c6b9368ee4f390a",
   "evidence": [
     {
+      "path": "Ate/Insights/InsightLifecycle.swift",
+      "blob": "50d4d70a7d1b4186a961f9f86f7adca5ed77751d"
+    },
+    {
+      "path": "Ate/Services/BackendService.swift",
+      "blob": "32c0851fcbfcef8fc582754cee5756480a7ee890"
+    },
+    {
+      "path": "Ate/Services/UserDataSync.swift",
+      "blob": "f4f8ca6c149f9f1bda2f584c8feb346f1d2c63b4"
+    },
+    {
+      "path": "Ate/Store/AppStore+UserDataSync.swift",
+      "blob": "391ddb0edfcfea7fdae344981e384bb9098c78dd"
+    },
+    {
+      "path": "Ate/Store/AppStore.swift",
+      "blob": "61460f9aa0a55f47ef78c04c2a7dd32ebeeac709"
+    },
+    {
+      "path": "Ate/Store/FamilySyncCommitJournal.swift",
+      "blob": "ae11021665bf1d12166195772207c07aa3f5d124"
+    },
+    {
+      "path": "Ate/Store/FamilySyncGoalsDurability.swift",
+      "blob": "80875fa00c5d406040ca446928c363c98e71c32f"
+    },
+    {
+      "path": "Ate/Store/JournalSyncBridge.swift",
+      "blob": "e8ecac87fc1bae2cac07c93e45cf90516810353a"
+    },
+    {
+      "path": "Ate/Views/JournalViews.swift",
+      "blob": "90af07534cfb1485b4f661cecf42fb817b242884"
+    },
+    {
+      "path": "Ate/Views/RecipeDetailView.swift",
+      "blob": "10e30d9220aa694e857696b9998f98f0601026dd"
+    },
+    {
+      "path": "Ate/Services/Auth.swift",
+      "blob": "c4352ac167e16e1aa547eaffae22aa45894d5095"
+    },
+    {
+      "path": "Ate/Services/DiagnosticHistory.swift",
+      "blob": "f39238d78be6b7ce8d5a533025b0685f7e762ed2"
+    },
+    {
+      "path": "Ate/Services/TelemetryClient.swift",
+      "blob": "ae69b98afc6879d6b771298eb7a8d3e9f3ed10db"
+    },
+    {
       "path": "Ate/App/AteApp.swift",
-      "blob": "617ac2bcc93d97510fbd6199ab21a248d4e420aa"
+      "blob": "9c163d25253a3a16ecd1b0fcae5a7792d09994b3"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",
@@ -24,16 +76,12 @@
       "blob": "3bfd2ad238d34e2f53496f77b0943e952b413805"
     },
     {
-      "path": "Ate/Store/AppStore.swift",
-      "blob": "52f7b316e8805b7e7e1ef1a81a6857acc710aa3a"
-    },
-    {
       "path": "Ate/Views/AddRecipeSheet.swift",
       "blob": "c6ca14de1fc90831163bc4f8b2764396e25a0a7d"
     },
     {
       "path": "Ate/Views/CookModeView.swift",
-      "blob": "203f46cec2a7b69e8f17a11f1c771a982441b9bc"
+      "blob": "9ff1be6c85939410688edaa4825f4be7f20694e8"
     },
     {
       "path": "Ate/Views/CookingTrackerView.swift",
@@ -45,15 +93,11 @@
     },
     {
       "path": "Ate/Views/InsightsView.swift",
-      "blob": "3f38057fb07a065197672fab9c6f219ea06c17f1"
+      "blob": "a2cef3495c1a24ad556b2389f2511b6afd1927cb"
     },
     {
       "path": "Ate/Views/JournalDeleteConfirmation.swift",
       "blob": "f7b8983b04c1d16047408aa41c7ed73816d65c74"
-    },
-    {
-      "path": "Ate/Views/JournalViews.swift",
-      "blob": "7e0375d362867507e781901318e32fde459f0e85"
     },
     {
       "path": "Ate/Views/LibraryView.swift",
@@ -68,10 +112,6 @@
       "blob": "3de31c5f54026a0a5b3b8a3c83c36e5c3244d03e"
     },
     {
-      "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "07e34be59c3b14549c08a146de0f13a38151fc62"
-    },
-    {
       "path": "Ate/Views/ShoppingListView.swift",
       "blob": "031df522bdb2bae02452fe99f535835dae0d7c08"
     },
@@ -81,7 +121,23 @@
     },
     {
       "path": "Ate/Services/CookPlanNotifications.swift",
-      "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
+      "blob": "73704d6dd8f0e5c5f16d0e7bf07bc6c582476f5b"
+    },
+    {
+      "path": "Ate/Store/AppStore+JournalAccountActions.swift",
+      "blob": "effad2f139c92d64e85a95083443d0c5442e2a63"
+    },
+    {
+      "path": "Ate/Store/AppStore+JournalPersonalReset.swift",
+      "blob": "cba7be8e1f2b4e9da5fa51b4c334ff4b99642349"
+    },
+    {
+      "path": "Ate/Views/AccountCard.swift",
+      "blob": "b26977d012e470aa127e5f20bc81b9678a0f3465"
+    },
+    {
+      "path": "Ate/Views/SettingsView.swift",
+      "blob": "d740edcdd811595e15e33e8187c4f48f3173b40f"
     }
   ]
 }

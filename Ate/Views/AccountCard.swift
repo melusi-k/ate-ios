@@ -40,7 +40,7 @@ struct AccountCard: View {
                         Button("Sign out, keep recipes on this iPhone") { Task { await store.signOut(removeLocalData: false) } }
                         Button("Sign out and remove local data", role: .destructive) { Task { await store.signOut(removeLocalData: true) } }
                         Button("Cancel", role: .cancel) {}
-                    } message: { Text("Your synced recipes stay in your account either way.") }
+                    } message: { Text("Your Food Journal, reflections and their local media and backups are removed from this iPhone either way. Your synced recipes stay in your account.") }
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 Divider().padding(.vertical, 4)

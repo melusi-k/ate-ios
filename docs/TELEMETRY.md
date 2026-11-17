@@ -2,7 +2,11 @@
 
 ## Runtime policy
 
-- Recognized non-production channels (`TierA`, `TierB`, `TierC`, `Beta`, `QA`, `Internal`, `Development`) send privacy-safe remote telemetry by default.
+- Remote app telemetry is off by default on every channel. The shipping release-readiness gate is false, so no remote event can be sent and opt-in is unavailable in this build.
+- A future readiness-reviewed beta build also requires explicit, persisted, revocable opt-in in Settings > Diagnostics. Channel membership alone is never consent. Consent does not replay local history.
+- Turning remote diagnostics off cancels active requests and prevents new starts. It cannot recall bytes already received. Local export/clear remains independent.
+- No offline upload queue or automatic retry is shipped in this increment. The receiver has no event-id dedup contract, so ambiguous deliveries must not be retried. Bounded persistence, receiver-backed idempotency and offline retry remain open #165 requirements.
+- Before readiness may be enabled: review privacy/legal copy and receiver access controls/retention on the exact candidate, implement and prove retry/dedup, and obtain fresh native/device acceptance. This branch does not enable or redeploy any receiver.
 - Empty, unknown, and production channels never send remote telemetry. UI-test launches never send remote telemetry.
 - Telemetry uses the existing Supabase project and is best-effort. Feature behaviour must never depend on delivery.
 - The Supabase Edge Function must be deployed with JWT verification disabled because the app uses only its public publishable key. The function independently validates that key against server-side public-key configuration. Never put a service-role key in the app.

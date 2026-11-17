@@ -1,7 +1,7 @@
 {
   "title": "Account-scoped Journal reset with dormant sync preparation",
   "summary": "Explicit sign-out, different-account sign-in and Clear all erase actual Journal rows, meals, media, backups and drafts; token expiry preserves them. Goals retained on Journal-only erase. Owner fingerprint survives pre-upgrade unsynced expiry. Dormant sync stays OFF; production untouched. Independent source review and Python PASS, native compilation/XCTest/pixels UNRUN. Draft held.",
-  "source_commit": "9fbf919d8e38b94c403cca1c47c50cda958fcd6f",
+  "source_commit": "64369941f32b4e2ba6addee98c6b9368ee4f390a",
   "evidence": [
     {
       "path": "Ate/Insights/InsightLifecycle.swift",

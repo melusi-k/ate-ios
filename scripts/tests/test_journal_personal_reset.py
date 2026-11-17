@@ -1,4 +1,4 @@
-from password_save_prompt_delta import restore as restore_password_prompt
+from native_sheet_source_delta import restore as restore_native_sheet_source
 from cleanup_phase_delta import restore as restore_cleanup
 """Branch contracts only. Native compilation, XCTest and pixels remain UNRUN."""
 import hashlib, json, unittest
@@ -83,7 +83,7 @@ class JournalPersonalResetContracts(unittest.TestCase):
         self.assertIn('testExpiredTokenPreservesVisibleJournal',ui)
         self.assertNotIn('-qaJournalTimeline',ui)
         # This slice adds cases; no existing QA flow or timing budget changes.
-        self.assertEqual(hashlib.sha256(restore_password_prompt('source:AteUITests/KeyFlowsQATests.swift',(ROOT/'AteUITests/KeyFlowsQATests.swift').read_bytes())).hexdigest(), '9085fc97e340f248bd5b101a479b02d451ddfdac42a7e8c216709ef88d2c930c')
+        self.assertEqual(hashlib.sha256(restore_native_sheet_source('source:AteUITests/KeyFlowsQATests.swift',(ROOT/'AteUITests/KeyFlowsQATests.swift').read_bytes())).hexdigest(), '9085fc97e340f248bd5b101a479b02d451ddfdac42a7e8c216709ef88d2c930c')
 
     def test_ci_requires_each_new_ui_case_without_changing_existing_budgets(self):
         workflow=(ROOT/'.github/workflows/compile-check.yml').read_text()

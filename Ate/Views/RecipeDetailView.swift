@@ -65,13 +65,17 @@ struct RecipeDetailView: View {
                         }
                     }
                     .foregroundStyle(Theme.foreground)
-                    .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 16)
+                    .padding(.horizontal, 16).padding(.top, 8)
+                    // End clearance belongs to the scroll CONTENT, not an opaque
+                    // viewport inset. Content can pass behind the floating button,
+                    // then the last card can scroll fully above it at every detent.
+                    .padding(.bottom, editing ? 16 : 16 + 72 + footerChromeReserve)
                     .pageWidth()
                 }
                 .accessibilityIdentifier("recipe.detail.scroll")
-                // The scrolling viewport owns its Cook inset. Keeping it outside
-                // the measured host mixes nested safe areas as timer chrome returns.
-                .safeAreaInset(edge: .bottom, spacing: 0) {
+                // Float over the same scroll host in pushed, medium and large
+                // recipe presentations. Do not paint or reserve a bottom band.
+                .overlay(alignment: .bottom) {
                     if !editing, store.recipe(recipeID) != nil {
                         Button {
                             store.beginCookSession(recipeID: recipeID, factor: factor)
@@ -80,7 +84,6 @@ struct RecipeDetailView: View {
                             .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)
                             .padding(.bottom, footerChromeReserve)
                             .frame(maxWidth: .infinity)
-                            .background(Theme.background.ignoresSafeArea(edges: .bottom))
                     }
                 }
             } else {

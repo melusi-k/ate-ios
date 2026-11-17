@@ -87,14 +87,22 @@ struct RecipeDetailView: View {
                 RecipeNotFoundView(title: "Recipe not found")
             }
         }
+        .toolbar(.hidden, for: .tabBar)   // full-height detail; Cook mode pinned at the bottom, never under the tab bar
+        .navigationTitle(store.recipe(recipeID)?.title ?? "Recipe")
+        .navigationBarTitleDisplayMode(.inline)
+        // Measure the outer inset host, not the content region reduced by the
+        // reserve that this measurement controls. Keep live parent/chrome changes.
         .background(GeometryReader { geometry in
             Color.clear.preference(key: RecipeDetailHostBottomYKey.self,
                                    value: geometry.frame(in: .global).maxY)
         })
-        .onPreferenceChange(RecipeDetailHostBottomYKey.self) { hostBottomY = $0 }
-        .toolbar(.hidden, for: .tabBar)   // full-height detail; Cook mode pinned at the bottom, never under the tab bar
-        .navigationTitle(store.recipe(recipeID)?.title ?? "Recipe")
-        .navigationBarTitleDisplayMode(.inline)
+        .onPreferenceChange(RecipeDetailHostBottomYKey.self) { value in
+            #if DEBUG
+            QA8DetailLayoutDiagnostic.event("detail-host-bottom", value: value.map { Double($0) },
+                previous: hostBottomY.map { Double($0) }, reserve: Double(footerChromeReserve))
+            #endif
+            hostBottomY = value
+        }
         .toolbar {
             if let recipe = store.recipe(recipeID) {
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -207,7 +215,11 @@ struct RecipeDetailView: View {
     private func askCard(_ recipe: RecipeCard) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Ask ate").overline()
+            #if DEBUG
+            let gaps = QA8DetailLayoutDiagnostic.quality { RecipeQuality.issues(recipe) }
+            #else
             let gaps = RecipeQuality.issues(recipe)
+            #endif
             if !gaps.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Label("This recipe looks thin", systemImage: "exclamationmark.bubble").font(AteFont.body(14, .semibold))
@@ -287,3 +299,53 @@ private struct RecipeDetailHostBottomYKey: PreferenceKey {
         if let next = nextValue() { value = next }
     }
 }
+
+#if DEBUG
+/// Numeric-only, bounded instrumentation for the existing QA8 Exit diagnostic.
+/// No observable state, recipe content, new geometry queries, tasks or timers.
+@MainActor
+enum QA8DetailLayoutDiagnostic {
+    private static var counts: [String: Int] = [:]
+    private static var rows: [String] = []
+    private static var armed = false
+    private static var qualityMaxMS = 0.0
+    private static var enabled: Bool {
+        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaQA8ExitFileDiagnostic")
+    }
+    static func beginExit() {
+        guard enabled else { return }
+        armed = true
+        counts = [:]
+        rows = []
+        qualityMaxMS = 0
+        event("exit-enter")
+    }
+    static func quality<T>(_ calculate: () -> T) -> T {
+        guard enabled, armed else { return calculate() }
+        event("quality-begin")
+        let started = ProcessInfo.processInfo.systemUptime
+        let result = calculate()
+        let elapsed = (ProcessInfo.processInfo.systemUptime - started) * 1000
+        qualityMaxMS = max(qualityMaxMS, elapsed)
+        event("quality-end", value: elapsed, previous: qualityMaxMS)
+        return result
+    }
+    static func event(_ phase: String, value: Double? = nil, previous: Double? = nil, reserve: Double? = nil) {
+        guard enabled, armed, rows.count < 64 else { return }
+        let count = (counts[phase] ?? 0) + 1
+        counts[phase] = count
+        // First four then powers of two: bounded disk writes even if layout churns.
+        guard count <= 4 || count & (count - 1) == 0 else { return }
+        func number(_ value: Double?) -> String { value.map { String($0) } ?? "nil" }
+        rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) count=\(count) uptime=\(ProcessInfo.processInfo.systemUptime) value=\(number(value)) previous=\(number(previous)) reserve=\(number(reserve))")
+        guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        do {
+            try Data((rows.joined(separator: "\n") + "\n").utf8).write(
+                to: cache.appendingPathComponent("qa8-detail-layout-\(ProcessInfo.processInfo.processIdentifier).txt"), options: .atomic)
+        } catch {
+            // A numeric marker in the existing test log, not recipe/private values.
+            print("QA8-DETAIL numeric-file-write-failed")
+        }
+    }
+}
+#endif

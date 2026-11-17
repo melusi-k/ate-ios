@@ -1,0 +1,70 @@
+{
+  "source:Ate/Store/AppStore.swift": {
+    "base": "281e20b8c4d65b2cf7e7aecc4e3b300b897174ccff9b9c99de83142b7ef06670",
+    "patched": "03a7f1d8556e7d76ffc63dc07ff68095134846b7de6a33285f8ddc76070ae4d2",
+    "fragments": [
+      {
+        "old": "\n    @discardableResult\n    func clearLibrary() async -> Bool {\n        if foodJournalRuntime != nil && (journalWriterEffect == nil || journalWriterValidator == nil) {\n            show(\"The unified Journal reset is not ready. Nothing was cleared.\", error: true); return false\n        }\n        let capturedSession = session\n        do { try await removeCookPlansBeforeErase(capturedSession: capturedSession) }\n        catch { show(\"Cooking plan cleanup could not be verified. Other local data was kept. Try again.\", error: true); return false }\n        if foodJournalRuntime != nil { return clearLibraryUnified() }\n        do {\n            try performOrdinaryWriteThrowing {\n                try eraseJournalPersonalData()\n                clearCookCompletionContext()\n                recipes = []; CookingHistory.shared.clear()\n                path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []\n                persistRecipes()\n            }\n            return true\n        } catch { show(Self.ordinaryWriteFailureMessage, error: true); return false }\n    }\n\n    /// Await notification cleanup outside any writer lease, then re-prove ownership\n    /// before the synchronous local erase. Both legacy and unified callers use this.\n    private func removeCookPlansBeforeErase(capturedSession: AuthSession?) async throws {\n        guard validatePostAwaitPublish(capturedSession: capturedSession) else { throw OrdinaryWriteSeamError.effectNotPerformed }\n        try performOrdinaryWriteThrowing { try clearCookPlans() }\n        try await cookPlanNotifications.cancelAll()\n        guard validatePostAwaitPublish(capturedSession: capturedSession) else { throw OrdinaryWriteSeamError.effectNotPerformed }\n    }\n",
+        "new": "\n    @discardableResult\n    func clearLibrary() async -> Bool {\n        CleanupPhaseDiagnostic.record(.clearEntered)\n        if foodJournalRuntime != nil && (journalWriterEffect == nil || journalWriterValidator == nil) {\n            CleanupPhaseDiagnostic.record(.clearRefused)\n            show(\"The unified Journal reset is not ready. Nothing was cleared.\", error: true); return false\n        }\n        let capturedSession = session\n        CleanupPhaseDiagnostic.record(.clearPlansBegin)\n        do { try await removeCookPlansBeforeErase(capturedSession: capturedSession)\n            CleanupPhaseDiagnostic.record(.clearPlansReturned) }\n        catch { CleanupPhaseDiagnostic.record(.clearPlansFailed); show(\"Cooking plan cleanup could not be verified. Other local data was kept. Try again.\", error: true); return false }\n        if foodJournalRuntime != nil {\n            CleanupPhaseDiagnostic.record(.clearEraseBegin)\n            let result = clearLibraryUnified()\n            CleanupPhaseDiagnostic.record(result ? .clearEraseReturned : .clearFailed)\n            return result\n        }\n        do {\n            try performOrdinaryWriteThrowing {\n                CleanupPhaseDiagnostic.record(.clearEraseBegin)\n                try eraseJournalPersonalData()\n                clearCookCompletionContext()\n                recipes = []; CookingHistory.shared.clear()\n                path = []; shoppingPath = []; settingsPath = []; morePath = []; searchPath = []\n                persistRecipes()\n            }\n            CleanupPhaseDiagnostic.record(.clearEraseReturned)\n            return true\n        } catch { CleanupPhaseDiagnostic.record(.clearFailed); show(Self.ordinaryWriteFailureMessage, error: true); return false }\n    }\n\n    /// Await notification cleanup outside any writer lease, then re-prove ownership\n    /// before the synchronous local erase. Both legacy and unified callers use this.\n    private func removeCookPlansBeforeErase(capturedSession: AuthSession?) async throws {\n        guard validatePostAwaitPublish(capturedSession: capturedSession) else { throw OrdinaryWriteSeamError.effectNotPerformed }\n        CleanupPhaseDiagnostic.record(.planStoreClearBegin)\n        try performOrdinaryWriteThrowing { try clearCookPlans() }\n        CleanupPhaseDiagnostic.record(.planStoreClearReturned)\n        try await cookPlanNotifications.cancelAll()\n        guard validatePostAwaitPublish(capturedSession: capturedSession) else { throw OrdinaryWriteSeamError.effectNotPerformed }\n    }\n"
+      }
+    ]
+  },
+  "source:Ate/Services/CookPlanNotifications.swift": {
+    "base": "4948a4701ea465790e97d29a357d76e08d9031c25ca865aa051809aa1e1c2c55",
+    "patched": "39468c696ce81b56ba542da947d6c19986dbb95ac34c619fc0083d989ffcb485",
+    "fragments": [
+      {
+        "old": "\n    private func removeAndVerify(recipeID: String) async throws {\n        let ids = [CookPlan.reminderID(recipeID: recipeID)]\n        await client.remove(ids)\n        let remaining = await client.pendingIDs()\n        guard remaining.isDisjoint(with: ids) else { throw CookPlanError.verificationFailed }\n    }\n\n",
+        "new": "\n    private func removeAndVerify(recipeID: String) async throws {\n        let ids = [CookPlan.reminderID(recipeID: recipeID)]\n        CleanupPhaseDiagnostic.record(.singleRemoveBegin)\n        await client.remove(ids)\n        CleanupPhaseDiagnostic.record(.singleRemoveReturned)\n        CleanupPhaseDiagnostic.record(.singleVerifyBegin)\n        let remaining = await client.pendingIDs()\n        CleanupPhaseDiagnostic.record(.singleVerifyReturned)\n        guard remaining.isDisjoint(with: ids) else { throw CookPlanError.verificationFailed }\n    }\n\n"
+      },
+      {
+        "old": "    }\n    func cancelAll() async throws {\n        try await enqueue { _ in\n            let pending = await self.client.pendingIDs()\n            let ids = pending.filter { $0.hasPrefix(CookPlan.reminderPrefix) }\n            await self.client.remove(Array(ids))\n            await self.client.removeAllDelivered()\n            let remaining = await self.client.pendingIDs()\n            guard remaining.allSatisfy({ !$0.hasPrefix(CookPlan.reminderPrefix) }) else {\n                throw CookPlanError.verificationFailed\n            }\n",
+        "new": "    }\n    func cancelAll() async throws {\n        try await enqueue { _ in\n            CleanupPhaseDiagnostic.record(.allPendingBegin)\n            let pending = await self.client.pendingIDs()\n            CleanupPhaseDiagnostic.record(.allPendingReturned)\n            let ids = pending.filter { $0.hasPrefix(CookPlan.reminderPrefix) }\n            CleanupPhaseDiagnostic.record(.allRemoveBegin)\n            await self.client.remove(Array(ids))\n            CleanupPhaseDiagnostic.record(.allRemoveReturned)\n            CleanupPhaseDiagnostic.record(.allDeliveredBegin)\n            await self.client.removeAllDelivered()\n            CleanupPhaseDiagnostic.record(.allDeliveredReturned)\n            CleanupPhaseDiagnostic.record(.allVerifyBegin)\n            let remaining = await self.client.pendingIDs()\n            CleanupPhaseDiagnostic.record(.allVerifyReturned)\n            guard remaining.allSatisfy({ !$0.hasPrefix(CookPlan.reminderPrefix) }) else {\n                throw CookPlanError.verificationFailed\n            }\n"
+      }
+    ]
+  },
+  "source:Ate/Views/CookPlanSheet.swift": {
+    "base": "75fb68558b403342dcbd9d790c48e16410c2b1122f52fa93c020b8de6c182d9e",
+    "patched": "c2941c8ddcd81f1f0bce89140cdff3fe0df47a49270c5f01627a19ac935eb8db",
+    "fragments": [
+      {
+        "old": "                            if let reminderStatus { Text(reminderStatus).font(.footnote) }\n                            Button(\"Cancel cooking plan\", role: .destructive) { cancel() }\n                                .accessibilityIdentifier(\"cookPlan.cancelPlan\")\n                        }\n                    }\n                } else {\n",
+        "new": "                            if let reminderStatus { Text(reminderStatus).font(.footnote) }\n                            Button(\"Cancel cooking plan\", role: .destructive) { cancel() }\n                                .accessibilityIdentifier(\"cookPlan.cancelPlan\")\n                                .accessibilityValue(CleanupPhaseDiagnostic.summary)\n                        }\n                    }\n                } else {\n"
+      },
+      {
+        "old": "    }\n\n    private func cancel() {\n        busy = true\n        Task { @MainActor in\n            do {\n                try store.cookPlanStore.cancel(recipeID: recipeID)\n                try await store.cookPlanNotifications.cancel(recipeID: recipeID)\n                busy = false\n                store.show(\"Cooking plan cancelled\")\n                dismiss()\n            } catch {\n                busy = false\n                problem = \"Cancellation could not be verified. Try again to remove the reminder.\"\n            }\n",
+        "new": "    }\n\n    private func cancel() {\n        CleanupPhaseDiagnostic.record(.cancelEntered)\n        busy = true\n        Task { @MainActor in\n            do {\n                try store.cookPlanStore.cancel(recipeID: recipeID)\n                CleanupPhaseDiagnostic.record(.cancelLocalReturned)\n                try await store.cookPlanNotifications.cancel(recipeID: recipeID)\n                CleanupPhaseDiagnostic.record(.cancelOSReturned)\n                busy = false\n                store.show(\"Cooking plan cancelled\")\n                CleanupPhaseDiagnostic.record(.cancelDismiss)\n                dismiss()\n            } catch {\n                CleanupPhaseDiagnostic.record(.cancelFailed)\n                busy = false\n                problem = \"Cancellation could not be verified. Try again to remove the reminder.\"\n            }\n"
+      }
+    ]
+  },
+  "source:Ate/Views/JournalViews.swift": {
+    "base": "52c6653f5a6858fcc8f80f8c49f6e658eed9139dad92ee659ab808e32c9675be",
+    "patched": "5a395e461e4449cd84b380fa2246d4fa686424851077d36282781e31cc0637a0",
+    "fragments": [
+      {
+        "old": "            ToolbarItem(placement: .topBarTrailing) {\n                Button { store.beginManualJournal() } label: { Label(\"New journal entry\", systemImage: \"square.and.pencil\") }\n                    .accessibilityIdentifier(\"journal.newEntry\")\n            }\n        }\n        .onChange(of: store.journalRevision) { _, _ in reload() }\n",
+        "new": "            ToolbarItem(placement: .topBarTrailing) {\n                Button { store.beginManualJournal() } label: { Label(\"New journal entry\", systemImage: \"square.and.pencil\") }\n                    .accessibilityIdentifier(\"journal.newEntry\")\n                    .accessibilityValue(CleanupPhaseDiagnostic.summary)\n            }\n        }\n        .onChange(of: store.journalRevision) { _, _ in reload() }\n"
+      }
+    ]
+  },
+  "source:Ate/Views/JournalTimelineView.swift": {
+    "base": "d88a91e29b2143a080e43c9fb17e6ac76da09f034f12ff403e713a78847aa103",
+    "patched": "e9373ab432240a8110bae6ff5740d0e0643a6f9186ebb932e0eb2a4498c296bc",
+    "fragments": [
+      {
+        "old": "                    Button { store.beginManualJournal() } label: {\n                        Label(\"New journal entry\", systemImage: \"square.and.pencil\")\n                    }.accessibilityIdentifier(\"journal.newEntry\")\n                }\n            }\n        }\n",
+        "new": "                    Button { store.beginManualJournal() } label: {\n                        Label(\"New journal entry\", systemImage: \"square.and.pencil\")\n                    }.accessibilityIdentifier(\"journal.newEntry\")\n                    .accessibilityValue(CleanupPhaseDiagnostic.summary)\n                }\n            }\n        }\n"
+      }
+    ]
+  },
+  "source:Ate/Views/SettingsView.swift": {
+    "base": "81a28646a68be09c54f4869a714c3e589e815661dcabc409075ac6566ce50c18",
+    "patched": "7371fc1d4cf7c226e57627945cc814c7ccc67ad8e2fdd4b9d0797c15bbbf4145",
+    "fragments": [
+      {
+        "old": "            Text(\"New recipes, shopping items and diary entries will be added. Existing matching items stay on this iPhone. If this archive contains nutrition goals and app preferences, they replace the current ones.\")\n        }\n        .confirmationDialog(\"Clear your library and Food Journal?\", isPresented: $confirmClear, titleVisibility: .visible) {\n            Button(\"Clear all\", role: .destructive) { Task { if await store.clearLibrary() { store.show(\"Library cleared, including Food Journal\") } } }\n        } message: {\n            Text(\"Recipes, Food Journal entries, reflections and their local media and backups will be removed from this iPhone. This cannot be undone.\")\n        }\n",
+        "new": "            Text(\"New recipes, shopping items and diary entries will be added. Existing matching items stay on this iPhone. If this archive contains nutrition goals and app preferences, they replace the current ones.\")\n        }\n        .confirmationDialog(\"Clear your library and Food Journal?\", isPresented: $confirmClear, titleVisibility: .visible) {\n            Button(\"Clear all\", role: .destructive) { CleanupPhaseDiagnostic.record(.clearConfirmed); Task { if await store.clearLibrary() { store.show(\"Library cleared, including Food Journal\") } } }\n        } message: {\n            Text(\"Recipes, Food Journal entries, reflections and their local media and backups will be removed from this iPhone. This cannot be undone.\")\n        }\n"
+      }
+    ]
+  }
+}

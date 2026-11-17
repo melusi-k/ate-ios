@@ -1,0 +1,19 @@
+{
+  "path": ".github/workflows/compile-check.yml",
+  "base_sha256": "9f838368cbefef34b3ec3a8537b667e1404cc4190a4398e2973bef19186f5988",
+  "patched_sha256": "beea2825dffe22f4a83365b0e47e3df5b40791c2e167afcf9dab9eb703f5612d",
+  "fragments": [
+    {
+      "old": "          echo \"SIM_ID=$SIM_ID\" >> \"$GITHUB_ENV\"\n\n          set +e\n          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" -resultBundlePath \"$RUNNER_TEMP/ate-test-results/build.xcresult\" CODE_SIGNING_ALLOWED=NO > build.log 2>&1\n          status=$?\n          set -e\n",
+      "new": "          echo \"SIM_ID=$SIM_ID\" >> \"$GITHUB_ENV\"\n\n          # Account journeys need actual Security.framework durability. Let Xcode\n          # package simulator entitlements with a free local ad-hoc signature.\n          # No team/profile, hardcoded access group, or hardware signing change.\n          signing=(CODE_SIGNING_ALLOWED=NO)\n          if [ \"${{ matrix.suite }}\" = account-cooking ]; then\n            signing=(CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= PROVISIONING_PROFILE=)\n          fi\n          set +e\n          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" -resultBundlePath \"$RUNNER_TEMP/ate-test-results/build.xcresult\" \"${signing[@]}\" > build.log 2>&1\n          status=$?\n          set -e\n"
+    },
+    {
+      "old": "          grep -E \"warning: .*(Widgets|Intents|Snapshot)\" build.log > build-warnings.log || true\n          tail -n 30 build-warnings.log || true\n      # Removed obsolete Library Explore sheet selectors: the tests and UI no longer\n      # exist and v9 executed zero tests. Current Journal hub navigation is asserted\n",
+      "new": "          grep -E \"warning: .*(Widgets|Intents|Snapshot)\" build.log > build-warnings.log || true\n          tail -n 30 build-warnings.log || true\n          if [ \"${{ matrix.suite }}\" = account-cooking ]; then\n            evidence=\"$RUNNER_TEMP/ate-test-results/account-simulator-signature\"\n            mkdir -p \"$evidence\"\n            # Read the actual built app, not requested entitlements in the repo.\n            app_path=$(xcodebuild -showBuildSettings -json -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \"${signing[@]}\" | python3 -c 'import json,sys; rows=json.load(sys.stdin); row=next(r[\"buildSettings\"] for r in rows if r[\"target\"] == \"Ate\"); assert row[\"PLATFORM_NAME\"] == \"iphonesimulator\"; print(row[\"TARGET_BUILD_DIR\"] + \"/\" + row[\"FULL_PRODUCT_NAME\"])')\n            codesign --verify --strict \"$app_path\"\n            codesign -d -v \"$app_path\" 2> \"$evidence/signature.txt\"\n            codesign -d --entitlements :- \"$app_path\" > \"$evidence/entitlements.plist\" 2> \"$evidence/entitlements-stderr.txt\"\n            git rev-parse HEAD > \"$evidence/source-commit.txt\"\n          fi\n      # Removed obsolete Library Explore sheet selectors: the tests and UI no longer\n      # exist and v9 executed zero tests. Current Journal hub navigation is asserted\n"
+    },
+    {
+      "old": "          path: |\n            *.log\n            ${{ runner.temp }}/ate-test-results/draft-quality-repair-attachments\n            build.log\n",
+      "new": "          path: |\n            *.log\n            ${{ runner.temp }}/ate-test-results/account-simulator-signature\n            ${{ runner.temp }}/ate-test-results/draft-quality-repair-attachments\n            build.log\n"
+    }
+  ]
+}

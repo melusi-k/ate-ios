@@ -59,7 +59,7 @@ Before implementing this shape, audit the existing SwiftData JournalEntry, food 
 ## 4. Persistence, privacy and migration guardrails
 
 - Preserve existing local-first and signed-out behavior.
-- The current journal's local-only privacy promise remains in force unless a separate, explicit product decision changes it.
+- The journal's original local-only privacy promise changed by explicit owner decision under issue #34 (2026-11-14): journal content syncs to the owner's Supabase account per docs/implementation/34_USER_DATA_SYNC.md, which records the user value, conflict semantics, retention/deletion/export behavior and privacy impact required by this section.
 - Do not move journal content to Supabase merely because the feature is being unified.
 - If cloud persistence or sync is proposed, document the user value, conflict semantics, retention/deletion/export behavior and privacy impact first; implement only through an additive, reviewed schema change.
 - Every new Supabase table/policy must be user-scoped, least-privilege and covered by RLS tests. Never ship a service-role key in the app.

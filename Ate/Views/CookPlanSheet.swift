@@ -35,6 +35,7 @@ struct CookPlanSheet: View {
                             if let reminderStatus { Text(reminderStatus).font(.footnote) }
                             Button("Cancel cooking plan", role: .destructive) { cancel() }
                                 .accessibilityIdentifier("cookPlan.cancelPlan")
+                                .accessibilityValue(CleanupPhaseDiagnostic.summary)
                         }
                     }
                 } else {
@@ -122,15 +123,20 @@ struct CookPlanSheet: View {
     }
 
     private func cancel() {
+        CleanupPhaseDiagnostic.record(.cancelEntered)
         busy = true
         Task { @MainActor in
             do {
                 try store.cookPlanStore.cancel(recipeID: recipeID)
+                CleanupPhaseDiagnostic.record(.cancelLocalReturned)
                 try await store.cookPlanNotifications.cancel(recipeID: recipeID)
+                CleanupPhaseDiagnostic.record(.cancelOSReturned)
                 busy = false
                 store.show("Cooking plan cancelled")
+                CleanupPhaseDiagnostic.record(.cancelDismiss)
                 dismiss()
             } catch {
+                CleanupPhaseDiagnostic.record(.cancelFailed)
                 busy = false
                 problem = "Cancellation could not be verified. Try again to remove the reminder."
             }

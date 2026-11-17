@@ -92,6 +92,7 @@ final class KeyFlowsQATests: XCTestCase {
         let p = app.secureTextFields["authPassword"]; p.tap(); p.typeText("password123")
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
+        dismissPasswordSavePrompt(in: app)
     }
 
     // MARK: 1 — add from URL (JSON-LD page + social caption + hidden-caption fallback)
@@ -277,7 +278,7 @@ final class KeyFlowsQATests: XCTestCase {
     // MARK: 8 — timers (start, pause, resume, timer bar, finish → chime/haptic, Live Activity request)
 
     func testQA8_Timers() {
-        launch(["-qaFastTimers"])
+        launch(["-qaFastTimers", "-qaDogWaitPhaseDiagnostic", "-qaQA8ExitFileDiagnostic"])
         addPrompt("Timer test salmon")
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))
@@ -295,6 +296,7 @@ final class KeyFlowsQATests: XCTestCase {
         wait(app.buttons["Pause timer"], 5)
         shot("8-timer-running")
         app.buttons["Exit"].tap()
+        shot("8-after-exit-before-timerbar-query")
         wait(app.buttons["timerBarOpen"].firstMatch, 5)
         shot("8-timer-bar")
         XCTAssertTrue(app.buttons["timerBarOpen"].firstMatch.waitForNonExistence(timeout: 40), "timer finished")
@@ -370,5 +372,18 @@ final class KeyFlowsQATests: XCTestCase {
         wait(app.navigationBars["Terms of Use"], 10)
         wait(app.webViews.firstMatch, 10)
         app.buttons["legalDocumentClose"].tap()
+    }
+}
+
+extension XCTestCase {
+    /// Decline only the observed native password-save prompt, never arbitrary alerts.
+    /// No retry or readiness bypass: the journey's original assertions still follow.
+    func dismissPasswordSavePrompt(in app: XCUIApplication) {
+        let prompt = app.sheets["Save Password?"].firstMatch
+        guard prompt.waitForExistence(timeout: 2) else { return }
+        let notNow = prompt.buttons["Not Now"].firstMatch
+        let save = prompt.buttons["Save"].firstMatch
+        guard notNow.exists && save.exists else { return }
+        notNow.tap()
     }
 }

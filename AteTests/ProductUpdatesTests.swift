@@ -2,6 +2,15 @@ import XCTest
 @testable import Ate
 
 final class ProductUpdatesTests: XCTestCase {
+    func testActualBundledReleaseCatalogLoadsFromRequiredSubdirectory() throws {
+        let url = try XCTUnwrap(Bundle.main.url(forResource: "catalog", withExtension: "json", subdirectory: "ProductUpdates"))
+        let data = try Data(contentsOf: url)
+        let decoded = try ProductUpdatesCatalog.decode(data)
+        XCTAssertFalse(decoded.releases.isEmpty)
+        let loaded = try XCTUnwrap(ProductUpdatesCatalog.load())
+        XCTAssertEqual(loaded.releases.map(\.id), decoded.releases.map(\.id))
+    }
+
     private func data(_ releases: String = "[]", schema: Int = 1) -> Data {
         Data("{\"schemaVersion\":\(schema),\"releases\":\(releases)}".utf8)
     }

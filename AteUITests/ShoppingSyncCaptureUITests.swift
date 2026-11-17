@@ -1,14 +1,27 @@
 import XCTest
+import CoreFoundation
+import Darwin
 
 /// Uses existing isolated UI-test startup, MockAuth and MockSync through real
 /// Settings sign-in. These are UI/status captures, not server/two-device proof.
 final class ShoppingSyncCaptureUITests: XCTestCase {
     private var app: XCUIApplication!
+    private var failureHitPoint: CGPoint?
+    override func record(_ issue: XCTIssue) {
+        if name.contains("testSignedInShoppingPortraitStatusAndManualRefresh"), let point = failureHitPoint {
+            WindowHitFailureRequest.capture(point: point, test: name, issue: issue, owner: self)
+            failureHitPoint = nil
+        }
+        super.record(issue)
+    }
     override func setUp() {
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
         app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaResetShopping", "-qaResetServer"]
+        if name.contains("testSignedInShoppingPortraitStatusAndManualRefresh") {
+            app.launchArguments.append("-qaWindowHitFailure")
+        }
         app.launch()
     }
     override func tearDown() {
@@ -89,8 +102,13 @@ final class ShoppingSyncCaptureUITests: XCTestCase {
             let save = passwordPrompt.buttons["Save"].firstMatch
             if notNow.exists && save.exists { notNow.tap() }
         }
+        if name.contains("testSignedInShoppingPortraitStatusAndManualRefresh") {
+            let frame = tab.frame
+            failureHitPoint = CGPoint(x: frame.midX, y: frame.midY)
+        }
         tab.tap()
         XCTAssertTrue(app.navigationBars["Shopping list"].waitForExistence(timeout: 10))
+        failureHitPoint = nil
     }
     private func signIn() {
         let settings = app.tabBars.buttons["Settings"]
@@ -156,4 +174,26 @@ final class ShoppingSyncCaptureUITests: XCTestCase {
     func testSignedOutShoppingLandscapeLocalStatus() { localCapture(landscape: true) }
     func testSignedInShoppingPortraitStatusAndManualRefresh() { signedInCapture(landscape: false) }
     func testSignedInShoppingLandscapeStatusAndManualRefresh() { signedInCapture(landscape: true) }
+}
+
+/// Cross-process numeric request only. No reactivation, UI actions, waits or retries.
+enum WindowHitFailureRequest {
+    static func capture(point: CGPoint, test: String, issue: XCTIssue, owner: XCTestCase) {
+        guard point.x.isFinite, point.y.isFinite,
+              abs(point.x) < 100_000, abs(point.y) < 100_000 else { return }
+        let signal = "ate.qa.window-hit-failure"
+        var token: Int32 = 0
+        let registration = notify_register_check(signal, &token)
+        var posted: UInt32 = registration
+        if registration == NOTIFY_STATUS_OK {
+            let x = UInt64(UInt32(bitPattern: Int32((point.x * 100).rounded())))
+            let y = UInt64(UInt32(bitPattern: Int32((point.y * 100).rounded())))
+            posted = notify_set_state(token, (x << 32) | y)
+            if posted == NOTIFY_STATUS_OK { posted = notify_post(signal) }
+            notify_cancel(token)
+        }
+        let evidence = XCTAttachment(string: "test=\(test)\nrequestedAt=\(Date().timeIntervalSince1970)\npoint=\(point)\nnotifyStatus=\(posted)\nissue=\(issue.compactDescription)\nUIKit result is retained in window-hit-failures cache artifacts; a request does not prove a response.")
+        evidence.name = "window-hit-failure-request"; evidence.lifetime = .keepAlways
+        owner.add(evidence)
+    }
 }

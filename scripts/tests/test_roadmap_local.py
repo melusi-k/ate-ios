@@ -24,6 +24,18 @@ class LocalRoadmapContracts(unittest.TestCase):
             self.assertIn(token,ui)
         for forbidden in ['URLSession','Supabase','AuthSheet','ProductWhatsNew','withAnimation','communityCount']:
             self.assertNotIn(forbidden,ui)
+    def test_card_metadata_stays_on_actionable_navigation_link(self):
+        source=(ROOT/'Ate/Views/RoadmapView.swift').read_text()
+        cards=source.split('ForEach(catalog.cards) { card in',1)[1].split('            } else {',1)[0]
+        self.assertIn('NavigationLink { RoadmapDetailView(card: card, votes: votes) } label:',cards)
+        # A synthetic .ignore container produced an identified Other around an unidentified Button.
+        # Keep the native link as the element receiving all metadata and the explicit button trait.
+        self.assertNotIn('.accessibilityElement(',cards)
+        modifiers=cards.split('.buttonStyle(.plain)',1)[1]
+        for token in ['.accessibilityAddTraits(.isButton)', '.accessibilityLabel(',
+                      '.accessibilityValue(', '.accessibilityHint(', '.accessibilityIdentifier("roadmap.card.']:
+            self.assertIn(token,modifiers)
+        self.assertEqual(modifiers.count('.accessibilityIdentifier('),1)
     def test_real_local_storage_set_and_catalog_fail_closed(self):
         source=(ROOT/'Ate/Logic/Roadmap.swift').read_text()
         for token in ['Set(stored)','updated.remove(id)','updated.insert(id)','updated.sorted()',

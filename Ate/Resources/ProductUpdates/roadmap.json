@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "cards": [
+    {
+      "id": "meal-planning",
+      "title": "Choose recipes while planning",
+      "summary": "Browse saved recipes when choosing what to cook on a day.",
+      "detail": "An idea for a recipe picker inside the planning flow, including entry points from your Library and calendar. Planning stays separate from recording food you actually ate. This is a suggestion, not a delivery promise.",
+      "status": "considering"
+    },
+    {
+      "id": "shopping-together",
+      "title": "Shop together",
+      "summary": "Make it easier to coordinate a shopping list with another person.",
+      "detail": "An idea for a shared shopping list with clear control over who can see or change it. Nothing is shared by saving a local vote here. This is a suggestion, not a delivery promise.",
+      "status": "considering"
+    }
+  ]
+}

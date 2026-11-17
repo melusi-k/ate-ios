@@ -32,10 +32,17 @@ jobs:
         run: |
           xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             CODE_SIGNING_ALLOWED=NO > roadmap-evidence/build.log 2>&1
+      - name: Verify actual built catalog directory
+        run: |
+          xcodebuild -showBuildSettings -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            CODE_SIGNING_ALLOWED=NO > roadmap-evidence/build-settings.txt
+          python3 scripts/verify-product-catalog-bundle.py roadmap-evidence/build-settings.txt \
+            > roadmap-evidence/catalog-bundle-receipt.json
       - name: Catalog, local persistence and Settings journey
         run: |
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteTests/RoadmapTests \
+            -only-testing:AteTests/ProductUpdatesTests \
             -only-testing:AteUITests/RoadmapUITests \
             -parallel-testing-enabled NO \
             -resultBundlePath "$RUNNER_TEMP/roadmap74.xcresult" \

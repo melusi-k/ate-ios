@@ -5,6 +5,7 @@ struct CookingTrackerView: View {
     @Environment(AppStore.self) private var store
     private var history: CookingHistory { store.journalCookingHistory }
     @State private var selectedDate: Date?
+    @State private var showPlanPicker = false
     /// Recipe chosen in the day sheet. The day sheet is dismissed first and the recipe sheet is
     /// presented from its onDismiss, so only one sheet is ever up: RecipeSheet's Cook mode
     /// handoff to the root full-screen cover then works exactly as it does from Insights.
@@ -34,6 +35,9 @@ struct CookingTrackerView: View {
             }
             Text("Finish cooking in Cook Mode to record a day. Tap a date to see what you cooked.")
                 .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
+            Button { showPlanPicker = true } label: { Label("Plan a cook", systemImage: "calendar.badge.plus") }
+                .buttonStyle(.ate(.secondary, height: 44))
+                .accessibilityIdentifier("tracker.planCook")
             CookingDotGrid(history: history, selectedDate: $selectedDate)
                 // Preserve child accessibility so month navigation and day buttons remain individually testable.
                 .accessibilityElement(children: .contain)
@@ -46,6 +50,7 @@ struct CookingTrackerView: View {
             }
         }
         .cardSurface(padding: 16)
+        .cookPlanRecipePicker(isPresented: $showPlanPicker)
         .sheet(item: Binding(get: { selectedDate.map { TrackerDate(date: $0) } }, set: {
             selectedDate = $0?.date
             traceDaySheet("binding-set")

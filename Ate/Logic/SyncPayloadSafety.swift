@@ -19,11 +19,10 @@ enum SyncPayloadSafety {
               row.kind == "recipe" || row.kind == "shopping" else { return false }
         if row.deleted { return true }
         guard let raw = row.data?.raw,
-              let fields = (try? JSONSerialization.jsonObject(with: raw)) as? [String: Any],
+              let fields = SyncPayloadVersion.compatibleFields(raw),
               fields["id"] as? String == row.id else { return false }
-        // No schema version is emitted today. Additive fields remain compatible;
-        // an explicit version requires a future adapter, never a guess here.
-        guard fields["schemaVersion"] == nil, fields["schema_version"] == nil else { return false }
+        // The adapter accepts legacy v0 or explicit current v1 only. Domain checks
+        // below still reject malformed fields; version metadata never grants trust.
         let decoder = JSONDecoder()
         if row.kind == "shopping" {
             guard let item = try? decoder.decode(ShoppingItem.self, from: raw) else { return false }

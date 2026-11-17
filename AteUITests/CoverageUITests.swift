@@ -686,6 +686,13 @@ final class CoverageUITests: XCTestCase {
         app.buttons["signOutButton"].tap()
         let keep = app.buttons["Sign out, keep recipes on this iPhone"]
         wait(keep, 5)
+        // A late native password sheet must not consume the original confirmation tap.
+        let passwordPrompt = app.sheets["Save Password?"].firstMatch
+        if passwordPrompt.exists && passwordPrompt.elementType == .sheet && passwordPrompt.label == "Save Password?" {
+            let notNow = passwordPrompt.buttons["Not Now"].firstMatch
+            let save = passwordPrompt.buttons["Save"].firstMatch
+            if notNow.exists && save.exists { notNow.tap() }
+        }
         keep.tap()
         wait(app.buttons["openSignIn"], 5)
         app.buttons["openSignIn"].tap()

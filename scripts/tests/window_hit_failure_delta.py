@@ -2,7 +2,7 @@
 from pathlib import Path
 import hashlib,json
 FIXTURE=Path(__file__).with_suffix('.json')
-DIGEST='f4c3190cad08f5b3210c345c4b247b2ba05d9a2359d2c15426f84506b8cb4b79'
+DIGEST='05dbcf4e66fe8a827963a0da380d8f419e0a83b9e52158ec156423543751beee'
 def restore(key,raw):
     payload=FIXTURE.read_bytes()
     assert hashlib.sha256(payload).hexdigest()==DIGEST, 'Window probe fixture changed'

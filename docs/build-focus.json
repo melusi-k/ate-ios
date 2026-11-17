@@ -1,7 +1,7 @@
 {
   "title": "Account-scoped Journal reset with dormant sync preparation",
-  "summary": "Explicit sign-out, different-account sign-in and Clear all erase actual Journal rows, meals, media, backups and drafts; token expiry preserves them. Goals retained on Journal-only erase. Owner fingerprint survives pre-upgrade unsynced expiry. Dormant sync stays OFF; production untouched. Independent source review and Python PASS, native compilation/XCTest/pixels UNRUN. Draft held.",
-  "source_commit": "82eb6b48214f36ef69661d7030c79e0191956cfd",
+  "summary": "Account-scoped Journal reset baseline retained. This head adds one explicitly flagged DEBUG failure-only UIKit window/hit-test probe for AccountSwitch, NavigationHeaders and signed-in Shopping portrait. No product fix or native pass claimed; native compilation and probe delivery UNRUN.",
+  "source_commit": "f37d9b5b46a0e9dd477c6536346999a2bf29ef76",
   "evidence": [
     {
       "path": "Ate/Insights/InsightLifecycle.swift",
@@ -57,7 +57,7 @@
     },
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "9c163d25253a3a16ecd1b0fcae5a7792d09994b3"
+      "blob": "8ca60218894b7089de9b07e46e456d786fe571c4"
     },
     {
       "path": "Ate/App/DogfoodSavedRecipeQAFixtures.swift",

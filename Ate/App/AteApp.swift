@@ -7,6 +7,73 @@ import Foundation
 import Dispatch
 import UIKit
 import OSLog
+import Darwin
+#endif
+
+
+#if DEBUG
+/// Failure-only, explicitly opted-in UIKit inspection. No window or view mutations.
+enum WindowHitFailureDiagnostic {
+    @MainActor private static var captured = false
+    static let signal = "ate.qa.window-hit-failure"
+    static func installIfRequested() {
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaWindowHitFailure") else { return }
+        CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), nil,
+            { _, _, _, _, _ in
+                Task { @MainActor in capture() }
+            }, signal as CFString, nil, .deliverImmediately)
+    }
+
+    @MainActor private static func capture() {
+        guard !captured else { return }
+        captured = true
+        var token: Int32 = 0
+        guard notify_register_check(signal, &token) == NOTIFY_STATUS_OK else { return }
+        defer { notify_cancel(token) }
+        var state: UInt64 = 0
+        guard notify_get_state(token, &state) == NOTIFY_STATUS_OK else { return }
+        let point = CGPoint(x: Double(Int32(bitPattern: UInt32(truncatingIfNeeded: state >> 32))) / 100,
+                            y: Double(Int32(bitPattern: UInt32(truncatingIfNeeded: state))) / 100)
+        func describe(_ view: UIView) -> [String: Any] {
+            ["class": NSStringFromClass(type(of: view)), "frame": NSStringFromCGRect(view.frame),
+             "hidden": view.isHidden, "alpha": Double(view.alpha),
+             "interactionEnabled": view.isUserInteractionEnabled]
+        }
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+        let rows: [[String: Any]] = windows.enumerated().map { index, window in
+            let local = window.convert(point, from: nil)
+            let hit = window.hitTest(local, with: nil)
+            var chain: [[String: Any]] = []
+            var next = hit
+            while let view = next, chain.count < 32 {
+                chain.append(describe(view)); next = view.superview
+            }
+            var row = describe(window)
+            row["index"] = index; row["level"] = Double(window.windowLevel.rawValue)
+            row["key"] = window.isKeyWindow
+            row["scene"] = window.windowScene?.session.persistentIdentifier ?? "none"
+            row["pointInWindow"] = NSStringFromCGPoint(local)
+            row["hitTargetAndAncestors"] = chain
+            row["rootControllerClass"] = window.rootViewController.map { NSStringFromClass(type(of: $0)) } ?? "none"
+            row["presentedControllerClass"] = window.rootViewController?.presentedViewController.map { NSStringFromClass(type(of: $0)) } ?? "none"
+            return row
+        }
+        let payload: [String: Any] = ["timestamp": Date().timeIntervalSince1970,
+            "uptime": ProcessInfo.processInfo.systemUptime, "pid": ProcessInfo.processInfo.processIdentifier,
+            "pointInScreen": NSStringFromCGPoint(point), "windows": rows]
+        do {
+            let directory = try FileManager.default.url(for: .cachesDirectory, in: .userDomainMask,
+                appropriateFor: nil, create: true).appendingPathComponent("window-hit-failures", isDirectory: true)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+            try data.write(to: directory.appendingPathComponent("\(UUID().uuidString).json"), options: .atomic)
+        } catch {
+            NSLog("WindowHitFailureDiagnostic capture failed: %@", String(describing: error))
+        }
+    }
+}
 #endif
 
 @main
@@ -19,6 +86,7 @@ struct AteApp: App {
         SentryBootstrap.start()
         TabBarStyle.apply()
         #if DEBUG
+        WindowHitFailureDiagnostic.installIfRequested()
         LiveDTProbe.installIfRequested()
         DogWaitPhaseDiagnostics.startIfRequested()
         MenuWaitCapture.startIfRequested()

@@ -36,7 +36,7 @@ enum WindowHitFailureDiagnostic {
         let point = CGPoint(x: Double(Int32(bitPattern: UInt32(truncatingIfNeeded: state >> 32))) / 100,
                             y: Double(Int32(bitPattern: UInt32(truncatingIfNeeded: state))) / 100)
         func describe(_ view: UIView) -> [String: Any] {
-            ["class": NSStringFromClass(type(of: view)), "frame": NSStringFromCGRect(view.frame),
+            ["class": NSStringFromClass(type(of: view)), "frame": NSCoder.string(for: view.frame),
              "hidden": view.isHidden, "alpha": Double(view.alpha),
              "interactionEnabled": view.isUserInteractionEnabled]
         }
@@ -54,7 +54,7 @@ enum WindowHitFailureDiagnostic {
             row["index"] = index; row["level"] = Double(window.windowLevel.rawValue)
             row["key"] = window.isKeyWindow
             row["scene"] = window.windowScene?.session.persistentIdentifier ?? "none"
-            row["pointInWindow"] = NSStringFromCGPoint(local)
+            row["pointInWindow"] = NSCoder.string(for: local)
             row["hitTargetAndAncestors"] = chain
             row["rootControllerClass"] = window.rootViewController.map { NSStringFromClass(type(of: $0)) } ?? "none"
             row["presentedControllerClass"] = window.rootViewController?.presentedViewController.map { NSStringFromClass(type(of: $0)) } ?? "none"
@@ -62,7 +62,7 @@ enum WindowHitFailureDiagnostic {
         }
         let payload: [String: Any] = ["timestamp": Date().timeIntervalSince1970,
             "uptime": ProcessInfo.processInfo.systemUptime, "pid": ProcessInfo.processInfo.processIdentifier,
-            "pointInScreen": NSStringFromCGPoint(point), "windows": rows]
+            "pointInScreen": NSCoder.string(for: point), "windows": rows]
         do {
             let directory = try FileManager.default.url(for: .cachesDirectory, in: .userDomainMask,
                 appropriateFor: nil, create: true).appendingPathComponent("window-hit-failures", isDirectory: true)

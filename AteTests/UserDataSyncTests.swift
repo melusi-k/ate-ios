@@ -1699,8 +1699,13 @@ final class FamilySyncCommitJournalTests: XCTestCase {
                                          fatGrams: nil, fibreGrams: nil)
         let goals2 = DailyNutritionGoals(energyKcal: 2100, proteinGrams: nil, carbohydratesGrams: nil,
                                          fatGrams: nil, fibreGrams: nil)
+        // Weak diagnostics do not postpone or change the original nil assertion.
+        defer { JournalSyncBridge.captureWeakOwner = false }
         for boundary in FamilySyncCommitJournal.Boundary.allCases
             where boundary != .beforeInsightApply && boundary != .afterInsightApply {
+            JournalSyncBridge.captureWeakOwner = boundary == .afterJournalApply
+            JournalSyncBridge.lastContext = nil
+            JournalSyncBridge.lastContextOperation = "none"
             print("SYNC-MATRIX boundary=\(boundary.rawValue) phase=iteration-enter")
             // Fresh durable state per boundary, journal directory and store file together.
             container = nil
@@ -1714,6 +1719,7 @@ final class FamilySyncCommitJournalTests: XCTestCase {
             // Bound Objective-C/SwiftData temporaries from the injected throwing commit.
             // Keep the same strict weak-owner assertion outside the pool, before reopen.
             weak var oldContainer: ModelContainer?
+            weak var oldJournal: FamilySyncCommitJournal?
             var journal: FamilySyncCommitJournal?
             try autoreleasepool {
             container = try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,
@@ -1745,11 +1751,15 @@ final class FamilySyncCommitJournalTests: XCTestCase {
             // Release BOTH owners of the old container before opening the same store.
             print("SYNC-MATRIX boundary=\(boundary.rawValue) phase=release-enter")
             oldContainer = container
+            oldJournal = journal
             journal = nil
             container = nil
             print("SYNC-MATRIX boundary=\(boundary.rawValue) phase=release-return")
             }
             XCTAssertNil(oldContainer, "the prior journal must not retain the old container")
+            if boundary == .afterJournalApply {
+                print("SYNC-WEAK-OWNERS boundary=afterJournalApply journalAlive=\(oldJournal != nil) contextAlive=\(JournalSyncBridge.lastContext != nil) contextOperation=\(JournalSyncBridge.lastContextOperation) containerAlive=\(oldContainer != nil)")
+            }
             container = try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,
                                            configurations: configuration)
             journal = try makeJournal()

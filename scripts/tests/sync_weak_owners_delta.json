@@ -1,0 +1,42 @@
+{
+  "Ate/Store/JournalSyncBridge.swift": {
+    "base_sha256": "a073d8e9df57f3b7c8900acd0496a9c1b8ac1451cf2f5e577e6a9570baccc46d",
+    "patched_sha256": "1c4405cfb4510999fca28e56f8ad942ef1cf54026327c364850b29b97ff08676",
+    "fragments": [
+      {
+        "old": "@MainActor\nenum JournalSyncBridge {\n    enum BridgeError: Error, Equatable {\n        case storeUnavailable\n",
+        "new": "@MainActor\nenum JournalSyncBridge {\n    #if DEBUG\n    // Test-opted-in weak observation only. Never owns a context or its container.\n    static var captureWeakOwner = false\n    static weak var lastContext: ModelContext?\n    static var lastContextOperation = \"none\"\n    #endif\n\n    enum BridgeError: Error, Equatable {\n        case storeUnavailable\n"
+      },
+      {
+        "old": "        guard let container else { throw BridgeError.storeUnavailable }\n        let context = ModelContext(container)\n        context.autosaveEnabled = false\n        let entries: [JournalEntry]\n",
+        "new": "        guard let container else { throw BridgeError.storeUnavailable }\n        let context = ModelContext(container)\n        #if DEBUG\n        if captureWeakOwner {\n            lastContext = context\n            lastContextOperation = \"export\"\n        }\n        #endif\n        context.autosaveEnabled = false\n        let entries: [JournalEntry]\n"
+      },
+      {
+        "old": "        guard let container else { throw BridgeError.storeUnavailable }\n        let context = ModelContext(container)\n        context.autosaveEnabled = false\n        do {\n",
+        "new": "        guard let container else { throw BridgeError.storeUnavailable }\n        let context = ModelContext(container)\n        #if DEBUG\n        if captureWeakOwner {\n            lastContext = context\n            lastContextOperation = \"apply\"\n        }\n        #endif\n        context.autosaveEnabled = false\n        do {\n"
+      }
+    ]
+  },
+  "AteTests/UserDataSyncTests.swift": {
+    "base_sha256": "b5fd4db99990966f2f4f7f7ae498817b41b7bb157517953dd230ba3b9232ea67",
+    "patched_sha256": "532a2a9f4fc3cfb8e2cd5569cd08fc8bc527f28c7a0ea27046466bd60e9a3dea",
+    "fragments": [
+      {
+        "old": "        let goals2 = DailyNutritionGoals(energyKcal: 2100, proteinGrams: nil, carbohydratesGrams: nil,\n                                         fatGrams: nil, fibreGrams: nil)\n        for boundary in FamilySyncCommitJournal.Boundary.allCases\n            where boundary != .beforeInsightApply && boundary != .afterInsightApply {\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=iteration-enter\")\n            // Fresh durable state per boundary, journal directory and store file together.\n",
+        "new": "        let goals2 = DailyNutritionGoals(energyKcal: 2100, proteinGrams: nil, carbohydratesGrams: nil,\n                                         fatGrams: nil, fibreGrams: nil)\n        // Weak diagnostics do not postpone or change the original nil assertion.\n        defer { JournalSyncBridge.captureWeakOwner = false }\n        for boundary in FamilySyncCommitJournal.Boundary.allCases\n            where boundary != .beforeInsightApply && boundary != .afterInsightApply {\n            JournalSyncBridge.captureWeakOwner = boundary == .afterJournalApply\n            JournalSyncBridge.lastContext = nil\n            JournalSyncBridge.lastContextOperation = \"none\"\n            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=iteration-enter\")\n            // Fresh durable state per boundary, journal directory and store file together.\n"
+      },
+      {
+        "old": "            // Keep the same strict weak-owner assertion outside the pool, before reopen.\n            weak var oldContainer: ModelContainer?\n            var journal: FamilySyncCommitJournal?\n            try autoreleasepool {\n",
+        "new": "            // Keep the same strict weak-owner assertion outside the pool, before reopen.\n            weak var oldContainer: ModelContainer?\n            weak var oldJournal: FamilySyncCommitJournal?\n            var journal: FamilySyncCommitJournal?\n            try autoreleasepool {\n"
+      },
+      {
+        "old": "            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=release-enter\")\n            oldContainer = container\n            journal = nil\n            container = nil\n",
+        "new": "            print(\"SYNC-MATRIX boundary=\\(boundary.rawValue) phase=release-enter\")\n            oldContainer = container\n            oldJournal = journal\n            journal = nil\n            container = nil\n"
+      },
+      {
+        "old": "            }\n            XCTAssertNil(oldContainer, \"the prior journal must not retain the old container\")\n            container = try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,\n                                           configurations: configuration)\n",
+        "new": "            }\n            XCTAssertNil(oldContainer, \"the prior journal must not retain the old container\")\n            if boundary == .afterJournalApply {\n                print(\"SYNC-WEAK-OWNERS boundary=afterJournalApply journalAlive=\\(oldJournal != nil) contextAlive=\\(JournalSyncBridge.lastContext != nil) contextOperation=\\(JournalSyncBridge.lastContextOperation) containerAlive=\\(oldContainer != nil)\")\n            }\n            container = try ModelContainer(for: Ate.JournalEntry.self, JournalMealPayload.self,\n                                           configurations: configuration)\n"
+      }
+    ]
+  }
+}

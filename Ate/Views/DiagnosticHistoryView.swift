@@ -4,6 +4,7 @@ struct DiagnosticHistoryView: View {
     @State private var entries = DiagnosticHistory.shared.entries
     @State private var share: ShareItems?
     @State private var confirmClear = false
+    @State private var remoteConsent = TelemetryClient.shared.hasConsent
     @Environment(AppStore.self) private var store
 
     var body: some View {
@@ -15,6 +16,31 @@ struct DiagnosticHistoryView: View {
                 Text("This history can help explain recorded failures, but it cannot guarantee an exact record of a crash or force-quit.")
                     .font(AteFont.body(13))
                     .foregroundStyle(Theme.mutedForeground)
+            }
+            Section("Remote diagnostics") {
+                Toggle("Share category-only diagnostics", isOn: Binding(
+                    get: { remoteConsent && TelemetryClient.shared.canEnable },
+                    set: { enabled in
+                        TelemetryClient.shared.setConsent(enabled)
+                        remoteConsent = TelemetryClient.shared.hasConsent
+                    }
+                ))
+                .disabled(!TelemetryClient.shared.canEnable)
+                .accessibilityIdentifier("diagnostics.remoteConsent")
+                Text(TelemetryClient.shared.status)
+                    .font(AteFont.body(13))
+                    .foregroundStyle(Theme.mutedForeground)
+                    .accessibilityIdentifier("diagnostics.remoteStatus")
+                Text("If available and turned on, only new event categories, timestamps and app/build metadata are sent. No recipe content, prompts, account identifiers or raw errors. Turning it off stops new uploads and cancels pending requests; it cannot recall events already received. Local history remains separate and can be exported or cleared below.")
+                    .font(AteFont.body(13))
+                    .foregroundStyle(Theme.mutedForeground)
+                if remoteConsent {
+                    Button("Turn off remote diagnostics", role: .destructive) {
+                        TelemetryClient.shared.setConsent(false)
+                        remoteConsent = false
+                    }
+                    .accessibilityIdentifier("diagnostics.remoteRevoke")
+                }
             }
             Section("Recent events · \(entries.count)") {
                 if entries.isEmpty {

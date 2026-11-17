@@ -63,3 +63,15 @@ class WindowHitFailureContracts(unittest.TestCase):
             block=re.split(r'\n  [A-Za-z]',block,maxsplit=1)[0]
             self.assertIn('SWIFT_OBJC_BRIDGING_HEADER: Shared/WindowHitFailureNotify.h',block)
         self.assertEqual(project.count('SWIFT_OBJC_BRIDGING_HEADER: Shared/WindowHitFailureNotify.h'),2)
+
+    def test_callback_is_file_scoped_c_alias_without_context(self):
+        source=(ROOT/'Ate/App/AteApp.swift').read_text()
+        declaration='private let windowHitFailureCallback: CFNotificationCallback = { _, _, _, _, _ in'
+        self.assertEqual(source.count(declaration),1)
+        self.assertLess(source.index(declaration),source.index('enum WindowHitFailureDiagnostic {'))
+        callback=source.split(declaration,1)[1].split('\n}',1)[0]
+        self.assertEqual(callback.strip(),'Task { @MainActor in WindowHitFailureDiagnostic.capture() }')
+        for forbidden in ['self','Self','observer','userInfo','center','signal']:
+            self.assertNotIn(forbidden,callback)
+        self.assertIn('windowHitFailureCallback, signal as CFString, nil, .deliverImmediately)',source)
+        self.assertIn('@MainActor fileprivate static func capture()',source)

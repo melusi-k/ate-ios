@@ -213,7 +213,10 @@ final class CoverageUITests: XCTestCase {
         // Overline text is exposed as uppercase STEPS. Use the stable identifier,
         // and scroll only the mounted detail rather than the sheet or Library.
         wait(steps, 5)
-        for _ in 0..<5 where !steps.isHittable { detailScroll.swipeUp() }
+        for _ in 0..<5 {
+            if steps.isHittable { break }
+            detailScroll.swipeUp()
+        }
         shot("recipe-sheet-expanded-steps-portrait")
         XCTAssertTrue(steps.exists && steps.isHittable, "Full recipe must allow scrolling to steps")
         app.buttons["recipeSheet.collapse"].tap()
@@ -223,7 +226,10 @@ final class CoverageUITests: XCTestCase {
         wait(servings, 5)
         // The preserved hierarchy must keep detail state, not reconstruct a new recipe view.
         // Scroll upward within the visible detail if expansion preserved a lower position.
-        for _ in 0..<5 where !servings.isHittable { detailScroll.swipeDown() }
+        for _ in 0..<5 {
+            if servings.isHittable { break }
+            detailScroll.swipeDown()
+        }
         XCTAssertTrue(servings.isHittable, "Retained detail must allow scrolling back to servings")
         XCTAssertTrue(servings.buttons["2×"].isSelected, "Collapsing and expanding must retain servings")
         app.buttons["recipeSheet.close"].tap()
@@ -251,9 +257,15 @@ final class CoverageUITests: XCTestCase {
         wait(expand, 3)
         app.buttons["recipeSheet.close"].tap()
         XCTAssertTrue(expand.waitForNonExistence(timeout: 3))
+        #if DEBUG
+        ReturnBoundaryReceipt.capture(app, phase: "landscape-grid-close-before-query")
+        #endif
         wait(card, 5)
         // iPhone landscape uses LandscapeSplitView's sidebar, not a TabBar.
         let librarySidebar = app.buttons["sidebar.Library"]
+        #if DEBUG
+        ReturnBoundaryReceipt.capture(app, phase: "landscape-grid-close-after-query")
+        #endif
         XCTAssertTrue(librarySidebar.isSelected)
         let shoppingSidebar = app.buttons["sidebar.Shopping list"]
         wait(shoppingSidebar, 5)
@@ -282,7 +294,12 @@ final class CoverageUITests: XCTestCase {
         tab("Settings")
         let settings = settingsContent()
         let export = settings.buttons["settings.export"]; scrollTo(export); wait(export, 3)
+        // Form rows are lazy: reaching Export does not materialize every later row.
+        // Reveal each retained identifier with the existing bounded helper before
+        // its unchanged existence assertion. No new wait or swipe limit.
+        scrollTo(settings.buttons["settings.import"])
         XCTAssertTrue(settings.buttons["settings.import"].exists)
+        scrollTo(settings.buttons["settings.replayOnboarding"])
         XCTAssertTrue(settings.buttons["settings.replayOnboarding"].exists)
         shot("settings-tools")
         // Check Settings before opening Export. Keep the exact identifiers and
@@ -612,6 +629,7 @@ final class CoverageUITests: XCTestCase {
         replaceText(app.secureTextFields["authPassword"], "password123")
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
+        dismissPasswordSavePrompt(in: app)
         sleep(2)
         shot("backend-down-sync")
         tab("Library")
@@ -664,6 +682,7 @@ final class CoverageUITests: XCTestCase {
         replaceText(app.secureTextFields["authPassword"], "password123")
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
+        dismissPasswordSavePrompt(in: app)
         wait(text("Sync failed"), 5)
 
         // Sign out while keeping local recipes, then sign in as a different account while
@@ -678,6 +697,7 @@ final class CoverageUITests: XCTestCase {
         replaceText(app.textFields["authEmail"], "other@example.com")
         replaceText(app.secureTextFields["authPassword"], "password123")
         app.buttons["authSubmit"].tap()
+        dismissPasswordSavePrompt(in: app)
         // The failed pull may sign account B out before its account row is ever rendered.
         wait(text("Account switch couldn't be completed. Your previous library is safe on this iPhone. Reconnect and sign in again."), 5)
 
@@ -769,6 +789,7 @@ final class CoverageUITests: XCTestCase {
         replaceText(app.secureTextFields["authPassword"], "password123")
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
+        dismissPasswordSavePrompt(in: app)
         wait(text("Synced"), 10)
         XCTAssertFalse(text("Your session expired").exists)
         shot("auth-expired-session-refreshed")

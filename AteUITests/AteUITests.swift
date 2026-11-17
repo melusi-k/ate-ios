@@ -1042,9 +1042,17 @@ final class AteUITests: XCTestCase {
         wait(text("Your Kitchen"), 5)
     }
 
+    private var captureGroup28 = false
+    private func menuCaptureMark(_ phase: String) {
+        guard captureGroup28 else { return }
+        print("MENU-CAPTURE phase=\(phase) uptime=\(ProcessInfo.processInfo.systemUptime)")
+    }
+
     func pick(_ menu: String, _ option: String) {
         XCTAssertTrue(menu == "sortMenu" || menu == "groupByMenu", "Unknown picker contract")
+        menuCaptureMark("browse-tap-enter")
         app.buttons["libraryBrowseMenu"].firstMatch.tap()
+        menuCaptureMark("browse-tap-return")
         shot("library-browse-opened-\(menu)-\(option)")
         // Native iOS 27 popups expose the submenu label and icon but omit the
         // SwiftUI Menu identifier. Scope to the actual open Collections menu,
@@ -1060,7 +1068,9 @@ final class AteUITests: XCTestCase {
         XCTAssertEqual(submenu.count, 1, "Browse must expose one named arrange submenu")
         XCTAssertTrue(submenu.firstMatch.isHittable, "Arrange submenu must be visible without scrolling")
         guard submenu.count == 1 && submenu.firstMatch.isHittable else { return }
+        menuCaptureMark("submenu-tap-enter")
         submenu.firstMatch.tap()
+        menuCaptureMark("submenu-tap-return")
         shot("library-browse-choice-\(menu)-\(option)")
         // The explicit submenu contains only its own choices; shared labels such as
         // Recently added cannot accidentally select a collection in the parent popup.
@@ -1078,7 +1088,9 @@ final class AteUITests: XCTestCase {
         XCTAssertEqual(choices.count, 1, "Picker option must be unique in its submenu")
         XCTAssertTrue(choices.firstMatch.isHittable, "Picker option must be visible without scrolling")
         guard choices.count == 1 && choices.firstMatch.isHittable else { return }
+        menuCaptureMark("choice-tap-enter")
         choices.firstMatch.tap()
+        menuCaptureMark("choice-tap-return")
     }
 
     /// Journal menu journey: the Journal is the tab root with "New journal entry" as its primary
@@ -1213,7 +1225,7 @@ final class AteUITests: XCTestCase {
         }
     }
 
-    func test28_GroupSortAndMenus() {
+    func test28_GroupSortAndMenusSavedSetup() {
         // Recipe creation has separate end-to-end coverage; keep this budget
         // for real native menus and their asserted Library actions.
         launch(["-qaSavedRecipesForGroupSort"])
@@ -1235,6 +1247,52 @@ final class AteUITests: XCTestCase {
         shot("library-swipe-leading")
         app.buttons["Favourite"].firstMatch.tap()
         wait(text("Added to Favourites"), 3)
+        pick("sortMenu", "Favourites first")
+        // context menu with preview
+        z.press(forDuration: 1.2)
+        wait(app.buttons["Cook"], 3)
+        XCTAssertTrue(app.buttons["Share"].exists)
+        XCTAssertTrue(app.buttons["Add to shopping list"].exists)
+        shot("library-context-menu-full")
+        app.buttons["Add to shopping list"].tap()
+        wait(text("Added to your shopping list"), 3)
+    }
+
+    func test28_GroupSortAndMenus() {
+        captureGroup28 = true
+        defer { captureGroup28 = false }
+        launch(["-qaMenuWaitCapture", "-qaDogWaitPhaseDiagnostic"])
+        addNamed("Zesty tacos")
+        addNamed("Apple crumble")
+        pick("sortMenu", "A–Z")
+        let a = text("Apple crumble"), z = text("Zesty tacos")
+        wait(a)
+        XCTAssertLessThan(a.frame.minY, z.frame.minY, "A–Z order")
+        shot("library-sort-az")
+        pick("groupByMenu", "Recently added")
+        wait(app.descendants(matching: .any)["section.Today"].firstMatch, 3)
+        shot("library-group-added")
+        pick("groupByMenu", "Cook time")
+        wait(app.descendants(matching: .any)["section.Under 30 min"].firstMatch, 3)
+        shot("library-group-cooktime")
+        pick("groupByMenu", "None")
+        // leading swipe: favourite + add to list
+        a.swipeRight()
+        wait(app.buttons["Favourite"].firstMatch, 3)
+        shot("library-swipe-leading")
+        menuCaptureMark("favourite-before-pixels")
+        shot("group28-favourite-before-tap")
+        menuCaptureMark("favourite-tap-enter")
+        app.buttons["Favourite"].firstMatch.tap()
+        menuCaptureMark("favourite-tap-return")
+        shot("group28-favourite-after-tap")
+        menuCaptureMark("favourite-after-pixels-toast-wait-enter")
+        defer {
+            menuCaptureMark("group28-exit")
+            shot("group28-favourite-test-exit")
+        }
+        wait(text("Added to Favourites"), 3)
+        menuCaptureMark("favourite-toast-wait-return")
         pick("sortMenu", "Favourites first")
         // context menu with preview
         z.press(forDuration: 1.2)
@@ -1283,7 +1341,7 @@ final class AteUITests: XCTestCase {
         app.buttons["authSubmit"].tap()
     }
 
-    func test29_ReorderMyOrder() {
+    func test29_ReorderMyOrderSavedSetup() {
         // Recipe creation has separate end-to-end coverage; keep this budget
         // for real native menus and their asserted Library actions.
         launch(["-qaSavedRecipesForDogfoodReorder"])
@@ -1291,6 +1349,29 @@ final class AteUITests: XCTestCase {
         let first = text("First dish"), second = text("Second dish")
         wait(first)
         XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
+    }
+
+    func test29_ReorderMyOrder() {
+        launch(["-qaDogWaitPhaseDiagnostic"])
+        addNamed("First dish")
+        addNamed("Second dish")
+        pick("sortMenu", "My order")
+        let first = text("First dish"), second = text("Second dish")
+        wait(first)
+        XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
+        // accessible reorder: long-press → Move up
+        first.press(forDuration: 1.2)
+        shot("library-reorder-after-longpress")
+        wait(app.buttons["Move up"], 3)
+        shot("library-reorder-menu")
+        app.buttons["Move up"].tap()
+        sleep(1)
+        XCTAssertLessThan(text("First dish").frame.minY, text("Second dish").frame.minY, "moved up")
+        shot("library-reordered")
+        // drag (best effort in the simulator)
+        text("First dish").press(forDuration: 1.0, thenDragTo: text("Second dish"))
+        sleep(1)
+        shot("library-reorder-drag")
     }
 
     func test29b_ReorderMyOrderActions() {

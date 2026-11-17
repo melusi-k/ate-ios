@@ -183,6 +183,8 @@ struct AuthSheet: View {
         if let error {
             Label(error, systemImage: "exclamationmark.triangle.fill").font(AteFont.body(14)).foregroundStyle(Theme.destructive)
                 .accessibilityIdentifier("authError")
+                .accessibilityValue(error == AppStore.sessionWriteFailureMessage
+                    ? KeychainStatusDiagnostic.shared.summary : "")
         }
         if let info {
             Label(info, systemImage: "checkmark.circle.fill").font(AteFont.body(14)).foregroundStyle(Theme.primary)

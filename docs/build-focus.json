@@ -1,7 +1,7 @@
 {
   "title": "Offline Roadmap with local vote preferences",
-  "summary": "Local Roadmap source plus corrected XcodeGen folder packaging for both Roadmap and Release Notes. Recursive flattened resources excluded; one ProductUpdates folder copied. Both strict loaders and all Roadmap assertions unchanged. Native actual-bundle release test and built-directory verifier added. Prior head failed packaging; fresh native build, bundle receipt and UI persistence evidence pending.",
-  "source_commit": "ad942ec7fc67a8b7d5e97f985cf0929359f6b414",
+  "summary": "Offline Roadmap with local vote preferences. ProductUpdates packaging proven on previous head by 10 focused and 1178 full native unit passes. Removes the synthetic card accessibility wrapper so label, value, hint and identifier apply to the native NavigationLink Button; explicit button trait retained. Settings/list/detail/persistence UI assertions unchanged. Corrected-head native accessibility and full UI persistence journey pending.",
+  "source_commit": "3c3396e3d71292201dae4d3cbe89e0eddc106e14",
   "evidence": [
     {
       "path": "Ate/Logic/Roadmap.swift",
@@ -9,7 +9,7 @@
     },
     {
       "path": "Ate/Views/RoadmapView.swift",
-      "blob": "ce7e2a5c0b11b06dc753f6534a24c1241a6c9703"
+      "blob": "50fdcdc75106997af79b8104990d48aee584b0d2"
     },
     {
       "path": "Ate/Views/SettingsView.swift",

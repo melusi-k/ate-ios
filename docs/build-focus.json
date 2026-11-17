@@ -1,7 +1,7 @@
 {
   "title": "Account-scoped Journal reset with dormant sync preparation",
   "summary": "Explicit sign-out, different-account sign-in and Clear all erase actual Journal rows, meals, media, backups and drafts; token expiry preserves them. Goals retained on Journal-only erase. Owner fingerprint survives pre-upgrade unsynced expiry. Dormant sync stays OFF; production untouched. Independent source review and Python PASS, native compilation/XCTest/pixels UNRUN. Draft held.",
-  "source_commit": "2273cc0bb9c5513cc08154475b761357991ea551",
+  "source_commit": "82eb6b48214f36ef69661d7030c79e0191956cfd",
   "evidence": [
     {
       "path": "Ate/Insights/InsightLifecycle.swift",
@@ -21,7 +21,7 @@
     },
     {
       "path": "Ate/Store/AppStore.swift",
-      "blob": "882fd06139e2df7f7361496d7650587088010ff6"
+      "blob": "61460f9aa0a55f47ef78c04c2a7dd32ebeeac709"
     },
     {
       "path": "Ate/Store/FamilySyncCommitJournal.swift",
@@ -37,7 +37,7 @@
     },
     {
       "path": "Ate/Views/JournalViews.swift",
-      "blob": "b3b9da1beb17d289c5a18e618b81424637488839"
+      "blob": "90af07534cfb1485b4f661cecf42fb817b242884"
     },
     {
       "path": "Ate/Views/RecipeDetailView.swift",
@@ -45,7 +45,7 @@
     },
     {
       "path": "Ate/Services/Auth.swift",
-      "blob": "9c3891562bedab90eea2a29bc36286cbf685aa27"
+      "blob": "c4352ac167e16e1aa547eaffae22aa45894d5095"
     },
     {
       "path": "Ate/Services/DiagnosticHistory.swift",
@@ -121,7 +121,7 @@
     },
     {
       "path": "Ate/Services/CookPlanNotifications.swift",
-      "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
+      "blob": "73704d6dd8f0e5c5f16d0e7bf07bc6c582476f5b"
     },
     {
       "path": "Ate/Store/AppStore+JournalAccountActions.swift",
@@ -137,7 +137,7 @@
     },
     {
       "path": "Ate/Views/SettingsView.swift",
-      "blob": "bdd9640e0e84c557eba392425012b53a3da15c1c"
+      "blob": "d740edcdd811595e15e33e8187c4f48f3173b40f"
     }
   ]
 }

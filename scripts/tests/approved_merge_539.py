@@ -38,8 +38,8 @@ def approved_original_file(path, raw):
 
 
 def normalize(key, raw):
-    from password_save_prompt_delta import restore as restore_password_prompt
-    raw=restore_password_prompt(key,raw)
+    from native_sheet_source_delta import restore as restore_native_sheet_source
+    raw=restore_native_sheet_source(key,raw)
     from keychain_status_delta import restore as restore_status
     raw=restore_status(key,raw)
     from journal_personal_reset_delta import restore

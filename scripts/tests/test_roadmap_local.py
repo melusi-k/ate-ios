@@ -12,7 +12,7 @@ class LocalRoadmapContracts(unittest.TestCase):
             for field in ['title','summary','detail']:self.assertTrue(card[field].strip())
             self.assertEqual(card['status'],'considering')
             self.assertNotIn('votes',card);self.assertNotIn('count',card)
-        self.assertIn('path: Ate/Resources/ProductUpdates\n        type: folder',(ROOT/'project.yml').read_text())
+        self.assertIn('path: Ate/Resources/ProductUpdates\n        type: folder\n        buildPhase: resources',(ROOT/'project.yml').read_text())
     def test_always_on_settings_route_and_accessible_detail(self):
         settings=(ROOT/'Ate/Views/SettingsView.swift').read_text()
         product=settings.split('Section("Product") {',1)[1].split('Section("Diagnostics")',1)[0]

@@ -5,6 +5,8 @@ FIXTURE=Path(__file__).with_suffix('.json')
 DIGEST='32fe09862350f10e37576ce4fa3ec870bd7c9ac11aa8b0f970453d36afb2a6e5'
 
 def restore(key,raw):
+    from window_hit_failure_delta import restore as restore_window_hit
+    raw=restore_window_hit(key,raw)
     if key.split(':',1)[-1] != '.github/workflows/compile-check.yml': return raw
     payload=FIXTURE.read_bytes()
     assert hashlib.sha256(payload).hexdigest()==DIGEST, 'Signing inverse fixture changed'

@@ -47,3 +47,19 @@ class WindowHitFailureContracts(unittest.TestCase):
             self.assertIn('Retain '+kind+' failure-only UIKit window probe',source)
         self.assertEqual(source.count('/ate-test-results/window-hit-failures-*'),2)
         self.assertEqual(source.count('No failure-only UIKit response file; do not infer a clear hit target.'),3)
+
+    def test_native_public_notify_import_and_geometry_names(self):
+        app=(ROOT/'Ate/App/AteApp.swift').read_text().split('enum WindowHitFailureDiagnostic {',1)[1].split('\n#endif',1)[0]
+        for old in ['NSStringFromCGRect','NSStringFromCGPoint','NSStringFromCGSize']:
+            self.assertNotIn(old,app)
+        for value in ['view.frame','local','point']:
+            self.assertIn('NSCoder.string(for: '+value+')',app)
+        header=(ROOT/'Shared/WindowHitFailureNotify.h').read_text()
+        self.assertIn('#include <notify.h>',header)
+        self.assertNotIn('_silgen_name',app)
+        project=(ROOT/'project.yml').read_text()
+        for target in ['Ate','AteUITests']:
+            block=project.split('  '+target+':',1)[1]
+            block=re.split(r'\n  [A-Za-z]',block,maxsplit=1)[0]
+            self.assertIn('SWIFT_OBJC_BRIDGING_HEADER: Shared/WindowHitFailureNotify.h',block)
+        self.assertEqual(project.count('SWIFT_OBJC_BRIDGING_HEADER: Shared/WindowHitFailureNotify.h'),2)

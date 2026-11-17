@@ -1,7 +1,7 @@
 {
   "title": "Restore floating Cook button over recipe content",
   "summary": "Remove the opaque recipe footer band. Float the unchanged Cook action over the detail scroll host and put end clearance inside scroll content, retaining measured timer reserve and editing gate. Medium, large and pushed detail, mid-scroll and final Ask Ate card native visual proof remain required; source checks alone do not qualify release.",
-  "source_commit": "bf5a86df60a2ab5d2cf421e52e974c3b79bca20b",
+  "source_commit": "987fd3b3c69d57e58b51974aa15ff85456b45912",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -81,7 +81,7 @@
     },
     {
       "path": "Ate/Services/CookPlanNotifications.swift",
-      "blob": "51174c279f232171a2bc24e7bd2bc340d0d554bb"
+      "blob": "1985bf3c0085332aa221f9a9821ef807059da996"
     }
   ]
 }

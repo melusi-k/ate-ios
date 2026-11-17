@@ -7,6 +7,19 @@ final class HardeningTests: XCTestCase {
         SyncRecord(user_id: "u", kind: "recipe", id: id, data: del ? nil : data.map { AnyJSON($0) }, stampMs: stamp, deleted: del)
     }
 
+    func testEqualWireStampAdoptsServerPayloadWithoutJSONNormalization() {
+        let local = Data(#"{"title":"Local","createdAt":1234.125}"#.utf8)
+        let server = Data(#"{"title":"Server","createdAt":1234.875}"#.utf8)
+        let state = SyncMerge.Local(data: ["same": local], stamps: ["same": 5], tombstones: [:])
+        let row = SyncRecord(user_id: "owner", kind: "recipe", id: "same",
+            data: AnyJSON(server), updated_at: 5, deleted: false)
+        let merged = SyncMerge.merge(local: state, remote: [row])
+        XCTAssertEqual(merged.data["same"], server, "Retain exact server payload bytes")
+        XCTAssertEqual(merged.stamps["same"], 5)
+        XCTAssertTrue(merged.push.isEmpty); XCTAssertTrue(merged.pushDeletes.isEmpty)
+        XCTAssertEqual(state.data["same"], local, "Input is not mutated")
+    }
+
     /// Checklist 4.8 — repeat syncs are idempotent: after one round-trip nothing is pushed again.
     func testRepeatSyncIsIdempotent() {
         let d = Data("{\"a\":1}".utf8)

@@ -5,9 +5,17 @@ import XCTest
 final class CookPlanAccountSafetyTests: XCTestCase {
     enum Injected: Error { case clear }
     private func store() -> AppStore {
-        AppStore(context: nil, backend: MockBackend(),
+        let store = AppStore(context: nil, backend: MockBackend(),
             cookPlanNotifications: CookPlanNotifications(client: CookPlanFakeNotificationClient()),
             clearCookPlans: { throw Injected.clear }, authOverride: MockAuth(), syncOverride: MockSync())
+        // Hermetic credential effect: these tests cover AppStore boundaries, not simulator Keychain entitlements.
+        // Explicit credential-refusal tests replace this seam after construction.
+        var credentialBytes: Data?
+        store.saveSessionCredentials = { data in
+            credentialBytes = data
+            return credentialBytes == data
+        }
+        return store
     }
     private var accountB: AuthSession {
         AuthSession(accessToken: "mock", refreshToken: "mock", expiresAt: Date().timeIntervalSince1970 + 3600,

@@ -1,0 +1,44 @@
+{
+  "source:Ate/App/AteApp.swift": {
+    "base": "031804286ca4d6c6b86cbe84d34e53438e7e68ad50fb1749b92f4f500a045b0e",
+    "patched": "8d8ac24701b999dfe9729792341602f2e6f481aa16aab302860ff4f06cef3d90",
+    "fragments": [
+      {
+        "old": "        }\n        DogfoodSavedRecipeQAFixtures.prepare(st)\n        ExploreRetentionQAFixtures.prepare(st)\n        CookJournalQARoute.prepare(st)\n        #else\n        let st = AppStore(context: c?.mainContext)\n",
+        "new": "        }\n        DogfoodSavedRecipeQAFixtures.prepare(st)\n        ExploreRetentionQAFixtures.prepare(st)\n        if AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains(\"-qaJournalResetMemoryCredentials\") {\n            // These mock-auth Journal routes test reset/expiry, not OS Keychain entitlements.\n            // Explicit per-process seam only: production credential validation is unchanged.\n            var credentialBytes: Data?\n            st.saveSessionCredentials = { data in\n                credentialBytes = data\n                return credentialBytes == data\n            }\n        }\n        CookJournalQARoute.prepare(st)\n        #else\n        let st = AppStore(context: c?.mainContext)\n"
+      }
+    ]
+  },
+  "source:AteTests/AppStoreWriterBoundaryTests.swift": {
+    "base": "43abd422f4c7c81459b9cece32c729c46d3fa4ca942572894406a0882c2f5d8e",
+    "patched": "bac92de59c86f0bbf452d27e32b6f0eb2304a8cb9fa85a74c8db1bf7d17fe3c7",
+    "fragments": [
+      {
+        "old": "    }\n\n    private func refuseSessionPublish(_ store: AppStore, afterWork: Bool,\n                                      reached: XCTestExpectation? = nil) {\n        var depth = 0\n        store.journalWriterValidator = {}\n        store.journalWriterEffect = { work in\n            if depth > 0 { return try work() }\n            depth += 1\n            defer { depth -= 1; reached?.fulfill() }\n            if afterWork { try work() }\n",
+        "new": "    }\n\n    private func refuseSessionPublish(_ store: AppStore, afterWork: Bool,\n                                      reached: XCTestExpectation? = nil,\n                                      precedingEffects: Int = 0) {\n        var depth = 0\n        var remainingPrecedingEffects = precedingEffects\n        store.journalWriterValidator = {}\n        store.journalWriterEffect = { work in\n            if depth > 0 { return try work() }\n            if remainingPrecedingEffects > 0 {\n                remainingPrecedingEffects -= 1\n                depth += 1\n                defer { depth -= 1 }\n                return try work()\n            }\n            depth += 1\n            defer { depth -= 1; reached?.fulfill() }\n            if afterWork { try work() }\n"
+      },
+      {
+        "old": "                store.session = original\n                store.recipes = [card(\"keep\")]\n                store.showOnboarding = false\n                refuseSessionPublish(store, afterWork: afterWork)\n                if deleting {\n                    let error = await store.deleteAccount()\n                    XCTAssertNotNil(error)\n",
+        "new": "                store.session = original\n                store.recipes = [card(\"keep\")]\n                store.showOnboarding = false\n                // Sign-out verifies Journal cleanup in one preceding effect. Target\n                // session publication, not that earlier destructive cleanup boundary.\n                refuseSessionPublish(store, afterWork: afterWork, precedingEffects: deleting ? 0 : 1)\n                if deleting {\n                    let error = await store.deleteAccount()\n                    XCTAssertNotNil(error)\n"
+      },
+      {
+        "old": "                XCTAssertFalse(store.showOnboarding)\n                XCTAssertEqual(store.session, afterWork ? nil : original)\n            }\n        }\n    }\n\n",
+        "new": "                XCTAssertFalse(store.showOnboarding)\n                XCTAssertEqual(store.session, afterWork ? nil : original)\n            }\n        }\n    }\n\n    func testSignOutCleanupEffectFailureDoesNotReachSessionPublicationOrRecipeWipe() async {\n        for afterWork in [false, true] {\n            let auth = AuthSpy()\n            let store = makeStore(auth: auth)\n            let original = auth.base.make(\"owner@example.com\")\n            store.session = original\n            store.recipes = [card(\"keep\")]\n            store.showOnboarding = false\n            var credentialWrites = 0\n            store.saveSessionCredentials = { _ in credentialWrites += 1; return true }\n            refuseSessionPublish(store, afterWork: afterWork)\n            await store.signOut(removeLocalData: true)\n            XCTAssertEqual(auth.signOuts, 1)\n            XCTAssertEqual(credentialWrites, 0)\n            XCTAssertEqual(store.session, original)\n            XCTAssertEqual(store.recipes.map(\\.id), [\"keep\"])\n            XCTAssertFalse(store.showOnboarding)\n            XCTAssertTrue(store.toast?.message.contains(\"Journal cleanup could not be verified\") == true)\n            XCTAssertEqual(store.toast?.isError, true)\n        }\n    }\n\n"
+      }
+    ]
+  },
+  "source:AteUITests/JournalPersonalResetUITests.swift": {
+    "base": "b466fffae57ed8a198485ae8a80d337e3d5aab2c3494cc01f250a3e940c12de7",
+    "patched": "461c03655122163e824256ef1cc6c737f85adec18c6f7f79a001a0802ddfe183",
+    "fragments": [
+      {
+        "old": "    override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }\n    private func launch(_ extra: [String] = []) {\n        app = XCUIApplication()\n        app.launchArguments = [\"-UITesting\", \"-qaJournalMomentEntry\"] + extra\n        app.launch()\n    }\n    private func wait(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {\n",
+        "new": "    override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }\n    private func launch(_ extra: [String] = []) {\n        app = XCUIApplication()\n        app.launchArguments = [\"-UITesting\", \"-qaJournalMomentEntry\", \"-qaJournalResetMemoryCredentials\"] + extra\n        app.launch()\n    }\n    private func wait(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {\n"
+      },
+      {
+        "old": "    }\n    private func tab(_ title: String) {\n        let button = app.tabBars.buttons.matching(NSPredicate(format: \"label BEGINSWITH %@\", title)).firstMatch\n        wait(button); button.tap()\n    }\n    private func signIn() {\n        tab(\"Settings\")\n",
+        "new": "    }\n    private func tab(_ title: String) {\n        let button = app.tabBars.buttons.matching(NSPredicate(format: \"label BEGINSWITH %@\", title)).firstMatch\n        // Scrolling Settings minimises the native tab bar to its selected tab.\n        // Reveal the real tab through content scrolling before its one tap.\n        for _ in 0..<6 where !button.exists { app.swipeDown() }\n        wait(button); XCTAssertTrue(button.isHittable); button.tap()\n    }\n    private func signIn() {\n        tab(\"Settings\")\n"
+      }
+    ]
+  }
+}

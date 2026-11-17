@@ -82,6 +82,13 @@ final class ShoppingSyncCaptureUITests: XCTestCase {
     private func shopping() {
         let tab = app.tabBars.buttons["Shopping"]
         XCTAssertTrue(tab.waitForExistence(timeout: 10))
+        // Decline only the exact native password sheet before the original navigation tap.
+        let passwordPrompt = app.sheets["Save Password?"].firstMatch
+        if passwordPrompt.exists && passwordPrompt.elementType == .sheet && passwordPrompt.label == "Save Password?" {
+            let notNow = passwordPrompt.buttons["Not Now"].firstMatch
+            let save = passwordPrompt.buttons["Save"].firstMatch
+            if notNow.exists && save.exists { notNow.tap() }
+        }
         tab.tap()
         XCTAssertTrue(app.navigationBars["Shopping list"].waitForExistence(timeout: 10))
     }
@@ -94,8 +101,10 @@ final class ShoppingSyncCaptureUITests: XCTestCase {
         XCTAssertTrue(email.waitForExistence(timeout: 10)); email.tap(); email.typeText("qa@example.com")
         let password = app.secureTextFields["authPassword"]
         XCTAssertTrue(password.exists); password.tap(); password.typeText("password123")
+        monitorPasswordSaveInterruptions()
         app.buttons["authSubmit"].tap()
         XCTAssertTrue(app.staticTexts["accountEmail"].waitForExistence(timeout: 8))
+        dismissPasswordSavePrompt(in: app)
     }
     private func localCapture(landscape: Bool) {
         shopping()
@@ -112,6 +121,7 @@ final class ShoppingSyncCaptureUITests: XCTestCase {
     private func signedInCapture(landscape: Bool) {
         signIn(); shopping()
         if landscape { XCUIDevice.shared.orientation = .landscapeLeft }
+        if landscape { dismissPasswordSavePrompt(in: app) }
         let status = app.staticTexts["shopping.syncStatus"]
         let refresh = app.buttons["shopping.syncNow"]
         XCTAssertTrue(status.waitForExistence(timeout: 10))

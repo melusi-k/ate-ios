@@ -309,8 +309,15 @@ jobs:
           SIM_ID=$(python3 scripts/select-ios-simulator.py)
           echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
 
+          # Account journeys need actual Security.framework durability. Let Xcode
+          # package simulator entitlements with a free local ad-hoc signature.
+          # No team/profile, hardcoded access group, or hardware signing change.
+          signing=(CODE_SIGNING_ALLOWED=NO)
+          if [ "${{ matrix.suite }}" = account-cooking ]; then
+            signing=(CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= PROVISIONING_PROFILE=)
+          fi
           set +e
-          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/build.xcresult" "${signing[@]}" > build.log 2>&1
           status=$?
           set -e
           STEP_END=$(date +%s)
@@ -327,6 +334,16 @@ jobs:
 
           grep -E "warning: .*(Widgets|Intents|Snapshot)" build.log > build-warnings.log || true
           tail -n 30 build-warnings.log || true
+          if [ "${{ matrix.suite }}" = account-cooking ]; then
+            evidence="$RUNNER_TEMP/ate-test-results/account-simulator-signature"
+            mkdir -p "$evidence"
+            # Read the actual built app, not requested entitlements in the repo.
+            app_path=$(xcodebuild -showBuildSettings -json -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" "${signing[@]}" | python3 -c 'import json,sys; rows=json.load(sys.stdin); row=next(r["buildSettings"] for r in rows if r["target"] == "Ate"); assert row["PLATFORM_NAME"] == "iphonesimulator"; print(row["TARGET_BUILD_DIR"] + "/" + row["FULL_PRODUCT_NAME"])')
+            codesign --verify --strict "$app_path"
+            codesign -d -v "$app_path" 2> "$evidence/signature.txt"
+            codesign -d --entitlements :- "$app_path" > "$evidence/entitlements.plist" 2> "$evidence/entitlements-stderr.txt"
+            git rev-parse HEAD > "$evidence/source-commit.txt"
+          fi
       # Removed obsolete Library Explore sheet selectors: the tests and UI no longer
       # exist and v9 executed zero tests. Current Journal hub navigation is asserted
       # by InsightsAcceptanceUITests below, not represented as sheet coverage.
@@ -762,6 +779,7 @@ jobs:
           if-no-files-found: warn
           path: |
             *.log
+            ${{ runner.temp }}/ate-test-results/account-simulator-signature
             ${{ runner.temp }}/ate-test-results/draft-quality-repair-attachments
             build.log
             app-clip-build.log

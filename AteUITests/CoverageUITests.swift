@@ -213,7 +213,10 @@ final class CoverageUITests: XCTestCase {
         // Overline text is exposed as uppercase STEPS. Use the stable identifier,
         // and scroll only the mounted detail rather than the sheet or Library.
         wait(steps, 5)
-        for _ in 0..<5 where !steps.isHittable { detailScroll.swipeUp() }
+        for _ in 0..<5 {
+            if steps.isHittable { break }
+            detailScroll.swipeUp()
+        }
         shot("recipe-sheet-expanded-steps-portrait")
         XCTAssertTrue(steps.exists && steps.isHittable, "Full recipe must allow scrolling to steps")
         app.buttons["recipeSheet.collapse"].tap()
@@ -223,7 +226,10 @@ final class CoverageUITests: XCTestCase {
         wait(servings, 5)
         // The preserved hierarchy must keep detail state, not reconstruct a new recipe view.
         // Scroll upward within the visible detail if expansion preserved a lower position.
-        for _ in 0..<5 where !servings.isHittable { detailScroll.swipeDown() }
+        for _ in 0..<5 {
+            if servings.isHittable { break }
+            detailScroll.swipeDown()
+        }
         XCTAssertTrue(servings.isHittable, "Retained detail must allow scrolling back to servings")
         XCTAssertTrue(servings.buttons["2×"].isSelected, "Collapsing and expanding must retain servings")
         app.buttons["recipeSheet.close"].tap()

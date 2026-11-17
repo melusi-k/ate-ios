@@ -623,6 +623,7 @@ final class CoverageUITests: XCTestCase {
         replaceText(app.secureTextFields["authPassword"], "password123")
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
+        dismissPasswordSavePrompt(in: app)
         sleep(2)
         shot("backend-down-sync")
         tab("Library")
@@ -675,6 +676,7 @@ final class CoverageUITests: XCTestCase {
         replaceText(app.secureTextFields["authPassword"], "password123")
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
+        dismissPasswordSavePrompt(in: app)
         wait(text("Sync failed"), 5)
 
         // Sign out while keeping local recipes, then sign in as a different account while
@@ -689,6 +691,7 @@ final class CoverageUITests: XCTestCase {
         replaceText(app.textFields["authEmail"], "other@example.com")
         replaceText(app.secureTextFields["authPassword"], "password123")
         app.buttons["authSubmit"].tap()
+        dismissPasswordSavePrompt(in: app)
         // The failed pull may sign account B out before its account row is ever rendered.
         wait(text("Account switch couldn't be completed. Your previous library is safe on this iPhone. Reconnect and sign in again."), 5)
 
@@ -780,6 +783,7 @@ final class CoverageUITests: XCTestCase {
         replaceText(app.secureTextFields["authPassword"], "password123")
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
+        dismissPasswordSavePrompt(in: app)
         wait(text("Synced"), 10)
         XCTAssertFalse(text("Your session expired").exists)
         shot("auth-expired-session-refreshed")

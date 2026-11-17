@@ -329,7 +329,10 @@ final class InsightsAcceptanceUITests: XCTestCase {
         afterOpen.lifetime = .keepAlways
         add(afterOpen)
         let refresh = app.buttons["insights.refresh"]
-        for _ in 0..<6 where !refresh.isHittable { app.swipeDown() }
+        for _ in 0..<6 {
+            if refresh.isHittable { break }
+            app.swipeDown()
+        }
         XCTAssertTrue(refresh.isHittable)
         refresh.tap()
         reveal(action)

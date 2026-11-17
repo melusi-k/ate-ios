@@ -1,5 +1,7 @@
 # What to expect in the ate beta
 
+Remote diagnostics are off by default on every channel and unavailable in this build pending readiness review. Settings > Diagnostics shows status and separate local export/clear controls. A future eligible beta build needs explicit, revocable opt-in. Beta participation is not consent. No offline queue/retry qualification is claimed by this increment.
+
 Thanks for testing ate. A Pilot candidate is a build to test, not a claim that the Pilot gate has passed. Ate has two product stages: [Pilot, then Launch](LAUNCH_GATES.md). The owner approves an exact candidate and invited audience before the Pilot begins. Beta diagnostics are available only in explicitly named beta-channel builds: open **Settings › Beta testing**. The Beta banner and entry are hidden in production builds; if you cannot see them, confirm that the installed build was produced with a recognized beta channel (normally the compatibility channel `TierA`, displayed as Pilot candidate in release text).
 
 - **Install (build 99):** ate is sideloaded with a free Apple ID. Use **SideStore** first (keeps widgets working and refreshes on the phone), then AltStore or Sideloadly. You'll need Developer Mode, and the app has to be re-signed **every 7 days**. Your recipes survive re-signing. Check the IPA against the `.sha256` file on the release page.

@@ -4,8 +4,8 @@ import hashlib,json
 FIXTURE=Path(__file__).with_suffix('.json')
 FIXTURE_SHA='af9e5985a3cc5377de13da91e7120a3e11822abd197816aa406ca29384526e64'
 def restore(key,raw):
-    from password_save_prompt_delta import restore as restore_password_prompt
-    raw=restore_password_prompt(key,raw)
+    from native_sheet_source_delta import restore as restore_native_sheet_source
+    raw=restore_native_sheet_source(key,raw)
     if key.split(':',1)[-1]!='AteUITests/CoverageUITests.swift':return raw
     payload=FIXTURE.read_bytes()
     assert hashlib.sha256(payload).hexdigest()==FIXTURE_SHA

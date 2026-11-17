@@ -12,6 +12,11 @@ import Darwin
 
 
 #if DEBUG
+// File scope and fully qualified call: no Self, instance or local context can be captured.
+private let windowHitFailureCallback: CFNotificationCallback = { _, _, _, _, _ in
+    Task { @MainActor in WindowHitFailureDiagnostic.capture() }
+}
+
 /// Failure-only, explicitly opted-in UIKit inspection. No window or view mutations.
 enum WindowHitFailureDiagnostic {
     @MainActor private static var captured = false
@@ -20,12 +25,10 @@ enum WindowHitFailureDiagnostic {
         guard AppConfig.isUITesting,
               ProcessInfo.processInfo.arguments.contains("-qaWindowHitFailure") else { return }
         CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), nil,
-            { _, _, _, _, _ in
-                Task { @MainActor in capture() }
-            }, signal as CFString, nil, .deliverImmediately)
+            windowHitFailureCallback, signal as CFString, nil, .deliverImmediately)
     }
 
-    @MainActor private static func capture() {
+    @MainActor fileprivate static func capture() {
         guard !captured else { return }
         captured = true
         var token: Int32 = 0

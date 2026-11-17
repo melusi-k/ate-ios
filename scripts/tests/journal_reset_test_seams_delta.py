@@ -4,6 +4,8 @@ from pathlib import Path
 FIXTURE = Path(__file__).with_name('journal_reset_test_seams_delta.json')
 DIGEST = 'd947e4f83340192dacfe69cdb461b7601e089c6543cdb733ae27a447c18ff1cd'
 def restore(key, raw):
+    from window_hit_failure_delta import restore as restore_window_hit
+    raw=restore_window_hit(key,raw)
     payload = FIXTURE.read_bytes()
     assert hashlib.sha256(payload).hexdigest() == DIGEST
     item = json.loads(payload).get(key)

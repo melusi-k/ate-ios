@@ -28,6 +28,7 @@ struct CookModeView: View {
     @State private var showReflectionNudge = false
     @State private var writeRequest: CookCompletionEvent?
     @State private var finishProblem: CookCompletionOutboxError?
+    @State private var finishRecovery = CookFinishRecovery()
     /// The shared session is the only current-step owner. Read on every render
     /// so widget/timer/deep-link changes are visible while Cook Mode is open.
     private var index: Int {
@@ -88,17 +89,40 @@ struct CookModeView: View {
                 store.beginCookSession(recipeID: recipeID, factor: 1)
             }
         }
-        .alert("Could not save this cook", isPresented: Binding(get: { finishProblem != nil }, set: { if !$0 { finishProblem = nil } })) {
-            Button("Try again", role: .cancel) { finishProblem = nil }
-            if finishProblem == .unreadable {
-                Button("Set aside and continue") { finishProblem = nil; setAsideAndFinish() }
+        .sheet(isPresented: Binding(get: { finishProblem != nil }, set: { if !$0 { finishProblem = nil } }),
+               onDismiss: performRequestedFinishRecovery) {
+            NavigationStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("Could not save this cook").font(AteFont.display(24))
+                        Text(finishProblem == .unreadable
+                             ? "Ate could not read its list of finished cooks. The saved list was kept. You can try again, or set the old list aside and continue."
+                             : finishProblem == .historyUnreadable
+                             ? "Ate could not read your cooking history. The saved history was kept. This cook is queued, but completion is not confirmed. Please try again."
+                             : "Ate could not finish saving this cook. Some changes may already be saved. Please try again.")
+                            .font(AteFont.body(16))
+                        Button("Try again") {
+                            finishRecovery.request(.retry)
+                            finishProblem = nil
+                        }
+                        .buttonStyle(.ate(.primary, height: 48, full: true))
+                        .accessibilityHint("Attempts to save this same cook again after closing this message")
+                        .accessibilityIdentifier("cook.finish.retry")
+                        if finishProblem == .unreadable {
+                            Button("Set aside and continue") {
+                                finishRecovery.request(.setAside)
+                                finishProblem = nil
+                            }.buttonStyle(.ate(.secondary, height: 48, full: true))
+                        }
+                        Button("Not now", role: .cancel) { finishProblem = nil }
+                            .buttonStyle(.ate(.ghost, height: 48, full: true))
+                            .accessibilityIdentifier("cook.finish.notNow")
+                    }.padding(20).pageWidth()
+                }
+                .background(Theme.background.ignoresSafeArea())
+                .foregroundStyle(Theme.foreground)
+                .navigationTitle("Save cook").navigationBarTitleDisplayMode(.inline)
             }
-        } message: {
-            Text(finishProblem == .unreadable
-                 ? "Ate could not read its list of finished cooks. The saved list was kept. You can try again, or set the old list aside and continue."
-                 : finishProblem == .historyUnreadable
-                 ? "Ate could not read your cooking history. The saved history was kept. This cook is queued, but completion is not confirmed. Please try again."
-                 : "Ate could not finish saving this cook. Some changes may already be saved. Please try again.")
         }
         .sheet(item: $reflectionOffer, onDismiss: {
             // Single exit owner for every way out of the offer: leave Cook Mode once, then hand a chosen
@@ -142,6 +166,18 @@ struct CookModeView: View {
             finishProblem = e
         } catch {
             finishProblem = .session
+        }
+    }
+
+    /// Wait for the error presentation to leave before another failure or reflection is presented.
+    private func performRequestedFinishRecovery() {
+        guard let action = finishRecovery.consume() else { return }
+        switch action {
+        case .retry:
+            guard let recipe = store.recipe(recipeID) else { finishProblem = .session; return }
+            finish(recipe)
+        case .setAside:
+            setAsideAndFinish()
         }
     }
 

@@ -251,9 +251,15 @@ final class CoverageUITests: XCTestCase {
         wait(expand, 3)
         app.buttons["recipeSheet.close"].tap()
         XCTAssertTrue(expand.waitForNonExistence(timeout: 3))
+        #if DEBUG
+        ReturnBoundaryReceipt.capture(app, phase: "landscape-grid-close-before-query")
+        #endif
         wait(card, 5)
         // iPhone landscape uses LandscapeSplitView's sidebar, not a TabBar.
         let librarySidebar = app.buttons["sidebar.Library"]
+        #if DEBUG
+        ReturnBoundaryReceipt.capture(app, phase: "landscape-grid-close-after-query")
+        #endif
         XCTAssertTrue(librarySidebar.isSelected)
         let shoppingSidebar = app.buttons["sidebar.Shopping list"]
         wait(shoppingSidebar, 5)
@@ -282,7 +288,12 @@ final class CoverageUITests: XCTestCase {
         tab("Settings")
         let settings = settingsContent()
         let export = settings.buttons["settings.export"]; scrollTo(export); wait(export, 3)
+        // Form rows are lazy: reaching Export does not materialize every later row.
+        // Reveal each retained identifier with the existing bounded helper before
+        // its unchanged existence assertion. No new wait or swipe limit.
+        scrollTo(settings.buttons["settings.import"])
         XCTAssertTrue(settings.buttons["settings.import"].exists)
+        scrollTo(settings.buttons["settings.replayOnboarding"])
         XCTAssertTrue(settings.buttons["settings.replayOnboarding"].exists)
         shot("settings-tools")
         // Check Settings before opening Export. Keep the exact identifiers and
@@ -610,8 +621,10 @@ final class CoverageUITests: XCTestCase {
         app.buttons["openSignIn"].tap(); wait(app.staticTexts["authTitle"])
         replaceText(app.textFields["authEmail"], "cook@example.com")
         replaceText(app.secureTextFields["authPassword"], "password123")
+        monitorPasswordSaveInterruptions()
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
+        dismissPasswordSavePrompt(in: app)
         sleep(2)
         shot("backend-down-sync")
         tab("Library")
@@ -662,8 +675,10 @@ final class CoverageUITests: XCTestCase {
         wait(app.staticTexts["authTitle"])
         replaceText(app.textFields["authEmail"], "cook@example.com")
         replaceText(app.secureTextFields["authPassword"], "password123")
+        monitorPasswordSaveInterruptions()
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
+        dismissPasswordSavePrompt(in: app)
         wait(text("Sync failed"), 5)
 
         // Sign out while keeping local recipes, then sign in as a different account while
@@ -677,7 +692,9 @@ final class CoverageUITests: XCTestCase {
         wait(app.staticTexts["authTitle"])
         replaceText(app.textFields["authEmail"], "other@example.com")
         replaceText(app.secureTextFields["authPassword"], "password123")
+        monitorPasswordSaveInterruptions()
         app.buttons["authSubmit"].tap()
+        dismissPasswordSavePrompt(in: app)
         // The failed pull may sign account B out before its account row is ever rendered.
         wait(text("Account switch couldn't be completed. Your previous library is safe on this iPhone. Reconnect and sign in again."), 5)
 
@@ -767,8 +784,10 @@ final class CoverageUITests: XCTestCase {
         app.buttons["openSignIn"].tap(); wait(app.staticTexts["authTitle"])
         replaceText(app.textFields["authEmail"], "cook@example.com")
         replaceText(app.secureTextFields["authPassword"], "password123")
+        monitorPasswordSaveInterruptions()
         app.buttons["authSubmit"].tap()
         wait(app.staticTexts["accountEmail"], 8)
+        dismissPasswordSavePrompt(in: app)
         wait(text("Synced"), 10)
         XCTAssertFalse(text("Your session expired").exists)
         shot("auth-expired-session-refreshed")

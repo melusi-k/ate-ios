@@ -22,6 +22,25 @@ struct DiagnosticEvent: Codable, Identifiable, Equatable {
         case insightActionSelected
         case syncSucceeded
         case syncFailed
+        case authStaleRefreshIgnored
+        case authRefreshRejected
+        case authSyncRejected
+        case authStaleRejectionIgnored
+        case authAccountSwitchFailed
+        case authCredentialDeleteFailed
+        case authCredentialSaveFailed
+        case authCredentialReadFailed
+        case authCredentialDecodeFailed
+    }
+
+    /// Auth diagnostics remain on the device and in user-requested local exports.
+    static func isLocalOnly(_ kind: Kind) -> Bool {
+        switch kind {
+        case .authStaleRefreshIgnored, .authRefreshRejected, .authSyncRejected, .authStaleRejectionIgnored,
+             .authAccountSwitchFailed, .authCredentialDeleteFailed, .authCredentialSaveFailed,
+             .authCredentialReadFailed, .authCredentialDecodeFailed: return true
+        default: return false
+        }
     }
 
     let id: UUID
@@ -51,6 +70,15 @@ struct DiagnosticEvent: Codable, Identifiable, Equatable {
         case .insightActionSelected: return "Insight action selected"
         case .syncSucceeded: return "Sync succeeded"
         case .syncFailed: return "Sync failed"
+        case .authStaleRefreshIgnored: return "Outdated refresh result ignored"
+        case .authRefreshRejected: return "Session refresh rejected"
+        case .authSyncRejected: return "Sync authorization rejected"
+        case .authStaleRejectionIgnored: return "Outdated authorization rejection ignored"
+        case .authAccountSwitchFailed: return "Account switch could not finish"
+        case .authCredentialDeleteFailed: return "Saved sign-in removal failed"
+        case .authCredentialSaveFailed: return "Sign-in could not be saved"
+        case .authCredentialReadFailed: return "Saved sign-in could not be read"
+        case .authCredentialDecodeFailed: return "Saved sign-in could not be decoded"
         }
     }
 }

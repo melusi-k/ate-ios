@@ -16,6 +16,13 @@ final class InsightsModel {
         loading = false
         context = nil
     }
+    /// An explicit local erase must also revoke a delayed summary/prompt publication.
+    func resetForJournalErase() {
+        invalidateRefresh()
+        loadedOnce = false
+        requestError = nil
+        mockPromptShown = false
+    }
     var access: HealthAccess
     /// Beta debug picker: swap to a mock scenario ("" = live Apple Health).
     func useScenario(_ s: String, recipes: [RecipeCard]) async {

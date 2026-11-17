@@ -94,8 +94,10 @@ final class ShoppingSyncCaptureUITests: XCTestCase {
         XCTAssertTrue(email.waitForExistence(timeout: 10)); email.tap(); email.typeText("qa@example.com")
         let password = app.secureTextFields["authPassword"]
         XCTAssertTrue(password.exists); password.tap(); password.typeText("password123")
+        monitorPasswordSaveInterruptions()
         app.buttons["authSubmit"].tap()
         XCTAssertTrue(app.staticTexts["accountEmail"].waitForExistence(timeout: 8))
+        dismissPasswordSavePrompt(in: app)
     }
     private func localCapture(landscape: Bool) {
         shopping()
@@ -112,10 +114,19 @@ final class ShoppingSyncCaptureUITests: XCTestCase {
     private func signedInCapture(landscape: Bool) {
         signIn(); shopping()
         if landscape { XCUIDevice.shared.orientation = .landscapeLeft }
+        if landscape { dismissPasswordSavePrompt(in: app) }
         let status = app.staticTexts["shopping.syncStatus"]
         let refresh = app.buttons["shopping.syncNow"]
         XCTAssertTrue(status.waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["shopping.localOnly"].exists)
+        // A late native sheet can arrive after the earlier bounded check.
+        // Dismiss only that exact sheet before the non-interacting readiness wait.
+        let passwordPrompt = app.sheets["Save Password?"].firstMatch
+        if passwordPrompt.exists && passwordPrompt.elementType == .sheet && passwordPrompt.label == "Save Password?" {
+            let notNow = passwordPrompt.buttons["Not Now"].firstMatch
+            let save = passwordPrompt.buttons["Save"].firstMatch
+            if notNow.exists && save.exists { notNow.tap() }
+        }
         let ready = NSPredicate(format: "exists == true AND enabled == true AND hittable == true")
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: refresh)], timeout: 10), .completed)
         let synced = NSPredicate(format: "label BEGINSWITH %@", "Synced")

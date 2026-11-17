@@ -23,6 +23,12 @@ struct LibraryView: View {
     @State private var recipeSheetDetent: PresentationDetent = .height(260)
     @Environment(\.verticalSizeClass) private var vSize
     @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.bottomChromeMinY) private var bottomChromeMinY
+    @State private var scrollBottomY: CGFloat?
+    /// Reserve actual overlap in scroll content, not an opaque viewport band.
+    private var bottomContentClearance: CGFloat {
+        LibraryChromeClearance.reserve(hostBottom: scrollBottomY, chromeTop: bottomChromeMinY)
+    }
     /// Landscape iPhone / iPad: card grid instead of the single-column list.
     private var useGrid: Bool { vSize == .compact || hSize == .regular }
 
@@ -88,6 +94,10 @@ struct LibraryView: View {
             Theme.background.ignoresSafeArea()
             if useGrid { grid(filtered) } else { list(filtered) }
         }
+        .background(GeometryReader { geometry in
+            Color.clear.preference(key: LibraryScrollBottomKey.self, value: geometry.frame(in: .global).maxY)
+        })
+        .onPreferenceChange(LibraryScrollBottomKey.self) { scrollBottomY = $0 }
         // Attach the recipe quick-look sheet to the layout container itself, separate from
         // LibrarySheets' add/import presentations. This keeps the row/grid selection sheet
         // independently presented rather than competing with the add-flow sheet modifiers.
@@ -213,7 +223,7 @@ struct LibraryView: View {
                         }
                     }
                 }
-                Color.clear.frame(height: 96)
+                Color.clear.frame(height: bottomContentClearance).accessibilityHidden(true)
             }
             .padding(.horizontal, 20)
             .foregroundStyle(Theme.foreground)
@@ -279,7 +289,7 @@ struct LibraryView: View {
                             .onMove(perform: mover)
                     }
                 }
-                Color.clear.frame(height: 96)
+                Color.clear.frame(height: bottomContentClearance).accessibilityHidden(true)
             }
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
@@ -723,3 +733,10 @@ struct TodayJournalHubCard: View {
     }
 }
 #endif
+
+private struct LibraryScrollBottomKey: PreferenceKey {
+    static var defaultValue: CGFloat? { nil }
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
+        if let next = nextValue() { value = next }
+    }
+}

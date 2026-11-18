@@ -140,4 +140,164 @@ final class SourceRecipeFidelityTests: XCTestCase {
         } catch { XCTAssertTrue(error.localizedDescription.contains("No demo recipe was substituted")) }
         XCTAssertEqual(fallback.parses, 0)
     }
+
+    // A recipe web page after htmlToText: one collapsed line, explicit sections.
+    private let tripePage = "Home Recipes About Mogodu Serves 6 Prep: 15 min Cook: 3 h Ingredients 1.2 kg beef tripe, cleaned and cut into strips 2 onions, chopped 3 cloves garlic, crushed 2 tsp curry powder 500 ml beef stock 1.5 l water 1 tsp salt 2 tbsp oil Method Cut the cleaned tripe into strips, chop the onions and crush the garlic. Cover the tripe with the water and salt. Simmer covered until tender, about 150 minutes, then drain the cooking liquid. Fry the onion and garlic in the oil over medium heat until golden, 8 minutes. Stir in the curry powder without burning it, then add the drained tripe and stock and simmer gently until thick and the tripe is tender. Divide the tripe and sauce between six bowls and serve hot. Notes Best with pap."
+
+    private let pastedTripeRecipe = "Mogodu\nServes 6\n\nIngredients\n1.2 kg beef tripe, cleaned and cut into strips\n2 onions, chopped\n3 cloves garlic, crushed\n2 tsp curry powder\n500 ml beef stock\n1.5 l water\n1 tsp salt\n2 tbsp oil\n\nMethod\n1. Cut the cleaned tripe into strips, chop the onions and crush the garlic.\n2. Cover with the water and salt. Simmer covered until tender, about 150 minutes, then drain.\n3. Fry the onion and garlic in the oil until golden, 8 minutes.\n4. Stir in the curry powder, add the drained tripe and stock and simmer gently until thick.\n5. Divide between six bowls and serve hot."
+
+    private func faithfulTripe() throws -> RecipeCard {
+        let contract = try XCTUnwrap(SourceRecipeFidelity.structuredRecipe(tripePage))
+        var card = RecipeCard(title: "Mogodu", ingredients: contract.ingredients,
+            steps: [.init(order: 1, instruction: "Cut the cleaned tripe into strips, chop the onions and crush the garlic.", timeSeconds: nil),
+                    .init(order: 2, instruction: "Cover the tripe with the water and salt. Simmer covered until tender, about 150 minutes, then drain the cooking liquid.", timeSeconds: nil),
+                    .init(order: 3, instruction: "Fry the onion and garlic in the oil over medium heat until golden, 8 minutes.", timeSeconds: nil),
+                    .init(order: 4, instruction: "Stir in the curry powder without burning it, then add the drained tripe and stock and simmer gently until thick and the tripe is tender.", timeSeconds: nil),
+                    .init(order: 5, instruction: "Divide the tripe and sauce between six bowls and serve hot.", timeSeconds: nil)], source: .appleIntelligence)
+        card.servings = 6
+        return card
+    }
+
+    func testStructuredPageRoundTripsItsOwnFactsWithoutCreativeSubstitution() throws {
+        let contract = try XCTUnwrap(SourceRecipeFidelity.structuredRecipe(tripePage))
+        XCTAssertEqual(contract.dishes, ["Mogodu / ulusu (tripe)"])
+        XCTAssertEqual(contract.ingredients.map(\.quantity), [1.2, 2, 3, 2, 500, 1.5, 1, 2])
+        XCTAssertEqual(contract.ingredients.map(\.unit), ["kg", "pcs", "cloves", "tsp", "ml", "l", "tsp", "tbsp"])
+        XCTAssertEqual(contract.ingredients.map(\.name), ["beef tripe", "onions", "garlic", "curry powder", "beef stock", "water", "salt", "oil"])
+        XCTAssertTrue(contract.issues(try faithfulTripe()).isEmpty)
+    }
+
+    func testStructuredPageRejectsInventedDishAndRenamedIngredients() throws {
+        let contract = try XCTUnwrap(SourceRecipeFidelity.structuredRecipe(tripePage))
+        var card = try faithfulTripe()
+        card.title = "Creamy Paprika Beef Pasta"
+        card.ingredients[0].name = "beef ribs"
+        let failures = contract.issues(card)
+        XCTAssertTrue(failures.contains { $0.contains("Name the dish the source names") })
+        XCTAssertTrue(failures.contains { $0.contains("paprika") && $0.contains("never mentions") })
+        XCTAssertTrue(failures.contains { $0.contains("pasta") && $0.contains("never mentions") })
+        XCTAssertTrue(failures.contains { $0.contains("Preserve the source ingredient: beef tripe") })
+        XCTAssertTrue(failures.contains { $0.contains("order and names") })
+    }
+
+    func testStructuredPageTimesCannotBeShortenedReorderedDroppedOrInvented() throws {
+        let contract = try XCTUnwrap(SourceRecipeFidelity.structuredRecipe(tripePage))
+        var shortened = try faithfulTripe()
+        shortened.steps[1].instruction = "Cover the tripe with the water and salt. Simmer covered until tender, about 15 minutes, then drain the cooking liquid."
+        XCTAssertTrue(contract.issues(shortened).contains { $0.contains("written cooking times") })
+        var reordered = try faithfulTripe()
+        reordered.steps[1].instruction = "Fry the onion and garlic in the oil over medium heat until golden, 8 minutes."
+        reordered.steps[2].instruction = "Cover the tripe with the water and salt. Simmer covered until tender, about 150 minutes, then drain the cooking liquid."
+        XCTAssertTrue(contract.issues(reordered).contains { $0.contains("written cooking times") })
+        var dropped = try faithfulTripe()
+        dropped.steps[2].instruction = "Fry the onion and garlic in the oil over medium heat until golden."
+        XCTAssertTrue(contract.issues(dropped).contains { $0.contains("written cooking times") })
+        var invented = try faithfulTripe()
+        invented.steps[3].instruction += " Simmer 30 minutes."
+        XCTAssertTrue(contract.issues(invented).contains { $0.contains("written cooking times") })
+    }
+
+    func testTitleFoodNounsMustAppearInSourceEvenWithoutKnownDish() throws {
+        let page = "Weekday Chicken Alfredo Serves 4 Ingredients 500 g chicken breast 250 ml fresh cream 300 g fettuccine Method Fry the chicken for 10 minutes. Add the cream and pasta and simmer for 5 minutes. Season to taste."
+        let contract = try XCTUnwrap(SourceRecipeFidelity.structuredRecipe(page))
+        XCTAssertTrue(contract.dishes.isEmpty)
+        var card = RecipeCard(title: "Chicken Alfredo", ingredients: contract.ingredients,
+            steps: [.init(order: 1, instruction: "Fry the chicken for 10 minutes.", timeSeconds: nil),
+                    .init(order: 2, instruction: "Add the cream and pasta and simmer for 5 minutes. Season to taste.", timeSeconds: nil)], source: .appleIntelligence)
+        XCTAssertTrue(contract.issues(card).isEmpty)
+        card.title = "Pork Alfredo"
+        XCTAssertTrue(contract.issues(card).contains { $0.contains("pork") && $0.contains("never mentions") })
+    }
+
+    func testAmbiguousPageStructureIsNotPartiallyCertified() {
+        for text in ["Mogodu Ingredients For the sauce: 1.2 kg beef tripe 2 onions Method Simmer 150 minutes, fry 5 minutes, season.",
+                     // An unmeasured amount absorbed into the previous item's name is not verified.
+                     "Mogodu Ingredients 1 kg beef tripe 2 onions salt to taste Method Simmer 150 minutes, fry 5 minutes, season.",
+                     // An interior heading after a measured item is not part of its name.
+                     "Mogodu Ingredients 2 onions For the sauce: 500 g tomatoes Method Fry 5 minutes, simmer 10 minutes, season.",
+                     "Mogodu Ingredients 2 onions For the sauce 500 g tomatoes Method Fry 5 minutes, simmer 10 minutes, season.",
+                     "Mogodu Ingredients 1.2 kg beef tripe 2 onions Method Simmer 150 minutes, season. Ingredients 500 g rice 1 tsp salt Method Boil 20 minutes, stir.",
+                     "Serves 6 Ingredients Method Simmer 5 minutes, stir, season."] {
+            XCTAssertNil(SourceRecipeFidelity.structuredRecipe(text), text)
+        }
+    }
+
+    func testRecognizableButUnverifiableStructureIsDistinguishedFromNoStructure() throws {
+        let unverifiable = "Mogodu Ingredients 1 kg beef tripe 2 onions salt to taste Method Simmer 150 minutes, fry 5 minutes, season."
+        XCTAssertNil(SourceRecipeFidelity.structuredRecipe(unverifiable))
+        XCTAssertTrue(SourceRecipeFidelity.claimsStructuredRecipe(unverifiable))
+        guard case .unverifiable = SourceRecipeFidelity.extraction(unverifiable) else {
+            return XCTFail("recognizable-but-unverifiable must be refused, never creative generation")
+        }
+        XCTAssertFalse(SourceRecipeFidelity.claimsStructuredRecipe("chicken pasta"))
+        guard case .none = SourceRecipeFidelity.extraction("chicken pasta") else {
+            return XCTFail("no structure stays on the creative path")
+        }
+        XCTAssertFalse(SourceRecipeFidelity.claimsStructuredRecipe(RecipePromptTests.mogoduMenu))
+        guard case .verified = SourceRecipeFidelity.extraction(tripePage) else {
+            return XCTFail("verified structure binds generation")
+        }
+        guard case .verified = SourceRecipeFidelity.extraction(caption) else {
+            return XCTFail("the you-need caption keeps its verified contract")
+        }
+    }
+
+    func testStructuredCaptionIsRecognizedByTheSharedPreModelStep() throws {
+        let structuredCaption = "88 likes, 3 comments - kasi_kitchen on 1 October 2026: \"Mogodu recipe Serves 6 Ingredients 1.2 kg beef tripe, cleaned and cut into strips 2 onions, chopped 3 cloves garlic, crushed 2 tsp curry powder 500 ml beef stock 1.5 l water 1 tsp salt 2 tbsp oil Method Cut the cleaned tripe into strips, chop the onions and crush the garlic. Cover the tripe with the water and salt. Simmer covered until tender, about 150 minutes, then drain the cooking liquid. Fry the onion and garlic in the oil over medium heat until golden, 8 minutes. Stir in the curry powder without burning it, then add the drained tripe and stock and simmer gently until thick and the tripe is tender. Divide the tripe and sauce between six bowls and serve hot.\""
+        guard case .verified(let contract) = SourceRecipeFidelity.extraction(structuredCaption) else {
+            return XCTFail("a structured caption must bind before the model runs")
+        }
+        XCTAssertTrue(contract.issues(try faithfulTripe()).isEmpty)
+    }
+
+    func testPastedMultilineRecipeParsesLikeAPage() throws {
+        let contract = try XCTUnwrap(SourceRecipeFidelity.structuredRecipe(pastedTripeRecipe))
+        XCTAssertEqual(contract.ingredients.count, 8)
+        XCTAssertTrue(contract.issues(try faithfulTripe()).isEmpty)
+    }
+
+    func testPastedStructuredRecipeDoesNotSubstituteDemoWhenModelIsUnavailable() async {
+        let fallback = Fallback()
+        let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { false })
+        do {
+            _ = try await backend.parseRecipe(.init(mode: .prompt, text: pastedTripeRecipe))
+            XCTFail("a pasted structured recipe must not become a demo")
+        } catch { XCTAssertTrue(error.localizedDescription.contains("No demo recipe was substituted")) }
+        XCTAssertEqual(fallback.parses, 0)
+    }
+
+    func testUnverifiableStructureFailsClosedBeforeCreativeGenerationOrDemo() async {
+        let page = "<html><body><h1>Mogodu</h1><p>Serves 6</p><h2>Ingredients</h2><p>1 kg beef tripe 2 onions salt to taste</p><h2>Method</h2><p>Simmer 150 minutes, fry 5 minutes, season.</p></body></html>"
+        for available in [false, true] {
+            let fallback = Fallback()
+            var fetches = 0
+            let backend = OnDeviceBackend(fallback: fallback, loadPageHTML: { _ in
+                fetches += 1; return page
+            }, modelAvailable: { available })
+            do {
+                _ = try await backend.parseRecipe(.init(mode: .url, text: "https://recipes.example/mogodu"))
+                XCTFail("recognizable-but-unverifiable structure must fail closed")
+            } catch {
+                let message = error.localizedDescription
+                XCTAssertTrue(message.contains("couldn't verify") || message.contains("could not be verified"), message)
+            }
+            XCTAssertEqual(fetches, 1)
+            XCTAssertEqual(fallback.parses, 0)
+        }
+    }
+
+    func testStructuredPageDoesNotSubstituteDemoWhenModelIsUnavailable() async {
+        let fallback = Fallback()
+        var fetches = 0
+        let backend = OnDeviceBackend(fallback: fallback, loadPageHTML: { _ in
+            fetches += 1
+            return "<html><head><title>Mogodu</title></head><body><h1>Mogodu</h1><p>Serves 6</p><h2>Ingredients</h2><p>1.2 kg beef tripe, cleaned and cut into strips<br>2 onions, chopped<br>3 cloves garlic, crushed<br>2 tsp curry powder<br>500 ml beef stock<br>1.5 l water<br>1 tsp salt<br>2 tbsp oil</p><h2>Method</h2><p>Cut the cleaned tripe into strips. Cover with the water and salt. Simmer covered until tender, about 150 minutes, then drain. Fry the onion and garlic in the oil until golden, 8 minutes. Stir in the curry powder, add the drained tripe and stock and simmer gently until thick. Divide between six bowls and serve hot.</p></body></html>"
+        }, modelAvailable: { false })
+        do {
+            _ = try await backend.parseRecipe(.init(mode: .url, text: "https://recipes.example/mogodu"))
+            XCTFail("A structured source must not become a demo recipe")
+        } catch { XCTAssertTrue(error.localizedDescription.contains("No demo recipe was substituted")) }
+        XCTAssertEqual(fetches, 1)
+        XCTAssertEqual(fallback.parses, 0)
+    }
 }

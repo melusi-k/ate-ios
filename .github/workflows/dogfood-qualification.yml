@@ -1415,6 +1415,43 @@ jobs:
           } | tee qualification-metadata-library.txt
           mkdir -p build/MenuUIAttachments
 
+      # Folded group 6 (from retired nutrition-179-foundation-qualification.yml): the UI
+      # journey step, byte-carried (120/300, SWIFT_STRICT_CONCURRENCY=complete, named
+      # xcresult validation against scripts/nutrition-179-ui-required.txt, captures
+      # validation, failure evidence). Only adaptation: SIM_ID from the destination
+      # job's select_simulator step. The lane's 7 unit classes moved to Compile's
+      # focused step + full-unit-required.txt manifest (Reviewer unit ruling).
+      - name: Record exact source and toolchain (folded group 6)
+        run: |
+          mkdir -p build/nutrition-179-foundation
+          git rev-parse HEAD | tee build/nutrition-179-foundation/head.txt
+          git status --porcelain > build/nutrition-179-foundation/worktree.txt
+          xcodebuild -version | tee build/nutrition-179-foundation/xcode.txt
+          find Ate AteTests -name '*.swift' -print0 | xargs -0 shasum -a 256 > build/nutrition-179-foundation/source-sha256.txt
+      - name: Run real canonical nutrition UI journeys (DEBUG hermetic route only) (folded group 6)
+        id: nutrition_179_ui
+        run: |
+          set -euo pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcodebuild test -project Ate.xcodeproj -scheme Ate -configuration Debug -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CanonicalNutritionAssociationUITests \
+            -resultBundlePath build/nutrition-179-foundation/Nutrition179UI.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            SWIFT_STRICT_CONCURRENCY=complete CODE_SIGNING_ALLOWED=NO \
+            > build/nutrition-179-foundation/ui.log 2>&1 || { tail -160 build/nutrition-179-foundation/ui.log; exit 1; }
+          xcrun xcresulttool get test-results tests --path build/nutrition-179-foundation/Nutrition179UI.xcresult > build/nutrition-179-foundation/ui-tests.json
+          python3 scripts/validate-nutrition-179-tests.py build/nutrition-179-foundation/ui-tests.json scripts/nutrition-179-ui-required.txt
+          python3 scripts/validate-nutrition-179-captures.py build/nutrition-179-foundation/ui.log build/nutrition-179-foundation/captures
+      - name: Retain nutrition 179 UI evidence (folded group 6)
+        if: always() && steps.nutrition_179_ui.outcome != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: nutrition-179-foundation-ui-${{ github.run_number }}-${{ github.run_attempt }}
+          path: build/nutrition-179-foundation/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Record qualification metadata
         if: always()
         run: |

@@ -1,7 +1,7 @@
 {
-  "title": "Workflow cleanup: fold library-explore-removal lane into Dogfood folded-journeys (lane-strength)",
-  "summary": "Owner-approved cleanup (call 2): library-explore-removal-qualification.yml retires. Its 3 UI journey steps fold into Dogfood folded-journeys group 5 with every gate byte-carried (120/300, named passes, Executed-0 gates, screenshot export/validation in own scope dirs, failure evidence; reconstruction-proofed). The lane's MenuUIAttachments/journal scope is renamed library-journal (group 2 owns journal). No unit content. xcodegen inventory 25->24. Metadata: actual-head. Merge after packet 6. Native UNRUN.",
-  "source_commit": "9760377bb44600e6e792f2b7161274c5db43e82e",
+  "title": "Workflow cleanup: fold nutrition-179-foundation lane into Dogfood + Compile (lane-strength)",
+  "summary": "Owner-approved cleanup (call 2): nutrition-179-foundation-qualification.yml retires. Its UI journey folds into Dogfood group 6 byte-carried (120/300 per-test allowances, strict concurrency, named xcresult + captures validation). Its 7 unit classes keep their contract in a focused Compile step (strict-concurrency build flag carried, no-zero/no-fail gate, named validation vs nutrition-179-native-required.txt, retained evidence) and all 68 fixtures join scripts/full-unit-required.txt; 4 pins retargeted byte-exact. xcodegen 24->23. Merge after packet 7. Native UNRUN.",
+  "source_commit": "788ea50e9da649007849e548fa0e2857bc61e92a",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

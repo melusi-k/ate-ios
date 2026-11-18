@@ -13,7 +13,7 @@ class CookPlanProcessLifecycleTests(unittest.TestCase):
         s=s.replace('            nutrition-ui-tests.log\n            cookplan-process-lifecycle\n','            nutrition-ui-tests.log\n')
         s=s.replace('          stop_lifecycle\n          trap - EXIT\n          # Export screenshots, hierarchy snapshots and audit attachments on every outcome,','          # Export screenshots, hierarchy snapshots and audit attachments on every outcome,')
         s=s.replace('          mkdir -p cookplan-process-lifecycle\n          python3 scripts/capture-cookplan-process-lifecycle.py --sim-id "$SIM_ID" --output cookplan-process-lifecycle > cookplan-process-lifecycle/collector-status.txt 2>&1 &\n          lifecycle_pid=$!\n          stop_lifecycle() {\n            kill "$lifecycle_pid" 2>/dev/null || true\n            wait "$lifecycle_pid" || true\n          }\n          trap stop_lifecycle EXIT\n          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \\\n            -only-testing:AteUITests/NutritionDiaryUITests','          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \\\n            -only-testing:AteUITests/NutritionDiaryUITests')
-        self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'fe611ffc579c7ae2cc9f5f20e8289ad94b4112014f8e69c7aad6407cc4c0ac47')
+        self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'a465a2e84787f6632437dabf64b6f6358bf84a4def65db29569661bdcbd23a6b')
         w=yaml.safe_load(normalize('source:.github/workflows/compile-check.yml', (ROOT/'.github/workflows/compile-check.yml').read_text()))
         for job in w['jobs'].values():
             for step in job.get('steps',[]):

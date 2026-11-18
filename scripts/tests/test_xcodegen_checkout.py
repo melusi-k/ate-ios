@@ -25,9 +25,8 @@ class XcodeGenCheckoutTests(unittest.TestCase):
                 self.assertIsNotNone(checkout, (path.name, match[1]))
                 self.assertRegex(checkout[1], r'(?m)^          fetch-depth: 0\s*$')
         # Added local Roadmap qualification, with its own full-history checkout.
-        # 2026-11-18 owner-approved cleanup removed journal-foundation-qualification.yml (23 -> 22);
-        # its 5 unit-only selections are covered by Compile's full AteTests suite.
-        self.assertEqual(checked, 22, 'Update this reviewed caller inventory if an XcodeGen job is added or removed')
+        # Retired 2026-11-18 journal-menu lane: its single xcodegen job leaves the inventory (folded Dogfood journeys generate via the destination job's existing full-history checkout).
+        self.assertEqual(checked, 21, 'Update this reviewed caller inventory if an XcodeGen job is added or removed')
 
     def test_pre_generation_keeps_strict_source_validation(self):
         helper = (ROOT / 'scripts/build-focus.py').read_text()

@@ -425,7 +425,18 @@ final class InsightsAcceptanceUITests: XCTestCase {
         firstShot.lifetime = .keepAlways; add(firstShot)
         carousel.swipeLeft()
         XCTAssertTrue(discovery.isHittable)
-        XCTAssertLessThan(weeklyCard.frame.minX, before.minX, "Horizontal swipe must move the card lane")
+        let afterSwipe = weeklyCard.frame
+        if !(afterSwipe.minX < before.minX) {
+            // Freeze the failed comparison before collecting diagnostics. Never
+            // swipe again or remeasure movement to turn the failure into a pass.
+            let failure = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            failure.name = "insights-horizontal-swipe-no-movement"; failure.lifetime = .keepAlways; add(failure)
+            print("INSIGHTS-SWIPE-NO-MOVEMENT before=\(before) after=\(afterSwipe)")
+            print("INSIGHTS-SWIPE-DIAGNOSTIC geometry begin")
+            print("INSIGHTS-SWIPE-DIAGNOSTIC carousel=\(carousel.frame) window=\(app.windows.firstMatch.frame)")
+            print("INSIGHTS-SWIPE-DIAGNOSTIC geometry end")
+        }
+        XCTAssertLessThan(afterSwipe.minX, before.minX, "Horizontal swipe must move the card lane")
         XCTAssertTrue(app.buttons["insights.progress.dismiss.recipe-discovery"].exists)
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "insights-normal-horizontal-second-card"; shot.lifetime = .keepAlways; add(shot)

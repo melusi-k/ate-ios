@@ -1,7 +1,7 @@
 {
-  "title": "Pasted-recipe source binding and advisory-gap repair partition",
-  "summary": "Main-451 refresh of approved packets D r9 and A r3 on exact main 401406d5, no parked prerequisites: pasted, captioned and linked recipes import bound to their source (shared structural heading rule, shaped lines keep as unmeasured items, contract returns with its parse, fail closed, no example echo), and automatic repair skips advisory-only implicit-staple gaps from the closed exact-name list while real gaps still repair. 7 runtime/native files byte-equal to approved heads; backend and sheet deltas apply verbatim; partition restores reconstruct the frozen backend byte-exactly. Native UNRUN.",
-  "source_commit": "eb5082502d912211c641974fd76625dbda67730e",
+  "title": "URL import: clean site suffixes from titles, drop marketing-blurb descriptions",
+  "summary": "URL import polish on main 401406d5 (C r3, supersedes r2 on the parked base): imported titles no longer carry the site suffix; pipe, double-colon, en/em dash and hyphen suffixes strip only when the trimmed suffix equals the registrable site name or holds it as its own token (eat.com no longer strips Wheat and Cheese; r2 substring membership removed), leading www dropped, co.za-style collapse, a non-site suffix keeps the title verbatim and untrimmed; CTA descriptions drop, genuine ones keep their 300-char cap. Ingredient text untouched. Collision fixture pinned both sides. Native UNRUN.",
+  "source_commit": "e0a4caa358835b0eaef2c246a0c174c24b4e847b",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

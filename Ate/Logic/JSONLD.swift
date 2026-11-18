@@ -7,7 +7,8 @@ enum JSONLD {
         for block in scripts(html) {
             guard let data = block.data(using: .utf8),
                   let json = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) else { continue }
-            if let node = findRecipe(json), var card = card(from: node) {
+            let host = sourceURL.flatMap { URL(string: $0)?.host }
+            if let node = findRecipe(json), var card = card(from: node, host: host) {
                 card.sourceURL = sourceURL
                 return card
             }
@@ -42,7 +43,64 @@ enum JSONLD {
         return nil
     }
 
-    static func card(from d: [String: Any]) -> RecipeCard? {
+    /// Site suffixes ("Name | SITENAME") are SEO chrome, not the dish name. EVERY
+    /// separator form (" | ", " :: ", en dash, em dash, " - ") is stripped only
+    /// when the suffix names the site itself on a whole-name boundary: the trimmed
+    /// suffix equals the registrable site name or holds it as its own token
+    /// ("Chicken - eat.com" strips for eat.com; "Chicken - Wheat and Cheese" never
+    /// does, wheat only CONTAINS eat); otherwise the whole title survives
+    /// verbatim ("Chicken – Lemon and Herb" is a dish, not a suffix). Without a
+    /// host nothing is stripped, and an unstripped title is returned untrimmed.
+    static func cleanTitle(_ raw: String, host: String? = nil) -> String {
+        var t = raw
+        var stripped = false
+        if let host {
+            let site = registrableName(host)
+            for sep in [" | ", " :: ", " \u{2013} ", " \u{2014} ", " - "] {
+                if site.count >= 3, let i = t.range(of: sep, options: .backwards),
+                   Self.suffixNamesSite(String(t[i.upperBound...]), site: site),
+                   !t[..<i.lowerBound].trimmingCharacters(in: .whitespaces).isEmpty {
+                    t = String(t[..<i.lowerBound])
+                    stripped = true
+                }
+            }
+        }
+        return stripped ? t.trimmingCharacters(in: .whitespacesAndNewlines) : raw
+    }
+
+    /// Whole-name boundary: the trimmed, lowercased suffix equals the site name or
+    /// holds it as its own token (split on anything non-alphanumeric). Substring
+    /// membership is never enough: "wheat" is not "eat".
+    static func suffixNamesSite(_ suffix: String, site: String) -> Bool {
+        let s = suffix.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return s == site || s.components(separatedBy: CharacterSet.alphanumerics.inverted).contains(site)
+    }
+
+    /// The registrable host name: a leading "www" is dropped, and second-level
+    /// public suffixes (lancewood.co.za, example.com.au, ...) collapse to the
+    /// name above them. The first label is never used: "www" matches nothing.
+    static func registrableName(_ host: String) -> String {
+        var labels = host.lowercased().split(separator: ".").map(String.init)
+        if labels.first == "www" { labels.removeFirst() }
+        if labels.count >= 3, labels[labels.count - 1].count == 2,
+           ["co", "com", "org", "net", "ac", "gov", "edu"].contains(labels[labels.count - 2]) {
+            return labels[labels.count - 3]
+        }
+        return labels.count >= 2 ? labels[labels.count - 2] : (labels.first ?? "")
+    }
+
+    /// Calls to action make a page description useless as dish context. Prefer no
+    /// description over the site's marketing blurb; genuine dish descriptions stay.
+    static let marketingPhrases = ["try the recipe", "try this recipe", "try our", "explore our",
+                                   "check out", "shop now", "shop the", "buy now", "order now",
+                                   "sign up", "subscribe", "read more", "learn more", "find out more",
+                                   "get the recipe", "click here"]
+    static func isMarketingBlurb(_ text: String) -> Bool {
+        let l = text.lowercased()
+        return marketingPhrases.contains { l.contains($0) }
+    }
+
+    static func card(from d: [String: Any], host: String? = nil) -> RecipeCard? {
         guard let name = text(d["name"]), !name.isEmpty else { return nil }
         let ingredients = (d["recipeIngredient"] as? [Any] ?? d["ingredients"] as? [Any] ?? [])
             .compactMap { text($0) }.filter { !$0.isEmpty }.map(IngredientParser.parse)
@@ -61,7 +119,8 @@ enum JSONLD {
         }
         var seen = Set<String>()
         tags = tags.filter { !$0.isEmpty && $0.count <= 30 && seen.insert($0).inserted }
-        return RecipeCard(title: decode(name), description: text(d["description"]).map(decode).map { String($0.prefix(300)) },
+        let blurb = text(d["description"]).map(decode).map { String($0.prefix(300)) }
+        return RecipeCard(title: cleanTitle(decode(name), host: host), description: blurb.flatMap { isMarketingBlurb($0) ? nil : $0 },
                           servings: servings(d["recipeYield"]) ?? 2, timeMinutes: minutes, tags: Array(tags.prefix(5)),
                           ingredients: ingredients, steps: steps, imageURL: image(d["image"]))
     }

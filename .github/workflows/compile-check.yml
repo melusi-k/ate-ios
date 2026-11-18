@@ -197,6 +197,52 @@ jobs:
             shopping-unit.log
             ${{ runner.temp }}/ate-test-results/shopping-unit.xcresult
 
+      - name: Journal menu unit tests (retired lane contract, 120/300)
+        id: journal_menu_unit
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/ManualJournalTests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/journal-menu-unit.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > journal-menu-unit.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Journal menu unit tests failed (xcodebuild exit $status). Log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" journal-menu-unit.log || true
+            tail -n 100 journal-menu-unit.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" journal-menu-unit.log; then echo "::error::journal menu selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "ManualJournalTests testManualSaveHasNoInventedHealthStateAndRoundTripsOnDisk]' passed" \
+            "ManualJournalTests testWhitespaceCannotCreateAnEntry]' passed" \
+            "ManualJournalTests testOnlyUnavailableRefusesWhileFallbackAndRecoveredSave]' passed" \
+            "ManualJournalTests testManualWriteDoesNotCommitUnrelatedPendingMainContextEdits]' passed" \
+            "ManualJournalTests testWriteFailureLeavesNoOrphanAndDoesNotDiscardPendingMainEdits]' passed" \
+            "ManualJournalTests testHealthReflectionSaveVisibleImmediatelyAndFailureDoesNotLeaveEntry]' passed" \
+            "ManualJournalTests testKnownLegacyAndUnknownRawStatesArePreserved]' passed"; do
+            grep -qF "$evidence" journal-menu-unit.log || { echo "::error::missing pass evidence: $evidence"; tail -60 journal-menu-unit.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" journal-menu-unit.log | tail -30
+
+      - name: Retain journal menu unit diagnostics
+        if: always() && steps.journal_menu_unit.outcome != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: journal-menu-unit-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            journal-menu-unit.log
+            ${{ runner.temp }}/ate-test-results/journal-menu-unit.xcresult
+
       - name: Retain full unit diagnostics before UI acceptance
         if: always() && (steps.unit_tests.outcome == 'success' || steps.unit_tests.outcome == 'failure')
         uses: actions/upload-artifact@v7

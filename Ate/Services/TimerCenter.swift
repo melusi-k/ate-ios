@@ -354,7 +354,7 @@ enum LiveActivities {
             let attrs = CookTimerAttributes(recipeID: t.recipeID, recipeTitle: t.recipeTitle, timerID: t.id)
             do {
                 let a = try Activity.request(attributes: attrs, content: content, pushType: nil)
-                LiveActivityDiagnostics.record("started \(a.id.prefix(8)) state=\(String(describing: a.activityState)), total active \(Activity<CookTimerAttributes>.activities.count)")
+                LiveActivityDiagnostics.record("started \(a.id.prefix(8)) state=\(String(describing: a.activityState)), total active \(Activity<CookTimerAttributes>.activities.count), step \(t.stepIndex + 1)/\(t.stepCount) duration \(t.total)s ends \(t.endDate.map { $0.formatted(date: .omitted, time: .standard) } ?? "paused")")
                 BetaQA.shared.pass("A-TIMER-02", note: "Live Activity request succeeded (\(a.id.prefix(8)))")
             } catch {
                 LiveActivityDiagnostics.record("error: \(error.localizedDescription) [\(String(describing: error))]")
@@ -367,13 +367,18 @@ enum LiveActivities {
 
     static func end(_ id: String, finished: ActiveTimer? = nil) {
         #if canImport(ActivityKit)
-        guard let a = activity(id) else { return }
+        guard let a = activity(id) else {
+            LiveActivityDiagnostics.record("end requested for \(id), no matching active activity (already ended or dismissed)")
+            return
+        }
+        let reason = finished == nil ? "stopped" : "finished"
         let st = finished.map { state($0, finished: true) } ?? a.content.state
         Task {
             await a.end(ActivityContent(state: st, staleDate: nil),
                         dismissalPolicy: finished == nil ? .immediate : .after(Date().addingTimeInterval(120)))
             // Post-await completion fence: nothing may publish after the epoch moved.
             guard (try? validateWriter()) != nil else { return }
+            LiveActivityDiagnostics.record("ended \(a.id.prefix(8)) timer \(id) reason=\(reason), remaining active \(Activity<CookTimerAttributes>.activities.count)")
         }
         #endif
     }

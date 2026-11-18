@@ -267,7 +267,7 @@ struct AddRecipeSheet: View {
         Text("Review your card").font(AteFont.display(24))
         if let d = draft { SourceBadge(source: d.source) }
         if let d = draft, let conf = d.aiConfidence {
-            Label("AI confidence \(Int((conf * 100).rounded()))%" + (conf < RecipeQuality.threshold ? " — check this is the right dish" : ""),
+            Label(NamedDishProvenance.confidenceLabel(conf, card: d),
                   systemImage: conf < RecipeQuality.threshold ? "exclamationmark.triangle" : "checkmark.seal")
                 .font(AteFont.body(13)).foregroundStyle(conf < RecipeQuality.threshold ? Theme.destructive : Theme.mutedForeground)
                 .accessibilityIdentifier("aiConfidence")

@@ -1719,6 +1719,113 @@ jobs:
             build/screenshots
           if-no-files-found: error
           retention-days: 30
+      # Folded group 9 (from retired settings-ui-qualification.yml): the UI part of the
+      # lane's combined step, byte-carried (240/480 per-test allowances, the Dynamic-Type
+      # skip, failure evidence, mandatory screenshot export + named evidence gates,
+      # exact-pass/scoped-capture validation, error-if-missing 90-day upload).
+      # The lane's unit class AteTests/SettingsAIStatusTests moves to Compile's focused
+      # step + full-unit-required.txt (unit ruling). Renames and the 3 adaptations are
+      # listed in the README rename map; the validator script is parameterized so the two
+      # destinations together require exactly the lane's original passes and captures.
+      - name: Settings organisation UI + strict Settings AX audit + tools journey (folded group 9)
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          mkdir -p "$RUNNER_TEMP/ate-test-results"
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/SettingsClarificationUITests \
+            -only-testing:AteUITests/SettingsOrganizationUITests \
+            -skip-testing:AteUITests/SettingsOrganizationUITests/testSyncSummaryLargestDynamicType \
+            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditMainScreens \
+            -only-testing:AteUITests/SettingsAuditUITests \
+            -only-testing:AteUITests/CoverageUITests/test32_MoreCollectionsToolsAbout \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/settings-ui-g9.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > settings-ui-g9.log 2>&1 || \
+            { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" settings-ui-g9.log || true; tail -120 settings-ui-g9.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" settings-ui-g9.log | tail -40
+      - name: Export rendered screenshots (folded group 9)
+        if: always()
+        run: |
+          mkdir -p settings-ui-g9-screenshots/raw
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/settings-ui-g9.xcresult" --output-path settings-ui-g9-screenshots/raw
+          python3 - <<'PY'
+          import json, os, re, shutil
+          raw = "settings-ui-g9-screenshots/raw"
+          # upload-artifact rejects names containing " : < > | * ? CR LF (and a path separator would break the copy).
+          # Only the readable COPIES are renamed; every raw attachment stays in settings-ui-g9-screenshots/raw under its exported
+          # name, with manifest.json mapping it to its original suggested name.
+          unsafe = re.compile(r'[\\"<>:|*?/\r\n]')
+          def safe(s):
+              return unsafe.sub("_", s)
+          try:
+              man = json.load(open(os.path.join(raw, "manifest.json")))
+          except Exception:
+              man = []
+          for t in man:
+              tn = t.get("testIdentifier", "t").split("/")[-1].replace("()", "")
+              for a in t.get("attachments", []):
+                  n = a.get("suggestedHumanReadableName") or a["exportedFileName"]
+                  base = n.split("_0_")[0] if "_0_" in n else os.path.splitext(n)[0]
+                  ext = os.path.splitext(a["exportedFileName"])[1] or ".png"
+                  dest = f"settings-ui-g9-screenshots/{safe(tn)}__{safe(base)}{safe(ext)}"
+                  k = 1
+                  while os.path.exists(dest):
+                      k += 1
+                      dest = f"settings-ui-g9-screenshots/{safe(tn)}__{safe(base)}-{k}{safe(ext)}"
+                  shutil.copy(os.path.join(raw, a["exportedFileName"]), dest)
+          PY
+          ls -la settings-ui-g9-screenshots
+      # A green test step without its retained evidence does not qualify: fail the run.
+      - name: Validate required evidence (mandatory) (folded group 9)
+        if: success()
+        run: |
+          missing=0
+          for pat in \
+            "settings-ui-g9-screenshots/*settings-top-hierarchy*" \
+            "settings-ui-g9-screenshots/*settings-ai-availability*" \
+            "settings-ui-g9-screenshots/*settings-timer-notifications*" \
+            "settings-ui-g9-screenshots/*a11y-audit-settings*"; do
+            if ! compgen -G "$pat" > /dev/null; then
+              echo "::error::Required evidence missing: $pat"
+              missing=1
+            fi
+          done
+          # Normal-text capture must be a real PNG, not just a present file: presence alone is
+          # not proof of unclipped text, and a broken export must not count as evidence.
+          shot=$(compgen -G "settings-ui-g9-screenshots/*settings-sync-summary-normal*.png" | head -1 || true)
+          if [ -z "${shot:-}" ]; then
+            echo "::error::Required evidence missing: normal-text sync summary PNG (settings-sync-summary-normal)"
+            missing=1
+          elif [ "$(head -c 8 "$shot" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
+            echo "::error::Normal-text capture is not a real PNG: $shot"
+            missing=1
+          fi
+          if [ ! -d "$RUNNER_TEMP/ate-test-results/settings-ui-g9.xcresult" ]; then
+            echo "::error::xcresult bundle missing: $RUNNER_TEMP/ate-test-results/settings-ui-g9.xcresult"
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Tests passed but required retained evidence is incomplete; this run does not qualify."
+            exit 1
+          fi
+          echo "All required evidence present (3 named screenshots, normal-text PNG, a11y-audit-settings log, xcresult)."
+      - name: Require exact Settings clarity passes and decoded scoped captures (folded group 9)
+        if: success()
+        run: python3 scripts/validate-settings-clarity-evidence.py settings-ui-g9.log SettingsClarificationUITests,SettingsOrganizationUITests,SettingsAuditUITests settings-ui-g9-screenshots/raw
+      - name: Upload diagnostics (folded group 9)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: settings-ui-g9-${{ github.run_number }}
+          retention-days: 90
+          path: |
+            settings-ui-g9.log
+            settings-ui-g9-screenshots
+            ${{ runner.temp }}/ate-test-results/settings-ui-g9.xcresult
+          if-no-files-found: error
       - name: Record qualification metadata
         if: always()
         run: |

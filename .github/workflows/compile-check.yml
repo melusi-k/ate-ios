@@ -335,6 +335,39 @@ jobs:
             tracker-unit.log
             build/TrackerUnitTests.xcresult
 
+      - name: Settings AI status unit tests (retired lane contract, 240/480)
+        id: settings_ai_unit
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/SettingsAIStatusTests \
+            -resultBundlePath build/SettingsAIStatusUnit.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > settings-ai-unit.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Settings AI status unit tests failed (xcodebuild exit $status). Log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" settings-ai-unit.log || true
+            tail -n 120 settings-ai-unit.log
+            exit "$status"
+          fi
+          python3 scripts/validate-settings-clarity-evidence.py settings-ai-unit.log SettingsAIStatusTests
+
+      - name: Retain settings AI unit diagnostics
+        if: always() && steps.settings_ai_unit.outcome != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: settings-ai-unit-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            settings-ai-unit.log
+            build/SettingsAIStatusUnit.xcresult
+
       - name: Retain full unit diagnostics before UI acceptance
         if: always() && (steps.unit_tests.outcome == 'success' || steps.unit_tests.outcome == 'failure')
         uses: actions/upload-artifact@v7

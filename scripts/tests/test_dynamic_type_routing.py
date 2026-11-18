@@ -26,14 +26,12 @@ class DynamicTypeRoutingTests(unittest.TestCase):
         for method in ("testManualSaveFailureVisibleAtXXXL", "testJournalRootAddAtMaximumAccessibilitySizeAndSidebarRoundTrip", "testTimelineFixtureAtLargestTextSizeKeepsRowAndFilterReachable", "testTimelineFixtureAtLargestTextSizeLastRowClearsSearchBar"):
             self.assertIn("-skip-testing:AteUITests/JournalOpenStateUITests/" + method, source)
 
-    def test_optional_is_dispatch_only_and_not_a_required_dependency(self):
-        source = self.read(".github/workflows/optional-dynamic-type.yml")
-        triggers = source.split("on:\n", 1)[1].split("\njobs:", 1)[0]
-        self.assertEqual(triggers.strip(), "workflow_dispatch:")
-        self.assertNotIn("continue-on-error", source)
-        for method in ("testAuditNutritionScreens", "testLiveDynamicTypeToggle", "testCookTimerCardLargeText", "testManualSaveFailureVisibleAtXXXL"):
-            self.assertIn("-only-testing:AteUITests/", source)
-            self.assertIn(method, source)
+    def test_optional_lanes_stay_deleted_and_out_of_required_dependencies(self):
+        # Owner-approved cleanup (2026-11-18): the never-run descoped Dynamic Type
+        # lanes are deleted outright, which is stronger than dispatch-only routing.
+        for name in ("optional-dynamic-type.yml", "optional-settings-dynamic-type.yml"):
+            self.assertFalse((ROOT / ".github" / "workflows" / name).exists(),
+                             name + " must stay deleted; descoped Dynamic Type coverage has no CI lane")
         for path in ("compile-check.yml", "journal-open-state-ui.yml", "dogfood-qualification.yml"):
             self.assertNotIn("optional-dynamic-type", self.read(".github/workflows/" + path))
 

@@ -292,6 +292,49 @@ jobs:
           retention-days: 14
           path: build/nutrition-179-foundation/
 
+      - name: Tracker history unit tests (retired lane contract, 120/300)
+        id: tracker_unit
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/CookingTrackerPresentationTests/testOnlyLibraryRecipesAreOpenable \
+            -only-testing:AteTests/CookingTrackerPresentationTests/testDeletedRecipeUsesClearFallbackLabel \
+            -resultBundlePath build/TrackerUnitTests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > tracker-unit.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Tracker history recipe unit tests failed (xcodebuild exit $status). Log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" tracker-unit.log || true
+            tail -n 100 tracker-unit.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" tracker-unit.log; then echo "::error::tracker history recipe selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "CookingTrackerPresentationTests testOnlyLibraryRecipesAreOpenable]' passed" \
+            "CookingTrackerPresentationTests testDeletedRecipeUsesClearFallbackLabel]' passed"; do
+            grep -qF "$evidence" tracker-unit.log || { echo "::error::missing pass evidence: $evidence"; tail -60 tracker-unit.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" tracker-unit.log | tail -30
+
+
+      - name: Retain tracker history unit diagnostics
+        if: always() && steps.tracker_unit.outcome != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: tracker-unit-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            tracker-unit.log
+            build/TrackerUnitTests.xcresult
+
       - name: Retain full unit diagnostics before UI acceptance
         if: always() && (steps.unit_tests.outcome == 'success' || steps.unit_tests.outcome == 'failure')
         uses: actions/upload-artifact@v7

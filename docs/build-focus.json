@@ -1,7 +1,7 @@
 {
-  "title": "Workflow cleanup: fold nutrition-179-foundation lane into Dogfood + Compile (lane-strength)",
-  "summary": "Owner-approved cleanup (call 2): nutrition-179-foundation-qualification.yml retires. Its UI journey folds into Dogfood group 6 byte-carried (120/300 per-test allowances, strict concurrency, named xcresult + captures validation). Its 7 unit classes keep their contract in a focused Compile step (strict-concurrency build flag carried, no-zero/no-fail gate, named validation vs nutrition-179-native-required.txt, retained evidence) and all 68 fixtures join scripts/full-unit-required.txt; 4 pins retargeted byte-exact. xcodegen 24->23. Merge after packet 7. Native UNRUN.",
-  "source_commit": "788ea50e9da649007849e548fa0e2857bc61e92a",
+  "title": "Workflow cleanup: fold tracker-history lane into Dogfood + Compile (lane-strength)",
+  "summary": "Owner-approved cleanup (call 2): tracker-history-qualification.yml retires. UI journey folds into Dogfood group 7 byte-carried (120/300 allowances, named passes, Executed-0 gate, screenshot gates; ids journal_journeys -> tracker_journeys_g7, scope journal -> tracker-journal). 2 unit methods keep contract in a focused Compile step and join full-unit-required.txt; 4 pins retargeted byte-exact. r2: tracker_unit uses existing SIM_ID; new static check fails unresolved steps.* refs. xcodegen 23->22. Native UNRUN.",
+  "source_commit": "7e523d74d5672d094d114f96739a7bc09cebf46c",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

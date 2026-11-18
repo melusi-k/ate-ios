@@ -43,7 +43,7 @@ struct RecipeCardView: View {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Ingredients").overline()
-                    ForEach(Array(r.ingredients.enumerated()), id: \.offset) { index, ing in
+                    ForEach(Array(IngredientPresentation.rows(r.ingredients, units: units).enumerated()), id: \.offset) { index, ing in
                         let (q, u) = Units.convert(quantity: ing.quantity, unit: ing.unit, to: units)
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text(Units.formatAmount(q, u)).font(AteFont.body(15, .medium)).monospacedDigit()

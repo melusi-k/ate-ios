@@ -1,11 +1,15 @@
 {
-  "title": "Keep the cooking tracker today marker current",
-  "summary": "Refresh calendar day state on day changes, foreground and appearance while retaining older history browsing. Native qualification and rollover pixels are still required.",
-  "source_commit": "99383ae84720f08a4305d48b348123d950b1c754",
+  "title": "Ordinary Food diary Log again prefill",
+  "summary": "Collapsed add-only local-history suggestions prefill existing form without saving. Original storage/validation/helper unchanged, source provenance cleared, current date/day/meal kept. Native qualification UNRUN.",
+  "source_commit": "dd26576a010d0aa2de3e17c7d3e4c2bdacc47040",
   "evidence": [
     {
-      "path": "Ate/Logic/CookingTrackerCalendarState.swift",
-      "blob": "3576761b5a23f06e6a2b7856ca976412ce5e186c"
+      "path": "Ate/Logic/NutritionDiary.swift",
+      "blob": "89cf255a6e9ddf5a5987532f35cc2e497fc78ed4"
+    },
+    {
+      "path": "Ate/Logic/NutritionDiaryEditing.swift",
+      "blob": "8d1754dbdd23b5255128145208ab0ea7740a0a47"
     }
   ]
 }

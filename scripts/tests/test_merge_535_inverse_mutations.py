@@ -2,7 +2,7 @@
 from pathlib import Path
 import importlib,json,unittest
 from unittest.mock import patch
-from approved_merge_535 import normalize
+from approved_merge_composed import normalize
 ROOT=Path(__file__).resolve().parents[2]
 
 class Merge535InverseMutationTests(unittest.TestCase):
@@ -46,7 +46,7 @@ class Merge535InverseMutationTests(unittest.TestCase):
                        lambda s:'\n'.join(l for i,l in enumerate(s.split('\n')) if i!=next(j for j,x in enumerate(s.split('\n')) if 'XCTAssertTrue(' in x)))
 
     def test_each_inverse_requires_exact_fragment_count_and_order(self):
-        contracts=json.loads((ROOT/'scripts/tests/approved_merge_535_inverses.json').read_text())['contracts']
+        contracts=json.loads((ROOT/'scripts/tests/approved_merge_composed_inverses.json').read_text())['contracts']
         for key,contract in contracts.items():
             if key.startswith('account-restored:'):
                 continue

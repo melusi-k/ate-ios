@@ -1,23 +1,11 @@
 {
-  "title": "Cooking tracker widget contrast (#555)",
-  "summary": "Cooking tracker widget label and Open tracker link switch from WTheme.primary to WTheme.brown in AteWidgets/HomeWidgets.swift for contrast, with an audit guard. Native pixels UNRUN.",
-  "source_commit": "6366abb8cb4e18a80a5abf1c112155db78af5d2e",
+  "title": "44pt Sync now hit target on Shopping (#554)",
+  "summary": "Shopping list Sync now button gets a 44x44 minimum hit target and contentShape(Rectangle()) in Ate/Views/ShoppingListView.swift, with an audit guard. Native qualification UNRUN.",
+  "source_commit": "3a6024930d3c0b8892a089a714ba537831056aba",
   "evidence": [
     {
-      "path": "Ate/Logic/ArchiveDefaultsParticipant.swift",
-      "blob": "9a1c96a912354554a9ea4d9ab92ae80dd6185301"
-    },
-    {
-      "path": "Ate/Logic/ArchiveNutritionParticipant.swift",
-      "blob": "418b93a3042182db0c3e83a9085ff119adbb09f9"
-    },
-    {
-      "path": "Ate/Logic/ArchiveRecipeShoppingParticipant.swift",
-      "blob": "87093c5b82c466665ff9836ee23daf9325aac89b"
-    },
-    {
-      "path": "Ate/Logic/ArchiveRecoveryJournal.swift",
-      "blob": "24135e0a21a45f848cb6c2701af54b58bd0e6d38"
+      "path": "Ate/Views/ShoppingListView.swift",
+      "blob": "3275a486f594956a577a343a82f93ad032b766c2"
     }
   ]
 }

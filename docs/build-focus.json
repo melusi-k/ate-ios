@@ -1,25 +1,23 @@
 {
-  "product": "insights-discovery + library-protein-grouping (composed #535 + #536)",
-  "title": "Recipe sheet chrome copy, contrast and clearance (#537)",
-  "summary": "Expandable recipe sheet chrome copy, contrast and first-ingredient clearance plus duplicate-ingredient display; forward inverse-fixture extension covers the composed AddRecipeSheet reconstruction and regression. Native compile/XCTest/pixels UNRUN; Reviewer publishes and owns qualification.",
-  "merged_onto_main": "189d03a00f1ffdc6964cd0f3c5a3014ead97b2d5",
-  "source_commit": "97acbb1b582493625efe4d85ec3e4944cf6e3d61",
+  "title": "Cooking tracker widget contrast (#555)",
+  "summary": "Cooking tracker widget label and Open tracker link switch from WTheme.primary to WTheme.brown in AteWidgets/HomeWidgets.swift for contrast, with an audit guard. Native pixels UNRUN.",
+  "source_commit": "6366abb8cb4e18a80a5abf1c112155db78af5d2e",
   "evidence": [
     {
-      "path": "Ate/App/IngredientDisplayQAFixtures.swift",
-      "blob": "053eac463a71b73b4489b8da331f1ad1bbd19a0d"
+      "path": "Ate/Logic/ArchiveDefaultsParticipant.swift",
+      "blob": "9a1c96a912354554a9ea4d9ab92ae80dd6185301"
     },
     {
-      "path": "Ate/Logic/IngredientPresentation.swift",
-      "blob": "3c14c229744c5f1da4fd2f40c1866125d151c998"
+      "path": "Ate/Logic/ArchiveNutritionParticipant.swift",
+      "blob": "418b93a3042182db0c3e83a9085ff119adbb09f9"
     },
     {
-      "path": "Ate/Views/BetaTestingView.swift",
-      "blob": "fe3c0b649c3f6e8355a242ca21c80328e1f156fa"
+      "path": "Ate/Logic/ArchiveRecipeShoppingParticipant.swift",
+      "blob": "87093c5b82c466665ff9836ee23daf9325aac89b"
     },
     {
-      "path": "Ate/Views/Components.swift",
-      "blob": "5543d34978252e4cd5399f05a35f7a184eafd4af"
+      "path": "Ate/Logic/ArchiveRecoveryJournal.swift",
+      "blob": "24135e0a21a45f848cb6c2701af54b58bd0e6d38"
     }
   ]
 }

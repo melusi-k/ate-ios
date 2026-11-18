@@ -75,6 +75,19 @@ final class OnDeviceBackend: BackendService {
         if request.mode == .prompt { try SourceRecipeFidelity.rejectUngroundedText(request.text ?? "") }
         var pageHTML: String?
         var socialCaption: String?
+        /// Pre-model source recognition shared by every extraction input (pasted recipe,
+        /// social caption, fetched page): verified structure binds generation below, and
+        /// recognizable-but-unverifiable structure fails closed instead of reaching a demo
+        /// fallback or creative generation.
+        var structuredSource: SourceRecipeFidelity.Contract?
+        var unverifiableSource = false
+        if request.mode == .prompt {
+            switch SourceRecipeFidelity.extraction(request.text ?? "") {
+            case .verified(let contract): structuredSource = contract
+            case .unverifiable: unverifiableSource = true
+            case .none: break
+            }
+        }
         if request.mode == .url, let u = URL(string: (request.text ?? "").trimmingCharacters(in: .whitespaces)),
            let platform = SocialLinks.platform(of: u) {
             let clean = SocialLinks.clean(u)
@@ -84,6 +97,11 @@ final class OnDeviceBackend: BackendService {
                 throw SocialCaptionError(platform: platform, reason: "This \(platform.rawValue) post is an advert with no recipe or dish name. Tell ate the dish in Prompt (e.g. “mogodu”) instead.")
             }
             socialCaption = caption
+            switch SourceRecipeFidelity.extraction(caption) {
+            case .verified(let contract): structuredSource = contract
+            case .unverifiable: unverifiableSource = true
+            case .none: break
+            }
         } else if request.mode == .url {
             // A failed source is not a prompt: preserve its offline/timeout/cancel
             // failure, never silently generate a Demo or fetch it a second time.
@@ -93,6 +111,15 @@ final class OnDeviceBackend: BackendService {
             if var card = JSONLD.recipe(fromHTML: html, sourceURL: request.text) {
                 card.source = .jsonLD; card.generatedAt = Date().timeIntervalSince1970 * 1000
                 return RecipeLogic.normalize(card)
+            }
+            // Bind the creative pass to the page's own explicit ingredients and method when
+            // it has them: the model must not rename the dish, swap listed ingredients or
+            // rewrite written times, and an altered extraction fails closed instead of
+            // reaching the review sheet.
+            switch SourceRecipeFidelity.extraction(String(Self.htmlToText(html).prefix(3500))) {
+            case .verified(let contract): structuredSource = contract
+            case .unverifiable: unverifiableSource = true
+            case .none: break
             }
         }
         // OCR source imports bypass both the creative model and Demo fallback.
@@ -109,8 +136,11 @@ final class OnDeviceBackend: BackendService {
         }
         try Task.checkCancellation()
         guard modelAvailable() else {
-            if SourceRecipeFidelity.inlineCaption(socialCaption ?? request.text ?? "") != nil {
+            if structuredSource != nil {
                 throw BackendError(message: "On-device AI isn't available to extract this recipe. No demo recipe was substituted; keep the source and enter it manually or try again when the model is ready.")
+            }
+            if unverifiableSource {
+                throw BackendError(message: "On-device AI isn't available and this recipe's ingredients and method could not be verified. No demo recipe was substituted; enter it manually or try again when the model is ready.")
             }
             let card = try await fallback.parseRecipe(request)
             try GenerationCancellation.check()
@@ -118,6 +148,11 @@ final class OnDeviceBackend: BackendService {
                 return try RecipeRewriteScope.accept(card, original: original, request: request.text ?? "")
             }
             return card
+        }
+        // A recognizable recipe structure that could not be verified is refused honestly;
+        // it never falls through to ungated creative generation.
+        if unverifiableSource {
+            throw BackendError(message: "Ate couldn't verify this recipe's ingredients and method. No recipe was generated. Enter it manually or paste the recipe in a clearer Ingredients and Method layout.")
         }
         var source: RecipeSource = .appleIntelligence
         let prompt: String
@@ -138,7 +173,7 @@ final class OnDeviceBackend: BackendService {
         switch request.mode {
         case .prompt:
             let text = request.text ?? ""
-            fidelity = SourceRecipeFidelity.inlineCaption(text)
+            fidelity = structuredSource
             if let fidelity {
                 // A full recipe pasted in Prompt is extraction, not a request to
                 // replace it with the shared creative example's quantities.
@@ -150,13 +185,14 @@ final class OnDeviceBackend: BackendService {
         case .url where socialCaption != nil:
             prompt = RecipePrompt.social(caption: socialCaption!); input = .social
             contextSource = socialCaption!  // short dish-defining source
-            fidelity = SourceRecipeFidelity.inlineCaption(socialCaption!)
+            fidelity = structuredSource
         case .url:
             let page: String
             if let html = pageHTML { page = String(Self.htmlToText(html).prefix(3500)) }
             else { page = try await Self.fetchPageText(request.text ?? "") }
             prompt = RecipePrompt.page(page); input = .link
             contextSource = page; sourceIsLongForm = true
+            fidelity = structuredSource ?? SourceRecipeFidelity.structuredRecipe(page)
         case .image:
             let text = imageText ?? ""
             try SourceRecipeFidelity.rejectUngroundedText(text)
@@ -534,13 +570,25 @@ final class OnDeviceBackend: BackendService {
 
     static func htmlToText(_ html: String) -> String {
         var s = html
-        for p in ["<script[\\s\\S]*?</script>", "<style[\\s\\S]*?</style>", "<[^>]+>"] {
+        for p in ["<script[\\s\\S]*?</script>", "<style[\\s\\S]*?</style>"] {
             s = s.replacingOccurrences(of: p, with: " ", options: [.regularExpression, .caseInsensitive])
         }
+        // Item boundaries must survive into the text: list items, line breaks and block
+        // ends become newlines BEFORE the remaining tags are stripped, so a recipe
+        // page's ingredient list keeps one line per item. Without an explicit boundary
+        // the import refuses to verify a collapsed multi-item line rather than guessing
+        // where one name ends and the next item starts.
+        for p in ["<br[^>]*>", "<li[^>]*>", "</(?:li|p|div|h[1-6]|tr|ul|ol)>"] {
+            s = s.replacingOccurrences(of: p, with: "\n", options: [.regularExpression, .caseInsensitive])
+        }
+        s = s.replacingOccurrences(of: "<[^>]+>", with: " ", options: [.regularExpression, .caseInsensitive])
         for (a, b) in ["&amp;": "&", "&nbsp;": " ", "&#39;": "'", "&quot;": "\"", "&lt;": "<", "&gt;": ">"] {
             s = s.replacingOccurrences(of: a, with: b)
         }
-        return s.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        // Collapse spaces/tabs within each line; newlines survive, empty lines drop.
+        return s.components(separatedBy: .newlines).map {
+            $0.replacingOccurrences(of: "[ \\t]+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        }.filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
     /// Shared by real image generation, demo fallback and the model's readPhotoText tool.

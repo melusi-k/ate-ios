@@ -219,8 +219,8 @@ enum InsightCandidateEngine {
                     metadata: InsightEvidenceMetadata(source: "Saved recipe collection", period: "Current collection", confidence: .high),
                     action: .recipes,
                     insight: RecipeProgressInsight(
-                        title: "Your recipe collection is taking shape",
-                        detail: "You have \(input.savedRecipeCount) saved recipes. As you cook and record a few, Ate can surface patterns and ideas to revisit.",
+                        title: "Try something new",
+                        detail: "Explore a new recipe inspired by the dishes you have saved.",
                         evidence: "Based on your saved recipe collection.",
                         generated: false
                     )

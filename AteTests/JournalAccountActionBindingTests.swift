@@ -71,6 +71,51 @@ final class JournalAccountActionBindingTests: XCTestCase {
                       "The legacy singleton is the fallback only while the runtime is nil")
     }
 
+    func testDiscoveryHistoryReadsBoundCookIDsAndRetainedTitlesWithoutAWrite() throws {
+        let runtime = makeRuntime()
+        let store = makeStore(runtime: runtime)
+        store.settings.onDeviceOnly = false
+        runtime.cookingHistory.record(recipeID: "cooked-in-bound-history")
+        let now = Date()
+        let event = CookCompletionEvent(recipeID: "deleted-cooked", recipeTitle: "Deleted cooked dish",
+            completedAt: now, dayKey: runtime.cookingHistory.key(for: now))
+        _ = try runtime.cookOutbox.enqueue(event)
+        let context = try RecipeDiscovery.context(store: store)
+        XCTAssertTrue(context.cookedIDs.contains("cooked-in-bound-history"))
+        XCTAssertTrue(context.cookedRecipes.contains(event.recipeSnapshot))
+        XCTAssertEqual(try runtime.cookOutbox.load(), [event], "Reading must not acknowledge a cook")
+    }
+
+    func testDiscoveryCannotTreatUnreadableBoundHistoryAsNoCookedRecipes() throws {
+        let runtime = makeRuntime()
+        let store = makeStore(runtime: runtime)
+        store.settings.onDeviceOnly = false
+        defaults.set(Data("unreadable history".utf8), forKey: "ate.cooking.history.v1")
+        XCTAssertThrowsError(try RecipeDiscovery.context(store: store))
+    }
+
+    func testDiscoveryAddPreservesUnrelatedPendingDraftBytesAndStillUsesWriterBoundary() {
+        let store = makeStore(runtime: nil)
+        let defaults = UserDefaults.standard
+        let pendingKey = "ate.draft.pending.v1", draftKey = "ate.draft.card.v1"
+        let previousPending = defaults.object(forKey: pendingKey), previousDraft = defaults.object(forKey: draftKey)
+        defer {
+            if let previousPending { defaults.set(previousPending, forKey: pendingKey) } else { defaults.removeObject(forKey: pendingKey) }
+            if let previousDraft { defaults.set(previousDraft, forKey: draftKey) } else { defaults.removeObject(forKey: draftKey) }
+        }
+        let pending = Data("unrelated pending input".utf8), draft = Data("unrelated generated draft".utf8)
+        defaults.set(pending, forKey: pendingKey); defaults.set(draft, forKey: draftKey)
+        let candidate = RecipeCard(id: "discovery-explicit-save", title: "Fruit Bowl")
+        store.add(candidate, clearPendingDraft: false)
+        XCTAssertEqual(store.recipe(candidate.id)?.title, candidate.title)
+        XCTAssertEqual(defaults.data(forKey: pendingKey), pending)
+        XCTAssertEqual(defaults.data(forKey: draftKey), draft)
+        store.journalWriterEffect = { _ in throw CookCompletionOutboxError.verifyFailed }
+        store.add(RecipeCard(id: "refused", title: "Refused suggestion"), clearPendingDraft: false)
+        XCTAssertNil(store.recipe("refused"))
+        XCTAssertEqual(defaults.data(forKey: pendingKey), pending)
+    }
+
     // MARK: clear-library
 
     func testClearLibraryUnifiedClearsThroughRuntimeStores() async throws {

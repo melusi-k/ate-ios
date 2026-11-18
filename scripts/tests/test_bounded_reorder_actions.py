@@ -12,7 +12,9 @@ class BoundedReorderActions(unittest.TestCase):
         self.assertIn('-qaSavedRecipesForReorderAction',action)
         for term in ['first.press(forDuration: 1.2)', 'wait(app.buttons["Move up"], 3)', 'app.buttons["Move up"].tap()', '"moved up"', 'thenDragTo: text("Second dish")', 'library-reorder-drag']:
             self.assertIn(term,action)
-        for name in ['dogfood-qualification.yml','menu-qualification.yml']:
+        # Retired 2026-11-18 menu lane: both selectors now run in Dogfood's folded
+        # group 4 (search journeys step), byte-carried from menu-qualification.yml.
+        for name in ['dogfood-qualification.yml']:
             workflow=(ROOT/'.github/workflows'/name).read_text()
             for method in ['test29_ReorderMyOrder','test29b_ReorderMyOrderActions']:
                 self.assertIn('-only-testing:AteUITests/AteUITests/'+method,workflow)

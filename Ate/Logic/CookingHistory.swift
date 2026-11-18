@@ -51,6 +51,17 @@ final class CookingHistory {
         events = intended
     }
 
+    /// Current durable history for consumers that must exclude already-cooked recipes.
+    /// A damaged value is unavailable, never an empty cooking history.
+    func readEvents() throws -> [String: Set<String>] {
+        guard let raw = defaults.object(forKey: Self.key) else { return [:] }
+        guard let data = raw as? Data,
+              let stored = try? JSONDecoder().decode([String: [String]].self, from: data) else {
+            throw CookCompletionOutboxError.historyUnreadable
+        }
+        return stored.mapValues(Set.init)
+    }
+
     func recipeIDs(on date: Date) -> Set<String> { events[key(for: date)] ?? [] }
     func cooked(on date: Date) -> Bool { !recipeIDs(on: date).isEmpty }
     func clear() { events.removeAll(); save() }

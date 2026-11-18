@@ -47,13 +47,13 @@ struct RecipeNutritionView: View {
                     .foregroundStyle(Theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
                 if !result.unmappedIngredients.isEmpty {
-                    Text("No verified food match: " + result.unmappedIngredients.joined(separator: ", "))
+                    Text("No verified food match: " + IngredientPresentation.uniqueNames(result.unmappedIngredients).joined(separator: ", "))
                         .font(AteFont.body(12))
                         .foregroundStyle(Theme.mutedForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if !result.incompleteIngredients.isEmpty {
-                    Text("Needs a supported quantity or complete nutrient record: " + result.incompleteIngredients.joined(separator: ", "))
+                    Text("Needs a supported quantity or complete nutrient record: " + IngredientPresentation.uniqueNames(result.incompleteIngredients).joined(separator: ", "))
                         .font(AteFont.body(12))
                         .foregroundStyle(Theme.mutedForeground)
                         .fixedSize(horizontal: false, vertical: true)

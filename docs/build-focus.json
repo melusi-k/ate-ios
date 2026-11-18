@@ -1,7 +1,7 @@
 {
   "title": "Diagnostics: log Live Activity end events, timer duration and end time",
   "summary": "Live Activity diagnostics: end() now logs both end paths (ended with reason stopped/finished + remaining count, and end-requested-with-no-activity), and the started line carries step position, duration seconds and end time. Ends were silent before, which made the persisted request log impossible to reconcile with the live Active activities count. No behavior, timing or ActivityKit lifecycle change; fenced writes preserved. Native UNRUN.",
-  "source_commit": "d2db6ae658fa6814f7cc12a5b423ea764259ed59",
+  "source_commit": "1ffdb92223f7abe6e98da4814cb55ddebbd122a3",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

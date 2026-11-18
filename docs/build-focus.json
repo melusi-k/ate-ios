@@ -1,7 +1,7 @@
 {
-  "title": "Workflow cleanup: fold settings-ui lane into Dogfood + Compile (lane-strength)",
-  "summary": "Owner-approved cleanup (call 2): settings-ui-qualification.yml retires. UI part folds into Dogfood group 9 byte-carried (240/480 allowances, evidence gates, error/90-day upload); SettingsAIStatusTests keeps its 240/480 contract in a focused Compile step + full-unit-required.txt; clarity validator parameterized, disjoint suite union. r2: group 9 assigns SIM_ID from select_simulator and mkdirs the RUNNER_TEMP result parent; static check gains SIM_ID-assignment and output-dir rules (audit found no other group affected). 4 pins retargeted byte-exact. xcodegen 21->20. Native UNRUN.",
-  "source_commit": "5a8de5d2636098ad478e215b65c4944cdc8404ce",
+  "title": "Workflow cleanup: fold beta-status lane into Dogfood group 10 (lane-strength)",
+  "summary": "Owner-approved cleanup (call 2): beta-status-qualification.yml retires. Its 5 test35 UI journeys, screenshot export, exact named screenshot verification (12 scoped gates, manifest confinement, PNG decode) and metadata fold into Dogfood group 10 byte-carried (120/300 allowances, Executed-0 gate, 5 named passes). Metadata records executed_sha + execution_target=actual-head; metadata file renamed; warn upload merges into the warn tail. No unit content, no pin retarget. xcodegen 20->19. Merge after packet 11 r2. Native UNRUN.",
+  "source_commit": "90e510aaf6f74f30dc902abd9390b84c20f339d8",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

@@ -10,7 +10,13 @@ KEY = 'source:AteUITests/CoverageUITests.swift'
 class ExportTargetReadinessTests(unittest.TestCase):
     def test_whole_file_reconstructs_exact_failed_candidate(self):
         source = (ROOT / 'AteUITests/CoverageUITests.swift').read_text()
-        self.assertEqual(hashlib.sha256(restore(KEY, source).encode()).hexdigest(), 'aa498d8e7b5909b94e480367a1f9f8cc3287b04a47178954d43ded5f0a1c159a')
+        restored = restore(KEY, source)
+        # Composed head: also reverse #536's three test32c/32d deltas exactly.
+        import json as _json
+        for _f in _json.loads((ROOT/'scripts/tests/approved_merge_536_inverses.json').read_text())['contracts']['main:AteUITests/CoverageUITests.swift']['inverse_fragments']:
+            self.assertEqual(restored.count(_f['merged_fragment']), 1)
+            restored = restored.replace(_f['merged_fragment'], _f['parent_fragment'], 1)
+        self.assertEqual(hashlib.sha256(restored.encode()).hexdigest(), 'aa498d8e7b5909b94e480367a1f9f8cc3287b04a47178954d43ded5f0a1c159a')
         for mutation in [source.replace(NEW, '', 1), source + NEW, source.replace('first.clear.contains(first.row)', 'true', 1)]:
             with self.assertRaises(AssertionError):
                 restore(KEY, mutation)

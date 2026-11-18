@@ -48,12 +48,16 @@ targets:
     platform: iOS
     sources:
       - path: Ate
+        excludes:
+          - Resources/ProductUpdates
+      # One folder reference preserves the subdirectory required by both strict loaders.
+      - path: Ate/Resources/ProductUpdates
+        type: folder
+        buildPhase: resources
       - path: Shared
       - path: SharedWidgets
     resources:
       - path: Ate/Resources/BuildNotes.md
-      - path: Ate/Resources/ProductUpdates
-        type: folder
     dependencies:
       - target: AteWidgets
       - target: AteShare

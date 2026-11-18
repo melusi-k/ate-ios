@@ -55,6 +55,7 @@ struct AteApp: App {
         DogfoodSavedRecipeQAFixtures.prepare(st)
         ExploreRetentionQAFixtures.prepare(st)
         CookJournalQARoute.prepare(st)
+        IngredientDisplayQAFixtures.prepare(st)
         RecipeSheetQAFixtures.prepare(st)
         LibraryProteinQAFixtures.prepare(st)
         #else

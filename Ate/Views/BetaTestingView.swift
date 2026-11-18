@@ -301,7 +301,7 @@ struct BetaBanner: View {
                     Text("See what to test — \(qa.progress().passed)/\(qa.progress().total) done").font(AteFont.body(12))
                 }
                 Spacer()
-                Button("Open") { qa.bannerDismissed = true; open() }.buttonStyle(.borderedProminent).tint(Theme.primary)
+                Button("Open") { qa.bannerDismissed = true; open() }.buttonStyle(.ate(.primary)).tint(Theme.primary)
                 Button { qa.bannerDismissed = true } label: { Image(systemName: "xmark") }.accessibilityLabel("Dismiss beta banner")
             }
             .padding(12).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))

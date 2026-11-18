@@ -241,8 +241,10 @@ final class OnDeviceBackend: BackendService {
             reviseID = c.id
         }
         let ctx = RecipePrompt.context(userText: contextUser, sourceText: contextSource, sourceIsLongForm: sourceIsLongForm)
+        let reconstructedFromMenu = NamedDishProvenance.needsNotice(
+            source: input == .prompt ? contextUser : (input == .social ? contextSource : ""))
         var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx,
-                                           emitPreview: fidelity == nil,
+                                           emitPreview: fidelity == nil && !reconstructedFromMenu,
                                            reuseSession: request.mode != .rewrite || request.repairQuality == true)
         // Never show a confident recipe for an object the camera saw instead of food.
         // Send the user back through the dish question so the next pass is grounded by a human label.
@@ -270,7 +272,7 @@ final class OnDeviceBackend: BackendService {
                 retryReviseID = nil
             }
             card = try await GenerationCancellation.optionalRepair(original: card, operation: {
-                var again = try await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx, emitPreview: fidelity == nil)
+                var again = try await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx, emitPreview: fidelity == nil && !reconstructedFromMenu)
                 again.source = source
                 return again
             }, prefer: { again, previous in
@@ -299,6 +301,7 @@ final class OnDeviceBackend: BackendService {
         if request.mode == .rewrite, let cur = request.currentRecipe {
             card.id = cur.id; card.createdAt = cur.createdAt; card.favorite = cur.favorite; card.sortIndex = cur.sortIndex; card.lastCookedAt = cur.lastCookedAt; card.source = .appleIntelligence; card.imageURL = cur.imageURL; card.sourceURL = cur.sourceURL
         }
+        if reconstructedFromMenu { card = NamedDishProvenance.apply(card) }
         var normalized = RecipeLogic.normalize(card)
         if request.repairQuality == true, let original = request.currentRecipe {
             normalized = try RecipeDraftRepair.accept(normalized, replacing: original)

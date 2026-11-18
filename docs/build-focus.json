@@ -1,7 +1,7 @@
 {
-  "title": "Workflow cleanup: fold beta-status lane into Dogfood group 10 (lane-strength)",
-  "summary": "Owner-approved cleanup (call 2): beta-status-qualification.yml retires. Its 5 test35 UI journeys, screenshot export, exact named screenshot verification (12 scoped gates, manifest confinement, PNG decode) and metadata fold into Dogfood group 10 byte-carried (120/300 allowances, Executed-0 gate, 5 named passes). Metadata records executed_sha + execution_target=actual-head; metadata file renamed; warn upload merges into the warn tail. No unit content, no pin retarget. xcodegen 20->19. Merge after packet 11 r2. Native UNRUN.",
-  "source_commit": "90e510aaf6f74f30dc902abd9390b84c20f339d8",
+  "title": "Workflow cleanup: fold roadmap-local lane into Dogfood group 11 + Compile focused step (lane-strength)",
+  "summary": "Owner-approved cleanup (call 2): roadmap-local-qualification.yml retires. Catalog verify, UI journey and screenshot retention fold into Dogfood group 11 byte-carried (SIM_ID in-step, derivedDataPath); 10 unit gates move to full-unit-required.txt + a Compile focused step at the original contract (no allowances). r2: 30m caps on both focused roadmap steps preserve the retired lane's time boundary; no job timeout raised. Receipt + warn-tail upload under group-11 names. 4 pins retargeted with git-apply proofs. Merge after packet 12. Native UNRUN.",
+  "source_commit": "a841dda838b5a5f8bb2f37ede841fa7691c18710",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

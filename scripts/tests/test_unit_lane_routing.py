@@ -17,7 +17,7 @@ class UnitLaneRoutingTests(unittest.TestCase):
         # Exactly one FULL unit selection; the only focused selectors are the retired
         # shopping-completion lane's 3 gates, kept at their own 120/300 contract (Reviewer
         # unit ruling 2026-11-18: preserve the original timing contract, never widen).
-        self.assertEqual(re.findall(r'-only-testing:(AteTests[^\s\\]*)', self.compile), ['AteTests', 'AteTests/LogicTests/testMoveBoughtBackToListMovesOnlyBoughtItemsAndUndoRestoresThem', 'AteTests/LogicTests/testMoveBoughtBackWithNothingBoughtIsANoOp', 'AteTests/LogicTests/testMoveBoughtBackUndoIsBlockedAfterAccountChangeEvenWithSameItemID'])
+        self.assertEqual(re.findall(r'-only-testing:(AteTests[^\s\\]*)', self.compile), ['AteTests', 'AteTests/LogicTests/testMoveBoughtBackToListMovesOnlyBoughtItemsAndUndoRestoresThem', 'AteTests/LogicTests/testMoveBoughtBackWithNothingBoughtIsANoOp', 'AteTests/LogicTests/testMoveBoughtBackUndoIsBlockedAfterAccountChangeEvenWithSameItemID', 'AteTests/ManualJournalTests'])
         self.assertIn('-default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300', self.compile)
         self.assertNotRegex(self.dogfood, r'-only-testing:AteTests')
         self.assertIn('xcodebuild test-without-building', self.full)
@@ -43,6 +43,8 @@ class UnitLaneRoutingTests(unittest.TestCase):
         # Retired 2026-11-18 shopping-completion lane: its 3 named unit gates move here
         # (Reviewer unit ruling); Compile's full-suite xcresult now proves each by name.
         retired_lane_units = ['LogicTests/testMoveBoughtBackToListMovesOnlyBoughtItemsAndUndoRestoresThem', 'LogicTests/testMoveBoughtBackWithNothingBoughtIsANoOp', 'LogicTests/testMoveBoughtBackUndoIsBlockedAfterAccountChangeEvenWithSameItemID']
+        # Retired journal-menu lane: its 7 ManualJournalTests gates move here the same way.
+        retired_lane_units += ['ManualJournalTests/testManualSaveHasNoInventedHealthStateAndRoundTripsOnDisk', 'ManualJournalTests/testWhitespaceCannotCreateAnEntry', 'ManualJournalTests/testOnlyUnavailableRefusesWhileFallbackAndRecoveredSave', 'ManualJournalTests/testManualWriteDoesNotCommitUnrelatedPendingMainContextEdits', 'ManualJournalTests/testWriteFailureLeavesNoOrphanAndDoesNotDiscardPendingMainEdits', 'ManualJournalTests/testHealthReflectionSaveVisibleImmediatelyAndFailureDoesNotLeaveEntry', 'ManualJournalTests/testKnownLegacyAndUnknownRawStatesArePreserved']
         union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + retired_lane_units))
         actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()
         self.assertEqual(actual, union)

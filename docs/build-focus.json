@@ -1,7 +1,7 @@
 {
-  "title": "Workflow cleanup: fold tracker-history lane into Dogfood + Compile (lane-strength)",
-  "summary": "Owner-approved cleanup (call 2): tracker-history-qualification.yml retires. UI journey folds into Dogfood group 7 byte-carried (120/300 allowances, named passes, Executed-0 gate, screenshot gates; ids journal_journeys -> tracker_journeys_g7, scope journal -> tracker-journal). 2 unit methods keep contract in a focused Compile step and join full-unit-required.txt; 4 pins retargeted byte-exact. r2: tracker_unit uses existing SIM_ID; new static check fails unresolved steps.* refs. xcodegen 23->22. Native UNRUN.",
-  "source_commit": "7e523d74d5672d094d114f96739a7bc09cebf46c",
+  "title": "Workflow cleanup: fold issue-73 lane into Dogfood group 8 (lane-strength)",
+  "summary": "Owner-approved cleanup (call 2): issue-73-ui-qualification.yml retires. Its UI journey + screenshot export + honest summary + error-if-missing 30-day upload fold into Dogfood group 8 byte-carried (30m step timeout, 240/480 per-test allowances, failure evidence). Renames: step id ui_journeys -> issue73_journeys_g8 (destination job already has ui_journeys); Commit line records git rev-parse HEAD (folded job checks out PR head). No unit content, no strict-concurrency flag, no pin retarget. xcodegen 22->21. Merge after packet 9 r2. Native UNRUN.",
+  "source_commit": "d95a1fa4fb6b22a72316a2812f2acc7fdda5c782",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

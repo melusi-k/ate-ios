@@ -1656,6 +1656,69 @@ jobs:
           } | tee qualification-metadata-tracker.txt
           mkdir -p build/MenuUIAttachments
 
+      # Folded group 8 (from retired issue-73-ui-qualification.yml): the UI journey step,
+      # byte-carried (30m step timeout, 240/480 per-test allowances, failure evidence,
+      # mandatory screenshot export, honest summary, error-if-missing 30-day upload).
+      # No unit content; no strict-concurrency flag. Renames: step id ui_journeys ->
+      # issue73_journeys_g8 (destination job already has ui_journeys); Commit line records
+      # git rev-parse HEAD (folded job checks out the PR head). Map in README.
+      - name: Issue 73 UI journeys (search-first, describe-save stack, first-use actions) (folded group 8)
+        id: issue73_journeys_g8
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/AteUITests/testSearchTabStartsSearchFirstAndKeepsContext \
+            -only-testing:AteUITests/AteUITests/testSearchDescribeSaveStaysOnSearchStack \
+            -only-testing:AteUITests/AteUITests/testFirstLibraryRecipeActionsChooseTheCorrectInput \
+            -resultBundlePath build/Issue73UIJourneys.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > issue-73-ui-journeys.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" issue-73-ui-journeys.log || true; tail -100 issue-73-ui-journeys.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" issue-73-ui-journeys.log | tail -30
+
+      - name: Export screenshots from result bundle (folded group 8)
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p build/screenshots
+          # xcrun wrapper is required (bare xcresulttool is not on PATH); failures are
+          # mandatory-evidence failures, never masked.
+          xcrun xcresulttool get --legacy --path build/Issue73UIJourneys.xcresult --format json > build/result.json
+          # Export all attachments (screenshots captured during the journeys)
+          xcrun xcresulttool export attachments --legacy --path build/Issue73UIJourneys.xcresult --output-path build/screenshots
+          ls -la build/screenshots | tee -a "$GITHUB_STEP_SUMMARY"
+          # Journey screenshots are mandatory review evidence: fail loudly if none exported.
+          if [ -z "$(ls -A build/screenshots)" ]; then echo "screenshot export produced nothing"; exit 1; fi
+
+      - name: Summarize journey qualification honestly (folded group 8)
+        if: always()
+        env:
+          UI_OUTCOME: ${{ steps.issue73_journeys_g8.outcome }}
+        run: |
+          {
+            echo '### Issue 73 UI journey qualification'
+            echo
+            echo "- Commit: \`$(git rev-parse HEAD)\`."
+            printf '%s\n' "- Journeys: ${UI_OUTCOME:-unknown}."
+            echo '- Journeys exercised: search-first start + context preservation; describe-save stays on Search stack; first-use actions route to correct input.'
+            echo '- A green badge is NOT journey proof: review the retained screenshots in the artifact.'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload journey diagnostics and screenshots (folded group 8)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: issue-73-ui-qualification-${{ github.run_number }}
+          path: |
+            issue-73-ui-journeys.log
+            build/Issue73UIJourneys.xcresult
+            build/screenshots
+          if-no-files-found: error
+          retention-days: 30
       - name: Record qualification metadata
         if: always()
         run: |

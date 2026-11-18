@@ -14,7 +14,11 @@ class UnitLaneRoutingTests(unittest.TestCase):
         self.full = self.compile.split('      - name: Full exact-head unit suite', 1)[1].split('      - name: Retain full unit diagnostics', 1)[0]
 
     def test_exactly_one_full_unit_selection_and_no_focused_rerun(self):
-        self.assertEqual(re.findall(r'-only-testing:(AteTests[^\s\\]*)', self.compile), ['AteTests'])
+        # Exactly one FULL unit selection; the only focused selectors are the retired
+        # shopping-completion lane's 3 gates, kept at their own 120/300 contract (Reviewer
+        # unit ruling 2026-11-18: preserve the original timing contract, never widen).
+        self.assertEqual(re.findall(r'-only-testing:(AteTests[^\s\\]*)', self.compile), ['AteTests', 'AteTests/LogicTests/testMoveBoughtBackToListMovesOnlyBoughtItemsAndUndoRestoresThem', 'AteTests/LogicTests/testMoveBoughtBackWithNothingBoughtIsANoOp', 'AteTests/LogicTests/testMoveBoughtBackUndoIsBlockedAfterAccountChangeEvenWithSameItemID'])
+        self.assertIn('-default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300', self.compile)
         self.assertNotRegex(self.dogfood, r'-only-testing:AteTests')
         self.assertIn('xcodebuild test-without-building', self.full)
 
@@ -36,7 +40,10 @@ class UnitLaneRoutingTests(unittest.TestCase):
         inputs = ['DraftInputAttemptTests/testLaterPhotoSelectionWinsEvenWhenOldLoaderIgnoresCancellation', 'DraftInputAttemptTests/testDiscardSaveOrDisappearInvalidationRefusesLateInput', 'DraftInputAttemptTests/testCoverSelectionCannotWriteDifferentRegeneratedDraft']
         # Both parents' named requirements remain independently explicit. Only
         # shared entries are deduplicated; neither side can silently replace the other.
-        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs))
+        # Retired 2026-11-18 shopping-completion lane: its 3 named unit gates move here
+        # (Reviewer unit ruling); Compile's full-suite xcresult now proves each by name.
+        retired_lane_units = ['LogicTests/testMoveBoughtBackToListMovesOnlyBoughtItemsAndUndoRestoresThem', 'LogicTests/testMoveBoughtBackWithNothingBoughtIsANoOp', 'LogicTests/testMoveBoughtBackUndoIsBlockedAfterAccountChangeEvenWithSameItemID']
+        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + retired_lane_units))
         actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()
         self.assertEqual(actual, union)
         self.assertEqual(len(actual), len(set(actual)), "Required native names must be unique")

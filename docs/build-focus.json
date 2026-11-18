@@ -1,7 +1,7 @@
 {
-  "title": "Workflow cleanup: delete never-run descoped Dynamic Type lanes",
-  "summary": "Owner-approved cleanup call 1: optional-dynamic-type.yml and optional-settings-dynamic-type.yml (0 runs ever, Dynamic Type descoped Nov 6 via #359) are deleted. Routing test now asserts the files stay absent and required lanes never reference them; XcodeGen caller inventory 27 -> 25 with per-job full-history assertions unchanged. No runtime code touched; native qualification UNRUN.",
-  "source_commit": "cad2f2b8d6cd3de6a504ed25c93bdbd48a3dc784",
+  "title": "Workflow cleanup: delete journal-foundation-qualification.yml; strict concurrency moves to Compile",
+  "summary": "Owner-approved cleanup (call 2, M1), Reviewer-revised: all 5 selections are AteTests unit classes covered by Compile's full exact-head unit suite. The lane's SWIFT_STRICT_CONCURRENCY=complete setting moves to build-nutrition's build-for-testing; its grep surfaces concurrency diagnostics display-only (|| true), exactly as the retired lane did, no new hard failure. The 4 compile-check byte pins are retargeted byte-exact (old pins re-verified on base 9d7fcbd5; PR diff via git apply reproduces the new bytes). XcodeGen inventory 27 -> 26. No runtime code touched; native qualification UNRUN.",
+  "source_commit": "86ebdaacf4927549212753d1562890f9ae52e9ac",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

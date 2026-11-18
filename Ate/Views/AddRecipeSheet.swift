@@ -337,7 +337,7 @@ struct AddRecipeSheet: View {
     @ViewBuilder private func coverEditor(_ d: RecipeCard) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             RecipeHero(recipe: d, autoBackfill: false)
-            HStack(spacing: 8) {
+            WrapLayout(spacing: 8) {
                 Menu {
                     PhotosPicker(selection: $coverItem, matching: .images) { Label("Choose photo", systemImage: "photo.on.rectangle") }
                     if UIImagePickerController.isSourceTypeAvailable(.camera) {
@@ -345,9 +345,11 @@ struct AddRecipeSheet: View {
                     }
                 } label: { Label("Change photo", systemImage: "photo") }
                     .buttonStyle(.ate(.secondary, height: 36)).accessibilityIdentifier("changeCover")
+                    .fixedSize(horizontal: true, vertical: false)
                 if AppConfig.isUITesting {
                     Button("Sample cover") { if let d = Self.sampleFoodPhoto(), let img = UIImage(data: d) { setUserCover(img) } }
                         .buttonStyle(.ate(.secondary, height: 36)).accessibilityIdentifier("sampleCover")
+                        .fixedSize(horizontal: true, vertical: false)
                 }
                 if CoverStore.playgroundAvailable && !ProcessInfo.processInfo.arguments.contains("-qaNoPlayground") {
                     Button {
@@ -359,15 +361,18 @@ struct AddRecipeSheet: View {
                         }
                     } label: { Label("Generate cover", systemImage: "wand.and.sparkles") }
                         .buttonStyle(.ate(.secondary, height: 36)).accessibilityIdentifier("generateCover")
+                        .fixedSize(horizontal: true, vertical: false)
                         .disabled(CoverStore.shared.isLoading(d.id))
                 }
                 if d.coverImage != nil && d.coverImage != CoverStore.removed {
                     Button { coverInputAttempt.invalidate(); CoverStore.shared.removeFiles(recipeID: d.id); draft?.coverImage = CoverStore.removed } label: {
                         Label("Remove", systemImage: "xmark")
                     }.buttonStyle(.ate(.ghost, height: 36)).accessibilityIdentifier("removeCover")
+                    .fixedSize(horizontal: true, vertical: false)
                 }
             }
             .font(AteFont.body(13))
+            .lineLimit(1)
         }
     }
 

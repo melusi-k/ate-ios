@@ -9,8 +9,9 @@ from approved_merge_composed import normalize
 ROOT=Path(__file__).resolve().parents[2]
 KEY='main:Ate/Views/AddRecipeSheet.swift'
 # sha256 of the stacked-parent file bytes: main 189d03a0 plus the stacked #544
-# confidenceLabel hunk (byte-exact, verified against an independent reconstruction).
-PARENT_SHA256='2ce0ea7f81d276112b42fcf3846d8d563a60e3badefc608a91809afead97212a'
+# confidenceLabel hunk and the stacked #546 coverEditor hunk (byte-exact, verified
+# against an independent reconstruction: parent bytes + PR diff via git apply).
+PARENT_SHA256='e4107022fbaf1fe8cc119e19c45e956cc32df4a09345c59516176edd733ad334'
 IDENTIFIER='        .accessibilityIdentifier("addRecipe.content")\n'
 
 class Merge537AddRecipeSheetInverseTests(unittest.TestCase):

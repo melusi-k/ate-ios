@@ -1,4 +1,4 @@
-from approved_merge_535 import normalize
+from approved_merge_composed import normalize
 from pathlib import Path
 import hashlib
 import unittest

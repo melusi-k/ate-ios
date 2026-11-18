@@ -235,16 +235,43 @@ final class AppIntentsTests: XCTestCase {
     }
 
     func testWidgetRelaysActOnLiveStore() {
+#if DEBUG
+        print("WIDGET-RELAY phase=store-enter uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
         let s = store()
+#if DEBUG
+        print("WIDGET-RELAY phase=store-return uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
         s.addManual("Eggs")
         let id = s.shopping[0].id
+#if DEBUG
+        print("WIDGET-RELAY phase=toggle-enter uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
         IntentRelay.toggleShopping?(id, true)
+#if DEBUG
+        print("WIDGET-RELAY phase=toggle-return uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
         XCTAssertTrue(s.shopping[0].done)
+#if DEBUG
+        print("WIDGET-RELAY phase=idempotent-enter uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
         s.setShoppingDone(id, true)            // idempotent
         XCTAssertTrue(s.shopping[0].done)
+#if DEBUG
+        print("WIDGET-RELAY phase=kitchen-enter uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
         XCTAssertEqual(IntentRelay.kitchenToggle?(), "started")
+#if DEBUG
+        print("WIDGET-RELAY phase=kitchen-return uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
         XCTAssertEqual(s.timers.timers.first?.recipeID, TimerMath.quickRecipeID)
+#if DEBUG
+        print("WIDGET-RELAY phase=stop-enter uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
         IntentRelay.timer?(.stop, s.timers.timers[0].id)
+#if DEBUG
+        print("WIDGET-RELAY phase=stop-return uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
         XCTAssertTrue(s.timers.timers.isEmpty)
     }
 

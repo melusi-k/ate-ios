@@ -1,4 +1,4 @@
-from approved_merge_535 import normalize
+from approved_merge_composed import normalize
 """One gesture setup only. Native Settings pixels/AX still own acceptance."""
 from pathlib import Path
 import hashlib

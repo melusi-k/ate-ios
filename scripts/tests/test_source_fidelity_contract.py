@@ -27,16 +27,34 @@ class SourceFidelityContractTests(unittest.TestCase):
                       # Whole-item quantity round-trip, positive amounts, unique names.
                       'amount == ingredient.quantity',
                       'Set(ingredients.map { $0.name.lowercased() }).count == ingredients.count',
-                      # Prose, interior headings and unmeasured amounts absorbed into a
-                      # name are never certified as a verified item.
+                      # Prose, interior headings and unmeasured amounts are never
+                      # certified as a verified item. Ambiguity absorbed into the
+                      # name is refused by name guards; comma/parenthesis tails are
+                      # a closed prep-word whitelist, not a blacklist of bad tails.
+                      'let remainder = ns.substring(with: match.range(at: 2))',
+                      'itemTails.allSatisfy(isPrepOnly)',
+                      'static func isPrepOnly(_ tail: String) -> Bool',
+                      'static func tails(in remainder: String) -> [String]',
+                      '"cut into strips"',
                       r'\b(?:to taste|as needed|as required|optional)\b',
                       '.count <= 3']:
             self.assertIn(token, s)
-        # No structure vs recognizable-but-unverifiable structure are distinct outcomes.
+        # No structure vs recognizable-but-unverifiable structure are distinct outcomes,
+        # for section-marked recipes AND for recognizable "you need" captions alike.
         for token in ['case none', 'case verified(Contract)', 'case unverifiable',
+                      'static func claimsInlineCaption(_ raw: String) -> Bool',
                       'if let contract = inlineCaption(raw) ?? structuredRecipe(raw) { return .verified(contract) }',
-                      'return claimsStructuredRecipe(raw) ? .unverifiable : .none']:
+                      'return claimsStructuredRecipe(raw) || claimsInlineCaption(raw) ? .unverifiable : .none']:
             self.assertIn(token, s)
+        # Line boundaries are the only defensible item boundary: only spaces/tabs
+        # collapse, and ALL multi-item shared lines are refused (one item per line).
+        for token in ['#"[ \\t]+"#', 'guard split.count == 1 else { return nil }',
+                      'itemTails.allSatisfy(isPrepOnly)']:
+            self.assertIn(token, s)
+        # htmlToText preserves list/br/block boundaries as newlines so real pages certify.
+        b = (ROOT/'Ate/Services/OnDeviceBackend.swift').read_text()
+        for token in ['"<br[^>]*>"', '"<li[^>]*>"', 'joined(separator: "\\n")']:
+            self.assertIn(token, b)
         # Title stays the source's dish: named dish must survive; no invented title foods.
         for token in ['let dishes: [String]',
                       'CuisineGlossary.matches(in: String(header.suffix(200)))',
@@ -44,7 +62,11 @@ class SourceFidelityContractTests(unittest.TestCase):
                       'GeneratedStepQuality.words(card.title).intersection(GeneratedStepQuality.foods)',
                       'which the source never mentions']:
             self.assertIn(token, s)
-        # Caption contracts keep their existing semantics (no dish anchor).
+        # Caption contracts keep their existing semantics (no dish anchor), and a
+        # parenthesis cannot hide an unmeasured item inside a measured caption part:
+        # caption tails run through the same prep-word whitelist.
+        self.assertIn('guard let quantity = part.range(of: #"^\\d+(?:[./]\\d+)?\\s+"#', s)
+        self.assertIn('tails(in: String(part[quantity.upperBound...])).allSatisfy(isPrepOnly)', s)
         self.assertIn('return Contract(text: source, ingredients: ingredients, method: method, dishes: [])', s)
         self.assertIn('return Contract(text: text, ingredients: ingredients, method: method, dishes: dishes)', s)
 

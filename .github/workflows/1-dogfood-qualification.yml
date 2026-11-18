@@ -1,0 +1,1738 @@
+name: Dogfood Qualification
+
+on:
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: dogfood-qualification-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    uses: ./.github/workflows/classify-native-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
+
+  dogfood-qualification:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 60
+    env:
+      SCHEME: Ate
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Select Xcode 27.1
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: xcode-27-dogfood-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-27-dogfood-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            xcode-27-xcode-deriveddata-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project for exact commit
+        run: |
+          BASE=$(grep -E '^\s*MARKETING_VERSION' project.yml | head -1 | sed -E 's/.*"(.*)".*/\1/')
+          VERSION="$(echo "$BASE" | cut -d. -f1-2).${GITHUB_RUN_NUMBER}"
+          sed -i '' -E "s/^( *MARKETING_VERSION: ).*/\1\"$VERSION\"/; s/^( *CURRENT_PROJECT_VERSION: ).*/\1\"${GITHUB_RUN_NUMBER}\"/" project.yml
+          xcodegen generate
+          mkdir -p build
+          xcodebuild -version
+          echo "Qualification commit: $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Python scripts are tested once on the exact candidate head in Compile.
+      # Separate merge-ref Python coverage is intentionally removed.
+
+      - name: Select iPhone 18 Pro simulator (iOS 27.0)
+        id: select_simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > /tmp/available-simulators.json
+          xcodebuild -project Ate.xcodeproj -scheme "$SCHEME" -showdestinations > /tmp/xcode-destinations.txt 2>&1 || {
+            cat /tmp/xcode-destinations.txt
+            exit 1
+          }
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          if ! grep -Fq "id:$SIM_ID" /tmp/xcode-destinations.txt; then
+            echo "ERROR: selected iPhone 18 Pro is not listed as an Ate scheme destination."
+            cat /tmp/xcode-destinations.txt
+            exit 1
+          fi
+          echo "id=$SIM_ID" >> "$GITHUB_OUTPUT"
+          echo "Selected simulator: $SIM_ID"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+
+      # Full AteTests executes once in Compile/build-nutrition on the exact head.
+      # This workflow qualifies critical flows only, not the removed unit execution.
+      - name: Required critical flows and Library popup journeys
+        id: critical_flows
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          # QA1 flow = the exact three cases below; keep in sync with QA1_REQUIRED_CASES
+          # in scripts/qa-summary.py and scripts/release/readiness.py.
+          xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/KeyFlowsQATests/testQA1_AddFromURL_JSONLD \
+            -only-testing:AteUITests/KeyFlowsQATests/testQA1_AddFromURL_InstagramCaption \
+            -only-testing:AteUITests/KeyFlowsQATests/testQA1_AddFromURL_HiddenCaptionFallback \
+            -only-testing:AteUITests/KeyFlowsQATests/testQA2_AddFromPhoto \
+            -only-testing:AteUITests/KeyFlowsQATests/testQA3_GenerateAndEdit \
+            -only-testing:AteUITests/KeyFlowsQATests/testQA4_Save \
+            -only-testing:AteUITests/KeyFlowsQATests/testQA5_Share \
+            -only-testing:AteUITests/KeyFlowsQATests/testQA6_OpenShared \
+            -only-testing:AteUITests/KeyFlowsQATests/testQA8_Timers \
+            -only-testing:AteUITests/AteUITests/test28_GroupSortAndMenus \
+            -only-testing:AteUITests/AteUITests/test29_ReorderMyOrder \
+            -only-testing:AteUITests/AteUITests/test29b_ReorderMyOrderActions \
+            -resultBundlePath build/DogfoodCriticalFlows.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > dogfood-critical-flows.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" dogfood-critical-flows.log || true; tail -100 dogfood-critical-flows.log; exit 1; }
+          total=$(sed -nE 's/^[[:space:]]*Executed ([0-9]+) tests?,.*/\1/p' dogfood-critical-flows.log | tail -1)
+          if ! [[ "$total" =~ ^[0-9]+$ ]] || [ "$total" -lt 12 ]; then
+            echo "::error::critical flow selection must execute at least twelve tests; got ${total:-missing}"
+            exit 1
+          fi
+          for test in test28_GroupSortAndMenus test29_ReorderMyOrder test29b_ReorderMyOrderActions; do
+            grep -qF "AteUITests $test]' passed" dogfood-critical-flows.log || { echo "::error::missing named Library pass: $test"; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" dogfood-critical-flows.log | tail -50
+
+      - name: Retain selected Group28 startup liveness
+        if: always() && steps.critical_flows.outcome != 'skipped' && steps.select_simulator.outputs.id != ''
+        env:
+          SIM_ID: ${{ steps.select_simulator.outputs.id }}
+        run: |
+          mkdir -p dogfood-startup-liveness
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > dogfood-startup-liveness/copy-utc.txt
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> dogfood-startup-liveness/container-errors.txt); then
+            found=0
+            for evidence in "$data_container"/Library/Caches/startup-liveness-*.txt; do
+              if [ -f "$evidence" ]; then
+                cp "$evidence" dogfood-startup-liveness/
+                found=1
+              fi
+            done
+            if [ "$found" -eq 0 ]; then
+              echo 'No startup samples retained; liveness unverified.' > dogfood-startup-liveness/missing.txt
+            fi
+          fi
+
+      - name: Retain UI-test photo-import phase diagnostics
+        if: always() && steps.critical_flows.outcome != 'skipped' && steps.select_simulator.outputs.id != ''
+        env:
+          SIM_ID: ${{ steps.select_simulator.outputs.id }}
+        run: |
+          # Fixed phase names and elapsed milliseconds only, emitted solely with -UITesting.
+          # This is collection, not a retry or a qualification outcome.
+          xcrun simctl spawn "$SIM_ID" log show --last 60m --style compact --info --debug \
+            --predicate 'subsystem == "com.melusik.ate" AND category == "photo-import-phases"' \
+            > dogfood-photo-import-phases.log 2>&1 || true
+
+      - name: Diagnose quarantined Settings/account-sync flow (#76)
+        id: sync_quarantine
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/KeyFlowsQATests/testQA7_SyncAccount \
+            -resultBundlePath build/DogfoodSyncQuarantine.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            CODE_SIGNING_ALLOWED=NO > dogfood-sync-quarantine.log 2>&1 || { grep -n -B 6 -A 10 -E "error:|failed|XCTAssert|Testing failed" dogfood-sync-quarantine.log || true; tail -80 dogfood-sync-quarantine.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" dogfood-sync-quarantine.log | tail -20
+
+      - name: Summarize qualification and quarantine honestly
+        if: always()
+        env:
+          CRITICAL_FLOWS_OUTCOME: ${{ steps.critical_flows.outcome }}
+          SYNC_QUARANTINE_OUTCOME: ${{ steps.sync_quarantine.outcome }}
+        run: |
+          {
+            echo '### Dogfood qualification status'
+            echo
+            echo "- Commit: \`$(git rev-parse HEAD)\`."
+            echo '- Unit tests: NOT RUN HERE. Required separately by Compile/build-nutrition on the exact candidate head.'
+            printf '%s\n' "- Critical flows and Library popup journeys: ${CRITICAL_FLOWS_OUTCOME:-unknown}."
+            echo '- Required here: seven non-quarantined critical flows plus named Library group/sort/menu and reorder journeys. The full unit suite remains required by Compile.'
+            echo '- Settings/account-sync (`testQA7_SyncAccount`, issue #76): **QUARANTINED / NOT A QUALIFICATION PASS**.'
+            printf '%s\n' "- Diagnostic execution outcome: ${SYNC_QUARANTINE_OUTCOME:-not run}; this never changes the quarantine status."
+            echo '- Full UI shards and backend E2E remain part of deliberate pre-production validation.'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload dogfood qualification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dogfood-qualification-${{ github.run_number }}
+          path: |
+            dogfood-critical-flows.log
+            dogfood-startup-liveness
+            dogfood-photo-import-phases.log
+            dogfood-sync-quarantine.log
+            build/DogfoodCriticalFlows.xcresult
+            build/DogfoodSyncQuarantine.xcresult
+          if-no-files-found: warn
+
+
+  ci-telemetry:
+    name: Export CI timing telemetry
+    if: always()
+    needs: [dogfood-qualification]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - name: Collect workflow and step timings
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci-telemetry.py
+      - name: Upload CI telemetry report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-telemetry-${{ github.run_number }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ate-ci-telemetry.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  folded-journeys:
+    name: Folded journeys (retired per-issue lanes)
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 45
+    env:
+      SCHEME: Ate
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Select Xcode 27.1
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v6
+        with:
+          path: build/DerivedData
+          key: xcode-27-folded-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-27-folded-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            xcode-27-xcode-deriveddata-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project for exact commit
+        run: |
+          BASE=$(grep -E '^\s*MARKETING_VERSION' project.yml | head -1 | sed -E 's/.*"(.*)".*/\1/')
+          VERSION="$(echo "$BASE" | cut -d. -f1-2).${GITHUB_RUN_NUMBER}"
+          sed -i '' -E "s/^( *MARKETING_VERSION: ).*/\1\"$VERSION\"/; s/^( *CURRENT_PROJECT_VERSION: ).*/\1\"${GITHUB_RUN_NUMBER}\"/" project.yml
+          xcodegen generate
+          mkdir -p build
+          xcodebuild -version
+          echo "Qualification commit: $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Select iPhone 18 Pro simulator (iOS 27.0)
+        id: select_simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > /tmp/available-simulators.json
+          xcodebuild -project Ate.xcodeproj -scheme "$SCHEME" -showdestinations > /tmp/xcode-destinations.txt 2>&1 || {
+            cat /tmp/xcode-destinations.txt
+            exit 1
+          }
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          if ! grep -Fq "id:$SIM_ID" /tmp/xcode-destinations.txt; then
+            echo "ERROR: selected iPhone 18 Pro is not listed as an Ate scheme destination."
+            cat /tmp/xcode-destinations.txt
+            exit 1
+          fi
+          echo "id=$SIM_ID" >> "$GITHUB_OUTPUT"
+          echo "Selected simulator: $SIM_ID"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+
+      - name: Build for testing (iOS simulator)
+        id: build
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO > build-for-testing.log 2>&1 || { grep -n -B 8 -A 12 -E "error:" build-for-testing.log || true; tail -100 build-for-testing.log; exit 1; }
+          grep -E "warning:" build-for-testing.log | sort -u | tail -30 || true
+
+      # Folded group 1 (from retired shopping-edit-undo-qualification.yml): the lane's
+      # run, gates, screenshot evidence and budgets below are carried over unchanged.
+      - name: Shopping edit/undo UI journeys (#72)
+        id: ui_journeys
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          # Clean process so launch arguments are real (same rationale as other UI shards).
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/ShoppingEditUndoUITests \
+            -resultBundlePath build/ShoppingEditUndoUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > shopping-edit-undo-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Shopping edit/undo UI journeys failed (xcodebuild exit $status). Exact diagnostics follow; log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" shopping-edit-undo-ui.log || true
+            tail -n 100 shopping-edit-undo-ui.log
+            exit "$status"
+          fi
+          # Hard gate: a green selection that ran nothing is a failure, and every named
+          # journey must appear with its own pass line in the log.
+          # testTimelyUndoRestoreWithinProductionWindow verdict semantics: GREEN proves
+          # the production-config (5s window) restore path via a real UI tap - not human
+          # usability/responsiveness. A RED journey is INCONCLUSIVE by default: runner
+          # "Synthesize event" completion timestamps bound but do not equal the real
+          # removal/expiry/delivery instants, so read the raw t= bounds plus visible
+          # toast/item state before classifying; an app defect needs app-owned timing
+          # corroboration that the tap landed before expiry.
+          if grep -q "Executed 0 tests" shopping-edit-undo-ui.log; then echo "::error::shopping edit/undo selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "ShoppingEditUndoUITests testEditSaveCancelAndInvalidQuantityJourneys]' passed" \
+            "ShoppingEditUndoUITests testBatchUndoRestoresBothRemovalsInOriginalOrder]' passed" \
+            "ShoppingEditUndoUITests testTimelyUndoRestoreWithinProductionWindow]' passed" \
+            "ShoppingEditUndoUITests testUndoWindowExpiryFinalizesRemoval]' passed"; do
+            grep -qF "$evidence" shopping-edit-undo-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 shopping-edit-undo-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" shopping-edit-undo-ui.log | tail -20
+
+      - name: Export journey screenshots
+        if: always()
+        run: |
+          # Export whatever the run produced, success or failure: partial captures are
+          # failure diagnostics and the raw xcresult is always retained alongside.
+          mkdir -p build/ShoppingEditUndoUIAttachments
+          if [ -d build/ShoppingEditUndoUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/ShoppingEditUndoUITests.xcresult --output-path build/ShoppingEditUndoUIAttachments
+          fi
+          find build/ShoppingEditUndoUIAttachments -type f | sort | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify journey screenshot evidence
+        if: always() && steps.ui_journeys.outcome == 'success'
+        run: |
+          # Hard gate: each of the six named journey screenshots must resolve to a real
+          # nonempty PNG on disk. Association: name-matched exported file first, then the
+          # xcresult export manifest (humanReadableName -> fileName). Unknown manifest
+          # structure, a missing file, or a zero-byte/non-PNG match all fail the run.
+          set -euo pipefail
+          DIR=build/ShoppingEditUndoUIAttachments
+          MANIFEST="$DIR/manifest.json"
+          [ -d "$DIR" ] || { echo "::error::attachment export directory missing: $DIR"; exit 1; }
+          fail() {
+            echo "::error::$1"
+            echo "--- exported files ---"
+            find "$DIR" -type f -exec ls -l {} + 2>/dev/null || true
+            if [ -f "$MANIFEST" ]; then echo "--- manifest.json ---"; head -c 4000 "$MANIFEST"; echo; fi
+            exit 1
+          }
+          png_ok() {
+            [ -f "$1" ] && [ -s "$1" ] || return 1
+            [ "$(od -An -tx1 -N8 "$1" | tr -d ' \n')" = "89504e470d0a1a0a" ]
+          }
+          resolve_shot() {
+            local shot="$1" f
+            f=$(find "$DIR" -type f -name "*${shot}*" | head -n 1)
+            if [ -n "$f" ]; then echo "$f"; return 0; fi
+            [ -f "$MANIFEST" ] || return 1
+            python3 - "$MANIFEST" "$shot" "$DIR" <<'PYMAP'
+          import json, os, sys
+          manifest, shot, outdir = sys.argv[1], sys.argv[2], sys.argv[3]
+          try:
+              top = json.load(open(manifest))
+          except Exception:
+              sys.exit(2)
+          if not isinstance(top, list):
+              sys.exit(2)
+          # Observed manifest shape (run 41775045591): a list of payload groups, each with an
+          # "attachments" list of {exportedFileName, suggestedHumanReadableName, ...}; suggested
+          # names carry an "_0_<uuid>" suffix and extension. Accept a flat list too; anything
+          # else fails closed.
+          atts = []
+          for e in top:
+              if not isinstance(e, dict):
+                  continue
+              inner = e.get("attachments")
+              atts.extend(inner) if isinstance(inner, list) else atts.append(e)
+          for a in atts:
+              if not isinstance(a, dict):
+                  continue
+              name = a.get("suggestedHumanReadableName") or a.get("humanReadableName") or ""
+              fname = a.get("exportedFileName") or a.get("fileName") or a.get("attachedFileName") or ""
+              base = name[:-4] if name.lower().endswith(".png") else name
+              if (base == shot or base.startswith(shot + "_0_")) and fname:
+                  print(os.path.join(outdir, fname))
+                  sys.exit(0)
+          sys.exit(1)
+          PYMAP
+          }
+          for shot in \
+            edit-save-row-renamed \
+            edit-invalid-quantity-save-disabled \
+            batch-undo-toast-two-items \
+            batch-undo-restored-order \
+            timely-undo-restored \
+            undo-expired-removal-final; do
+            set +e
+            file=$(resolve_shot "$shot")
+            rc=$?
+            set -e
+            case $rc in
+              0) ;;
+              1) fail "missing screenshot evidence: $shot" ;;
+              *) fail "unrecognised export manifest structure; cannot associate screenshot: $shot" ;;
+            esac
+            png_ok "$file" || fail "screenshot for $shot is not a nonempty PNG: $file"
+            echo "verified $shot -> $file ($(stat -f%z "$file") bytes)"
+          done
+
+
+      # Folded group 2 (from retired shopping-completion-qualification.yml): the UI journey,
+      # gates and screenshot evidence carried over unchanged; shares the job's single build.
+      # The lane's 3 LogicTests unit selections retire into Compile's full exact-head AteTests
+      # suite (approved journal-foundation precedent); unit selections never run in Dogfood.
+      - name: Shopping completion UI journey (folded group 2)
+        id: journal_journeys
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/ShoppingEditUndoUITests/testProgressShowsBoughtAndMoveAllBackReturnsThemToList \
+            -resultBundlePath build/JournalMenuUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > journal-menu-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Shopping completion journeys failed (xcodebuild exit $status). Log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" journal-menu-ui.log || true
+            tail -n 100 journal-menu-ui.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" journal-menu-ui.log; then echo "::error::shopping completion selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "ShoppingEditUndoUITests testProgressShowsBoughtAndMoveAllBackReturnsThemToList]' passed"; do
+            grep -qF "$evidence" journal-menu-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 journal-menu-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" journal-menu-ui.log | tail -30
+
+
+      - name: Export journey screenshots (folded group 2)
+        if: always()
+        run: |
+          # Export whatever the runs produced, success or failure: partial captures are
+          # failure diagnostics and the raw xcresults are always retained alongside.
+          # Each result bundle exports into its OWN directory so a screenshot can only
+          # satisfy a gate from the test group that was supposed to capture it.
+          mkdir -p build/MenuUIAttachments/journal
+          if [ -d build/JournalMenuUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/JournalMenuUITests.xcresult --output-path build/MenuUIAttachments/journal
+          fi
+          find build/MenuUIAttachments -type f | sort | tee -a "$GITHUB_STEP_SUMMARY"
+
+
+      - name: Verify journey screenshot evidence (folded group 2)
+        if: always() && steps.journal_journeys.outcome == 'success'
+        run: |
+          # Hard gate: every named journey screenshot must resolve, INSIDE ITS OWN
+          # SCOPE DIRECTORY, to a real decodable PNG with nonzero dimensions.
+          # Resolution is manifest-first with EXACT logical-name matching only
+          # (base == shot, or the observed "<shot>_0_<uuid>" export suffix) - never
+          # substring, so "search-results-menu" can never be satisfied by
+          # "search-results-menu-reset". Unknown manifest structure fails closed.
+          set -euo pipefail
+          ROOT=build/MenuUIAttachments
+          fail() {
+            echo "::error::$1"
+            echo "--- exported files ---"
+            find "$ROOT" -type f -exec ls -l {} + 2>/dev/null || true
+            for M in "$ROOT"/*/manifest.json; do [ -f "$M" ] && { echo "--- $M ---"; head -c 4000 "$M"; echo; }; done
+            exit 1
+          }
+          png_ok() {
+            # Signature alone is not enough (a header-only fixture would pass it):
+            # require sips to decode the image and report nonzero dimensions.
+            [ -f "$1" ] && [ -s "$1" ] || return 1
+            [ "$(od -An -tx1 -N8 "$1" | tr -d ' \n')" = "89504e470d0a1a0a" ] || return 1
+            local w h
+            w=$(sips -g pixelWidth "$1" 2>/dev/null | awk '/pixelWidth/ {print $2}')
+            h=$(sips -g pixelHeight "$1" 2>/dev/null | awk '/pixelHeight/ {print $2}')
+            [ "${w:-0}" -gt 0 ] 2>/dev/null && [ "${h:-0}" -gt 0 ] 2>/dev/null
+          }
+          resolve_shot() {
+            # $1 = logical shot name, $2 = scope directory. Manifest-first, exact names only.
+            local shot="$1" DIR="$2" MANIFEST="$2/manifest.json" f
+            if [ -f "$MANIFEST" ]; then
+              python3 - "$MANIFEST" "$shot" "$DIR" <<'PYMAP'
+          import json, os, sys
+          manifest, shot, outdir = sys.argv[1], sys.argv[2], sys.argv[3]
+          real_out = os.path.realpath(outdir)
+          def confined(fname):
+              # The joined export path must stay inside the scope directory:
+              # reject ../ escapes, absolute paths and symlink breakouts.
+              try:
+                  cand = os.path.realpath(os.path.join(outdir, fname))
+              except Exception:
+                  return None
+              try:
+                  if os.path.commonpath([cand, real_out]) != real_out:
+                      return None
+              except ValueError:
+                  return None
+              return cand if os.path.isfile(cand) else None
+          try:
+              top = json.load(open(manifest))
+          except Exception:
+              sys.exit(2)
+          if not isinstance(top, list):
+              sys.exit(2)
+          # Observed manifest shape (run 41775045591): a list of payload groups, each with an
+          # "attachments" list of {exportedFileName, suggestedHumanReadableName, ...}; suggested
+          # names carry an "_0_<uuid>" suffix and extension. Accept a flat list too; anything
+          # else fails closed.
+          atts = []
+          for e in top:
+              if not isinstance(e, dict):
+                  continue
+              inner = e.get("attachments")
+              atts.extend(inner) if isinstance(inner, list) else atts.append(e)
+          for a in atts:
+              if not isinstance(a, dict):
+                  continue
+              name = a.get("suggestedHumanReadableName") or a.get("humanReadableName") or ""
+              fname = a.get("exportedFileName") or a.get("fileName") or a.get("attachedFileName") or ""
+              base = name[:-4] if name.lower().endswith(".png") else name
+              if base == shot or base.startswith(shot + "_0_"):
+                  cand = confined(fname) if fname else None
+                  if cand:
+                      print(cand)
+                      sys.exit(0)
+                  sys.exit(1)
+          sys.exit(1)
+          PYMAP
+              return $?
+            fi
+            # No manifest: exact-stem filename fallback only (never substring).
+            for f in "$DIR/$shot.png" "$DIR/${shot}_0_"*.png; do
+              [ -f "$f" ] && { echo "$f"; return 0; }
+            done
+            return 1
+          }
+          verify_scope() {
+            local sub="$1"; shift
+            [ -d "$ROOT/$sub" ] || fail "attachment export directory missing: $ROOT/$sub"
+            local shot file rc
+            for shot in "$@"; do
+              set +e
+              file=$(resolve_shot "$shot" "$ROOT/$sub")
+              rc=$?
+              set -e
+              case $rc in
+                0) ;;
+                1) fail "missing screenshot evidence: $sub/$shot" ;;
+                *) fail "unrecognised export manifest structure; cannot associate screenshot: $sub/$shot" ;;
+              esac
+              png_ok "$file" || fail "screenshot for $sub/$shot is not a decodable PNG with nonzero dimensions: $file"
+              echo "verified $sub/$shot -> $file ($(stat -f%z "$file") bytes)"
+            done
+          }
+          verify_scope journal \
+            shopping-progress-one-bought \
+            shopping-moved-back-toast
+
+
+      - name: Record qualification metadata (folded group 2)
+        if: always()
+        run: |
+          {
+            echo "event_name=$GITHUB_EVENT_NAME"
+            echo "pr_head_sha=${{ github.event.pull_request.head.sha || '' }}"
+            echo "executed_sha=$(git rev-parse HEAD)"
+            echo "execution_target=actual-head"
+            echo "pr_number=${{ github.event.pull_request.number || '' }}"
+            echo "base_ref=${{ github.event.pull_request.base.ref || github.ref_name }}"
+            echo "ref=$GITHUB_REF"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "simulator_id=${{ steps.select_simulator.outputs.id }}"
+            echo "build_outcome=${{ steps.build.outcome }}"
+            echo "journal_journeys_outcome=${{ steps.journal_journeys.outcome }}"
+            echo "collected_at=$(date -u +%FT%TZ)"
+          } | tee qualification-metadata-shopping-completion.txt
+          mkdir -p build/MenuUIAttachments
+
+
+
+      # Folded group 3 (from retired journal-menu-qualification.yml): 12 UI journeys with
+      # the lane's gates carried over; the ManualJournalTests unit class moved to
+      # scripts/full-unit-required.txt (Reviewer unit ruling). No strict-concurrency
+      # flag existed in this lane. Rename map in the packet README.
+      - name: Journal root-action UI journeys (folded group 3)
+        id: journal_menu_g3
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/AteUITests/testTab_AccessoryAndSearchTab \
+            -only-testing:AteUITests/AteUITests/testTab_TimerAccessoryKeepsAddControlClear \
+            -only-testing:AteUITests/AteUITests/testJournalRootPrimaryActionAndInsightsRoute \
+            -only-testing:AteUITests/CookingTrackerEntryUITests/testInsightsHasDedicatedTabEntryPoint \
+            -only-testing:AteUITests/CookingTrackerEntryUITests/testLibraryShortcutOpensInsightsHubRoot \
+            -only-testing:AteUITests/CookingTrackerEntryUITests/testMonthNavigationAndFutureMonthRestriction \
+            -only-testing:AteUITests/CookingTrackerEntryUITests/testSelectingTodayShowsDayDetailsAndExplicitEmptyState \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testWeeklyCookingInsightShowsEvidenceAndNavigatesToTracker \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testInsightCanBeResolvedAndStaysSuppressedAfterRefresh \
+            -only-testing:AteUITests/AteUITests/test06_CookMode \
+            -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay \
+            -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay \
+            -resultBundlePath build/JournalRootMenuUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > journal-root-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Journal menu journeys failed (xcodebuild exit $status). Log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" journal-root-ui.log || true
+            tail -n 100 journal-root-ui.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" journal-root-ui.log; then echo "::error::journal menu selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "AteUITests testTab_AccessoryAndSearchTab]' passed" \
+            "AteUITests testTab_TimerAccessoryKeepsAddControlClear]' passed" \
+            "AteUITests testJournalRootPrimaryActionAndInsightsRoute]' passed" \
+            "CookingTrackerEntryUITests testInsightsHasDedicatedTabEntryPoint]' passed" \
+            "CookingTrackerEntryUITests testLibraryShortcutOpensInsightsHubRoot]' passed" \
+            "CookingTrackerEntryUITests testMonthNavigationAndFutureMonthRestriction]' passed" \
+            "CookingTrackerEntryUITests testSelectingTodayShowsDayDetailsAndExplicitEmptyState]' passed" \
+            "InsightsAcceptanceUITests testWeeklyCookingInsightShowsEvidenceAndNavigatesToTracker]' passed" \
+            "InsightsAcceptanceUITests testInsightCanBeResolvedAndStaysSuppressedAfterRefresh]' passed" \
+            "AteUITests test06_CookMode]' passed" \
+            "AteUITests testCookModeExitDoesNotRecordCookingDay]' passed" \
+            "AteUITests testCookModeCompletionRecordsCookingDay]' passed"; do
+            grep -qF "$evidence" journal-root-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 journal-root-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" journal-root-ui.log | tail -30
+
+
+      - name: Export journey screenshots (folded group 3)
+        if: always()
+        run: |
+          # Export whatever the runs produced, success or failure: partial captures are
+          # failure diagnostics and the raw xcresults are always retained alongside.
+          # Each result bundle exports into its OWN directory so a screenshot can only
+          # satisfy a gate from the test group that was supposed to capture it.
+          mkdir -p build/MenuUIAttachments/journal-root
+          if [ -d build/JournalRootMenuUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/JournalRootMenuUITests.xcresult --output-path build/MenuUIAttachments/journal-root
+          fi
+          find build/MenuUIAttachments -type f | sort | tee -a "$GITHUB_STEP_SUMMARY"
+
+
+      - name: Verify journey screenshot evidence (folded group 3)
+        if: always() && steps.journal_menu_g3.outcome == 'success'
+        run: |
+          # Hard gate: every named journey screenshot must resolve, INSIDE ITS OWN
+          # SCOPE DIRECTORY, to a real decodable PNG with nonzero dimensions.
+          # Resolution is manifest-first with EXACT logical-name matching only
+          # (base == shot, or the observed "<shot>_0_<uuid>" export suffix) - never
+          # substring, so "search-results-menu" can never be satisfied by
+          # "search-results-menu-reset". Unknown manifest structure fails closed.
+          set -euo pipefail
+          ROOT=build/MenuUIAttachments
+          fail() {
+            echo "::error::$1"
+            echo "--- exported files ---"
+            find "$ROOT" -type f -exec ls -l {} + 2>/dev/null || true
+            for M in "$ROOT"/*/manifest.json; do [ -f "$M" ] && { echo "--- $M ---"; head -c 4000 "$M"; echo; }; done
+            exit 1
+          }
+          png_ok() {
+            # Signature alone is not enough (a header-only fixture would pass it):
+            # require sips to decode the image and report nonzero dimensions.
+            [ -f "$1" ] && [ -s "$1" ] || return 1
+            [ "$(od -An -tx1 -N8 "$1" | tr -d ' \n')" = "89504e470d0a1a0a" ] || return 1
+            local w h
+            w=$(sips -g pixelWidth "$1" 2>/dev/null | awk '/pixelWidth/ {print $2}')
+            h=$(sips -g pixelHeight "$1" 2>/dev/null | awk '/pixelHeight/ {print $2}')
+            [ "${w:-0}" -gt 0 ] 2>/dev/null && [ "${h:-0}" -gt 0 ] 2>/dev/null
+          }
+          resolve_shot() {
+            # $1 = logical shot name, $2 = scope directory. Manifest-first, exact names only.
+            local shot="$1" DIR="$2" MANIFEST="$2/manifest.json" f
+            if [ -f "$MANIFEST" ]; then
+              python3 - "$MANIFEST" "$shot" "$DIR" <<'PYMAP'
+          import json, os, sys
+          manifest, shot, outdir = sys.argv[1], sys.argv[2], sys.argv[3]
+          real_out = os.path.realpath(outdir)
+          def confined(fname):
+              # The joined export path must stay inside the scope directory:
+              # reject ../ escapes, absolute paths and symlink breakouts.
+              try:
+                  cand = os.path.realpath(os.path.join(outdir, fname))
+              except Exception:
+                  return None
+              try:
+                  if os.path.commonpath([cand, real_out]) != real_out:
+                      return None
+              except ValueError:
+                  return None
+              return cand if os.path.isfile(cand) else None
+          try:
+              top = json.load(open(manifest))
+          except Exception:
+              sys.exit(2)
+          if not isinstance(top, list):
+              sys.exit(2)
+          # Observed manifest shape (run 41775045591): a list of payload groups, each with an
+          # "attachments" list of {exportedFileName, suggestedHumanReadableName, ...}; suggested
+          # names carry an "_0_<uuid>" suffix and extension. Accept a flat list too; anything
+          # else fails closed.
+          atts = []
+          for e in top:
+              if not isinstance(e, dict):
+                  continue
+              inner = e.get("attachments")
+              atts.extend(inner) if isinstance(inner, list) else atts.append(e)
+          for a in atts:
+              if not isinstance(a, dict):
+                  continue
+              name = a.get("suggestedHumanReadableName") or a.get("humanReadableName") or ""
+              fname = a.get("exportedFileName") or a.get("fileName") or a.get("attachedFileName") or ""
+              base = name[:-4] if name.lower().endswith(".png") else name
+              if base == shot or base.startswith(shot + "_0_"):
+                  cand = confined(fname) if fname else None
+                  if cand:
+                      print(cand)
+                      sys.exit(0)
+                  sys.exit(1)
+          sys.exit(1)
+          PYMAP
+              return $?
+            fi
+            # No manifest: exact-stem filename fallback only (never substring).
+            for f in "$DIR/$shot.png" "$DIR/${shot}_0_"*.png; do
+              [ -f "$f" ] && { echo "$f"; return 0; }
+            done
+            return 1
+          }
+          verify_scope() {
+            local sub="$1"; shift
+            [ -d "$ROOT/$sub" ] || fail "attachment export directory missing: $ROOT/$sub"
+            local shot file rc
+            for shot in "$@"; do
+              set +e
+              file=$(resolve_shot "$shot" "$ROOT/$sub")
+              rc=$?
+              set -e
+              case $rc in
+                0) ;;
+                1) fail "missing screenshot evidence: $sub/$shot" ;;
+                *) fail "unrecognised export manifest structure; cannot associate screenshot: $sub/$shot" ;;
+              esac
+              png_ok "$file" || fail "screenshot for $sub/$shot is not a decodable PNG with nonzero dimensions: $file"
+              echo "verified $sub/$shot -> $file ($(stat -f%z "$file") bytes)"
+            done
+          }
+          verify_scope journal-root \
+            tab-accessory \
+            journal-root-new-entry-action \
+            journal-root-insights-route \
+            insights-cooking-history-route
+
+
+      - name: Record qualification metadata (folded group 3)
+        if: always()
+        run: |
+          {
+            echo "event_name=$GITHUB_EVENT_NAME"
+            echo "pr_head_sha=${{ github.event.pull_request.head.sha || '' }}"
+            echo "executed_sha=$(git rev-parse HEAD)"
+            echo "execution_target=actual-head"
+            echo "pr_number=${{ github.event.pull_request.number || '' }}"
+            echo "base_ref=${{ github.event.pull_request.base.ref || github.ref_name }}"
+            echo "ref=$GITHUB_REF"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "simulator_id=${{ steps.select_simulator.outputs.id }}"
+            echo "build_outcome=${{ steps.build.outcome }}"
+            echo "journal_menu_g3_outcome=${{ steps.journal_menu_g3.outcome }}"
+            echo "collected_at=$(date -u +%FT%TZ)"
+          } | tee qualification-metadata-journal-menu.txt
+          mkdir -p build/MenuUIAttachments
+
+
+      # Folded group 4 (from retired menu-qualification.yml): 4 UI journey steps with
+      # every gate byte-carried (120/300 per step, named passes, screenshot
+      # export/validation in own scope dirs, failure evidence). No unit content in
+      # this lane (AteUITests only); no strict-concurrency flag. Metadata truthfulness:
+      # head_sha=git rev-parse HEAD + execution_target=actual-head. Rename map in README.
+      - name: Shopping options menu and edit/undo UI journeys (folded group 4)
+        id: shopping_journeys
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          # Clean process so launch arguments are real (same rationale as other UI shards).
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/AteUITests/test07_ShoppingList \
+            -only-testing:AteUITests/ShoppingEditUndoUITests \
+            -resultBundlePath build/MenuShoppingUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > menu-shopping-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Shopping menu UI journeys failed (xcodebuild exit $status). Exact diagnostics follow; log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" menu-shopping-ui.log || true
+            tail -n 100 menu-shopping-ui.log
+            exit "$status"
+          fi
+          # Hard gate: a green selection that ran nothing is a failure, and every named
+          # journey must appear with its own pass line in the log. A named selector that
+          # matches nothing produces no pass line, so a missing test fails closed here.
+          if grep -q "Executed 0 tests" menu-shopping-ui.log; then echo "::error::shopping menu selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "AteUITests test07_ShoppingList]' passed" \
+            "ShoppingEditUndoUITests testEditSaveCancelAndInvalidQuantityJourneys]' passed" \
+            "ShoppingEditUndoUITests testBatchUndoRestoresBothRemovalsInOriginalOrder]' passed" \
+            "ShoppingEditUndoUITests testTimelyUndoRestoreWithinProductionWindow]' passed" \
+            "ShoppingEditUndoUITests testUndoWindowExpiryFinalizesRemoval]' passed"; do
+            grep -qF "$evidence" menu-shopping-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 menu-shopping-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" menu-shopping-ui.log | tail -20
+
+      - name: Search results and Library menu UI journeys (folded group 4)
+        id: search_journeys
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/AteUITests/testSearchResultsOptionsMenu \
+            -only-testing:AteUITests/AteUITests/test28_GroupSortAndMenus \
+            -only-testing:AteUITests/AteUITests/test29_ReorderMyOrder \
+            -only-testing:AteUITests/AteUITests/test29b_ReorderMyOrderActions \
+            -resultBundlePath build/MenuSearchUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > menu-search-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Search/Library menu UI journeys failed (xcodebuild exit $status). Exact diagnostics follow; log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" menu-search-ui.log || true
+            tail -n 100 menu-search-ui.log
+            exit "$status"
+          fi
+          # Same fail-closed rule: no pass line, no pass.
+          if grep -q "Executed 0 tests" menu-search-ui.log; then echo "::error::search/library menu selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "AteUITests testSearchResultsOptionsMenu]' passed" \
+            "AteUITests test28_GroupSortAndMenus]' passed" \
+            "AteUITests test29_ReorderMyOrder]' passed" \
+            "AteUITests test29b_ReorderMyOrderActions]' passed"; do
+            grep -qF "$evidence" menu-search-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 menu-search-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" menu-search-ui.log | tail -20
+
+      - name: Journal action menu captures (folded group 4)
+        id: journal_menus
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/JournalMenuCaptureUITests \
+            -resultBundlePath build/MenuJournalUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > menu-journal-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Journal menu captures failed (xcodebuild exit $status). Exact diagnostics follow; log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" menu-journal-ui.log || true
+            tail -n 100 menu-journal-ui.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" menu-journal-ui.log; then echo "::error::journal menu selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "JournalMenuCaptureUITests testJournalDetailMoreMenuOpens]' passed" \
+            "JournalMenuCaptureUITests testInsightsEntryContextMenuOpens]' passed"; do
+            grep -qF "$evidence" menu-journal-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 menu-journal-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" menu-journal-ui.log | tail -20
+
+      - name: Nutrition production controls capture (folded group 4)
+        id: nutrition_controls
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/NutritionProductionControlsUITests \
+            -resultBundlePath build/MenuNutritionUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > menu-nutrition-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Nutrition production controls capture failed (xcodebuild exit $status). Exact diagnostics follow; log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" menu-nutrition-ui.log || true
+            tail -n 100 menu-nutrition-ui.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" menu-nutrition-ui.log; then echo "::error::nutrition controls selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "NutritionProductionControlsUITests testExistingFoodDiaryControlsAndSourceMenu]' passed"; do
+            grep -qF "$evidence" menu-nutrition-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 menu-nutrition-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" menu-nutrition-ui.log | tail -20
+
+      - name: Export journey screenshots (folded group 4)
+        if: always()
+        run: |
+          # Export whatever the runs produced, success or failure: partial captures are
+          # failure diagnostics and the raw xcresults are always retained alongside.
+          # Each result bundle exports into its OWN directory so a screenshot can only
+          # satisfy a gate from the test group that was supposed to capture it.
+          mkdir -p build/MenuUIAttachments/shopping build/MenuUIAttachments/search build/MenuUIAttachments/journalmenus build/MenuUIAttachments/nutrition
+          if [ -d build/MenuShoppingUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/MenuShoppingUITests.xcresult --output-path build/MenuUIAttachments/shopping
+          fi
+          if [ -d build/MenuSearchUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/MenuSearchUITests.xcresult --output-path build/MenuUIAttachments/search
+          fi
+          if [ -d build/MenuJournalUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/MenuJournalUITests.xcresult --output-path build/MenuUIAttachments/journalmenus
+          fi
+          if [ -d build/MenuNutritionUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/MenuNutritionUITests.xcresult --output-path build/MenuUIAttachments/nutrition
+          fi
+          find build/MenuUIAttachments -type f | sort | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify journey screenshot evidence (folded group 4)
+        if: always() && steps.shopping_journeys.outcome == 'success' && steps.search_journeys.outcome == 'success' && steps.journal_menus.outcome == 'success' && steps.nutrition_controls.outcome == 'success'
+        run: |
+          # Hard gate: every named journey screenshot must resolve, INSIDE ITS OWN
+          # SCOPE DIRECTORY, to a real decodable PNG with nonzero dimensions.
+          # Resolution is manifest-first with EXACT logical-name matching only
+          # (base == shot, or the observed "<shot>_0_<uuid>" export suffix) - never
+          # substring, so "search-results-menu" can never be satisfied by
+          # "search-results-menu-reset". Unknown manifest structure fails closed.
+          set -euo pipefail
+          ROOT=build/MenuUIAttachments
+          fail() {
+            echo "::error::$1"
+            echo "--- exported files ---"
+            find "$ROOT" -type f -exec ls -l {} + 2>/dev/null || true
+            for M in "$ROOT"/*/manifest.json; do [ -f "$M" ] && { echo "--- $M ---"; head -c 4000 "$M"; echo; }; done
+            exit 1
+          }
+          png_ok() {
+            # Signature alone is not enough (a header-only fixture would pass it):
+            # require sips to decode the image and report nonzero dimensions.
+            [ -f "$1" ] && [ -s "$1" ] || return 1
+            [ "$(od -An -tx1 -N8 "$1" | tr -d ' \n')" = "89504e470d0a1a0a" ] || return 1
+            local w h
+            w=$(sips -g pixelWidth "$1" 2>/dev/null | awk '/pixelWidth/ {print $2}')
+            h=$(sips -g pixelHeight "$1" 2>/dev/null | awk '/pixelHeight/ {print $2}')
+            [ "${w:-0}" -gt 0 ] 2>/dev/null && [ "${h:-0}" -gt 0 ] 2>/dev/null
+          }
+          resolve_shot() {
+            # $1 = logical shot name, $2 = scope directory. Manifest-first, exact names only.
+            local shot="$1" DIR="$2" MANIFEST="$2/manifest.json" f
+            if [ -f "$MANIFEST" ]; then
+              python3 - "$MANIFEST" "$shot" "$DIR" <<'PYMAP'
+          import json, os, sys
+          manifest, shot, outdir = sys.argv[1], sys.argv[2], sys.argv[3]
+          real_out = os.path.realpath(outdir)
+          def confined(fname):
+              # The joined export path must stay inside the scope directory:
+              # reject ../ escapes, absolute paths and symlink breakouts.
+              try:
+                  cand = os.path.realpath(os.path.join(outdir, fname))
+              except Exception:
+                  return None
+              try:
+                  if os.path.commonpath([cand, real_out]) != real_out:
+                      return None
+              except ValueError:
+                  return None
+              return cand if os.path.isfile(cand) else None
+          try:
+              top = json.load(open(manifest))
+          except Exception:
+              sys.exit(2)
+          if not isinstance(top, list):
+              sys.exit(2)
+          # Observed manifest shape (run 41775045591): a list of payload groups, each with an
+          # "attachments" list of {exportedFileName, suggestedHumanReadableName, ...}; suggested
+          # names carry an "_0_<uuid>" suffix and extension. Accept a flat list too; anything
+          # else fails closed.
+          atts = []
+          for e in top:
+              if not isinstance(e, dict):
+                  continue
+              inner = e.get("attachments")
+              atts.extend(inner) if isinstance(inner, list) else atts.append(e)
+          for a in atts:
+              if not isinstance(a, dict):
+                  continue
+              name = a.get("suggestedHumanReadableName") or a.get("humanReadableName") or ""
+              fname = a.get("exportedFileName") or a.get("fileName") or a.get("attachedFileName") or ""
+              base = name[:-4] if name.lower().endswith(".png") else name
+              if base == shot or base.startswith(shot + "_0_"):
+                  cand = confined(fname) if fname else None
+                  if cand:
+                      print(cand)
+                      sys.exit(0)
+                  sys.exit(1)
+          sys.exit(1)
+          PYMAP
+              return $?
+            fi
+            # No manifest: exact-stem filename fallback only (never substring).
+            for f in "$DIR/$shot.png" "$DIR/${shot}_0_"*.png; do
+              [ -f "$f" ] && { echo "$f"; return 0; }
+            done
+            return 1
+          }
+          verify_scope() {
+            local sub="$1"; shift
+            [ -d "$ROOT/$sub" ] || fail "attachment export directory missing: $ROOT/$sub"
+            local shot file rc
+            for shot in "$@"; do
+              set +e
+              file=$(resolve_shot "$shot" "$ROOT/$sub")
+              rc=$?
+              set -e
+              case $rc in
+                0) ;;
+                1) fail "missing screenshot evidence: $sub/$shot" ;;
+                *) fail "unrecognised export manifest structure; cannot associate screenshot: $sub/$shot" ;;
+              esac
+              png_ok "$file" || fail "screenshot for $sub/$shot is not a decodable PNG with nonzero dimensions: $file"
+              echo "verified $sub/$shot -> $file ($(stat -f%z "$file") bytes)"
+            done
+          }
+          verify_scope shopping \
+            shopping-options-menu \
+            shopping-options-disabled \
+            shopping-clear-bought-cancel \
+            shopping-clear-bought-confirm \
+            shopping-clear-all-confirm \
+            shopping-after-clear-all \
+            edit-save-row-renamed \
+            edit-invalid-quantity-save-disabled \
+            batch-undo-toast-two-items \
+            batch-undo-restored-order \
+            timely-undo-restored \
+            undo-expired-removal-final
+          verify_scope search \
+            search-results-menu \
+            search-results-menu-selected \
+            search-results-menu-reset
+          verify_scope journalmenus \
+            journal-detail-menu-open \
+            insights-entry-context-menu
+          verify_scope nutrition \
+            production-food-diary-controls \
+            production-food-diary-log-form \
+            production-food-diary-source-menu
+
+      - name: Record qualification metadata (folded group 4)
+        if: always()
+        run: |
+          {
+            echo "head_sha=$(git rev-parse HEAD)"
+            echo "execution_target=actual-head"
+            echo "ref=$GITHUB_REF"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "simulator_id=${{ steps.select_simulator.outputs.id }}"
+            echo "build_outcome=${{ steps.build.outcome }}"
+            echo "shopping_journeys_outcome=${{ steps.shopping_journeys.outcome }}"
+            echo "search_journeys_outcome=${{ steps.search_journeys.outcome }}"
+            echo "journal_menus_outcome=${{ steps.journal_menus.outcome }}"
+            echo "nutrition_controls_outcome=${{ steps.nutrition_controls.outcome }}"
+            echo "collected_at=$(date -u +%FT%TZ)"
+          } | tee qualification-metadata-menu.txt
+          mkdir -p build/MenuUIAttachments
+
+      # Folded group 5 (from retired library-explore-removal-qualification.yml): 3 UI
+      # journey steps, every gate byte-carried (120/300, named passes, Executed-0 gates,
+      # screenshot export/validation in own scope dirs, failure evidence). No unit content
+      # (AteUITests only); no strict-concurrency flag. Lane's MenuUIAttachments/journal scope
+      # is renamed library-journal: group 2 already owns that scope dir. Metadata
+      # truthfulness: executed_sha=git rev-parse HEAD + execution_target=actual-head.
+      # Rename map in the packet README.
+      - name: Coverage hub re-route UI tests (folded group 5)
+        id: coverage_reroute
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/CoverageUITests/test38_ExpiredSessionRefreshes \
+            -only-testing:AteUITests/CoverageUITests/testHealthPermissionPromptAppearsWhenUndecided \
+            -only-testing:AteUITests/CoverageUITests/testJournalMomentContextRow \
+            -only-testing:AteUITests/CoverageUITests/testHealthScenarioRecovery \
+            -resultBundlePath build/CoverageRerouteUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > coverage-reroute.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Coverage hub re-route UI tests failed (xcodebuild exit $status). Log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" coverage-reroute.log || true
+            tail -n 100 coverage-reroute.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" coverage-reroute.log; then echo "::error::Coverage re-route selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "CoverageUITests test38_ExpiredSessionRefreshes]' passed" \
+            "CoverageUITests testHealthPermissionPromptAppearsWhenUndecided]' passed" \
+            "CoverageUITests testJournalMomentContextRow]' passed" \
+            "CoverageUITests testHealthScenarioRecovery]' passed"; do
+            grep -qF "$evidence" coverage-reroute.log || { echo "::error::missing pass evidence: $evidence"; tail -60 coverage-reroute.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" coverage-reroute.log | tail -30
+
+      - name: Journal open-state UI tests (folded group 5)
+        id: journal_open_state
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/JournalOpenStateUITests/testRecoveredOpenShowsBannerWithBackupName \
+            -only-testing:AteUITests/JournalOpenStateUITests/testInMemoryFallbackOpenShowsTemporaryWarning \
+            -only-testing:AteUITests/JournalOpenStateUITests/testUnavailableOpenShowsHonestFailure \
+            -only-testing:AteUITests/JournalOpenStateUITests/testHealthyOpenShowsNoBanner \
+            -only-testing:AteUITests/JournalOpenStateUITests/testManualCreateWithoutHealthThenReadDetailAndPreserveExistingEditActions \
+            -only-testing:AteUITests/JournalOpenStateUITests/testManualCancelKeepsDraftUntilExplicitDiscard \
+            -resultBundlePath build/JournalOpenStateUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > journal-open-state.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Journal open-state UI tests failed (xcodebuild exit $status). Log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" journal-open-state.log || true
+            tail -n 100 journal-open-state.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" journal-open-state.log; then echo "::error::journal open-state selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "JournalOpenStateUITests testRecoveredOpenShowsBannerWithBackupName]' passed" \
+            "JournalOpenStateUITests testInMemoryFallbackOpenShowsTemporaryWarning]' passed" \
+            "JournalOpenStateUITests testUnavailableOpenShowsHonestFailure]' passed" \
+            "JournalOpenStateUITests testHealthyOpenShowsNoBanner]' passed" \
+            "JournalOpenStateUITests testManualCreateWithoutHealthThenReadDetailAndPreserveExistingEditActions]' passed" \
+            "JournalOpenStateUITests testManualCancelKeepsDraftUntilExplicitDiscard]' passed"; do
+            grep -qF "$evidence" journal-open-state.log || { echo "::error::missing pass evidence: $evidence"; tail -60 journal-open-state.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" journal-open-state.log | tail -30
+
+      - name: Insights acceptance UI tests (folded group 5)
+        id: insights_acceptance
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testInsightCanBeResolvedAndStaysSuppressedAfterRefresh \
+            -only-testing:AteUITests/InsightsAcceptanceUITests/testWeeklyCookingInsightShowsEvidenceAndNavigatesToTracker \
+            -resultBundlePath build/InsightsAcceptanceUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > insights-acceptance.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Insights acceptance UI tests failed (xcodebuild exit $status). Log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" insights-acceptance.log || true
+            tail -n 100 insights-acceptance.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" insights-acceptance.log; then echo "::error::insights acceptance selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "InsightsAcceptanceUITests testInsightCanBeResolvedAndStaysSuppressedAfterRefresh]' passed" \
+            "InsightsAcceptanceUITests testWeeklyCookingInsightShowsEvidenceAndNavigatesToTracker]' passed"; do
+            grep -qF "$evidence" insights-acceptance.log || { echo "::error::missing pass evidence: $evidence"; tail -60 insights-acceptance.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" insights-acceptance.log | tail -30
+
+      - name: Export journey screenshots (folded group 5)
+        if: always()
+        run: |
+          # Export whatever the runs produced, success or failure: partial captures are
+          # failure diagnostics and the raw xcresults are always retained alongside.
+          # Each result bundle exports into its OWN directory so a screenshot can only
+          # satisfy a gate from the test group that was supposed to capture it.
+          mkdir -p build/MenuUIAttachments/coverage build/MenuUIAttachments/library-journal
+          if [ -d build/CoverageRerouteUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/CoverageRerouteUITests.xcresult --output-path build/MenuUIAttachments/coverage
+          fi
+          if [ -d build/JournalOpenStateUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/JournalOpenStateUITests.xcresult --output-path build/MenuUIAttachments/library-journal
+          fi
+          find build/MenuUIAttachments -type f | sort | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify journey screenshot evidence (folded group 5)
+        if: always() && steps.coverage_reroute.outcome == 'success' && steps.journal_open_state.outcome == 'success'
+        run: |
+          # Hard gate: every named journey screenshot must resolve, INSIDE ITS OWN
+          # SCOPE DIRECTORY, to a real decodable PNG with nonzero dimensions.
+          # Resolution is manifest-first with EXACT logical-name matching only
+          # (base == shot, or the observed "<shot>_0_<uuid>" export suffix) - never
+          # substring. Unknown manifest structure fails closed.
+          set -euo pipefail
+          ROOT=build/MenuUIAttachments
+          fail() {
+            echo "::error::$1"
+            echo "--- exported files ---"
+            find "$ROOT" -type f -exec ls -l {} + 2>/dev/null || true
+            for M in "$ROOT"/*/manifest.json; do [ -f "$M" ] && { echo "--- $M ---"; head -c 4000 "$M"; echo; }; done
+            exit 1
+          }
+          png_ok() {
+            # Signature alone is not enough (a header-only fixture would pass it):
+            # require sips to decode the image and report nonzero dimensions.
+            [ -f "$1" ] && [ -s "$1" ] || return 1
+            [ "$(od -An -tx1 -N8 "$1" | tr -d ' \n')" = "89504e470d0a1a0a" ] || return 1
+            local w h
+            w=$(sips -g pixelWidth "$1" 2>/dev/null | awk '/pixelWidth/ {print $2}')
+            h=$(sips -g pixelHeight "$1" 2>/dev/null | awk '/pixelHeight/ {print $2}')
+            [ "${w:-0}" -gt 0 ] 2>/dev/null && [ "${h:-0}" -gt 0 ] 2>/dev/null
+          }
+          resolve_shot() {
+            # $1 = logical shot name, $2 = scope directory. Manifest-first, exact names only.
+            local shot="$1" DIR="$2" MANIFEST="$2/manifest.json" f
+            if [ -f "$MANIFEST" ]; then
+              python3 - "$MANIFEST" "$shot" "$DIR" <<'PYMAP'
+          import json, os, sys
+          manifest, shot, outdir = sys.argv[1], sys.argv[2], sys.argv[3]
+          real_out = os.path.realpath(outdir)
+          def confined(fname):
+              try:
+                  cand = os.path.realpath(os.path.join(outdir, fname))
+              except Exception:
+                  return None
+              try:
+                  if os.path.commonpath([cand, real_out]) != real_out:
+                      return None
+              except ValueError:
+                  return None
+              return cand if os.path.isfile(cand) else None
+          try:
+              top = json.load(open(manifest))
+          except Exception:
+              sys.exit(2)
+          if not isinstance(top, list):
+              sys.exit(2)
+          atts = []
+          for e in top:
+              if not isinstance(e, dict):
+                  continue
+              inner = e.get("attachments")
+              atts.extend(inner) if isinstance(inner, list) else atts.append(e)
+          for a in atts:
+              if not isinstance(a, dict):
+                  continue
+              name = a.get("suggestedHumanReadableName") or a.get("humanReadableName") or ""
+              fname = a.get("exportedFileName") or a.get("fileName") or a.get("attachedFileName") or ""
+              base = name[:-4] if name.lower().endswith(".png") else name
+              if base == shot or base.startswith(shot + "_0_"):
+                  cand = confined(fname) if fname else None
+                  if cand:
+                      print(cand)
+                      sys.exit(0)
+                  sys.exit(1)
+          sys.exit(1)
+          PYMAP
+              return $?
+            fi
+            # No manifest: exact-stem filename fallback only (never substring).
+            for f in "$DIR/$shot.png" "$DIR/${shot}_0_"*.png; do
+              [ -f "$f" ] && { echo "$f"; return 0; }
+            done
+            return 1
+          }
+          verify_scope() {
+            local sub="$1"; shift
+            [ -d "$ROOT/$sub" ] || fail "attachment export directory missing: $ROOT/$sub"
+            local shot file rc
+            for shot in "$@"; do
+              set +e
+              file=$(resolve_shot "$shot" "$ROOT/$sub")
+              rc=$?
+              set -e
+              case $rc in
+                0) ;;
+                1) fail "missing screenshot evidence: $sub/$shot" ;;
+                *) fail "unrecognised export manifest structure; cannot associate screenshot: $sub/$shot" ;;
+              esac
+              png_ok "$file" || fail "screenshot for $sub/$shot is not a decodable PNG with nonzero dimensions: $file"
+              echo "verified $sub/$shot -> $file ($(stat -f%z "$file") bytes)"
+            done
+          }
+          verify_scope coverage \
+            auth-expired-session-refreshed \
+            journal-insights-hub-route \
+            insights-recovery
+          verify_scope library-journal \
+            jos-01-recovered \
+            jos-02-fallback \
+            jos-03-unavailable \
+            jos-04-healthy \
+            manual-01-history-create-action \
+            manual-02-saved-history \
+            manual-03-detail-actions \
+            manual-04-discard-choice \
+            manual-04-kept-draft \
+            manual-04-discarded-history
+
+      - name: Record qualification metadata (folded group 5)
+        if: always()
+        run: |
+          {
+            echo "event_name=$GITHUB_EVENT_NAME"
+            echo "pr_head_sha=${{ github.event.pull_request.head.sha || '' }}"
+            echo "executed_sha=$(git rev-parse HEAD)"
+            echo "execution_target=actual-head"
+            echo "pr_number=${{ github.event.pull_request.number || '' }}"
+            echo "base_ref=${{ github.event.pull_request.base.ref || github.ref_name }}"
+            echo "ref=$GITHUB_REF"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "simulator_id=${{ steps.select_simulator.outputs.id }}"
+            echo "build_outcome=${{ steps.build.outcome }}"
+            echo "coverage_reroute_outcome=${{ steps.coverage_reroute.outcome }}"
+            echo "journal_open_state_outcome=${{ steps.journal_open_state.outcome }}"
+            echo "insights_acceptance_outcome=${{ steps.insights_acceptance.outcome }}"
+            echo "collected_at=$(date -u +%FT%TZ)"
+          } | tee qualification-metadata-library.txt
+          mkdir -p build/MenuUIAttachments
+
+      # Folded group 6 (from retired nutrition-179-foundation-qualification.yml): the UI
+      # journey step, byte-carried (120/300, SWIFT_STRICT_CONCURRENCY=complete, named
+      # xcresult validation against scripts/nutrition-179-ui-required.txt, captures
+      # validation, failure evidence). Only adaptation: SIM_ID from the destination
+      # job's select_simulator step. The lane's 7 unit classes moved to Compile's
+      # focused step + full-unit-required.txt manifest (Reviewer unit ruling).
+      - name: Record exact source and toolchain (folded group 6)
+        run: |
+          mkdir -p build/nutrition-179-foundation
+          git rev-parse HEAD | tee build/nutrition-179-foundation/head.txt
+          git status --porcelain > build/nutrition-179-foundation/worktree.txt
+          xcodebuild -version | tee build/nutrition-179-foundation/xcode.txt
+          find Ate AteTests -name '*.swift' -print0 | xargs -0 shasum -a 256 > build/nutrition-179-foundation/source-sha256.txt
+      - name: Run real canonical nutrition UI journeys (DEBUG hermetic route only) (folded group 6)
+        id: nutrition_179_ui
+        run: |
+          set -euo pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcodebuild test -project Ate.xcodeproj -scheme Ate -configuration Debug -destination "id=$SIM_ID" \
+            -only-testing:AteUITests/CanonicalNutritionAssociationUITests \
+            -resultBundlePath build/nutrition-179-foundation/Nutrition179UI.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            SWIFT_STRICT_CONCURRENCY=complete CODE_SIGNING_ALLOWED=NO \
+            > build/nutrition-179-foundation/ui.log 2>&1 || { tail -160 build/nutrition-179-foundation/ui.log; exit 1; }
+          xcrun xcresulttool get test-results tests --path build/nutrition-179-foundation/Nutrition179UI.xcresult > build/nutrition-179-foundation/ui-tests.json
+          python3 scripts/validate-nutrition-179-tests.py build/nutrition-179-foundation/ui-tests.json scripts/nutrition-179-ui-required.txt
+          python3 scripts/validate-nutrition-179-captures.py build/nutrition-179-foundation/ui.log build/nutrition-179-foundation/captures
+      - name: Retain nutrition 179 UI evidence (folded group 6)
+        if: always() && steps.nutrition_179_ui.outcome != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: nutrition-179-foundation-ui-${{ github.run_number }}-${{ github.run_attempt }}
+          path: build/nutrition-179-foundation/
+          if-no-files-found: error
+          retention-days: 14
+
+      # Folded group 7 (from retired tracker-history-qualification.yml): the UI journey,
+      # byte-carried (120/300 per-test allowances, named passes, Executed-0 gate, screenshot
+      # export/validation, failure evidence). The lane's 2 unit methods moved to Compile's
+      # focused step + full-unit-required.txt (Reviewer unit ruling); the tracker_unit
+      # outcome line leaves the folded metadata (documented deletion). Renames: step id
+      # journal_journeys -> tracker_journeys_g7 (group 2 owns journal_journeys); scope
+      # MenuUIAttachments/journal -> tracker-journal (group 2 owns journal). Map in README.
+      - name: Tracker history recipe UI journey (folded group 7)
+        id: tracker_journeys_g7
+        run: |
+          set -o pipefail
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/AteUITests/testTrackerDayRecipeOpensRecipeSheet \
+            -only-testing:AteUITests/AteUITests/testTrackerDayRecipeCanStartAndExitCookMode \
+            -only-testing:AteUITests/AteUITests/testTrackerDayRecipeCookModeKeepsRunningTimer \
+            -only-testing:AteUITests/AteUITests/testTrackerDayDeletedRecipeIsNotTappable \
+            -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay \
+            -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay \
+            -only-testing:AteUITests/CookingTrackerEntryUITests/testInsightsHasDedicatedTabEntryPoint \
+            -only-testing:AteUITests/CookingTrackerEntryUITests/testLibraryShortcutOpensInsightsHubRoot \
+            -only-testing:AteUITests/CookingTrackerEntryUITests/testMonthNavigationAndFutureMonthRestriction \
+            -only-testing:AteUITests/CookingTrackerEntryUITests/testSelectingTodayShowsDayDetailsAndExplicitEmptyState \
+            -resultBundlePath build/TrackerUITests.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300 \
+            CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Tracker history recipe journeys failed (xcodebuild exit $status). Log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Terminating app|Testing failed|Assertion failed" tracker-ui.log || true
+            tail -n 100 tracker-ui.log
+            exit "$status"
+          fi
+          if grep -q "Executed 0 tests" tracker-ui.log; then echo "::error::tracker history recipe selection executed 0 tests"; exit 1; fi
+          for evidence in \
+            "AteUITests testTrackerDayRecipeOpensRecipeSheet]' passed" \
+            "AteUITests testTrackerDayRecipeCanStartAndExitCookMode]' passed" \
+            "AteUITests testTrackerDayRecipeCookModeKeepsRunningTimer]' passed" \
+            "AteUITests testTrackerDayDeletedRecipeIsNotTappable]' passed" \
+            "AteUITests testCookModeCompletionRecordsCookingDay]' passed" \
+            "AteUITests testCookModeExitDoesNotRecordCookingDay]' passed" \
+            "CookingTrackerEntryUITests testInsightsHasDedicatedTabEntryPoint]' passed" \
+            "CookingTrackerEntryUITests testLibraryShortcutOpensInsightsHubRoot]' passed" \
+            "CookingTrackerEntryUITests testMonthNavigationAndFutureMonthRestriction]' passed" \
+            "CookingTrackerEntryUITests testSelectingTodayShowsDayDetailsAndExplicitEmptyState]' passed"; do
+            grep -qF "$evidence" tracker-ui.log || { echo "::error::missing pass evidence: $evidence"; tail -60 tracker-ui.log; exit 1; }
+          done
+          grep -E "Test Case .* (passed|failed)|Executed" tracker-ui.log | tail -30
+
+      - name: Export journey screenshots (folded group 7)
+        if: always()
+        run: |
+          # Export whatever the runs produced, success or failure: partial captures are
+          # failure diagnostics and the raw xcresults are always retained alongside.
+          # Each result bundle exports into its OWN directory so a screenshot can only
+          # satisfy a gate from the test group that was supposed to capture it.
+          mkdir -p build/MenuUIAttachments/tracker-journal
+          if [ -d build/TrackerUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/TrackerUITests.xcresult --output-path build/MenuUIAttachments/tracker-journal
+          fi
+          find build/MenuUIAttachments -type f | sort | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify journey screenshot evidence (folded group 7)
+        if: always() && steps.tracker_journeys_g7.outcome == 'success'
+        run: |
+          # Hard gate: every named journey screenshot must resolve, INSIDE ITS OWN
+          # SCOPE DIRECTORY, to a real decodable PNG with nonzero dimensions.
+          # Resolution is manifest-first with EXACT logical-name matching only
+          # (base == shot, or the observed "<shot>_0_<uuid>" export suffix) - never
+          # substring, so "search-results-menu" can never be satisfied by
+          # "search-results-menu-reset". Unknown manifest structure fails closed.
+          set -euo pipefail
+          ROOT=build/MenuUIAttachments
+          fail() {
+            echo "::error::$1"
+            echo "--- exported files ---"
+            find "$ROOT" -type f -exec ls -l {} + 2>/dev/null || true
+            for M in "$ROOT"/*/manifest.json; do [ -f "$M" ] && { echo "--- $M ---"; head -c 4000 "$M"; echo; }; done
+            exit 1
+          }
+          png_ok() {
+            # Signature alone is not enough (a header-only fixture would pass it):
+            # require sips to decode the image and report nonzero dimensions.
+            [ -f "$1" ] && [ -s "$1" ] || return 1
+            [ "$(od -An -tx1 -N8 "$1" | tr -d ' \n')" = "89504e470d0a1a0a" ] || return 1
+            local w h
+            w=$(sips -g pixelWidth "$1" 2>/dev/null | awk '/pixelWidth/ {print $2}')
+            h=$(sips -g pixelHeight "$1" 2>/dev/null | awk '/pixelHeight/ {print $2}')
+            [ "${w:-0}" -gt 0 ] 2>/dev/null && [ "${h:-0}" -gt 0 ] 2>/dev/null
+          }
+          resolve_shot() {
+            # $1 = logical shot name, $2 = scope directory. Manifest-first, exact names only.
+            local shot="$1" DIR="$2" MANIFEST="$2/manifest.json" f
+            if [ -f "$MANIFEST" ]; then
+              python3 - "$MANIFEST" "$shot" "$DIR" <<'PYMAP'
+          import json, os, sys
+          manifest, shot, outdir = sys.argv[1], sys.argv[2], sys.argv[3]
+          real_out = os.path.realpath(outdir)
+          def confined(fname):
+              # The joined export path must stay inside the scope directory:
+              # reject ../ escapes, absolute paths and symlink breakouts.
+              try:
+                  cand = os.path.realpath(os.path.join(outdir, fname))
+              except Exception:
+                  return None
+              try:
+                  if os.path.commonpath([cand, real_out]) != real_out:
+                      return None
+              except ValueError:
+                  return None
+              return cand if os.path.isfile(cand) else None
+          try:
+              top = json.load(open(manifest))
+          except Exception:
+              sys.exit(2)
+          if not isinstance(top, list):
+              sys.exit(2)
+          # Observed manifest shape (run 41775045591): a list of payload groups, each with an
+          # "attachments" list of {exportedFileName, suggestedHumanReadableName, ...}; suggested
+          # names carry an "_0_<uuid>" suffix and extension. Accept a flat list too; anything
+          # else fails closed.
+          atts = []
+          for e in top:
+              if not isinstance(e, dict):
+                  continue
+              inner = e.get("attachments")
+              atts.extend(inner) if isinstance(inner, list) else atts.append(e)
+          for a in atts:
+              if not isinstance(a, dict):
+                  continue
+              name = a.get("suggestedHumanReadableName") or a.get("humanReadableName") or ""
+              fname = a.get("exportedFileName") or a.get("fileName") or a.get("attachedFileName") or ""
+              base = name[:-4] if name.lower().endswith(".png") else name
+              if base == shot or base.startswith(shot + "_0_"):
+                  cand = confined(fname) if fname else None
+                  if cand:
+                      print(cand)
+                      sys.exit(0)
+                  sys.exit(1)
+          sys.exit(1)
+          PYMAP
+              return $?
+            fi
+            # No manifest: exact-stem filename fallback only (never substring).
+            for f in "$DIR/$shot.png" "$DIR/${shot}_0_"*.png; do
+              [ -f "$f" ] && { echo "$f"; return 0; }
+            done
+            return 1
+          }
+          verify_scope() {
+            local sub="$1"; shift
+            [ -d "$ROOT/$sub" ] || fail "attachment export directory missing: $ROOT/$sub"
+            local shot file rc
+            for shot in "$@"; do
+              set +e
+              file=$(resolve_shot "$shot" "$ROOT/$sub")
+              rc=$?
+              set -e
+              case $rc in
+                0) ;;
+                1) fail "missing screenshot evidence: $sub/$shot" ;;
+                *) fail "unrecognised export manifest structure; cannot associate screenshot: $sub/$shot" ;;
+              esac
+              png_ok "$file" || fail "screenshot for $sub/$shot is not a decodable PNG with nonzero dimensions: $file"
+              echo "verified $sub/$shot -> $file ($(stat -f%z "$file") bytes)"
+            done
+          }
+          verify_scope tracker-journal \
+            tracker-day-recipe-row \
+            tracker-day-recipe-opened \
+            tracker-day-recipe-cook-mode \
+            tracker-day-recipe-timer-retained \
+            tracker-day-deleted-recipe-fallback \
+            tracker-month-view \
+            tracker-day-details
+
+      - name: Record qualification metadata (folded group 7)
+        if: always()
+        run: |
+          {
+            echo "event_name=$GITHUB_EVENT_NAME"
+            echo "pr_head_sha=${{ github.event.pull_request.head.sha || '' }}"
+            echo "executed_sha=$(git rev-parse HEAD)"
+            echo "execution_target=actual-head"
+            echo "pr_number=${{ github.event.pull_request.number || '' }}"
+            echo "base_ref=${{ github.event.pull_request.base.ref || github.ref_name }}"
+            echo "ref=$GITHUB_REF"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "simulator_id=${{ steps.select_simulator.outputs.id }}"
+            echo "build_outcome=${{ steps.build.outcome }}"
+            echo "tracker_journeys_g7_outcome=${{ steps.tracker_journeys_g7.outcome }}"
+            echo "collected_at=$(date -u +%FT%TZ)"
+          } | tee qualification-metadata-tracker.txt
+          mkdir -p build/MenuUIAttachments
+
+      - name: Record qualification metadata
+        if: always()
+        run: |
+          {
+            echo "head_sha=$(git rev-parse HEAD)"
+            echo "ref=$GITHUB_REF"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "simulator_id=${{ steps.select_simulator.outputs.id }}"
+            echo "build_outcome=${{ steps.build.outcome }}"
+            echo "ui_journeys_outcome=${{ steps.ui_journeys.outcome }}"
+            echo "collected_at=$(date -u +%FT%TZ)"
+          } | tee qualification-metadata.txt
+          mkdir -p build/ShoppingEditUndoUIAttachments
+
+      - name: Upload qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: folded-journeys-${{ github.run_number }}
+          path: |
+            qualification-metadata.txt
+            qualification-metadata-shopping-completion.txt
+            qualification-metadata-journal-menu.txt
+            build-for-testing.log
+            shopping-edit-undo-ui.log
+            journal-menu-ui.log
+            journal-root-ui.log
+            build/ShoppingEditUndoUITests.xcresult
+            build/ShoppingEditUndoUIAttachments
+            build/JournalMenuUITests.xcresult
+            qualification-metadata-menu.txt
+            menu-shopping-ui.log
+            menu-search-ui.log
+            menu-journal-ui.log
+            menu-nutrition-ui.log
+            build/MenuShoppingUITests.xcresult
+            build/MenuSearchUITests.xcresult
+            build/MenuJournalUITests.xcresult
+            build/MenuNutritionUITests.xcresult
+            qualification-metadata-library.txt
+            coverage-reroute.log
+            journal-open-state.log
+            insights-acceptance.log
+            build/CoverageRerouteUITests.xcresult
+            build/JournalOpenStateUITests.xcresult
+            build/InsightsAcceptanceUITests.xcresult
+            qualification-metadata-tracker.txt
+            tracker-ui.log
+            build/TrackerUITests.xcresult
+            build/JournalRootMenuUITests.xcresult
+            build/MenuUIAttachments
+          if-no-files-found: warn
+
+  qualification-result:
+    name: Dogfood qualification result
+    if: always()
+    needs: [changes, dogfood-qualification, folded-journeys]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Report actual qualification route
+        env:
+          CLASSIFIER: ${{ needs.changes.result }}
+          NATIVE: ${{ needs.changes.outputs.app }}
+          NATIVE_RESULT: ${{ needs.dogfood-qualification.result }}
+          FOLDED_RESULT: ${{ needs.folded-journeys.result }}
+        run: |
+          if [[ "$CLASSIFIER" != success ]]; then
+            echo 'Scope classifier failed; qualification is NOT established.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [[ "$NATIVE" == false ]]; then
+            echo 'Documentation-only diff. Mac tests NOT RUN; this is NOT native qualification.' >> "$GITHUB_STEP_SUMMARY"
+            [[ "$NATIVE_RESULT" == skipped && "$FOLDED_RESULT" == skipped ]]
+          else
+            echo "Native qualification required. Mac job result: $NATIVE_RESULT; folded journeys: $FOLDED_RESULT." >> "$GITHUB_STEP_SUMMARY"
+            [[ "$NATIVE" == true && "$NATIVE_RESULT" == success && "$FOLDED_RESULT" == success ]]
+          fi

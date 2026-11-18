@@ -33,3 +33,9 @@ class ProductUpdatesTests(unittest.TestCase):
         self.assertLess(ui.index('whatsNew.releaseContext.'), ui.index('if let image = UIImage(named: slide.imageAsset)'))
         journey = (ROOT / 'AteUITests/InsightsPresentationUITests.swift').read_text()
         self.assertIn('XCTAssertEqual(secondContext.label, selectedReleaseContext', journey)
+    def test_replay_dismiss_marks_seen_without_automatic_review_request(self):
+        ui = (ROOT / 'Ate/Views/ProductUpdatesViews.swift').read_text()
+        self.assertNotIn('requestReview', ui)
+        detail = ui.split('struct ProductReleaseDetailView', 1)[1]
+        dismiss = detail.split('onDismiss: {', 1)[1].split('}) {', 1)[0]
+        self.assertIn('ProductUpdatesSeenStore.launchDefaults).markSeen(release.version)', dismiss)

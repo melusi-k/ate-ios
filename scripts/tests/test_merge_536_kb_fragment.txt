@@ -1,0 +1,6 @@
+        // Finish editing through the real keyboard before measuring Save and errors.
+        // Candidate for the slow AX-query phase, not a replacement for persistence checks.
+        let returnKey = app.keyboards.buttons["return"]
+        XCTAssertTrue(returnKey.waitForExistence(timeout: 2), "Food-name keyboard should expose Return")
+        returnKey.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), "Return should dismiss the food-name keyboard")

@@ -1,19 +1,15 @@
 {
-  "title": "Offline Roadmap with local vote preferences",
-  "summary": "Offline Roadmap with local vote preferences. ProductUpdates packaging proven on previous head by 10 focused and 1178 full native unit passes. Removes the synthetic card accessibility wrapper so label, value, hint and identifier apply to the native NavigationLink Button; explicit button trait retained. Settings/list/detail/persistence UI assertions unchanged. Corrected-head native accessibility and full UI persistence journey pending.",
-  "source_commit": "3c3396e3d71292201dae4d3cbe89e0eddc106e14",
+  "title": "Source-factual recipe import extraction",
+  "summary": "Device-reported tripe import reached Review your card with an invented title, source meat renamed and a long step left timeless: link, pasted and captioned recipes had no SourceRecipeFidelity contract, so nothing bound the card to the source. structuredRecipe now certifies only explicit measured Ingredients plus Method sections and binds title, ingredients, order, quantities and written times through the existing fail-closed gate; unverifiable structure is refused, never generated or demoed. Prompt and quality gates byte-identical. Native/device acceptance UNRUN.",
+  "source_commit": "5bcec946f9e684111b6d2a1cb303d56abc5edbdb",
   "evidence": [
     {
-      "path": "Ate/Logic/Roadmap.swift",
-      "blob": "b2e05e6fb83a73dab1dfe3674c21a3ae3f4425ed"
+      "path": "Ate/Logic/SourceRecipeFidelity.swift",
+      "blob": "8383c7724e34158b8977a29e346949194166601b"
     },
     {
-      "path": "Ate/Views/RoadmapView.swift",
-      "blob": "50fdcdc75106997af79b8104990d48aee584b0d2"
-    },
-    {
-      "path": "Ate/Views/SettingsView.swift",
-      "blob": "e65ff0ceb1f84822e114845d1c5b0307fdc79078"
+      "path": "Ate/Services/OnDeviceBackend.swift",
+      "blob": "e1dcc83e8329dc1dc0290e7b7ddb8092cdcd5ad0"
     }
   ]
 }

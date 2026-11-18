@@ -1,11 +1,11 @@
 {
-  "title": "44pt Sync now hit target on Shopping (#554)",
-  "summary": "Shopping list Sync now button gets a 44x44 minimum hit target and contentShape(Rectangle()) in Ate/Views/ShoppingListView.swift, with an audit guard. Native qualification UNRUN.",
-  "source_commit": "3a6024930d3c0b8892a089a714ba537831056aba",
+  "title": "Named menu dish reconstruction provenance (#512)",
+  "summary": "Recognized promo dishes without recipe signals get a source-absence draft note and saved description; provisional previews are suppressed until the notice attaches; dish-name confidence is not recipe accuracy. Thresholds, OCR and content unchanged. Native qualification UNRUN.",
+  "source_commit": "f5f825f9e04a147c591869d5fac2b8ff8d97d155",
   "evidence": [
     {
-      "path": "Ate/Views/ShoppingListView.swift",
-      "blob": "3275a486f594956a577a343a82f93ad032b766c2"
+      "path": "Ate/Logic/NamedDishProvenance.swift",
+      "blob": "a3bb15466cf9b7e63a43b54e2aa91690bc3c6f76"
     }
   ]
 }

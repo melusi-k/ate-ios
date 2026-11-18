@@ -36,4 +36,60 @@ class OCRCPUCaptureContracts(unittest.TestCase):
         s=s.replace('contextSource = socialCaption!  // short dish-defining source\n            fidelity = structuredSource\n','contextSource = socialCaption!  // short dish-defining source\n            fidelity = SourceRecipeFidelity.inlineCaption(socialCaption!)\n',1)
         self.assertEqual(s.count('\n            fidelity = structuredSource ?? SourceRecipeFidelity.structuredRecipe(page)'),1)
         s=s.replace('\n            fidelity = structuredSource ?? SourceRecipeFidelity.structuredRecipe(page)','',1)
+        # fix/import-source-fidelity: htmlToText now preserves list/br/block boundaries as
+        # newlines for defensible item boundaries; inverse-restore the original body before
+        # the reviewed remainder hash below.
+        self.assertEqual(s.count(r'''    static func htmlToText(_ html: String) -> String {
+        var s = html
+        for p in ["<script[\\s\\S]*?</script>", "<style[\\s\\S]*?</style>"] {
+            s = s.replacingOccurrences(of: p, with: " ", options: [.regularExpression, .caseInsensitive])
+        }
+        // Item boundaries must survive into the text: list items, line breaks and block
+        // ends become newlines BEFORE the remaining tags are stripped, so a recipe
+        // page's ingredient list keeps one line per item. Without an explicit boundary
+        // the import refuses to verify a collapsed multi-item line rather than guessing
+        // where one name ends and the next item starts.
+        for p in ["<br[^>]*>", "<li[^>]*>", "</(?:li|p|div|h[1-6]|tr|ul|ol)>"] {
+            s = s.replacingOccurrences(of: p, with: "\n", options: [.regularExpression, .caseInsensitive])
+        }
+        s = s.replacingOccurrences(of: "<[^>]+>", with: " ", options: [.regularExpression, .caseInsensitive])
+        for (a, b) in ["&amp;": "&", "&nbsp;": " ", "&#39;": "'", "&quot;": "\"", "&lt;": "<", "&gt;": ">"] {
+            s = s.replacingOccurrences(of: a, with: b)
+        }
+        // Collapse spaces/tabs within each line; newlines survive, empty lines drop.
+        return s.components(separatedBy: .newlines).map {
+            $0.replacingOccurrences(of: "[ \\t]+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        }.filter { !$0.isEmpty }.joined(separator: "\n")
+    }'''),1)
+        s=s.replace(r'''    static func htmlToText(_ html: String) -> String {
+        var s = html
+        for p in ["<script[\\s\\S]*?</script>", "<style[\\s\\S]*?</style>"] {
+            s = s.replacingOccurrences(of: p, with: " ", options: [.regularExpression, .caseInsensitive])
+        }
+        // Item boundaries must survive into the text: list items, line breaks and block
+        // ends become newlines BEFORE the remaining tags are stripped, so a recipe
+        // page's ingredient list keeps one line per item. Without an explicit boundary
+        // the import refuses to verify a collapsed multi-item line rather than guessing
+        // where one name ends and the next item starts.
+        for p in ["<br[^>]*>", "<li[^>]*>", "</(?:li|p|div|h[1-6]|tr|ul|ol)>"] {
+            s = s.replacingOccurrences(of: p, with: "\n", options: [.regularExpression, .caseInsensitive])
+        }
+        s = s.replacingOccurrences(of: "<[^>]+>", with: " ", options: [.regularExpression, .caseInsensitive])
+        for (a, b) in ["&amp;": "&", "&nbsp;": " ", "&#39;": "'", "&quot;": "\"", "&lt;": "<", "&gt;": ">"] {
+            s = s.replacingOccurrences(of: a, with: b)
+        }
+        // Collapse spaces/tabs within each line; newlines survive, empty lines drop.
+        return s.components(separatedBy: .newlines).map {
+            $0.replacingOccurrences(of: "[ \\t]+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        }.filter { !$0.isEmpty }.joined(separator: "\n")
+    }''',r'''    static func htmlToText(_ html: String) -> String {
+        var s = html
+        for p in ["<script[\\s\\S]*?</script>", "<style[\\s\\S]*?</style>", "<[^>]+>"] {
+            s = s.replacingOccurrences(of: p, with: " ", options: [.regularExpression, .caseInsensitive])
+        }
+        for (a, b) in ["&amp;": "&", "&nbsp;": " ", "&#39;": "'", "&quot;": "\"", "&lt;": "<", "&gt;": ">"] {
+            s = s.replacingOccurrences(of: a, with: b)
+        }
+        return s.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+    }''',1)
         self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'66c479d5fc1510505c1a9478ae0411ce05ade7665b0e7e9c16d89f81ee2e70f1')

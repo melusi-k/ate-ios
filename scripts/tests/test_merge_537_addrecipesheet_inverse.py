@@ -8,8 +8,9 @@ import hashlib, unittest
 from approved_merge_composed import normalize
 ROOT=Path(__file__).resolve().parents[2]
 KEY='main:Ate/Views/AddRecipeSheet.swift'
-# sha256 of the parent file bytes at main 189d03a0 (git blob c6ca14de).
-PARENT_SHA256='36f67c16ec8c4aa9cac2d862a2044c9c05caf147140d6b7ac504fa36bbc4563b'
+# sha256 of the stacked-parent file bytes: main 189d03a0 plus the stacked #544
+# confidenceLabel hunk (byte-exact, verified against an independent reconstruction).
+PARENT_SHA256='2ce0ea7f81d276112b42fcf3846d8d563a60e3badefc608a91809afead97212a'
 IDENTIFIER='        .accessibilityIdentifier("addRecipe.content")\n'
 
 class Merge537AddRecipeSheetInverseTests(unittest.TestCase):

@@ -1,15 +1,11 @@
 {
-  "title": "Unbroken cover control labels at normal text size (#414)",
-  "summary": "Wrap whole intrinsic-width cover controls instead of compressing fixed HStack. Existing handlers/conditions/ids and 44pt style unchanged; swipe failure diagnostic and simulator selection fixes included. Native qualification UNRUN.",
-  "source_commit": "396a6bdc58d47c47bffe884dc0af7adb6e78ca08",
+  "title": "Keep the cooking tracker today marker current",
+  "summary": "Refresh calendar day state on day changes, foreground and appearance while retaining older history browsing. Native qualification and rollover pixels are still required.",
+  "source_commit": "99383ae84720f08a4305d48b348123d950b1c754",
   "evidence": [
     {
-      "path": "Ate/Views/CoverViews.swift",
-      "blob": "0c140c58f9482faac31e022025b18b216a19807c"
-    },
-    {
-      "path": "Ate/Logic/CoverLogic.swift",
-      "blob": "eedcc8065f28960aad821bc9e9f8dc1ec3795fa9"
+      "path": "Ate/Logic/CookingTrackerCalendarState.swift",
+      "blob": "3576761b5a23f06e6a2b7856ca976412ce5e186c"
     }
   ]
 }

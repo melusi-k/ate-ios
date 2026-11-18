@@ -102,7 +102,12 @@ enum CookingTrackerPresentation {
 private struct CookingDotGrid: View {
     let history: CookingHistory
     @Binding var selectedDate: Date?
-    @State private var displayedMonth = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
+    @State private var calendarState = CookingTrackerCalendarState()
+    @Environment(\.scenePhase) private var scenePhase
+    private var displayedMonth: Date {
+        get { calendarState.displayedMonth }
+        nonmutating set { calendarState.displayedMonth = newValue }
+    }
     private let calendar = Calendar.autoupdatingCurrent
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 7), count: 7)
     private var weekdays: [String] {
@@ -126,7 +131,7 @@ private struct CookingDotGrid: View {
     }
 
     private var isCurrentMonth: Bool {
-        calendar.isDate(displayedMonth, equalTo: Date(), toGranularity: .month)
+        calendar.isDate(displayedMonth, equalTo: calendarState.now, toGranularity: .month)
     }
 
     var body: some View {
@@ -194,7 +199,7 @@ private struct CookingDotGrid: View {
                     if let date {
                         let cooked = history.cooked(on: date)
                         let isSelected = selectedDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
-                        let isToday = calendar.isDateInToday(date)
+                        let isToday = calendarState.isToday(date, calendar: calendar)
                         Button { selectedDate = date } label: {
                             Circle()
                                 .fill(cooked ? Theme.primary : Theme.input)
@@ -230,17 +235,29 @@ private struct CookingDotGrid: View {
                 self.selectedDate = nil
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+            refreshCalendarDay()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { refreshCalendarDay() }
+        }
+        .onAppear { refreshCalendarDay() }
         .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
             // Keep the visible month aligned with the device's new local calendar without
             // rewriting previously stored YYYY-MM-DD event keys.
-            displayedMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+            calendarState = CookingTrackerCalendarState(calendar: calendar)
             selectedDate = nil
         }
         .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
-            displayedMonth = calendar.dateInterval(of: .month, for: Date())?.start ?? Date()
+            calendarState = CookingTrackerCalendarState(calendar: calendar)
             selectedDate = nil
         }
     }
+
+    private func refreshCalendarDay() {
+        calendarState.refresh(now: Date(), calendar: calendar)
+    }
+
 }
 
 private struct CookingDaySheet: View {

@@ -243,6 +243,55 @@ jobs:
             journal-menu-unit.log
             ${{ runner.temp }}/ate-test-results/journal-menu-unit.xcresult
 
+      - name: Nutrition 179 foundation unit tests (retired lane contract, strict concurrency)
+        id: nutrition_179_unit
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          mkdir -p build/nutrition-179-foundation
+          printf '%s\n' "$SIM_ID" > build/nutrition-179-foundation/simulator.txt
+          set +e
+          xcodebuild test -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/FoodJournalStoreTests \
+            -only-testing:AteTests/FoodJournalCoordinatorTests \
+            -only-testing:AteTests/JournalArchiveTests \
+            -only-testing:AteTests/JournalTimelineOrderTests \
+            -only-testing:AteTests/LegacyDiaryRepairTests \
+            -only-testing:AteTests/CanonicalNutritionDiaryTests \
+            -only-testing:AteTests/NutritionRecipeAssociationTests \
+            -resultBundlePath build/nutrition-179-foundation/Nutrition179Foundation.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            SWIFT_STRICT_CONCURRENCY=complete CODE_SIGNING_ALLOWED=NO \
+            > build/nutrition-179-foundation/native.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Nutrition 179 foundation unit tests failed (xcodebuild exit $status). Evidence is uploaded."
+            tail -160 build/nutrition-179-foundation/native.log
+            exit "$status"
+          fi
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED|warning:.*(concurr|Sendable|actor)" build/nutrition-179-foundation/native.log || true
+
+      - name: Require every named nutrition 179 fixture pass
+        if: ${{ steps.nutrition_179_unit.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          if grep -Eq "Executed 0 tests|Test Case .* failed" build/nutrition-179-foundation/native.log; then
+            echo "::error::Native log contains a zero-test or failed-test result"
+            exit 1
+          fi
+          xcrun xcresulttool get test-results tests --path build/nutrition-179-foundation/Nutrition179Foundation.xcresult > build/nutrition-179-foundation/native-tests.json
+          python3 scripts/validate-nutrition-179-tests.py build/nutrition-179-foundation/native-tests.json scripts/nutrition-179-native-required.txt
+
+      - name: Retain nutrition 179 unit diagnostics
+        if: always() && steps.nutrition_179_unit.outcome != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: nutrition-179-foundation-unit-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 14
+          path: build/nutrition-179-foundation/
+
       - name: Retain full unit diagnostics before UI acceptance
         if: always() && (steps.unit_tests.outcome == 'success' || steps.unit_tests.outcome == 'failure')
         uses: actions/upload-artifact@v7

@@ -4,6 +4,7 @@ import SwiftData
 import UserNotifications
 #if DEBUG
 import Foundation
+import Dispatch
 import UIKit
 import OSLog
 #endif
@@ -19,6 +20,9 @@ struct AteApp: App {
         TabBarStyle.apply()
         #if DEBUG
         LiveDTProbe.installIfRequested()
+        AccountJourneyAnimationDiagnostics.startIfRequested()
+        PresentationReturnDiagnostic.startIfRequested()
+        StartupLivenessDiagnostic.startIfRequested()
         SearchFocusDiagnostic.startIfRequested()
         #endif
         if AppConfig.isUITesting {
@@ -51,6 +55,8 @@ struct AteApp: App {
         DogfoodSavedRecipeQAFixtures.prepare(st)
         ExploreRetentionQAFixtures.prepare(st)
         CookJournalQARoute.prepare(st)
+        RecipeSheetQAFixtures.prepare(st)
+        LibraryProteinQAFixtures.prepare(st)
         #else
         let st = AppStore(context: c?.mainContext)
         #endif
@@ -436,6 +442,11 @@ extension RootView {
                 }.withTimerBar()
             }
         }
+        .onChange(of: store.trackerPath) { oldPath, newPath in
+            #if DEBUG
+            if !oldPath.isEmpty && newPath.isEmpty { PresentationReturnDiagnostic.returnedIfRequested() }
+            #endif
+        }
         .onChange(of: store.tab) { _, selectedTab in
             // Food diary is a pushed screen rather than a root tab. Root destinations only
             // use Shopping's add context; all other tabs return to the recipe action.
@@ -734,6 +745,193 @@ extension AppAppearance {
         switch self { case .system: return nil; case .light: return .light; case .dark: return .dark }
     }
 }
+
+#if DEBUG
+enum PresentationReturnDiagnostic {
+    @MainActor private static var rows: [String] = []
+    @MainActor private static var started: Double = 0
+    @MainActor private static var returnObserved = false
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "PresentationReturnDiagnostic")
+    private static var enabled: Bool {
+        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaPresentationReturnDiagnostic")
+    }
+    @MainActor static func startIfRequested() {
+        guard enabled else { return }
+        rows = []
+        started = ProcessInfo.processInfo.systemUptime
+        if let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            try? FileManager.default.removeItem(at: cache.appendingPathComponent("presentation-return-scheduler.txt"))
+        }
+        record("app-start")
+    }
+    @MainActor static func returnedIfRequested() {
+        guard enabled, !returnObserved else { return }
+        returnObserved = true
+        record("presentation-return")
+        let phaseStart = ProcessInfo.processInfo.systemUptime
+        startBackgroundScheduler(phaseStart: phaseStart)
+        Task { @MainActor in
+            record("task-entered", phaseStart: phaseStart)
+            for offset in [0.0, 5, 15, 30, 45, 60, 90, 120] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 {
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch {
+                        record("task-sleep-error", scheduled: offset, phaseStart: phaseStart)
+                        return
+                    }
+                }
+                guard !Task.isCancelled else {
+                    record("task-cancelled", scheduled: offset, phaseStart: phaseStart)
+                    return
+                }
+                record("post-return-heartbeat", scheduled: offset, phaseStart: phaseStart)
+            }
+        }
+        record("sampler-enqueued", phaseStart: phaseStart)
+    }
+    /// A private utility queue, independent of Swift's MainActor executor. One
+    /// bounded worker, ten atomic snapshots, no model/UI reads or repeated poll.
+    @MainActor private static func startBackgroundScheduler(phaseStart: Double) {
+        guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            record("scheduler-no-cache", phaseStart: phaseStart)
+            return
+        }
+        let destination = cache.appendingPathComponent("presentation-return-scheduler.txt")
+        let pid = ProcessInfo.processInfo.processIdentifier
+        DispatchQueue(label: "com.melusik.ate.presentation-return-scheduler", qos: .utility).async {
+            var schedulerRows: [String] = []
+            func write(_ phase: String, scheduled: Double = -1) {
+                guard schedulerRows.count < 10 else { return }
+                let now = ProcessInfo.processInfo.systemUptime
+                schedulerRows.append("pid=\(pid) phase=\(phase) uptime=\(now) scheduled=\(scheduled) phaseElapsed=\(now - phaseStart)")
+                do {
+                    try Data((schedulerRows.joined(separator: "\n") + "\n").utf8).write(to: destination, options: .atomic)
+                } catch {
+                    Logger(subsystem: "com.melusik.ate", category: "PresentationReturnDiagnostic").error("Presentation return scheduler evidence file write failed")
+                }
+            }
+            write("scheduler-entered")
+            for offset in [0.0, 5, 15, 30, 45, 60, 90, 120] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 { Thread.sleep(forTimeInterval: remaining) }
+                write("scheduler-fired", scheduled: offset)
+                Task { @MainActor in
+                    record("scheduler-main-delivery", scheduled: offset, phaseStart: phaseStart)
+                }
+            }
+            write("scheduler-complete")
+        }
+        record("scheduler-enqueued", phaseStart: phaseStart)
+    }
+    @MainActor private static func record(_ phase: String, scheduled: Double = -1, phaseStart: Double? = nil) {
+        guard enabled, rows.count < 24,
+              let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        // Fixed phase names and numeric timing only. At most twenty-four short rows per app launch.
+        rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) uptime=\(now) appElapsed=\(now - started) scheduled=\(scheduled) phaseElapsed=\(now - (phaseStart ?? started))")
+        do {
+            try Data((rows.joined(separator: "\n") + "\n").utf8).write(
+                to: cache.appendingPathComponent("presentation-return-diagnostic.txt"), options: .atomic)
+        } catch {
+            logger.error("Presentation return numeric evidence file write failed")
+        }
+    }
+}
+#endif
+
+#if DEBUG
+enum StartupLivenessDiagnostic {
+    @MainActor private static var rows: [String] = []
+    @MainActor private static var started: Double = 0
+    @MainActor private static var returnObserved = false
+    private static let logger = Logger(subsystem: "com.melusik.ate", category: "StartupLivenessDiagnostic")
+    private static var enabled: Bool {
+        AppConfig.isUITesting && ProcessInfo.processInfo.arguments.contains("-qaStartupLivenessDiagnostic")
+    }
+    @MainActor static func startIfRequested() {
+        guard enabled else { return }
+        rows = []
+        started = ProcessInfo.processInfo.systemUptime
+        if let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            try? FileManager.default.removeItem(at: cache.appendingPathComponent("startup-liveness-scheduler-\(ProcessInfo.processInfo.processIdentifier).txt"))
+        }
+        record("app-start")
+        returnedIfRequested()
+    }
+    @MainActor static func returnedIfRequested() {
+        guard enabled, !returnObserved else { return }
+        returnObserved = true
+        record("startup-sampler-start")
+        let phaseStart = ProcessInfo.processInfo.systemUptime
+        startBackgroundScheduler(phaseStart: phaseStart)
+        Task { @MainActor in
+            record("task-entered", phaseStart: phaseStart)
+            for offset in [0.0, 5, 15, 30, 60, 90, 120, 180, 240] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 {
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch {
+                        record("task-sleep-error", scheduled: offset, phaseStart: phaseStart)
+                        return
+                    }
+                }
+                guard !Task.isCancelled else {
+                    record("task-cancelled", scheduled: offset, phaseStart: phaseStart)
+                    return
+                }
+                record("post-return-heartbeat", scheduled: offset, phaseStart: phaseStart)
+            }
+        }
+        record("sampler-enqueued", phaseStart: phaseStart)
+    }
+    /// A private utility queue, independent of Swift's MainActor executor. One
+    /// bounded worker, ten atomic snapshots, no model/UI reads or repeated poll.
+    @MainActor private static func startBackgroundScheduler(phaseStart: Double) {
+        guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            record("scheduler-no-cache", phaseStart: phaseStart)
+            return
+        }
+        let destination = cache.appendingPathComponent("startup-liveness-scheduler-\(ProcessInfo.processInfo.processIdentifier).txt")
+        let pid = ProcessInfo.processInfo.processIdentifier
+        DispatchQueue(label: "com.melusik.ate.startup-liveness-scheduler", qos: .utility).async {
+            var schedulerRows: [String] = []
+            func write(_ phase: String, scheduled: Double = -1) {
+                guard schedulerRows.count < 12 else { return }
+                let now = ProcessInfo.processInfo.systemUptime
+                schedulerRows.append("pid=\(pid) phase=\(phase) uptime=\(now) scheduled=\(scheduled) phaseElapsed=\(now - phaseStart)")
+                do {
+                    try Data((schedulerRows.joined(separator: "\n") + "\n").utf8).write(to: destination, options: .atomic)
+                } catch {
+                    Logger(subsystem: "com.melusik.ate", category: "StartupLivenessDiagnostic").error("Presentation return scheduler evidence file write failed")
+                }
+            }
+            write("scheduler-entered")
+            for offset in [0.0, 5, 15, 30, 60, 90, 120, 180, 240] {
+                let remaining = offset - (ProcessInfo.processInfo.systemUptime - phaseStart)
+                if remaining > 0 { Thread.sleep(forTimeInterval: remaining) }
+                write("scheduler-fired", scheduled: offset)
+                Task { @MainActor in
+                    record("scheduler-main-delivery", scheduled: offset, phaseStart: phaseStart)
+                }
+            }
+            write("scheduler-complete")
+        }
+        record("scheduler-enqueued", phaseStart: phaseStart)
+    }
+    @MainActor private static func record(_ phase: String, scheduled: Double = -1, phaseStart: Double? = nil) {
+        guard enabled, rows.count < 28,
+              let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        // Fixed phase names and numeric timing only. At most twenty-four short rows per app launch.
+        rows.append("pid=\(ProcessInfo.processInfo.processIdentifier) phase=\(phase) uptime=\(now) appElapsed=\(now - started) scheduled=\(scheduled) phaseElapsed=\(now - (phaseStart ?? started))")
+        do {
+            try Data((rows.joined(separator: "\n") + "\n").utf8).write(
+                to: cache.appendingPathComponent("startup-liveness-diagnostic-\(ProcessInfo.processInfo.processIdentifier).txt"), options: .atomic)
+        } catch {
+            logger.error("Presentation return numeric evidence file write failed")
+        }
+    }
+}
+#endif
 
 #if DEBUG
 /// Notification timing only. Never queries content, focus, or first responders.

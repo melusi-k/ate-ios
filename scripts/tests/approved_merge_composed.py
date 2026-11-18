@@ -9,7 +9,7 @@ compatibility; it records no external review by itself."""
 import hashlib,json
 from pathlib import Path
 _FIXTURE=Path(__file__).with_name('approved_merge_composed_inverses.json')
-_FIXTURE_SHA256='ef5c07c1bf823f61f6688f27cc0356581b74fee14c75b1b7c6c0ebf070991b28'
+_FIXTURE_SHA256='18e7955505f379dc90942ea1fd228c3b653a58ac0b62cc93a6572c8f566c879f'
 def normalize(key, raw):
     from export_target_readiness_delta import restore
     raw = restore(key, raw)

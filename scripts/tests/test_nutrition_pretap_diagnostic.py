@@ -11,6 +11,9 @@ class NutritionPretapDiagnosticTests(unittest.TestCase):
         import re
         source=re.sub(r'    private func startupDiagnosticMark\(_ phase: String\) \{.*?\n    \}\n', '', source, flags=re.S)
         source='\n'.join(line for line in source.split('\n') if 'startupDiagnosticMark(' not in line)
+        kb = (ROOT/'scripts/tests/test_merge_536_kb_fragment.txt').read_text()
+        self.assertEqual(source.count(kb),1)
+        source = source.replace(kb,'',1)
         source=source.replace(', "-qaStartupLivenessDiagnostic"','')
         body = source.split('func testCancelledFailedSavesLeaveDiaryEmptyAfterRelaunch() throws {',1)[1].split('\n    func ',1)[0]
         body = body.replace(', "-qaNutritionPretapDiagnostic"', '')

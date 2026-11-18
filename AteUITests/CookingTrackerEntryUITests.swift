@@ -42,7 +42,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
     }
 
     func testMonthNavigationAndFutureMonthRestriction() {
-        let app = launchTracker()
+        let app = launchTracker(["-qaAccountJourneyAnimationDiagnostic"])
         let month = app.staticTexts["tracker.displayedMonth"]
         XCTAssertTrue(month.waitForExistence(timeout: 5))
         shot("tracker-month-view")
@@ -86,12 +86,21 @@ final class CookingTrackerEntryUITests: XCTestCase {
     }
     func testEmptyMonthSummaryFollowsCalendarAtNormalText() {
         let app = launchTracker(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
-        let summary = app.staticTexts["tracker.monthSummary"]
+        let summary = app.descendants(matching: .any)["tracker.monthSummary"].firstMatch
         XCTAssertTrue(summary.waitForExistence(timeout: 5))
-        XCTAssertEqual(summary.label, "Recorded this month: 0 cooking days · 0 distinct recipes")
+        XCTAssertEqual(summary.label, "Recorded this month: 0 days cooked · 0 recipes")
+        let rows = app.otherElements.matching(identifier: "tracker.monthSummaryRow")
+        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertEqual(rows.count, 1, "Measure the unique padded summary row, not combined text")
+        let row = rows.firstMatch
+        XCTAssertGreaterThanOrEqual(row.frame.height, 43.99,
+                                    "Body-size summary has 12pt vertical breathing room on each side")
+        XCTAssertGreaterThanOrEqual(row.frame.minY, app.staticTexts["tracker.displayedMonth"].frame.maxY)
+        XCTAssertGreaterThanOrEqual(summary.frame.minY, row.frame.minY)
+        XCTAssertLessThanOrEqual(summary.frame.maxY, row.frame.maxY)
         shot("tracker-month-summary-current-normal")
         app.buttons["tracker.previousMonth"].tap()
-        XCTAssertEqual(summary.label, "Recorded this month: 0 cooking days · 0 distinct recipes")
+        XCTAssertEqual(summary.label, "Recorded this month: 0 days cooked · 0 recipes")
         shot("tracker-month-summary-previous-normal")
         app.buttons["tracker.nextMonth"].tap()
         XCTAssertTrue(summary.exists)
@@ -103,7 +112,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
     func testJournalAndInsightsHeadersPreserveNativeBackAndEdgeSwipeAtNormalText() {
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-qaResetCookingHistory",
+        app.launchArguments = ["-UITesting", "-qaResetCookingHistory", "-qaPresentationReturnDiagnostic",
                                "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
         app.launch()
         let journalTab = app.tabBars.buttons["Journal"]
@@ -129,6 +138,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
         XCTAssertTrue(back.exists && back.isHittable, "System Back must retain the parent title")
         shot("68-insights-native-back-normal")
         back.tap()
+        shot("68-journal-after-native-back-before-original-predicate")
         XCTAssertTrue(rootBar.waitForExistence(timeout: 5))
         XCTAssertEqual(app.navigationBars.count, 1)
         XCTAssertTrue(rootLogo.exists)

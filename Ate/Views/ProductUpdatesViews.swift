@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 private struct ProductPage<Content: View>: View {
     let content: () -> Content
@@ -47,6 +48,9 @@ struct ProductReleaseDetailView: View {
             Text(release.title).font(AteFont.display(26))
             Text("Version \(release.version)" + (release.channel == "beta" ? " · Beta" : "")).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
             Text(release.summary).font(AteFont.body(16))
+            if let stage = release.stage { Text(stage).font(AteFont.body(13, .semibold)) }
+            releaseTestSection("What to Test", items: release.whatToTest)
+            releaseTestSection("How to Test", items: release.howToTest)
             ForEach([ProductRelease.Change.Kind.added, .improved, .fixed], id: \.rawValue) { kind in
                 let changes = release.changes.filter { $0.kind == kind }
                 if !changes.isEmpty {
@@ -64,7 +68,17 @@ struct ProductReleaseDetailView: View {
                     .accessibilityIdentifier("release.whatsNew")
             }
         }.navigationTitle("Release details").navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showingSlides) { ProductWhatsNewView(release: release) }
+            .sheet(isPresented: $showingSlides, onDismiss: {
+                ProductUpdatesSeenStore(defaults: ProductUpdatesSeenStore.launchDefaults).markSeen(release.version)
+            }) { ProductWhatsNewView(release: release) }
+    }
+    @ViewBuilder private func releaseTestSection(_ heading: String, items: [String]?) -> some View {
+        if let items, !items.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(heading).font(AteFont.display(20))
+                ForEach(items.indices, id: \.self) { Text(items[$0]).font(AteFont.body(16)) }
+            }.frame(maxWidth: .infinity, alignment: .leading).cardSurface(padding: 16)
+        }
     }
 }
 

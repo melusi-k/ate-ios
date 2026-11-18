@@ -1,7 +1,7 @@
 {
-  "title": "Workflow cleanup: fold shopping-edit-undo lane into Dogfood folded-journeys (lane-strength)",
-  "summary": "Owner-approved cleanup (call 2), Reviewer-revised: ShoppingEditUndoUITests moves into Dogfood's folded-journeys job with the retired lane's gates carried over unchanged - 120/300 per-test allowances, Executed-0 plus 4 named-pass gates, 6 named nonempty-PNG screenshot gates with export, clean-process preflight, failure evidence, metadata, warn-on-missing artifacts, 45m budget. Verdict job gates on folded-journeys. XcodeGen inventory net 0 (27). No runtime code touched; native qualification UNRUN.",
-  "source_commit": "52ca1c9f7bb5763cd199614f8826005932ddc168",
+  "title": "Workflow cleanup: fold shopping-completion lane into Dogfood folded-journeys (lane-strength)",
+  "summary": "Owner-approved cleanup (call 2): shopping-completion-qualification.yml retires. Its UI journey folds into Dogfood folded-journeys group 2 with all gates byte-carried (reconstruction-proofed). Its 3 LogicTests keep the original 120/300 contract in a focused build-nutrition step (named-pass, no-zero, failure evidence, retained log+xcresult) and are required in scripts/full-unit-required.txt; the 4 compile-check byte pins are retargeted byte-exact. Metadata: execution_target=actual-head. Merge after packet 3. Native UNRUN.",
+  "source_commit": "f8a8f1292e36b8afd4cbaadbaf6d4fab14c94ba0",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

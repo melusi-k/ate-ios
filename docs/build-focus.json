@@ -1,7 +1,7 @@
 {
-  "title": "Workflow cleanup: delete journal-foundation-qualification.yml; strict concurrency moves to Compile",
-  "summary": "Owner-approved cleanup (call 2, M1), Reviewer-revised: all 5 selections are AteTests unit classes covered by Compile's full exact-head unit suite. The lane's SWIFT_STRICT_CONCURRENCY=complete setting moves to build-nutrition's build-for-testing; its grep surfaces concurrency diagnostics display-only (|| true), exactly as the retired lane did, no new hard failure. The 4 compile-check byte pins are retargeted byte-exact (old pins re-verified on base 9d7fcbd5; PR diff via git apply reproduces the new bytes). XcodeGen inventory 27 -> 26. No runtime code touched; native qualification UNRUN.",
-  "source_commit": "86ebdaacf4927549212753d1562890f9ae52e9ac",
+  "title": "Workflow cleanup: fold shopping-edit-undo lane into Dogfood folded-journeys (lane-strength)",
+  "summary": "Owner-approved cleanup (call 2), Reviewer-revised: ShoppingEditUndoUITests moves into Dogfood's folded-journeys job with the retired lane's gates carried over unchanged - 120/300 per-test allowances, Executed-0 plus 4 named-pass gates, 6 named nonempty-PNG screenshot gates with export, clean-process preflight, failure evidence, metadata, warn-on-missing artifacts, 45m budget. Verdict job gates on folded-journeys. XcodeGen inventory net 0 (27). No runtime code touched; native qualification UNRUN.",
+  "source_commit": "52ca1c9f7bb5763cd199614f8826005932ddc168",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

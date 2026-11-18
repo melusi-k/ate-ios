@@ -1,15 +1,15 @@
 {
   "title": "Source-factual recipe import extraction",
-  "summary": "Device-reported tripe import reached Review your card with an invented title, source meat renamed and a long step left timeless: link, pasted and captioned recipes had no SourceRecipeFidelity contract, so nothing bound the card to the source. structuredRecipe now certifies only explicit measured Ingredients plus Method sections and binds title, ingredients, order, quantities and written times through the existing fail-closed gate; unverifiable structure is refused, never generated or demoed. Prompt and quality gates byte-identical. Native/device acceptance UNRUN.",
-  "source_commit": "5bcec946f9e684111b6d2a1cb303d56abc5edbdb",
+  "summary": "Device-reported tripe import reached Review your card with an invented title and renamed meat: link, pasted and captioned recipes had no SourceRecipeFidelity contract binding the card to the source. structuredRecipe now certifies only explicit measured Ingredients plus Method sections with one measured item per line and whitelisted prep tails; htmlToText preserves list/br boundaries as lines so real pages certify, while collapsed multi-item lines and failed captions are refused, never generated or demoed. Prompt/quality gates byte-identical. Native/device UNRUN.",
+  "source_commit": "15ae3e8254db33d2d5fdd1aafefb972af673219b",
   "evidence": [
     {
       "path": "Ate/Logic/SourceRecipeFidelity.swift",
-      "blob": "8383c7724e34158b8977a29e346949194166601b"
+      "blob": "87c5eddd3af4e2f596680950c43db14c251afef9"
     },
     {
       "path": "Ate/Services/OnDeviceBackend.swift",
-      "blob": "e1dcc83e8329dc1dc0290e7b7ddb8092cdcd5ad0"
+      "blob": "7400f7538d6d058f6c2f85014aae4db6a50fe3f5"
     }
   ]
 }

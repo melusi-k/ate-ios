@@ -570,13 +570,25 @@ final class OnDeviceBackend: BackendService {
 
     static func htmlToText(_ html: String) -> String {
         var s = html
-        for p in ["<script[\\s\\S]*?</script>", "<style[\\s\\S]*?</style>", "<[^>]+>"] {
+        for p in ["<script[\\s\\S]*?</script>", "<style[\\s\\S]*?</style>"] {
             s = s.replacingOccurrences(of: p, with: " ", options: [.regularExpression, .caseInsensitive])
         }
+        // Item boundaries must survive into the text: list items, line breaks and block
+        // ends become newlines BEFORE the remaining tags are stripped, so a recipe
+        // page's ingredient list keeps one line per item. Without an explicit boundary
+        // the import refuses to verify a collapsed multi-item line rather than guessing
+        // where one name ends and the next item starts.
+        for p in ["<br[^>]*>", "<li[^>]*>", "</(?:li|p|div|h[1-6]|tr|ul|ol)>"] {
+            s = s.replacingOccurrences(of: p, with: "\n", options: [.regularExpression, .caseInsensitive])
+        }
+        s = s.replacingOccurrences(of: "<[^>]+>", with: " ", options: [.regularExpression, .caseInsensitive])
         for (a, b) in ["&amp;": "&", "&nbsp;": " ", "&#39;": "'", "&quot;": "\"", "&lt;": "<", "&gt;": ">"] {
             s = s.replacingOccurrences(of: a, with: b)
         }
-        return s.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        // Collapse spaces/tabs within each line; newlines survive, empty lines drop.
+        return s.components(separatedBy: .newlines).map {
+            $0.replacingOccurrences(of: "[ \\t]+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        }.filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
     /// Shared by real image generation, demo fallback and the model's readPhotoText tool.

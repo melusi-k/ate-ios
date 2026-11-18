@@ -1,15 +1,11 @@
 {
-  "title": "Ordinary Food diary Log again prefill",
-  "summary": "Collapsed add-only local-history suggestions prefill existing form without saving. Original storage/validation/helper unchanged, source provenance cleared, current date/day/meal kept. Native qualification UNRUN.",
-  "source_commit": "dd26576a010d0aa2de3e17c7d3e4c2bdacc47040",
+  "title": "Offline Settings release notes and replayable tour (#540)",
+  "summary": "Product-updates lane: native offline Settings release notes with a replayable What's New tour; no launch auto-show (slice parked on parked-540-launch-host); no automatic StoreKit review request on replay-sheet dismiss (requestReview version parked on parked-540-request-review; markSeen stays local). Native qualification UNRUN.",
+  "source_commit": "1980f19c603d39501592841c2f5312e09e1efc78",
   "evidence": [
     {
-      "path": "Ate/Logic/NutritionDiary.swift",
-      "blob": "89cf255a6e9ddf5a5987532f35cc2e497fc78ed4"
-    },
-    {
-      "path": "Ate/Logic/NutritionDiaryEditing.swift",
-      "blob": "8d1754dbdd23b5255128145208ab0ea7740a0a47"
+      "path": "Ate/Logic/ProductUpdates.swift",
+      "blob": "780d9aa5f07df894076e1be4aec35e286c3234dd"
     }
   ]
 }

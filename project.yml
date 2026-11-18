@@ -51,6 +51,8 @@ targets:
         excludes:
           - Resources/ProductUpdates
       # One folder reference preserves the subdirectory required by both strict loaders.
+      # Preserve the catalog subdirectory expected by Bundle.main. A target-level
+      # resources key does not stop recursive sources from flattening this JSON.
       - path: Ate/Resources/ProductUpdates
         type: folder
         buildPhase: resources

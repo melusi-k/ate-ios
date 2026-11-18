@@ -9,8 +9,11 @@ BuildNotes and About accessibility IDs preserved.
 Settings Product > Release Notes opens bundled release list, applicable by build
 and channel, newest minimumBuild first with stable ID tie-break. Detail contains
 summary, Added/Improved/Fixed notes and optional View What's New. Each release has
-its own ordered slides. Explicit Back/Next/Done/Close, page count, no autoplay or
-launch popup. Zero-slide releases retain notes; missing images retain explanation.
+its own ordered slides. Explicit Back/Next/Done/Close, page count, no autoplay. The no-launch-popup limit stands: nothing auto-shows on launch. Settings
+Product > Release Notes is the only entry point, with the replayable What's New
+tour. A launch auto-show slice was removed from this packet and parked on branch
+parked-540-launch-host; it can return only with the owner's explicit approval
+after native testing. Zero-slide releases retain notes; missing images retain explanation.
 Unreadable catalog shows unavailable instead of fabricated release history.
 
 Curated seed describes only these release-note screens, not dormant/unlanded app

@@ -8,6 +8,15 @@ final class AccessibilityTests: XCTestCase {
         }
     }
 
+    func testFilledPrimaryControlsHaveAccessibleLightAndDarkThemePairings() {
+        let required = ["primaryForeground/primary", "dark primaryForeground/primary"]
+        for name in required {
+            let pair = Palette.pairs.first { $0.name == name }
+            XCTAssertNotNil(pair, name)
+            if let pair { XCTAssertGreaterThanOrEqual(Palette.contrast(pair.fg, pair.bg), 4.5, name) }
+        }
+    }
+
     func testFontsScaleWithTextStyle() {
         XCTAssertEqual(AteFont.style(for: 36), .largeTitle)
         XCTAssertEqual(AteFont.style(for: 15), .body)

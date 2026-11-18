@@ -22,7 +22,13 @@ def restore_food_form_brackets(test, source):
 class FoodFormPhaseTests(unittest.TestCase):
     def test_original_entire_test_source_unchanged_except_brackets(self):
         source=(ROOT/'AteUITests/NutritionDiaryUITests.swift').read_text()
-        self.assertEqual(hashlib.sha256(restore_food_form_brackets(self,source).encode()).hexdigest(), 'f439256e12f03cf9d810257e051e46c118514c579e4c324ff7f59d5f9624e572')
+        # Composed head: also reverse #536's keyboard-completion block exactly.
+        kb = (ROOT/'scripts/tests/test_merge_536_kb_fragment.txt').read_text() if (ROOT/'scripts/tests/test_merge_536_kb_fragment.txt').exists() else None
+        restored = restore_food_form_brackets(self,source)
+        if kb is not None:
+            self.assertEqual(restored.count(kb),1)
+            restored = restored.replace(kb,'',1)
+        self.assertEqual(hashlib.sha256(restored.encode()).hexdigest(), 'f439256e12f03cf9d810257e051e46c118514c579e4c324ff7f59d5f9624e572')
     def test_helper_only_phase_name_and_uptime_no_ax_reads(self):
         source=(ROOT/'AteUITests/NutritionDiaryUITests.swift').read_text()
         helper=source.split('// FOOD-FORM-DIAGNOSTIC-BEGIN',1)[1].split('// FOOD-FORM-DIAGNOSTIC-END',1)[0]

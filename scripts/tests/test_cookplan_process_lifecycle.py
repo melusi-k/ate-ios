@@ -1,4 +1,4 @@
-from approved_merge_535 import normalize
+from approved_merge_composed import normalize
 from pathlib import Path
 from test_coverage_launch_capture import restore_coverage_workflow
 import unittest,hashlib,importlib.util,yaml,subprocess

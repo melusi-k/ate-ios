@@ -149,6 +149,19 @@ enum RecipeQuality {
     }
 
     /// Too thin to show: fewer than 3 ingredients or 3 steps, or visible items missing. Triggers one regeneration.
+    /// The gaps that trigger the automatic repair pass. The advisory
+    /// unused-implicit-staple class (the closed exact-name list: salt, black
+    /// pepper, pepper, water and the cooking oils) never does on its own: the
+    /// review card already lists it with a manual Repair button, and an
+    /// automatic repair costs a second full on-device generation. An unused
+    /// main ingredient (flour in a cake included) and every other gap
+    /// (structure, times, doneness, consistency, fidelity) still repair
+    /// automatically. The review card's gap list itself is unchanged:
+    /// shortfall/issues keep returning every gap.
+    static func gapsNeedingRepair(_ gaps: [String]) -> [String] {
+        gaps.filter { !GeneratedStepQuality.isImplicitStapleGap($0) }
+    }
+
     static func shortfall(_ c: RecipeCard, labels: [String] = []) -> [String] {
         var out = issues(c)
         if c.ingredients.filter({ !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }).count < minIngredients { out.append("Needs at least \(minIngredients) ingredients.") }

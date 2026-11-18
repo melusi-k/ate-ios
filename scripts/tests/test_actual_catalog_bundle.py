@@ -20,9 +20,12 @@ class ActualCatalogBundleContracts(unittest.TestCase):
         require_contract(yaml.safe_load((ROOT/'project.yml').read_text()))
         for path in ['Ate/Logic/Roadmap.swift','Ate/Logic/ProductUpdates.swift']:
             self.assertIn('subdirectory: "ProductUpdates"',(ROOT/path).read_text())
-        workflow=(ROOT/'.github/workflows/roadmap-local-qualification.yml').read_text()
-        self.assertIn('verify-product-catalog-bundle.py',workflow)
-        self.assertIn('-only-testing:AteTests/ProductUpdatesTests',workflow)
+        # Lane retired 2026-11-18 (workflow cleanup call 2): the catalog verification
+        # folds into Dogfood group 11; the unit selection lives in Compile's focused step.
+        dogfood=(ROOT/'.github/workflows/dogfood-qualification.yml').read_text()
+        compile_wf=(ROOT/'.github/workflows/compile-check.yml').read_text()
+        self.assertIn('verify-product-catalog-bundle.py',dogfood)
+        self.assertIn('-only-testing:AteTests/ProductUpdatesTests',compile_wf)
         self.assertIn('testActualBundledReleaseCatalogLoadsFromRequiredSubdirectory',(ROOT/'AteTests/ProductUpdatesTests.swift').read_text())
     def test_seven_packaging_mutants_are_rejected(self):
         spec=yaml.safe_load((ROOT/'project.yml').read_text())

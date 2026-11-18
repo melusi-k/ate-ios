@@ -368,6 +368,39 @@ jobs:
             settings-ai-unit.log
             build/SettingsAIStatusUnit.xcresult
 
+      - name: Roadmap and product-updates unit tests (retired lane contract)
+        id: roadmap_unit
+        if: ${{ steps.build.outcome == 'success' }}
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          set +e
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests/RoadmapTests \
+            -only-testing:AteTests/ProductUpdatesTests \
+            -resultBundlePath build/RoadmapUnitTests.xcresult \
+            -parallel-testing-enabled NO \
+            CODE_SIGNING_ALLOWED=NO > roadmap-unit.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Roadmap/product-updates unit tests failed (xcodebuild exit $status). Log and xcresult are uploaded."
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" roadmap-unit.log || true
+            tail -n 100 roadmap-unit.log
+            exit "$status"
+          fi
+          grep -E "Test Case .* (passed|failed)|Executed" roadmap-unit.log | tail -20
+
+      - name: Retain roadmap unit diagnostics
+        if: always() && steps.roadmap_unit.outcome != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: roadmap-unit-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            roadmap-unit.log
+            build/RoadmapUnitTests.xcresult
+
       - name: Retain full unit diagnostics before UI acceptance
         if: always() && (steps.unit_tests.outcome == 'success' || steps.unit_tests.outcome == 'failure')
         uses: actions/upload-artifact@v7

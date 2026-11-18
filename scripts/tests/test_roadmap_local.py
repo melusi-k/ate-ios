@@ -52,7 +52,18 @@ class LocalRoadmapContracts(unittest.TestCase):
         self.assertGreaterEqual(ui.count('app.terminate()'),2)
         self.assertIn('XCTAssertGreaterThanOrEqual(vote.frame.height, 44)',ui)
         for token in ['Mock','-qaRoadmap','launchEnvironment','sleep(']:self.assertNotIn(token,ui)
-        workflow=(ROOT/'.github/workflows/roadmap-local-qualification.yml').read_text()
-        self.assertIn('-only-testing:AteTests/RoadmapTests',workflow)
-        self.assertIn('-only-testing:AteUITests/RoadmapUITests',workflow)
-        self.assertNotIn('retry',workflow)
+        # Lane retired 2026-11-18 (workflow cleanup call 2): unit selection lives in
+        # Compile's focused step, the UI journey in Dogfood's folded group 11.
+        compile_wf=(ROOT/'.github/workflows/compile-check.yml').read_text()
+        dogfood=(ROOT/'.github/workflows/dogfood-qualification.yml').read_text()
+        self.assertIn('-only-testing:AteTests/RoadmapTests',compile_wf)
+        self.assertIn('-only-testing:AteUITests/RoadmapUITests',dogfood)
+        # The no-retry contract applies to this lane's own folded block (group 11);
+        # the full Dogfood file legitimately names retry-lifecycle diagnostics elsewhere.
+        group11=dogfood.split('Folded group 11',1)[1].split('Record qualification metadata',1)[0]
+        self.assertNotIn('retry',group11)
+        # Time boundary (packet-13-r2 ruling): the retired lane's 30m job ceiling becomes
+        # explicit 30m caps on the two focused roadmap steps; no job timeout is raised.
+        self.assertIn('timeout-minutes: 30',group11)
+        roadmap_step=compile_wf.split('Roadmap and product-updates unit tests (retired lane contract)',1)[1].split('Retain full unit diagnostics',1)[0]
+        self.assertIn('timeout-minutes: 30',roadmap_step)

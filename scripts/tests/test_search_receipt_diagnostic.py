@@ -16,7 +16,7 @@ class SearchReceiptTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), 'dded325b47238833a7fd993cafbc8f5f9c03ab2daa896af4466d240651bfd5d1')
         workflow=normalize('main:.github/workflows/compile-check.yml', (ROOT/'.github/workflows/compile-check.yml').read_text())
         self.assertEqual(workflow.count(WORKFLOW),1)
-        self.assertEqual(hashlib.sha256(workflow.replace(WORKFLOW,'',1).encode()).hexdigest(), 'c8932ad1dcb3e55deb3db29fa9121969e2c8e30e52ae512f6ef869cc4950c646')
+        self.assertEqual(hashlib.sha256(workflow.replace(WORKFLOW,'',1).encode()).hexdigest(), 'fcde84b29e71b7284066e0998a03e56f3ce3e9653147f0f3c5c84d6a5c838b8c')
     def test_native_input_contract_entire_file_unchanged(self):
         self.assertEqual(hashlib.sha256(normalize('main:AteUITests/ExploreUITests.swift', (ROOT/'AteUITests/ExploreUITests.swift').read_bytes())).hexdigest(), '5e300bda3a3f8ab02caae977a6d3906f0d1df4700b11d29cbbb443af6fcf1b25')
     def test_numeric_opt_in_bounded_no_polling_or_query_text(self):

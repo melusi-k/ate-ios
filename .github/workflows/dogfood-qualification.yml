@@ -2000,6 +2000,41 @@ jobs:
             echo "beta_journeys_outcome=${{ steps.beta_journeys.outcome }}"
             echo "presentation_fixtures=not-loaded,simulated-refresh-error"
           } | tee qualification-metadata-beta.txt
+      # Folded group 11 (from retired roadmap-local-qualification.yml): the catalog
+      # directory verification, the UI journey and screenshot retention, byte-carried.
+      # The lane's 2 unit classes (RoadmapTests, ProductUpdatesTests) move to Compile's
+      # focused step + full-unit-required.txt (unit ruling). The lane carried NO
+      # per-test allowance flags and no named gates; none are added. Source receipt
+      # (git rev-parse HEAD) preserved. Renames + 4 adaptations in the README.
+      - name: Record exact source receipt (folded group 11)
+        run: |
+          mkdir -p roadmap-g11-evidence
+          git rev-parse HEAD > roadmap-g11-evidence/source-sha.txt
+      - name: Verify actual built catalog directory (folded group 11)
+        run: |
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcodebuild -showBuildSettings -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO > roadmap-g11-evidence/build-settings.txt
+          python3 scripts/verify-product-catalog-bundle.py roadmap-g11-evidence/build-settings.txt \
+            > roadmap-g11-evidence/catalog-bundle-receipt.json
+      - name: Catalog, local persistence and Settings journey (folded group 11)
+        timeout-minutes: 30
+        run: |
+          SIM_ID="${{ steps.select_simulator.outputs.id }}"
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:AteUITests/RoadmapUITests \
+            -parallel-testing-enabled NO \
+            -resultBundlePath "$RUNNER_TEMP/roadmap74-g11.xcresult" \
+            CODE_SIGNING_ALLOWED=NO > roadmap-g11-evidence/tests.log 2>&1
+      - name: Retain screenshots and failure details (folded group 11)
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/roadmap74-g11.xcresult" ]; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/roadmap74-g11.xcresult" \
+              --output-path roadmap-g11-evidence/attachments
+          fi
       - name: Record qualification metadata
         if: always()
         run: |
@@ -2057,6 +2092,8 @@ jobs:
             beta-status-ui.log
             build/BetaStatusUITests.xcresult
             build/BetaUIAttachments
+            roadmap-g11-evidence
+            ${{ runner.temp }}/roadmap74-g11.xcresult
           if-no-files-found: warn
 
   qualification-result:

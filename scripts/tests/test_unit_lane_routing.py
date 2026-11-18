@@ -17,7 +17,7 @@ class UnitLaneRoutingTests(unittest.TestCase):
         # Exactly one FULL unit selection; the only focused selectors are the retired
         # shopping-completion lane's 3 gates, kept at their own 120/300 contract (Reviewer
         # unit ruling 2026-11-18: preserve the original timing contract, never widen).
-        self.assertEqual(re.findall(r'-only-testing:(AteTests[^\s\\]*)', self.compile), ['AteTests', 'AteTests/LogicTests/testMoveBoughtBackToListMovesOnlyBoughtItemsAndUndoRestoresThem', 'AteTests/LogicTests/testMoveBoughtBackWithNothingBoughtIsANoOp', 'AteTests/LogicTests/testMoveBoughtBackUndoIsBlockedAfterAccountChangeEvenWithSameItemID', 'AteTests/ManualJournalTests', 'AteTests/FoodJournalStoreTests', 'AteTests/FoodJournalCoordinatorTests', 'AteTests/JournalArchiveTests', 'AteTests/JournalTimelineOrderTests', 'AteTests/LegacyDiaryRepairTests', 'AteTests/CanonicalNutritionDiaryTests', 'AteTests/NutritionRecipeAssociationTests', 'AteTests/CookingTrackerPresentationTests/testOnlyLibraryRecipesAreOpenable', 'AteTests/CookingTrackerPresentationTests/testDeletedRecipeUsesClearFallbackLabel'])
+        self.assertEqual(re.findall(r'-only-testing:(AteTests[^\s\\]*)', self.compile), ['AteTests', 'AteTests/LogicTests/testMoveBoughtBackToListMovesOnlyBoughtItemsAndUndoRestoresThem', 'AteTests/LogicTests/testMoveBoughtBackWithNothingBoughtIsANoOp', 'AteTests/LogicTests/testMoveBoughtBackUndoIsBlockedAfterAccountChangeEvenWithSameItemID', 'AteTests/ManualJournalTests', 'AteTests/FoodJournalStoreTests', 'AteTests/FoodJournalCoordinatorTests', 'AteTests/JournalArchiveTests', 'AteTests/JournalTimelineOrderTests', 'AteTests/LegacyDiaryRepairTests', 'AteTests/CanonicalNutritionDiaryTests', 'AteTests/NutritionRecipeAssociationTests', 'AteTests/CookingTrackerPresentationTests/testOnlyLibraryRecipesAreOpenable', 'AteTests/CookingTrackerPresentationTests/testDeletedRecipeUsesClearFallbackLabel', 'AteTests/SettingsAIStatusTests'])
         self.assertIn('-default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300', self.compile)
         self.assertNotRegex(self.dogfood, r'-only-testing:AteTests')
         self.assertIn('xcodebuild test-without-building', self.full)
@@ -50,6 +50,8 @@ class UnitLaneRoutingTests(unittest.TestCase):
         retired_lane_units += (ROOT / 'scripts/nutrition-179-native-required.txt').read_text().splitlines()
         # Retired tracker-history lane: its 2 named unit gates move here the same way.
         retired_lane_units += ['CookingTrackerPresentationTests/testOnlyLibraryRecipesAreOpenable', 'CookingTrackerPresentationTests/testDeletedRecipeUsesClearFallbackLabel']
+        # Retired settings-ui lane: its 5 SettingsAIStatusTests gates move here the same way.
+        retired_lane_units += ['SettingsAIStatusTests/testPrivateModeTakesPrecedenceOverEveryModelState', 'SettingsAIStatusTests/testEveryUnavailableStateExplainsDemoFallbackWithoutRawSDKReason', 'SettingsAIStatusTests/testHardwareAndOSRequirementsAreNotConflated', 'SettingsAIStatusTests/testExportExplicitlyDisclosesJournalExclusionAndNoSync', 'SettingsAIStatusTests/testReadyStateDoesNotSuggestDemoOrTurningOnAI']
         union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + retired_lane_units))
         actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()
         self.assertEqual(actual, union)

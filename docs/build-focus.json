@@ -1,7 +1,7 @@
 {
-  "title": "Workflow cleanup: fold journal-menu lane into Dogfood folded-journeys (lane-strength)",
-  "summary": "Owner-approved cleanup (call 2): journal-menu-qualification.yml retires. Its 12 UI journeys fold into Dogfood folded-journeys group 3 with every gate byte-carried (reconstruction-proofed, per-group suffix map). The 7 ManualJournalTests keep their original 120/300 contract in a focused build-nutrition step (named-pass, no-zero, failure evidence, retained log+xcresult) and are required in scripts/full-unit-required.txt; the 4 compile-check byte pins are retargeted byte-exact. xcodegen inventory 27->26. Merge after packet 4. Native UNRUN.",
-  "source_commit": "f0c00286d07de94bff95fd07b6a6251423dd264e",
+  "title": "Workflow cleanup: fold menu lane into Dogfood folded-journeys (lane-strength)",
+  "summary": "Owner-approved cleanup (call 2): menu-qualification.yml retires. Its 4 UI journey steps fold into Dogfood folded-journeys group 4 with every gate byte-carried (120/300, named passes, screenshot export/validation in own scope dirs, failure evidence; reconstruction-proofed). No unit content in this lane. test29/29b selector assertions retarget to Dogfood; xcodegen inventory 26->25. Metadata: head_sha=rev-parse, execution_target=actual-head. Merge after packet 5 r2. Native UNRUN.",
+  "source_commit": "f3f15044801b0c4d325dd9f6012a3f4ae40ea958",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

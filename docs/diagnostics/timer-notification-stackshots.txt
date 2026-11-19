@@ -1,0 +1,56 @@
+original #622 stackshot
+Date/Time:        2026-11-19 15:51:19.932 +0000
+End time:         2026-11-19 15:51:24.933 +0000
+OS Version:       macOS 27.0.1 (Build 26A434)
+252  TimerCenter.startQuick(seconds:) + 180 (TimerCenter.swift:105,29 in Ate.debug.dylib + 11226608) [0x104bdcdf0] 1-252
+252  FoodJournalWriterBoundary.withEffect<A>(_:) + 368 (FoodJournalWriterBoundary.swift:23,32 in Ate.debug.dylib + 5840652) [0x1046b9f0c] 1-252
+252  partial apply for closure #1 in TimerCenter.startQuick(seconds:) + 28 (<compiler-generated> in Ate.debug.dylib + 11273768) [0x104be8628] 1-252
+252  closure #1 in TimerCenter.startQuick(seconds:) + 1644 (TimerCenter.swift:112,25 in Ate.debug.dylib + 11228360) [0x104bdd4c8] 1-252
+252  static TimerAlerts.schedule(id:step:recipeTitle:at:prefs:) + 120 (TimerAlerts.swift:28,9 in Ate.debug.dylib + 11197396) [0x104bd5bd4] 1-252
+252  static TimerAlerts.cancel(id:) + 232 (TimerAlerts.swift:42,44 in Ate.debug.dylib + 11198616) [0x104bd6098] 1-252
+252  ??? [0x1f51acd80] 1-252
+252  ??? [0x1f51bbc24] 1-252
+252  ??? [0x1e6735b28] 1-252
+252  ??? [0x1e673ffb8] 1-252
+252  ??? [0x1f51bbd3c] 1-252
+252  ??? [0x1c06b3f58] 1-252
+252  ??? [0x1c06a0d68] 1-252
+252  ??? [0x1c06a1618] 1-252
+252  ??? [0x1c06a1ff4] 1-252
+252  ??? [0x1c0113e7c] 1-252
+252  ??? [0x1e6741bfc] 1-252
+252  ??? [0x1e6741860] 1-252
+252  mach_msg + 20 (libsystem_kernel.dylib + 3804) [0x101228edc] 1-252
+252  mach_msg_overwrite + 484 (libsystem_kernel.dylib + 35928) [0x101230c58] 1-252
+252  <patched truncated backtrace> 1-252
+252  mach_msg2_trap + 8 (libsystem_kernel.dylib + 2908) [0x101228b5c] 1-252
+*252  ??? (kernel.release.vmapple + 232404) [0xfffffe0009ee4bd4] 1-252
+
+
+repair #622 stackshot
+Date/Time:        2026-11-19 17:09:43.837 +0000
+End time:         2026-11-19 17:09:48.842 +0000
+OS Version:       macOS 27.0.1 (Build 26A434)
+284  TimerCenter.startQuick(seconds:) + 180 (TimerCenter.swift:105,29 in Ate.debug.dylib + 11228508) [0x10417555c] 1-284
+284  FoodJournalWriterBoundary.withEffect<A>(_:) + 368 (FoodJournalWriterBoundary.swift:23,32 in Ate.debug.dylib + 5840652) [0x103c51f0c] 1-284
+284  partial apply for closure #1 in TimerCenter.startQuick(seconds:) + 28 (<compiler-generated> in Ate.debug.dylib + 11275668) [0x104180d94] 1-284
+284  closure #1 in TimerCenter.startQuick(seconds:) + 1644 (TimerCenter.swift:112,25 in Ate.debug.dylib + 11230260) [0x104175c34] 1-284
+284  static TimerAlerts.schedule(id:step:recipeTitle:at:prefs:) + 120 (TimerAlerts.swift:28,9 in Ate.debug.dylib + 11199296) [0x10416e340] 1-284
+284  static TimerAlerts.cancel(id:) + 232 (TimerAlerts.swift:42,44 in Ate.debug.dylib + 11200516) [0x10416e804] 1-284
+284  -[UNUserNotificationCenter removePendingNotificationRequestsWithIdentifiers:] + 72 (UserNotifications + 77184) [0x1f51acd80] 1-284
+284  -[UNUserNotificationServiceConnection removePendingNotificationRequestsWithIdentifiers:forBundleIdentifier:completionHandler:] + 312 (UserNotifications + 138276) [0x1f51bbc24] 1-284
+284  _dispatch_lane_barrier_sync_invoke_and_complete + 92 (libdispatch.dylib + 72488) [0x1e6735b28] 1-284
+284  _dispatch_client_callout + 12 (libdispatch.dylib + 114616) [0x1e673ffb8] 1-284
+284  __126-[UNUserNotificationServiceConnection removePendingNotificationRequestsWithIdentifiers:forBundleIdentifier:completionHandler:]_block_invoke.46 + 208 (UserNotifications + 138556) [0x1f51bbd3c] 1-284
+284  _NSXPCDistantObjectSimpleMessageSend3 + 72 (Foundation + 2072408) [0x1c06b3f58] 1-284
+284  -[NSXPCConnection _sendSelector:withProxy:arg1:arg2:arg3:] + 132 (Foundation + 1994088) [0x1c06a0d68] 1-284
+284  -[NSXPCConnection _sendInvocation:orArguments:count:methodSignature:selector:withProxy:] + 1960 (Foundation + 1996312) [0x1c06a1618] 1-284
+284  __NSXPCCONNECTION_IS_WAITING_FOR_A_SYNCHRONOUS_REPLY__ + 12 (Foundation + 1998836) [0x1c06a1ff4] 1-284
+284  xpc_connection_send_message_with_reply_sync + 296 (libxpc.dylib + 69244) [0x1c0113e7c] 1-284
+284  dispatch_mach_send_with_result_and_wait_for_reply + 56 (libdispatch.dylib + 121852) [0x1e6741bfc] 1-284
+284  _dispatch_mach_send_and_wait_for_reply + 564 (libdispatch.dylib + 120928) [0x1e6741860] 1-284
+284  mach_msg + 20 (libsystem_kernel.dylib + 3804) [0x100838edc] 1-284
+284  mach_msg_overwrite + 484 (libsystem_kernel.dylib + 35928) [0x100840c58] 1-284
+284  <patched truncated backtrace> 1-284
+284  mach_msg2_trap + 8 (libsystem_kernel.dylib + 2908) [0x100838b5c] 1-284
+*284  ??? (kernel.release.vmapple + 232404) [0xfffffe0009ee4bd4] 1-284

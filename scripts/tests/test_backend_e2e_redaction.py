@@ -304,6 +304,147 @@ class PassNoteTaintTests(unittest.TestCase):
                              f"t_auth_settings' note must not reference config reads: {names & {'cfg', 'mn', 'chars', 'otp'}}")
 
 
+class ExplainableFailureTests(CanaryTestCase):
+    def test_check_failure_records_status_and_whitelisted_key(self):
+        self.assertTrue(issubclass(e2e.CheckFailure, AssertionError))
+
+        def boom(_ctx):
+            e2e.expect(False, "password grant", 400, {"error_code": "invalid_grant", "password": CANARY_PASSWORD})
+
+        result, out, err = self.run_check(boom)
+        self.assertEqual(result["status"], "fail")
+        self.assertRegex(result["note"],
+                         r"^CheckFailure in boom at boom:\d+: password grant HTTP 400 error_code=invalid_grant$")
+        self.assertEqual(out, "\u274c A-TEST-00: fail\n")
+        self.assertEqual(err, "")
+        self.assert_no_canaries(result["note"], out, err)
+        self.assertNotIn("'password'", result["note"])  # non-whitelisted keys never quoted
+
+    def test_location_points_at_the_check_not_expect(self):
+        def boom(_ctx):
+            e2e.expect(False, "pull", 500)
+
+        result, _, _ = self.run_check(boom)
+        self.assertIn(" at boom:", result["note"])
+        self.assertNotIn(" at expect:", result["note"])
+
+    def test_only_closed_mapping_literals_are_recorded(self):
+        self.assertEqual(e2e._KNOWN_ERROR_CODES, {
+            "invalid_grant": "invalid_grant", "bad_request": "bad_request",
+            "invalid_credentials": "invalid_credentials", "weak_password": "weak_password",
+            "email_not_confirmed": "email_not_confirmed", "user_already_exists": "user_already_exists",
+            "42501": "42501", "23505": "23505", "23503": "23503", "23502": "23502",
+            "22p02": "22P02", "pgrst116": "PGRST116"})
+        self.assertIsNone(e2e._error_code({"code": "unknown_code"}))
+
+    def test_identifier_shaped_unregistered_credentials_are_omitted(self):
+        canary = "canary-unregistered-credential-q7"
+        self.assertNotIn(canary, e2e._SENSITIVE_VALUES)
+        for key in ("error_code", "error", "code"):
+            def boom(_ctx, key=key):
+                e2e.expect(False, "publish", 400, {key: canary})
+            result, out, err = self.run_check(boom)
+            self.assertRegex(result["note"], r": publish HTTP 400$")
+            self.assertNotIn(canary, result["note"] + out + err)
+
+    def test_postgrest_code_works_with_canonical_case(self):
+        for value in ("PGRST116", "pgrst116"):
+            def boom(_ctx, value=value):
+                e2e.expect(False, "pull", 406, {"code": value})
+            result, _, _ = self.run_check(boom)
+            self.assertRegex(result["note"], r": pull HTTP 406 code=PGRST116$")
+
+    def test_free_form_keys_never_reach_the_note_unregistered_canary(self):
+        # Unregistered, non-token-shaped prose credential: scrub cannot know it, so only the
+        # strict identifier gate keeps it out of results.json / summary.md / qa_results.
+        prose = "zzUNREGISTERED canary prose credential 9f8e7d6c5b"
+        for key in ("message", "msg", "hint", "details", "error_description",
+                    "error_code", "error", "code"):
+            def boom(_ctx, key=key):
+                e2e.expect(False, "publish", 400, {key: prose})
+
+            result, _, _ = self.run_check(boom)
+            self.assertRegex(result["note"], r"^CheckFailure in boom at boom:\d+: publish HTTP 400$", key)
+            self.assertNotIn(prose, result["note"], key)
+            self.assertNotIn(key + "=", result["note"], key)
+
+    def test_valid_identifier_recorded_first_valid_key_wins(self):
+        self.assertEqual(e2e._ERROR_KEYS, ("error_code", "error", "code"))
+
+        def boom(_ctx):
+            # An invalid value on the first key does not block a later valid identifier.
+            e2e.expect(False, "publish", 400, {"error_code": "unknown_code", "error": "bad_request", "code": "42501"})
+
+        result, _, _ = self.run_check(boom)
+        self.assertIn("error=bad_request", result["note"])
+        self.assertNotIn("error_code=", result["note"])
+        self.assertNotIn("code=", result["note"])
+
+    def test_non_dict_body_contributes_nothing(self):
+        def boom(_ctx):
+            e2e.expect(False, "RLS leak", 200, [{"data": "row-secret"}])
+
+        result, _, _ = self.run_check(boom)
+        self.assertRegex(result["note"], r": RLS leak HTTP 200$")
+        self.assertNotIn("row-secret", result["note"])
+
+
+    def test_unexpected_exceptions_still_fail_closed(self):
+        def boom(_ctx):
+            raise ValueError(f"token {CANARY_SERVICE_KEY}")
+
+        result, out, err = self.run_check(boom)
+        self.assertRegex(result["note"], r"^ValueError in boom at boom:\d+ " + re.escape(e2e._WITHHELD) + "$")
+        self.assert_no_canaries(result["note"], out, err)
+
+
+class CallSitePinTests(unittest.TestCase):
+    def test_every_http_status_assert_uses_expect(self):
+        src = SCRIPT.read_text()
+        # The only remaining plain `assert code` is the Ctx.__init__ api-keys boundary, which
+        # must keep failing closed: it runs before any check and can echo credentials.
+        self.assertEqual(src.count("assert code"), 1)
+        self.assertIn('assert code == 200, f"api-keys {code}"', src)
+        sec = (SCRIPT.parent / "security_checks.py").read_text()
+        self.assertNotIn("assert code", sec)
+        self.assertIn("from backend_e2e import http, URL, REF, upsert, expect", sec)
+
+
+class ModuleIdentityTests(unittest.TestCase):
+    def test_script_mode_alias_is_module_level_before_any_import_use(self):
+        src = SCRIPT.read_text()
+        alias = 'sys.modules.setdefault("backend_e2e", sys.modules[__name__])'
+        self.assertIn(alias, src)
+        self.assertLess(src.index(alias), src.index("import security_checks"))
+        self.assertLess(src.index(alias), src.index("def http("))
+
+    def test_script_mode_shares_one_checkfailure_identity(self):
+        # No live calls: the script is exec'd as __main__ with the management token absent
+        # and a clean argv; main() dies at Ctx construction, before any network. The alias
+        # and the security_checks import chain must already give one module identity.
+        import subprocess
+        harness = (
+            "import importlib.util, os, sys\n"
+            "os.environ.pop('SUPABASE_ACCESS_TOKEN', None)\n"
+            "sys.argv = ['backend_e2e.py']\n"
+            f"spec = importlib.util.spec_from_file_location('__main__', r'{SCRIPT}')\n"
+            "m = importlib.util.module_from_spec(spec)\n"
+            "sys.modules['__main__'] = m\n"
+            "try:\n"
+            "    spec.loader.exec_module(m)\n"
+            "except BaseException:\n"
+            "    pass\n"
+            "import security_checks as sc\n"
+            "bm = sys.modules.get('backend_e2e')\n"
+            "print('ALIAS', bm is m)\n"
+            "print('SHARED', sc.expect is m.expect and sc.expect.__module__ == '__main__')\n"
+        )
+        proc = subprocess.run([sys.executable, "-c", harness], capture_output=True, text=True,
+                              cwd=str(SCRIPT.parent), timeout=60)
+        self.assertIn("ALIAS True", proc.stdout, proc.stderr[-500:])
+        self.assertIn("SHARED True", proc.stdout, proc.stderr[-500:])
+
+
 class CollectionTests(unittest.TestCase):
     def test_all_defined_tests_are_collected(self):
         # Guards against tests silently nested inside another def (a past bug here).

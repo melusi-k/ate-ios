@@ -213,7 +213,8 @@ final class OnDeviceBackend: BackendService {
                 prompt = RecipePrompt.social(caption: fidelity.text); input = .social
                 contextSource = fidelity.text; contextUser = ""
             } else {
-                prompt = RecipePrompt.prompt(text)
+                prompt = RecipeIdeaPrompt.build(text, confirmedDish: request.dishHint)
+                contextUser = text + "\n" + (request.dishHint ?? "")
             }
         case .url where socialCaption != nil:
             prompt = RecipePrompt.social(caption: socialCaption!); input = .social
@@ -285,7 +286,6 @@ final class OnDeviceBackend: BackendService {
         }
         let ctx = RecipePrompt.context(userText: contextUser, sourceText: contextSource, sourceIsLongForm: sourceIsLongForm)
         var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx,
-                                           emitPreview: fidelity == nil,
                                            reuseSession: request.mode != .rewrite || request.repairQuality == true)
         // Never show a confident recipe for an object the camera saw instead of food.
         // Send the user back through the dish question so the next pass is grounded by a human label.
@@ -317,7 +317,7 @@ final class OnDeviceBackend: BackendService {
                 retryReviseID = nil
             }
             card = try await GenerationCancellation.optionalRepair(original: card, operation: {
-                var again = try await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx, emitPreview: fidelity == nil)
+                var again = try await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx)
                 again.source = source
                 return again
             }, prefer: { again, previous in
@@ -388,9 +388,6 @@ final class OnDeviceBackend: BackendService {
         return false
     }
 
-    /// Live preview sink for the review sheet (set while the Add sheet / Ask Ate is generating).
-    @MainActor static var partialSink: ((RecipeStreamPreview) -> Void)?
-
     #if canImport(FoundationModels)
     /// Sessions kept per recipe id so Ask Ate ("Make this vegan") revises the card in the SAME conversation.
     @available(iOS 26.0, *) @MainActor private static var sessions: [String: LanguageModelSession] = [:]
@@ -427,7 +424,7 @@ final class OnDeviceBackend: BackendService {
     @MainActor
     static func generate(_ prompt: String, input: RecipePrompt.Input = .prompt, photoDataURL: String? = nil,
                          reviseID: String? = nil, context: RecipePrompt.Context = .init(),
-                         emitPreview: Bool = true, reuseSession: Bool = true) async throws -> RecipeCard {
+                         reuseSession: Bool = true) async throws -> RecipeCard {
         try GenerationCancellation.check()
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
@@ -439,7 +436,7 @@ final class OnDeviceBackend: BackendService {
             else { session = makeSession(tools: tools, input: input) }
             do {
                 // Extraction, not creative writing: greedy decoding keeps the card grounded in the text.
-                // Streamed so the review sheet renders the PartiallyGenerated card live.
+                // Drain snapshots for cancellation, but never publish unaccepted model fields.
                 // Code-along 205: Prompt { } builder with conditional context lines and a one-shot GenRecipe example;
                 // with the example in place the JSON schema is left out of the prompt (A/B: -qaIncludeSchema).
                 let lines = RecipePrompt.contextLines(context)
@@ -455,9 +452,10 @@ final class OnDeviceBackend: BackendService {
                 let stream = session.streamResponse(to: fullPrompt, generating: GenRecipe.self,
                                                     includeSchemaInPrompt: RecipePrompt.includeSchemaInPrompt || isRevision,
                                                     options: GenerationOptions(sampling: .greedy))
-                for try await snap in stream {
+                // Both initial generation and optional repair stay private until
+                // the caller selects, normalizes and checks the returned card.
+                for try await _ in stream {
                     try GenerationCancellation.check()
-                    if emitPreview { partialSink?(RecipeStreamPreview(snap.content)) }
                 }
                 let res = try await stream.collect()
                 try GenerationCancellation.check()

@@ -1,11 +1,15 @@
 {
-  "title": "Backend e2e failures explain themselves (HTTP status + error code, no secrets)",
-  "summary": "V1 r3: failure notes use a fixed reviewed mapping of known auth, PostgreSQL and PostgREST identifiers. Unknown values are omitted, even if identifier-shaped; output codes come from mapping literals, not response text. Free-form keys stay excluded. Unregistered identifier-shaped canaries in error_code/error/code never reach notes; PGRST116 works in canonical case. Script-mode shared module identity retained. Live e2e UNRUN.",
-  "source_commit": "28781e0400eb8389c66e90817a7482a8ed92cdd9",
+  "title": "Nonblocking timer notification submission",
+  "summary": "Timer alerts keep real notification-service calls, FIFO cancel-before-schedule/stop and an awaited clear-all removal/read-back barrier, without blocking the timer intent thread. Existing widget-relay native test remains exact and required, with three blocked-service ordering regressions. Source checks only; Swift/native alert delivery, clear-all and suspension acceptance remain UNRUN.",
+  "source_commit": "6b6b29e5a788dcc769a69755a27a799d01c7b150",
   "evidence": [
     {
-      "path": "Ate/Models/Models.swift",
-      "blob": "8af03461b45f0fab7632bb750f51d48b1fdd056d"
+      "path": "Ate/Services/TimerAlerts.swift",
+      "blob": "3671642383ad8a79c97690cc04e9644b5f6ee4b6"
+    },
+    {
+      "path": "Ate/Services/TimerNotificationWorker.swift",
+      "blob": "3c4d40084a8aa3e62cb07c872b70953bfb3f38c4"
     }
   ]
 }

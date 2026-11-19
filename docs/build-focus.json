@@ -1,24 +1,8 @@
 {
-  "title": "Source-bound imports, recipe-row metadata and URL copy cleanup",
-  "summary": "Combines source-binding/advisory-gap repairs, whole-item metadata wrapping with two-line titles, and URL title/site-boundary and marketing-copy cleanup. Keeps both parents' exact required native pass union. Native compile, XCTest and corrected pixels require this final head; Python checks are source preflight only.",
-  "source_commit": "4d802e2cdd5c8324cb940eef94173c0712547f92",
+  "title": "Backend e2e failures explain themselves (HTTP status + error code, no secrets)",
+  "summary": "V1 r3: failure notes use a fixed reviewed mapping of known auth, PostgreSQL and PostgREST identifiers. Unknown values are omitted, even if identifier-shaped; output codes come from mapping literals, not response text. Free-form keys stay excluded. Unregistered identifier-shaped canaries in error_code/error/code never reach notes; PGRST116 works in canonical case. Script-mode shared module identity retained. Live e2e UNRUN.",
+  "source_commit": "28781e0400eb8389c66e90817a7482a8ed92cdd9",
   "evidence": [
-    {
-      "path": "Ate/Logic/SourceRecipeFidelity.swift",
-      "blob": "940f129714f43b6d560c31ecb2c4f1d555f9d5b8"
-    },
-    {
-      "path": "Ate/Services/OnDeviceBackend.swift",
-      "blob": "214430ad0053a882de4bd673a97f7b0e4f11eb49"
-    },
-    {
-      "path": "Ate/Views/Components.swift",
-      "blob": "fe525566bd98eea224457ad7760f8c0d7200bf43"
-    },
-    {
-      "path": "Ate/Logic/JSONLD.swift",
-      "blob": "c1a42308bb9cadeda53ac0d5f96f6cbac2f3ebb0"
-    },
     {
       "path": "Ate/Models/Models.swift",
       "blob": "8af03461b45f0fab7632bb750f51d48b1fdd056d"

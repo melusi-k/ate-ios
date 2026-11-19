@@ -1,11 +1,11 @@
 """Supabase security review checks (docs/SECURITY_REVIEW.md, A-SEC-xx). Imported by backend_e2e.py.
 Hard asserts = must hold; `ctx.findings` collects open, non-blocking findings for the review doc."""
 import json, uuid
-from backend_e2e import http, URL, REF, upsert  # noqa: E402
+from backend_e2e import http, URL, REF, upsert, expect  # noqa: E402
 
 def sql(ctx, q):
     code, j = http("POST", f"https://api.supabase.com/v1/projects/{REF}/database/query", ctx.mgmt, {"query": q})
-    assert code in (200, 201), f"database/query {code} {j}"
+    expect(code in (200, 201), "database/query", code, j)
     return j
 
 def finding(ctx, s):
@@ -28,11 +28,11 @@ def t_rls_every_table(ctx):
 def t_anon_denied(ctx):
     for t in ("user_recipes", "qa_results"):
         code, j = http("GET", f"{URL}/rest/v1/{t}?select=*&limit=1", ctx.anon_h())
-        assert code in (401, 403) or j == [], f"anon read {t}: {code} {j}"
+        expect(code in (401, 403) or j == [], f"anon read {t}", code)
         code, j = http("POST", f"{URL}/rest/v1/{t}", ctx.anon_h(), {"user_id": str(uuid.uuid4())})
-        assert code in (401, 403, 400), f"anon insert {t}: {code}"
+        expect(code in (401, 403, 400), f"anon insert {t}", code)
     code, _ = http("POST", f"{URL}/rest/v1/shared_recipes", ctx.anon_h(), {"slug": "zzhack" + uuid.uuid4().hex[:6], "title": "x", "card": {}})
-    assert code in (401, 403), f"anon direct insert into shared_recipes: {code}"
+    expect(code in (401, 403), "anon direct insert into shared_recipes", code)
     code, j = http("GET", f"{URL}/rest/v1/shared_recipes?select=slug&limit=5", ctx.anon_h())
     if code == 200 and j: finding(ctx, "shared_recipes is listable with the anon key (public SELECT USING true): slugs are enumerable")
     return "anon key cannot read or write user_recipes / qa_results, or insert shared_recipes directly"
@@ -43,13 +43,13 @@ def t_other_user(ctx):
     upsert(ctx, ta, [{"user_id": a["id"], "kind": "recipe", "id": "sec-a", "data": {"t": 1}, "updated_at": 1, "deleted": False}])
     h = {**ctx.anon_h(tb), "Prefer": "return=representation"}
     code, j = http("PATCH", f"{URL}/rest/v1/user_recipes?user_id=eq.{a['id']}", h, {"data": {"pwned": True}})
-    assert code in (200, 204) and not j, f"other user UPDATE affected rows: {j}"
+    expect(code in (200, 204) and not j, "other user UPDATE affected rows", code)
     code, j = http("DELETE", f"{URL}/rest/v1/user_recipes?user_id=eq.{a['id']}", h)
-    assert not j, f"other user DELETE affected rows: {j}"
+    expect(not j, "other user DELETE affected rows", code)
     code, j = upsert(ctx, tb, [{"user_id": a["id"], "kind": "recipe", "id": "spoof", "data": {}, "updated_at": 1, "deleted": False}])
-    assert code in (401, 403), f"insert as another user_id: {code}"
+    expect(code in (401, 403), "insert as another user_id", code)
     code, j = http("POST", f"{URL}/rest/v1/qa_results", ctx.anon_h(tb), {"user_id": b["id"], "build": "x", "item_id": "x", "status": "pass", "source": "ci"})
-    assert code in (401, 403), f"user wrote a source=ci QA row: {code}"
+    expect(code in (401, 403), "user wrote a source=ci QA row", code)
     code, j = http("GET", f"{URL}/rest/v1/user_recipes?select=data&user_id=eq.{a['id']}", ctx.anon_h(ta))
     assert j and j[0]["data"] == {"t": 1}, f"owner row changed: {j}"
     return "other-user token can't read, update, delete, spoof user_id, or write ci QA rows"
@@ -57,32 +57,32 @@ def t_other_user(ctx):
 def t_functions(ctx):
     f = f"{URL}/functions/v1"
     code, _ = http("POST", f"{f}/delete-account", {}, {})
-    assert code == 401, f"delete-account without token: {code}"
+    expect(code == 401, "delete-account without token", code)
     code, _ = http("POST", f"{f}/delete-account", ctx.anon_h(), {})
-    assert code == 401, f"delete-account with anon key: {code}"
+    expect(code == 401, "delete-account with anon key", code)
     code, _ = http("POST", f"{f}/publish-recipe", {"Content-Type": "application/json"}, {"card": {}})
-    assert code == 401, f"publish-recipe without key: {code}"
+    expect(code == 401, "publish-recipe without key", code)
     code, _ = http("POST", f"{f}/publish-recipe", ctx.anon_h("eyJhbGciOiJIUzI1NiJ9.e30.forged"), {"card": {}})
-    assert code == 401, f"publish-recipe forged JWT: {code}"
+    expect(code == 401, "publish-recipe forged JWT", code)
     # Validation is checked with a real user session (the legacy anon JWT isn't one of the function's public keys).
     u = ctx.sign_in(ctx.new_user())["access_token"]; uh = ctx.anon_h(u)
     code, j = http("POST", f"{f}/publish-recipe", uh, {"card": {"title": "x", "servings": 1, "ingredients": "nope", "steps": []}})
-    assert code == 400, f"publish-recipe bad body: {code} {j}"
+    expect(code == 400, "publish-recipe bad body", code, j)
     code, j = http("POST", f"{f}/publish-recipe", uh, {"card": {"title": "x" * 500, "servings": 1, "ingredients": [], "steps": [{"instruction": "a"}]}})
-    assert code == 400, f"publish-recipe overlong title: {code}"
+    expect(code == 400, "publish-recipe overlong title", code)
     code, j = http("POST", f"{f}/publish-recipe", uh, {"card": {"title": "x", "servings": 1, "ingredients": [{"name": "y" * 150_000}], "steps": []}})
-    assert code in (400, 413), f"publish-recipe oversized: {code}"
+    expect(code in (400, 413), "publish-recipe oversized", code)
     code, _ = http("GET", f"{f}/get-shared-recipe?slug=../../etc", ctx.anon_h())
-    assert code == 400, f"get-shared-recipe slug validation: {code}"
+    expect(code == 400, "get-shared-recipe slug validation", code)
     code, _ = http("GET", f"{f}/get-shared-recipe?slug=missing" + uuid.uuid4().hex[:8], ctx.anon_h())
-    assert code == 404, f"get-shared-recipe unknown slug should be 404: {code}"
+    expect(code == 404, "get-shared-recipe unknown slug should be 404", code)
     code, j = http("OPTIONS", f"{f}/publish-recipe", {"Origin": "https://evil.example"})
     finding(ctx, "Edge Functions answer CORS with Access-Control-Allow-Origin: * (low risk: no cookies; auth is bearer-only)")
     return "delete-account requires a user JWT; publish-recipe rejects missing/forged auth, bad shape, overlong and oversized input; slug validated"
 
 def t_auth_settings(ctx):
     code, cfg = http("GET", f"https://api.supabase.com/v1/projects/{REF}/config/auth", ctx.mgmt)
-    assert code == 200, f"config/auth {code}"
+    expect(code == 200, "config/auth", code)
     assert (cfg.get("password_min_length") or 0) >= 8, "password_min_length < 8"
     assert cfg.get("mailer_autoconfirm") is False, "email confirmation disabled (mailer_autoconfirm=true)"
     otp = cfg.get("mailer_otp_exp") or 0

@@ -1,7 +1,7 @@
 {
-  "title": "Cook-loop foundations: Library, Add review and Recipe Detail",
-  "summary": "Screens 1-3 retain separately reviewed runtime bytes with independent ON/OFF flags, real saved/draft metadata and existing native actions. Bulk delete/collections/Meal Plan, multi-page scan and new variant/rescue claims remain deferred. All three UI classes and required unit sets retained. Combined source integration only; native build, tests, Journal, pixels and device acceptance unverified.",
-  "source_commit": "e5c149ad1df3b69a0e89b3931771e42771cb6531",
+  "title": "Cook-loop foundations: Library, Add, Detail and Cook readability",
+  "summary": "Screens 1-4 preserve separately reviewed runtime with independent ON/OFF flags, real metadata, existing native actions and full-size scrollable Cook instructions above pinned controls. Timers/session/Finish/voice semantics unchanged. Bulk, multi-page, variant and rescue scope deferred. All four UI classes and unit sets retained. Combined native build, tests, Journal, pixels and device acceptance unverified.",
+  "source_commit": "0df77045130a6036848b348097e1f07e3237ece7",
   "evidence": [
     {
       "path": "Ate/Views/LibraryView.swift",
@@ -30,6 +30,14 @@
     {
       "path": "Ate/Logic/RecipeDetailMetadata.swift",
       "blob": "15ee8314ea3fcddf8755c6710589da3f43a90bda"
+    },
+    {
+      "path": "Ate/Views/CookModeView.swift",
+      "blob": "b2f9c73f276e9c6f560e2fd231362e5c01221515"
+    },
+    {
+      "path": "Ate/Logic/CookModeFeature.swift",
+      "blob": "d1c8d446a86375b3851b6446588b43c18a8c6746"
     }
   ]
 }

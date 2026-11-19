@@ -1,27 +1,15 @@
 {
-  "title": "Insights discovery and Library protein grouping",
-  "summary": "New recipe discovery in Insights and protein grouping in Library. Composed source has 314 passing Python tests and exact inverse-contract checks. Native compile, XCTest and visual qualification remain pending on the corrected hosted head.",
-  "source_commit": "1c55c7f6d5464a54efeb3f00d984ee057ab6ea3d",
+  "title": "Recipe-row metadata layout repair",
+  "summary": "Recipe rows pack complete time, serving and tag items onto separate lines instead of compressing text into letter columns. Titles may use two lines. Native geometry tests and retained synthetic screenshots are added; Swift compile, native tests and corrected pixels still require Apple-run qualification.",
+  "source_commit": "7d24b29cf4026269516a8ab169a054ca858af559",
   "evidence": [
     {
-      "path": "Ate/Insights/InsightCandidateEngine.swift",
-      "blob": "455685bb04045e62175afc3502f73d348856f1b1"
+      "path": "Ate/Views/Components.swift",
+      "blob": "fe525566bd98eea224457ad7760f8c0d7200bf43"
     },
     {
-      "path": "Ate/Logic/RecipeDiscovery.swift",
-      "blob": "7ff554c598c2cc898f17179f97d60210910eabca"
-    },
-    {
-      "path": "Ate/Views/InsightsView.swift",
-      "blob": "622751cf0a0251e01373083b85788481a82a258e"
-    },
-    {
-      "path": "Ate/Logic/RecipeFilter.swift",
-      "blob": "5da0fcd8e7310c4a98c0828098b7228645a6cb63"
-    },
-    {
-      "path": "Ate/App/LibraryProteinQAFixtures.swift",
-      "blob": "4ab0be3ad8cc1ae9460c5831ed984d655e630cfa"
+      "path": "Ate/Models/Models.swift",
+      "blob": "8af03461b45f0fab7632bb750f51d48b1fdd056d"
     }
   ]
 }

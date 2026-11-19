@@ -176,12 +176,16 @@ struct LibraryView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(recipe.title)
-        .accessibilityValue(selected ? "Selected" : "Not selected")
-        .accessibilityHint("Double tap to toggle selection")
-        .accessibilityAddTraits(selected ? .isSelected : [])
-        .accessibilityIdentifier("library.selection.recipe.\(recipe.id)")
+        // Card labels contain their own combined accessibility elements. Replace the
+        // whole visual card with one native text button rather than asking the
+        // card-derived button to discard its children and retain outer metadata.
+        .accessibilityRepresentation {
+            Button(recipe.title) { selection.toggle(recipe.id) }
+                .accessibilityValue(selected ? "Selected" : "Not selected")
+                .accessibilityHint("Double tap to toggle selection")
+                .accessibilityAddTraits(selected ? .isSelected : [])
+                .accessibilityIdentifier("library.selection.recipe.\(recipe.id)")
+        }
     }
 
     private var selectionSummary: some View {

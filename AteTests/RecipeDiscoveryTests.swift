@@ -25,9 +25,8 @@ final class RecipeDiscoveryTests: XCTestCase {
         let input = input ?? context(), result = result ?? card()
         let returned = expectation(description: "generation returned")
         session.request(available: true, context: { input }, generate: { request in
-            XCTAssertEqual(request.mode, .prompt)
-            XCTAssertTrue(request.text?.contains("Vegetable Soup: carrot") == true)
-            XCTAssertTrue(request.text?.contains("Crème Soup") == true)
+            XCTAssertTrue(request.prompt.contains("Vegetable Soup: carrot"))
+            XCTAssertTrue(request.prompt.contains("Crème Soup"))
             defer { returned.fulfill() }
             return result
         })
@@ -176,7 +175,7 @@ final class RecipeDiscoveryTests: XCTestCase {
         })
         await fulfillment(of: [returned], timeout: 2)
         XCTAssertEqual(calls, 1)
-        XCTAssertEqual(session.message, "AI assets unavailable")
+        XCTAssertEqual(session.message, "Couldn't create a suggestion. Nothing was saved. Try again. AI assets unavailable")
         XCTAssertFalse(session.loading)
         XCTAssertTrue(session.suggestions.isEmpty)
     }

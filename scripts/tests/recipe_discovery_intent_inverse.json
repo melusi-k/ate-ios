@@ -1,0 +1,57 @@
+{
+  "Ate/Services/OnDeviceBackend.swift": {
+    "parent_sha": "8dd7505dd83303e2e40d98672b088228434ad7fb9b2f7a059df21e9138729f2c",
+    "fragments": [
+      {
+        "new": "        }\n    }\n\n    /// Only the app-created discovery context chooses creative generation. User\n    /// paste/URL/image requests still take the unchanged import recognition path.\n    func suggestRecipe(_ generation: RecipeDiscoveryGeneration) async throws -> RecipeCard {\n        try GenerationCancellation.check()\n        do {\n            let result = try await parseRecipeResult(ParseRequest(mode: .prompt, text: generation.prompt), discovery: true)\n            try GenerationCancellation.check()\n            return result.card\n        } catch {\n            try GenerationCancellation.check(error)\n            throw error\n        }\n    }\n\n    private func parseRecipeResult(_ request: ParseRequest, discovery: Bool = false) async throws -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?) {\n        if request.mode == .rewrite, request.repairQuality != true,\n           let original = request.currentRecipe,\n           RecipeRewriteScope.noOpMessage(for: original, request: request.text ?? \"\") != nil {\n",
+        "old": "        }\n    }\n\n    private func parseRecipeResult(_ request: ParseRequest) async throws -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?) {\n        if request.mode == .rewrite, request.repairQuality != true,\n           let original = request.currentRecipe,\n           RecipeRewriteScope.noOpMessage(for: original, request: request.text ?? \"\") != nil {\n"
+      },
+      {
+        "new": "        if request.mode == .url { _ = try Self.recipeURL(request.text ?? \"\") }\n        // Pasted adverts must be refused before fallback, session allocation or\n        // streamed preview. A fabricated disambiguation name cannot bypass this.\n        if !discovery, request.mode == .prompt { try SourceRecipeFidelity.rejectUngroundedText(request.text ?? \"\") }\n        // A paste that cannot reach the model whole must fail closed; a silent\n        // mid-word clip becomes an invented recipe downstream.\n        if request.mode == .prompt, (request.text ?? \"\").count > 6000 {\n",
+        "old": "        if request.mode == .url { _ = try Self.recipeURL(request.text ?? \"\") }\n        // Pasted adverts must be refused before fallback, session allocation or\n        // streamed preview. A fabricated disambiguation name cannot bypass this.\n        if request.mode == .prompt { try SourceRecipeFidelity.rejectUngroundedText(request.text ?? \"\") }\n        // A paste that cannot reach the model whole must fail closed; a silent\n        // mid-word clip becomes an invented recipe downstream.\n        if request.mode == .prompt, (request.text ?? \"\").count > 6000 {\n"
+      },
+      {
+        "new": "        // failed import, not an idea: never let it reach creative generation.\n        // (Extraction carries an associated Contract and is not Equatable: match,\n        // never compare.)\n        if !discovery, request.mode == .prompt, (request.text ?? \"\").count > 1200,\n           case .none = SourceRecipeFidelity.extraction(request.text ?? \"\"),\n           CuisineGlossary.matches(in: request.text ?? \"\").isEmpty,\n           SourceRecipeFidelity.captionDishName(request.text ?? \"\") == nil {\n",
+        "old": "        // failed import, not an idea: never let it reach creative generation.\n        // (Extraction carries an associated Contract and is not Equatable: match,\n        // never compare.)\n        if request.mode == .prompt, (request.text ?? \"\").count > 1200,\n           case .none = SourceRecipeFidelity.extraction(request.text ?? \"\"),\n           CuisineGlossary.matches(in: request.text ?? \"\").isEmpty,\n           SourceRecipeFidelity.captionDishName(request.text ?? \"\") == nil {\n"
+      },
+      {
+        "new": "        /// fallback or creative generation.\n        var structuredSource: SourceRecipeFidelity.Contract?\n        var unverifiableSource = false\n        if !discovery, request.mode == .prompt {\n            switch SourceRecipeFidelity.extraction(request.text ?? \"\") {\n            case .verified(let contract): structuredSource = contract\n            case .unverifiable: unverifiableSource = true\n",
+        "old": "        /// fallback or creative generation.\n        var structuredSource: SourceRecipeFidelity.Contract?\n        var unverifiableSource = false\n        if request.mode == .prompt {\n            switch SourceRecipeFidelity.extraction(request.text ?? \"\") {\n            case .verified(let contract): structuredSource = contract\n            case .unverifiable: unverifiableSource = true\n"
+      }
+    ]
+  },
+  "Ate/Logic/RecipeDiscovery.swift": {
+    "parent_sha": "00d31c91316f23217c1212fbcf3d436435fb50320e61b6f6d007564d9479a295",
+    "fragments": [
+      {
+        "new": "    var saved: [RecipeCard]\n    var cookedIDs: Set<String>\n    var cookedRecipes: [JournalRecipeSnapshot]\n}\n\n/// App-created creative request, not a pasted recipe. It can only be built from\n/// collection context; no external text or serialized ParseRequest can select it.\nstruct RecipeDiscoveryGeneration {\n    let prompt: String\n    init(context: RecipeDiscoveryContext, suggested: [RecipeCard]) {\n        prompt = RecipeDiscovery.prompt(context: context, suggested: suggested)\n    }\n}\n\nenum RecipeDiscovery {\n",
+        "old": "    var saved: [RecipeCard]\n    var cookedIDs: Set<String>\n    var cookedRecipes: [JournalRecipeSnapshot]\n}\n\nenum RecipeDiscovery {\n"
+      },
+      {
+        "new": "    }\n\n    func request(available: Bool, context: @escaping @MainActor () throws -> RecipeDiscoveryContext,\n                 generate: @escaping @MainActor (RecipeDiscoveryGeneration) async throws -> RecipeCard) {\n        guard !loading else { return }\n        do {\n            let input = try context()\n            guard available else { throw BackendError(message: \"On-device AI is not available right now. No recipes were generated or saved.\") }\n            guard !input.saved.isEmpty else { throw BackendError(message: \"Save a recipe first so Ate can suggest something based on your tastes.\") }\n            owner = input.owner\n            let generation = RecipeDiscoveryGeneration(context: input, suggested: suggestions)\n            loading = true; message = nil\n            deadline = Task { @MainActor [weak self] in\n                guard let self else { return }\n",
+        "old": "    }\n\n    func request(available: Bool, context: @escaping @MainActor () throws -> RecipeDiscoveryContext,\n                 generate: @escaping @MainActor (ParseRequest) async throws -> RecipeCard) {\n        guard !loading else { return }\n        do {\n            let input = try context()\n            guard available else { throw BackendError(message: \"On-device AI is not available right now. No recipes were generated or saved.\") }\n            guard !input.saved.isEmpty else { throw BackendError(message: \"Save a recipe first so Ate can suggest something based on your tastes.\") }\n            owner = input.owner\n            let prompt = RecipeDiscovery.prompt(context: input, suggested: suggestions)\n            loading = true; message = nil\n            deadline = Task { @MainActor [weak self] in\n                guard let self else { return }\n"
+      },
+      {
+        "new": "                    }\n                }\n                do {\n                    let result = try await generate(generation)\n                    guard attempt.isCurrent(token) else { return }\n                    let current = try context()\n                    guard current.owner == input.owner else { accountChanged(); return }\n",
+        "old": "                    }\n                }\n                do {\n                    let result = try await generate(ParseRequest(mode: .prompt, text: prompt))\n                    guard attempt.isCurrent(token) else { return }\n                    let current = try context()\n                    guard current.owner == input.owner else { accountChanged(); return }\n"
+      },
+      {
+        "new": "                    suggestions.append(card)\n                } catch {\n                    guard attempt.isCurrent(token) else { return }\n                    message = \"Couldn't create a suggestion. Nothing was saved. Try again. \" + error.localizedDescription\n                }\n            }\n        } catch { message = error.localizedDescription }\n",
+        "old": "                    suggestions.append(card)\n                } catch {\n                    guard attempt.isCurrent(token) else { return }\n                    message = error.localizedDescription\n                }\n            }\n        } catch { message = error.localizedDescription }\n"
+      }
+    ]
+  },
+  "Ate/Views/SuggestedNewRecipesView.swift": {
+    "parent_sha": "611b66a5291904b0cc4bddb948fafb51c54fc9bd2bf51944c6bc409ef2af9bb6",
+    "fragments": [
+      {
+        "new": "                        .accessibilityIdentifier(\"discovery.save.\\(card.id)\")\n                }\n            }\n            Button(session.suggestions.isEmpty ? (session.message == nil ? \"Suggest new recipes\" : \"Try again\") : \"Suggest another recipe\", action: generate)\n                .disabled(session.loading)\n                .accessibilityIdentifier(\"discovery.generate\")\n        }\n",
+        "old": "                        .accessibilityIdentifier(\"discovery.save.\\(card.id)\")\n                }\n            }\n            Button(session.suggestions.isEmpty ? \"Suggest new recipes\" : \"Suggest another recipe\", action: generate)\n                .disabled(session.loading)\n                .accessibilityIdentifier(\"discovery.generate\")\n        }\n"
+      },
+      {
+        "new": "        // and never surface the existing Demo fallback as a real suggestion.\n        session.request(available: store.backend is OnDeviceBackend && OnDeviceBackend.isModelAvailable,\n            context: { try RecipeDiscovery.context(store: store) },\n            generate: {\n                guard let backend = store.backend as? OnDeviceBackend else {\n                    throw BackendError(message: \"On-device AI is not available right now. Try again when it is ready.\")\n                }\n                return try await backend.suggestRecipe($0)\n            })\n    }\n\n    @discardableResult private func save(_ card: RecipeCard) -> Bool {\n",
+        "old": "        // and never surface the existing Demo fallback as a real suggestion.\n        session.request(available: store.backend is OnDeviceBackend && OnDeviceBackend.isModelAvailable,\n            context: { try RecipeDiscovery.context(store: store) },\n            generate: { try await store.backend.parseRecipe($0) })\n    }\n\n    @discardableResult private func save(_ card: RecipeCard) -> Bool {\n"
+      }
+    ]
+  }
+}

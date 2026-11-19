@@ -69,7 +69,21 @@ final class OnDeviceBackend: BackendService {
         }
     }
 
-    private func parseRecipeResult(_ request: ParseRequest) async throws -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?) {
+    /// Only the app-created discovery context chooses creative generation. User
+    /// paste/URL/image requests still take the unchanged import recognition path.
+    func suggestRecipe(_ generation: RecipeDiscoveryGeneration) async throws -> RecipeCard {
+        try GenerationCancellation.check()
+        do {
+            let result = try await parseRecipeResult(ParseRequest(mode: .prompt, text: generation.prompt), discovery: true)
+            try GenerationCancellation.check()
+            return result.card
+        } catch {
+            try GenerationCancellation.check(error)
+            throw error
+        }
+    }
+
+    private func parseRecipeResult(_ request: ParseRequest, discovery: Bool = false) async throws -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?) {
         if request.mode == .rewrite, request.repairQuality != true,
            let original = request.currentRecipe,
            RecipeRewriteScope.noOpMessage(for: original, request: request.text ?? "") != nil {
@@ -80,7 +94,7 @@ final class OnDeviceBackend: BackendService {
         if request.mode == .url { _ = try Self.recipeURL(request.text ?? "") }
         // Pasted adverts must be refused before fallback, session allocation or
         // streamed preview. A fabricated disambiguation name cannot bypass this.
-        if request.mode == .prompt { try SourceRecipeFidelity.rejectUngroundedText(request.text ?? "") }
+        if !discovery, request.mode == .prompt { try SourceRecipeFidelity.rejectUngroundedText(request.text ?? "") }
         // A paste that cannot reach the model whole must fail closed; a silent
         // mid-word clip becomes an invented recipe downstream.
         if request.mode == .prompt, (request.text ?? "").count > 6000 {
@@ -90,7 +104,7 @@ final class OnDeviceBackend: BackendService {
         // failed import, not an idea: never let it reach creative generation.
         // (Extraction carries an associated Contract and is not Equatable: match,
         // never compare.)
-        if request.mode == .prompt, (request.text ?? "").count > 1200,
+        if !discovery, request.mode == .prompt, (request.text ?? "").count > 1200,
            case .none = SourceRecipeFidelity.extraction(request.text ?? ""),
            CuisineGlossary.matches(in: request.text ?? "").isEmpty,
            SourceRecipeFidelity.captionDishName(request.text ?? "") == nil {
@@ -104,7 +118,7 @@ final class OnDeviceBackend: BackendService {
         /// fallback or creative generation.
         var structuredSource: SourceRecipeFidelity.Contract?
         var unverifiableSource = false
-        if request.mode == .prompt {
+        if !discovery, request.mode == .prompt {
             switch SourceRecipeFidelity.extraction(request.text ?? "") {
             case .verified(let contract): structuredSource = contract
             case .unverifiable: unverifiableSource = true

@@ -25,7 +25,7 @@ struct SuggestedNewRecipesView: View {
                         .accessibilityIdentifier("discovery.save.\(card.id)")
                 }
             }
-            Button(session.suggestions.isEmpty ? "Suggest new recipes" : "Suggest another recipe", action: generate)
+            Button(session.suggestions.isEmpty ? (session.message == nil ? "Suggest new recipes" : "Try again") : "Suggest another recipe", action: generate)
                 .disabled(session.loading)
                 .accessibilityIdentifier("discovery.generate")
         }
@@ -58,7 +58,12 @@ struct SuggestedNewRecipesView: View {
         // and never surface the existing Demo fallback as a real suggestion.
         session.request(available: store.backend is OnDeviceBackend && OnDeviceBackend.isModelAvailable,
             context: { try RecipeDiscovery.context(store: store) },
-            generate: { try await store.backend.parseRecipe($0) })
+            generate: {
+                guard let backend = store.backend as? OnDeviceBackend else {
+                    throw BackendError(message: "On-device AI is not available right now. Try again when it is ready.")
+                }
+                return try await backend.suggestRecipe($0)
+            })
     }
 
     @discardableResult private func save(_ card: RecipeCard) -> Bool {

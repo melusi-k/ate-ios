@@ -43,3 +43,26 @@ Manual regressions within the existing qualification path:
 - Reduce Motion ON: repeat selection and cancellation with no added animation dependency. Normal text is the current acceptance target. Larger text is supplementary, not substituted for normal-text evidence.
 
 No native visual result is attached to this source packet. Any overlap, missing labels, unreachable action, compile error or native regression remains a blocker to fix and recheck, not a pass inferred from source.
+
+## Native accessibility repair after #622
+
+The first hosted native run at 487fdafe failed four of six Library selection
+journeys. Its grid AX snapshot contains both recipe buttons but exposes their
+card-derived labels, without the selection identifier or intended selected value.
+The failure recording shows selection mode and visible recipe cards. The bug is
+therefore missing native accessibility semantics, not a missing fixture or proof
+that a longer wait would help.
+
+The repair replaces the visual card's accessibility tree with one native text
+Button. It uses the same toggle action, title, selected value, selected trait and
+stable recipe identifier in list and grid. The visible card and OFF flow are
+unchanged. A new exact repair inverse runs before the unchanged #612 inverse;
+old fixture hashes and historic source pins are retained.
+
+Evidence: https://github.com/melusi-k/ate-ios/actions/runs/44555617177/job/135671187521
+Diagnostic artifact: https://github.com/melusi-k/ate-ios/actions/runs/44555617177/artifacts/14551726823
+
+Validation: 362 Python source/inverse checks pass. All six native UI tests,
+workflow selectors, pass checks and time budgets are unchanged. This is proposed
+source repair, not a native pass. Repaired Swift compilation, XCTest, VoiceOver
+and visual acceptance remain UNRUN.

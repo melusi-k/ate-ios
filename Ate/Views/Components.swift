@@ -18,6 +18,7 @@ struct RecipeCardView: View {
     let recipe: RecipeCard
     var factor: Double = 1
     var units: UnitSystem = .metric
+    var detailHierarchy = false
 
     var body: some View {
         let r = RecipeLogic.scaled(recipe, factor: factor)
@@ -42,7 +43,15 @@ struct RecipeCardView: View {
 
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Ingredients").overline()
+                    if detailHierarchy {
+                        HStack {
+                            Text("Ingredients").font(AteFont.display(20)).accessibilityAddTraits(.isHeader)
+                            Spacer()
+                            Text("\(r.ingredients.count) entries").font(AteFont.body(13, .medium))
+                                .foregroundStyle(Theme.mutedForeground)
+                                .accessibilityIdentifier("recipe.detail.ingredientCount")
+                        }
+                    } else { Text("Ingredients").overline() }
                     ForEach(Array(r.ingredients.enumerated()), id: \.offset) { index, ing in
                         let (q, u) = Units.convert(quantity: ing.quantity, unit: ing.unit, to: units)
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -59,8 +68,19 @@ struct RecipeCardView: View {
                     }
                 }
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Steps").overline()
-                        .accessibilityIdentifier("recipe.steps.heading")
+                    if detailHierarchy {
+                        HStack {
+                            Text("Method & steps").font(AteFont.display(20)).accessibilityAddTraits(.isHeader)
+                                .accessibilityIdentifier("recipe.steps.heading")
+                            Spacer()
+                            Text("\(r.steps.count) steps").font(AteFont.body(13, .medium))
+                                .foregroundStyle(Theme.mutedForeground)
+                                .accessibilityIdentifier("recipe.detail.stepCount")
+                        }
+                    } else {
+                        Text("Steps").overline()
+                            .accessibilityIdentifier("recipe.steps.heading")
+                    }
                     ForEach(Array(r.steps.enumerated()), id: \.offset) { idx, s in
                         HStack(alignment: .top, spacing: 12) {
                             Text("\(idx + 1)").font(AteFont.body(12, .bold)).foregroundStyle(.white)

@@ -1,7 +1,7 @@
 {
-  "title": "Source-bound recipe import native-failure repairs",
-  "summary": "Source binding and advisory-gap handling with dedicated explicit-method evidence, an exact terminal page-widget boundary and incomplete multipart-source refusal. Original failing tests remain unchanged; ten native regression passes are required. Python preflight is not Swift or model qualification.",
-  "source_commit": "ee458921c03ecdd3072c1b0264664a4c565b209e",
+  "title": "Source-bound imports and recipe-row metadata repair",
+  "summary": "Combines source-binding/advisory-gap native-failure repairs with whole-item recipe metadata wrapping and two-line titles. Both parents' required native tests remain in the exact pass union. Native compile, XCTest and corrected pixels require qualification on this merged head; Python checks are source preflight only.",
+  "source_commit": "73ef429f7de00fc952f1b76057c1fce9ee22020a",
   "evidence": [
     {
       "path": "Ate/Logic/SourceRecipeFidelity.swift",
@@ -10,6 +10,10 @@
     {
       "path": "Ate/Services/OnDeviceBackend.swift",
       "blob": "214430ad0053a882de4bd673a97f7b0e4f11eb49"
+    },
+    {
+      "path": "Ate/Views/Components.swift",
+      "blob": "fe525566bd98eea224457ad7760f8c0d7200bf43"
     },
     {
       "path": "Ate/Models/Models.swift",

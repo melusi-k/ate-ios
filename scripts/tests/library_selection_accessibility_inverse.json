@@ -1,0 +1,6 @@
+{
+  "path": "Ate/Views/LibraryView.swift",
+  "parent_sha": "3ea69957642cb8d4f27f9e086bb6a0b0196d0bcf03e50465f4f2da47de9d16d8",
+  "new": "        // Card labels contain their own combined accessibility elements. Replace the\n        // whole visual card with one native text button rather than asking the\n        // card-derived button to discard its children and retain outer metadata.\n        .accessibilityRepresentation {\n            Button(recipe.title) { selection.toggle(recipe.id) }\n                .accessibilityValue(selected ? \"Selected\" : \"Not selected\")\n                .accessibilityHint(\"Double tap to toggle selection\")\n                .accessibilityAddTraits(selected ? .isSelected : [])\n                .accessibilityIdentifier(\"library.selection.recipe.\\(recipe.id)\")\n        }",
+  "old": "        .accessibilityElement(children: .ignore)\n        .accessibilityLabel(recipe.title)\n        .accessibilityValue(selected ? \"Selected\" : \"Not selected\")\n        .accessibilityHint(\"Double tap to toggle selection\")\n        .accessibilityAddTraits(selected ? .isSelected : [])\n        .accessibilityIdentifier(\"library.selection.recipe.\\(recipe.id)\")"
+}

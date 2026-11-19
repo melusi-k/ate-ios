@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 import unittest
+from stitch_cook_delta import restore as restore_cook
 from stitch_detail_delta import restore
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -11,7 +12,7 @@ class StitchDetailSourceTests(unittest.TestCase):
     def test_exact_inverse_preserves_all_parent_bytes_and_rejects_mutations(self):
         contracts = json.loads((ROOT / 'scripts/tests/stitch_detail_inverse.json').read_text())
         for path, contract in contracts.items():
-            raw = (ROOT / path).read_text()
+            raw = restore_cook('main:' + path, (ROOT / path).read_text())
             self.assertEqual(hashlib.sha256(restore('main:' + path, raw).encode()).hexdigest(), contract['parent_sha'])
             for fragment in contract['fragments']:
                 for changed in [raw.replace(fragment['slice'], '', 1), raw + fragment['slice']]:

@@ -1,7 +1,7 @@
 import XCTest
 @testable import Ate
 
-/// Continuation registration and waiter installation share one lock. Async helper
+/// Test-fixture continuation registration and waiter installation share one lock. Async helper
 /// methods are not implicitly isolated by the test case's MainActor annotation.
 private final class SuspendedInsightReads<Value> {
     private let lock = NSLock()

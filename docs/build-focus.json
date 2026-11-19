@@ -1,7 +1,7 @@
 {
-  "title": "Source-bound imports and recipe-row metadata repair",
-  "summary": "Combines source-binding/advisory-gap native-failure repairs with whole-item recipe metadata wrapping and two-line titles. Both parents' required native tests remain in the exact pass union. Native compile, XCTest and corrected pixels require qualification on this merged head; Python checks are source preflight only.",
-  "source_commit": "73ef429f7de00fc952f1b76057c1fce9ee22020a",
+  "title": "Source-bound imports, recipe-row metadata and URL copy cleanup",
+  "summary": "Combines source-binding/advisory-gap repairs, whole-item metadata wrapping with two-line titles, and URL title/site-boundary and marketing-copy cleanup. Keeps both parents' exact required native pass union. Native compile, XCTest and corrected pixels require this final head; Python checks are source preflight only.",
+  "source_commit": "4d802e2cdd5c8324cb940eef94173c0712547f92",
   "evidence": [
     {
       "path": "Ate/Logic/SourceRecipeFidelity.swift",
@@ -14,6 +14,10 @@
     {
       "path": "Ate/Views/Components.swift",
       "blob": "fe525566bd98eea224457ad7760f8c0d7200bf43"
+    },
+    {
+      "path": "Ate/Logic/JSONLD.swift",
+      "blob": "c1a42308bb9cadeda53ac0d5f96f6cbac2f3ebb0"
     },
     {
       "path": "Ate/Models/Models.swift",

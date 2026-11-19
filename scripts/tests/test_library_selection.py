@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import unittest
 from library_selection_delta import restore, PARENT_SHA
+from add_recipe_scan_delta import restore as restore_scan
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -56,4 +57,4 @@ class LibrarySelectionSourceTests(unittest.TestCase):
         import re
         for method in re.findall(r'    func (test\w+)\(', ui):
             self.assertIn(method, workflow)
-        self.assertEqual(hashlib.sha256(restore('main:.github/workflows/compile-check.yml', workflow).encode()).hexdigest(), json.loads((ROOT / 'scripts/tests/library_selection_inverse.json').read_text())['.github/workflows/compile-check.yml']['parent_sha'])
+        self.assertEqual(hashlib.sha256(restore('main:.github/workflows/compile-check.yml', restore_scan('main:.github/workflows/compile-check.yml', workflow)).encode()).hexdigest(), json.loads((ROOT / 'scripts/tests/library_selection_inverse.json').read_text())['.github/workflows/compile-check.yml']['parent_sha'])

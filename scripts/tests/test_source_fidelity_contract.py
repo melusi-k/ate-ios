@@ -48,7 +48,8 @@ class SourceFidelityContractTests(unittest.TestCase):
         # fix/445-insights-discovery (#535): RecipeQuality gains an explicit empty-ingredients
         # gate for generated recipes. Assert the new gate, then inverse-remove the exact
         # addition and verify the original remainder hash (no hash replacement).
-        q = (ROOT/'Ate/Logic/RecipeQuality.swift').read_text()
+        from prompt_draft_boundary_delta import restore
+        q = restore('Ate/Logic/RecipeQuality.swift', (ROOT/'Ate/Logic/RecipeQuality.swift').read_text())
         self.assertIn('if c.ingredients.isEmpty {', q)
         self.assertIn('out.append("The generated recipe needs measured ingredients.")', q)
         q = q.replace('''            // A cold dish can use foods outside the bounded step vocabulary.

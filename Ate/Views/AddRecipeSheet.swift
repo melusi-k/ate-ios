@@ -26,6 +26,8 @@ struct AddRecipeSheet: View {
         self.initial = initial; self.initialMode = initialMode; self.initialPrompt = initialPrompt; self.onSave = onSave
     }
 
+    private var scanPresentation: Bool { AddRecipeScanFeature.stitchAddRecipeScanEnabled }
+
     @State private var mode: Mode = .link
     @State private var link = ""
     @State private var prompt = ""
@@ -156,7 +158,13 @@ struct AddRecipeSheet: View {
     }
 
     @ViewBuilder private var inputState: some View {
-        Text("Add a recipe").font(AteFont.display(24))
+        if scanPresentation {
+            Label("Add a recipe", systemImage: "book.closed")
+                .font(AteFont.display(24))
+                .accessibilityIdentifier("add.scan.inputHeading")
+        } else {
+            Text("Add a recipe").font(AteFont.display(24))
+        }
         Text("Import an existing recipe from a link or screenshot. Describe an idea to generate a new recipe.")
             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
         Picker("Source", selection: $mode) {
@@ -199,6 +207,13 @@ struct AddRecipeSheet: View {
                     .buttonStyle(.ate(.secondary, height: 40)).accessibilityIdentifier("sampleFoodPhoto")
             }
             if let d = imageData, let ui = UIImage(data: d) {
+                if scanPresentation {
+                    Label("One image ready for review", systemImage: "doc.viewfinder")
+                        .font(AteFont.body(14, .semibold))
+                        .accessibilityIdentifier("add.scan.imageReady")
+                    Text("Tap the image picker or Take a photo to replace it before reading. Check the draft against your original before saving.")
+                        .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                }
                 Image(uiImage: ui).resizable().scaledToFill().frame(maxWidth: .infinity, maxHeight: 192)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
@@ -277,7 +292,8 @@ struct AddRecipeSheet: View {
     @ViewBuilder private var reviewState: some View {
         Text("Review your card").font(AteFont.display(24))
         if let d = draft { SourceBadge(source: d.source) }
-        if let d = draft, let conf = d.aiConfidence {
+        if scanPresentation, let d = draft { scanReviewHeader(d) }
+        if !scanPresentation, let d = draft, let conf = d.aiConfidence {
             Label("AI confidence \(Int((conf * 100).rounded()))%" + (conf < RecipeQuality.threshold ? " — check this is the right dish" : ""),
                   systemImage: conf < RecipeQuality.threshold ? "exclamationmark.triangle" : "checkmark.seal")
                 .font(AteFont.body(13)).foregroundStyle(conf < RecipeQuality.threshold ? Theme.destructive : Theme.mutedForeground)
@@ -290,7 +306,12 @@ struct AddRecipeSheet: View {
                 Label("Draft, needs your input", systemImage: "exclamationmark.bubble").font(AteFont.body(14, .semibold))
                     .accessibilityIdentifier("draftNeedsInput")
                 if (d.aiConfidence ?? 1) < RecipeQuality.threshold {
-                    Text("Ate is only \(d.aiConfidence ?? 0, format: .percent.precision(.fractionLength(0))) sure this is \(d.title).").font(AteFont.body(13))
+                    if scanPresentation {
+                        Text("The dish identification is uncertain. Check the title and recipe against your original.")
+                            .font(AteFont.body(13))
+                    } else {
+                        Text("Ate is only \(d.aiConfidence ?? 0, format: .percent.precision(.fractionLength(0))) sure this is \(d.title).").font(AteFont.body(13))
+                    }
                 }
                 ForEach(RecipeQuality.issues(d), id: \.self) { Text("• " + $0).font(AteFont.body(13)) }
                 if RecipeQuality.isGenerated(d), !RecipeQuality.shortfall(d).isEmpty {
@@ -315,7 +336,7 @@ struct AddRecipeSheet: View {
             .sheetCard(Theme.warm.opacity(0.5))
         }
         if let n = draft?.aiNote { Text(n).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aiNote") }
-        Text("Fix anything the AI got wrong, then save it to your library.")
+        Text(scanPresentation ? "Check the ingredients, amounts and method against your source. Edit anything that needs fixing before saving." : "Fix anything the AI got wrong, then save it to your library.")
             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
         if let d = draft { coverEditor(d) }
         if editing, draft != nil {
@@ -343,6 +364,38 @@ struct AddRecipeSheet: View {
             }
             .buttonStyle(.ate(.ghost)).disabled(loading).accessibilityLabel("Regenerate")
         }
+    }
+
+    private func scanReviewHeader(_ recipe: RecipeCard) -> some View {
+        let summary = AddRecipeReviewSummary(recipe)
+        return VStack(alignment: .leading, spacing: 12) {
+            Label("Draft review", systemImage: "doc.text.magnifyingglass")
+                .font(AteFont.body(13, .semibold)).foregroundStyle(Theme.primary)
+            Text(summary.title).font(AteFont.display(24))
+                .accessibilityIdentifier("add.scan.title")
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 16) { scanReviewMetadata(summary) }
+                VStack(alignment: .leading, spacing: 8) { scanReviewMetadata(summary) }
+            }
+            .font(AteFont.body(13))
+            Text("\(summary.ingredientCount) ingredient entries · \(summary.stepCount) cooking steps")
+                .font(AteFont.body(14, .medium))
+                .accessibilityIdentifier("add.scan.counts")
+            Text("Counts describe this draft, not extraction accuracy. Review the whole recipe before saving.")
+                .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.warm.opacity(0.5), in: RoundedRectangle(cornerRadius: Theme.radius))
+        .overlay(RoundedRectangle(cornerRadius: Theme.radius).stroke(Theme.border))
+    }
+
+    @ViewBuilder private func scanReviewMetadata(_ summary: AddRecipeReviewSummary) -> some View {
+        Label(summary.servings.map { "\($0) draft servings" } ?? "Servings not given", systemImage: "person.2")
+            .accessibilityIdentifier("add.scan.servings")
+        Label(summary.totalMinutes.map { "\($0) min total" } ?? "Total time not given", systemImage: "clock")
+            .accessibilityIdentifier("add.scan.time")
     }
 
     @ViewBuilder private func coverEditor(_ d: RecipeCard) -> some View {

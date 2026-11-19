@@ -2,13 +2,15 @@
 from pathlib import Path
 import hashlib,json,re,unittest
 from prompt_draft_boundary_delta import restore
+from add_stack_composition_delta import parent_source
+from add_generation_deadline_delta import restore as restore_deadline
 ROOT=Path(__file__).resolve().parents[2]
 
 class PromptDraftBoundarySourceTests(unittest.TestCase):
     def test_inverse_reconstructs_parent_and_refuses_missing_duplicate_or_changed_source(self):
         fixture=json.loads((ROOT/'scripts/tests/prompt_draft_boundary_inverse.json').read_text())
         for path, contract in fixture.items():
-            source=(ROOT/path).read_text()
+            source=parent_source('prompt',path,restore_deadline(path,(ROOT/path).read_text()))
             self.assertEqual(hashlib.sha256(restore(path,source).encode()).hexdigest(),contract['parent_sha'])
             for f in contract['fragments']:
                 for mutant in [source.replace(f['new'],'',1),source+f['new'],source+'// unrelated change\n']:
@@ -20,7 +22,7 @@ class PromptDraftBoundarySourceTests(unittest.TestCase):
         self.assertNotIn('partialSink',backend+view)
         self.assertNotIn('StreamPreviewCard(preview:',view)
         self.assertNotIn('emitPreview',backend)
-        self.assertIn('for try await _ in stream {\n                    try GenerationCancellation.check()\n                }',backend)
+        self.assertIn('for try await _ in stream {\n                    try GenerationCancellation.check()\n                }',restore_deadline('Ate/Services/OnDeviceBackend.swift',backend))
         self.assertIn('let res = try await stream.collect()',backend)
         self.assertIn('Checking the recipe before review.',view)
         self.assertIn('guard generationAttempt.isCurrent(token) else { return }',view)

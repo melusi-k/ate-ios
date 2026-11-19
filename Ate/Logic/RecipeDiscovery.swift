@@ -8,6 +8,15 @@ struct RecipeDiscoveryContext {
     var cookedRecipes: [JournalRecipeSnapshot]
 }
 
+/// App-created creative request, not a pasted recipe. It can only be built from
+/// collection context; no external text or serialized ParseRequest can select it.
+struct RecipeDiscoveryGeneration {
+    let prompt: String
+    init(context: RecipeDiscoveryContext, suggested: [RecipeCard]) {
+        prompt = RecipeDiscovery.prompt(context: context, suggested: suggested)
+    }
+}
+
 enum RecipeDiscovery {
     static func titleKey(_ title: String) -> String {
         title.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
@@ -87,14 +96,14 @@ final class RecipeDiscoverySession {
     }
 
     func request(available: Bool, context: @escaping @MainActor () throws -> RecipeDiscoveryContext,
-                 generate: @escaping @MainActor (ParseRequest) async throws -> RecipeCard) {
+                 generate: @escaping @MainActor (RecipeDiscoveryGeneration) async throws -> RecipeCard) {
         guard !loading else { return }
         do {
             let input = try context()
             guard available else { throw BackendError(message: "On-device AI is not available right now. No recipes were generated or saved.") }
             guard !input.saved.isEmpty else { throw BackendError(message: "Save a recipe first so Ate can suggest something based on your tastes.") }
             owner = input.owner
-            let prompt = RecipeDiscovery.prompt(context: input, suggested: suggestions)
+            let generation = RecipeDiscoveryGeneration(context: input, suggested: suggestions)
             loading = true; message = nil
             deadline = Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -111,7 +120,7 @@ final class RecipeDiscoverySession {
                     }
                 }
                 do {
-                    let result = try await generate(ParseRequest(mode: .prompt, text: prompt))
+                    let result = try await generate(generation)
                     guard attempt.isCurrent(token) else { return }
                     let current = try context()
                     guard current.owner == input.owner else { accountChanged(); return }
@@ -129,7 +138,7 @@ final class RecipeDiscoverySession {
                     suggestions.append(card)
                 } catch {
                     guard attempt.isCurrent(token) else { return }
-                    message = error.localizedDescription
+                    message = "Couldn't create a suggestion. Nothing was saved. Try again. " + error.localizedDescription
                 }
             }
         } catch { message = error.localizedDescription }

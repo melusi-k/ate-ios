@@ -1,7 +1,7 @@
 {
-  "title": "Library selection native accessibility repair",
-  "summary": "Explicit text-button accessibility representation replaces lost card metadata observed on #622. Six native UI journeys and all budgets remain byte-unchanged. Source guards pass; repaired Swift compile, native XCTest, VoiceOver, and pixels remain UNRUN.",
-  "source_commit": "8ad35249401efea8a3cb506a5b332813a0501d07",
+  "title": "Add Recipe draft review over repaired Library selection",
+  "summary": "Screens 1-2: honest single-image Add draft review over the exact published Library accessibility repair. Both independent flags, OFF flows, UI classes and full required unit union retained. Original runtime contracts preserved through an exact repair inverse. Native build, full tests, Journal, VoiceOver, pixels and device acceptance remain unverified on this candidate.",
+  "source_commit": "65cb708caec922187d3115247da09d6df1e1b440",
   "evidence": [
     {
       "path": "Ate/Views/LibraryView.swift",

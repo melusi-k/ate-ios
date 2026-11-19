@@ -130,6 +130,17 @@ jobs:
         if: ${{ steps.build.outcome == 'success' }}
         run: |
           set -o pipefail
+          # Observation only. Cleanup preserves the native gate's original exit.
+          python3 scripts/capture-ocr-host-timing.py --output ocr-host-timing.jsonl > ocr-host-timing-status.log 2>&1 &
+          ocr_host_pid=$!
+          stop_ocr_host_timing() {
+            native_status=$?
+            trap - EXIT
+            kill "$ocr_host_pid" 2>>ocr-host-timing-status.log || true
+            wait "$ocr_host_pid" 2>>ocr-host-timing-status.log || true
+            exit "$native_status"
+          }
+          trap stop_ocr_host_timing EXIT
           echo "Full unit suite source: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteTests \
@@ -154,6 +165,8 @@ jobs:
           name: full-unit-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: error
           path: |
+            ocr-host-timing.jsonl
+            ocr-host-timing-status.log
             full-unit-tests.log
             full-unit-tests.json
             ${{ runner.temp }}/ate-test-results/full-unit-tests.xcresult

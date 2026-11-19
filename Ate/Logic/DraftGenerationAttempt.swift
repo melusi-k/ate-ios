@@ -6,6 +6,7 @@ import Foundation
 final class DraftGenerationAttempt {
     private var token: UUID?
     private var task: Task<Void, Never>?
+    private var deadline: Task<Void, Never>?
     private var children: [UUID: Task<Void, Never>] = [:]
     var isRunning: Bool { task != nil }
 
@@ -20,12 +21,15 @@ final class DraftGenerationAttempt {
 
     func invalidate() {
         token = nil
+        deadline?.cancel(); deadline = nil
         task?.cancel(); task = nil
         for child in children.values { child.cancel() }
         children.removeAll()
     }
 
-    func start(_ work: @escaping @MainActor (UUID) async -> Void) {
+    func start(timeoutNanoseconds: UInt64? = nil,
+               timedOut: @escaping @MainActor () -> Void = {},
+               _ work: @escaping @MainActor (UUID) async -> Void) {
         guard !isRunning else { return }
         invalidate()
         let value = UUID()
@@ -35,8 +39,19 @@ final class DraftGenerationAttempt {
             await work(value)
             guard self.token == value else { return }
             self.task = nil
+            self.deadline?.cancel(); self.deadline = nil
             // Retain admission for spread children until discard/disappear or
             // the next primary attempt, even after the first review card arrives.
+        }
+        if let timeoutNanoseconds {
+            deadline = Task { @MainActor [weak self] in
+                do { try await Task.sleep(nanoseconds: timeoutNanoseconds) } catch { return }
+                guard let self, !Task.isCancelled, self.token == value, self.isRunning else { return }
+                // Revoke admission BEFORE cancelling. A non-cooperative backend
+                // may still finish, but cannot publish into this or a later attempt.
+                self.invalidate()
+                timedOut()
+            }
         }
     }
 

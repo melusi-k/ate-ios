@@ -1,13 +1,14 @@
 """Source contracts complement native behavior and device acceptance, not replace them."""
 from pathlib import Path
 import unittest
+from recipe_discovery_intent_delta import restore
 ROOT = Path(__file__).resolve().parents[2]
 
 class InsightsDiscoveryContracts(unittest.TestCase):
     def setUp(self):
         self.view = (ROOT / 'Ate/Views/InsightsView.swift').read_text()
-        self.discovery = (ROOT / 'Ate/Logic/RecipeDiscovery.swift').read_text()
-        self.destination = (ROOT / 'Ate/Views/SuggestedNewRecipesView.swift').read_text()
+        self.discovery = restore('Ate/Logic/RecipeDiscovery.swift', (ROOT / 'Ate/Logic/RecipeDiscovery.swift').read_text())
+        self.destination = restore('Ate/Views/SuggestedNewRecipesView.swift', (ROOT / 'Ate/Views/SuggestedNewRecipesView.swift').read_text())
 
     def test_confidence_evidence_stay_internal_and_lifecycle_controls_are_explicit(self):
         card = self.view.split('private var recipeProgressCard:', 1)[1].split('private func markRecipeInsightSeen', 1)[0]

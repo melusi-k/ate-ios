@@ -128,24 +128,104 @@ struct RecipeThumb: View {
     }
 }
 
+/// Packs metadata at its ideal size, moving whole items to the next line.
+/// A tag wider than the available column is capped and truncates, never letter-wraps.
+struct RecipeRowMetadataLayout: Layout {
+    var spacing: CGFloat = 8
+
+    static func frames(sizes: [CGSize], width: CGFloat, spacing: CGFloat) -> [CGRect] {
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
+        return sizes.map { size in
+            let itemWidth = min(size.width, width)
+            if x > 0, x + itemWidth > width {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            let frame = CGRect(x: x, y: y, width: itemWidth, height: size.height)
+            x += itemWidth + spacing
+            rowHeight = max(rowHeight, size.height)
+            return frame
+        }
+    }
+
+    static func availableWidth(proposed: CGFloat?, ideal: CGFloat) -> CGFloat {
+        guard let proposed, proposed.isFinite else { return max(0, ideal) }
+        return max(0, proposed)
+    }
+
+    private func frames(width: CGFloat, subviews: Subviews) -> [CGRect] {
+        let sizes = subviews.map { view in
+            let ideal = view.sizeThatFits(.unspecified)
+            return view.sizeThatFits(ProposedViewSize(width: min(ideal.width, width), height: nil))
+        }
+        return Self.frames(sizes: sizes, width: width, spacing: spacing)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let ideal = subviews.reduce(CGFloat.zero) { $0 + $1.sizeThatFits(.unspecified).width }
+            + CGFloat(max(0, subviews.count - 1)) * spacing
+        let width = Self.availableWidth(proposed: proposal.width, ideal: ideal)
+        let items = frames(width: width, subviews: subviews)
+        return CGSize(width: width, height: items.map(\.maxY).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let items = frames(width: bounds.width, subviews: subviews)
+        for (view, frame) in zip(subviews, items) {
+            view.place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                       anchor: .topLeading, proposal: ProposedViewSize(frame.size))
+        }
+    }
+}
+
+struct RecipeRowMetadataItem: View {
+    let text: String
+    var symbol: String? = nil
+
+    var body: some View {
+        Group {
+            if let symbol { Label(text, systemImage: symbol) }
+            else { TagBadge(text: text) }
+        }
+        .font(AteFont.body(12))
+        .foregroundStyle(Theme.mutedForeground)
+        .lineLimit(1)
+        .truncationMode(.tail)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+struct RecipeRowMetadata: View {
+    let recipe: RecipeCard
+    var body: some View {
+        RecipeRowMetadataLayout {
+            if let m = recipe.timeMinutes, m > 0 {
+                RecipeRowMetadataItem(text: "\(m) min", symbol: "clock")
+            }
+            RecipeRowMetadataItem(text: "\(recipe.servings)", symbol: "person.2")
+            ForEach(Array(recipe.tags.prefix(2).enumerated()), id: \.offset) { _, tag in
+                RecipeRowMetadataItem(text: tag)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct RecipeRowView: View {
     let recipe: RecipeCard
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             RecipeThumb(recipe: recipe)
             VStack(alignment: .leading, spacing: 4) {
-                Text(recipe.title).font(AteFont.body(18, .semibold)).lineLimit(1)
+                Text(recipe.title).font(AteFont.body(18, .semibold)).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let d = recipe.description, !d.isEmpty {
                     Text(d).font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground).lineLimit(2)
                 }
-                HStack(spacing: 10) {
-                    if let m = recipe.timeMinutes, m > 0 { Label("\(m) min", systemImage: "clock") }
-                    Label("\(recipe.servings)", systemImage: "person.2")
-                    ForEach(recipe.tags.prefix(2), id: \.self) { TagBadge(text: $0) }
-                }
-                .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                RecipeRowMetadata(recipe: recipe)
             }
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .foregroundStyle(Theme.foreground)
         .cardSurface(padding: 16)

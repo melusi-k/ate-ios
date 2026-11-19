@@ -1,7 +1,7 @@
 {
-  "title": "Recipe Detail over Add review and repaired Library selection",
-  "summary": "Screens 1-3 keep exact reviewed runtime, independent flags and original OFF flows, with the published Library accessibility repair. All three UI classes and full required unit union retained. Original byte contracts preserved through exact inverse chain. Native build, tests, Journal, VoiceOver, pixels and device acceptance remain unverified on this candidate.",
-  "source_commit": "64a6c0eec527c83128df28949cd1221267f93574",
+  "title": "Cook readability over Detail, Add review and repaired Library",
+  "summary": "All four screens retain exact reviewed runtime with independent flags and OFF flows, real metadata and full-size scrollable Cook instructions above pinned controls. Published Library accessibility repair and exact original-byte inverses retained. Timers/session/Finish/voice unchanged. Full UI/unit unions retained. Native build, tests, Journal, VoiceOver, pixels and device acceptance remain unverified on this candidate.",
+  "source_commit": "75f842b5705c84d0f39fc631f65d13bbee1b2d8c",
   "evidence": [
     {
       "path": "Ate/Views/LibraryView.swift",

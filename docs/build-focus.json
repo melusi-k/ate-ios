@@ -1,11 +1,23 @@
 {
-  "title": "Backend e2e failures explain themselves (HTTP status + error code, no secrets)",
-  "summary": "V1 r3: failure notes use a fixed reviewed mapping of known auth, PostgreSQL and PostgREST identifiers. Unknown values are omitted, even if identifier-shaped; output codes come from mapping literals, not response text. Free-form keys stay excluded. Unregistered identifier-shaped canaries in error_code/error/code never reach notes; PGRST116 works in canonical case. Script-mode shared module identity retained. Live e2e UNRUN.",
-  "source_commit": "28781e0400eb8389c66e90817a7482a8ed92cdd9",
+  "title": "Prompt confirmation and private generation before review",
+  "summary": "Carry confirmed names into unbound Prompt generation without renaming output or raising confidence. Raw example and repair snapshots no longer reach Add. Keep cancellation, source fidelity and quality/save gates. Exclude oven-removal-only actions from heating-temperature checks. Native compile/tests/UI and normal/odd live-model acceptance remain UNRUN.",
+  "source_commit": "07e6c32366c0009e8acb157e7083d385ef5debd3",
   "evidence": [
     {
-      "path": "Ate/Models/Models.swift",
-      "blob": "8af03461b45f0fab7632bb750f51d48b1fdd056d"
+      "path": "Ate/Services/OnDeviceBackend.swift",
+      "blob": "24ecfd931d47e7661d36f402147989cde195c2de"
+    },
+    {
+      "path": "Ate/Logic/RecipeIdeaPrompt.swift",
+      "blob": "8b65bc5d70e5cf1766de03cef842a7860f53b94d"
+    },
+    {
+      "path": "Ate/Logic/RecipeQuality.swift",
+      "blob": "86e3b546fabf8f8d138985a362088aa297d1a18f"
+    },
+    {
+      "path": "Ate/Views/AddRecipeSheet.swift",
+      "blob": "c4547e97638fce4510165bdabccba24c42ada034"
     }
   ]
 }

@@ -34,9 +34,10 @@ class UnitLaneRoutingTests(unittest.TestCase):
             'DraftGenerationAttemptTests/testSpreadChildCannotWriteLibraryAfterInvalidation',
         ]
         inputs = ['DraftInputAttemptTests/testLaterPhotoSelectionWinsEvenWhenOldLoaderIgnoresCancellation', 'DraftInputAttemptTests/testDiscardSaveOrDisappearInvalidationRefusesLateInput', 'DraftInputAttemptTests/testCoverSelectionCannotWriteDifferentRegeneratedDraft']
+        source_native_regressions = ['MultiPartPastedRecipeContracts/testMultiPartKeepsFoodNounItemsWithMethodPresent', 'PagePromptAndRegexContracts/testFinalPagePromptCarriesIngredientLinesPastTheOldCap', 'PagePromptAndRegexContracts/testRegexPathsCompileAndMatch', 'RecipeShapedFailClosedContracts/testASCIIFractionsAndMixedNumbersRoundTrip', 'URLPageMultiPartContracts/testPageClippedBeforeTheRecipeNeverCertifies', 'URLPageMultiPartContracts/testPageVerifiesWithAllComponents', 'SourceRecipeNativeRegressionTests/testExplicitSectionMethodsDoNotNeedThreeSocialCaptionKeywords', 'SourceRecipeNativeRegressionTests/testFractionPathsRunWithShortExplicitMethod', 'SourceRecipeNativeRegressionTests/testOnlyTerminalExactConversionWidgetPairIsOutsideTheList', 'SourceRecipeNativeRegressionTests/testIncompleteMultipartMethodFailsClosedAndCompleteMethodKeepsAllRows']
         # Both parents' named requirements remain independently explicit. Only
         # shared entries are deduplicated; neither side can silently replace the other.
-        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs))
+        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions))
         actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()
         self.assertEqual(actual, union)
         self.assertEqual(len(actual), len(set(actual)), "Required native names must be unique")

@@ -50,22 +50,30 @@ final class OnDeviceBackend: BackendService {
     }
 
     func parseRecipe(_ request: ParseRequest) async throws -> RecipeCard {
+        try await parseRecipeWithContract(request).card
+    }
+
+    /// The card and the source contract that bound THIS parse, returned together.
+    /// Per-call state only, no shared static: interleaved or concurrent parses
+    /// can never cross contracts, and an early JSON-LD / screenshot / fallback
+    /// return simply carries nil.
+    func parseRecipeWithContract(_ request: ParseRequest) async throws -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?) {
         try GenerationCancellation.check()
         do {
-            let card = try await parseRecipeResult(request)
+            let result = try await parseRecipeResult(request)
             try GenerationCancellation.check()
-            return card
+            return result
         } catch {
             try GenerationCancellation.check(error)
             throw error
         }
     }
 
-    private func parseRecipeResult(_ request: ParseRequest) async throws -> RecipeCard {
+    private func parseRecipeResult(_ request: ParseRequest) async throws -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?) {
         if request.mode == .rewrite, request.repairQuality != true,
            let original = request.currentRecipe,
            RecipeRewriteScope.noOpMessage(for: original, request: request.text ?? "") != nil {
-            return original
+            return (original, nil)
         }
         // Links: structured schema.org/Recipe data first (no AI needed), then the model.
         try Task.checkCancellation()
@@ -73,6 +81,21 @@ final class OnDeviceBackend: BackendService {
         // Pasted adverts must be refused before fallback, session allocation or
         // streamed preview. A fabricated disambiguation name cannot bypass this.
         if request.mode == .prompt { try SourceRecipeFidelity.rejectUngroundedText(request.text ?? "") }
+        // A paste that cannot reach the model whole must fail closed; a silent
+        // mid-word clip becomes an invented recipe downstream.
+        if request.mode == .prompt, (request.text ?? "").count > 6000 {
+            throw BackendError(message: "That recipe is too long to import in one go. Split it and import each part, or enter it manually.")
+        }
+        // Recipe-length text with no verifiable structure and no named dish is a
+        // failed import, not an idea: never let it reach creative generation.
+        // (Extraction carries an associated Contract and is not Equatable: match,
+        // never compare.)
+        if request.mode == .prompt, (request.text ?? "").count > 1200,
+           case .none = SourceRecipeFidelity.extraction(request.text ?? ""),
+           CuisineGlossary.matches(in: request.text ?? "").isEmpty,
+           SourceRecipeFidelity.captionDishName(request.text ?? "") == nil {
+            throw BackendError(message: "That looks like a recipe, but ate couldn't find its Ingredients and Method sections. Paste the full recipe including those headings, or describe the dish instead.")
+        }
         var pageHTML: String?
         var socialCaption: String?
         /// Pre-model source recognition shared by every extraction input (pasted recipe,
@@ -102,6 +125,16 @@ final class OnDeviceBackend: BackendService {
             case .unverifiable: unverifiableSource = true
             case .none: break
             }
+            // An unreadable post (login wall, generic copy) must fail closed with an
+            // honest message, never generate: no structure, no named dish, no recipe
+            // signals means nothing reached us that a recipe could be grounded in.
+            // A glossary dish word alone does not rescue unreadable generic copy:
+            // the caption must carry recipe signals or name its dish to continue.
+            if structuredSource == nil, !unverifiableSource,
+               !CaptionAnalysis.hasRecipeSignals(caption),
+               SourceRecipeFidelity.captionDishName(caption) == nil {
+                throw SocialCaptionError(platform: platform, reason: "Couldn't read this \(platform.rawValue) post. Paste the caption text into Prompt instead.")
+            }
         } else if request.mode == .url {
             // A failed source is not a prompt: preserve its offline/timeout/cancel
             // failure, never silently generate a Demo or fetch it a second time.
@@ -110,13 +143,13 @@ final class OnDeviceBackend: BackendService {
             pageHTML = html
             if var card = JSONLD.recipe(fromHTML: html, sourceURL: request.text) {
                 card.source = .jsonLD; card.generatedAt = Date().timeIntervalSince1970 * 1000
-                return RecipeLogic.normalize(card)
+                return (RecipeLogic.normalize(card), nil)
             }
             // Bind the creative pass to the page's own explicit ingredients and method when
             // it has them: the model must not rename the dish, swap listed ingredients or
             // rewrite written times, and an altered extraction fails closed instead of
             // reaching the review sheet.
-            switch SourceRecipeFidelity.extraction(String(Self.htmlToText(html).prefix(3500))) {
+            switch SourceRecipeFidelity.extraction(Self.htmlToText(html)) {
             case .verified(let contract): structuredSource = contract
             case .unverifiable: unverifiableSource = true
             case .none: break
@@ -131,7 +164,7 @@ final class OnDeviceBackend: BackendService {
             try SourceRecipeFidelity.rejectUngroundedText(text)
             imageText = text
             if PhotoGuess.isScreenshotText(text) {
-                return try ScreenshotRecipeImport.card(from: text)
+                return (try ScreenshotRecipeImport.card(from: text), nil)
             }
         }
         try Task.checkCancellation()
@@ -145,9 +178,9 @@ final class OnDeviceBackend: BackendService {
             let card = try await fallback.parseRecipe(request)
             try GenerationCancellation.check()
             if request.mode == .rewrite, request.repairQuality != true, let original = request.currentRecipe {
-                return try RecipeRewriteScope.accept(card, original: original, request: request.text ?? "")
+                return (try RecipeRewriteScope.accept(card, original: original, request: request.text ?? ""), nil)
             }
-            return card
+            return (card, nil)
         }
         // A recognizable recipe structure that could not be verified is refused honestly;
         // it never falls through to ungated creative generation.
@@ -155,7 +188,7 @@ final class OnDeviceBackend: BackendService {
             throw BackendError(message: "Ate couldn't verify this recipe's ingredients and method. No recipe was generated. Enter it manually or paste the recipe in a clearer Ingredients and Method layout.")
         }
         var source: RecipeSource = .appleIntelligence
-        let prompt: String
+        var prompt: String
         var input: RecipePrompt.Input = .prompt
         var photoForTool: String?
         var reviseID: String?
@@ -184,15 +217,25 @@ final class OnDeviceBackend: BackendService {
             }
         case .url where socialCaption != nil:
             prompt = RecipePrompt.social(caption: socialCaption!); input = .social
+            if let hint = request.dishHint?.trimmingCharacters(in: .whitespacesAndNewlines), !hint.isEmpty {
+                // The cook's confirmed name titles the card; the caption contract
+                // still binds its ingredients, quantities and written times.
+                prompt += "\nThe cook confirmed the dish: \(hint). Title the card exactly that."
+            }
             contextSource = socialCaption!  // short dish-defining source
             fidelity = structuredSource
         case .url:
-            let page: String
-            if let html = pageHTML { page = String(Self.htmlToText(html).prefix(3500)) }
-            else { page = try await Self.fetchPageText(request.text ?? "") }
+            let pageText: String
+            if let html = pageHTML { pageText = Self.htmlToText(html) }
+            else { pageText = try await Self.fetchPageText(request.text ?? "") }
+            // The full page text certifies structure (the recipe often starts past
+            // any prompt-sized prefix). The generation prompt carries the verified
+            // contract's own text when one exists, so its ingredient lines reach the
+            // model whole; only an uncertified page falls back to a bounded head.
+            fidelity = structuredSource ?? SourceRecipeFidelity.structuredRecipe(pageText)
+            let page = fidelity.map { String($0.text.prefix(6000)) } ?? String(pageText.prefix(6000))
             prompt = RecipePrompt.page(page); input = .link
             contextSource = page; sourceIsLongForm = true
-            fidelity = structuredSource ?? SourceRecipeFidelity.structuredRecipe(page)
         case .image:
             let text = imageText ?? ""
             try SourceRecipeFidelity.rejectUngroundedText(text)
@@ -254,7 +297,11 @@ final class OnDeviceBackend: BackendService {
         }
         // Too thin, or missing what the photo shows: regenerate ONCE with the gaps spelled out.
         let gaps = RecipeQuality.shortfall(card, labels: visibleLabels) + (fidelity?.issues(card) ?? [])
-        if request.mode != .rewrite, !gaps.isEmpty {
+        // Advisory-only gap lists (unused implicit staples: oil/salt/pepper/water
+        // listed but never used) skip the automatic repair pass. The review card still
+        // lists them with a manual Repair option. An unused main ingredient and any
+        // real gap repair exactly as before.
+        if request.mode != .rewrite, !RecipeQuality.gapsNeedingRepair(gaps).isEmpty {
             // Repair, don't re-roll. Prefer the same session: generate() keys it by card.id, so the
             // failed draft is still in the transcript and the instruction prefix is not re-paid.
             // When no session survives (eviction between generations), inline the draft as JSON so
@@ -282,6 +329,17 @@ final class OnDeviceBackend: BackendService {
             })
         }
         try GenerationCancellation.check()
+        // A dish answer on a source-bound run sets the title only; bound ingredients
+        // are re-applied verbatim and a contradicting answer keeps the source.
+        if let hint = request.dishHint?.trimmingCharacters(in: .whitespacesAndNewlines), !hint.isEmpty,
+           let contract = fidelity {
+            SourceRecipeFidelity.applyingDishConfirmation(&card, contract: contract, hint: hint)
+        }
+        // The worked example teaches the card format; it is never content. A card
+        // that reproduces it from a source that did not name it is refused.
+        if Self.isExampleEcho(card, sourceText: contextUser + "\n" + contextSource) {
+            throw BackendError(message: "Ate couldn't ground a recipe in that source. Paste the recipe or caption text, or name the dish, and try again.")
+        }
         if source == .photoGuess {
             card.servings = RecipeQuality.inferredServings(card, fromPhoto: true)
             card.aiConfidence = PhotoGuess.calibratedConfidence(model: card.aiConfidence, title: card.title, labels: visionLabels)
@@ -311,7 +369,7 @@ final class OnDeviceBackend: BackendService {
             // invent new source quantities in order to pass a quality check.
             throw BackendError(message: "Ate couldn't preserve this recipe's source quantities, ingredients or times. No card was accepted. Try again or enter it manually.")
         }
-        return normalized
+        return (normalized, fidelity)
     }
 
     func publish(_ card: RecipeCard) async throws -> String { try await sharing.publish(card) }
@@ -447,7 +505,7 @@ final class OnDeviceBackend: BackendService {
     }
 
     static func fetchPageText(_ link: String) async throws -> String {
-        String(htmlToText(try await fetchHTML(link)).prefix(3500))
+        String(htmlToText(try await fetchHTML(link)).prefix(20000))
     }
 
     static func recipeURL(_ link: String) throws -> URL {
@@ -476,8 +534,16 @@ final class OnDeviceBackend: BackendService {
         return String(decoding: data.prefix(1_500_000), as: UTF8.self)
     }
 
+    /// Freshly fetched captions, keyed by cleaned URL: a dish-confirm re-import of
+    /// the same post reuses the caption instead of paying the network fetch again.
+    @MainActor private static var captionCache: [String: (caption: String, at: Date)] = [:]
+    private static let captionCacheTTL: TimeInterval = 600
+
     /// oEmbed (TikTok/YouTube) + OG tags fetched with a link-preview bot UA, ~8 s budget. Never throws: empty = nothing found.
     static func fetchSocialCaption(_ url: URL, platform: SocialLinks.Platform) async -> String {
+        let cacheKey = url.absoluteString
+        if let hit = await MainActor.run(body: { captionCache[cacheKey] }),
+           Date().timeIntervalSince(hit.at) < captionCacheTTL { return hit.caption }
         let get: @Sendable (URL, String) async -> Data? = { u, ua in
             var r = URLRequest(url: u); r.timeoutInterval = 8
             r.setValue(ua, forHTTPHeaderField: "User-Agent")
@@ -498,7 +564,19 @@ final class OnDeviceBackend: BackendService {
         if !SocialLinks.isUseful(caption), let card = JSONLD.recipe(fromHTML: html, sourceURL: url.absoluteString) {
             caption = RecipeLogic.text(for: card, units: .metric)
         }
+        await MainActor.run(body: { captionCache[cacheKey] = (caption, Date()) })
         return caption
+    }
+
+    /// The worked mogodu example's ingredient signature. A creative card reproducing
+    /// it from a source that never named the dish is the example leaking, not a recipe.
+    static func isExampleEcho(_ card: RecipeCard, sourceText: String) -> Bool {
+        let lower = sourceText.lowercased()
+        guard !(lower.contains("tripe") || lower.contains("mogodu") || lower.contains("ulusu")) else { return false }
+        let signature = ["beef tripe", "onions", "garlic", "curry powder", "beef stock", "water", "salt", "oil"]
+        let names = card.ingredients.map { $0.name.lowercased() }
+        let hits = signature.filter { sig in names.contains(where: { $0 == sig || $0.hasPrefix(sig + " ") }) }
+        return hits.contains("beef tripe") && hits.count >= 4
     }
 
     static func classify(dataURL: String) async throws -> [(String, Float)] {
@@ -792,8 +870,8 @@ struct GenRecipe {
     @Guide(description: "Servings that suit the dish (stews 4 to 6); for one plated item in a photo (one sandwich, one bowl) use 1", .range(1...24)) var servings: Int
     @Guide(description: "Total minutes: the sum of all step minutes plus a short prep time; never more than that", .range(1...2880)) var timeMinutes: Int
     @Guide(description: "Short lowercase tags, include the dish type (main, side, dessert, drink)", .maximumCount(5)) var tags: [String]
-    @Guide(description: "Ingredients for the identified dish, copied from the text when given; a main dish has at least 4 with amounts", .count(1...30)) var ingredients: [GenIngredient]
-    @Guide(description: "Steps in order; timed steps carry minutes, oven steps carry temperatureC", .count(1...20)) var steps: [GenStep]
+    @Guide(description: "Ingredients for the identified dish, copied from the text when given; a main dish has at least 4 with amounts; multi-part sources keep every component's items", .count(1...60)) var ingredients: [GenIngredient]
+    @Guide(description: "Steps in order; timed steps carry minutes, oven steps carry temperatureC; multi-part sources keep every component's steps", .count(1...40)) var steps: [GenStep]
     @Guide(description: "Best-effort or uncertainty note; include Prep: N min when total time adds prep beyond the step sum") var note: String
 
     var card: RecipeCard {

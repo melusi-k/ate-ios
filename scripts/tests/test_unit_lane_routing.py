@@ -35,11 +35,14 @@ class UnitLaneRoutingTests(unittest.TestCase):
         ]
         inputs = ['DraftInputAttemptTests/testLaterPhotoSelectionWinsEvenWhenOldLoaderIgnoresCancellation', 'DraftInputAttemptTests/testDiscardSaveOrDisappearInvalidationRefusesLateInput', 'DraftInputAttemptTests/testCoverSelectionCannotWriteDifferentRegeneratedDraft']
         source_native_regressions = ['MultiPartPastedRecipeContracts/testMultiPartKeepsFoodNounItemsWithMethodPresent', 'PagePromptAndRegexContracts/testFinalPagePromptCarriesIngredientLinesPastTheOldCap', 'PagePromptAndRegexContracts/testRegexPathsCompileAndMatch', 'RecipeShapedFailClosedContracts/testASCIIFractionsAndMixedNumbersRoundTrip', 'URLPageMultiPartContracts/testPageClippedBeforeTheRecipeNeverCertifies', 'URLPageMultiPartContracts/testPageVerifiesWithAllComponents', 'SourceRecipeNativeRegressionTests/testExplicitSectionMethodsDoNotNeedThreeSocialCaptionKeywords', 'SourceRecipeNativeRegressionTests/testFractionPathsRunWithShortExplicitMethod', 'SourceRecipeNativeRegressionTests/testOnlyTerminalExactConversionWidgetPairIsOutsideTheList', 'SourceRecipeNativeRegressionTests/testIncompleteMultipartMethodFailsClosedAndCompleteMethodKeepsAllRows']
+        metadata = ['RecipeRowMetadataTests/testMetadataItemsStaySingleLineAtNarrowWidths', 'RecipeRowMetadataTests/testLayoutMovesWholeItemsAndCapsOversizedTagsWithoutOverlap', 'RecipeRowMetadataTests/testRenderedOwnerShapedRowsRetainCompactMetadataAndScreenshots']
         # Both parents' named requirements remain independently explicit. Only
         # shared entries are deduplicated; neither side can silently replace the other.
-        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions))
+        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata))
         actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()
         self.assertEqual(actual, union)
+        for required in source_native_regressions + metadata:
+            self.assertIn(required, actual, "Both forward-merge parents retain every required native pass")
         self.assertEqual(len(actual), len(set(actual)), "Required native names must be unique")
         for required in expected + additions:
             self.assertIn(required, actual, "PR branch requirement must survive main merge")

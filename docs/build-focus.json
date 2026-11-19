@@ -1,7 +1,7 @@
 {
   "title": "Backend e2e failures explain themselves (HTTP status + error code, no secrets)",
   "summary": "V1 r3: failure notes use a fixed reviewed mapping of known auth, PostgreSQL and PostgREST identifiers. Unknown values are omitted, even if identifier-shaped; output codes come from mapping literals, not response text. Free-form keys stay excluded. Unregistered identifier-shaped canaries in error_code/error/code never reach notes; PGRST116 works in canonical case. Script-mode shared module identity retained. Live e2e UNRUN.",
-  "source_commit": "a803b88dfffa7f5494bf605368bac8e8771a4cfe",
+  "source_commit": "28781e0400eb8389c66e90817a7482a8ed92cdd9",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

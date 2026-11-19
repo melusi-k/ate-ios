@@ -230,7 +230,7 @@ struct AddRecipeSheet: View {
             }
             .padding(14).frame(maxWidth: .infinity, alignment: .leading)
             .sheetCard(Theme.secondary)
-        } else if let q = dishQuestion {
+        } else if let q = dishQuestion, error == nil {
             VStack(alignment: .leading, spacing: 10) {
                 Label(q.errorDescription ?? "", systemImage: "questionmark.circle").font(AteFont.body(14))
                     .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("photoDishQuestion")
@@ -567,10 +567,19 @@ struct AddRecipeSheet: View {
         coverInputAttempt.invalidate()
     }
 
+    static let generationTimeoutNanoseconds: UInt64 = 60_000_000_000
+    static let generationTimeoutMessage = "This recipe took too long. Nothing was saved. Your input is kept. Try again."
+
     private func startGeneration() {
         guard !loading, !saving else { return }
         invalidateInputLoads()
-        generationAttempt.start { token in await generate(token: token) }
+        generationAttempt.start(timeoutNanoseconds: Self.generationTimeoutNanoseconds, timedOut: {
+            // DraftGenerationAttempt has already revoked the old result/preview/
+            // error/save token, even when the backend ignores cancellation.
+            invalidateGeneration()
+            error = Self.generationTimeoutMessage
+            DiagnosticHistory.shared.recordLocal(.generationTimedOut)
+        }) { token in await generate(token: token) }
     }
 
     private func generate(token: UUID) async {

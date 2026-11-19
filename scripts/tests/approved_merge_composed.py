@@ -11,10 +11,11 @@ from pathlib import Path
 _FIXTURE=Path(__file__).with_name('approved_merge_composed_inverses.json')
 _FIXTURE_SHA256='ef5c07c1bf823f61f6688f27cc0356581b74fee14c75b1b7c6c0ebf070991b28'
 def normalize(key, raw):
+    from stitch_detail_delta import restore as restore_detail
     from add_recipe_scan_delta import restore as restore_scan
     from library_selection_delta import restore as restore_selection
     from export_target_readiness_delta import restore
-    raw = restore(key, restore_selection(key, restore_scan(key, raw)))
+    raw = restore(key, restore_selection(key, restore_scan(key, restore_detail(key, raw))))
     payload=_FIXTURE.read_bytes()
     assert hashlib.sha256(payload).hexdigest()==_FIXTURE_SHA256, 'composed inverse fixture changed'
     contract=json.loads(payload)['contracts'][key]

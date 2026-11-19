@@ -1,11 +1,15 @@
 {
-  "title": "Backend e2e failures explain themselves (HTTP status + error code, no secrets)",
-  "summary": "V1 r3: failure notes use a fixed reviewed mapping of known auth, PostgreSQL and PostgREST identifiers. Unknown values are omitted, even if identifier-shaped; output codes come from mapping literals, not response text. Free-form keys stay excluded. Unregistered identifier-shaped canaries in error_code/error/code never reach notes; PGRST116 works in canonical case. Script-mode shared module identity retained. Live e2e UNRUN.",
-  "source_commit": "28781e0400eb8389c66e90817a7482a8ed92cdd9",
+  "title": "Library multi-select: saved-recipe summary and native text sharing",
+  "summary": "Screen 1 source slice: Select/Cancel, stable IDs, saved-servings/unknown-time summary and native text ShareLink. Grid hides discovery during selection. Default ON with OFF fallback. Batch delete, collection persistence and Meal Plan deferred. Six UI journeys join the existing native advisory selection; native compile, tests, Journal, pixels and device acceptance remain UNRUN.",
+  "source_commit": "3fbd92349a1da977561abd489fe1e868682017a3",
   "evidence": [
     {
-      "path": "Ate/Models/Models.swift",
-      "blob": "8af03461b45f0fab7632bb750f51d48b1fdd056d"
+      "path": "Ate/Views/LibraryView.swift",
+      "blob": "e40a63928140fc5456dd489d4bc36e32a50bca2c"
+    },
+    {
+      "path": "Ate/Logic/LibrarySelection.swift",
+      "blob": "bc37c33f43510fcda44475545b40018a9a7e560e"
     }
   ]
 }

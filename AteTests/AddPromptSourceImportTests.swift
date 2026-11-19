@@ -50,17 +50,31 @@ final class AddPromptSourceImportTests: XCTestCase {
     }
 
     func testRecognizableUnverifiableRecipeKeepsExistingFailClosedBackendBoundary() async {
-        let text = "Ingredients\nSomething impossible\nMethod\nDo something."
-        guard case .unverifiable = SourceRecipeFidelity.extraction(text) else { return XCTFail("Fixture must be recognizable") }
-        let fallback = RecordingBackend()
-        let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { true })
-        do {
-            _ = try await AddPromptSourceImport.parse(ParseRequest(mode: .prompt, text: text), using: backend)
-            XCTFail("Unverifiable source must still fail closed")
-        } catch {
-            XCTAssertTrue(error.localizedDescription.contains("couldn't verify"))
+        // Same measured-but-ambiguous source as the existing real recognizer
+        // regression. Recognition is independent of whether a full parse succeeds.
+        let text = "Mogodu Ingredients 1 kg beef tripe 2 onions salt to taste Method Simmer 150 minutes, fry 5 minutes, season."
+        XCTAssertTrue(SourceRecipeFidelity.claimsStructuredRecipe(text))
+        XCTAssertNil(SourceRecipeFidelity.structuredRecipe(text))
+        guard case .unverifiable = SourceRecipeFidelity.extraction(text) else {
+            return XCTFail("Measured ambiguous source must be recognizable but unverifiable")
         }
-        XCTAssertTrue(fallback.requests.isEmpty)
+        for available in [false, true] {
+            let fallback = RecordingBackend()
+            let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { available })
+            do {
+                _ = try await AddPromptSourceImport.parse(ParseRequest(mode: .prompt, text: text), using: backend)
+                XCTFail("Unverifiable source must still fail closed (model available: \(available))")
+            } catch {
+                let message = error.localizedDescription
+                XCTAssertNotEqual(message, AddPromptSourceImport.missingSourceMessage,
+                                  "Recognized source must reach the existing backend refusal, not the no-source gate")
+                let expected = available
+                    ? "Ate couldn't verify this recipe's ingredients and method. No recipe was generated. Enter it manually or paste the recipe in a clearer Ingredients and Method layout."
+                    : "On-device AI isn't available and this recipe's ingredients and method could not be verified. No demo recipe was substituted; enter it manually or try again when the model is ready."
+                XCTAssertEqual(message, expected)
+            }
+            XCTAssertTrue(fallback.requests.isEmpty, "No model/demo substitute for an ambiguous import")
+        }
     }
 
     func testLinkImageAndRewriteRequestsKeepTheirExistingBackendRoute() async throws {

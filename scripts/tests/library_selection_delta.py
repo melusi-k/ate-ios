@@ -10,6 +10,8 @@ def restore(key, raw):
     path = key.split(':', 1)[-1]
     if path not in ['Ate/Views/LibraryView.swift', '.github/workflows/compile-check.yml']:
         return raw
+    from library_selection_accessibility_delta import restore as restore_accessibility
+    raw = restore_accessibility(key, raw)
     payload = Path(__file__).with_name('library_selection_inverse.json').read_bytes()
     assert hashlib.sha256(payload).hexdigest() == FIXTURE_SHA, 'selection inverse fixture changed'
     contract = json.loads(payload)[path]

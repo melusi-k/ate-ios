@@ -12,6 +12,7 @@ struct LibraryView: View {
     enum SearchPlacement { case drawer, none, tabBar }
     /// iOS 26: the Library tab has no field (.none); the search tab hosts it in the tab bar (.tabBar).
     var searchPlacement: SearchPlacement = .drawer
+    @State private var selection = LibrarySelection()
     @State private var showAdd = false
     @State private var showExplore = false
     @State private var exploreSelection: String?
@@ -74,7 +75,8 @@ struct LibraryView: View {
     }
 
     private func canReorder(_ filtered: [RecipeCard]) -> Bool {
-        store.layout.canReorder(
+        guard !selection.isSelecting else { return false }
+        return store.layout.canReorder(
             showingCount: filtered.count,
             recipeCount: store.recipes.count,
             hasSearch: searchPlacement != .none && !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -115,7 +117,9 @@ struct LibraryView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Same bottom system as recipe detail: sits directly above the stack's timer bar.
             // iOS 26: the tab bar's bottom accessory carries "Add recipe" instead (C-TAB-01).
-            if !TabChrome.usesAccessory {
+            if selection.isSelecting {
+                selectionBar
+            } else if !TabChrome.usesAccessory {
                 Button { addMode = nil; addPrompt = nil; showAdd = true } label: { Label("Add recipe", systemImage: "plus").padding(.horizontal, 10) }
                     .buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8).frame(maxWidth: .infinity)
             }
@@ -129,7 +133,18 @@ struct LibraryView: View {
         .ateRootNavigationChrome(logoID: "libraryLogo")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if searchPlacement != .tabBar {
+                if StitchFeatureFlags.stitchLibraryMultiSelectEnabled && searchPlacement != .tabBar && (selection.isSelecting || !store.recipes.isEmpty) {
+                    if selection.isSelecting {
+                        Button("Cancel") { selection.cancel() }
+                            .accessibilityIdentifier("library.selection.cancel")
+                    } else {
+                        Button("Select") { selection.enter() }
+                            .accessibilityIdentifier("library.selection.enter")
+                    }
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                if searchPlacement != .tabBar && !selection.isSelecting {
                     Button { showExplore = true } label: { Label("Explore", systemImage: "safari") }
                         .accessibilityIdentifier("library.explore")
                 }
@@ -139,6 +154,86 @@ struct LibraryView: View {
         .modifier(LibrarySheets(confirmDelete: $confirmDelete, showAdd: $showAdd, initialMode: addMode, initialPrompt: addPrompt, pushesToSearchStack: searchPlacement == .tabBar, global: searchPlacement != .tabBar))
         .onChange(of: store.pendingSearch) { _, _ in adoptPendingSearch() }
         .onAppear { adoptPendingSearch() }
+#if DEBUG
+        .task { LibrarySelectionQAFixtures.prepare(store) }
+#endif
+        .onChange(of: store.recipes.map(\.id)) { _, ids in selection.reconcile(savedIDs: Set(ids)) }
+        .onChange(of: store.session?.userID) { _, _ in selection.cancel() }
+    }
+
+    private func selectionCard(_ recipe: RecipeCard, grid: Bool) -> some View {
+        let selected = selection.selectedIDs.contains(recipe.id)
+        return Button { selection.toggle(recipe.id) } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(selected ? Theme.primary : Theme.mutedForeground)
+                    .frame(width: 32, height: 44)
+                    .accessibilityHidden(true)
+                if grid { RecipeGridCard(recipe: recipe) }
+                else { RecipeRowView(recipe: recipe) }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(recipe.title)
+        .accessibilityValue(selected ? "Selected" : "Not selected")
+        .accessibilityHint("Double tap to toggle selection")
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier("library.selection.recipe.\(recipe.id)")
+    }
+
+    private var selectionSummary: some View {
+        let recipes = selection.selectedRecipes(in: store.recipes)
+        let summary = selection.summary(in: store.recipes)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("\(summary.count) recipe\(summary.count == 1 ? "" : "s") selected")
+                    .font(AteFont.body(16, .semibold))
+                    .accessibilityIdentifier("library.selection.count")
+                Spacer(minLength: 8)
+                Button("Deselect all") { selection.deselectAll() }
+                    .disabled(recipes.isEmpty)
+                    .accessibilityIdentifier("library.selection.deselectAll")
+            }
+            Text(selectionServings(summary))
+                .font(AteFont.body(13))
+                .foregroundStyle(Theme.mutedForeground)
+                .accessibilityIdentifier("library.selection.servings")
+            Text(summary.unknownTimeCount == 0
+                 ? "Recipe times are not an active-prep estimate."
+                 : "Time unknown for \(summary.unknownTimeCount) recipes. No active-prep estimate.")
+                .font(AteFont.body(12))
+                .foregroundStyle(Theme.mutedForeground)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("library.selection.time")
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.radius))
+    }
+
+    private var selectionBar: some View {
+        let recipes = selection.selectedRecipes(in: store.recipes)
+        return ShareLink(item: recipes.map { RecipeLogic.text(for: $0, units: store.settings.units) }.joined(separator: "\n\n"),
+                         subject: Text("Saved recipes")) {
+            Label("Share selected recipes (\(recipes.count))", systemImage: "square.and.arrow.up")
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+        }
+        .disabled(recipes.isEmpty)
+        .accessibilityIdentifier("library.selection.share")
+        .background(.regularMaterial)
+    }
+
+    private func selectionServings(_ summary: LibrarySelection.Summary) -> String {
+        guard let servings = summary.knownServings else { return "Servings total unavailable" }
+        if summary.unknownServingsCount > 0 {
+            return "\(servings) known servings; servings unknown for \(summary.unknownServingsCount) recipes"
+        }
+        return "\(servings) total saved recipe servings"
     }
 
     @ViewBuilder private func emptyState(_ filtered: [RecipeCard]) -> some View {
@@ -195,11 +290,14 @@ struct LibraryView: View {
         let ordered = sections.flatMap(\.recipes)
         return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                if selection.isSelecting { selectionSummary }
                 header(resultCount: filtered.count)
                 if isSearchStart && !store.recipes.isEmpty { searchStartPrompt }
-                TodayJournalHubCard()
-                TodayHealthCard()
-                recipeRediscovery
+                if !selection.isSelecting {
+                    TodayJournalHubCard()
+                    TodayHealthCard()
+                    recipeRediscovery
+                }
                 FilterChips(resultCount: filtered.count)
                 emptyState(filtered)
                 if !isSearchStart {
@@ -223,38 +321,42 @@ struct LibraryView: View {
     }
 
     @ViewBuilder private func gridCell(_ r: RecipeCard, ordered: [RecipeCard], canReorder: Bool) -> some View {
-        let cell = ZStack(alignment: .topTrailing) {
-            Button { quickLookRecipe = r } label: { RecipeGridCard(recipe: r) }
-                .buttonStyle(PressScale())
-                .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-                .contextMenu { menu(r) } preview: { RecipeGridCard(recipe: r).frame(width: 300) }
-                .accessibilityIdentifier("gridCard")
-            // Keep the favourite action directly reachable in grid layout, matching list swipe and context-menu actions.
-            Button { store.toggleFavourite(r.id) } label: {
-                Image(systemName: r.favorite ? "star.fill" : "star")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(r.favorite ? Theme.primaryForeground : Theme.foreground)
-                    .frame(width: 40, height: 40)
-                    .background(r.favorite ? Theme.primary : Theme.card.opacity(0.96), in: Circle())
-                    .overlay(Circle().stroke(Theme.input, lineWidth: r.favorite ? 0 : 1))
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .padding(8)
-            .accessibilityLabel(r.favorite ? "Remove \(r.title) from Favourites" : "Add \(r.title) to Favourites")
-            .accessibilityIdentifier("gridFavourite.\(r.id)")
-        }
-        if canReorder {
-            cell
-                .draggable(r.id) { RecipeGridCard(recipe: r).frame(width: 260).opacity(0.9) }
-                .dropDestination(for: String.self) { ids, _ in
-                    guard let id = ids.first, id != r.id else { return false }
-                    withAnimation(Motion.anim(.snappy)) { store.move(id, before: r.id, in: ordered) }
-                    return true
-                }
+        if selection.isSelecting {
+            selectionCard(r, grid: true)
         } else {
-            cell
+            let cell = ZStack(alignment: .topTrailing) {
+                Button { quickLookRecipe = r } label: { RecipeGridCard(recipe: r) }
+                    .buttonStyle(PressScale())
+                    .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                    .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                    .contextMenu { menu(r) } preview: { RecipeGridCard(recipe: r).frame(width: 300) }
+                    .accessibilityIdentifier("gridCard")
+                // Keep the favourite action directly reachable in grid layout, matching list swipe and context-menu actions.
+                Button { store.toggleFavourite(r.id) } label: {
+                    Image(systemName: r.favorite ? "star.fill" : "star")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(r.favorite ? Theme.primaryForeground : Theme.foreground)
+                        .frame(width: 40, height: 40)
+                        .background(r.favorite ? Theme.primary : Theme.card.opacity(0.96), in: Circle())
+                        .overlay(Circle().stroke(Theme.input, lineWidth: r.favorite ? 0 : 1))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(8)
+                .accessibilityLabel(r.favorite ? "Remove \(r.title) from Favourites" : "Add \(r.title) to Favourites")
+                .accessibilityIdentifier("gridFavourite.\(r.id)")
+            }
+            if canReorder {
+                cell
+                    .draggable(r.id) { RecipeGridCard(recipe: r).frame(width: 260).opacity(0.9) }
+                    .dropDestination(for: String.self) { ids, _ in
+                        guard let id = ids.first, id != r.id else { return false }
+                        withAnimation(Motion.anim(.snappy)) { store.move(id, before: r.id, in: ordered) }
+                        return true
+                    }
+            } else {
+                cell
+            }
         }
     }
 
@@ -265,10 +367,13 @@ struct LibraryView: View {
             ? { from, to in withAnimation(Motion.anim()) { store.move(fromOffsets: from, toOffset: to, in: ordered) } } : nil
         return List {
             Group {
+                if selection.isSelecting { selectionSummary }
                 header(resultCount: filtered.count)
                 if isSearchStart && !store.recipes.isEmpty { searchStartPrompt }
-                TodayJournalHubCard()
-                recipeRediscovery
+                if !selection.isSelecting {
+                    TodayJournalHubCard()
+                    recipeRediscovery
+                }
                 FilterChips(resultCount: filtered.count)
                 emptyState(filtered)
                 if !isSearchStart {
@@ -292,26 +397,30 @@ struct LibraryView: View {
         .refreshable { await refresh() }
     }
 
-    private func row(_ r: RecipeCard) -> some View {
-        // Keep list and grid selection consistent: both open the expandable recipe sheet.
-        Button { quickLookRecipe = r } label: { RecipeRowView(recipe: r) }
-            .buttonStyle(PressScale())
-            .accessibilityIdentifier("listCard")
-            .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                Button(role: .destructive) { Task { await store.deleteWithUndo(r.id) } } label: { Label("Delete", systemImage: "trash") }
-                    .tint(Theme.destructive)
-            }
-            .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                Button { store.toggleFavourite(r.id) } label: {
-                    Label(r.favorite ? "Unfavourite" : "Favourite", systemImage: r.favorite ? "star.slash" : "star.fill")
-                }.tint(Theme.accent)
-                Button { store.addToShopping(r, factor: 1); store.show("Added to your shopping list") } label: {
-                    Label("Add to list", systemImage: "basket")
-                }.tint(Theme.primary)
-            }
-            .contextMenu { menu(r) } preview: { RecipeRowView(recipe: r).frame(width: 340) }
+    @ViewBuilder private func row(_ r: RecipeCard) -> some View {
+        if selection.isSelecting {
+            selectionCard(r, grid: false)
+        } else {
+            // Keep list and grid selection consistent: both open the expandable recipe sheet.
+            Button { quickLookRecipe = r } label: { RecipeRowView(recipe: r) }
+                .buttonStyle(PressScale())
+                .accessibilityIdentifier("listCard")
+                .contentShape(.dragPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) { Task { await store.deleteWithUndo(r.id) } } label: { Label("Delete", systemImage: "trash") }
+                        .tint(Theme.destructive)
+                }
+                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                    Button { store.toggleFavourite(r.id) } label: {
+                        Label(r.favorite ? "Unfavourite" : "Favourite", systemImage: r.favorite ? "star.slash" : "star.fill")
+                    }.tint(Theme.accent)
+                    Button { store.addToShopping(r, factor: 1); store.show("Added to your shopping list") } label: {
+                        Label("Add to list", systemImage: "basket")
+                    }.tint(Theme.primary)
+                }
+                .contextMenu { menu(r) } preview: { RecipeRowView(recipe: r).frame(width: 340) }
+        }
     }
 
     /// One icon-only "Group & sort" toolbar menu (the two text pills truncated).

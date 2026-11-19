@@ -5,13 +5,15 @@ import json
 import re
 import unittest
 from recipe_discovery_intent_delta import restore
+from add_stack_composition_delta import parent_source
+from add_generation_deadline_delta import restore as restore_deadline
 ROOT = Path(__file__).resolve().parents[2]
 
 class RecipeDiscoveryIntentSourceTests(unittest.TestCase):
     def test_exact_inverse_restores_all_three_parent_sources(self):
         contracts = json.loads((ROOT / 'scripts/tests/recipe_discovery_intent_inverse.json').read_text())
         for path, contract in contracts.items():
-            text = (ROOT / path).read_text()
+            text = parent_source('explore',path,restore_deadline(path,(ROOT / path).read_text()))
             self.assertEqual(hashlib.sha256(restore(path, text).encode()).hexdigest(), contract['parent_sha'])
             for fragment in contract['fragments']:
                 for changed in [text.replace(fragment['new'], '', 1), text + fragment['new']]:

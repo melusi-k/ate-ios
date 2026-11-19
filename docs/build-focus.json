@@ -1,7 +1,7 @@
 {
-  "title": "Source-bound import repairs and clean imported recipe titles",
-  "summary": "Carries source-binding and advisory-gap repairs with the six original native assertions unchanged, plus imported-title site suffix and marketing-description cleanup. Exact-head native qualification remains required; Python and source review are not model or device acceptance.",
-  "source_commit": "9e942a5e50b82348507ae36331e3a0e03d80a6c6",
+  "title": "Source-bound imports, recipe-row metadata and URL copy cleanup",
+  "summary": "Combines source-binding/advisory-gap repairs, whole-item metadata wrapping with two-line titles, and URL title/site-boundary and marketing-copy cleanup. Keeps both parents' exact required native pass union. Native compile, XCTest and corrected pixels require this final head; Python checks are source preflight only.",
+  "source_commit": "4d802e2cdd5c8324cb940eef94173c0712547f92",
   "evidence": [
     {
       "path": "Ate/Logic/SourceRecipeFidelity.swift",
@@ -14,6 +14,10 @@
     {
       "path": "Ate/Views/Components.swift",
       "blob": "fe525566bd98eea224457ad7760f8c0d7200bf43"
+    },
+    {
+      "path": "Ate/Logic/JSONLD.swift",
+      "blob": "c1a42308bb9cadeda53ac0d5f96f6cbac2f3ebb0"
     },
     {
       "path": "Ate/Models/Models.swift",

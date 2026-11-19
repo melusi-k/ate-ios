@@ -1,8 +1,16 @@
 {
-  "title": "Recipe-row metadata layout repair",
-  "summary": "Recipe rows pack complete time, serving and tag items onto separate lines instead of compressing text into letter columns. Titles may use two lines. Native geometry tests and retained synthetic screenshots are added; Swift compile, native tests and corrected pixels still require Apple-run qualification.",
-  "source_commit": "7d24b29cf4026269516a8ab169a054ca858af559",
+  "title": "Source-bound imports and recipe-row metadata repair",
+  "summary": "Combines source-binding/advisory-gap native-failure repairs with whole-item recipe metadata wrapping and two-line titles. Both parents' required native tests remain in the exact pass union. Native compile, XCTest and corrected pixels require qualification on this merged head; Python checks are source preflight only.",
+  "source_commit": "73ef429f7de00fc952f1b76057c1fce9ee22020a",
   "evidence": [
+    {
+      "path": "Ate/Logic/SourceRecipeFidelity.swift",
+      "blob": "940f129714f43b6d560c31ecb2c4f1d555f9d5b8"
+    },
+    {
+      "path": "Ate/Services/OnDeviceBackend.swift",
+      "blob": "214430ad0053a882de4bd673a97f7b0e4f11eb49"
+    },
     {
       "path": "Ate/Views/Components.swift",
       "blob": "fe525566bd98eea224457ad7760f8c0d7200bf43"

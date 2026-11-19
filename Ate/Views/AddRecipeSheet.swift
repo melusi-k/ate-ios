@@ -55,6 +55,14 @@ struct AddRecipeSheet: View {
     @State private var coverInputAttempt = DraftInputAttempt()
     /// Name the user confirmed in "What dish is this?" (C-AI-01); the regenerated card is not asked about again.
     @State private var confirmedDish: String?
+    /// The first BOUND import kept while the dish question is up; the answer titles
+    /// it through the contradiction guard and never regenerates it. An unbound idea
+    /// is not kept: the confirm regenerates it conditioned on the confirmed name.
+    @State private var pendingDishCard: RecipeCard?
+    /// The verified contract that bound pendingDishCard. Nil contract means the
+    /// low-confidence result was an unbound idea, which must REGENERATE with the
+    /// confirmed name, never be renamed over its own content.
+    @State private var pendingDishContract: SourceRecipeFidelity.Contract?
     @Environment(\.dismiss) private var dismiss
     private var hasUnsaved: Bool {
         (draft != nil && !saving) || !link.trimmingCharacters(in: .whitespaces).isEmpty || !prompt.trimmingCharacters(in: .whitespaces).isEmpty || imageData != nil
@@ -141,6 +149,10 @@ struct AddRecipeSheet: View {
                 imageData = data
             }
         }
+        // A kept dish-confirm card belongs to the input that produced it: editing
+        // the prompt or link drops it, so a stale result can never be renamed.
+        .onChange(of: prompt) { _, _ in pendingDishCard = nil; pendingDishContract = nil }
+        .onChange(of: link) { _, _ in pendingDishCard = nil; pendingDishContract = nil }
     }
 
     @ViewBuilder private var inputState: some View {
@@ -576,11 +588,29 @@ struct AddRecipeSheet: View {
         var recoveryImageData: Data?
         switch mode {
         case _ where mode != .image && dishQuestion != nil && !dishAnswer.trimmingCharacters(in: .whitespaces).isEmpty:
-            // Low-confidence card: regenerate conditioned on the confirmed name (+ glossary via RecipePrompt.prompt).
             let name = dishAnswer.trimmingCharacters(in: .whitespaces)
             confirmedDish = name
-            let ctx = (mode == .link ? link : prompt).trimmingCharacters(in: .whitespacesAndNewlines)
-            req = ParseRequest(mode: .prompt, text: ctx.isEmpty ? name : "\(name). Context: \(ctx.prefix(400))")
+            if var kept = pendingDishCard, let contract = pendingDishContract {
+                // A bound import (link or paste) is never regenerated for a name:
+                // the first result is kept and the confirmed dish only titles it,
+                // through the same contradiction guard as a backend-confirmed name
+                // (a contradicting answer keeps the source title and says so).
+                SourceRecipeFidelity.applyingDishConfirmation(&kept, contract: contract, hint: name)
+                draft = kept
+                pendingDishCard = nil
+                pendingDishContract = nil
+                confirmedDraft = false
+                if let d = draft { chooseInitialCover(for: d); DraftStore.shared.saveDraft(d) }
+                editing = false
+                dishQuestion = nil; dishAnswer = ""; spreadPicks = []
+                return
+            }
+            // No kept card (unbound idea prompt): regenerate conditioned on the
+            // confirmed name. An idea is never renamed over its own content.
+            let ctx = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            req = ParseRequest(mode: .prompt, text: ctx.isEmpty ? name : ctx, dishHint: ctx.isEmpty ? nil : name)
+            pendingDishCard = nil
+            pendingDishContract = nil
         case .link:
             guard !link.trimmingCharacters(in: .whitespaces).isEmpty else { store.show("Paste a recipe link first.", error: true); return }
             req = ParseRequest(mode: .url, text: link)
@@ -639,7 +669,8 @@ struct AddRecipeSheet: View {
         }
         do {
             let started = Date()
-            var card = try await store.backend.parseRecipe(req)
+            let parsed = try await store.backend.parseRecipeWithContract(req)
+            var card = parsed.card
             guard generationAttempt.isCurrent(token) else { return }
             diagnostic?.mark(.backendReturned)
             card.origin = mode == .link ? .link : (mode == .image ? .photo : .prompt)
@@ -649,11 +680,35 @@ struct AddRecipeSheet: View {
             let normalized = RecipeLogic.normalize(card)
             // C-AI-01: under 80% confidence the card is NOT presented as a recipe; ask "What dish is this?" with the
             // model's own guesses pre-filled. ≥ 80% skips the question entirely.
-            if RecipeQuality.shouldAskDish(normalized, alreadyConfirmed: confirmedDish != nil) {
+            // A source-bound paste names its own dish and binds its facts; the
+            // question would re-anchor it on a model guess. Idea prompts and
+            // unbound imports keep the question.
+            // Skip the question only when the bound source names the dish itself;
+            // a verified paste that names nothing still asks, and the answer titles.
+            let sourceBound = mode == .prompt && {
+                if case .verified(let contract) = SourceRecipeFidelity.extraction(prompt) { return !contract.dishes.isEmpty }
+                return false
+            }()
+            if !sourceBound, RecipeQuality.shouldAskDish(normalized, alreadyConfirmed: confirmedDish != nil) {
                 diagnostic?.mark(.dishQuestion)
                 let g = RecipeQuality.guesses(normalized)
                 dishQuestion = PhotoNeedsDishError(suggestions: g, spread: false)
                 dishAnswer = g.first ?? ""; spreadPicks = []
+                // Keep the first result ONLY for a bound import, with the contract
+                // that bound it; an unbound idea regenerates on confirm instead.
+                let boundContract: SourceRecipeFidelity.Contract?
+                switch mode {
+                case .prompt:
+                    if case .verified(let contract) = SourceRecipeFidelity.extraction(prompt) { boundContract = contract } else { boundContract = nil }
+                case .link:
+                    // The contract returned WITH this parse's own result; no shared
+                    // handoff can title or re-ingredient a card with old facts.
+                    boundContract = parsed.contract
+                case .image:
+                    boundContract = nil
+                }
+                pendingDishCard = boundContract != nil ? normalized : nil
+                pendingDishContract = boundContract
                 Haptics.warning()
                 return
             }
@@ -663,6 +718,8 @@ struct AddRecipeSheet: View {
             if let d = draft { chooseInitialCover(for: d); DraftStore.shared.saveDraft(d) }
             editing = false
             dishQuestion = nil; dishAnswer = ""; spreadPicks = []
+            pendingDishCard = nil
+            pendingDishContract = nil
             let src = "source \(card.source) in \(Int(Date().timeIntervalSince(started) * 1000)) ms"
             switch mode {
             case .link:

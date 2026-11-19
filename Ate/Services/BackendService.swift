@@ -9,6 +9,9 @@ struct ParseRequest: Codable {
     var currentRecipe: RecipeCard?
     /// Explicit quality-panel repair, not a user-requested rewrite or re-roll.
     var repairQuality: Bool? = nil
+    /// The dish name the cook confirmed in "What dish is this?": titles the import,
+    /// never replaces the source's own ingredients or steps.
+    var dishHint: String? = nil
 }
 
 struct BackendError: LocalizedError {
@@ -26,8 +29,19 @@ struct BackendError: LocalizedError {
 /// All AI + sharing calls go through this protocol. No secret keys ever live in the app.
 protocol BackendService {
     func parseRecipe(_ request: ParseRequest) async throws -> RecipeCard
+    /// The parsed card plus the source contract that bound THIS call (nil when
+    /// unbound). Per-call state only: no shared handoff, so interleaved parses
+    /// can never cross contracts.
+    func parseRecipeWithContract(_ request: ParseRequest) async throws -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?)
     func publish(_ card: RecipeCard) async throws -> String   // returns slug
     func fetchShared(slug: String) async throws -> RecipeCard?
+}
+
+extension BackendService {
+    /// Default for backends with no source binding: the card, never a contract.
+    func parseRecipeWithContract(_ request: ParseRequest) async throws -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?) {
+        (try await parseRecipe(request), nil)
+    }
 }
 
 enum AppConfig {

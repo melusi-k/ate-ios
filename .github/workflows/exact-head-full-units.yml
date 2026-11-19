@@ -1,0 +1,125 @@
+name: Distinct exact-head full-unit evidence
+
+# Additive evidence only. Existing Compile/AppClip failures remain independent.
+on:
+  push:
+    branches: ["ci/distinct-exact-head-full-units"]
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full 40-character source commit to build and test
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  full-units:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    env:
+      ATE_SIGN_STYLE: Automatic
+      SOURCE_SHA: ${{ inputs.source_sha || '8847434f1729d3f6234b66943e78744816574521' }}
+    steps:
+      - name: Validate explicit source SHA
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::A full lowercase source SHA is required"; exit 1; }
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Verify exact source checkout
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test -z "$(git status --porcelain)"
+          echo "Evidence source: $SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Additive full-unit evidence only. Existing Compile/AppClip gates remain independent." >> "$GITHUB_STEP_SUMMARY"
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Validate source IDs and generate source project
+        run: |
+          set -euo pipefail
+          python3 scripts/check-ids.py
+          brew install xcodegen && xcodegen generate
+      - name: Prepare diagnostics directory
+        run: mkdir -p "$RUNNER_TEMP/ate-test-results"
+      - name: Build for testing (iOS simulator)
+        id: build
+        run: |
+          set -o pipefail
+          STEP_START=$(date +%s)
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+
+          set +e
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+          status=$?
+          set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=build-for-testing duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
+
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Simulator build failed (xcodebuild exit $status). Matching diagnostics and recent log follow:"
+            grep -n -B 8 -A 12 -E "error:|warning:|failed|Fatal error|Testing failed" build.log || true
+            echo "::group::Last 100 build log lines"
+            tail -n 100 build.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
+
+          grep -E "warning: .*(Widgets|Intents|Snapshot)" build.log > build-warnings.log || true
+          tail -n 30 build-warnings.log || true
+      - name: Full exact-head unit suite (all AteTests)
+        id: unit_tests
+        if: ${{ steps.build.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          echo "Full unit suite source: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -only-testing:AteTests \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/full-unit-tests.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > full-unit-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" full-unit-tests.log || true; tail -120 full-unit-tests.log; exit 1; }
+          total=$(sed -nE 's/^[[:space:]]*Executed ([0-9]+) tests?,.*/\1/p' full-unit-tests.log | tail -1)
+          if ! [[ "$total" =~ ^[0-9]+$ ]] || [ "$total" -lt 1 ]; then
+            echo "::error::Full AteTests suite reported no execution: ${total:-missing}"
+            exit 1
+          fi
+          # Structured results preserve exact named passes when app stderr splits console rows.
+          xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/ate-test-results/full-unit-tests.xcresult" > full-unit-tests.json
+          python3 scripts/verify-full-unit-required.py full-unit-tests.json scripts/full-unit-required.txt
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED" full-unit-tests.log | tail -60
+
+      - name: Retain full unit diagnostics before UI acceptance
+        if: always() && (steps.unit_tests.outcome == 'success' || steps.unit_tests.outcome == 'failure')
+        uses: actions/upload-artifact@v7
+        with:
+          name: full-unit-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          path: |
+            full-unit-tests.log
+            full-unit-tests.json
+            ${{ runner.temp }}/ate-test-results/full-unit-tests.xcresult
+
+      - name: Verify source identity after native execution
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          echo "Final evidence source: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain simulator build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: distinct-full-unit-build-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            build.log
+            build-warnings.log
+            ${{ runner.temp }}/ate-test-results/build.xcresult

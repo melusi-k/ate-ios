@@ -1,11 +1,11 @@
 {
-  "title": "Library multi-select: saved-recipe summary and native text sharing",
-  "summary": "Screen 1 source slice: Select/Cancel, stable IDs, saved-servings/unknown-time summary and native text ShareLink. Grid hides discovery during selection. Default ON with OFF fallback. Batch delete, collection persistence and Meal Plan deferred. Six UI journeys join the existing native advisory selection; native compile, tests, Journal, pixels and device acceptance remain UNRUN.",
-  "source_commit": "3fbd92349a1da977561abd489fe1e868682017a3",
+  "title": "Library selection native accessibility repair",
+  "summary": "Explicit text-button accessibility representation replaces lost card metadata observed on #622. Six native UI journeys and all budgets remain byte-unchanged. Source guards pass; repaired Swift compile, native XCTest, VoiceOver, and pixels remain UNRUN.",
+  "source_commit": "8ad35249401efea8a3cb506a5b332813a0501d07",
   "evidence": [
     {
       "path": "Ate/Views/LibraryView.swift",
-      "blob": "e40a63928140fc5456dd489d4bc36e32a50bca2c"
+      "blob": "6ac2a1a86b5a847a5dbfea78b7d48503c3a6735f"
     },
     {
       "path": "Ate/Logic/LibrarySelection.swift",

@@ -46,7 +46,6 @@ struct AddRecipeSheet: View {
     @State private var showCoverCamera = false
     @State private var confirmDiscard = false
     @State private var saving = false
-    @State private var live: RecipeStreamPreview?
     @State private var confirmedDraft = false
     @State private var repairError: String?
     @State private var repairAttempt = DraftRepairAttempt()
@@ -265,7 +264,9 @@ struct AddRecipeSheet: View {
             ErrorRetryCard(message: error, retryID: "generateRetry") { startGeneration() }
         }
 
-        if loading, let p = live { StreamPreviewCard(preview: p) }
+        if loading {
+            Text("Checking the recipe before review.").font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+        }
 
         Button { startGeneration() } label: {
             HStack { if loading { ProgressView().tint(Theme.primaryForeground); Text("Cooking up your card…") }
@@ -558,8 +559,6 @@ struct AddRecipeSheet: View {
 
     private func invalidateGeneration() {
         generationAttempt.invalidate()
-        OnDeviceBackend.partialSink = nil
-        live = nil
         loading = false
     }
 
@@ -655,15 +654,13 @@ struct AddRecipeSheet: View {
         diagnostic?.mark(.generationLoading)
         loading = true
         error = nil; socialError = nil; socialReason = nil
-        live = nil
-        OnDeviceBackend.partialSink = { p in _ = generationAttempt.publish(token) { live = p } }
         DraftStore.shared.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""),
                                 imageData: recoveryImageData)
         // Keep pending input on failure or while asking the user to identify an uncertain dish.
         // DraftStore.saveDraft clears it on success; Cancel/Discard clears it explicitly.
         defer {
             generationAttempt.publish(token) {
-                loading = false; OnDeviceBackend.partialSink = nil; live = nil
+                loading = false
                 diagnostic?.mark(.generationFinished)
             }
         }

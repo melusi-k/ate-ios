@@ -3,6 +3,7 @@ from pathlib import Path
 import hashlib,json,re,unittest
 from prompt_draft_boundary_delta import restore
 from add_stack_composition_delta import parent_source
+from add_prompt_source_delta import restore as source_required
 from add_generation_deadline_delta import restore as restore_deadline
 ROOT=Path(__file__).resolve().parents[2]
 
@@ -10,7 +11,7 @@ class PromptDraftBoundarySourceTests(unittest.TestCase):
     def test_inverse_reconstructs_parent_and_refuses_missing_duplicate_or_changed_source(self):
         fixture=json.loads((ROOT/'scripts/tests/prompt_draft_boundary_inverse.json').read_text())
         for path, contract in fixture.items():
-            source=parent_source('prompt',path,restore_deadline(path,(ROOT/path).read_text()))
+            source=parent_source('prompt',path,restore_deadline(path,source_required(path,(ROOT/path).read_text())))
             self.assertEqual(hashlib.sha256(restore(path,source).encode()).hexdigest(),contract['parent_sha'])
             for f in contract['fragments']:
                 for mutant in [source.replace(f['new'],'',1),source+f['new'],source+'// unrelated change\n']:
@@ -18,7 +19,7 @@ class PromptDraftBoundarySourceTests(unittest.TestCase):
 
     def test_no_unaccepted_snapshot_channel_and_cancellation_still_drains_stream(self):
         backend=(ROOT/'Ate/Services/OnDeviceBackend.swift').read_text()
-        view=(ROOT/'Ate/Views/AddRecipeSheet.swift').read_text()
+        view=source_required('Ate/Views/AddRecipeSheet.swift',(ROOT/'Ate/Views/AddRecipeSheet.swift').read_text())
         self.assertNotIn('partialSink',backend+view)
         self.assertNotIn('StreamPreviewCard(preview:',view)
         self.assertNotIn('emitPreview',backend)

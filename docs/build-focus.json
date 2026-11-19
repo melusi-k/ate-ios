@@ -1,11 +1,19 @@
 {
-  "title": "Backend e2e failures explain themselves (HTTP status + error code, no secrets)",
-  "summary": "V1 r3: failure notes use a fixed reviewed mapping of known auth, PostgreSQL and PostgREST identifiers. Unknown values are omitted, even if identifier-shaped; output codes come from mapping literals, not response text. Free-form keys stay excluded. Unregistered identifier-shaped canaries in error_code/error/code never reach notes; PGRST116 works in canonical case. Script-mode shared module identity retained. Live e2e UNRUN.",
-  "source_commit": "28781e0400eb8389c66e90817a7482a8ed92cdd9",
+  "title": "Explore suggestions use explicit creative intent",
+  "summary": "App-created collection suggestions no longer enter source-import verification. Ordinary paste/URL/image retain fail-closed checks. Empty error state offers Try again; on-device-only, no-Demo, owner/history/quality/save checks and 60-second deadline retained. Three real pre-model-boundary regressions required. Native compile, tests, retry pixels and live model/device acceptance remain UNRUN.",
+  "source_commit": "3234a66e4b72aa02e6f61136b3f2952dee39c13a",
   "evidence": [
     {
-      "path": "Ate/Models/Models.swift",
-      "blob": "8af03461b45f0fab7632bb750f51d48b1fdd056d"
+      "path": "Ate/Services/OnDeviceBackend.swift",
+      "blob": "099fac652bc476b13873610cd619e5c0d3499e86"
+    },
+    {
+      "path": "Ate/Logic/RecipeDiscovery.swift",
+      "blob": "08208c6af20a99e676a2ed2ea514caa4c5fdc8cb"
+    },
+    {
+      "path": "Ate/Views/SuggestedNewRecipesView.swift",
+      "blob": "83ae7a339c64e01e370bd61014eee4826e787e99"
     }
   ]
 }

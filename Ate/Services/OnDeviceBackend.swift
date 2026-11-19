@@ -59,12 +59,15 @@ final class OnDeviceBackend: BackendService {
     /// return simply carries nil.
     func parseRecipeWithContract(_ request: ParseRequest) async throws -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?) {
         try GenerationCancellation.check()
+        DiagnosticHistory.shared.recordLocal(.generationAttemptStarted)
         do {
             let result = try await parseRecipeResult(request)
             try GenerationCancellation.check()
+            DiagnosticHistory.shared.recordLocal(.generationAttemptReturned)
             return result
         } catch {
             try GenerationCancellation.check(error)
+            DiagnosticHistory.shared.recordLocal(.generationAttemptFailed)
             throw error
         }
     }
@@ -152,8 +155,10 @@ final class OnDeviceBackend: BackendService {
         } else if request.mode == .url {
             // A failed source is not a prompt: preserve its offline/timeout/cancel
             // failure, never silently generate a Demo or fetch it a second time.
+            DiagnosticHistory.shared.recordLocal(.generationFetchStarted)
             let html = try await loadPageHTML(request.text ?? "")
             try Task.checkCancellation()
+            DiagnosticHistory.shared.recordLocal(.generationFetchReturned)
             pageHTML = html
             if var card = JSONLD.recipe(fromHTML: html, sourceURL: request.text) {
                 card.source = .jsonLD; card.generatedAt = Date().timeIntervalSince1970 * 1000
@@ -299,6 +304,7 @@ final class OnDeviceBackend: BackendService {
             reviseID = c.id
         }
         let ctx = RecipePrompt.context(userText: contextUser, sourceText: contextSource, sourceIsLongForm: sourceIsLongForm)
+        DiagnosticHistory.shared.recordLocal(.generationPromptBuilt)
         var card = try await Self.generate(prompt, input: input, photoDataURL: photoForTool, reviseID: reviseID, context: ctx,
                                            reuseSession: request.mode != .rewrite || request.repairQuality == true)
         // Never show a confident recipe for an object the camera saw instead of food.
@@ -330,6 +336,7 @@ final class OnDeviceBackend: BackendService {
                 fix = prompt + "\nPrevious draft (JSON):\n" + draft + "\n" + retryText
                 retryReviseID = nil
             }
+            DiagnosticHistory.shared.recordLocal(.generationRepairStarted)
             card = try await GenerationCancellation.optionalRepair(original: card, operation: {
                 var again = try await Self.generate(fix, input: input, photoDataURL: photoForTool, reviseID: retryReviseID, context: ctx)
                 again.source = source
@@ -341,6 +348,7 @@ final class OnDeviceBackend: BackendService {
                 if !oldFidelity.isEmpty { return true }
                 return RecipeDraftRepair.automaticImproves(again, over: previous, labels: visibleLabels)
             })
+            DiagnosticHistory.shared.recordLocal(.generationRepairReturned)
         }
         try GenerationCancellation.check()
         // A dish answer on a source-bound run sets the title only; bound ingredients
@@ -463,16 +471,23 @@ final class OnDeviceBackend: BackendService {
                         GenRecipe.exampleMogodu
                     }
                 }
+                DiagnosticHistory.shared.recordLocal(.generationModelStarted)
                 let stream = session.streamResponse(to: fullPrompt, generating: GenRecipe.self,
                                                     includeSchemaInPrompt: RecipePrompt.includeSchemaInPrompt || isRevision,
                                                     options: GenerationOptions(sampling: .greedy))
                 // Both initial generation and optional repair stay private until
                 // the caller selects, normalizes and checks the returned card.
+                var recordedFirstSnapshot = false
                 for try await _ in stream {
                     try GenerationCancellation.check()
+                    if !recordedFirstSnapshot {
+                        recordedFirstSnapshot = true
+                        DiagnosticHistory.shared.recordLocal(.generationFirstSnapshot)
+                    }
                 }
                 let res = try await stream.collect()
                 try GenerationCancellation.check()
+                DiagnosticHistory.shared.recordLocal(.generationModelReturned)
                 let card = res.content.card
                 sessions[card.id] = session
                 if sessions.count > 8, let k = sessions.keys.first(where: { $0 != card.id }) { sessions[k] = nil }

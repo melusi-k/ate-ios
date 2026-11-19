@@ -41,7 +41,8 @@ class UnitLaneRoutingTests(unittest.TestCase):
         # Both parents' named requirements remain independently explicit. Only
         # shared entries are deduplicated; neither side can silently replace the other.
         deadline = ['AddGenerationDeadlineTests/testDeadlineReleasesUncooperativeImportPreservesInputAndRefusesLateSave', 'AddGenerationDeadlineTests/testOldCompletionCannotStopOrPublishIntoExplicitRetry', 'AddGenerationDeadlineTests/testCompletedPrimaryCancelsDeadlineWithoutRevokingItsSpreadChild', 'AddGenerationDeadlineTests/testDiscardCancelsDeadlineAndKeepsDefaultSixtySecondProductBound', 'GenerationStageHistoryTests/testStageCategoriesAndTimestampsPersistWithoutAddingContentFields', 'GenerationStageHistoryTests/testLocalStageWritesKeepTheExistingRollingBound']
-        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline))
+        source_required = ['AddPromptSourceImportTests/testTypedNameIdeaAndConfirmedNameNeverInvokeAnyBackendOrReturnInventedCard', 'AddPromptSourceImportTests/testVerifiedFullRecipeIsForwardedByteExactWithConfirmationAndContract', 'AddPromptSourceImportTests/testRecognizableUnverifiableRecipeKeepsExistingFailClosedBackendBoundary', 'AddPromptSourceImportTests/testLinkImageAndRewriteRequestsKeepTheirExistingBackendRoute', 'AddPromptSourceImportTests/testAlreadyCancelledImportDoesNotInvokeBackend']
+        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline + source_required))
         actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()
         self.assertEqual(actual, union)
         for required in source_native_regressions + metadata:

@@ -4,6 +4,22 @@ import PhotosUI
 import OSLog
 #endif
 
+/// Add imports user-supplied recipes. A dish name is not ingredient evidence.
+/// Keep this boundary before every backend, including demo/custom backends;
+/// Explore owns its separate, deliberately creative request path.
+enum AddPromptSourceImport {
+    static let missingSourceMessage = "A dish name or idea isn't a recipe source. Paste the full recipe with ingredients and method, use a recipe link or screenshot, or enter it manually. For a new recipe idea, use Explore. Nothing was generated."
+
+    static func parse(_ request: ParseRequest, using backend: BackendService) async throws
+        -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?) {
+        try GenerationCancellation.check()
+        if request.mode == .prompt, case .none = SourceRecipeFidelity.extraction(request.text ?? "") {
+            throw BackendError(message: missingSourceMessage)
+        }
+        return try await backend.parseRecipeWithContract(request)
+    }
+}
+
 struct AddRecipeSheet: View {
     enum Mode: String, CaseIterable { case link = "Link", image = "Image", prompt = "Prompt"
         var symbol: String {
@@ -19,7 +35,7 @@ struct AddRecipeSheet: View {
     let onSave: (RecipeCard) -> Void
 
     var initialMode: WidgetLinks.AddMode?
-    /// Starting text for the prompt mode (for example a search with no results becomes the new idea).
+    /// Starting text for Prompt. A name-only search still needs a recipe source.
     var initialPrompt: String?
 
     init(initial: SharedInbox.Item? = nil, initialMode: WidgetLinks.AddMode? = nil, initialPrompt: String? = nil, onSave: @escaping (RecipeCard) -> Void) {
@@ -156,7 +172,7 @@ struct AddRecipeSheet: View {
 
     @ViewBuilder private var inputState: some View {
         Text("Add a recipe").font(AteFont.display(24))
-        Text("Import an existing recipe from a link or screenshot. Describe an idea to generate a new recipe.")
+        Text("Import an existing recipe from a link, pasted text or screenshot. For new recipe ideas, use Explore.")
             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
         Picker("Source", selection: $mode) {
             ForEach(Mode.allCases, id: \.self) { m in Text(m.rawValue).tag(m) }
@@ -202,11 +218,11 @@ struct AddRecipeSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         case .prompt:
-            Text("Generate a new recipe from your idea. Review and edit the result before saving.").font(AteFont.body(14))
+            Text("Paste the full recipe, including ingredients and method. A dish name alone is not enough.").font(AteFont.body(14))
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $prompt).accessibilityIdentifier("promptEditor").frame(height: 84).scrollContentBackground(.hidden).padding(6)
                 if prompt.isEmpty {
-                    Text("A quick weeknight miso salmon for two").foregroundStyle(Theme.mutedForeground).padding(12).allowsHitTesting(false)
+                    Text("Recipe title, ingredients and method").foregroundStyle(Theme.mutedForeground).padding(12).allowsHitTesting(false)
                 }
             }
             .font(AteFont.body(15))
@@ -270,7 +286,7 @@ struct AddRecipeSheet: View {
 
         Button { startGeneration() } label: {
             HStack { if loading { ProgressView().tint(Theme.primaryForeground); Text("Cooking up your card…") }
-                     else { Image(systemName: "sparkles"); Text(mode == .link ? "Import recipe" : mode == .image ? "Read image" : "Generate recipe") } }
+                     else { Image(systemName: "sparkles"); Text(mode == .link ? "Import recipe" : mode == .image ? "Read image" : "Import recipe") } }
         }
         .buttonStyle(.ate(.primary, height: 52, full: true)).disabled(loading).accessibilityIdentifier("generateButton")
     }
@@ -623,7 +639,7 @@ struct AddRecipeSheet: View {
             guard !link.trimmingCharacters(in: .whitespaces).isEmpty else { store.show("Paste a recipe link first.", error: true); return }
             req = ParseRequest(mode: .url, text: link)
         case .prompt:
-            guard !prompt.trimmingCharacters(in: .whitespaces).isEmpty else { store.show("Describe the dish first.", error: true); return }
+            guard !prompt.trimmingCharacters(in: .whitespaces).isEmpty else { store.show("Paste the full recipe first.", error: true); return }
             req = ParseRequest(mode: .prompt, text: prompt)
         case .image:
             guard let d = imageData else { store.show("Upload a screenshot first.", error: true); return }
@@ -675,7 +691,7 @@ struct AddRecipeSheet: View {
         }
         do {
             let started = Date()
-            let parsed = try await store.backend.parseRecipeWithContract(req)
+            let parsed = try await AddPromptSourceImport.parse(req, using: store.backend)
             var card = parsed.card
             guard generationAttempt.isCurrent(token) else { return }
             diagnostic?.mark(.backendReturned)

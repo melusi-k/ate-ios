@@ -2,13 +2,14 @@
 from pathlib import Path
 import hashlib,json,re,unittest
 from add_generation_deadline_delta import restore
+from add_prompt_source_delta import restore as source_required
 ROOT=Path(__file__).resolve().parents[2]
 
 class AddGenerationDeadlineSourceTests(unittest.TestCase):
     def test_exact_inverse_and_missing_duplicate_unrelated_mutants(self):
         fixture=json.loads((ROOT/'scripts/tests/add_generation_deadline_inverse.json').read_text())
         for path, contract in fixture.items():
-            source=(ROOT/path).read_text()
+            source=source_required(path,(ROOT/path).read_text())
             self.assertEqual(hashlib.sha256(restore(path,source).encode()).hexdigest(),contract['parent_sha'])
             for f in contract['fragments']:
                 for mutant in [source.replace(f['new'],'',1),source+f['new'],source+'// unrelated delta\n']:

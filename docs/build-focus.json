@@ -1,23 +1,11 @@
 {
-  "title": "Add deadline over composed Explore and Prompt",
-  "summary": "Sixty-second terminal Add bound and local category/timestamp stage history. Actual sibling heads627/628 merge first; typed Explore, source guards and no preview channel preserved. Native/device acceptance UNRUN.",
-  "source_commit": "869e9cc31bedb382378c2a3d2adaa3bcf60ba8ea",
+  "title": "Add Prompt source required",
+  "summary": "A dish name is not ingredient evidence. Refuse no-source Add Prompt before any backend; retain input and ask for full recipe/link/screenshot/manual entry. Typed creative Explore remains separate. Native/device refusal qualification UNRUN.",
+  "source_commit": "f5a47ab5c73e61c1fb3041e2062e7af76e15e4c0",
   "evidence": [
     {
-      "path": "Ate/Logic/DraftGenerationAttempt.swift",
-      "blob": "25a70769dcf9578680e0149e0683d244530d6e62"
-    },
-    {
       "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "dcd71c69914b030bc69163bfdb2d8d13ce65adb7"
-    },
-    {
-      "path": "Ate/Services/OnDeviceBackend.swift",
-      "blob": "0c088915c7f79baaa0cf68093bcd2b83b73a5392"
-    },
-    {
-      "path": "Ate/Services/DiagnosticHistory.swift",
-      "blob": "ac3a02a1f82727dd92d2cad1dc7f0ee988944bdb"
+      "blob": "8ea1301328bbd02bec89f83e86b58c7266c69b7a"
     }
   ]
 }

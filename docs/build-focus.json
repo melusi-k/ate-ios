@@ -1,11 +1,15 @@
 {
-  "title": "Backend e2e failures explain themselves (HTTP status + error code, no secrets)",
-  "summary": "V1 r3: failure notes use a fixed reviewed mapping of known auth, PostgreSQL and PostgREST identifiers. Unknown values are omitted, even if identifier-shaped; output codes come from mapping literals, not response text. Free-form keys stay excluded. Unregistered identifier-shaped canaries in error_code/error/code never reach notes; PGRST116 works in canonical case. Script-mode shared module identity retained. Live e2e UNRUN.",
-  "source_commit": "28781e0400eb8389c66e90817a7482a8ed92cdd9",
+  "title": "Library selection native accessibility repair",
+  "summary": "Explicit text-button accessibility representation replaces lost card metadata observed on #622. Six native UI journeys and all budgets remain byte-unchanged. Source guards pass; repaired Swift compile, native XCTest, VoiceOver, and pixels remain UNRUN.",
+  "source_commit": "8ad35249401efea8a3cb506a5b332813a0501d07",
   "evidence": [
     {
-      "path": "Ate/Models/Models.swift",
-      "blob": "8af03461b45f0fab7632bb750f51d48b1fdd056d"
+      "path": "Ate/Views/LibraryView.swift",
+      "blob": "6ac2a1a86b5a847a5dbfea78b7d48503c3a6735f"
+    },
+    {
+      "path": "Ate/Logic/LibrarySelection.swift",
+      "blob": "bc37c33f43510fcda44475545b40018a9a7e560e"
     }
   ]
 }

@@ -23,6 +23,7 @@ struct CookModeView: View {
               let hostBottomY, let bottomChromeMinY else { return 0 }
         return max(0, hostBottomY - bottomChromeMinY) + 8
     }
+    private var stitchCook: Bool { CookModeFeature.stitchCookModeEnabled }
     @State private var finishState = CookFinishState()
     @State private var reflectionOffer: CookCompletionEvent?
     @State private var showReflectionNudge = false
@@ -215,6 +216,15 @@ struct CookModeView: View {
             } else if case .unavailable(let why) = voice.state {
                 Text(why).font(AteFont.body(13)).foregroundStyle(Theme.destructive).accessibilityIdentifier("voiceUnavailable")
             }
+            if stitchCook {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Cook Mode").font(AteFont.body(13, .semibold)).foregroundStyle(Theme.primary)
+                    Text(recipe.title).font(AteFont.display(24))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("cook.stitch.recipeTitle")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
             GeometryReader { g in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Theme.warmForeground.opacity(0.15))
@@ -236,7 +246,8 @@ struct CookModeView: View {
             Text(Units.convertTemperatures(in: s.instruction, to: store.settings.units))
                 .font(AteFont.display(UIScreen.main.bounds.width > 400 ? 34 : 30)).lineSpacing(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .minimumScaleFactor(0.5)
+                .minimumScaleFactor(stitchCook ? 1 : 0.5)
+                .fixedSize(horizontal: false, vertical: stitchCook)
                 .accessibilityLabel("Step \(index + 1) of \(n). " + Units.convertTemperatures(in: s.instruction, to: store.settings.units))
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("cookStepText")
@@ -274,6 +285,7 @@ struct CookModeView: View {
         }
         .padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 12)
         .pageWidth()
+        .modifier(CookStepScroll(enabled: stitchCook))
         .sheet(isPresented: $showIngredients) {
             CookIngredientsSheet(recipe: recipe).environment(store)
         }
@@ -321,6 +333,20 @@ struct CookModeView: View {
 
     private func stepSpeech(_ r: RecipeCard) -> String {
         "Step \(index + 1). " + Units.convertTemperatures(in: step(r).instruction, to: store.settings.units)
+    }
+}
+
+
+/// Scroll content only. Footer and measured timer reserve stay outside this host.
+private struct CookStepScroll: ViewModifier {
+    let enabled: Bool
+    @ViewBuilder func body(content: Content) -> some View {
+        if enabled {
+            ScrollView {
+                content.frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .accessibilityIdentifier("cook.stitch.scroll")
+        } else { content }
     }
 }
 

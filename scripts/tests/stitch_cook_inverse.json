@@ -1,0 +1,40 @@
+{
+  "Ate/Views/CookModeView.swift": {
+    "parent_sha": "51835197b46eaa3e028d070890e9a3911ed3061efd1ac704dce18fc70105eef0",
+    "fragments": [
+      {
+        "slice": "              let hostBottomY, let bottomChromeMinY else { return 0 }\n        return max(0, hostBottomY - bottomChromeMinY) + 8\n    }\n    private var stitchCook: Bool { CookModeFeature.stitchCookModeEnabled }\n    @State private var finishState = CookFinishState()\n    @State private var reflectionOffer: CookCompletionEvent?\n    @State private var showReflectionNudge = false\n",
+        "parent": "              let hostBottomY, let bottomChromeMinY else { return 0 }\n        return max(0, hostBottomY - bottomChromeMinY) + 8\n    }\n    @State private var finishState = CookFinishState()\n    @State private var reflectionOffer: CookCompletionEvent?\n    @State private var showReflectionNudge = false\n"
+      },
+      {
+        "slice": "            } else if case .unavailable(let why) = voice.state {\n                Text(why).font(AteFont.body(13)).foregroundStyle(Theme.destructive).accessibilityIdentifier(\"voiceUnavailable\")\n            }\n            if stitchCook {\n                VStack(alignment: .leading, spacing: 6) {\n                    Text(\"Cook Mode\").font(AteFont.body(13, .semibold)).foregroundStyle(Theme.primary)\n                    Text(recipe.title).font(AteFont.display(24))\n                        .fixedSize(horizontal: false, vertical: true)\n                        .accessibilityIdentifier(\"cook.stitch.recipeTitle\")\n                }\n                .frame(maxWidth: .infinity, alignment: .leading)\n            }\n            GeometryReader { g in\n                ZStack(alignment: .leading) {\n                    Capsule().fill(Theme.warmForeground.opacity(0.15))\n",
+        "parent": "            } else if case .unavailable(let why) = voice.state {\n                Text(why).font(AteFont.body(13)).foregroundStyle(Theme.destructive).accessibilityIdentifier(\"voiceUnavailable\")\n            }\n            GeometryReader { g in\n                ZStack(alignment: .leading) {\n                    Capsule().fill(Theme.warmForeground.opacity(0.15))\n"
+      },
+      {
+        "slice": "            Text(Units.convertTemperatures(in: s.instruction, to: store.settings.units))\n                .font(AteFont.display(UIScreen.main.bounds.width > 400 ? 34 : 30)).lineSpacing(2)\n                .frame(maxWidth: .infinity, alignment: .leading)\n                .minimumScaleFactor(stitchCook ? 1 : 0.5)\n                .fixedSize(horizontal: false, vertical: stitchCook)\n                .accessibilityLabel(\"Step \\(index + 1) of \\(n). \" + Units.convertTemperatures(in: s.instruction, to: store.settings.units))\n                .accessibilityAddTraits(.isHeader)\n                .accessibilityIdentifier(\"cookStepText\")\n",
+        "parent": "            Text(Units.convertTemperatures(in: s.instruction, to: store.settings.units))\n                .font(AteFont.display(UIScreen.main.bounds.width > 400 ? 34 : 30)).lineSpacing(2)\n                .frame(maxWidth: .infinity, alignment: .leading)\n                .minimumScaleFactor(0.5)\n                .accessibilityLabel(\"Step \\(index + 1) of \\(n). \" + Units.convertTemperatures(in: s.instruction, to: store.settings.units))\n                .accessibilityAddTraits(.isHeader)\n                .accessibilityIdentifier(\"cookStepText\")\n"
+      },
+      {
+        "slice": "        }\n        .padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 12)\n        .pageWidth()\n        .modifier(CookStepScroll(enabled: stitchCook))\n        .sheet(isPresented: $showIngredients) {\n            CookIngredientsSheet(recipe: recipe).environment(store)\n        }\n",
+        "parent": "        }\n        .padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 12)\n        .pageWidth()\n        .sheet(isPresented: $showIngredients) {\n            CookIngredientsSheet(recipe: recipe).environment(store)\n        }\n"
+      },
+      {
+        "slice": "\n    private func stepSpeech(_ r: RecipeCard) -> String {\n        \"Step \\(index + 1). \" + Units.convertTemperatures(in: step(r).instruction, to: store.settings.units)\n    }\n}\n\n\n/// Scroll content only. Footer and measured timer reserve stay outside this host.\nprivate struct CookStepScroll: ViewModifier {\n    let enabled: Bool\n    @ViewBuilder func body(content: Content) -> some View {\n        if enabled {\n            ScrollView {\n                content.frame(maxWidth: .infinity, alignment: .topLeading)\n            }\n            .accessibilityIdentifier(\"cook.stitch.scroll\")\n        } else { content }\n    }\n}\n\n",
+        "parent": "\n    private func stepSpeech(_ r: RecipeCard) -> String {\n        \"Step \\(index + 1). \" + Units.convertTemperatures(in: step(r).instruction, to: store.settings.units)\n    }\n}\n\n"
+      }
+    ]
+  },
+  ".github/workflows/compile-check.yml": {
+    "parent_sha": "a1905189d06f93b51fb2d84d76976ecef102e9f2bfb7be41e212e8acad2a17e6",
+    "fragments": [
+      {
+        "slice": "          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/CoverageUITests/test36b_RecipeGenerationRetryRecoversAfterTransientFailure \\\n            -only-testing:AteUITests/DraftQualityRepairUITests \\\n            -only-testing:AteUITests/StitchCookModeUITests \\\n            -only-testing:AteUITests/StitchRecipeDetailUITests \\\n            -only-testing:AteUITests/AddRecipeScanUITests \\\n            -only-testing:AteUITests/LibrarySelectionUITests \\\n",
+        "parent": "          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/CoverageUITests/test36b_RecipeGenerationRetryRecoversAfterTransientFailure \\\n            -only-testing:AteUITests/DraftQualityRepairUITests \\\n            -only-testing:AteUITests/StitchRecipeDetailUITests \\\n            -only-testing:AteUITests/AddRecipeScanUITests \\\n            -only-testing:AteUITests/LibrarySelectionUITests \\\n"
+      },
+      {
+        "slice": "\n          for test in testOnHierarchyScalingAndOriginalPlanningSheet testOffKeepsOriginalDetailAndCookFooter testLandscapeHierarchyFooterCollapseAndReturnKeepLibraryContext; do\n            grep -qF \"StitchRecipeDetailUITests $test]' passed\" transient-generation-retry.log || { echo \"::error::missing Stitch detail named pass: $test\"; exit 1; }\n          done\n\n          for test in testOnStepScrollKeepsExplicitNavigationTimerAndResume testOffRetainsOriginalStepWithoutNewScrollSurface testLandscapeFullInstructionCanScrollAbovePinnedFooter; do\n            grep -qF \"StitchCookModeUITests $test]' passed\" transient-generation-retry.log || { echo \"::error::missing Stitch Cook named pass: $test\"; exit 1; }\n          done\n\n      - name: Retain explicit draft repair screenshots on every result\n",
+        "parent": "\n          for test in testOnHierarchyScalingAndOriginalPlanningSheet testOffKeepsOriginalDetailAndCookFooter testLandscapeHierarchyFooterCollapseAndReturnKeepLibraryContext; do\n            grep -qF \"StitchRecipeDetailUITests $test]' passed\" transient-generation-retry.log || { echo \"::error::missing Stitch detail named pass: $test\"; exit 1; }\n          done\n\n      - name: Retain explicit draft repair screenshots on every result\n"
+      }
+    ]
+  }
+}

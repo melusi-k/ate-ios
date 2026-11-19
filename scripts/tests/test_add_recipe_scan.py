@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 import unittest
+from stitch_detail_delta import restore as restore_detail
 from add_recipe_scan_delta import restore
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -11,7 +12,7 @@ class AddRecipeScanSourceTests(unittest.TestCase):
     def test_exact_parent_inverse_and_mutations_fail_closed(self):
         contracts = json.loads((ROOT / 'scripts/tests/add_recipe_scan_inverse.json').read_text())
         for path, contract in contracts.items():
-            raw = (ROOT / path).read_text()
+            raw = restore_detail('main:' + path, (ROOT / path).read_text())
             self.assertEqual(hashlib.sha256(restore('main:' + path, raw).encode()).hexdigest(), contract['parent_sha'])
             self.assertIsInstance(restore('main:' + path, raw.encode()), bytes)
             for fragment in contract['fragments']:

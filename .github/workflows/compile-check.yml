@@ -433,6 +433,7 @@ jobs:
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/CoverageUITests/test36b_RecipeGenerationRetryRecoversAfterTransientFailure \
             -only-testing:AteUITests/DraftQualityRepairUITests \
+            -only-testing:AteUITests/StitchRecipeDetailUITests \
             -only-testing:AteUITests/AddRecipeScanUITests \
             -only-testing:AteUITests/LibrarySelectionUITests \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/transient-generation-retry.xcresult" \
@@ -448,6 +449,10 @@ jobs:
 
           for test in testOnReviewUsesActualDraftCountsAndOriginalEditSave testOffRetainsOriginalReviewWithoutNewSummary testSourceLinkReviewKeepsImportedIdentityAndNoMockAccuracy testLandscapeRetryRetainsInputAndCancelKeepsDraftUntilDiscard testSingleImageReplacementAndReadKeepExistingFlow; do
             grep -qF "AddRecipeScanUITests $test]' passed" transient-generation-retry.log || { echo "::error::missing Add scan-review named pass: $test"; exit 1; }
+          done
+
+          for test in testOnHierarchyScalingAndOriginalPlanningSheet testOffKeepsOriginalDetailAndCookFooter testLandscapeHierarchyFooterCollapseAndReturnKeepLibraryContext; do
+            grep -qF "StitchRecipeDetailUITests $test]' passed" transient-generation-retry.log || { echo "::error::missing Stitch detail named pass: $test"; exit 1; }
           done
 
       - name: Retain explicit draft repair screenshots on every result

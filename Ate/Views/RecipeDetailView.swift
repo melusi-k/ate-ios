@@ -11,6 +11,7 @@ struct RecipeDetailView: View {
         // to a pushed detail. Reserve only its measured obscured band.
         return max(0, hostBottomY - bottomChromeMinY) + 8
     }
+    private var stitchDetail: Bool { RecipeDetailFeature.stitchRecipeDetailEnabled }
     @State private var factor: Double = 1
     @State private var editing = false
     @State private var planning = false
@@ -41,16 +42,28 @@ struct RecipeDetailView: View {
                                     .accessibilityIdentifier("recipeEditor.done")
                             }.cardSurface(padding: 20)
                         } else {
+                            if stitchDetail {
+                                RecipeHero(recipe: recipe)
+                                SourceBadge(source: recipe.source)
+                                detailOverview(recipe)
+                            }
                             Picker("Servings", selection: $factor) {
                                 ForEach([1.0, 2.0, 3.0], id: \.self) { f in Text("\(Int(f))×").tag(f) }
                             }
                             .pickerStyle(.segmented).controlSize(.large)
                             .accessibilityIdentifier("servingsPicker")
                             .accessibilityHint("Scales ingredient amounts. Cooking times stay the same.")
-                            RecipeHero(recipe: recipe)
-                            SourceBadge(source: recipe.source)
-                            RecipeCardView(recipe: recipe, factor: factor, units: store.settings.units)
+                            if !stitchDetail {
+                                RecipeHero(recipe: recipe)
+                                SourceBadge(source: recipe.source)
+                            }
+                            RecipeCardView(recipe: recipe, factor: factor, units: store.settings.units, detailHierarchy: stitchDetail)
                             RecipeNutritionView(recipe: RecipeLogic.scaled(recipe, factor: factor))
+                            if stitchDetail {
+                                Text("Cook and keep").font(AteFont.display(20))
+                                    .accessibilityAddTraits(.isHeader)
+                                    .accessibilityIdentifier("recipe.detail.actionsHeading")
+                            }
                             Button {
                                 store.addToShopping(recipe, factor: factor)
                                 store.show("Added to your shopping list")
@@ -195,6 +208,32 @@ struct RecipeDetailView: View {
             .padding(24)
             .presentationDetents([.medium, .large])
         }
+    }
+
+    private func detailOverview(_ recipe: RecipeCard) -> some View {
+        let metadata = RecipeDetailMetadata(recipe, factor: factor)
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Yield & portions").font(AteFont.display(20))
+                .accessibilityAddTraits(.isHeader)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 16) { detailMetadataLabels(metadata) }
+                VStack(alignment: .leading, spacing: 8) { detailMetadataLabels(metadata) }
+            }
+            .font(AteFont.body(13, .medium))
+            Text("Ingredient amounts scale below. Cooking times stay the same.")
+                .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.warm.opacity(0.5), in: RoundedRectangle(cornerRadius: Theme.radius))
+    }
+
+    @ViewBuilder private func detailMetadataLabels(_ metadata: RecipeDetailMetadata) -> some View {
+        Label(metadata.servings.map { "\($0) recipe servings" } ?? "Servings not given", systemImage: "person.2")
+            .accessibilityIdentifier("recipe.detail.yield")
+        Label(metadata.totalMinutes.map { "\($0) min total" } ?? "Total time not given", systemImage: "clock")
+            .accessibilityIdentifier("recipe.detail.totalTime")
     }
 
     /// Image Playground cover on demand (replaces a web image or tile, never a user photo without asking: the menu is explicit).

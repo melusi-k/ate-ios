@@ -120,6 +120,11 @@ enum AppConfig {
 // MARK: - Mock (default)
 
 final class MockBackend: BackendService {
+    #if DEBUG
+    // UI fixtures carry a first-line label plus real source, not a dish-name prompt.
+    // Release/demo behavior is unchanged. Native tests opt into this same UI contract.
+    var usesSourceFixtureTitles = AppConfig.isUITesting
+    #endif
     static let downMessage = "ate's server isn't responding right now (HTTP 503). Your recipes are safe on this iPhone. Try again in a moment."
     private static var published: [String: RecipeCard] = [:]
     private static var offlineOnce = true
@@ -233,7 +238,16 @@ final class MockBackend: BackendService {
         }
         let title: String
         switch request.mode {
-        case .prompt: title = seed.isEmpty ? "Weeknight miso salmon" : seed.prefix(1).uppercased() + seed.dropFirst()
+        case .prompt:
+            var titleSeed = seed
+            #if DEBUG
+            if usesSourceFixtureTitles {
+                titleSeed = seed.components(separatedBy: .newlines)
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .first { !$0.isEmpty } ?? ""
+            }
+            #endif
+            title = titleSeed.isEmpty ? "Weeknight miso salmon" : titleSeed.prefix(1).uppercased() + titleSeed.dropFirst()
         case .url: title = "Recipe from \(URL(string: seed)?.host ?? "the web")"
         case .image: title = "Screenshot recipe"
         case .rewrite: title = "Recipe"
@@ -348,4 +362,3 @@ final class SupabaseBackend: BackendService {
         return try JSONDecoder().decode(CardEnvelope.self, from: data).card
     }
 }
-

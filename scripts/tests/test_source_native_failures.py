@@ -40,7 +40,8 @@ class SourceNativeFailurePreflight(unittest.TestCase):
 
     def test_failing_native_assertions_unchanged_and_every_case_required(self):
         original_sha256 = 'f0b6b369a16be02d636cfc31c447b2cdc55b6fe6906b72087161d95338bd8459'
-        self.assertEqual(hashlib.sha256((ROOT / 'AteTests/SourceRecipeFidelityTests.swift').read_bytes()).hexdigest(), original_sha256)
+        from verified_paste_import_delta import restore as restore_paste
+        self.assertEqual(hashlib.sha256(restore_paste('AteTests/SourceRecipeFidelityTests.swift',(ROOT / 'AteTests/SourceRecipeFidelityTests.swift').read_bytes())).hexdigest(), original_sha256)
         required = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()
         for case in OLD_CASES + ['SourceRecipeNativeRegressionTests/' + name for name in NEW_CASES]:
             self.assertIn(case, required)

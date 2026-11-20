@@ -201,7 +201,7 @@ struct RecipeRowMetadataItem: View {
 
     var body: some View {
         Group {
-            if let symbol { Label(text, systemImage: symbol) }
+            if let symbol { Label(text, systemImage: symbol).labelStyle(.titleAndIcon) }
             else { TagBadge(text: text) }
         }
         .font(AteFont.body(12))

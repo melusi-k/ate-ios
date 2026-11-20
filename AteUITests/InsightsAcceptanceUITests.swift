@@ -95,7 +95,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
         let prompt = app.textViews["promptEditor"]
         wait(prompt)
         prompt.tap()
-        prompt.typeText("Miso salmon for two")
+        prompt.typeText(PromptRecipeFixture.salmon(named: "Miso salmon for two"))
         app.buttons["generateButton"].tap()
         wait(app.staticTexts["Review your card"], 15)
         app.buttons["saveRecipe"].tap()

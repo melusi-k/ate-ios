@@ -1,3 +1,4 @@
+from verified_paste_import_delta import restore as pre_simplification
 """Prompt boundary source checks supplement native tests; not model qualification."""
 from pathlib import Path
 import hashlib,json,re,unittest
@@ -18,7 +19,7 @@ class PromptDraftBoundarySourceTests(unittest.TestCase):
                     with self.assertRaises(AssertionError):restore(path,mutant)
 
     def test_no_unaccepted_snapshot_channel_and_cancellation_still_drains_stream(self):
-        backend=(ROOT/'Ate/Services/OnDeviceBackend.swift').read_text()
+        backend=pre_simplification('Ate/Services/OnDeviceBackend.swift',(ROOT/'Ate/Services/OnDeviceBackend.swift').read_text())
         view=source_required('Ate/Views/AddRecipeSheet.swift',(ROOT/'Ate/Views/AddRecipeSheet.swift').read_text())
         self.assertNotIn('partialSink',backend+view)
         self.assertNotIn('StreamPreviewCard(preview:',view)

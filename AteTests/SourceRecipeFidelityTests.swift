@@ -130,7 +130,7 @@ final class SourceRecipeFidelityTests: XCTestCase {
                 _ = try await backend.parseRecipe(.init(mode: .prompt, text: RecipePromptTests.midrandAd))
                 XCTFail("promo must not create a card")
             } catch {
-                XCTAssertTrue(error.localizedDescription.contains("doesn't look like a recipe"))
+                XCTAssertTrue(error.localizedDescription.contains("recipe source"))
             }
             XCTAssertEqual(fallback.parses, 0)
         }
@@ -139,10 +139,14 @@ final class SourceRecipeFidelityTests: XCTestCase {
     func testF1UnavailableModelDoesNotSubstituteDemoForExplicitSource() async {
         let fallback = Fallback()
         let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { false })
+        // Product-contract correction: readable source remains editable without AI.
         do {
-            _ = try await backend.parseRecipe(.init(mode: .prompt, text: caption))
-            XCTFail("source extraction must not become a demo")
-        } catch { XCTAssertTrue(error.localizedDescription.contains("No demo recipe was substituted")) }
+            let card = try await backend.parseRecipe(.init(mode: .prompt, text: caption))
+            XCTAssertEqual(card.source, .imported)
+            XCTAssertEqual(card.sourceDraft?.text, caption)
+            XCTAssertTrue(card.isEditableDraft)
+            XCTAssertFalse(card.ingredients.isEmpty)
+        } catch { XCTFail("Readable source must remain editable: \(error)") }
         XCTAssertEqual(fallback.parses, 0)
     }
 
@@ -612,11 +616,16 @@ final class RequestScopedContractContracts: XCTestCase {
     // extraction fixtures above; model generation stays UNRUN on this host.
     func testInterleavedParsesKeepTheirOwnInputsAndContracts() async throws {
         let backend = OnDeviceBackend(fallback: Echo(), modelAvailable: { false })
-        async let a = backend.parseRecipeWithContract(.init(mode: .prompt, text: "chicken curry for 4"))
-        async let b = backend.parseRecipeWithContract(.init(mode: .prompt, text: "vegan pancakes for 2"))
+        // Product-contract correction: Add requires source, not dish ideas.
+        let first = "Chicken curry\nIngredients\nchicken\ncurry powder\nMethod\nSimmer the chicken until cooked."
+        let second = "Vegan pancakes\nIngredients\nflour\noat milk\nMethod\nMix and fry the pancakes."
+        async let a = backend.parseRecipeWithContract(.init(mode: .prompt, text: first))
+        async let b = backend.parseRecipeWithContract(.init(mode: .prompt, text: second))
         let (ra, rb) = try await (a, b)
-        XCTAssertEqual(ra.card.title, "chicken curry for 4")
-        XCTAssertEqual(rb.card.title, "vegan pancakes for 2")
+        XCTAssertEqual(ra.card.title, "Chicken curry")
+        XCTAssertEqual(rb.card.title, "Vegan pancakes")
+        XCTAssertEqual(ra.card.sourceDraft?.text, first)
+        XCTAssertEqual(rb.card.sourceDraft?.text, second)
         XCTAssertNil(ra.contract)
         XCTAssertNil(rb.contract)
     }

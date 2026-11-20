@@ -63,10 +63,15 @@ struct RecipeNutritionResult: Equatable {
 struct RecipeNutritionCalculator {
     let foods: [NutritionFoodRecord]
 
+    static func servingsAreUnspecified(_ recipe: RecipeCard) -> Bool {
+        recipe.servings == 0 && recipe.isEditableDraft
+    }
+
     func calculate(_ recipe: RecipeCard) -> RecipeNutritionResult {
         guard recipe.servings > 0 else {
+            let reason = Self.servingsAreUnspecified(recipe) ? "servings needed" : "invalid servings"
             return RecipeNutritionResult(perServing: nil, totalRecipe: nil, contributions: [],
-                                         unmappedIngredients: [], incompleteIngredients: [recipe.title + " (invalid servings)"])
+                                         unmappedIngredients: [], incompleteIngredients: [recipe.title + " (" + reason + ")"])
         }
 
         var totals = NutrientAccumulator()
@@ -220,4 +225,3 @@ private struct NutrientAccumulator {
                          carbohydratesGrams: carbohydratesGrams, fatGrams: fatGrams, fibreGrams: fibreGrams)
     }
 }
-

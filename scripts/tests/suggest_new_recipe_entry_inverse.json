@@ -1,0 +1,24 @@
+{
+ "Ate/Views/AddRecipeSheet.swift": {
+  "parent_sha": "ef0328d570e0b2dd04125b77da1734783dc217fb4ac5c550f5860c80082a1e1c",
+  "current_sha": "03da44f456ff82db5042572f328d63edc4ca55f690131dbf5adac830179d3b3f",
+  "fragments": [
+   {
+    "old": "",
+    "new": "    /// Opens the existing new-recipe suggestions flow. Entry stays visible in every\n    /// state; viewing Add recipe alone never starts generation.\n    @State private var showDiscovery = false\n"
+   },
+   {
+    "old": "",
+    "new": "        .sheet(isPresented: $showDiscovery) {\n            NavigationStack { SuggestedNewRecipesView().environment(store) }\n        }\n"
+   },
+   {
+    "old": "        Text(\"Import an existing recipe from a link, pasted text or screenshot. For new recipe ideas, use Explore.\")\n",
+    "new": "        Text(\"Import an existing recipe from a link, pasted text or screenshot. For a new dish idea, use Suggest a new recipe below.\")\n"
+   },
+   {
+    "old": "",
+    "new": "\n        Divider()\n\n        // Always-visible route into the existing suggestions flow (#641). The flow\n        // owns generation, Review/Rerun and explicit Save; tapping only presents it.\n        // When generation cannot start, the reason stays visible next to the entry.\n        Button { showDiscovery = true } label: {\n            Label(\"Suggest a new recipe\", systemImage: \"sparkles\")\n        }\n        .buttonStyle(.ate(.secondary, height: 44, full: true))\n        .accessibilityIdentifier(\"suggestNewRecipe\")\n        if let why = discoveryReadiness.explanation {\n            Text(why).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)\n                .accessibilityIdentifier(\"suggestNewRecipe.unavailable\")\n        }\n    }\n\n    /// Live gates for the suggestion entry. Reading this never calls the model or\n    /// any backend; RecipeDiscoverySession re-checks each gate on generate.\n    private var discoveryReadiness: RecipeDiscoveryReadiness {\n        RecipeDiscoveryReadiness(privateMode: store.settings.onDeviceOnly,\n            onDeviceBackend: store.backend is OnDeviceBackend,\n            modelAvailable: OnDeviceBackend.isModelAvailable,\n            modelUnavailableReason: OnDeviceBackend.availabilityNote,\n            savedRecipes: store.recipes.count)\n"
+   }
+  ]
+ }
+}

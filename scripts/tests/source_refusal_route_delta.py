@@ -3,6 +3,9 @@ from pathlib import Path
 import hashlib,json
 FIXTURE_SHA='5ed80cebf3d59b8534eec5d160288000eb5443391fb1040222db7bd6d368099d'
 def restore(path,raw):
+ if path=='Ate/Views/AddRecipeSheet.swift' and 'showDiscovery' in (raw.decode() if isinstance(raw,bytes) else raw):
+  from suggest_new_recipe_entry_delta import restore as restore_entry
+  raw = restore_entry(path,raw)
  if path!='Ate/Views/AddRecipeSheet.swift':return raw
  payload=Path(__file__).with_name('source_refusal_route_inverse.json').read_bytes()
  assert hashlib.sha256(payload).hexdigest()==FIXTURE_SHA

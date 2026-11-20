@@ -535,7 +535,10 @@ enum SourceRecipeFidelity {
                 && line.range(of: #"[.!?]"#, options: .regularExpression) == nil
                 && line.split(whereSeparator: { $0.isWhitespace }).count <= 12
         }
-        return ingredientLike.count >= 3 && lines.filter(action).count >= 2
+        // A quantity-less caption can have no cooking steps. A measured row
+        // still claims this shape when other ingredient rows surround it, so a
+        // failed certification remains unverifiable rather than becoming .none.
+        return ingredientLike.count >= 3
     }
 
     /// A dish answer on a source-bound import sets the title only: the contract's

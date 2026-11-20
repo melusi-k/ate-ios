@@ -1,7 +1,7 @@
 {
-  "title": "Backend e2e failures explain themselves (HTTP status + error code, no secrets)",
-  "summary": "V1 r3: failure notes use a fixed reviewed mapping of known auth, PostgreSQL and PostgREST identifiers. Unknown values are omitted, even if identifier-shaped; output codes come from mapping literals, not response text. Free-form keys stay excluded. Unregistered identifier-shaped canaries in error_code/error/code never reach notes; PGRST116 works in canonical case. Script-mode shared module identity retained. Live e2e UNRUN.",
-  "source_commit": "28781e0400eb8389c66e90817a7482a8ed92cdd9",
+  "title": "Independent QA and Library native evidence",
+  "summary": "Dogfood QA9 and Library3 run independently on one frozen source, keeping 60-minute jobs, 30-minute required steps and 240/480 test allowances. Exact named native results and successful matching source receipts from both groups remain required. QA can finish while Library is red; the split does not fix Library failures. Compile remains unchanged. Native and hosted workflow execution remain UNRUN.",
+  "source_commit": "cce94c10a44406d3afe80bd8f71b18382d6bb8cb",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

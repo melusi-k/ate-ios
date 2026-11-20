@@ -1,10 +1,11 @@
+from verified_paste_import_delta import restore as pre_simplification
 from pathlib import Path
 import re
 import unittest
 ROOT = Path(__file__).resolve().parents[2]
 STEP = (ROOT / 'Ate/Logic/GeneratedStepQuality.swift').read_text()
 QUALITY = (ROOT / 'Ate/Logic/RecipeQuality.swift').read_text()
-BACKEND = (ROOT / 'Ate/Services/OnDeviceBackend.swift').read_text()
+BACKEND = pre_simplification('Ate/Services/OnDeviceBackend.swift', (ROOT / 'Ate/Services/OnDeviceBackend.swift').read_text())
 
 BACKEND_ADDITION = '''        let gaps = RecipeQuality.shortfall(card, labels: visibleLabels) + (fidelity?.issues(card) ?? [])
         // Advisory-only gap lists (unused implicit staples: oil/salt/pepper/water

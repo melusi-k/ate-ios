@@ -109,10 +109,19 @@ struct RecipeCard: Codable, Identifiable, Hashable {
         id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
         title = (try? c.decode(String.self, forKey: .title)) ?? "Untitled recipe"
         description = try? c.decodeIfPresent(String.self, forKey: .description)
-        if let i = try? c.decode(Int.self, forKey: .servings) { servings = i }
-        else if let d = try? c.decode(Double.self, forKey: .servings) { servings = Int(d) } else { servings = 2 }
-        if let i = try? c.decode(Int.self, forKey: .timeMinutes) { timeMinutes = i }
-        else if let d = try? c.decode(Double.self, forKey: .timeMinutes) { timeMinutes = Int(d) } else { timeMinutes = nil }
+        // Decode legacy fractional numbers with the existing truncation behavior,
+        // but reject out-of-range values rather than trapping in Int(Double).
+        func legacyInteger(_ key: CodingKeys) throws -> Int? {
+            if let integer = try? c.decode(Int.self, forKey: key) { return integer }
+            guard let number = try? c.decode(Double.self, forKey: key) else { return nil }
+            guard number.isFinite, number >= Double(Int.min), number < Double(Int.max) else {
+                throw DecodingError.dataCorruptedError(forKey: key, in: c,
+                    debugDescription: "Recipe number is outside the supported integer range")
+            }
+            return Int(number)
+        }
+        servings = try legacyInteger(.servings) ?? 2
+        timeMinutes = try legacyInteger(.timeMinutes)
         tags = (try? c.decode([String].self, forKey: .tags)) ?? []
         ingredients = (try? c.decode([Ingredient].self, forKey: .ingredients)) ?? []
         steps = ((try? c.decode([Step].self, forKey: .steps)) ?? []).filter { $0.instruction.rangeOfCharacter(from: .alphanumerics) != nil }

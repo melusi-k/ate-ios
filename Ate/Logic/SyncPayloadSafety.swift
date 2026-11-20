@@ -40,6 +40,13 @@ enum SyncPayloadSafety {
             let steps: [Step]?
         }
         guard let core = try? decoder.decode(Core.self, from: raw) else { return false }
+        // Never decode the lenient domain model before these bounds. Its numeric
+        // conversion must not run on untrusted values outside Int's range. Zero
+        // servings is provisional here and is accepted only for an editable draft
+        // by the existing semantic check below.
+        for number in [core.servings, core.timeMinutes].compactMap({ $0 }) {
+            guard number.isFinite, number >= 0, number < Double(Int.max) else { return false }
+        }
         let decoded = try? decoder.decode(RecipeCard.self, from: raw)
         let permitsUnknown = decoded.map { $0.isEditableDraft } ?? false
         let numericServings = permitsUnknown && core.servings == 0 ? nil : core.servings

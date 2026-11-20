@@ -14,6 +14,14 @@ def restore(path,raw):
     text = restore_stream(path,text)
     from steps_only_fixture_delta import restore as restore_fixture
     text = restore_fixture(path,text)
+    # Native compiler correction: the successful import now propagates throws.
+    # Remove only this exact declaration delta before the original pinned inverse.
+    if path == 'AteTests/AddPromptSourceImportTests.swift':
+        old = '    func testRecognizableUnverifiableRecipeKeepsExistingFailClosedBackendBoundary() async {'
+        new = '    func testRecognizableUnverifiableRecipeKeepsExistingFailClosedBackendBoundary() async throws {'
+        if new in text:
+            assert text.count(new) == 1
+            text = text.replace(new, old, 1)
     for f in c['fragments']:
         assert text.count(f['new'])==1,'missing/changed/duplicate import fragment: '+path
         text=text.replace(f['new'],f['old'],1)

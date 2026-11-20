@@ -40,7 +40,10 @@ enum SyncPayloadSafety {
             let steps: [Step]?
         }
         guard let core = try? decoder.decode(Core.self, from: raw) else { return false }
-        for number in [core.servings, core.timeMinutes].compactMap({ $0 }) {
+        let decoded = try? decoder.decode(RecipeCard.self, from: raw)
+        let permitsUnknown = decoded.map { $0.isEditableDraft } ?? false
+        let numericServings = permitsUnknown && core.servings == 0 ? nil : core.servings
+        for number in [numericServings, core.timeMinutes].compactMap({ $0 }) {
             guard number.isFinite, number > 0, number < Double(Int.max) else { return false }
         }
         guard (try? decoder.decode(RecipeCard.self, from: raw)) != nil else { return false }

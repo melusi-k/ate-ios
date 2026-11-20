@@ -9,7 +9,7 @@ final class CookSharedStepUITests: XCTestCase {
         app.buttons["Prompt"].firstMatch.tap()
         let editor = app.textViews["promptEditor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 5))
-        editor.tap(); editor.typeText("miso salmon")
+        editor.tap(); editor.typeText(PromptRecipeFixture.salmon(named: "miso salmon"))
         app.buttons["generateButton"].tap()
         XCTAssertTrue(app.buttons["saveRecipe"].waitForExistence(timeout: 15))
         app.buttons["saveRecipe"].tap()

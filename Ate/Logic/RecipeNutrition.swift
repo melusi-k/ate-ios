@@ -225,3 +225,4 @@ private struct NutrientAccumulator {
                          carbohydratesGrams: carbohydratesGrams, fatGrams: fatGrams, fibreGrams: fibreGrams)
     }
 }
+

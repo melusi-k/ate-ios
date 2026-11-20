@@ -25,6 +25,12 @@ final class AteUITests: XCTestCase {
             b.tap()
         } else if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }
     }
+    /// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.
+    func openLibraryCollection() {
+        tab("Library")
+        let recipes = app.buttons["today.recipes"]
+        if recipes.waitForExistence(timeout: 5) { recipes.tap() }
+    }
     /// This journey exits Cook Mode onto a known recipe detail, whose tab bar is
     /// deliberately hidden. Pop that exact navigation surface before querying root tabs.
     /// No global absent-tab probe, swipe fallback, or retry is needed for this one-level route.
@@ -132,6 +138,7 @@ final class AteUITests: XCTestCase {
 
     func test01_EmptyLibrary() {
         launch()
+        openLibraryCollection()
         wait(text("Your Kitchen"))
         XCTAssertTrue(text("Nothing saved yet").exists)
         XCTAssertTrue(text("0 saved recipes").exists)
@@ -162,7 +169,7 @@ final class AteUITests: XCTestCase {
     func test04_AddViaPromptAndLibraryRow() {
         launch()
         addPromptRecipe()
-        tab("Library")
+        openLibraryCollection()
         wait(text("1 saved recipe"))
         shot("library-one-recipe")
         // iOS 26: Library search lives in the tab bar's search tab (Tab(role: .search)).
@@ -176,6 +183,7 @@ final class AteUITests: XCTestCase {
 
     func test05_DetailScaleEditShopDelete() {
         launch()
+        openLibraryCollection()
         addPromptRecipe()
         shot("detail-x1")
         app.buttons["2×"].tap()
@@ -249,6 +257,7 @@ final class AteUITests: XCTestCase {
 
     func testCookModeExitDoesNotRecordCookingDay() {
         launch()
+        openLibraryCollection()
         addPromptRecipe()
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))
@@ -276,6 +285,7 @@ final class AteUITests: XCTestCase {
             launch(["-qaAccountJourneyAnimationDiagnostic", "-qaAddTitleQueryDiagnostic"])
         }
         receipt.step("assert-launched-foreground") { XCTAssertEqual(app.state, .runningForeground) }
+        receipt.step("open-saved-recipe-collection", pixels: true) { openLibraryCollection() }
         receipt.step("import-save-original-source") { addPromptRecipe() }
         receipt.step("open-cook", pixels: true) { app.buttons["Cook mode"].tap() }
         wait(text("Step 1 of 4"))
@@ -447,6 +457,7 @@ final class AteUITests: XCTestCase {
 
     func test07_ShoppingList() {
         launch()
+        openLibraryCollection()
         wait(text("Your Kitchen"))
         tab("Shopping")
         wait(text("Nothing on the list"))
@@ -555,7 +566,7 @@ final class AteUITests: XCTestCase {
         app.buttons["Save to my library"].tap()
         wait(app.buttons["Cook mode"])
         shot("shared-saved-detail")
-        tab("Library")
+        openLibraryCollection()
         wait(text("1 saved recipe"))
     }
 
@@ -571,7 +582,7 @@ final class AteUITests: XCTestCase {
         let open = app.buttons["timerBarOpen"]
         wait(open, 5)
         shot("timerbar-detail")
-        tab("Library")
+        openLibraryCollection()
         wait(text("Your Kitchen"))
         XCTAssertTrue(open.exists, "timer bar should persist on Library")
         shot("timerbar-library")
@@ -782,12 +793,14 @@ final class AteUITests: XCTestCase {
         wait(text("This recipe link has expired"), 15)
         shot("shared-expired")
         app.buttons["Open ate"].tap()
+        openLibraryCollection()
         wait(text("Your Kitchen"))
 
         launch(["-ateOpenURL", "ate://somewhere/else"])
         wait(text("Page not found"), 10)
         shot("not-found-404")
         app.buttons["Go home"].tap()
+        openLibraryCollection()
         wait(text("Your Kitchen"))
     }
 
@@ -796,7 +809,7 @@ final class AteUITests: XCTestCase {
     func test18_SwipeContextMenuPullToRefresh() {
         launch()
         addPromptRecipe()
-        tab("Library")
+        openLibraryCollection()
         let row = text("Miso salmon for two")
         wait(row)
         // pull to refresh (signed out → hint)
@@ -842,6 +855,7 @@ final class AteUITests: XCTestCase {
 
     func test20_CameraOptionAndLargeText() {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
+        openLibraryCollection()
         wait(text("Your Kitchen"))
         shot("a11y-normal-text-library")
         app.buttons["Add recipe"].tap()
@@ -909,7 +923,7 @@ final class AteUITests: XCTestCase {
         let expectedTabCount = ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26 ? 5 : 4
         XCTAssertEqual(tabs.buttons.count, expectedTabCount)
         XCTAssertFalse(tabs.buttons["Quick (≤30 min)"].exists)
-        tabs.buttons["Library"].tap()
+        openLibraryCollection()
         app.buttons["libraryBrowseMenu"].tap()
         wait(app.buttons["library.collection.Quick (≤30 min)"])
         shot("library-browse-menu")
@@ -929,7 +943,7 @@ final class AteUITests: XCTestCase {
         app.buttons["Exit"].tap()
         wait(app.buttons["Cook mode"], 3)
         // back to root
-        tab("Library")
+        openLibraryCollection()
         wait(text("Your Kitchen"), 5)
     }
 
@@ -986,7 +1000,7 @@ final class AteUITests: XCTestCase {
     func test26_FilterChipsPortrait() {
         launch()
         addPromptRecipe()
-        tab("Library")
+        openLibraryCollection()
         wait(text("Your Kitchen"), 5)
         wait(app.buttons["chip.time30"])
         shot("library-filter-chips")
@@ -1055,7 +1069,7 @@ final class AteUITests: XCTestCase {
         wait(app.buttons["saveRecipe"], 15)
         app.buttons["saveRecipe"].tap()
         wait(app.buttons["Cook mode"], 5)
-        tab("Library")
+        openLibraryCollection()
         wait(text("Your Kitchen"), 5)
     }
 
@@ -1192,6 +1206,7 @@ final class AteUITests: XCTestCase {
         XCTAssertEqual(add.label, "New journal entry", "Journal root offers New journal entry, not the Shopping or recipe action")
         app.tabBars.buttons["Library"].tap()
         XCTAssertEqual(add.label, "Add recipe")
+        openLibraryCollection()
         app.tabBars.buttons["Search"].firstMatch.tap()
         let field = app.searchFields.firstMatch
         wait(field, 5); field.tap(); field.typeText("soup")
@@ -1248,6 +1263,7 @@ final class AteUITests: XCTestCase {
         startupDiagnosticMark("group-launch-start")
         launch(["-qaSavedRecipesForGroupSort", "-qaStartupLivenessDiagnostic"])
         startupDiagnosticMark("group-launch-end")
+        openLibraryCollection()
         pick("sortMenu", "A–Z")
         let a = text("Apple crumble"), z = text("Zesty tacos")
         wait(a)
@@ -1289,7 +1305,7 @@ final class AteUITests: XCTestCase {
         wait(text("Your session expired"), 10)
         wait(app.buttons["openSignIn"], 5)
         shot("auth-session-expired")
-        tab("Library")
+        openLibraryCollection()
         wait(text("Keep me safe"), 5)
 
         // Account switch: the previous account's library doesn't leak into the next one.
@@ -1306,7 +1322,7 @@ final class AteUITests: XCTestCase {
         app.buttons["authSubmit"].tap()
         wait(text("Switched accounts"), 10)
         shot("auth-account-switch")
-        tab("Library")
+        openLibraryCollection()
         XCTAssertFalse(text("Account A stew").waitForExistence(timeout: 2), "account A's recipe leaked into account B")
     }
 
@@ -1322,6 +1338,7 @@ final class AteUITests: XCTestCase {
         // Recipe creation has separate end-to-end coverage; keep this budget
         // for real native menus and their asserted Library actions.
         launch(["-qaSavedRecipesForDogfoodReorder"])
+        openLibraryCollection()
         pick("sortMenu", "My order")
         let first = text("First dish"), second = text("Second dish")
         wait(first)
@@ -1332,6 +1349,7 @@ final class AteUITests: XCTestCase {
         // Sort selection is exercised by test29. These cards still have no
         // explicit positions; Move up must perform the real ordering change.
         launch(["-qaSavedRecipesForReorderAction"])
+        openLibraryCollection()
         let first = text("First dish"), second = text("Second dish")
         wait(first)
         XCTAssertLessThan(second.frame.minY, first.frame.minY, "new (unordered) cards newest first")
@@ -1351,6 +1369,7 @@ final class AteUITests: XCTestCase {
 
     func testFirstLibraryRecipeActionsChooseTheCorrectInput() {
         launch()
+        openLibraryCollection()
         wait(text("Nothing saved yet"))
         let modes = [("link", "linkField"), ("photo", "takePhoto"), ("prompt", "promptEditor")]
         for (mode, target) in modes {

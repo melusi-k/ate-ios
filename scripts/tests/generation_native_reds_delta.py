@@ -3,6 +3,8 @@ from pathlib import Path
 import hashlib,json
 FIXTURE_SHA='eb5e05b021928f94e7e9081bd726956406abe454b0cb8494462352cd1d876dce'
 def restore(path,raw):
+    from multiline_caption_delta import restore as restore_multiline
+    raw = restore_multiline(path,raw)
     from streaming_echo_completion_delta import restore as restore_echo
     raw = restore_echo(path,raw)
     payload=Path(__file__).with_name('generation_native_reds_inverse.json').read_bytes()

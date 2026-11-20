@@ -47,7 +47,7 @@ final class AddPromptSourceImportTests: XCTestCase {
         XCTAssertEqual(recording.requests.first?.dishHint, "Eggs")
     }
 
-    func testRecognizableUnverifiableRecipeKeepsExistingFailClosedBackendBoundary() async {
+    func testRecognizableUnverifiableRecipeKeepsExistingFailClosedBackendBoundary() async throws {
         // Same measured-but-ambiguous source as the existing real recognizer
         // regression. Recognition is independent of whether a full parse succeeds.
         let text = "Mogodu Ingredients 1 kg beef tripe 2 onions salt to taste Method Simmer 150 minutes, fry 5 minutes, season."

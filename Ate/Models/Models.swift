@@ -236,6 +236,8 @@ enum Route: Hashable {
     case cook(String)
     case shopping
     case settings
+    /// The full saved-recipe collection pushed inside the Today stack (#642).
+    case library
     case shared(String)
     case notFound
     case insights

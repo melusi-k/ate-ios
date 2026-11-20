@@ -3,6 +3,9 @@ from pathlib import Path
 import hashlib,json
 FIXTURE_SHA='87e3d7f273ddc7097194150a36ca8b63d17159d854c6916fb5236b58b91cc654'
 def restore(path,raw):
+    if path=='Ate/Models/Models.swift' and 'The full saved-recipe collection pushed inside the Today stack (#642).' in (raw.decode() if isinstance(raw,bytes) else raw):
+        from today_tab_route_delta import restore as restore_today_tab_route
+        raw = restore_today_tab_route(path,raw)
     payload=Path(__file__).with_name('sync_payload_overflow_inverse.json').read_bytes()
     assert hashlib.sha256(payload).hexdigest()==FIXTURE_SHA
     c=json.loads(payload).get(path)

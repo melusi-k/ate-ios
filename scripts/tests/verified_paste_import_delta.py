@@ -3,6 +3,8 @@ from pathlib import Path
 import hashlib,json
 FIXTURE_SHA='c9c47f10d433eebb512382c9a32b30164ea27c9c3b810ec2918be74bbdd25794'
 def restore(path,raw):
+    from all_ui_prompt_source_delta import restore as restore_ui
+    raw = restore_ui(path,raw)
     from verified_heading_fix_delta import restore as restore_heading
     raw = restore_heading(path,raw)
     payload=Path(__file__).with_name('verified_paste_import_inverse.json').read_bytes()

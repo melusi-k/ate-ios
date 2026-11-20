@@ -27,6 +27,7 @@ def restore(path,raw):
     # Native compiler correction: the successful import now propagates throws.
     # Remove only this exact declaration delta before the original pinned inverse.
     if path == 'AteTests/AddPromptSourceImportTests.swift':
+        text = text.replace('                    XCTAssertTrue(error.localizedDescription.contains("ingredients or written cooking instructions"))', '                    XCTAssertTrue(error.localizedDescription.contains("ingredients and method"))', 1)
         old = '    func testRecognizableUnverifiableRecipeKeepsExistingFailClosedBackendBoundary() async {'
         new = '    func testRecognizableUnverifiableRecipeKeepsExistingFailClosedBackendBoundary() async throws {'
         if new in text:

@@ -122,11 +122,20 @@ final class RecipeStreamingTests: XCTestCase {
             let gate = Gate(), started = expectation(description: reason), returned = expectation(description: reason + " returned")
             session.requestStreaming(available: true, context: { input }, generate: { _, preview in
                 sink = preview; preview?(.init(title: "Old partial"))
+                XCTAssertNotNil(session.preview, "Initial preview must publish synchronously: \(reason)")
                 started.fulfill(); await gate.wait(); returned.fulfill(); return self.food("Old result")
             })
             await fulfillment(of: [started], timeout: 2)
-            XCTAssertNotNil(session.preview)
-            if reason == "deadline" { try await Task.sleep(nanoseconds: 60_000_000) }
+            if reason == "deadline" {
+                let expired = expectation(description: "deadline revoked publication")
+                let observer = Task { @MainActor in
+                    while session.loading && !Task.isCancelled { await Task.yield() }
+                    if !Task.isCancelled { expired.fulfill() }
+                }
+                await fulfillment(of: [expired], timeout: 2)
+                observer.cancel()
+                XCTAssertTrue(session.message?.contains("took too long") == true)
+            }
             else if reason == "account" { input.owner = "owner-b"; session.accountChanged() }
             else { session.cancel() }
             XCTAssertNil(session.preview)

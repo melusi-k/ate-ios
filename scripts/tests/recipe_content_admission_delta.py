@@ -3,6 +3,8 @@ from pathlib import Path
 import json,hashlib
 FIXTURE_SHA='99c49484ed044cb70d939bb24ec892762e0d9a26fd2842a379002d793c19d7f2'
 def restore(path,raw):
+    from generation_native_reds_delta import restore_for_history as restore_generation
+    raw = restore_generation(path,raw)
     payload=Path(__file__).with_name('recipe_content_admission_inverse.json').read_bytes()
     assert hashlib.sha256(payload).hexdigest()==FIXTURE_SHA
     c=json.loads(payload).get(path)

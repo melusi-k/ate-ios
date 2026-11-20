@@ -79,7 +79,7 @@ final class KeyFlowsQATests: XCTestCase {
     }
     func addPrompt(_ s: String) {
         openAdd("Prompt")
-        let e = app.textViews["promptEditor"]; e.tap(); e.typeText(s)
+        let e = app.textViews["promptEditor"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: s))
         generate(); review(); save()
     }
     func signIn() {
@@ -163,7 +163,7 @@ final class KeyFlowsQATests: XCTestCase {
     func testQA3_GenerateAndEdit() {
         launch()
         openAdd("Prompt")
-        let e = app.textViews["promptEditor"]; e.tap(); e.typeText("Lemon chicken traybake")
+        let e = app.textViews["promptEditor"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: "Lemon chicken traybake"))
         generate(); review()
         app.buttons["Edit"].firstMatch.tap()
         replace(app.textFields["editorTitle"], "QA edited traybake")

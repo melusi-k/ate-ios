@@ -6,6 +6,10 @@ final class CookPlanUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaNutritionFixtures"]
         app.launch()
+        // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.
+        let libraryEntry = app.buttons["today.recipes"]
+        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 20), "Today routes to the saved-recipe collection")
+        libraryEntry.tap()
         let recipe = app.staticTexts["QA pap and rice"].firstMatch
         XCTAssertTrue(recipe.waitForExistence(timeout: 10))
         recipe.tap()

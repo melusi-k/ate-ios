@@ -1,0 +1,7 @@
+{
+  "path": "Ate/Views/AddRecipeSheet.swift",
+  "parent_sha": "5561ee9fda894565c3a3f9ccc3055618248e051ea3296af47de71626c96bfffb",
+  "current_sha": "52f9eb5c2b57e799e6bb807004d21f5304f8a7f3ba1b98f43265b2f41b6ecaad",
+  "old": "    static let missingSourceMessage = \"A dish name or idea isn't a recipe source. Paste the full recipe with ingredients and method, use a recipe link or screenshot, or enter it manually. For a new recipe idea, use Explore. Nothing was generated.\"\n",
+  "new": "    static let missingSourceMessage = \"That text doesn't look like a recipe source. Paste a recipe with ingredients or written cooking instructions, use a recipe link or screenshot, or enter it manually. For a new recipe idea, use Explore. Nothing was generated.\"\n"
+}

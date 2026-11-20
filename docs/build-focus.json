@@ -1,11 +1,39 @@
 {
-  "title": "Backend e2e failures explain themselves (HTTP status + error code, no secrets)",
-  "summary": "V1 r3: failure notes use a fixed reviewed mapping of known auth, PostgreSQL and PostgREST identifiers. Unknown values are omitted, even if identifier-shaped; output codes come from mapping literals, not response text. Free-form keys stay excluded. Unregistered identifier-shaped canaries in error_code/error/code never reach notes; PGRST116 works in canonical case. Script-mode shared module identity retained. Live e2e UNRUN.",
-  "source_commit": "28781e0400eb8389c66e90817a7482a8ed92cdd9",
+  "title": "Today tab: saved recipes first, plus a Try something new entry",
+  "summary": "The first tab is now Today: a greeting, an at-a-glance entry to your recipes, up to three saved picks with favourites first, and a Try something new card presenting the existing Suggest flow behind the same readiness gates. The saved-recipe collection is one canonical pushed root with a single Add/import sheet owner, Add and timer chrome live on exactly the two roots, and Search no longer pops the stack. Native final-head compile and device screenshots remain UNRUN.",
+  "source_commit": "a5cb4dec00a0c6158e9995ccbabec3570b66a9b8",
   "evidence": [
     {
+      "path": "Ate/App/AteApp.swift",
+      "blob": "f294ddc5d0c19196a7c85fe122232401f994ddf6"
+    },
+    {
+      "path": "Ate/Logic/RecipeDiscoveryReadiness.swift",
+      "blob": "576de6144684ffc402d59b6c2a4ef2a5d307d123"
+    },
+    {
+      "path": "Ate/Logic/TodayHome.swift",
+      "blob": "7e635b0671ae7d6e652287b2fb983dae2c86dd8f"
+    },
+    {
       "path": "Ate/Models/Models.swift",
-      "blob": "8af03461b45f0fab7632bb750f51d48b1fdd056d"
+      "blob": "c3e697e2fd524080b963238e800d605db9a3fdfe"
+    },
+    {
+      "path": "Ate/Store/AppStore.swift",
+      "blob": "2ea9a2f5b3ae8e91394aca927ad7fc73f05219a3"
+    },
+    {
+      "path": "Ate/Views/AddRecipeSheet.swift",
+      "blob": "4d306525f394c9e668d541ce43aca92918f0a16e"
+    },
+    {
+      "path": "Ate/Views/LibraryView.swift",
+      "blob": "23f6199a15913f407ad884e7bb89d929fd6675a0"
+    },
+    {
+      "path": "Ate/Views/TodayView.swift",
+      "blob": "cfae14a8b66704693849ecb90d4a2863df0df252"
     }
   ]
 }

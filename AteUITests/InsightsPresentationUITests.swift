@@ -391,7 +391,7 @@ final class InsightsPresentationUITests: XCTestCase {
         let prompt = app.textViews["promptEditor"]
         wait(prompt)
         prompt.tap()
-        prompt.typeText("Miso salmon for two")
+        prompt.typeText(PromptRecipeFixture.salmon(named: "Miso salmon for two"))
         app.buttons["generateButton"].tap()
         wait(app.staticTexts["Review your card"], 15)
         app.buttons["saveRecipe"].tap()
@@ -443,7 +443,11 @@ final class InsightsPresentationUITests: XCTestCase {
         wait(today, 5)
         XCTAssertTrue(today.label.contains("cooked") && today.label.contains("today"), today.label)
         tab("Library", from: app.navigationBars["Insights & Cooking History"],
-            arrival: app.navigationBars["Your Kitchen"])
+            arrival: app.navigationBars["Today"])
+        let libraryRecipes = app.buttons["today.recipes"]
+        wait(libraryRecipes, 5)
+        libraryRecipes.tap()
+        wait(app.navigationBars["Your Kitchen"], 10)
     }
 
     /// Switching tabs preserves the pushed hub. Return to Journal explicitly instead of

@@ -22,6 +22,19 @@ struct DiagnosticEvent: Codable, Identifiable, Equatable {
         case insightActionSelected
         case syncSucceeded
         case syncFailed
+        // Local-only recipe stage timing. Categories and timestamps, never content.
+        case generationAttemptStarted
+        case generationFetchStarted
+        case generationFetchReturned
+        case generationPromptBuilt
+        case generationModelStarted
+        case generationFirstSnapshot
+        case generationModelReturned
+        case generationRepairStarted
+        case generationRepairReturned
+        case generationTimedOut
+        case generationAttemptReturned
+        case generationAttemptFailed
     }
 
     let id: UUID
@@ -51,6 +64,18 @@ struct DiagnosticEvent: Codable, Identifiable, Equatable {
         case .insightActionSelected: return "Insight action selected"
         case .syncSucceeded: return "Sync succeeded"
         case .syncFailed: return "Sync failed"
+        case .generationAttemptStarted: return "Recipe attempt started"
+        case .generationFetchStarted: return "Recipe page fetch started"
+        case .generationFetchReturned: return "Recipe page fetch returned"
+        case .generationPromptBuilt: return "Recipe prompt built"
+        case .generationModelStarted: return "Recipe model started"
+        case .generationFirstSnapshot: return "Recipe first model snapshot"
+        case .generationModelReturned: return "Recipe model returned"
+        case .generationRepairStarted: return "Recipe automatic repair started"
+        case .generationRepairReturned: return "Recipe automatic repair returned"
+        case .generationTimedOut: return "Recipe attempt timed out"
+        case .generationAttemptReturned: return "Recipe attempt returned"
+        case .generationAttemptFailed: return "Recipe attempt failed"
         }
     }
 }
@@ -91,6 +116,18 @@ final class DiagnosticHistory {
         }
         persistLocked()
         TelemetryClient.shared.record(kind, at: date)
+    }
+
+    /// Stage breadcrumbs remain on-device, with no telemetry sender call.
+    /// Intentionally the same bounded storage format as the existing categories.
+    func recordLocal(_ kind: DiagnosticEvent.Kind, at date: Date = Date()) {
+        lock.lock()
+        defer { lock.unlock() }
+        cachedEntries.append(DiagnosticEvent(kind: kind, timestamp: date))
+        if cachedEntries.count > Self.maximumEntries {
+            cachedEntries.removeFirst(cachedEntries.count - Self.maximumEntries)
+        }
+        persistLocked()
     }
 
     func clear() {

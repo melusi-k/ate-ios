@@ -1,0 +1,7 @@
+{
+  "path": "Ate/Views/Components.swift",
+  "parent_sha": "ffcb9e9c8eb610c7b443584cac8be941f6efdcf59cda2d0cb83b988d5bbca9e3",
+  "current_sha": "c4b7c4bdf4cdf709afee94680f3e2b2fd6c5eae862e209037f7561baff6e58a6",
+  "old": "            if let symbol { Label(text, systemImage: symbol) }",
+  "new": "            if let symbol { Label(text, systemImage: symbol).labelStyle(.titleAndIcon) }"
+}

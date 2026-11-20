@@ -17,6 +17,12 @@ PACKET_D5_SWAPS = [('    func parseRecipe(_ request: ParseRequest) async throws 
 
 def restore_source_binding_partition(test, s):
     """Exact inverse of packet D's backend deltas (no hash replacement)."""
+    from add_generation_deadline_delta import restore as restore_deadline
+    s = restore_deadline('Ate/Services/OnDeviceBackend.swift',s)
+    from add_stack_composition_delta import parent_source
+    s = parent_source('prompt', 'Ate/Services/OnDeviceBackend.swift', s)
+    from prompt_draft_boundary_delta import restore
+    s = restore('Ate/Services/OnDeviceBackend.swift', s)
     for block in PACKET_D_REMOVE:
         test.assertEqual(s.count(block), 1)
         s = s.replace(block, '', 1)

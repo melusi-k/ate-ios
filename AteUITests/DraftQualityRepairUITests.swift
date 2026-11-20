@@ -13,7 +13,7 @@ final class DraftQualityRepairUITests: XCTestCase {
         let field = app.textViews["promptEditor"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
-        field.typeText("Tomato bread salad")
+        field.typeText(PromptRecipeFixture.breadSalad)
         app.buttons["generateButton"].tap()
         let generated = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         generated.name = "draft-quality-before-identity-query"

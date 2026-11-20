@@ -535,6 +535,10 @@ final class NutritionDiaryUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaNutritionFixtures"]
         app.launch()
+        // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.
+        let libraryEntry = app.buttons["today.recipes"]
+        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 20), "Today routes to the saved-recipe collection")
+        libraryEntry.tap()
         // Tap the card button itself: tapping the inner label text synthesises an event that
         // does not reach the button's action on a loaded simulator, so the sheet never presents.
         let card = app.buttons.matching(identifier: "listCard")

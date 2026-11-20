@@ -29,6 +29,14 @@ enum RecipeQuality {
     }
 
     static let ovenWords = ["bake", "roast", "oven", "grill in the oven", "broil"]
+    /// Removing food from an oven is not a heating instruction. Remove only that
+    /// action phrase, then still check any bake/roast/oven action in the same step.
+    static func requiresOvenTemperature(_ instruction: String) -> Bool {
+        let heating = instruction.replacingOccurrences(
+            of: #"\b(?:remove|take)\b[^.!?;]*?\b(?:from|out of)\s+(?:the\s+)?oven\b"#,
+            with: "", options: [.regularExpression, .caseInsensitive])
+        return ovenWords.contains { heating.lowercased().contains($0) }
+    }
     static let mainWords = ["ribs", "wings", "chicken", "beef", "lamb", "pork", "stew", "curry", "steak", "fish", "mogodu", "nyama", "springroll", "spring roll",
                             "oxtail", "pasta", "chops", "braai", "potjie", "casserole", "roast"]
     static let genericVerbs: Set<String> = ["cook", "prepare", "make", "finish", "serve", "do"]
@@ -107,7 +115,7 @@ enum RecipeQuality {
             out.append("The photo did not establish an edible dish; name the dish before generating a recipe.")
         }
         let real = c.ingredients.filter { $0.quantity > 0 && !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
-        if isMainDish(c) && real.count < 4 { out.append("Needs at least 4 ingredients with quantities (has \(real.count)).") }
+        if isMainDish(c) && !SourceDraft.applies(to: c) && real.count < 4 { out.append("Needs at least 4 ingredients with quantities (has \(real.count)).") }
         let vague = c.ingredients.map { $0.name.lowercased().trimmingCharacters(in: .whitespaces) }.filter { vagueIngredients.contains($0) }
         if !vague.isEmpty { out.append("Name the actual ingredients instead of “\(vague.joined(separator: "”, “"))”.") }
         let miss = missingEssentials(c)
@@ -124,7 +132,7 @@ enum RecipeQuality {
         }
         let steps = RecipeLogic.nonBlank(c.steps)
         if steps.isEmpty { out.append("No steps.") }
-        for s in steps where ovenWords.contains(where: { s.instruction.lowercased().contains($0) }) && !hasTemperature(s.instruction) {
+        for s in steps where requiresOvenTemperature(s.instruction) && !hasTemperature(s.instruction) {
             out.append("Step \(s.order) uses the oven but gives no temperature."); break
         }
         if let g = steps.first(where: { isGenericStep($0.instruction) }) { out.append("Step \(g.order) (“\(g.instruction)”) is too vague.") }
@@ -202,6 +210,8 @@ enum RecipeQuality {
 }
 
 /// Live, partially generated card shown while Foundation Models streams (built from GenRecipe.PartiallyGenerated).
+typealias RecipePreviewHandler = @MainActor (RecipeStreamPreview) -> Void
+
 struct RecipeStreamPreview: Equatable {
     var title: String?
     var cuisine: String?

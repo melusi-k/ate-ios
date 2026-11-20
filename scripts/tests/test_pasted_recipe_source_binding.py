@@ -1,3 +1,4 @@
+from add_prompt_source_delta import restore as source_required
 """Packet D r2/r3: pasted/caption/page source binding pins (text contracts, not model runs)."""
 from pathlib import Path
 import unittest
@@ -38,7 +39,7 @@ class PastedRecipeSourceBinding(unittest.TestCase):
             self.assertIn(token, s)
 
     def test_prompt_tab_gate_and_confirm_split(self):
-        s = (ROOT/'Ate/Views/AddRecipeSheet.swift').read_text()
+        s = source_required('Ate/Views/AddRecipeSheet.swift', (ROOT/'Ate/Views/AddRecipeSheet.swift').read_text())
         # Skip the question only when the bound source names the dish itself.
         self.assertIn('if case .verified(let contract) = SourceRecipeFidelity.extraction(prompt) { return !contract.dishes.isEmpty }', s)
         # The first BOUND import is kept and the answer only titles it, through the

@@ -73,6 +73,9 @@ struct AddRecipeSheet: View {
     @State private var generationAttempt = DraftGenerationAttempt()
     @State private var photoInputAttempt = DraftInputAttempt()
     @State private var coverInputAttempt = DraftInputAttempt()
+    /// Opens the existing new-recipe suggestions flow. Entry stays visible in every
+    /// state; viewing Add recipe alone never starts generation.
+    @State private var showDiscovery = false
     /// Name the user confirmed in "What dish is this?" (C-AI-01); the regenerated card is not asked about again.
     @State private var confirmedDish: String?
     /// The first BOUND import kept while the dish question is up; the answer titles
@@ -148,6 +151,9 @@ struct AddRecipeSheet: View {
             else if let t = it.text { mode = .prompt; prompt = t }
             startGeneration()
         }
+        .sheet(isPresented: $showDiscovery) {
+            NavigationStack { SuggestedNewRecipesView().environment(store) }
+        }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { img in
                 photoInputAttempt.invalidate()
@@ -183,7 +189,7 @@ struct AddRecipeSheet: View {
 
     @ViewBuilder private var inputState: some View {
         Text("Add a recipe").font(AteFont.display(24))
-        Text("Import an existing recipe from a link, pasted text or screenshot. For new recipe ideas, use Explore.")
+        Text("Import an existing recipe from a link, pasted text or screenshot. For a new dish idea, use Suggest a new recipe below.")
             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
         Picker("Source", selection: Binding(get: { mode }, set: { next in
             guard next != mode else { return }
@@ -307,6 +313,31 @@ struct AddRecipeSheet: View {
                      else { Image(systemName: "sparkles"); Text(mode == .link ? "Import recipe" : mode == .image ? "Read image" : "Import recipe") } }
         }
         .buttonStyle(.ate(.primary, height: 52, full: true)).disabled(loading).accessibilityIdentifier("generateButton")
+
+        Divider()
+
+        // Always-visible route into the existing suggestions flow (#641). The flow
+        // owns generation, Review/Rerun and explicit Save; tapping only presents it.
+        // When generation cannot start, the reason stays visible next to the entry.
+        Button { showDiscovery = true } label: {
+            Label("Suggest a new recipe", systemImage: "sparkles")
+        }
+        .buttonStyle(.ate(.secondary, height: 44, full: true))
+        .accessibilityIdentifier("suggestNewRecipe")
+        if let why = discoveryReadiness.explanation {
+            Text(why).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground)
+                .accessibilityIdentifier("suggestNewRecipe.unavailable")
+        }
+    }
+
+    /// Live gates for the suggestion entry. Reading this never calls the model or
+    /// any backend; RecipeDiscoverySession re-checks each gate on generate.
+    private var discoveryReadiness: RecipeDiscoveryReadiness {
+        RecipeDiscoveryReadiness(privateMode: store.settings.onDeviceOnly,
+            onDeviceBackend: store.backend is OnDeviceBackend,
+            modelAvailable: OnDeviceBackend.isModelAvailable,
+            modelUnavailableReason: OnDeviceBackend.availabilityNote,
+            savedRecipes: store.recipes.count)
     }
 
     @ViewBuilder private var reviewState: some View {

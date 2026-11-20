@@ -13,6 +13,7 @@ final class ExploreUITests: XCTestCase {
             app.launchArguments += ["-qaExploreRetentionSaved", "-qaExploreRetentionFavourites", "-qaSearchFocusDiagnostic"]
         }
         app.launch()
+        openLibraryCollection()
         XCTAssertTrue(app.buttons["library.explore"].waitForExistence(timeout: 20))
     }
     override func tearDown() {
@@ -24,6 +25,12 @@ final class ExploreUITests: XCTestCase {
     private func shot(_ name: String) {
         let capture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         capture.name = name; capture.lifetime = .keepAlways; add(capture)
+    }
+    /// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.
+    private func openLibraryCollection() {
+        let recipes = app.buttons["today.recipes"]
+        XCTAssertTrue(recipes.waitForExistence(timeout: 20), "Today routes to the saved-recipe collection")
+        recipes.tap()
     }
     private func open() {
         app.buttons["library.explore"].tap()
@@ -160,6 +167,8 @@ final class ExploreUITests: XCTestCase {
                        "Submitting Search must keep the full query before opening Explore")
         shot("explore-search-query-before-library")
         app.tabBars.buttons["Library"].tap()
+        // The pushed collection survives the Search tab round-trip, so the
+        // filtered collection is already here; no Today re-entry is needed.
         XCTAssertTrue(app.navigationBars["Favourites"].waitForExistence(timeout: 10))
         open(); shot("explore-over-filtered-library")
         app.buttons["explore.done"].tap()

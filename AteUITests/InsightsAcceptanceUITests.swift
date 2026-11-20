@@ -125,6 +125,9 @@ final class InsightsAcceptanceUITests: XCTestCase {
         wait(today, 5)
         XCTAssertTrue(today.label.contains("cooked") && today.label.contains("today"), today.label)
         tab("Library")
+        let libraryRecipes = app.buttons["today.recipes"]
+        wait(libraryRecipes, 5)
+        libraryRecipes.tap()
     }
 
     private func reveal(_ element: XCUIElement) {

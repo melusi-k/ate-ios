@@ -2,6 +2,7 @@
 from pathlib import Path
 import hashlib, importlib.util, json, subprocess, sys, tempfile, unittest
 from named_ui_red_rewrite_delta import restore
+from today_tab_ui_delta import restore as restore_today_tab_ui
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -13,7 +14,7 @@ class NamedRedRewriteTests(unittest.TestCase):
             'AteUITests/CoverageUITests.swift': ['test32_MoreCollectionsToolsAbout', 'testBottomBarsDoNotOverlapRecipeDetail'],
             'AteUITests/LibraryProteinGroupingUITests.swift': ['testPorkLedRibsAppearUnderPorkAtNormalText']}
         for path, c in contracts.items():
-            source = (ROOT/path).read_text()
+            source = restore_today_tab_ui(path, (ROOT/path).read_text())
             self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), c['current_sha'])
             self.assertEqual(hashlib.sha256(restore(path, source).encode()).hexdigest(), c['parent_sha'])
             self.assertEqual(sorted(f['old'].split('func ',1)[1].split('(',1)[0] for f in c['fragments']), sorted(expected[path]))

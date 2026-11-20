@@ -1,43 +1,39 @@
 {
-  "title": "Keep caption ingredients grouped and source unknowns honest",
-  "summary": "Group explicit multiline captions before model classification, preserving all source rows and unknown facts. Keep saved metadata text visible, avoid generated-only quantity gaps and impossible Repair actions on source imports, explain missing servings without estimating Nutrition, and use relevant non-recipe refusal wording. Native final-head compile and device screenshots remain UNRUN.",
-  "source_commit": "cb9032996f0b2318281c06442ce818f093aa7088",
+  "title": "Today tab: saved recipes first, plus a Try something new entry",
+  "summary": "The first tab is now Today: a greeting, an at-a-glance entry to your recipes, up to three saved picks with favourites first, and a Try something new card presenting the existing Suggest flow behind the same readiness gates. The saved-recipe collection is one canonical pushed root with a single Add/import sheet owner, Add and timer chrome live on exactly the two roots, and Search no longer pops the stack. Native final-head compile and device screenshots remain UNRUN.",
+  "source_commit": "a5cb4dec00a0c6158e9995ccbabec3570b66a9b8",
   "evidence": [
     {
-      "path": "Ate/Logic/MultilineCaptionImport.swift",
-      "blob": "3fe8d2caed1bd5d421c4659635dfddb2567c8db8"
+      "path": "Ate/App/AteApp.swift",
+      "blob": "f294ddc5d0c19196a7c85fe122232401f994ddf6"
     },
     {
-      "path": "Ate/Services/OnDeviceBackend.swift",
-      "blob": "2e2d8691fda66efc21e34efb38e668c740e1994a"
+      "path": "Ate/Logic/RecipeDiscoveryReadiness.swift",
+      "blob": "576de6144684ffc402d59b6c2a4ef2a5d307d123"
     },
     {
-      "path": "Ate/Views/Components.swift",
-      "blob": "b831ec23faa8bb244f0fa49da68168b046965317"
+      "path": "Ate/Logic/TodayHome.swift",
+      "blob": "7e635b0671ae7d6e652287b2fb983dae2c86dd8f"
     },
     {
-      "path": "Ate/Logic/RecipeQuality.swift",
-      "blob": "547733d41c638c199c2178e0ffe09f8e7815f302"
+      "path": "Ate/Models/Models.swift",
+      "blob": "c3e697e2fd524080b963238e800d605db9a3fdfe"
     },
     {
-      "path": "Ate/Logic/RecipeDraftRepair.swift",
-      "blob": "4829f14ef106f5b14c2b5c531a6d6de3f0c602b0"
-    },
-    {
-      "path": "Ate/Logic/RecipeNutrition.swift",
-      "blob": "e2f1553d1da57d599a9a02d96f617b782eacc156"
-    },
-    {
-      "path": "Ate/Views/RecipeDetailView.swift",
-      "blob": "7daee944041495d9af0b7dc1168a6c74cdc8d373"
-    },
-    {
-      "path": "Ate/Views/RecipeNutritionView.swift",
-      "blob": "2b10ab89ccab71945ac3af99f4e5cd824b493521"
+      "path": "Ate/Store/AppStore.swift",
+      "blob": "2ea9a2f5b3ae8e91394aca927ad7fc73f05219a3"
     },
     {
       "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "dd9e79cf7fca8e7fd7ab6cfe5c807eae076ebf07"
+      "blob": "4d306525f394c9e668d541ce43aca92918f0a16e"
+    },
+    {
+      "path": "Ate/Views/LibraryView.swift",
+      "blob": "23f6199a15913f407ad884e7bb89d929fd6675a0"
+    },
+    {
+      "path": "Ate/Views/TodayView.swift",
+      "blob": "cfae14a8b66704693849ecb90d4a2863df0df252"
     }
   ]
 }

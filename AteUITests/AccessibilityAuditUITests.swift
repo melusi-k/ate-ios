@@ -10,6 +10,12 @@ final class AccessibilityAuditUITests: XCTestCase {
     func launch(_ extra: [String] = []) {
         app = XCUIApplication(); app.launchArguments = ["-UITesting"] + extra; app.launch()
     }
+    /// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.
+    func openLibraryCollection() {
+        let recipes = app.buttons["today.recipes"]
+        XCTAssertTrue(recipes.waitForExistence(timeout: 20), "Today routes to the saved-recipe collection")
+        recipes.tap()
+    }
     func text(_ s: String) -> XCUIElement { app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", s)).firstMatch }
 
     func audit(_ screen: String, strict: Bool = true, types: XCUIAccessibilityAuditType = .all) throws {
@@ -46,6 +52,7 @@ final class AccessibilityAuditUITests: XCTestCase {
 
     func testAuditMainScreens() throws {
         launch()
+        openLibraryCollection()
         XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
         try audit("library-empty")
         addRecipe()
@@ -186,6 +193,7 @@ final class AccessibilityAuditUITests: XCTestCase {
 
     private func captureFontScalingSize(_ label: String, _ category: String) throws {
             launch(["-UIPreferredContentSizeCategoryName", category, "-resetNutritionDiary", "-resetNutritionGoals"])
+            openLibraryCollection()
             XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
             // Bottom chrome must be PRESENT for these captures: the mini-player capsule
             // overlaps list content (v6 AX5 pixels, #179), so the diary/goals bottom
@@ -257,6 +265,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     func testLiveDynamicTypeToggle() throws {
         launch(["-UITestLiveDT", "-resetNutritionDiary", "-resetNutritionGoals",
                 "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
+        openLibraryCollection()
         XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
         app.tabBars.buttons["Settings"].tap()
         let diaryEntry = app.buttons["settings.nutritionDiary"]
@@ -397,6 +406,7 @@ final class AccessibilityAuditUITests: XCTestCase {
 
     private func auditNutritionScreens(types: XCUIAccessibilityAuditType) throws {
         launch(["-resetNutritionDiary", "-resetNutritionGoals"])
+        openLibraryCollection()
         XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
         app.tabBars.buttons["Settings"].tap()
 
@@ -509,6 +519,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     /// now run as separate tests; every original audit, capture and assertion is retained (#179).
     func testAuditLargestDynamicTypeLibraryAndRecipe() throws {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL", "-resetNutritionDiary", "-resetNutritionGoals"])
+        openLibraryCollection()
         XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
         try audit("ax5-library", strict: false)
         addRecipe()
@@ -519,6 +530,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     /// AX5 sweep, part 2 of 3: Cook mode at the largest accessibility text size.
     func testAuditLargestDynamicTypeCookMode() throws {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL", "-resetNutritionDiary", "-resetNutritionGoals"])
+        openLibraryCollection()
         XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
         addRecipe()
         app.buttons["Cook mode"].tap()
@@ -560,6 +572,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     /// up so the bottom reserve is audited against the real chrome-aware band (#179).
     func testAuditLargestDynamicTypeNutrition() throws {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL", "-resetNutritionDiary", "-resetNutritionGoals"])
+        openLibraryCollection()
         XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
         // The capsule must be up for this sweep: it overlaps list content at AX5 (v6 pixels,
         // #179), so a chrome-free pass would verify an assumed band instead of the real one.

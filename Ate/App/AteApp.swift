@@ -123,7 +123,7 @@ struct TimerBarInset: ViewModifier {
         // actions (Cook mode, Add recipe) use their own inner safeAreaInset and therefore sit directly above it.
         content.safeAreaInset(edge: .bottom, spacing: 0) {
             // iOS 26: at tab roots the timer lives in the tab bar's bottom accessory, so the inset only shows on pushed screens.
-            if store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot) {
+            if store.cookTarget == nil && !(TabChrome.usesAccessory && (store.isAtTabRoot || store.isAtCollectionRoot)) {
                 VStack(spacing: 0) {
                     if let session = store.cookSession { CookSessionMiniPlayer(session: session) }
                     if !store.timers.timers.isEmpty { TimerBar() }
@@ -412,12 +412,12 @@ extension RootView {
     @ViewBuilder var tabs26: some View {
         @Bindable var store = store
         // Keep the accessory only where it has a real action or live status.
-        let showBottomAccessory = store.cookTarget == nil && store.isAtTabRoot
+        let showBottomAccessory = store.cookTarget == nil && (store.isAtTabRoot || store.isAtCollectionRoot)
             && (store.activeAddContext != nil || store.cookSession != nil || !store.timers.timers.isEmpty)
         let base = TabView(selection: tabSelection) {
             Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
                 NavigationStack(path: $store.path) {
-                    LibraryView(searchPlacement: .none).offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    TodayView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
             }
             Tab("Shopping", systemImage: "basket", value: AppTab.shopping) {
@@ -473,7 +473,7 @@ extension RootView {
         TabView(selection: tabSelection) {
             Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
                 NavigationStack(path: $store.path) {
-                    LibraryView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    TodayView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
             }
             Tab("Shopping", systemImage: "basket", value: AppTab.shopping) {
@@ -521,6 +521,7 @@ struct RouteView: View {
     var body: some View {
         Group {
             switch route {
+            case .library: LibraryView(searchPlacement: TabChrome.usesAccessory ? .none : .drawer)
             case .recipe(let id): RecipeDetailView(recipeID: id)
             case .cook(let id): JournalBoundCookMode(recipeID: id)
             case .shopping: ShoppingListView()
@@ -591,7 +592,7 @@ struct LandscapeSplitView: View {
                 switch store.tab {
                 case .library, .collection:
                     NavigationStack(path: $store.path) {
-                        LibraryView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                        TodayView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                     }.withTimerBar()
                 case .shopping:
                     NavigationStack(path: $store.shoppingPath) {

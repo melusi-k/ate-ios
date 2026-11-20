@@ -519,7 +519,23 @@ enum SourceRecipeFidelity {
     static func claimsCaptionSections(_ raw: String) -> Bool {
         let source = CaptionAnalysis.stripInstagramPrefix(raw)
         guard let marker = source.range(of: #"\bingredients\b\s*:?"#, options: [.regularExpression, .caseInsensitive]) else { return false }
-        return source[marker.upperBound...].range(of: #"^[•·*\-–— ]*\S"#, options: .regularExpression) != nil
+        // Recognition only. Preserve newline boundaries and every source line;
+        // never relabel an action as an ingredient or certify loose quantities.
+        let lines = source[marker.upperBound...].components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: #"^[•·*\-–— ]+"#, with: "", options: .regularExpression) }
+            .filter { !$0.isEmpty }
+        func action(_ line: String) -> Bool {
+            line.range(of: #"\b(?:add|mix|stir|cook(?:ing)?|fry|simmer|boil|bake|roast|heat|sauté|saute|drain)\b"#,
+                       options: [.regularExpression, .caseInsensitive]) != nil
+        }
+        let ingredientLike = lines.filter { line in
+            !action(line) && !isCaptionTrailer(line) && !isSectionHeading(line)
+                && line.rangeOfCharacter(from: .letters) != nil
+                && line.range(of: #"[.!?]"#, options: .regularExpression) == nil
+                && line.split(whereSeparator: { $0.isWhitespace }).count <= 12
+        }
+        return ingredientLike.count >= 3 && lines.filter(action).count >= 2
     }
 
     /// A dish answer on a source-bound import sets the title only: the contract's

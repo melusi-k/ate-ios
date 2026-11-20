@@ -1,11 +1,15 @@
 {
-  "title": "Add Prompt source required",
-  "summary": "A dish name is not ingredient evidence. Refuse no-source Add Prompt before any backend; retain input and ask for full recipe/link/screenshot/manual entry. Typed creative Explore remains separate. Native/device refusal qualification UNRUN.",
-  "source_commit": "f5a47ab5c73e61c1fb3041e2062e7af76e15e4c0",
+  "title": "Sync payload numeric overflow fails closed",
+  "summary": "Reject out-of-range sync numbers before domain decoding and make direct legacy Double-to-Int conversions throw instead of trapping. Preserve editable-draft zero servings and valid legacy integer/fractional behavior. Native final-head compile and boundary tests remain UNRUN.",
+  "source_commit": "9098041b3b6c8e97b1ba69ce7241a59f6b0c2686",
   "evidence": [
     {
-      "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "8ea1301328bbd02bec89f83e86b58c7266c69b7a"
+      "path": "Ate/Logic/SyncPayloadSafety.swift",
+      "blob": "f4040dd44dd3df34d68602b91fd9c17700b90ec8"
+    },
+    {
+      "path": "Ate/Models/Models.swift",
+      "blob": "351418e25e0814d4c4f9a4f7f816119f5be31ccf"
     }
   ]
 }

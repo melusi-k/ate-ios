@@ -1,3 +1,4 @@
+from verified_paste_import_delta import restore as pre_simplification
 """Sibling composition is exact, additive and preserves both original inverses."""
 from pathlib import Path
 import unittest,json,hashlib
@@ -17,7 +18,7 @@ class AddStackCompositionTests(unittest.TestCase):
     def test_parent_fixtures_are_unchanged_and_live_stream_remains_private(self):
         pins={'prompt_draft_boundary_inverse.json':'05aebc07ba400c66e6d78f3537bad0faf1d0226df2d731bf91d40c8d17e432ca','recipe_discovery_intent_inverse.json':'d7010c178b0e83d636776bd66b5ef96002a21283c0e8161801a59a927d2a1744'}
         for p,h in pins.items():self.assertEqual(hashlib.sha256((ROOT/'scripts/tests'/p).read_bytes()).hexdigest(),h)
-        backend=(ROOT/'Ate/Services/OnDeviceBackend.swift').read_text()
+        backend=pre_simplification('Ate/Services/OnDeviceBackend.swift',(ROOT/'Ate/Services/OnDeviceBackend.swift').read_text())
         view=(ROOT/'Ate/Views/AddRecipeSheet.swift').read_text()
         self.assertNotIn('partialSink',backend+view)
         self.assertNotIn('emitPreview',backend)

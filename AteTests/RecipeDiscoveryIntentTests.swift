@@ -26,23 +26,32 @@ final class RecipeDiscoveryIntentTests: XCTestCase {
             return XCTFail("Device regression fixture must hit the source-recognition collision")
         }
         let fallback = RecordingBackend()
-        let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { false })
+        var calls = 0, modelCalls = 0
+        let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { true }, modelWillGenerate: { modelCalls += 1 },
+            createSuggestion: { prompt in
+                calls += 1; XCTAssertEqual(prompt, generation.prompt)
+                return RecipeCard(title: "Berry Bowl", servings: 0,
+                    ingredients: [.init(name: "berries", quantity: 0, unit: "")],
+                    steps: [.init(order: 1, instruction: "Serve the berries in a bowl.", timeSeconds: nil)], source: .appleIntelligence)
+            })
         let result = try await backend.suggestRecipe(generation)
-        XCTAssertEqual(fallback.requests.count, 1, "Discovery must reach the existing generation boundary, not import rejection")
-        XCTAssertEqual(fallback.requests.first?.text, generation.prompt)
-        XCTAssertEqual(fallback.requests.first?.mode, .prompt)
-        XCTAssertEqual(result.source, .mock, "This unavailable-model fixture does not pretend to prove live model output")
+        XCTAssertEqual(calls, 1); XCTAssertEqual(modelCalls, 1)
+        XCTAssertTrue(fallback.requests.isEmpty)
+        XCTAssertEqual(result.source, .appleIntelligence)
+        XCTAssertEqual(result.servings, 0); XCTAssertNil(result.timeMinutes)
+        XCTAssertTrue(result.suggestionDraft == true)
     }
 
-    func testSameWordsPastedByUserStillFailClosedBeforeModelOrFallback() async {
+    func testSameWordsPastedByUserStillFailClosedBeforeModelOrFallback() async throws {
         let fallback = RecordingBackend()
-        let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { true })
-        do {
-            _ = try await backend.parseRecipe(ParseRequest(mode: .prompt, text: input().prompt))
-            XCTFail("An ordinary paste cannot select the typed creative path")
-        } catch {
-            XCTAssertTrue(error.localizedDescription.contains("couldn't verify"))
-        }
+        var extractions = 0
+        let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { true }, selectSourceLines: { text in
+            extractions += 1; return SourceDraftImport.selection(text)
+        })
+        let card = try await backend.parseRecipe(ParseRequest(mode: .prompt, text: input().prompt))
+        XCTAssertEqual(card.source, .imported)
+        XCTAssertEqual(card.sourceDraft?.text, input().prompt)
+        XCTAssertEqual(extractions, 1)
         XCTAssertTrue(fallback.requests.isEmpty)
     }
 
@@ -59,11 +68,29 @@ final class RecipeDiscoveryIntentTests: XCTestCase {
             return try await backend.suggestRecipe(generation)
         })
         await fulfillment(of: [returned], timeout: 2)
-        XCTAssertEqual(fallback.requests.count, 1)
+        XCTAssertEqual(fallback.requests.count, 0)
         XCTAssertTrue(session.suggestions.isEmpty)
         XCTAssertTrue(session.savedIDs.isEmpty)
         XCTAssertFalse(session.loading)
-        XCTAssertTrue(session.message?.contains("Try again") == true)
-        XCTAssertTrue(session.message?.contains("No demo recipe") == true)
+        XCTAssertTrue(session.message?.contains("not available") == true)
+        XCTAssertTrue(session.message?.contains("Nothing was saved") == true)
     }
+    func testSuggestionSchemaLeavesOptionalFieldsUnknownAndUsesNoDerivedTimers() throws {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            let value = GenSuggestion(title: "Berry Bowl", description: nil, servings: nil, timeMinutes: nil,
+                ingredients: [.init(name: "berries", quantity: nil, unit: nil)],
+                steps: ["Chill the berries for 10-20 minutes, then serve."])
+            let card = RecipeLogic.normalize(value.card)
+            XCTAssertEqual(card.servings, 0)
+            XCTAssertNil(card.timeMinutes)
+            XCTAssertNil(card.steps[0].timeSeconds)
+            XCTAssertEqual(card.ingredients[0].quantity, 0)
+            XCTAssertEqual(card.steps[0].instruction, value.steps[0])
+            let reloaded = try JSONDecoder().decode(RecipeCard.self, from: JSONEncoder().encode(card))
+            XCTAssertEqual(RecipeLogic.normalize(reloaded), card)
+        }
+        #endif
+    }
+
 }

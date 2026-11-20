@@ -46,7 +46,7 @@ final class ExploreUITests: XCTestCase {
         app.buttons["Prompt"].tap()
         let prompt = app.textViews["promptEditor"]
         XCTAssertTrue(prompt.waitForExistence(timeout: 5))
-        prompt.tap(); prompt.typeText("Miso salmon for two")
+        prompt.tap(); prompt.typeText(PromptRecipeFixture.salmon(named: "Miso salmon for two"))
         app.buttons["generateButton"].tap()
         XCTAssertTrue(app.buttons["saveRecipe"].waitForExistence(timeout: 15))
         app.buttons["saveRecipe"].tap()

@@ -111,7 +111,7 @@ final class CoverageUITests: XCTestCase {
         app.buttons["Add recipe"].tap()
         wait(text("Add a recipe"))
         app.buttons["Prompt"].tap()
-        let e = app.textViews["promptEditor"]; e.tap(); e.typeText(s)
+        let e = app.textViews["promptEditor"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: s))
         app.buttons["generateButton"].tap()
     }
     func addPrompt(_ s: String) {

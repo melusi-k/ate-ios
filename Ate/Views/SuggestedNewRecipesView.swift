@@ -5,6 +5,7 @@ struct SuggestedNewRecipesView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var session = RecipeDiscoverySession()
     @State private var review: RecipeCard?
+    @State private var editing = false
     @State private var requestedInitialSuggestions = false
 
     var body: some View {
@@ -14,14 +15,17 @@ struct SuggestedNewRecipesView: View {
                 if let message = session.message { Text(message).accessibilityIdentifier("discovery.status") }
                 if session.loading { ProgressView("Creating a new recipe…").accessibilityIdentifier("discovery.loading") }
             }
+            if let preview = session.preview { StreamPreviewCard(preview: preview) }
             ForEach(session.suggestions) { card in
                 Section {
                     Text(card.title).font(AteFont.body(20, .bold)).foregroundStyle(Theme.foreground)
                     if let description = card.description { Text(description) }
-                    if let minutes = card.timeMinutes { Text("\(minutes) min · \(card.servings) servings") }
-                    Button("Review recipe") { review = card }
+                    if let minutes = card.timeMinutes {
+                        Text("\(minutes) min" + (card.servings > 0 ? " · \(card.servings) servings" : ""))
+                    }
+                    Button("Review recipe") { editing = false; review = card }
                     Button(session.savedIDs.contains(card.id) ? "Saved" : "Save") { save(card) }
-                        .disabled(session.savedIDs.contains(card.id))
+                        .disabled(session.loading || session.savedIDs.contains(card.id))
                         .accessibilityIdentifier("discovery.save.\(card.id)")
                 }
             }
@@ -31,17 +35,29 @@ struct SuggestedNewRecipesView: View {
         }
         .navigationTitle("Suggested new recipes")
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
-        .sheet(item: $review) { card in
+        .sheet(item: $review, onDismiss: { session.cancel() }) { card in
             NavigationStack {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        RecipeCardView(recipe: card, units: store.settings.units)
-                        Button(session.savedIDs.contains(card.id) ? "Saved" : "Save") { if save(card) { review = nil } }
-                            .disabled(session.savedIDs.contains(card.id))
+                        if let preview = session.preview { StreamPreviewCard(preview: preview) }
+                        if session.loading { ProgressView("Rerunning recipe…") }
+                        if RecipeQuality.needsInput(card) {
+                            Text("Check this draft and fill in anything missing before saving.")
+                            ForEach(RecipeQuality.issues(card), id: \.self) { Text($0).font(AteFont.body(13)) }
+                        }
+                        if editing {
+                            RecipeEditor(recipe: Binding(get: { review ?? card }, set: { review = $0 })).disabled(session.loading)
+                        } else { RecipeCardView(recipe: review ?? card, units: store.settings.units) }
+                        Button(editing ? "Preview" : "Edit") { editing.toggle() }.disabled(session.loading)
+                        Button("Rerun") { rerun(review ?? card) }
+                            .disabled(session.loading || session.savedIDs.contains(card.id))
+                            .accessibilityIdentifier("discovery.rerun")
+                        Button(session.savedIDs.contains(card.id) ? "Saved" : "Save") { if save(review ?? card) { review = nil } }
+                            .disabled(session.loading || session.savedIDs.contains(card.id))
                         if let message = session.message { Text(message) }
                     }.padding()
                 }.navigationTitle("Suggested recipe")
-                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { review = nil } } }
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { session.cancel(); review = nil } } }
             }
         }
         .task {
@@ -56,13 +72,24 @@ struct SuggestedNewRecipesView: View {
     private func generate() {
         // On-device only: never send a collection to another configured service,
         // and never surface the existing Demo fallback as a real suggestion.
-        session.request(available: store.backend is OnDeviceBackend && OnDeviceBackend.isModelAvailable,
+        session.requestStreaming(available: store.backend is OnDeviceBackend && OnDeviceBackend.isModelAvailable,
             context: { try RecipeDiscovery.context(store: store) },
-            generate: {
+            generate: { generation, preview in
                 guard let backend = store.backend as? OnDeviceBackend else {
                     throw BackendError(message: "On-device AI is not available right now. Try again when it is ready.")
                 }
-                return try await backend.suggestRecipe($0)
+                return try await backend.suggestRecipe(generation, onPreview: preview)
+            })
+    }
+
+    private func rerun(_ card: RecipeCard) {
+        session.requestStreaming(available: store.backend is OnDeviceBackend && OnDeviceBackend.isModelAvailable,
+            context: { try RecipeDiscovery.context(store: store) }, replacing: card,
+            completed: { review = $0; editing = false }, generate: { _, preview in
+                guard let backend = store.backend as? OnDeviceBackend else {
+                    throw BackendError(message: "Apple Intelligence is not available. Your original card is kept.")
+                }
+                return try await backend.rerunRecipe(card, onPreview: preview)
             })
     }
 

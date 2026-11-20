@@ -1,15 +1,18 @@
+from recipe_streaming_delta import restore as pre_streaming
+from verified_paste_import_delta import restore as pre_simplification
 """Source deadline wiring/inverse checks, not native or live-model qualification."""
 from pathlib import Path
 import hashlib,json,re,unittest
 from add_generation_deadline_delta import restore
 from add_prompt_source_delta import restore as source_required
+from verified_paste_import_delta import restore as paste_parent
 ROOT=Path(__file__).resolve().parents[2]
 
 class AddGenerationDeadlineSourceTests(unittest.TestCase):
     def test_exact_inverse_and_missing_duplicate_unrelated_mutants(self):
         fixture=json.loads((ROOT/'scripts/tests/add_generation_deadline_inverse.json').read_text())
         for path, contract in fixture.items():
-            source=source_required(path,(ROOT/path).read_text())
+            source=source_required(path,paste_parent(path,(ROOT/path).read_text()))
             self.assertEqual(hashlib.sha256(restore(path,source).encode()).hexdigest(),contract['parent_sha'])
             for f in contract['fragments']:
                 for mutant in [source.replace(f['new'],'',1),source+f['new'],source+'// unrelated delta\n']:
@@ -29,7 +32,7 @@ class AddGenerationDeadlineSourceTests(unittest.TestCase):
         self.assertIn('self.deadline?.cancel(); self.deadline = nil',owner)
 
     def test_add_uses_sixty_seconds_existing_error_retry_and_keeps_pending_input(self):
-        view=(ROOT/'Ate/Views/AddRecipeSheet.swift').read_text()
+        view=pre_streaming('Ate/Views/AddRecipeSheet.swift',(ROOT/'Ate/Views/AddRecipeSheet.swift').read_text())
         self.assertIn('static let generationTimeoutNanoseconds: UInt64 = 60_000_000_000',view)
         self.assertIn('generationAttempt.start(timeoutNanoseconds: Self.generationTimeoutNanoseconds, timedOut:',view)
         callback=view.split('timedOut: {',1)[1].split('}) { token',1)[0]
@@ -40,7 +43,7 @@ class AddGenerationDeadlineSourceTests(unittest.TestCase):
         self.assertIn('guard generationAttempt.isCurrent(token) else { return }',view)
         self.assertIn('} else if let q = dishQuestion, error == nil {',view)
         self.assertIn('DraftStore.shared.begin(mode: mode.rawValue',view)
-        discovery=(ROOT/'Ate/Logic/RecipeDiscovery.swift').read_text()
+        discovery=pre_streaming('Ate/Logic/RecipeDiscovery.swift',(ROOT/'Ate/Logic/RecipeDiscovery.swift').read_text())
         self.assertIn('timeoutNanoseconds: UInt64 = 60_000_000_000',discovery)
 
     def test_all_native_uncooperative_regressions_required_without_old_test_edits(self):
@@ -58,13 +61,13 @@ class AddGenerationDeadlineSourceTests(unittest.TestCase):
         self.assertNotIn('TelemetryClient',local)
         self.assertIn('persistLocked()',local)
         self.assertIn('Self.maximumEntries',local)
-        backend=(ROOT/'Ate/Services/OnDeviceBackend.swift').read_text()
+        backend=pre_simplification('Ate/Services/OnDeviceBackend.swift',pre_streaming('Ate/Services/OnDeviceBackend.swift',(ROOT/'Ate/Services/OnDeviceBackend.swift').read_text()))
         for stage in ['generationAttemptStarted','generationFetchStarted','generationFetchReturned','generationPromptBuilt','generationModelStarted','generationFirstSnapshot','generationModelReturned','generationRepairStarted','generationRepairReturned','generationAttemptReturned','generationAttemptFailed']:
             self.assertIn('recordLocal(.'+stage+')',backend)
         self.assertIn('if !recordedFirstSnapshot {',backend)
         self.assertEqual(backend.count('recordLocal(.generationFirstSnapshot)'),1)
         self.assertNotIn('DiagnosticHistory.shared.record(',backend)
-        self.assertIn('recordLocal(.generationTimedOut)',(ROOT/'Ate/Views/AddRecipeSheet.swift').read_text())
+        self.assertIn('recordLocal(.generationTimedOut)',pre_streaming('Ate/Views/AddRecipeSheet.swift',(ROOT/'Ate/Views/AddRecipeSheet.swift').read_text()))
 
     def test_all_stage_native_cases_are_required_and_no_event_payload_added(self):
         source=(ROOT/'AteTests/GenerationStageHistoryTests.swift').read_text()

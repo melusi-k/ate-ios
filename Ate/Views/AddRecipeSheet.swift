@@ -10,13 +10,17 @@ import OSLog
 enum AddPromptSourceImport {
     static let missingSourceMessage = "A dish name or idea isn't a recipe source. Paste the full recipe with ingredients and method, use a recipe link or screenshot, or enter it manually. For a new recipe idea, use Explore. Nothing was generated."
 
-    static func parse(_ request: ParseRequest, using backend: BackendService) async throws
+    static func parse(_ request: ParseRequest, using backend: BackendService, onPreview: RecipePreviewHandler? = nil) async throws
         -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?) {
         try GenerationCancellation.check()
-        if request.mode == .prompt, case .none = SourceRecipeFidelity.extraction(request.text ?? "") {
+        if request.mode == .prompt, !SourceDraftImport.hasSource(request.text ?? "") {
             throw BackendError(message: missingSourceMessage)
         }
-        return try await backend.parseRecipeWithContract(request)
+        let result: (card: RecipeCard, contract: SourceRecipeFidelity.Contract?)
+        if let device = backend as? OnDeviceBackend {
+            result = try await device.parseRecipeWithContract(request, onPreview: onPreview)
+        } else { result = try await backend.parseRecipeWithContract(request) }
+        return result
     }
 }
 
@@ -48,6 +52,7 @@ struct AddRecipeSheet: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var imageData: Data?
     @State private var loading = false
+    @State private var live: RecipeStreamPreview?
     @State private var draft: RecipeCard?
     @State private var didEdit = false
     @State private var editing = false
@@ -86,7 +91,9 @@ struct AddRecipeSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                if let live { StreamPreviewCard(preview: live) }
                 if draft == nil { inputState } else { reviewState }
+                if draft != nil, let error { Text(error).accessibilityIdentifier("rerunError") }
             }
             .foregroundStyle(Theme.foreground)
             .padding(20)
@@ -166,6 +173,10 @@ struct AddRecipeSheet: View {
         }
         // A kept dish-confirm card belongs to the input that produced it: editing
         // the prompt or link drops it, so a stale result can never be renamed.
+        .onChange(of: store.insightLifecycleAccountID) { _, _ in
+            invalidateGeneration(); invalidateRepair(); draft = nil
+            error = "Your account changed. Start this import again."
+        }
         .onChange(of: prompt) { _, _ in pendingDishCard = nil; pendingDishContract = nil }
         .onChange(of: link) { _, _ in pendingDishCard = nil; pendingDishContract = nil }
     }
@@ -174,7 +185,14 @@ struct AddRecipeSheet: View {
         Text("Add a recipe").font(AteFont.display(24))
         Text("Import an existing recipe from a link, pasted text or screenshot. For new recipe ideas, use Explore.")
             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
-        Picker("Source", selection: $mode) {
+        Picker("Source", selection: Binding(get: { mode }, set: { next in
+            guard next != mode else { return }
+            invalidateGeneration()
+            error = nil; socialError = nil; socialReason = nil; repairError = nil
+            dishQuestion = nil; dishAnswer = ""; confirmedDish = nil; spreadPicks = []
+            pendingDishCard = nil; pendingDishContract = nil; confirmedDraft = false
+            mode = next
+        })) {
             ForEach(Mode.allCases, id: \.self) { m in Text(m.rawValue).tag(m) }
         }.pickerStyle(.segmented)
 
@@ -332,17 +350,17 @@ struct AddRecipeSheet: View {
             .sheetCard(Theme.warm.opacity(0.5))
         }
         if let n = draft?.aiNote { Text(n).font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).accessibilityIdentifier("aiNote") }
-        Text("Fix anything the AI got wrong, then save it to your library.")
+        Text(draft?.sourceDraft != nil ? "Check the source and fill in anything you want, then save." : "Fix anything the AI got wrong, then save it to your library.")
             .font(AteFont.body(14)).foregroundStyle(Theme.mutedForeground)
-        if let d = draft { coverEditor(d) }
+        if let d = draft { coverEditor(d).disabled(loading) }
         if editing, draft != nil {
-            RecipeEditor(recipe: Binding(get: { draft ?? RecipeCard() }, set: { draft = $0 })).cardSurface(padding: 20)
+            RecipeEditor(recipe: Binding(get: { draft ?? RecipeCard() }, set: { draft = $0 })).cardSurface(padding: 20).disabled(loading)
         } else if let d = draft {
             RecipeCardView(recipe: d, units: store.settings.units)
         }
         HStack(spacing: 8) {
             Button(saving ? "Saving…" : "Save recipe") {
-                guard !saving, let d = draft else { return }
+                guard !saving, !loading, let d = draft else { return }
                 invalidateInputLoads()
                 saving = true                       // P0: one save per draft; double taps are ignored
                 DraftStore.shared.clear()           // the stored draft must not be restored (and saved again) later
@@ -353,12 +371,13 @@ struct AddRecipeSheet: View {
             }
                 .buttonStyle(.ate(.primary, full: true)).accessibilityIdentifier("saveRecipe")
                 .disabled(saving || loading || (draft.map { RecipeQuality.needsInput($0) } ?? false) && !didEdit && !confirmedDraft)
-            Button(editing ? "Preview" : "Edit") { editing.toggle(); didEdit = true }.buttonStyle(.ate(.secondary))
-            Button { startGeneration() } label: {
+            Button(editing ? "Preview" : "Edit") { editing.toggle(); didEdit = true }.buttonStyle(.ate(.secondary)).disabled(loading)
+            Button { rerunCurrentDraft() } label: {
+                Text("Rerun")
                 Image(systemName: "arrow.clockwise").rotationEffect(.degrees(loading ? 360 : 0))
                     .animation(loading ? Motion.anim(.linear(duration: 1).repeatForever(autoreverses: false)) : Motion.anim(), value: loading)
             }
-            .buttonStyle(.ate(.ghost)).disabled(loading).accessibilityLabel("Regenerate")
+            .buttonStyle(.ate(.ghost)).disabled(loading).accessibilityLabel("Rerun").accessibilityIdentifier("rerunRecipe")
         }
     }
 
@@ -575,6 +594,7 @@ struct AddRecipeSheet: View {
 
     private func invalidateGeneration() {
         generationAttempt.invalidate()
+        live = nil
         loading = false
     }
 
@@ -585,6 +605,34 @@ struct AddRecipeSheet: View {
 
     static let generationTimeoutNanoseconds: UInt64 = 60_000_000_000
     static let generationTimeoutMessage = "This recipe took too long. Nothing was saved. Your input is kept. Try again."
+
+    private func rerunCurrentDraft() {
+        guard !loading, !saving, let original = draft else { return }
+        guard let backend = store.backend as? OnDeviceBackend else {
+            error = "Apple Intelligence is not available. Your original card is kept."; return
+        }
+        invalidateRepair(); invalidateInputLoads()
+        let owner = store.insightLifecycleAccountID
+        loading = true; live = nil; error = nil
+        generationAttempt.start(timeoutNanoseconds: Self.generationTimeoutNanoseconds, timedOut: {
+            invalidateGeneration()
+            error = "Rerun took too long. Your original card is kept."
+            DiagnosticHistory.shared.recordLocal(.generationTimedOut)
+        }) { token in
+            defer { generationAttempt.publish(token) { loading = false; live = nil } }
+            do {
+                let result = try await backend.rerunRecipe(original, onPreview: { preview in
+                    guard loading, store.insightLifecycleAccountID == owner else { return }
+                    generationAttempt.publish(token) { live = preview }
+                })
+                guard generationAttempt.isCurrent(token), store.insightLifecycleAccountID == owner else { return }
+                draft = result; live = nil; confirmedDraft = false; editing = false
+                DraftStore.shared.saveDraft(result)
+            } catch {
+                generationAttempt.publish(token) { self.error = error.localizedDescription }
+            }
+        }
+    }
 
     private func startGeneration() {
         guard !loading, !saving else { return }
@@ -611,7 +659,7 @@ struct AddRecipeSheet: View {
         var req: ParseRequest
         var recoveryImageData: Data?
         switch mode {
-        case _ where mode != .image && dishQuestion != nil && !dishAnswer.trimmingCharacters(in: .whitespaces).isEmpty:
+        case _ where mode == .prompt && dishQuestion != nil && !dishAnswer.trimmingCharacters(in: .whitespaces).isEmpty:
             let name = dishAnswer.trimmingCharacters(in: .whitespaces)
             confirmedDish = name
             if var kept = pendingDishCard, let contract = pendingDishContract {
@@ -678,6 +726,8 @@ struct AddRecipeSheet: View {
         }
         diagnostic?.mark(.generationLoading)
         loading = true
+        live = nil
+        let owner = store.insightLifecycleAccountID
         error = nil; socialError = nil; socialReason = nil
         DraftStore.shared.begin(mode: mode.rawValue, text: mode == .link ? link : (mode == .prompt ? prompt : ""),
                                 imageData: recoveryImageData)
@@ -685,15 +735,19 @@ struct AddRecipeSheet: View {
         // DraftStore.saveDraft clears it on success; Cancel/Discard clears it explicitly.
         defer {
             generationAttempt.publish(token) {
-                loading = false
+                loading = false; live = nil
                 diagnostic?.mark(.generationFinished)
             }
         }
         do {
             let started = Date()
-            let parsed = try await AddPromptSourceImport.parse(req, using: store.backend)
+            let parsed = try await AddPromptSourceImport.parse(req, using: store.backend, onPreview: { preview in
+                guard loading, store.insightLifecycleAccountID == owner else { return }
+                generationAttempt.publish(token) { live = preview }
+            })
             var card = parsed.card
-            guard generationAttempt.isCurrent(token) else { return }
+            guard generationAttempt.isCurrent(token), store.insightLifecycleAccountID == owner else { return }
+            live = nil
             diagnostic?.mark(.backendReturned)
             card.origin = mode == .link ? .link : (mode == .image ? .photo : .prompt)
             if mode == .link, let u = URL(string: link.trimmingCharacters(in: .whitespaces)) { card.sourceURL = SocialLinks.clean(u).absoluteString }
@@ -792,6 +846,8 @@ struct StreamPreviewCard: View {
     let preview: RecipeStreamPreview
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            Text("Partial preview, not checked or saved").font(AteFont.body(12, .bold))
+                .accessibilityIdentifier("streamPreviewWarning")
             Text(preview.title ?? "Identifying the dish…").font(AteFont.display(20)).redacted(reason: preview.title == nil ? .placeholder : [])
             if let c = preview.cuisine, !c.isEmpty { Text(c.uppercased()).overline() }
             ForEach(Array(preview.ingredients.enumerated()), id: \.offset) { Text("• " + $0.element).font(AteFont.body(14)) }

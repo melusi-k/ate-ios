@@ -3,6 +3,8 @@ from pathlib import Path
 import hashlib,json
 FIXTURE_SHA = '05aebc07ba400c66e6d78f3537bad0faf1d0226df2d731bf91d40c8d17e432ca'
 def restore(path, text):
+    from recipe_streaming_delta import restore as restore_stream
+    if path == 'Ate/Logic/RecipeQuality.swift': text = restore_stream(path,text)
     payload=Path(__file__).with_name('prompt_draft_boundary_inverse.json').read_bytes()
     assert hashlib.sha256(payload).hexdigest()==FIXTURE_SHA, 'prompt boundary inverse changed'
     contract=json.loads(payload).get(path)

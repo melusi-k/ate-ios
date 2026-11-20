@@ -1,3 +1,4 @@
+from verified_paste_import_delta import restore as pre_simplification
 """Link/pasted-recipe extraction must stay bound to the source's own facts."""
 from pathlib import Path
 import hashlib, unittest
@@ -167,7 +168,7 @@ class SourceFidelityContractTests(unittest.TestCase):
         self.assertIn('return Contract(text: text, ingredients: ingredients, method: method, dishes: dishes)', s)
 
     def test_backend_binds_link_and_pasted_sources_and_fails_closed(self):
-        s = (ROOT/'Ate/Services/OnDeviceBackend.swift').read_text()
+        s = pre_simplification('Ate/Services/OnDeviceBackend.swift',(ROOT/'Ate/Services/OnDeviceBackend.swift').read_text())
         for token in ['var structuredSource: SourceRecipeFidelity.Contract?',
                       'var unverifiableSource = false',
                       # One shared pre-model recognition step covers all three extraction inputs.

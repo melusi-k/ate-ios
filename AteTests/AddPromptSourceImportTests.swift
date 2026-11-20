@@ -30,17 +30,15 @@ final class AddPromptSourceImportTests: XCTestCase {
     }
 
     func testVerifiedFullRecipeIsForwardedByteExactWithConfirmationAndContract() async throws {
-        let source = "Eggs\nIngredients\n2 eggs\n1 tsp oil\nMethod\n1. Heat the oil for 2 minutes.\n2. Add eggs and cook for 5 minutes."
+        let source = "Eggs\nServes 2\nIngredients\n2 eggs\n1 tsp oil\nMethod\n1. Heat the oil for 2 minutes.\n2. Add eggs and cook for 5 minutes."
         guard case .verified = SourceRecipeFidelity.extraction(source) else { return XCTFail("Fixture must be verified") }
         let fallback = RecordingBackend()
         let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { false })
-        do {
-            _ = try await AddPromptSourceImport.parse(ParseRequest(mode: .prompt, text: source, dishHint: "Eggs"), using: backend)
-            XCTFail("Unavailable model must not invent a demo substitute")
-        } catch {
-            XCTAssertTrue(error.localizedDescription.contains("No demo recipe was substituted"))
-            XCTAssertNotEqual(error.localizedDescription, AddPromptSourceImport.missingSourceMessage)
-        }
+        let imported = try await AddPromptSourceImport.parse(ParseRequest(mode: .prompt, text: source, dishHint: "Eggs"), using: backend)
+        XCTAssertEqual(imported.card.source, .imported)
+        XCTAssertEqual(imported.card.servings, 2)
+        XCTAssertNotNil(imported.card.pastedSource)
+        XCTAssertNotNil(imported.contract)
         XCTAssertTrue(fallback.requests.isEmpty)
         let recording = RecordingBackend()
         _ = try await AddPromptSourceImport.parse(ParseRequest(mode: .prompt, text: source, dishHint: "Eggs"), using: recording)
@@ -49,7 +47,7 @@ final class AddPromptSourceImportTests: XCTestCase {
         XCTAssertEqual(recording.requests.first?.dishHint, "Eggs")
     }
 
-    func testRecognizableUnverifiableRecipeKeepsExistingFailClosedBackendBoundary() async {
+    func testRecognizableUnverifiableRecipeKeepsExistingFailClosedBackendBoundary() async throws {
         // Same measured-but-ambiguous source as the existing real recognizer
         // regression. Recognition is independent of whether a full parse succeeds.
         let text = "Mogodu Ingredients 1 kg beef tripe 2 onions salt to taste Method Simmer 150 minutes, fry 5 minutes, season."
@@ -58,22 +56,19 @@ final class AddPromptSourceImportTests: XCTestCase {
         guard case .unverifiable = SourceRecipeFidelity.extraction(text) else {
             return XCTFail("Measured ambiguous source must be recognizable but unverifiable")
         }
+        // Simplified import supersedes the old complete-layout refusal.
         for available in [false, true] {
             let fallback = RecordingBackend()
-            let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { available })
-            do {
-                _ = try await AddPromptSourceImport.parse(ParseRequest(mode: .prompt, text: text), using: backend)
-                XCTFail("Unverifiable source must still fail closed (model available: \(available))")
-            } catch {
-                let message = error.localizedDescription
-                XCTAssertNotEqual(message, AddPromptSourceImport.missingSourceMessage,
-                                  "Recognized source must reach the existing backend refusal, not the no-source gate")
-                let expected = available
-                    ? "Ate couldn't verify this recipe's ingredients and method. No recipe was generated. Enter it manually or paste the recipe in a clearer Ingredients and Method layout."
-                    : "On-device AI isn't available and this recipe's ingredients and method could not be verified. No demo recipe was substituted; enter it manually or try again when the model is ready."
-                XCTAssertEqual(message, expected)
-            }
-            XCTAssertTrue(fallback.requests.isEmpty, "No model/demo substitute for an ambiguous import")
+            var calls = 0
+            let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { available }, selectSourceLines: { raw in
+                calls += 1; XCTAssertEqual(raw, text); return SourceDraftImport.selection(raw)
+            })
+            let card = try await AddPromptSourceImport.parse(ParseRequest(mode: .prompt, text: text), using: backend).card
+            XCTAssertEqual(card.sourceDraft?.text, text)
+            XCTAssertEqual(card.source, .imported)
+            XCTAssertNil(card.timeMinutes)
+            XCTAssertEqual(calls, available ? 1 : 0)
+            XCTAssertTrue(fallback.requests.isEmpty)
         }
     }
 

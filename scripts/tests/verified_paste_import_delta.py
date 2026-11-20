@@ -1,0 +1,21 @@
+"""Exact direct-import inverse before existing frozen-source partitions."""
+from pathlib import Path
+import hashlib,json
+FIXTURE_SHA='c9c47f10d433eebb512382c9a32b30164ea27c9c3b810ec2918be74bbdd25794'
+def restore(path,raw):
+    payload=Path(__file__).with_name('verified_paste_import_inverse.json').read_bytes()
+    assert hashlib.sha256(payload).hexdigest()==FIXTURE_SHA
+    c=json.loads(payload).get(path)
+    if c is None:return raw
+    binary=isinstance(raw,bytes)
+    text=raw.decode() if binary else raw
+    if hashlib.sha256(text.encode()).hexdigest()==c['parent_sha']:return raw
+    from recipe_streaming_delta import restore as restore_stream
+    text = restore_stream(path,text)
+    from steps_only_fixture_delta import restore as restore_fixture
+    text = restore_fixture(path,text)
+    for f in c['fragments']:
+        assert text.count(f['new'])==1,'missing/changed/duplicate import fragment: '+path
+        text=text.replace(f['new'],f['old'],1)
+    assert hashlib.sha256(text.encode()).hexdigest()==c['parent_sha'],'unrelated parent delta: '+path
+    return text.encode() if binary else text

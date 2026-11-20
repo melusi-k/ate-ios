@@ -323,10 +323,11 @@ final class CoverageUITests: XCTestCase {
     }
 
     func test32_MoreCollectionsToolsAbout() {
-        launch()
-        addPrompt("Miso salmon for two")
-        tab("Library")
-        app.buttons["libraryBrowseMenu"].tap()
+        let receipt = NamedRedReceipt(self, "settings-tools-about")
+        receipt.step("launch", pixels: true) { launch() }
+        receipt.step("import-and-save-source") { addPrompt("Miso salmon for two") }
+        receipt.step("open-library") { tab("Library") }
+        receipt.step("open-collections-menu", pixels: true) { app.buttons["libraryBrowseMenu"].tap() }
         wait(browseMenuItem("Recently added", icon: "clock.arrow.trianglehead.counterclockwise.rotate.90"))
         XCTAssertTrue(browseMenuItem("Favourites").exists || browseMenuItem("Favorites").exists)
         shot("library-collections")
@@ -335,11 +336,24 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["Library"].isSelected, "collection should open the Library tab")
         wait(text("Miso salmon"), 5)
         shot("collection-filtered-library")
-        tab("Settings")
+        receipt.step("open-settings", pixels: true) { tab("Settings") }
         let settings = settingsContent()
-        let export = settings.buttons["settings.export"]; scrollTo(export); wait(export, 3)
-        XCTAssertTrue(settings.buttons["settings.import"].exists)
-        XCTAssertTrue(settings.buttons["settings.replayOnboarding"].exists)
+        let export = settings.buttons["settings.export"]
+        receipt.step("reveal-export-tools-row", pixels: true) { scrollTo(export); wait(export, 3) }
+        receipt.step("assert-import-tool", pixels: true) {
+            let tool = settings.buttons["settings.import"]
+            scrollTo(tool, surface: settings)
+            receipt.inspect("import-tool", tool)
+            XCTAssertTrue(tool.exists)
+        }
+        receipt.step("reveal-and-assert-replay-onboarding", pixels: true) {
+            // Tools are lazy Form rows. Reach this actual row before testing existence.
+            let replay = settings.buttons["settings.replayOnboarding"]
+            scrollTo(replay, surface: settings)
+            receipt.inspect("replay-onboarding", replay)
+            XCTAssertTrue(replay.exists)
+            XCTAssertTrue(replay.isHittable, "Replay onboarding must be reachable, not only materialized")
+        }
         shot("settings-tools")
         // Check Settings before opening Export. Keep the exact identifiers and
         // original scroll/wait budgets, querying the Form's actual Switch elements.
@@ -350,9 +364,11 @@ final class CoverageUITests: XCTestCase {
         // Settings uses lazily materialized rows: scroll to each toggle before asserting it exists.
         // Export is in Tools, below Timer notifications. Search toward the earlier section first,
         // retaining the opposite-direction fallback if the viewport differs.
-        scrollTo(settingsQuietHours, searchDownFirst: false, surface: timerSettings); wait(settingsQuietHours, 3)
+        receipt.step("reveal-quiet-hours", pixels: true) { scrollTo(settingsQuietHours, searchDownFirst: false, surface: timerSettings); wait(settingsQuietHours, 3) }
+        receipt.inspect("quiet-hours", settingsQuietHours)
         XCTAssertTrue(settingsQuietHours.isHittable, "Quiet hours toggle should be reachable in Timer notifications")
-        scrollTo(settingsStepAlerts, surface: timerSettings); wait(settingsStepAlerts, 3)
+        receipt.step("reveal-step-alerts", pixels: true) { scrollTo(settingsStepAlerts, surface: timerSettings); wait(settingsStepAlerts, 3) }
+        receipt.inspect("step-alerts", settingsStepAlerts)
         XCTAssertTrue(settingsStepAlerts.isHittable, "Step-by-step alerts toggle should be reachable in Timer notifications")
         // The SwiftUI combined container is not consistently hittable across simulator
         // runtimes, even when its child heading is visible. Scroll to the stable visible
@@ -390,24 +406,29 @@ final class CoverageUITests: XCTestCase {
                     && row.minX >= screen.minX && row.maxX <= screen.maxX
                     && row.minY >= top && row.maxY <= bottom
             }
+            receipt.inspect("readonly-heading-before-scroll", heading)
             var swipes = 0
             while !fullyVisible() && swipes < 25 { timerSettings.swipeUp(); swipes += 1 }
             swipes = 0
             while !fullyVisible() && swipes < 50 { timerSettings.swipeDown(); swipes += 1 }
+            receipt.inspect("readonly-heading-after-scroll", heading)
             XCTAssertTrue(fullyVisible(), "Settings read-only row must clear the live Settings navigation, tab bar and bottom accessory")
         }
-        let about = timerSettings.staticTexts["aboutVersion"]; revealReadOnlySettingsRow(about); wait(about, 3)
+        let about = timerSettings.staticTexts["aboutVersion"]
+        receipt.step("assert-about-version", pixels: true) { revealReadOnlySettingsRow(about); wait(about, 3) }
+        receipt.inspect("about-version", about)
         XCTAssertTrue(about.label.contains("(build "))
         let buildNotesHeading = timerSettings.staticTexts["aboutBuildNotesHeading"]
-        revealReadOnlySettingsRow(buildNotesHeading); wait(buildNotesHeading, 3)
+        receipt.step("reveal-build-notes-heading", pixels: true) { revealReadOnlySettingsRow(buildNotesHeading); wait(buildNotesHeading, 3) }
         let buildNotes = timerSettings.staticTexts["aboutBuildNotes"].firstMatch
-        wait(buildNotes, 3)
+        receipt.step("assert-build-notes-body", pixels: true) { wait(buildNotes, 3) }
+        receipt.inspect("build-notes", buildNotes)
         XCTAssertFalse(buildNotes.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                        "About should show generated build notes or an explicit fallback")
         let diagnosticsHeading = timerSettings.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "AI diagnostics")
         ).firstMatch
-        revealReadOnlySettingsRow(diagnosticsHeading); wait(diagnosticsHeading, 3)
+        receipt.step("reveal-ai-diagnostics", pixels: true) { revealReadOnlySettingsRow(diagnosticsHeading); wait(diagnosticsHeading, 3) }
         let diagnostics = timerSettings.descendants(matching: .any)["aiDiagnostics"].firstMatch
         wait(diagnostics, 3)
         XCTAssertFalse(diagnostics.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -497,7 +518,7 @@ final class CoverageUITests: XCTestCase {
             XCTFail("Export target moved or is clipped; no off-band tap is allowed")
             return
         }
-        export.tap()
+        receipt.step("tap-export-once", pixels: true) { export.tap() }
         shot("settings-export-immediately-after-tap")
         print("SETTINGS-EXPORT-IMMEDIATE-AFTER-TAP-AX-BEGIN")
         print(app.debugDescription)
@@ -505,6 +526,7 @@ final class CoverageUITests: XCTestCase {
         // Export opens is retained; dismissal is device-verified on build408.
         // Owner decision 2026-11-08: do not test simulator share-sheet dismissal.
         let exportActivity = app.otherElements["ActivityListView"]
+        receipt.step("await-export-sheet", pixels: true) {}
         let readinessBudget: TimeInterval = 2
         let exportPresentedPredicate = NSPredicate { _, _ in
             exportActivity.exists && !exportActivity.frame.isEmpty
@@ -1017,21 +1039,27 @@ extension CoverageUITests {
     /// Bottom area is one system: Cook mode sits above the (single) timer bar, the Ask Ate field scrolls clear of both,
     /// and the offline banner lives at the top.
     func testBottomBarsDoNotOverlapRecipeDetail() {
+        let receipt = NamedRedReceipt(self, "detail-bottom-bars")
         captureCoverageLaunch = true
         defer { captureCoverageLaunch = false }
-        launch(["-simulateOffline"])
+        receipt.step("launch-offline", pixels: true) { launch(["-simulateOffline"]) }
         coverageLaunchMark("body-after-launch")
-        addPrompt("miso salmon")
-        app.buttons["Cook mode"].tap()
+        receipt.step("import-and-save-source") { addPrompt("miso salmon") }
+        receipt.step("open-cook", pixels: true) { app.buttons["Cook mode"].tap() }
         wait(text("Step 1 of"))
-        app.buttons["Next step"].tap(); app.buttons["Next step"].tap()
-        app.buttons["Start timer"].tap()
-        wait(app.buttons["Pause timer"], 5)
-        app.buttons["Exit"].tap()
+        receipt.step("advance-to-step-two") { app.buttons["Next step"].tap() }
+        receipt.step("advance-to-timed-step-three") { app.buttons["Next step"].tap() }
+        receipt.inspect("start-timer", app.buttons["Start timer"])
+        receipt.step("tap-start-timer-once", pixels: true) { app.buttons["Start timer"].tap() }
+        receipt.step("assert-timer-running", pixels: true) { wait(app.buttons["Pause timer"], 5) }
+        receipt.step("exit-with-running-timer", pixels: true) { app.buttons["Exit"].tap() }
         let cook = app.buttons["Cook mode"]; wait(cook)
         let bar = app.buttons["timerBarOpen"].firstMatch
         let banner = app.descendants(matching: .any)["offlineBanner"].firstMatch
-        wait(bar, 5); wait(banner, 5)
+        receipt.step("assert-timer-bar-and-offline-banner", pixels: true) { wait(bar, 5); wait(banner, 5) }
+        receipt.inspect("cook-button", cook)
+        receipt.inspect("timer-bar", bar)
+        receipt.inspect("offline-banner", banner)
         shot("detail-bottom-bars")
         XCTAssertLessThan(banner.frame.midY, app.frame.midY, "offline banner belongs at the top")
         // C-FIX-03: the strip sits below the nav bar, never on top of it or the title.
@@ -1040,7 +1068,8 @@ extension CoverageUITests {
         XCTAssertLessThanOrEqual(cook.frame.maxY, bar.frame.minY + 1, "Cook mode overlaps the timer bar")
         XCTAssertEqual(app.buttons.matching(identifier: "timerBarOpen").count, 1, "timer bar shown once")
         let ask = app.textFields["askField"]
-        scrollTo(ask)
+        receipt.step("reveal-ask-field", pixels: true) { scrollTo(ask) }
+        receipt.inspect("ask-field", ask)
         XCTAssertTrue(ask.isHittable)
         XCTAssertFalse(ask.frame.intersects(cook.frame), "Ask Ate field under Cook mode")
         XCTAssertFalse(ask.frame.intersects(bar.frame), "Ask Ate field under the timer bar")

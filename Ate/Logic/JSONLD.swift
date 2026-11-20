@@ -105,13 +105,10 @@ enum JSONLD {
         let ingredients = (d["recipeIngredient"] as? [Any] ?? d["ingredients"] as? [Any] ?? [])
             .compactMap { text($0) }.filter { !$0.isEmpty }.map(IngredientParser.parse)
         let steps = instructions(d["recipeInstructions"]).enumerated().map { i, s in
-            Step(order: i + 1, instruction: s, timeSeconds: StepTimer.seconds(in: s))
+            Step(order: i + 1, instruction: s, timeSeconds: Durations.rangeLabel(in: s) == nil ? StepTimer.seconds(in: s) : nil)
         }
         guard !ingredients.isEmpty || !steps.isEmpty else { return nil }
-        let minutes = duration(text(d["totalTime"])) ?? {
-            let p = duration(text(d["prepTime"])) ?? 0, c = duration(text(d["cookTime"])) ?? 0
-            return p + c > 0 ? p + c : nil
-        }()
+        let minutes = duration(text(d["totalTime"]))
         var tags: [String] = []
         for k in ["recipeCategory", "recipeCuisine", "keywords"] {
             if let s = d[k] as? String { tags += s.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() } }
@@ -120,9 +117,12 @@ enum JSONLD {
         var seen = Set<String>()
         tags = tags.filter { !$0.isEmpty && $0.count <= 30 && seen.insert($0).inserted }
         let blurb = text(d["description"]).map(decode).map { String($0.prefix(300)) }
-        return RecipeCard(title: cleanTitle(decode(name), host: host), description: blurb.flatMap { isMarketingBlurb($0) ? nil : $0 },
-                          servings: servings(d["recipeYield"]) ?? 2, timeMinutes: minutes, tags: Array(tags.prefix(5)),
+        var card = RecipeCard(title: cleanTitle(decode(name), host: host), description: blurb.flatMap { isMarketingBlurb($0) ? nil : $0 },
+                          servings: servings(d["recipeYield"]) ?? 0, timeMinutes: minutes, tags: Array(tags.prefix(5)),
                           ingredients: ingredients, steps: steps, imageURL: image(d["image"]))
+        card.sourceDraft = .init(text: (try? JSONSerialization.data(withJSONObject: d)).flatMap { String(data: $0, encoding: .utf8) } ?? name,
+            warnings: ["Check the imported source; missing facts are unspecified."], unknownServings: card.servings == 0)
+        return card
     }
 
     static func text(_ v: Any?) -> String? {
@@ -169,10 +169,11 @@ enum JSONLD {
     }
 
     static func servings(_ v: Any?) -> Int? {
-        if let n = v as? NSNumber { return max(1, n.intValue) }
-        guard let s = text(v) else { return nil }
-        let digits = s.split(whereSeparator: { !$0.isNumber }).first.flatMap { Int($0) }
-        return digits.map { max(1, min(200, $0)) }
+        guard let s = text(v),
+              s.range(of: #"^[1-9]\d*(?:\s+(?:servings?|slices?|portions?))?$"#, options: [.regularExpression, .caseInsensitive]) != nil,
+              let first = s.split(whereSeparator: { !$0.isNumber }).first,
+              let value = Int(first), value > 0 else { return nil }
+        return value
     }
 
     static func image(_ v: Any?) -> String? {

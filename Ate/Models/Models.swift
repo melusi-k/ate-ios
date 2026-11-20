@@ -79,10 +79,18 @@ struct RecipeCard: Codable, Identifiable, Hashable {
     /// Local cover file name (Covers folder in the App Group / app container). Bytes never sync;
     /// on another device a missing file falls back to `imageURL` or the branded tile.
     var coverImage: String?
+    /// Optional lossless evidence for an unchanged verified paste, never an AI source.
+    var pastedSource: PastedRecipeSource?
+    var sourceDraft: SourceDraft?
+    /// Single-pass Explore draft, kept editable without deriving unknown facts.
+    var suggestionDraft: Bool?
+    var isEditableDraft: Bool {
+        SourceDraft.applies(to: self) || (source == .appleIntelligence && suggestionDraft == true)
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, title, description, servings, timeMinutes, tags, ingredients, steps, imageURL, sourceURL, createdAt, source, generatedAt
-        case origin, favorite, lastCookedAt, cuisine, sortIndex, aiConfidence, aiNote, coverImage, aiAlternatives
+        case origin, favorite, lastCookedAt, cuisine, sortIndex, aiConfidence, aiNote, coverImage, aiAlternatives, pastedSource, sourceDraft, suggestionDraft
     }
 
     init(id: String = UUID().uuidString, title: String = "Untitled recipe", description: String? = nil,
@@ -122,6 +130,9 @@ struct RecipeCard: Codable, Identifiable, Hashable {
         aiNote = try? c.decodeIfPresent(String.self, forKey: .aiNote)
         coverImage = try? c.decodeIfPresent(String.self, forKey: .coverImage)
         aiAlternatives = try? c.decodeIfPresent([String].self, forKey: .aiAlternatives)
+        suggestionDraft = try? c.decodeIfPresent(Bool.self, forKey: .suggestionDraft)
+        sourceDraft = try? c.decodeIfPresent(SourceDraft.self, forKey: .sourceDraft)
+        pastedSource = try? c.decodeIfPresent(PastedRecipeSource.self, forKey: .pastedSource)
     }
 }
 

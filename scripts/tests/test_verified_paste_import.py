@@ -50,3 +50,8 @@ class VerifiedPasteImportPreflight(unittest.TestCase):
                       'card.timeMinutes == nil','card.aiNote == importNote','parsed == expected',
                       'n == number + 1','contract.issues(card).isEmpty']:
             self.assertIn(token,parser)
+
+    def test_native_successful_source_import_declares_throws(self):
+        source=(ROOT/'AteTests/AddPromptSourceImportTests.swift').read_text()
+        self.assertIn('func testRecognizableUnverifiableRecipeKeepsExistingFailClosedBackendBoundary() async throws {',source)
+        self.assertIn('let card = try await AddPromptSourceImport.parse(ParseRequest(mode: .prompt, text: text), using: backend).card',source)

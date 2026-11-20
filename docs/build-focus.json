@@ -1,7 +1,7 @@
 {
   "title": "Today tab: saved recipes first, plus a Try something new entry",
   "summary": "The first tab is now Today: a greeting, an at-a-glance entry to your recipes, up to three saved picks with favourites first, and a Try something new card presenting the existing Suggest flow behind the same readiness gates. The saved-recipe collection is one canonical pushed root with a single Add/import sheet owner, Add and timer chrome live on exactly the two roots, and Search no longer pops the stack. Native final-head compile and device screenshots remain UNRUN.",
-  "source_commit": "a5cb4dec00a0c6158e9995ccbabec3570b66a9b8",
+  "source_commit": "0c75f66f72d5a981961cf1e93d9ecff7fc39c4d0",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
@@ -13,7 +13,7 @@
     },
     {
       "path": "Ate/Logic/TodayHome.swift",
-      "blob": "7e635b0671ae7d6e652287b2fb983dae2c86dd8f"
+      "blob": "d396289704385439de542d75868df29b2310013b"
     },
     {
       "path": "Ate/Models/Models.swift",

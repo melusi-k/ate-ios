@@ -76,17 +76,26 @@ final class RecipeDiscoveryTests: XCTestCase {
 
     func testDemoBadQualityAndExistingRecipesNeverBecomeSuggestions() async {
         var demo = card(); demo.source = .mock
-        var incomplete = card(); incomplete.ingredients = []
+        // Product-contract correction: actionable steps-only cards are editable.
+        // This negative fixture must have neither ingredients nor cooking steps.
+        var incomplete = card(); incomplete.ingredients = []; incomplete.steps = []
         var uncertain = card(); uncertain.aiConfidence = 0.4
         let duplicate = card("fresh", "Vegetable Soup")
-        for (label, result) in [("mock", demo), ("empty ingredients", incomplete),
-                                ("confidence 0.4", uncertain), ("saved title", duplicate)] {
+        for (label, result) in [("mock", demo), ("neither ingredients nor cooking steps", incomplete),
+                                ("saved title", duplicate)] {
             let session = RecipeDiscoverySession()
             await request(session, result: result)
             XCTAssertTrue(session.suggestions.isEmpty, label)
             XCTAssertNotNil(session.message, label)
             XCTAssertEqual(result.aiConfidence, result == uncertain ? 0.4 : 0.9, "Never inflate identification confidence: " + label)
         }
+        // Simplified generation: soft confidence/quality warnings are editable,
+        // not a reason to discard an otherwise usable food suggestion.
+        let editable = RecipeDiscoverySession()
+        await request(editable, result: uncertain)
+        XCTAssertEqual(editable.suggestions.count, 1)
+        XCTAssertNil(editable.message)
+        XCTAssertEqual(editable.suggestions.first?.aiConfidence, 0.4)
     }
 
     func testEmptyGeneratedColdDishNeedsIngredientsButDoesNotImposeMinimumCountOnOtherCards() {
@@ -175,7 +184,7 @@ final class RecipeDiscoveryTests: XCTestCase {
         })
         await fulfillment(of: [returned], timeout: 2)
         XCTAssertEqual(calls, 1)
-        XCTAssertEqual(session.message, "Couldn't create a suggestion. Nothing was saved. Try again. AI assets unavailable")
+        XCTAssertEqual(session.message, "AI assets unavailable")
         XCTAssertFalse(session.loading)
         XCTAssertTrue(session.suggestions.isEmpty)
     }
@@ -222,6 +231,26 @@ final class RecipeDiscoveryTests: XCTestCase {
         XCTAssertTrue(RecipeDiscovery.excludes(card(), context: input))
         input.saved = (0..<100).map { RecipeCard(id: "r\($0)", title: String(repeating: "x", count: 1000)) }
         XCTAssertLessThan(RecipeDiscovery.prompt(context: input, suggested: []).count, 5000)
+    }
+
+    func testOptionalFieldsRemainBlankAndEditedSuggestionCanBeSavedAfterReview() async throws {
+        var partial = card()
+        partial.servings = 0; partial.timeMinutes = nil; partial.aiConfidence = 0.4
+        partial.ingredients[0].quantity = 0
+        partial.steps = [] // Incomplete methods are valuable editable drafts too.
+        let session = RecipeDiscoverySession()
+        await request(session, result: partial)
+        var editable = try XCTUnwrap(session.suggestions.first)
+        XCTAssertEqual(editable.servings, 0); XCTAssertNil(editable.timeMinutes)
+        XCTAssertTrue(editable.steps.allSatisfy { $0.timeSeconds == nil })
+        editable.ingredients[0].notes = "My preferred yogurt"
+        var written: RecipeCard?
+        XCTAssertTrue(session.save(editable, context: { self.context() }) { written = $0; return true })
+        XCTAssertEqual(written, editable)
+        XCTAssertFalse(session.save(editable, context: { self.context() }) { _ in XCTFail("No double Save"); return true })
+        let roundTrip = try JSONDecoder().decode(RecipeCard.self, from: JSONEncoder().encode(editable))
+        XCTAssertEqual(RecipeLogic.normalize(roundTrip).servings, 0)
+        XCTAssertNil(RecipeLogic.normalize(roundTrip).timeMinutes)
     }
 
 }

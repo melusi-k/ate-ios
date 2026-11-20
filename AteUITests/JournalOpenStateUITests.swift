@@ -163,6 +163,10 @@ final class JournalOpenStateUITests: XCTestCase {
         XCTAssertTrue(libraryTab.waitForExistence(timeout: 10) && libraryTab.isHittable,
                       "the tab bar must remain selectable from a broken journal")
         libraryTab.tap()
+        // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.
+        let libraryEntry = app.buttons["today.recipes"]
+        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 10), "Today routes to the saved-recipe collection")
+        libraryEntry.tap()
         wait(app.buttons["libraryBrowseMenu"], 10)
     }
 

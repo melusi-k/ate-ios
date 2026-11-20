@@ -114,6 +114,12 @@ final class CoverageUITests: XCTestCase {
         let e = app.textViews["promptEditor"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: s))
         app.buttons["generateButton"].tap()
     }
+    /// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.
+    func openLibraryCollection() {
+        tab("Library")
+        let recipes = app.buttons["today.recipes"]
+        if recipes.waitForExistence(timeout: 5) { recipes.tap() }
+    }
     func addPrompt(_ s: String) {
         startPrompt(s)
         wait(text("Review your card"), 15)
@@ -184,7 +190,7 @@ final class CoverageUITests: XCTestCase {
     func test32b_GridFavouriteCanBeToggledDirectly() {
         launch()
         addPrompt("Miso salmon for two")
-        tab("Library")
+        openLibraryCollection()
         XCUIDevice.shared.orientation = .landscapeLeft
         defer { XCUIDevice.shared.orientation = .portrait }
 
@@ -204,6 +210,7 @@ final class CoverageUITests: XCTestCase {
         launch(["-qaSavedRecipeForSheet", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
         defer { XCUIDevice.shared.orientation = .portrait }
 
+        openLibraryCollection()
         let listCard = app.buttons["listCard"].firstMatch
         wait(listCard, 10)
         scrollTo(listCard)
@@ -266,6 +273,7 @@ final class CoverageUITests: XCTestCase {
     func test32d_ExpandableRecipeSheetLandscapeRotationAndDismissal() {
         launch(["-qaSavedRecipeForSheet", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
         defer { XCUIDevice.shared.orientation = .portrait }
+        openLibraryCollection()
         let title = app.staticTexts["recipeQuickLookTitle"]
         let expand = app.buttons["expandRecipeDetails"]
         let servings = app.segmentedControls["servingsPicker"]
@@ -326,7 +334,7 @@ final class CoverageUITests: XCTestCase {
         let receipt = NamedRedReceipt(self, "settings-tools-about")
         receipt.step("launch", pixels: true) { launch() }
         receipt.step("import-and-save-source") { addPrompt("Miso salmon for two") }
-        receipt.step("open-library") { tab("Library") }
+        receipt.step("open-library") { openLibraryCollection() }
         receipt.step("open-collections-menu", pixels: true) { app.buttons["libraryBrowseMenu"].tap() }
         wait(browseMenuItem("Recently added", icon: "clock.arrow.trianglehead.counterclockwise.rotate.90"))
         XCTAssertTrue(browseMenuItem("Favourites").exists || browseMenuItem("Favorites").exists)
@@ -570,7 +578,7 @@ final class CoverageUITests: XCTestCase {
         _ = text("Saved 1 more card").waitForExistence(timeout: 4)
         app.buttons["saveRecipe"].tap()
         wait(app.buttons["Cook mode"], 10)
-        tab("Library")
+        openLibraryCollection()
         wait(text("Ujeqe"), 5)
         wait(text("Mogodu"), 5)
         shot("photo-spread-library")
@@ -758,7 +766,7 @@ final class CoverageUITests: XCTestCase {
         let discard = app.buttons["Discard"]
         wait(discard); discard.tap()
         XCTAssertTrue(cancel.waitForNonExistence(timeout: 5), "Discard must actually close Add before tab navigation")
-        tab("Library")
+        openLibraryCollection()
         wait(text("Keep this stew"), 5)
         // Signed-in sync against a failing server keeps the library too.
         tab("Settings"); wait(text("Account & sync"))
@@ -769,7 +777,7 @@ final class CoverageUITests: XCTestCase {
         wait(app.staticTexts["accountEmail"], 8)
         sleep(2)
         shot("backend-down-sync")
-        tab("Library")
+        openLibraryCollection()
         wait(text("Keep this stew"), 5)
         shot("backend-down-library-intact")
     }
@@ -801,7 +809,7 @@ final class CoverageUITests: XCTestCase {
         shot("share-publish-outage-text-fallback")
 
         app.swipeDown(velocity: .fast)
-        tab("Library")
+        openLibraryCollection()
         wait(text("Keep this stew"), 5)
         shot("share-publish-outage-library-intact")
     }
@@ -842,7 +850,7 @@ final class CoverageUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["accountEmail"].exists,
                        "the new account must not remain active while the previous account's library is visible")
 
-        tab("Library")
+        openLibraryCollection()
         wait(text("Keep this stew"), 5)
         shot("account-switch-sync-failure-library-preserved")
     }

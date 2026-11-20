@@ -1,3 +1,4 @@
+from recipe_streaming_delta import restore as pre_streaming
 """Exact import preservation plus typed creative boundary; not live model proof."""
 from pathlib import Path
 import hashlib
@@ -20,11 +21,11 @@ class RecipeDiscoveryIntentSourceTests(unittest.TestCase):
                     with self.assertRaises(AssertionError): restore(path, changed)
 
     def test_only_typed_discovery_selects_private_creative_path(self):
-        source = (ROOT / 'Ate/Services/OnDeviceBackend.swift').read_text()
+        source = pre_streaming('Ate/Services/OnDeviceBackend.swift',(ROOT / 'Ate/Services/OnDeviceBackend.swift').read_text())
         typed = source.split('func suggestRecipe(', 1)[1].split('private func parseRecipeResult', 1)[0]
         self.assertIn('RecipeDiscoveryGeneration', typed)
-        self.assertIn('discovery: true', typed)
-        self.assertEqual(source.count('discovery: true'), 1)
+        self.assertIn('createSuggestion(generation.prompt)', typed)
+        self.assertEqual(source.count('createSuggestion(generation.prompt)'), 1)
         regular = source.split('func parseRecipeWithContract(', 1)[1].split('func suggestRecipe(', 1)[0]
         self.assertIn('parseRecipeResult(request)', regular)
         self.assertNotIn('discovery: true', regular)
@@ -32,17 +33,17 @@ class RecipeDiscoveryIntentSourceTests(unittest.TestCase):
         self.assertIn('if !discovery, request.mode == .prompt {', source)
         request = (ROOT / 'Ate/Services/BackendService.swift').read_text().split('struct ParseRequest:', 1)[1].split('struct BackendError', 1)[0]
         self.assertNotIn('discovery', request)
-        discovery = (ROOT / 'Ate/Logic/RecipeDiscovery.swift').read_text()
+        discovery = pre_streaming('Ate/Logic/RecipeDiscovery.swift',(ROOT / 'Ate/Logic/RecipeDiscovery.swift').read_text())
         self.assertIn('init(context: RecipeDiscoveryContext, suggested: [RecipeCard])', discovery)
         self.assertNotIn('init(prompt:', discovery)
 
     def test_retry_is_explicit_and_deadline_and_safety_checks_remain(self):
-        source = (ROOT / 'Ate/Logic/RecipeDiscovery.swift').read_text()
+        source = pre_streaming('Ate/Logic/RecipeDiscovery.swift',(ROOT / 'Ate/Logic/RecipeDiscovery.swift').read_text())
         self.assertIn('timeoutNanoseconds: UInt64 = 60_000_000_000', source)
         self.assertIn('cancel() // revoke the publication token', source)
-        for token in ['result.source == .appleIntelligence', 'RecipeQuality.needsInput(card)', 'current.owner == input.owner', 'current.owner == owner', 'RecipeDiscovery.excludes(card, context: current']:
+        for token in ['result.source == .appleIntelligence', 'RecipeQuality.isNonFoodTitle(card)', 'current.owner == input.owner', 'current.owner == owner', 'RecipeDiscovery.excludes(card, context: current']:
             self.assertIn(token, source)
-        view = (ROOT / 'Ate/Views/SuggestedNewRecipesView.swift').read_text()
+        view = pre_streaming('Ate/Views/SuggestedNewRecipesView.swift',(ROOT / 'Ate/Views/SuggestedNewRecipesView.swift').read_text())
         self.assertIn('backend.suggestRecipe($0)', view)
         self.assertIn('"Try again"', view)
         self.assertIn('.disabled(session.loading)', view)

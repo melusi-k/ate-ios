@@ -59,7 +59,7 @@ enum VerifiedPasteImport {
         for line in lines[(i + 1)..<m] {
             // The existing contract drops only explicit section markers. Retain
             // their text attached to the next review row, never discard it.
-            if line.hasSuffix(":"), line.range(of: #"\d"#, options: .regularExpression) == nil
+            if line.hasSuffix(":") && line.range(of: #"\d"#, options: .regularExpression) == nil
                 || key(line).hasPrefix("for ") || key(line).hasPrefix("to ") {
                 prefix.append(line); continue
             }

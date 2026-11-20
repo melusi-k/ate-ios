@@ -81,11 +81,16 @@ class UnitLaneRoutingTests(unittest.TestCase):
         self.assertIn('-skip-testing:AteUITests/CookIngredientsUITests/testCookTimerCardLargeText', cook)
 
     def test_dogfood_critical_flows_remain_required_on_exact_head(self):
-        self.assertIn('ref: ${{ github.event.pull_request.head.sha || github.sha }}', self.dogfood)
+        self.assertIn('ref: ${{ needs.pin-source.outputs.sha }}', self.dogfood)
         for method in ('testQA1_AddFromURL_JSONLD', 'testQA1_AddFromURL_InstagramCaption', 'testQA1_AddFromURL_HiddenCaptionFallback', 'testQA2_AddFromPhoto', 'testQA3_GenerateAndEdit', 'testQA4_Save', 'testQA5_Share', 'testQA6_OpenShared', 'testQA8_Timers', 'test28_GroupSortAndMenus', 'test29_ReorderMyOrder', 'test29b_ReorderMyOrderActions'):
             self.assertIn('/' + method, self.dogfood)
         self.assertIn('missing named Library pass', self.dogfood)
-        self.assertIn('"$total" -lt 12', self.dogfood)
+        self.assertIn('--group qa --log dogfood-critical-flows-qa.log', self.dogfood)
+        self.assertIn('--group library --log dogfood-critical-flows-library.log', self.dogfood)
+        self.assertIn('ci-dogfood-gate.py', self.dogfood)
+        verifier=(ROOT/'scripts/verify-dogfood-group.py').read_text()
+        self.assertIn('set(found)!=set(expected)',verifier)
+        self.assertIn("any(v!='Passed' for v in found.values())",verifier)
         self.assertIn('for test in test28_GroupSortAndMenus test29_ReorderMyOrder test29b_ReorderMyOrderActions; do', self.dogfood)
         self.assertIn('grep -qF "AteUITests $test]\' passed"', self.dogfood)
 

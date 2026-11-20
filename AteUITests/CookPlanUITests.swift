@@ -38,8 +38,12 @@ final class CookPlanUITests: XCTestCase {
         shot.name = "cook-plan-saved-without-reminder"; shot.lifetime = .keepAlways
         add(shot)
         app.buttons["cookPlan.cancelPlan"].tap()
+        // Cancel awaits notification cancellation before dismissing. The underlying
+        // plan button can already exist while the sheet still covers recipe detail.
+        XCTAssertTrue(reminder.waitForNonExistence(timeout: 10), "Cancel must dismiss the cooking plan sheet before reopening")
         XCTAssertTrue(plan.waitForExistence(timeout: 10))
         plan.tap()
+        XCTAssertTrue(reminder.waitForExistence(timeout: 10), "Reopening after cancellation must mount the cooking plan form")
         XCTAssertFalse(app.buttons["cookPlan.cancelPlan"].exists)
     }
 }

@@ -345,66 +345,66 @@ final class SourceRecipeFidelityTests: XCTestCase {
         XCTAssertTrue(contract.issues(try faithfulTripe()).isEmpty)
     }
 
-    func testPastedStructuredRecipeDoesNotSubstituteDemoWhenModelIsUnavailable() async {
+    func testPastedStructuredRecipeDoesNotSubstituteDemoWhenModelIsUnavailable() async throws {
         let fallback = Fallback()
-        let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { false })
-        do {
-            _ = try await backend.parseRecipe(.init(mode: .prompt, text: pastedTripeRecipe))
-            XCTFail("a pasted structured recipe must not become a demo")
-        } catch { XCTAssertTrue(error.localizedDescription.contains("No demo recipe was substituted")) }
+        let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { XCTFail("Paste must not ask model availability"); return false })
+        let card = try await backend.parseRecipe(.init(mode: .prompt, text: pastedTripeRecipe))
+        XCTAssertEqual(card.source, .imported)
+        XCTAssertEqual(card.servings, 6)
+        XCTAssertEqual(card.ingredients, try XCTUnwrap(SourceRecipeFidelity.structuredRecipe(pastedTripeRecipe)).ingredients)
+        XCTAssertNotNil(card.pastedSource)
         XCTAssertEqual(fallback.parses, 0)
     }
 
-    func testUnverifiableStructureFailsClosedBeforeCreativeGenerationOrDemo() async {
+    // Superseded admission behavior: contracts remain strict evidence for the
+    // fast path, but incomplete sources now open as editable source drafts.
+    func testUnverifiableStructureFailsClosedBeforeCreativeGenerationOrDemo() async throws {
         let page = "<html><body><h1>Mogodu</h1><p>Serves 6</p><h2>Ingredients</h2><p>1 kg beef tripe 2 onions salt to taste</p><h2>Method</h2><p>Simmer 150 minutes, fry 5 minutes, season.</p></body></html>"
         for available in [false, true] {
             let fallback = Fallback()
-            var fetches = 0
-            let backend = OnDeviceBackend(fallback: fallback, loadPageHTML: { _ in
-                fetches += 1; return page
-            }, modelAvailable: { available })
-            do {
-                _ = try await backend.parseRecipe(.init(mode: .url, text: "https://recipes.example/mogodu"))
-                XCTFail("recognizable-but-unverifiable structure must fail closed")
-            } catch {
-                let message = error.localizedDescription
-                XCTAssertTrue(message.contains("couldn't verify") || message.contains("could not be verified"), message)
-            }
+            var fetches = 0, calls = 0
+            let backend = OnDeviceBackend(fallback: fallback, loadPageHTML: { _ in fetches += 1; return page },
+                modelAvailable: { available }, selectSourceLines: { raw in calls += 1; return SourceDraftImport.selection(raw) })
+            let card = try await backend.parseRecipe(.init(mode: .url, text: "https://recipes.example/mogodu"))
+            XCTAssertEqual(card.source, .imported)
+            XCTAssertNotNil(card.sourceDraft)
+            XCTAssertNil(card.timeMinutes)
+            XCTAssertEqual(calls, available ? 1 : 0)
             XCTAssertEqual(fetches, 1)
             XCTAssertEqual(fallback.parses, 0)
         }
     }
 
-    func testUnverifiableCaptionFailsClosedBeforeCreativeGenerationOrDemo() async {
+    func testUnverifiableCaptionFailsClosedBeforeCreativeGenerationOrDemo() async throws {
         let badCaption = "You need 1 kg beef tripe, 2 onions (salt). Simmer 150 minutes, season."
         for available in [false, true] {
             let fallback = Fallback()
-            let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { available })
-            do {
-                _ = try await backend.parseRecipe(.init(mode: .prompt, text: badCaption))
-                XCTFail("recognizable-but-unverifiable caption must fail closed (model available: \(available))")
-            } catch {
-                let message = error.localizedDescription
-                XCTAssertTrue(message.contains("couldn't verify") || message.contains("could not be verified"), message)
-            }
+            var calls = 0
+            let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { available }, selectSourceLines: { raw in
+                calls += 1; return SourceDraftImport.selection(raw)
+            })
+            let card = try await backend.parseRecipe(.init(mode: .prompt, text: badCaption))
+            XCTAssertEqual(card.sourceDraft?.text, badCaption)
+            XCTAssertEqual(card.servings, 0)
+            XCTAssertNil(card.timeMinutes)
+            XCTAssertEqual(calls, available ? 1 : 0)
             XCTAssertEqual(fallback.parses, 0)
         }
     }
 
-    func testStructuredPageDoesNotSubstituteDemoWhenModelIsUnavailable() async {
+    func testStructuredPageDoesNotSubstituteDemoWhenModelIsUnavailable() async throws {
         let fallback = Fallback()
         var fetches = 0
-        let backend = OnDeviceBackend(fallback: fallback, loadPageHTML: { _ in
-            fetches += 1
-            return "<html><head><title>Mogodu</title></head><body><h1>Mogodu</h1><p>Serves 6</p><h2>Ingredients</h2><p>1.2 kg beef tripe, cleaned and cut into strips<br>2 onions, chopped<br>3 cloves garlic, crushed<br>2 tsp curry powder<br>500 ml beef stock<br>1.5 l water<br>1 tsp salt<br>2 tbsp oil</p><h2>Method</h2><p>Cut the cleaned tripe into strips. Cover with the water and salt. Simmer covered until tender, about 150 minutes, then drain. Fry the onion and garlic in the oil until golden, 8 minutes. Stir in the curry powder, add the drained tripe and stock and simmer gently until thick. Divide between six bowls and serve hot.</p></body></html>"
-        }, modelAvailable: { false })
-        do {
-            _ = try await backend.parseRecipe(.init(mode: .url, text: "https://recipes.example/mogodu"))
-            XCTFail("A structured source must not become a demo recipe")
-        } catch { XCTAssertTrue(error.localizedDescription.contains("No demo recipe was substituted")) }
+        let page = "<html><head><title>Mogodu</title></head><body><h1>Mogodu</h1><p>Serves 6</p><h2>Ingredients</h2><p>1.2 kg beef tripe, cleaned and cut into strips<br>2 onions, chopped<br>3 cloves garlic, crushed<br>2 tsp curry powder<br>500 ml beef stock<br>1.5 l water<br>1 tsp salt<br>2 tbsp oil</p><h2>Method</h2><p>Cut the cleaned tripe into strips. Cover with the water and salt. Simmer covered until tender, about 150 minutes, then drain. Fry the onion and garlic in the oil until golden, 8 minutes. Stir in the curry powder, add the drained tripe and stock and simmer gently until thick. Divide between six bowls and serve hot.</p></body></html>"
+        let backend = OnDeviceBackend(fallback: fallback, loadPageHTML: { _ in fetches += 1; return page }, modelAvailable: { false })
+        let card = try await backend.parseRecipe(.init(mode: .url, text: "https://recipes.example/mogodu"))
+        XCTAssertEqual(card.source, .imported)
+        XCTAssertNotNil(card.sourceDraft)
+        XCTAssertNil(card.timeMinutes)
         XCTAssertEqual(fetches, 1)
         XCTAssertEqual(fallback.parses, 0)
     }
+
 }
 
 

@@ -210,6 +210,8 @@ enum RecipeQuality {
 }
 
 /// Live, partially generated card shown while Foundation Models streams (built from GenRecipe.PartiallyGenerated).
+typealias RecipePreviewHandler = @MainActor (RecipeStreamPreview) -> Void
+
 struct RecipeStreamPreview: Equatable {
     var title: String?
     var cuisine: String?

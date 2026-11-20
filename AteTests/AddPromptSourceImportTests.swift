@@ -22,7 +22,7 @@ final class AddPromptSourceImportTests: XCTestCase {
                 } catch {
                     XCTAssertEqual(error.localizedDescription, AddPromptSourceImport.missingSourceMessage)
                     XCTAssertTrue(error.localizedDescription.contains("Nothing was generated"))
-                    XCTAssertTrue(error.localizedDescription.contains("ingredients and method"))
+                    XCTAssertTrue(error.localizedDescription.contains("ingredients or written cooking instructions"))
                 }
             }
         }

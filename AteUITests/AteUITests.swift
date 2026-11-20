@@ -124,7 +124,7 @@ final class AteUITests: XCTestCase {
 
     func addPromptRecipe() {
         addRecipe(tab: "Prompt", input: { app in
-            let e = app.textViews["promptEditor"]; e.tap(); e.typeText("Miso salmon for two")
+            let e = app.textViews["promptEditor"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: "Miso salmon for two"))
         }, shotPrefix: "add-prompt")
     }
 
@@ -920,7 +920,7 @@ final class AteUITests: XCTestCase {
         launch()
         app.buttons["Add recipe"].tap()
         app.buttons["Prompt"].tap()
-        let e = app.textViews["promptEditor"]; e.tap(); e.typeText("Lentil soup")
+        let e = app.textViews["promptEditor"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: "Lentil soup"))
         app.buttons["generateButton"].tap()
         wait(text("Review your card"), 15)
         let badge = app.descendants(matching: .any)["sourceBadge"].firstMatch
@@ -1033,7 +1033,7 @@ final class AteUITests: XCTestCase {
     func addNamed(_ name: String) {
         app.buttons["Add recipe"].tap()
         app.buttons["Prompt"].tap()
-        let e = app.textViews["promptEditor"]; e.tap(); e.typeText(name)
+        let e = app.textViews["promptEditor"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: name))
         app.buttons["generateButton"].tap()
         wait(app.buttons["saveRecipe"], 15)
         app.buttons["saveRecipe"].tap()
@@ -1243,8 +1243,12 @@ final class AteUITests: XCTestCase {
         wait(app.descendants(matching: .any)["section.Under 30 min"].firstMatch, 3)
         shot("library-group-cooktime")
         pick("groupByMenu", "None")
-        // leading swipe: favourite + add to list
-        a.swipeRight()
+        // Target the full list row, not the narrow StaticText title child.
+        // Native failure AX: title 128x23.7 inside the 402x100 listCard.
+        let appleRow = app.buttons.matching(identifier: "listCard")
+            .containing(.staticText, identifier: "Apple crumble")
+        XCTAssertEqual(appleRow.count, 1, "Swipe must target the unique Apple crumble list row")
+        appleRow.element(boundBy: 0).swipeRight()
         wait(app.buttons["Favourite"].firstMatch, 3)
         shot("library-swipe-leading")
         app.buttons["Favourite"].firstMatch.tap()
@@ -1263,7 +1267,7 @@ final class AteUITests: XCTestCase {
     func test30_SessionExpiryAndAccountSwitch() {
         // Expired session: clear message, user signed out locally, recipes kept.
         launch(["-qaExpireSession"])
-        addRecipe(tab: "Prompt", input: { a in let e = a.textViews["promptEditor"]; e.tap(); e.typeText("Keep me safe") }, shotPrefix: "expiry")
+        addRecipe(tab: "Prompt", input: { a in let e = a.textViews["promptEditor"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: "Keep me safe")) }, shotPrefix: "expiry")
         signInViaSettingsAllowingExpiry()
         wait(text("Your session expired"), 10)
         wait(app.buttons["openSignIn"], 5)
@@ -1273,7 +1277,7 @@ final class AteUITests: XCTestCase {
 
         // Account switch: the previous account's library doesn't leak into the next one.
         launch()
-        addRecipe(tab: "Prompt", input: { a in let e = a.textViews["promptEditor"]; e.tap(); e.typeText("Account A stew") }, shotPrefix: "switch")
+        addRecipe(tab: "Prompt", input: { a in let e = a.textViews["promptEditor"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: "Account A stew")) }, shotPrefix: "switch")
         signInViaSettings()
         wait(text("Synced"), 10)
         app.buttons["signOutButton"].tap()
@@ -1438,6 +1442,9 @@ final class AteUITests: XCTestCase {
         let editor = app.textViews["promptEditor"]
         wait(editor, 5)
         XCTAssertEqual(editor.value as? String, "zzz", "the failed search becomes the new recipe's idea")
+        // The preserved search idea is not recipe evidence. Supply explicit source
+        // after asserting the original prefill, before the original Generate tap.
+        editor.tap(); editor.typeText(PromptRecipeFixture.salmonContinuation)
         app.buttons["generateButton"].tap()
         wait(text("Review your card"), 15)
         app.buttons["saveRecipe"].tap()

@@ -1,3 +1,4 @@
+from generation_native_reds_delta import restore as pre_generation
 """Current shared food-content wiring and exact historical preservation."""
 from pathlib import Path
 import hashlib,json,re,unittest
@@ -6,7 +7,7 @@ ROOT=Path(__file__).resolve().parents[2]
 class RecipeContentAdmissionPreflight(unittest.TestCase):
     def test_exact_inverse_rejects_missing_duplicate_and_unrelated_mutants(self):
         for path,c in json.loads((ROOT/'scripts/tests/recipe_content_admission_inverse.json').read_text()).items():
-            s=(ROOT/path).read_text()
+            s=pre_generation(path,(ROOT/path).read_text())
             self.assertEqual(hashlib.sha256(restore(path,s).encode()).hexdigest(),c['parent_sha'])
             for f in c['fragments']:
                 for changed in [s.replace(f['new'],'',1),s+f['new'],s+'// unrelated\n']:

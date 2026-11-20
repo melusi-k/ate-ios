@@ -146,8 +146,45 @@ final class SourceRecipeFidelityTests: XCTestCase {
             XCTAssertEqual(card.sourceDraft?.text, caption)
             XCTAssertTrue(card.isEditableDraft)
             XCTAssertFalse(card.ingredients.isEmpty)
+            XCTAssertEqual(card.ingredients.map(\.name), ["onions", "peppers", "carrots grated", "baked beans", "curry powder"])
+            XCTAssertEqual(card.ingredients.map(\.quantity), [2, 2, 3, 1, 2])
+            XCTAssertEqual(card.ingredients.map(\.unit), ["pcs", "pcs", "pcs", "tin", "tsp"])
+            XCTAssertEqual(card.steps.map(\.instruction), ["Fry onion 5 minutes, add the rest and simmer 20 minutes. Season to taste."])
+            XCTAssertEqual(card.servings, 0); XCTAssertTrue(card.sourceDraft?.unknownServings == true)
+            XCTAssertNil(card.timeMinutes); XCTAssertTrue(card.steps.allSatisfy { $0.timeSeconds == nil })
+            XCTAssertNil(card.pastedSource)
         } catch { XCTFail("Readable source must remain editable: \(error)") }
         XCTAssertEqual(fallback.parses, 0)
+    }
+
+    func testVerifiedInlineCaptionKeepsExactKnownFactsWithoutCallingFailingClassifier() async throws {
+        let fallback = Fallback()
+        var modelCalls = 0, classifierCalls = 0
+        let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { true },
+            modelWillGenerate: { modelCalls += 1 }, streamSourceLines: { _, _ in
+                classifierCalls += 1
+                throw BackendError(message: "Classifier must not run for the verified inline contract")
+            })
+        let card = try await backend.parseRecipe(.init(mode: .prompt, text: caption))
+        let contract = try XCTUnwrap(SourceRecipeFidelity.inlineCaption(caption))
+        XCTAssertEqual(card.ingredients, contract.ingredients)
+        XCTAssertEqual(card.steps.map(\.instruction), [contract.method])
+        XCTAssertEqual(card.sourceDraft?.text, caption)
+        XCTAssertTrue(card.isEditableDraft); XCTAssertEqual(card.source, .imported)
+        XCTAssertEqual(card.servings, 0); XCTAssertNil(card.timeMinutes)
+        XCTAssertTrue(card.steps.allSatisfy { $0.timeSeconds == nil })
+        XCTAssertNil(card.pastedSource); XCTAssertTrue(contract.issues(card).isEmpty)
+        XCTAssertEqual(modelCalls, 0); XCTAssertEqual(classifierCalls, 0); XCTAssertEqual(fallback.parses, 0)
+    }
+    func testAmbiguousInlineCaptionCannotGainInventedDeterministicIngredients() throws {
+        let ambiguous = caption.replacingOccurrences(of: "2 onions, 2 peppers", with: "onions and peppers")
+        XCTAssertNil(SourceRecipeFidelity.inlineCaption(ambiguous))
+        XCTAssertNil(SourceDraftImport.inlineCaptionCard(ambiguous))
+        let retained = try SourceDraftImport.card(ambiguous, selected: SourceDraftImport.selection(ambiguous))
+        XCTAssertEqual(retained.sourceDraft?.text, ambiguous)
+        XCTAssertTrue(retained.ingredients.isEmpty)
+        XCTAssertTrue(retained.isEditableDraft)
+        XCTAssertNil(retained.pastedSource)
     }
 
     // A recipe web page after htmlToText: one collapsed line, explicit sections.

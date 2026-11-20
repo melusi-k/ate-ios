@@ -1,15 +1,15 @@
 {
-  "title": "Sync payload numeric overflow fails closed",
-  "summary": "Reject out-of-range sync numbers before domain decoding and make direct legacy Double-to-Int conversions throw instead of trapping. Preserve editable-draft zero servings and valid legacy integer/fractional behavior. Native final-head compile and boundary tests remain UNRUN.",
-  "source_commit": "9098041b3b6c8e97b1ba69ce7241a59f6b0c2686",
+  "title": "Verified caption facts and race-free streaming assertions",
+  "summary": "Keep known measured inline-caption ingredients and written method in editable imports before model allocation; raw source stays intact and unknown facts stay blank. Assert initial streaming preview synchronously and observe deadline expiry explicitly without changing production streaming behavior or timeouts. Native final-head compile and tests remain UNRUN.",
+  "source_commit": "f242c7753e1183d77f7d94fb99154a2691918ee9",
   "evidence": [
     {
-      "path": "Ate/Logic/SyncPayloadSafety.swift",
-      "blob": "f4040dd44dd3df34d68602b91fd9c17700b90ec8"
+      "path": "Ate/Logic/SourceDraftImport.swift",
+      "blob": "68dcaf45bfc709a9b93b7937bc63053f9e2a7560"
     },
     {
-      "path": "Ate/Models/Models.swift",
-      "blob": "351418e25e0814d4c4f9a4f7f816119f5be31ccf"
+      "path": "Ate/Services/OnDeviceBackend.swift",
+      "blob": "d3c61fd53b01f3e16c18a95f4c117b8b5f086b5a"
     }
   ]
 }

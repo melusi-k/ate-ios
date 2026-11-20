@@ -74,6 +74,10 @@ final class OnDeviceBackend: BackendService {
             card.sourceDraft = .init(text: text, warnings: ["Check the detected screenshot text and quantities."], unknownServings: false)
             return card
         }
+        if let card = SourceDraftImport.inlineCaptionCard(text) {
+            try GenerationCancellation.check()
+            return card
+        }
         if case .verified(let contract) = SourceRecipeFidelity.extraction(text),
            let card = try? VerifiedPasteImport.card(from: text, contract: contract) {
             try GenerationCancellation.check()

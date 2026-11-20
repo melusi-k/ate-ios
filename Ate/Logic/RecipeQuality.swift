@@ -115,7 +115,7 @@ enum RecipeQuality {
             out.append("The photo did not establish an edible dish; name the dish before generating a recipe.")
         }
         let real = c.ingredients.filter { $0.quantity > 0 && !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
-        if isMainDish(c) && real.count < 4 { out.append("Needs at least 4 ingredients with quantities (has \(real.count)).") }
+        if isMainDish(c) && !SourceDraft.applies(to: c) && real.count < 4 { out.append("Needs at least 4 ingredients with quantities (has \(real.count)).") }
         let vague = c.ingredients.map { $0.name.lowercased().trimmingCharacters(in: .whitespaces) }.filter { vagueIngredients.contains($0) }
         if !vague.isEmpty { out.append("Name the actual ingredients instead of “\(vague.joined(separator: "”, “"))”.") }
         let miss = missingEssentials(c)

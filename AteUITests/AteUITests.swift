@@ -206,8 +206,9 @@ final class AteUITests: XCTestCase {
     }
 
     func test06_CookMode() {
-        launch()
-        addPromptRecipe()
+        let receipt = NamedRedReceipt(self, "cook-controls-and-completion")
+        receipt.step("launch", pixels: true) { launch() }
+        receipt.step("import-save-original-source") { addPromptRecipe() }
         app.buttons["Cook mode"].tap()
         wait(text("Step 1 of 4"))
         XCTAssertFalse(app.buttons["Back"].isEnabled)
@@ -219,7 +220,7 @@ final class AteUITests: XCTestCase {
         app.buttons["Next step"].tap(); app.buttons["Next step"].tap()
         wait(text("Step 3 of 4"))
         wait(text("10:00"))
-        app.buttons["Start timer"].tap()
+        receipt.step("start-step-timer-once", pixels: true) { app.buttons["Start timer"].tap() }
         wait(app.buttons["Pause timer"], 5)
         sleep(2)
         XCTAssertFalse(text("10:00").exists, "timer should count down")
@@ -234,7 +235,15 @@ final class AteUITests: XCTestCase {
         wait(finish)
         XCTAssertEqual(finish.label, "Finish cooking")
         shot("cook-last-step")
-        finish.tap()
+        receipt.inspect("finish-button", finish)
+        receipt.step("finish-once", pixels: true) { finish.tap() }
+        receipt.step("assert-completion-before-exit", pixels: true) {
+            wait(app.staticTexts["cookCompletion.recorded"], 5)
+            let done = app.buttons["cookReflection.notNow"]
+            wait(done, 5)
+            XCTAssertEqual(app.buttons.matching(identifier: "cookReflection.notNow").count, 1)
+            done.tap()
+        }
         wait(app.buttons["Cook mode"], 5)
     }
 
@@ -260,11 +269,15 @@ final class AteUITests: XCTestCase {
     }
 
     func testCookModeCompletionRecordsCookingDay() {
+        let receipt = NamedRedReceipt(self, "cook-completion-history")
         captureAddTitleQuery = true
         defer { captureAddTitleQuery = false }
-        launch(["-qaAccountJourneyAnimationDiagnostic", "-qaAddTitleQueryDiagnostic"])
-        addPromptRecipe()
-        app.buttons["Cook mode"].tap()
+        receipt.step("launch-original-account-diagnostics", pixels: true) {
+            launch(["-qaAccountJourneyAnimationDiagnostic", "-qaAddTitleQueryDiagnostic"])
+        }
+        receipt.step("assert-launched-foreground") { XCTAssertEqual(app.state, .runningForeground) }
+        receipt.step("import-save-original-source") { addPromptRecipe() }
+        receipt.step("open-cook", pixels: true) { app.buttons["Cook mode"].tap() }
         wait(text("Step 1 of 4"))
 
         let finish = app.buttons["cookFinish"]
@@ -272,39 +285,43 @@ final class AteUITests: XCTestCase {
         while !finish.exists && steps < 6 {
             let next = app.buttons["Next step"]
             wait(next, 5)
-            next.tap()
+            receipt.step("advance-step-\(steps + 1)") { next.tap() }
             steps += 1
         }
         wait(finish, 5)
-        finish.tap()
+        receipt.inspect("finish-button", finish)
+        receipt.step("finish-once", pixels: true) { finish.tap() }
         // Finish confirms the saved cook before returning to recipe detail. Do not
         // query background buttons/tabs through the still-present completion sheet.
-        wait(app.staticTexts["cookCompletion.recorded"], 5)
+        receipt.step("assert-recorded-confirmation", pixels: true) { wait(app.staticTexts["cookCompletion.recorded"], 5) }
         let completionDone = app.buttons["cookReflection.notNow"]
         wait(completionDone, 5)
         XCTAssertEqual(app.buttons.matching(identifier: "cookReflection.notNow").count, 1)
-        completionDone.tap()
+        receipt.step("acknowledge-completion-once", pixels: true) { completionDone.tap() }
         wait(app.buttons["Cook mode"], 5)
 
         // Completion must update the persistent Tracker, not merely dismiss Cook Mode.
-        tabFromRecipeDetail("Journal", recipeTitle: "Miso salmon for two")
+        receipt.step("return-through-real-journal-tab", pixels: true) { tabFromRecipeDetail("Journal", recipeTitle: "Miso salmon for two") }
         // Journal is the tab root; Insights & Cooking History is its one named route.
         let hub = app.buttons["journal.insightsHistory"].firstMatch
         XCTAssertTrue(hub.waitForExistence(timeout: 10), "Journal root must expose Insights & Cooking History")
-        hub.tap()
+        receipt.step("open-insights-history", pixels: true) { hub.tap() }
         let day = Calendar.current.component(.day, from: Date())
         let today = app.buttons["tracker.day.\(day)"]
-        wait(today, 5)
+        receipt.step("resolve-today") { wait(today, 5) }
+        receipt.inspect("today-cooking-day", today)
         XCTAssertTrue(today.label.contains("cooked") && today.label.contains("today"),
                       "Finish cooking should mark today's Tracker date as cooked: \(today.label)")
-        today.tap()
+        receipt.step("open-recorded-day", pixels: true) { today.tap() }
         wait(app.navigationBars["Cooked that day"], 5)
         XCTAssertFalse(app.staticTexts["Nothing recorded for this day."].exists,
                        "The completed recipe should appear in the selected day's history")
         let recordedRecipe = app.descendants(matching: .any).matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "tracker.recipe.")
         ).firstMatch
-        wait(recordedRecipe, 5)
+        receipt.step("assert-recorded-recipe", pixels: true) { wait(recordedRecipe, 5) }
+        receipt.inspect("recorded-recipe", recordedRecipe)
+        XCTAssertTrue(recordedRecipe.label.contains("Miso salmon"), "The recorded row must identify this cook, not an unrelated recipe")
     }
 
     /// Cooks the prompt recipe through Cook mode so today has a recorded cooking day (optionally

@@ -37,7 +37,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     func addRecipe() {
         app.buttons["Add recipe"].tap()
         app.buttons["Prompt"].tap()
-        let e = app.textViews["promptEditor"]; e.tap(); e.typeText("miso salmon")
+        let e = app.textViews["promptEditor"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: "miso salmon"))
         app.buttons["generateButton"].tap()
         XCTAssertTrue(app.buttons["saveRecipe"].waitForExistence(timeout: 15))
         app.buttons["saveRecipe"].tap()

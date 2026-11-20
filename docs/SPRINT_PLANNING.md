@@ -1113,3 +1113,57 @@ This append-only correction supersedes the affected statements in the Nov 2 thro
 - **Owner authority and governance:** The earlier decision to keep all 30 PRs open until independent approval, ownership review and effective repository governance were satisfied records the reviewing agent's historical decision and proposed safeguards. It is not a recovered owner instruction or an agreed repository-wide policy. Recommendations to nominate an independent CODEOWNER, enable rulesets or require human/CODEOWNER approval remain proposals pending owner agreement. Configured rules, enforced rules and recommended rules are distinct. The historical metadata above reported the ruleset disabled and CODEOWNERS review not required; recommendations must not be presented as enforced requirements. No repository settings or policy change was made by this clarification.
 - **Branch-update availability:** The historical observation was `allow_update_branch=false`. That flag controls the repository's "Always suggest updating pull request branches" setting. It does not by itself prove that GitHub has no safe supported branch-update route. Where the earlier notes said no update action was exposed, that describes the observed action surface only, not categorical platform inability. No branch update was performed in those observations. An actual reconciliation would need its own supported-route and exact-tree validation; this correction does not authorize a rebase, force push or branch update. Source: [GitHub's explanation of update-branch suggestions](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-suggestions-to-update-pull-request-branches).
 - **Insights #195 is blocking at the historical SHA:** In `.github/workflows/compile-check.yml` at `e5665234129e047baf56e3c6af5ea0a5f254e59f`, the focused Insights acceptance step allows later diagnostics to continue, but the final `Enforce Insights acceptance result (#195)` step uses `always()` with `steps.insights_acceptance.outcome == 'failure'` and exits 1 (lines 537-542). An Insights acceptance failure therefore blocks the aggregate Compile gate at that SHA. Its inclusion in the earlier list must not imply that it was non-blocking. Other focused suites need their own enforcement analysis; `continue-on-error` alone establishes neither a pass nor the final gate result. This correction is anchored to the historical SHA, not to the later contents of `main`.
+
+
+---
+
+## Sprint 2026-W48 — Monday planning (reviewed 2026-11-21 SAST)
+
+**Sprint:** 2026-W48 — Today experience reliability  
+**Dates:** Monday 2026-11-23 through Sunday 2026-11-29  
+**Planning review:** 2026-11-21T01:29:00+02:00 (Saturday pre-planning review for the next Monday–Sunday cycle)  
+**Main baseline:** `61f66f234d6f570617cbd1ebfd4e8fb28db4546a` (PR #647 base SHA; build 457 evidence is anchored to this SHA).  
+**Goal:** Close the small, user-visible Today greeting defect with exact-head native evidence and owner verification, without treating a green subset or bot status as release approval.
+
+### Review findings and constraints
+
+- Reviewed `PRD.md`, `PRODUCT_BACKLOG.md`, `PRD_GAP_REGISTER.md`, `MVP_CHECKLIST.md`, `QA_MATRIX.md`, current `main` baseline, open/recent issues and PRs, dependencies and available CI evidence. PRD/MVP progress snapshots are dated 2026-10-24; historical statuses are not fresh passes.
+- Latest exact candidate record in [#33](https://github.com/melusi-k/ate-ios/issues/33): build 457, run [44829767825](https://github.com/melusi-k/ate-ios/actions/runs/44829767825), SHA `61f66f234d6f570617cbd1ebfd4e8fb28db4546a`: **BLOCKED**, 1/59 verified, 12 failing, 46 open; unit, 8-flow QA, UI and E2E skipped; QA-results retrieval failed HTTP 400. This is not release-ready.
+- PR [#647](https://github.com/melusi-k/ate-ios/pull/647) head `01ce0d8d7faf4c58c42c5918573899c9ce678e7f`: Compile Check, Dogfood Qualification and Journal open-state UI were in progress; CodeQL Advanced, stacked-PR validation and label automation succeeded. Underlying active jobs were still running. Codex review could not complete due usage limits; no inline threads or human review/approval recorded.
+- Repository default branch is `main`; auto-merge is disabled. No governance settings were changed or presumed enforced.
+- Release blockers tracked by #33/#30 and wider auth/sync/share/device gates remain outside this narrow W48 commitment. This sprint is not a release go/no-go.
+
+### Committed scope
+
+| Ticket | Commitment | Planned dates | Outcome / acceptance |
+|---|---|---|---|
+| [Issue #645](https://github.com/melusi-k/ate-ios/issues/645) — Today late-night greeting | Committed | 2026-11-23 to 2026-11-29 | Correct late-night copy; deterministic tests cover both sides of 04/05, 11/12, 16/17, 21/22 and midnight; owner verifies late-night Hello and unchanged daytime buckets on a build from the merged head. |
+| [PR #647](https://github.com/melusi-k/ate-ios/pull/647) — implementation for #645 | Committed | 2026-11-23 to 2026-11-29 | Qualify final exact head through Compile Check, Dogfood Qualification and Journal open-state UI; resolve review findings, obtain qualifying human review/approval where required, merge only after all gates pass, then capture owner device evidence. Issue and PR are separate tickets but one delivery outcome. |
+
+### Stretch scope
+
+| Ticket | Planned dates | Bounded acceptance / dependency |
+|---|---|---|
+| [Issue #646](https://github.com/melusi-k/ate-ios/issues/646) — Suggested preview action styling | 2026-11-23 to 2026-11-29 | Only if #645/#647 is on track and the #641/#643 Suggested recipe surface is available on a clean base. Align Save/Edit/Rerun styling and order; preserve behavior, labels, disabled logic, identifiers and validation; add focused UI evidence and owner device screenshot. Any implementation PR links to #646 and counts as one outcome. |
+
+### Not committed / carryover release risks
+
+- [#33](https://github.com/melusi-k/ate-ios/issues/33) remains **BLOCKED**; no W48 release approval is implied. [#30](https://github.com/melusi-k/ate-ios/issues/30) remains the engineering/evidence history.
+- Authentication, sync failure stability, share/deep-link/outage behavior, full UI/device accessibility, and production security/operational gates remain release risks. No new scope is committed for them in this one-week cycle.
+- PR #643 and its parent/stack are dependencies/context for stretch #646, not W48 committed deliveries.
+
+### Lifecycle reconstruction — selected tickets
+
+Times are UTC ISO-8601 and SAST (UTC+02:00). Actual work start, human review, approval and completion remain Unknown where GitHub evidence does not establish them. Bot comments are activity only, not human reviews; COMMENTED is not approval. No lead, implementation, review, approval or cycle-time metric is calculated without evidenced endpoints.
+
+| Ticket | Created/opened (UTC) | Created/opened (SAST) | Actual work start | Review / approval | Completion |
+|---|---|---|---|---|---|
+| [Issue #645](https://github.com/melusi-k/ate-ios/issues/645) | 2026-11-20T23:11:07Z | 2026-11-21T01:11:07+02:00 | Unknown | N/A at issue level | Open / Unknown |
+| [PR #647](https://github.com/melusi-k/ate-ios/pull/647) | 2026-11-20T23:14:31Z | 2026-11-21T01:14:31+02:00 | Unknown | Human review Unknown; approval Unknown | Open / not merged |
+| [Issue #646](https://github.com/melusi-k/ate-ios/issues/646) | 2026-11-20T23:13:40Z | 2026-11-21T01:13:40+02:00 | Unknown | N/A until a PR exists | Open / Unknown |
+
+### Change log
+
+- 2026-11-21: Added W48 planning baseline after Saturday review for the upcoming Monday–Sunday sprint. Original W45/W46 records remain unchanged.
+- No actual-start/end dates were inferred from planned dates. No PR merged, check bypassed, validation weakened, or governance setting changed.
+- Sunday close-out due 2026-11-29; no premature close-out or committed-versus-delivered claim is made.

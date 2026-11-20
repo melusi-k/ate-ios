@@ -1,7 +1,7 @@
 {
   "title": "Keep caption ingredients grouped and source unknowns honest",
   "summary": "Group explicit multiline captions before model classification, preserving all source rows and unknown facts. Keep saved metadata text visible, avoid generated-only quantity gaps and impossible Repair actions on source imports, explain missing servings without estimating Nutrition, and use relevant non-recipe refusal wording. Native final-head compile and device screenshots remain UNRUN.",
-  "source_commit": "533c8b52dc7cad91a173160dd6e8ee8e1a814ee9",
+  "source_commit": "cb9032996f0b2318281c06442ce818f093aa7088",
   "evidence": [
     {
       "path": "Ate/Logic/MultilineCaptionImport.swift",

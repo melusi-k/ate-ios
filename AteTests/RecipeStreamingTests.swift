@@ -228,9 +228,20 @@ final class RecipeStreamingTests: XCTestCase {
         XCTAssertNotNil(session.preview)
         XCTAssertTrue(session.suggestions.isEmpty)
         gate.release(); await fulfillment(of: [returned], timeout: 2)
+        // The injected stream returning is not the session's rejection boundary:
+        // suggestRecipe must reject the echo, then catch/defer clears its preview.
+        let settled = expectation(description: "echo rejection published and preview cleared")
+        let observer = Task { @MainActor in
+            while session.loading && !Task.isCancelled { await Task.yield() }
+            if !Task.isCancelled { settled.fulfill() }
+        }
+        await fulfillment(of: [settled], timeout: 2)
+        observer.cancel()
+        XCTAssertFalse(session.loading)
         XCTAssertNil(session.preview)
         XCTAssertTrue(session.suggestions.isEmpty)
         XCTAssertTrue(session.savedIDs.isEmpty)
         XCTAssertNotNil(session.message)
+        XCTAssertEqual(session.message, "AI could not create a suggestion. No demo recipe was substituted or saved.")
     }
 }

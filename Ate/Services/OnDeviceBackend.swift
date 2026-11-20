@@ -74,6 +74,10 @@ final class OnDeviceBackend: BackendService {
             card.sourceDraft = .init(text: text, warnings: ["Check the detected screenshot text and quantities."], unknownServings: false)
             return card
         }
+        if let card = MultilineCaptionImport.card(text) {
+            try GenerationCancellation.check()
+            return card
+        }
         if let card = SourceDraftImport.inlineCaptionCard(text) {
             try GenerationCancellation.check()
             return card

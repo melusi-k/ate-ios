@@ -10,6 +10,10 @@ NEW='''        // Target the full list row, not the narrow StaticText title chil
         appleRow.element(boundBy: 0).swipeRight()
         wait(app.buttons["Favourite"].firstMatch, 3)'''
 def restore(path,raw):
+    from ui_progress_stream_delta import restore as restore_progress
+    raw = restore_progress(path,raw)
+    from named_ui_red_rewrite_delta import restore as restore_reds
+    raw = restore_reds(path,raw)
     if path.split(':',1)[-1]!='AteUITests/AteUITests.swift':return raw
     binary=isinstance(raw,bytes);text=raw.decode() if binary else raw
     if NEW not in text:

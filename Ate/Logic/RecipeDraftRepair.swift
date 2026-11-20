@@ -4,8 +4,12 @@ import Foundation
 /// and a scoped user rewrite. It receives the exact failed draft, not just a dish
 /// name, and cannot replace it with an unrelated card because a gap count fell.
 enum RecipeDraftRepair {
+    static func canRepair(_ card: RecipeCard) -> Bool {
+        RecipeQuality.isGenerated(card) && !RecipeQuality.shortfall(card).isEmpty
+    }
+
     static func instruction(for card: RecipeCard) throws -> String {
-        guard RecipeQuality.isGenerated(card), !RecipeQuality.shortfall(card).isEmpty else {
+        guard canRepair(card) else {
             throw BackendError(message: "This card has no generated quality gaps to repair.")
         }
         let data = try JSONEncoder().encode(card)

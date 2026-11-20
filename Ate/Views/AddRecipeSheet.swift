@@ -8,7 +8,7 @@ import OSLog
 /// Keep this boundary before every backend, including demo/custom backends;
 /// Explore owns its separate, deliberately creative request path.
 enum AddPromptSourceImport {
-    static let missingSourceMessage = "A dish name or idea isn't a recipe source. Paste the full recipe with ingredients and method, use a recipe link or screenshot, or enter it manually. For a new recipe idea, use Explore. Nothing was generated."
+    static let missingSourceMessage = "That text doesn't look like a recipe source. Paste a recipe with ingredients or written cooking instructions, use a recipe link or screenshot, or enter it manually. Nothing was generated."
 
     static func parse(_ request: ParseRequest, using backend: BackendService, onPreview: RecipePreviewHandler? = nil) async throws
         -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?) {

@@ -3,6 +3,8 @@ from pathlib import Path
 import hashlib,json
 FIXTURE_SHA='c9c47f10d433eebb512382c9a32b30164ea27c9c3b810ec2918be74bbdd25794'
 def restore(path,raw):
+    from row_metadata_style_delta import restore as restore_row
+    raw = restore_row(path,raw)
     from generation_native_reds_delta import restore_for_history as restore_generation
     raw = restore_generation(path,raw)
     from sync_payload_overflow_delta import restore as restore_sync_overflow
@@ -25,6 +27,7 @@ def restore(path,raw):
     # Native compiler correction: the successful import now propagates throws.
     # Remove only this exact declaration delta before the original pinned inverse.
     if path == 'AteTests/AddPromptSourceImportTests.swift':
+        text = text.replace('                    XCTAssertTrue(error.localizedDescription.contains("ingredients or written cooking instructions"))', '                    XCTAssertTrue(error.localizedDescription.contains("ingredients and method"))', 1)
         old = '    func testRecognizableUnverifiableRecipeKeepsExistingFailClosedBackendBoundary() async {'
         new = '    func testRecognizableUnverifiableRecipeKeepsExistingFailClosedBackendBoundary() async throws {'
         if new in text:

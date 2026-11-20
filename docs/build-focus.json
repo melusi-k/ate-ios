@@ -1,15 +1,43 @@
 {
-  "title": "Verified caption facts and race-free streaming assertions",
-  "summary": "Keep known measured inline-caption ingredients and written method in editable imports before model allocation; raw source stays intact and unknown facts stay blank. Assert initial streaming preview synchronously and observe deadline expiry explicitly without changing production streaming behavior or timeouts. Native final-head compile and tests remain UNRUN.",
-  "source_commit": "f242c7753e1183d77f7d94fb99154a2691918ee9",
+  "title": "Keep caption ingredients grouped and source unknowns honest",
+  "summary": "Group explicit multiline captions before model classification, preserving all source rows and unknown facts. Keep saved metadata text visible, avoid generated-only quantity gaps and impossible Repair actions on source imports, explain missing servings without estimating Nutrition, and use relevant non-recipe refusal wording. Native final-head compile and device screenshots remain UNRUN.",
+  "source_commit": "cb9032996f0b2318281c06442ce818f093aa7088",
   "evidence": [
     {
-      "path": "Ate/Logic/SourceDraftImport.swift",
-      "blob": "68dcaf45bfc709a9b93b7937bc63053f9e2a7560"
+      "path": "Ate/Logic/MultilineCaptionImport.swift",
+      "blob": "3fe8d2caed1bd5d421c4659635dfddb2567c8db8"
     },
     {
       "path": "Ate/Services/OnDeviceBackend.swift",
-      "blob": "d3c61fd53b01f3e16c18a95f4c117b8b5f086b5a"
+      "blob": "2e2d8691fda66efc21e34efb38e668c740e1994a"
+    },
+    {
+      "path": "Ate/Views/Components.swift",
+      "blob": "b831ec23faa8bb244f0fa49da68168b046965317"
+    },
+    {
+      "path": "Ate/Logic/RecipeQuality.swift",
+      "blob": "547733d41c638c199c2178e0ffe09f8e7815f302"
+    },
+    {
+      "path": "Ate/Logic/RecipeDraftRepair.swift",
+      "blob": "4829f14ef106f5b14c2b5c531a6d6de3f0c602b0"
+    },
+    {
+      "path": "Ate/Logic/RecipeNutrition.swift",
+      "blob": "e2f1553d1da57d599a9a02d96f617b782eacc156"
+    },
+    {
+      "path": "Ate/Views/RecipeDetailView.swift",
+      "blob": "7daee944041495d9af0b7dc1168a6c74cdc8d373"
+    },
+    {
+      "path": "Ate/Views/RecipeNutritionView.swift",
+      "blob": "2b10ab89ccab71945ac3af99f4e5cd824b493521"
+    },
+    {
+      "path": "Ate/Views/AddRecipeSheet.swift",
+      "blob": "dd9e79cf7fca8e7fd7ab6cfe5c807eae076ebf07"
     }
   ]
 }

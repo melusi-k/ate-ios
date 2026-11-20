@@ -70,9 +70,22 @@ final class SyncPayloadSafetyTests: XCTestCase {
         XCTAssertEqual(fractional.servings, 2); XCTAssertEqual(fractional.timeMinutes, 4)
         let bounds = try decoder.decode(RecipeCard.self, from: Data("{\"servings\":\(Int.max),\"timeMinutes\":\(Int.min)}".utf8))
         XCTAssertEqual(bounds.servings, Int.max); XCTAssertEqual(bounds.timeMinutes, Int.min)
-        let safeDouble = Double(Int.max).nextDown
-        let nearLimit = try decoder.decode(RecipeCard.self, from: Data("{\"servings\":\(safeDouble)}".utf8))
-        XCTAssertEqual(nearLimit.servings, Int(safeDouble))
+        let safeInteger = Int(Double(Int.max).nextDown)
+        XCTAssertEqual(safeInteger, 9_223_372_036_854_774_784)
+        // Serialize the intended binary boundary as an exact integer. Interpolating
+        // its Double instead emits a shortest decimal spelling with a different
+        // exact integer value, which the decoder's Int-first path must preserve.
+        let nearLimit = try decoder.decode(RecipeCard.self, from: Data("{\"servings\":\(safeInteger),\"timeMinutes\":\(safeInteger)}".utf8))
+        XCTAssertEqual(nearLimit.servings, safeInteger)
+        XCTAssertEqual(nearLimit.timeMinutes, safeInteger)
+        for (literal, expected) in [
+            ("9.223372036854775e+18", 9_223_372_036_854_775_000),
+            ("-9.223372036854775e+18", -9_223_372_036_854_775_000)
+        ] {
+            let exactDecimal = try decoder.decode(RecipeCard.self, from: Data("{\"servings\":\(literal),\"timeMinutes\":\(literal)}".utf8))
+            XCTAssertEqual(exactDecimal.servings, expected, "Preserve the exact in-range JSON decimal integer")
+            XCTAssertEqual(exactDecimal.timeMinutes, expected, "Preserve the exact in-range JSON decimal integer")
+        }
         let missing = try decoder.decode(RecipeCard.self, from: Data("{}".utf8))
         XCTAssertEqual(missing.servings, 2); XCTAssertNil(missing.timeMinutes)
     }

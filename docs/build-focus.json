@@ -1,11 +1,11 @@
 {
-  "title": "Add Prompt source required",
-  "summary": "A dish name is not ingredient evidence. Refuse no-source Add Prompt before any backend; retain input and ask for full recipe/link/screenshot/manual entry. Typed creative Explore remains separate. Native/device refusal qualification UNRUN.",
-  "source_commit": "f5a47ab5c73e61c1fb3041e2062e7af76e15e4c0",
+  "title": "Single-pass recipe drafts, streaming preview and explicit Rerun",
+  "summary": "Readable recipe sources open as editable drafts with unknown facts blank. First-pass streaming stays read-only until final checks. Explicit Rerun uses the current card once and keeps the original on failure or the unchanged 60-second deadline. No automatic repair, demo substitution or automatic Explore save. Native build, device timing and pixel qualification remain UNRUN.",
+  "source_commit": "c5d7c8af10b0ccfca5fe1fafd20ed1b2dcedb065",
   "evidence": [
     {
-      "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "8ea1301328bbd02bec89f83e86b58c7266c69b7a"
+      "path": "Ate/Services/OnDeviceBackend.swift",
+      "blob": "ac76d924ca252395a2f9c26d5cc9eab6c4238e2c"
     }
   ]
 }

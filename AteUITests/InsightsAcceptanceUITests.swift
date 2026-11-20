@@ -470,6 +470,12 @@ final class InsightsAcceptanceUITests: XCTestCase {
         XCTAssertTrue(status.label.contains("On-device AI is not available"), status.label)
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "discovery.save.")).count, 0,
                        "A simulator or mock backend must never substitute saved or Demo recipes")
+        XCTAssertFalse(app.progressIndicators["discovery.loading"].exists, "Terminal failure releases loading")
+        let retry = app.buttons["discovery.generate"]
+        wait(retry)
+        XCTAssertTrue(retry.isEnabled)
+        XCTAssertEqual(retry.label, "Try again")
+        XCTAssertFalse(status.label.contains("Couldn't create a suggestion."), "No generic error may be prepended to the actionable error")
         seededShot("insights-new-suggestions-unavailable-no-demo")
         app.navigationBars["Suggested new recipes"].buttons["Close"].tap()
         wait(app.navigationBars["Insights & Cooking History"])

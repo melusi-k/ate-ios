@@ -1,0 +1,12 @@
+{
+ "Ate/Models/Models.swift": {
+  "parent_sha": "af44727f730d170bb30ff4672a7f26f8db95752d18cbdfbe28379b63a7dacfb1",
+  "current_sha": "6ad7dafa30ea30a7556cd5b8b6b0d9a805ead495685a3e8da58a091fe30bfc99",
+  "fragments": [
+   {
+    "new": "    case settings\n    /// The full saved-recipe collection pushed inside the Today stack (#642).\n    case library\n    case shared(String)",
+    "old": "    case settings\n    case shared(String)"
+   }
+  ]
+ }
+}

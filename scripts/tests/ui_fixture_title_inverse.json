@@ -1,0 +1,24 @@
+{
+  "Ate/Services/BackendService.swift": {
+    "parent_sha": "06d60f350f44d5713eccd696ab18b28884047cbcd139afdeba6abaff64e8f411",
+    "fragments": [
+      {
+        "new": "// MARK: - Mock (default)\n\nfinal class MockBackend: BackendService {\n    #if DEBUG\n    // UI fixtures carry a first-line label plus real source, not a dish-name prompt.\n    // Release/demo behavior is unchanged. Native tests opt into this same UI contract.\n    var usesSourceFixtureTitles = AppConfig.isUITesting\n    #endif\n    static let downMessage = \"ate's server isn't responding right now (HTTP 503). Your recipes are safe on this iPhone. Try again in a moment.\"\n    private static var published: [String: RecipeCard] = [:]\n    private static var offlineOnce = true\n",
+        "old": "// MARK: - Mock (default)\n\nfinal class MockBackend: BackendService {\n    static let downMessage = \"ate's server isn't responding right now (HTTP 503). Your recipes are safe on this iPhone. Try again in a moment.\"\n    private static var published: [String: RecipeCard] = [:]\n    private static var offlineOnce = true\n"
+      },
+      {
+        "new": "        }\n        let title: String\n        switch request.mode {\n        case .prompt:\n            var titleSeed = seed\n            #if DEBUG\n            if usesSourceFixtureTitles {\n                titleSeed = seed.components(separatedBy: .newlines)\n                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }\n                    .first { !$0.isEmpty } ?? \"\"\n            }\n            #endif\n            title = titleSeed.isEmpty ? \"Weeknight miso salmon\" : titleSeed.prefix(1).uppercased() + titleSeed.dropFirst()\n        case .url: title = \"Recipe from \\(URL(string: seed)?.host ?? \"the web\")\"\n        case .image: title = \"Screenshot recipe\"\n        case .rewrite: title = \"Recipe\"\n",
+        "old": "        }\n        let title: String\n        switch request.mode {\n        case .prompt: title = seed.isEmpty ? \"Weeknight miso salmon\" : seed.prefix(1).uppercased() + seed.dropFirst()\n        case .url: title = \"Recipe from \\(URL(string: seed)?.host ?? \"the web\")\"\n        case .image: title = \"Screenshot recipe\"\n        case .rewrite: title = \"Recipe\"\n"
+      }
+    ]
+  },
+  "AteTests/PromptRecipeFixtureTests.swift": {
+    "parent_sha": "28311462f628f30d66d8d5953d6753e6ea7b2a2a6fcdced5e66be30ed5f9de3f",
+    "fragments": [
+      {
+        "new": "        }\n        XCTAssertEqual(backend.requests.count, 1)\n    }\n    func testActualUIMockBackendKeepsFixtureFirstLineTitlesCardAndTimers() async throws {\n        let backend = MockBackend()\n        backend.usesSourceFixtureTitles = true\n        for title in [\"Pea risotto\", \"Shareable soup\", \"Timer test salmon\", \"Lemon chicken traybake\", \"Synced stew\"] {\n            let source = PromptRecipeFixture.salmon(named: title)\n            let card = try await AddPromptSourceImport.parse(.init(mode: .prompt, text: source), using: backend).card\n            XCTAssertEqual(card.title, title)\n            XCTAssertEqual(card.source, .mock)\n            XCTAssertEqual(card.servings, 2)\n            XCTAssertEqual(card.timeMinutes, 25)\n            XCTAssertEqual(card.ingredients.map(\\.name), [\"salmon fillets\", \"white miso\", \"honey\", \"garlic\", \"rice\"])\n            XCTAssertEqual(card.steps.count, 4)\n            XCTAssertEqual(card.steps.map(\\.timeSeconds), [nil, nil, 600, 60])\n        }\n        let padded = \"\\n  Timer test salmon  \\n\" + PromptRecipeFixture.salmonContinuation\n        let card = try await backend.parseRecipe(.init(mode: .prompt, text: padded))\n        XCTAssertEqual(card.title, \"Timer test salmon\")\n    }\n\n}\n",
+        "old": "        }\n        XCTAssertEqual(backend.requests.count, 1)\n    }\n}\n"
+      }
+    ]
+  }
+}

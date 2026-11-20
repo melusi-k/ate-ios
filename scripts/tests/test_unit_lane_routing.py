@@ -49,7 +49,8 @@ class UnitLaneRoutingTests(unittest.TestCase):
         heading_fix = ['VerifiedPasteHeadingTests/testColonlessForAndToHeadingsNeverConsumeAnIngredientSlot']
         ui_fixtures = ['PromptRecipeFixtureTests/testExactUIFixturesAreVerifiedMeasuredSources', 'PromptRecipeFixtureTests/testActualAddBoundaryAcceptsFixtureButStillRefusesNameOnly', 'PromptRecipeFixtureTests/testActualUIMockBackendKeepsFixtureFirstLineTitlesCardAndTimers']
         sync_overflow = ['SyncPayloadSafetyTests/testMalformedIdentityArraysNumbersAndFutureVersionFailClosed', 'SyncPayloadSafetyTests/testEachNumericOverflowRowFailsClosedWithoutTrapping', 'SyncPayloadSafetyTests/testOnlyEditableDraftsPermitZeroServingsAndNeverZeroTimeOrOverflow', 'SyncPayloadSafetyTests/testRecipeDecoderRejectsOutOfRangeDoublesButKeepsLegacyNumbers']
-        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline + source_required + verified_paste + caption_paste + streaming + content_admission + heading_fix + ui_fixtures + sync_overflow))
+        inline_caption = ['SourceRecipeFidelityTests/testF1UnavailableModelDoesNotSubstituteDemoForExplicitSource', 'SourceRecipeFidelityTests/testVerifiedInlineCaptionKeepsExactKnownFactsWithoutCallingFailingClassifier', 'SourceRecipeFidelityTests/testAmbiguousInlineCaptionCannotGainInventedDeterministicIngredients']
+        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline + source_required + verified_paste + caption_paste + streaming + content_admission + heading_fix + ui_fixtures + sync_overflow + inline_caption))
         actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()
         self.assertEqual(actual, union)
         for required in source_native_regressions + metadata:

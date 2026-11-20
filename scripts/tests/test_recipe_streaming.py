@@ -1,3 +1,5 @@
+from source_refusal_wording_delta import restore as pre_wording
+from source_review_state_delta import restore as pre_review_state
 from recipe_content_admission_delta import restore as pre_content_admission
 """Descendant source wiring and exact inverse checks. Not native qualification."""
 from pathlib import Path
@@ -7,7 +9,7 @@ ROOT=Path(__file__).resolve().parents[2]
 class RecipeStreamingPreflight(unittest.TestCase):
     def test_exact_inverse_rejects_missing_duplicate_and_unrelated_mutants(self):
         for path,c in json.loads((ROOT/'scripts/tests/recipe_streaming_inverse.json').read_text()).items():
-            s=pre_content_admission(path,(ROOT/path).read_text())
+            s=pre_wording(path,pre_review_state(path,pre_content_admission(path,(ROOT/path).read_text())))
             self.assertEqual(hashlib.sha256(restore(path,s).encode()).hexdigest(),c['parent_sha'])
             for f in c['fragments']:
                 for changed in [s.replace(f['new'],'',1),s+f['new'],s+'// unrelated\n']:

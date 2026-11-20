@@ -54,6 +54,22 @@ enum SourceDraftImport {
         }
         return .init(title: rows.count > 1 && rows[0].count <= 160 && !isAction(rows[0]) ? 0 : nil, ingredients: ingredient, method: method)
     }
+    /// Only the existing measured inline-caption contract can split a mixed
+    /// ingredient/method line. Never infer sentence or ingredient boundaries.
+    static func inlineCaptionCard(_ text: String) -> RecipeCard? {
+        guard let contract = SourceRecipeFidelity.inlineCaption(text) else { return nil }
+        let exactServings = servings(text)
+        var card = RecipeCard(title: contract.dishes.first ?? "Imported recipe",
+            servings: exactServings ?? 0, ingredients: contract.ingredients,
+            steps: [.init(order: 1, instruction: contract.method, timeSeconds: nil)],
+            source: .imported)
+        card.sourceDraft = .init(text: text,
+            warnings: ["Imported from your source. Check it before saving. Unspecified facts remain blank."],
+            unknownServings: exactServings == nil)
+        card.aiNote = card.sourceDraft?.warnings.joined(separator: " ")
+        guard contract.issues(card).isEmpty else { return nil }
+        return card
+    }
     static func card(_ text: String, selected: SourceLineSelection) throws -> RecipeCard {
         let rows = lines(text)
         guard !rows.isEmpty, hasSource(text) else { throw unreadable }

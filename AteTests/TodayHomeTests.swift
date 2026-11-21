@@ -12,15 +12,20 @@ final class TodayHomeTests: XCTestCase {
         return c
     }
 
+    /// Every bucket edge is asserted on both sides through the injected hour:
+    /// 4/5, 11/12, 16/17 and 21/22, plus the midnight wrap. Late-night hours stay
+    /// neutral instead of saying "Good evening" after midnight (#645).
     func testGreetingBoundaries() {
-        XCTAssertEqual(TodayHome.greeting(hour: 0), "Good evening")
-        XCTAssertEqual(TodayHome.greeting(hour: 4), "Good evening")
+        XCTAssertEqual(TodayHome.greeting(hour: 0), "Hello")
+        XCTAssertEqual(TodayHome.greeting(hour: 4), "Hello")
         XCTAssertEqual(TodayHome.greeting(hour: 5), "Good morning")
         XCTAssertEqual(TodayHome.greeting(hour: 11), "Good morning")
         XCTAssertEqual(TodayHome.greeting(hour: 12), "Good afternoon")
         XCTAssertEqual(TodayHome.greeting(hour: 16), "Good afternoon")
         XCTAssertEqual(TodayHome.greeting(hour: 17), "Good evening")
-        XCTAssertEqual(TodayHome.greeting(hour: 23), "Good evening")
+        XCTAssertEqual(TodayHome.greeting(hour: 21), "Good evening")
+        XCTAssertEqual(TodayHome.greeting(hour: 22), "Hello")
+        XCTAssertEqual(TodayHome.greeting(hour: 23), "Hello")
     }
 
     func testPreviewFavouritesFirstThenNewestWithStableTies() {

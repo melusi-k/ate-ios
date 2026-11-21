@@ -7,13 +7,16 @@ enum HomeSheetOwner: Equatable { case today, collection, none }
 /// tab. No clocks, stores or backends leak in, so the native tests pin the exact
 /// boundaries without a simulator.
 enum TodayHome {
-    /// Time-of-day greeting for the header. The app does not know the cook's name,
-    /// so the greeting never invents one.
+    /// Time-of-day greeting for the header, bucketed on the device's local hour
+    /// (the view passes Calendar.current's hour). The app does not know the cook's
+    /// name, so the greeting never invents one, and the late-night hours stay
+    /// neutral instead of claiming an evening that ended hours ago (#645).
     static func greeting(hour: Int) -> String {
         switch hour {
         case 5..<12: return "Good morning"
         case 12..<17: return "Good afternoon"
-        default: return "Good evening"
+        case 17..<22: return "Good evening"
+        default: return "Hello"
         }
     }
 

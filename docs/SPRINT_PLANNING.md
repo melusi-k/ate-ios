@@ -1364,6 +1364,7 @@ The rolling portfolio allocation above is now the scheduling source for every op
 | #89 | 2026-W48 | 2026-11-23 | 2026-11-29 | Committed generation-acceptance slice shared with #641/#643; broader issue acceptance remains open |
 | #641 | 2026-W48 | 2026-11-23 | 2026-11-29 | Committed generation entry/acceptance slice shared with #89/#643 |
 | #642 | 2026-W48 | 2026-11-23 | 2026-11-29 | Committed Today reference migration only; conditional-home work remains stretch |
+| #498 | 2026-W48 | 2026-11-23 | 2026-11-29 | Stretch only if NOW-bug reserve is clearly spare; not part of the 16 planned points |
 | #645 | 2026-W52 | 2026-12-21 | 2026-12-27 | LATER/cosmetic candidate associated with PR #647; not committed until W52 planning |
 | #646 | Backlog — unscheduled | — | — | Removed from W48 committed/stretch scope; retain its earlier proposed dates only as history, with no current planned window |
 
@@ -1375,7 +1376,7 @@ The rolling portfolio allocation above is now the scheduling source for every op
 ### Ticket update execution log — 2026-11-21
 
 - Applied the standard **Sprint schedule** block to all 84 open PRs, using each PR's existing portfolio allocation for sprint name, planned start and planned end. Each block leaves actual start/end blank and records the outcome, dependencies and disposition-only boundary. No PR was merged or closed.
-- Updated owning issue schedule records for #35, #89, #641 and #642 to keep the W48 planned window (2026-11-23 to 2026-11-29) and leave actual schedule dates blank until evidenced.
+- Updated owning issue schedule records for #35, #89, #641 and #642 to keep the W48 planned window (2026-11-23 to 2026-11-29), and #498 to retain its W48 Stretch window; actual schedule dates are blank until evidenced.
 - Updated #645 to the W52 candidate window (2026-12-21 to 2026-12-27), retaining the superseded W48 proposal and recording the dated change. This remains Stretch/LATER, not a W48 commitment.
 - Updated #646 to explicitly show **Unscheduled — ranked backlog**, with no current planned start/end. Its withdrawn W48 proposal remains history only.
 - These are planned schedule metadata updates only. GitHub created/opened/merged/closed timestamps and retrospective lifecycle history were not changed. No repository governance, checks, labels, permissions, production settings or application code were changed.

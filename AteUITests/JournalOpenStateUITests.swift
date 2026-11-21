@@ -353,9 +353,14 @@ extension JournalOpenStateUITests {
         shot("manual-crud-after-confirmed-delete")
         XCTAssertFalse(app.staticTexts["journal.delete.error"].exists,
                        "Confirmed deletion must commit and verify, not only dismiss an alert")
-        // Re-resolve after edit/reopen/delete, rather than observe the earlier detail handle.
-        // Same identity, disappearance assertion and 10s budget; no retry or pass fallback.
-        waitUntilGone(any("journal.detail.text"))
+        // Assert zero matching detail nodes without resolving an absent firstMatch element.
+        // Same identifier, disappearance requirement and 10s budget; no pass fallback.
+        let detailNodes = app.descendants(matching: .any).matching(identifier: "journal.detail.text")
+        let noDetailNodes = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            detailNodes.count == 0
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [noDetailNodes], timeout: 10), .completed,
+                       "Confirmed deletion must leave zero journal.detail.text nodes")
         wait(app.navigationBars["Journal"])
         XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "journal.entry")
             .matching(NSPredicate(format: "label CONTAINS %@", original)).firstMatch.exists,

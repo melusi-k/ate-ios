@@ -9,7 +9,7 @@ final class LibraryProteinGroupingUITests: XCTestCase {
         app.launchArguments = ["-UITesting", "-qaLibraryPorkGrouping", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
         receipt.step("launch-normal-text-pork-fixture", pixels: true) { app.launch() }
         receipt.step("open-saved-recipe-collection", pixels: true) {
-            // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.
+            // #642: the first tab is Today; the saved-recipe collection is one tap in.
             let recipes = app.buttons["today.recipes"]
             XCTAssertTrue(recipes.waitForExistence(timeout: 20), "Today routes to the saved-recipe collection")
             recipes.tap()

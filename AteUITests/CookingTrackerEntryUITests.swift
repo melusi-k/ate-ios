@@ -33,7 +33,7 @@ final class CookingTrackerEntryUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-qaResetCookingHistory"]
         app.launch()
-        // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.
+        // #642: the first tab is Today; the saved-recipe collection is one tap in.
         let libraryEntry = app.buttons["today.recipes"]
         XCTAssertTrue(libraryEntry.waitForExistence(timeout: 20), "Today routes to the saved-recipe collection")
         libraryEntry.tap()

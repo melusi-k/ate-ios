@@ -1,7 +1,7 @@
 {
-  "title": "Workflow cleanup: remove two unused optional Dynamic Type lanes",
-  "summary": "Deletes only two optional workflow entry files; their native test sources stay unchanged. Normal-text required checks, selectors, assertions, limits and release paths are unchanged. Current main has 27 XcodeGen jobs; this deletion leaves 25, including the manual Nutrition wrapper. Python and native qualification must be reported for the exact refreshed head; this metadata is not acceptance.",
-  "source_commit": "f3924f1b29c829870ed7841c967153517a875ff5",
+  "title": "Workflow cleanup: fold Journal foundation into strict full units",
+  "summary": "Retires the separate Journal foundation workflow after preserving all five foundation unit classes in the full AteTests lane and complete strict-concurrency checking on its simulator build. Existing native selectors, assertions, test limits, required check names and release paths are unchanged. App and native test sources are unchanged. Exact-head native qualification remains unproven.",
+  "source_commit": "b4c9fb082508a88176aafbdb25c53dff8e479e3e",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

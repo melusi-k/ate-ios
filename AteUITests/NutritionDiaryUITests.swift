@@ -464,7 +464,13 @@ final class NutritionDiaryUITests: XCTestCase {
         startupDiagnosticMark("initial-launch-end")
         openDiary(app)
         startupDiagnosticMark("open-log-form-start")
-        openLogForm(app)
+        // This journey is already on Food diary. Use its real toolbar action,
+        // not the optional root accessory's unrelated absent-control AX probe.
+        let logFood = app.navigationBars["Food diary"].buttons["nutritionDiary.add"]
+        XCTAssertTrue(logFood.waitForExistence(timeout: 2), "Food diary must expose its Log food toolbar action")
+        XCTAssertTrue(logFood.isHittable, "Log food must be reachable on the active Food diary screen")
+        logFood.tap()
+        XCTAssertTrue(app.textFields["nutritionDiary.foodName"].waitForExistence(timeout: 5), "Log form should open")
         startupDiagnosticMark("open-log-form-end")
         // Pixels before the unchanged pre-tap geometry/keyboard query, no extra AX query.
         let preGeometry = XCTAttachment(screenshot: app.screenshot())

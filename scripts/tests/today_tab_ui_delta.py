@@ -3,6 +3,8 @@ from pathlib import Path
 import hashlib,json
 FIXTURE_SHA='a59d291428139f6844fefd91cbd9fefcac306901d779c34b273dec3e90518877'
 def restore(key,raw):
+ from nutrition_log_route_delta import restore as restore_nutrition_route
+ raw=restore_nutrition_route(key,raw)
  path=key.split(':',1)[-1]
  payload=Path(__file__).with_name('today_tab_ui_inverse.json').read_bytes()
  assert hashlib.sha256(payload).hexdigest()==FIXTURE_SHA

@@ -58,13 +58,25 @@ final class InsightsRefreshOwnershipTests: XCTestCase {
     func testLatePromptCannotPublishAndOldDeferCannotStopNewLoading() async {
         let source = SuspendedInsightHealth(), prompts = SuspendedInsightPrompts(); var published: [HealthState] = []
         let model = InsightsModel(health: source, makePrompts: { await prompts.make($0) }, publishHealthState: { published.append($0) })
+        insightAwaitPhase("before-old-health-read")
         let old = Task { await model.refresh(recipes: []) }; await source.waitForRead(1)
+        insightAwaitPhase("after-old-health-read")
+        insightAwaitPhase("before-old-prompts-read")
         source.reads[0].resume(returning: summary("recovery")); await prompts.waitForRead(1)
+        insightAwaitPhase("after-old-prompts-read")
+        insightAwaitPhase("before-new-health-read")
         let new = Task { await model.refresh(recipes: []) }; await source.waitForRead(2)
+        insightAwaitPhase("after-new-health-read")
+        insightAwaitPhase("before-old-task-return")
         prompts.reads[0].resume(returning: []); await old.value
+        insightAwaitPhase("after-old-task-return")
         XCTAssertTrue(model.loading); XCTAssertNil(model.context); XCTAssertTrue(published.isEmpty)
+        insightAwaitPhase("before-new-prompts-read")
         source.reads[1].resume(returning: summary("performance")); await prompts.waitForRead(2)
+        insightAwaitPhase("after-new-prompts-read")
+        insightAwaitPhase("before-new-task-return")
         prompts.reads[1].resume(returning: []); await new.value
+        insightAwaitPhase("after-new-task-return")
         XCTAssertFalse(model.loading); XCTAssertNotNil(model.context); XCTAssertEqual(published.count, 1)
     }
     func testAccessLossAndCancellationDoNotPublishSuspendedSummary() async {
@@ -91,4 +103,10 @@ final class InsightsRefreshOwnershipTests: XCTestCase {
         source.reads[1].resume(returning: HealthSummary(days: [])); await empty.value
         XCTAssertNil(model.context); XCTAssertFalse(model.loading); XCTAssertEqual(publications, 0)
     }
+}
+
+// Fixed-count diagnostic only. No synchronization, actor or scheduling decisions.
+private func insightAwaitPhase(_ phase: String) {
+    let line = "INSIGHTS-AWAIT phase=\(phase) monotonic_ns=\(DispatchTime.now().uptimeNanoseconds) main_thread=\(Thread.isMainThread)\n"
+    FileHandle.standardOutput.write(Data(line.utf8))
 }

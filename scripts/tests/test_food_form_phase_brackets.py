@@ -28,6 +28,9 @@ class FoodFormPhaseTests(unittest.TestCase):
         if kb is not None:
             self.assertEqual(restored.count(kb),1)
             restored = restored.replace(kb,'',1)
+        # #642 rename slice: inverse the helper comment rename before the historical remainder hash.
+        self.assertEqual(restored.count('// #642: the first tab is Today; the saved-recipe collection is one tap in.'),1)
+        restored=restored.replace('// #642: the first tab is Today; the saved-recipe collection is one tap in.','// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.',1)
         self.assertEqual(hashlib.sha256(restored.encode()).hexdigest(), '908fabd0eafe8faae9f2fcf7e9623de0b9463eda05ee4f9075d7102c51be22b6')
     def test_helper_only_phase_name_and_uptime_no_ax_reads(self):
         source=(ROOT/'AteUITests/NutritionDiaryUITests.swift').read_text()

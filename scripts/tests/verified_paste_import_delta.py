@@ -3,6 +3,8 @@ from pathlib import Path
 import hashlib,json
 FIXTURE_SHA='c9c47f10d433eebb512382c9a32b30164ea27c9c3b810ec2918be74bbdd25794'
 def restore(path,raw):
+    from suggest_review_buttons_delta import restore as restore_buttons
+    raw = restore_buttons(path,raw)
     from row_metadata_style_delta import restore as restore_row
     raw = restore_row(path,raw)
     from generation_native_reds_delta import restore_for_history as restore_generation

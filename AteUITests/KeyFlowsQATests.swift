@@ -60,7 +60,7 @@ final class KeyFlowsQATests: XCTestCase {
     }
     func openAdd(_ tab: String) {
         let add = app.buttons["Add recipe"]
-        if !add.waitForExistence(timeout: 4) { self.tab("Library"); _ = add.waitForExistence(timeout: 10) }
+        if !add.waitForExistence(timeout: 4) { self.tab("Today"); _ = add.waitForExistence(timeout: 10) }
         waitHittable(add)
         add.tap()
         wait(text("Add a recipe"))
@@ -177,7 +177,7 @@ final class KeyFlowsQATests: XCTestCase {
     func testQA4_Save() {
         launch()
         addPrompt("Pea risotto")
-        tab("Library")
+        tab("Today")
         wait(text("Pea risotto"), 5)
         XCTAssertFalse(text("Nothing saved yet").exists)
         shot("4-saved-in-library")
@@ -265,11 +265,11 @@ final class KeyFlowsQATests: XCTestCase {
         app.terminate()
         // second launch: fresh local store, same server
         launch(["-qaPersistServer"])
-        tab("Library")
+        tab("Today")
         wait(text("Nothing saved yet"), 5)
         signIn()
         wait(text("Synced"), 10)
-        tab("Library")
+        tab("Today")
         wait(text("Synced stew v2"), 10)
         shot("7-sync-device-b-pulled")
     }

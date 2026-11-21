@@ -1,7 +1,7 @@
 """Exact fixture-only inverse before historical whole-file checks. No hash replaced."""
 from pathlib import Path
 import hashlib,json
-FIXTURE_SHA='9f350cea201f5e659fa39aed4c27d70043cfbf9e202e16251c81fe87cbd85660'
+FIXTURE_SHA='e9a801badfd6a736d1a27625d013ab4da7b66c0499ddaf0a48ab64a29d67b35c'
 def restore(key,raw):
     from group28_swipe_target_delta import restore as restore_swipe
     raw = restore_swipe(key,raw)

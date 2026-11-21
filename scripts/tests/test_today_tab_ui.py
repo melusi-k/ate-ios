@@ -25,13 +25,13 @@ class TodayTabUIDeltaTests(unittest.TestCase):
    s=(ROOT/path).read_text()
    self.assertIn('func openLibraryCollection()',s)
    helper=s.split('func openLibraryCollection()',1)[1].split('    }\n',1)[0]
-   self.assertIn('tab("Library")',helper)
+   self.assertIn('tab("Today")',helper)
    self.assertIn('app.buttons["today.recipes"]',helper)
    self.assertNotIn('sleep(',helper)
   s=(ROOT/'AteUITests/ExploreUITests.swift').read_text()
   self.assertIn('app.navigationBars["Favourites"].waitForExistence(timeout: 10)',s)
   s=(ROOT/'AteUITests/InsightsPresentationUITests.swift').read_text()
-  self.assertIn('app.navigationBars["Your Kitchen"], 10',s)
+  self.assertIn('app.navigationBars["Recipes"], 10',s)
 
  def test_every_library_content_setup_enters_the_canonical_collection(self):
   # The full launch/setup audit (#642 v3): every UI test class whose launch or

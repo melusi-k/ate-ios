@@ -26,7 +26,7 @@ final class ExploreUITests: XCTestCase {
         let capture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         capture.name = name; capture.lifetime = .keepAlways; add(capture)
     }
-    /// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.
+    /// #642: the first tab is Today; the saved-recipe collection is one tap in.
     private func openLibraryCollection() {
         let recipes = app.buttons["today.recipes"]
         XCTAssertTrue(recipes.waitForExistence(timeout: 20), "Today routes to the saved-recipe collection")
@@ -166,7 +166,7 @@ final class ExploreUITests: XCTestCase {
         XCTAssertEqual(search.value as? String, "miso",
                        "Submitting Search must keep the full query before opening Explore")
         shot("explore-search-query-before-library")
-        app.tabBars.buttons["Library"].tap()
+        app.tabBars.buttons["Today"].tap()
         // The pushed collection survives the Search tab round-trip, so the
         // filtered collection is already here; no Today re-entry is needed.
         XCTAssertTrue(app.navigationBars["Favourites"].waitForExistence(timeout: 10))

@@ -154,8 +154,8 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 
 
 - **A-NAV-02 · Explore destinations present as independent native sheets** — 🟡
-  - *Journey:* As a cook, I can open Insights & journal or Journal from Library Explore without changing the Library navigation stack.
-  - *Acceptance:* Given I select either Explore destination, Then it opens in a large native sheet with its own navigation stack; Done dismisses the sheet and returns to Library with its route and state preserved.
+  - *Journey:* As a cook, I can open Insights & journal or Journal from the Recipes Explore destinations without changing the Recipes navigation stack.
+  - *Acceptance:* Given I select either Explore destination, Then it opens in a large native sheet with its own navigation stack; Done dismisses the sheet and returns to Recipes with its route and state preserved.
   - *Verified by:* `CoverageUITests.testExploreInsightsPresentsAsSheetAndDismissesToLibrary, CoverageUITests.testExploreJournalPresentsAsSheetAndDismissesToLibrary`
   - *Status evidence:* Focused exact-head CI pending; physical-device and responsive-layout checks remain outstanding.
   - *Owner:* [#83](https://github.com/melusi-k/ate-ios/issues/83)
@@ -232,7 +232,7 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
   - *Feature area:* Library and discovery · *Release gate:* Pilot · *Initial priority:* P1
 
 - **A-LIB-05 · Group recipes consistently** — 🟡
-  - *Journey:* As a cook, I group the Library by recently added, cuisine, main ingredient or cook time.
+  - *Journey:* As a cook, I group Recipes by recently added, cuisine, main ingredient or cook time.
   - *Acceptance:* Section order and fallback groups are stable; unknown/missing values remain visible; group and sort combinations are defined and do not hide recipes.
   - *Verified by:* — · focused unit/UI coverage required
   - *Status evidence:* Current in-memory grouping behavior and edge cases need tests.
@@ -353,7 +353,7 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 
 - **A-INTENT-04 · Search ate from Siri / Spotlight** — 🔴
   - *Journey:* As a cook, I find recipes from Spotlight.
-  - *Acceptance:* Given saved recipes, When I search Spotlight for one, Then it appears and opens in ate; 'Search ate for tripe' opens Library filtered by 'tripe'.
+  - *Acceptance:* Given saved recipes, When I search Spotlight for one, Then it appears and opens in ate; 'Search ate for tripe' opens Recipes filtered by 'tripe'.
   - *Verified by:* `AppIntentsTests.testSearchIntent`, `testRecipeEntityAndQuery` · device
   - *Status evidence:* new in the Widgets & Intents build
   - *Owner:* [#36](https://github.com/melusi-k/ate-ios/issues/36)
@@ -513,7 +513,7 @@ Legend: ✅ pass (evidence on the exact candidate SHA) · 🟡 partial / not re-
 
 - **A-NAV-01 · Navigation and layout in portrait and landscape** — 🟡
   - *Journey:* As a cook, I can use Ate held either way.
-  - *Acceptance:* Given b36+, When I rotate in the Library, Then landscape shows the sidebar + 2-column grid, portrait shows the list, the main bar has Library, Shopping, Journal and Settings (with the iOS 26 Search-role tab where available), and no dedicated Beta/More tab is shown; Beta testing is reachable only in explicitly named beta build channels and is absent from production builds.
+  - *Acceptance:* Given b36+, When I rotate in Recipes, Then landscape shows the sidebar + 2-column grid, portrait shows the list, the main bar has Today, Shopping, Journal and Settings (with the iOS 26 Search-role tab where available), and no dedicated Beta/More tab is shown; Beta testing is reachable only in explicitly named beta build channels and is absent from production builds.
   - *Verified by:* `test22_TabBar, test26, test27_LandscapeSidebarGridAndCollections` · QA.md (new step)
   - *Status evidence:* Rotation only just enabled in b36 and unverified; test27 was failing/flaky
   - *Owner:* [#68](https://github.com/melusi-k/ate-ios/issues/68)

@@ -114,9 +114,9 @@ final class CoverageUITests: XCTestCase {
         let e = app.textViews["promptEditor"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: s))
         app.buttons["generateButton"].tap()
     }
-    /// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.
+    /// #642: the first tab is Today; the saved-recipe collection is one tap in.
     func openLibraryCollection() {
-        tab("Library")
+        tab("Today")
         let recipes = app.buttons["today.recipes"]
         if recipes.waitForExistence(timeout: 5) { recipes.tap() }
     }
@@ -179,7 +179,7 @@ final class CoverageUITests: XCTestCase {
         XCTAssertEqual(detailHero.value as? String, "photo")
         shot("cover-detail-hero")
         // A second recipe without a cover gets the branded tile.
-        tab("Library")
+        tab("Today")
         addPrompt("Plain rice")
         let tile = app.descendants(matching: .any)["recipeHero"].firstMatch
         wait(tile, 5)
@@ -265,7 +265,7 @@ final class CoverageUITests: XCTestCase {
         app.buttons["recipeSheet.close"].tap()
         XCTAssertTrue(expand.waitForNonExistence(timeout: 3), "Close must dismiss the recipe sheet")
         wait(listCard, 5)
-        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected, "Dismissal must return to the original Library tab")
+        XCTAssertTrue(app.tabBars.buttons["Today"].isSelected, "Dismissal must return to the original Today tab")
         shot("recipe-sheet-return-library-portrait")
 
     }
@@ -340,8 +340,8 @@ final class CoverageUITests: XCTestCase {
         XCTAssertTrue(browseMenuItem("Favourites").exists || browseMenuItem("Favorites").exists)
         shot("library-collections")
         browseMenuItem("Recently added", icon: "clock.arrow.trianglehead.counterclockwise.rotate.90").tap()
-        wait(app.tabBars.buttons["Library"], 5)
-        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected, "collection should open the Library tab")
+        wait(app.tabBars.buttons["Today"], 5)
+        XCTAssertTrue(app.tabBars.buttons["Today"].isSelected, "collection should open the Today tab")
         wait(text("Miso salmon"), 5)
         shot("collection-filtered-library")
         receipt.step("open-settings", pixels: true) { tab("Settings") }
@@ -751,7 +751,7 @@ final class CoverageUITests: XCTestCase {
     func test36_BackendDownRetryCardLibraryIntact() {
         launch(["-qaBackendDown"])
         addPrompt("Keep this stew")        // first generation succeeds, every later one fails
-        tab("Library")
+        tab("Today")
         startPrompt("Second dish")
         wait(app.buttons["generateRetry"], 10)
         wait(text("isn't responding"), 3)

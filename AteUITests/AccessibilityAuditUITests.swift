@@ -10,7 +10,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     func launch(_ extra: [String] = []) {
         app = XCUIApplication(); app.launchArguments = ["-UITesting"] + extra; app.launch()
     }
-    /// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.
+    /// #642: the first tab is Today; the saved-recipe collection is one tap in.
     func openLibraryCollection() {
         let recipes = app.buttons["today.recipes"]
         XCTAssertTrue(recipes.waitForExistence(timeout: 20), "Today routes to the saved-recipe collection")
@@ -53,7 +53,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     func testAuditMainScreens() throws {
         launch()
         openLibraryCollection()
-        XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("Recipes").waitForExistence(timeout: 10))
         try audit("library-empty")
         addRecipe()
         try audit("recipe-detail")
@@ -194,7 +194,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     private func captureFontScalingSize(_ label: String, _ category: String) throws {
             launch(["-UIPreferredContentSizeCategoryName", category, "-resetNutritionDiary", "-resetNutritionGoals"])
             openLibraryCollection()
-            XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
+            XCTAssertTrue(text("Recipes").waitForExistence(timeout: 10))
             // Bottom chrome must be PRESENT for these captures: the mini-player capsule
             // overlaps list content (v6 AX5 pixels, #179), so the diary/goals bottom
             // reserve is verified against the real chrome-aware band at every size, not
@@ -266,7 +266,7 @@ final class AccessibilityAuditUITests: XCTestCase {
         launch(["-UITestLiveDT", "-resetNutritionDiary", "-resetNutritionGoals",
                 "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
         openLibraryCollection()
-        XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("Recipes").waitForExistence(timeout: 10))
         app.tabBars.buttons["Settings"].tap()
         let diaryEntry = app.buttons["settings.nutritionDiary"]
         XCTAssertTrue(revealSettingsEntry(diaryEntry), "Settings should reveal Food diary")
@@ -407,7 +407,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     private func auditNutritionScreens(types: XCUIAccessibilityAuditType) throws {
         launch(["-resetNutritionDiary", "-resetNutritionGoals"])
         openLibraryCollection()
-        XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("Recipes").waitForExistence(timeout: 10))
         app.tabBars.buttons["Settings"].tap()
 
         // Reveal-driven existence: the nutrition rows sit below the fold and SwiftUI
@@ -520,7 +520,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     func testAuditLargestDynamicTypeLibraryAndRecipe() throws {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL", "-resetNutritionDiary", "-resetNutritionGoals"])
         openLibraryCollection()
-        XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("Recipes").waitForExistence(timeout: 10))
         try audit("ax5-library", strict: false)
         addRecipe()
         try audit("ax5-recipe-detail", strict: false)
@@ -531,7 +531,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     func testAuditLargestDynamicTypeCookMode() throws {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL", "-resetNutritionDiary", "-resetNutritionGoals"])
         openLibraryCollection()
-        XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("Recipes").waitForExistence(timeout: 10))
         addRecipe()
         app.buttons["Cook mode"].tap()
         try audit("ax5-cook-mode", strict: false)
@@ -573,7 +573,7 @@ final class AccessibilityAuditUITests: XCTestCase {
     func testAuditLargestDynamicTypeNutrition() throws {
         launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL", "-resetNutritionDiary", "-resetNutritionGoals"])
         openLibraryCollection()
-        XCTAssertTrue(text("Your Kitchen").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("Recipes").waitForExistence(timeout: 10))
         // The capsule must be up for this sweep: it overlaps list content at AX5 (v6 pixels,
         // #179), so a chrome-free pass would verify an assumed band instead of the real one.
         if !app.buttons["cookSessionMiniPlayer"].waitForExistence(timeout: 3) {

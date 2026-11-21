@@ -420,13 +420,13 @@ final class InsightsPresentationUITests: XCTestCase {
 
         // RecipeDetailView hides the tab bar (full-height detail with Cook mode pinned at the
         // bottom). Pop back to the Library root before any tab switch, exactly as a user would.
-        // The back button carries the previous screen's title, LibraryView's "Your Kitchen"
+        // The back button carries the previous screen's title, LibraryView's "Recipes"
         // (L10n libraryTitle; en localization confirmed), the same named-back pattern
         // reopenInsightsFromJournal uses with "Journal".
-        let detailBack = app.navigationBars.buttons["Your Kitchen"]
+        let detailBack = app.navigationBars.buttons["Recipes"]
         wait(detailBack)
         detailBack.tap()
-        wait(app.navigationBars["Your Kitchen"])
+        wait(app.navigationBars["Recipes"])
         wait(app.tabBars.firstMatch)
 
         // Verify the cooking event is visible in the tracker before testing its downstream insight.
@@ -442,18 +442,18 @@ final class InsightsPresentationUITests: XCTestCase {
         let today = app.buttons["tracker.day.\(day)"]
         wait(today, 5)
         XCTAssertTrue(today.label.contains("cooked") && today.label.contains("today"), today.label)
-        tab("Library", from: app.navigationBars["Insights & Cooking History"],
+        tab("Today", from: app.navigationBars["Insights & Cooking History"],
             arrival: app.navigationBars["Today"])
         let libraryRecipes = app.buttons["today.recipes"]
         wait(libraryRecipes, 5)
         libraryRecipes.tap()
-        wait(app.navigationBars["Your Kitchen"], 10)
+        wait(app.navigationBars["Recipes"], 10)
     }
 
     /// Switching tabs preserves the pushed hub. Return to Journal explicitly instead of
     /// assuming a second tab selection pops a stack that was not currently selected.
     private func reopenInsightsFromJournal() {
-        tab("Journal", from: app.navigationBars["Your Kitchen"],
+        tab("Journal", from: app.navigationBars["Recipes"],
             arrival: app.navigationBars["Insights & Cooking History"])
         let title = app.navigationBars["Insights & Cooking History"]
         wait(title)

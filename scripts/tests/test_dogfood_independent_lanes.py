@@ -59,7 +59,7 @@ class IndependentDogfoodTests(unittest.TestCase):
    selected=re.findall(r'-only-testing:AteUITests/([^\s\\]+)',test['run']);self.assertEqual(selected,VERIFY.GROUPS[group])
    self.assertEqual(j['outputs']['sha'],'${{ steps.receipt.outputs.sha }}')
    self.assertEqual(steps[-1]['with']['if-no-files-found'],'error')
-   checkout=next(s for s in steps if s.get('uses','').startswith('actions/checkout@'));self.assertEqual(checkout['with']['ref'],'${{ needs.pin-source.outputs.sha }}');self.assertEqual(checkout['with']['fetch-depth'],0)
+   checkout=next(s for s in steps if s.get('uses','').startswith('actions/checkout@'));self.assertEqual(checkout['with']['ref'],'${{ github.event.pull_request.head.sha || github.sha }}');self.assertEqual(checkout['with']['fetch-depth'],0)
    self.assertIn('mkdir -p build',str(steps));self.assertIn('SIM_ID=',test['run'])
   q=next(s for s in jobs['sync-quarantine']['steps'] if s.get('id')=='sync_quarantine')
   self.assertEqual(q['timeout-minutes'],15);self.assertTrue(q['continue-on-error']);self.assertIn('testQA7_SyncAccount',q['run'])
@@ -105,7 +105,8 @@ class IndependentDogfoodTests(unittest.TestCase):
   from dogfood_independent_lane_delta import restore
   fixture=json.loads((ROOT/'scripts/tests/dogfood_independent_lane_inverse.json').read_text())
   for path,c in fixture.items():
-   s=(ROOT/path).read_text();self.assertTrue(restore(path,s))
+   from dogfood_checkout_provenance_delta import restore as restore_checkout_provenance
+   s=restore_checkout_provenance(path,(ROOT/path).read_text());self.assertTrue(restore(path,s))
    for fragment in c['fragments']:
     for changed in [s.replace(fragment['new'],'',1),s+fragment['new'],s+'# unrelated\n']:
      with self.assertRaises(AssertionError):restore(path,changed)

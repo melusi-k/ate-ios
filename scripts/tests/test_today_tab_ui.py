@@ -1,6 +1,7 @@
 """Exact inverse contract for the #642 Today-tab UI route updates."""
 from pathlib import Path
 import hashlib,json,unittest
+from nutrition_log_route_delta import restore as restore_nutrition_route
 from today_tab_ui_delta import restore
 ROOT=Path(__file__).resolve().parents[2]
 
@@ -8,7 +9,7 @@ class TodayTabUIDeltaTests(unittest.TestCase):
  def test_exact_inverse_and_missing_duplicate_or_unrelated_mutants_fail_closed(self):
   contracts=json.loads((ROOT/'scripts/tests/today_tab_ui_inverse.json').read_text())
   for path,c in contracts.items():
-   s=(ROOT/path).read_text()
+   s=restore_nutrition_route(path,(ROOT/path).read_text())
    self.assertEqual(hashlib.sha256(restore(path,s).encode()).hexdigest(),c['parent_sha'],path)
    # Each fragment is mutant-tested at the stage where it is live: fragments
    # carried from an earlier layer step exist only after newer fragments are

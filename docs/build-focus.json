@@ -1,39 +1,11 @@
 {
-  "title": "Today tab: saved recipes first, plus a Try something new entry",
-  "summary": "The first tab is Today with a calendar icon, and the saved-recipe collection is Recipes. Today shows a device-local greeting, saved picks and Try something new behind existing readiness gates. Suggested recipe review uses one row: filled Save, secondary Edit/Preview and ghost Rerun, with unchanged actions and guards. The collection keeps one pushed root and Add/import owner, Add and timer chrome on exactly two roots, and Search preserves the stack. Native final-head compile and device screenshots remain UNRUN.",
-  "source_commit": "bb7d842af7369ce3c04dcb67418aa0a015f64813",
+  "title": "Workflow cleanup: remove two unused optional Dynamic Type lanes",
+  "summary": "Deletes only two optional workflow entry files; their native test sources stay unchanged. Normal-text required checks, selectors, assertions, limits and release paths are unchanged. Current main has 27 XcodeGen jobs; this deletion leaves 25, including the manual Nutrition wrapper. Python and native qualification must be reported for the exact refreshed head; this metadata is not acceptance.",
+  "source_commit": "f3924f1b29c829870ed7841c967153517a875ff5",
   "evidence": [
-    {
-      "path": "Ate/App/AteApp.swift",
-      "blob": "985f4f4aeb78f10230a125a98c3aa5730acb85c1"
-    },
-    {
-      "path": "Ate/Logic/RecipeDiscoveryReadiness.swift",
-      "blob": "576de6144684ffc402d59b6c2a4ef2a5d307d123"
-    },
-    {
-      "path": "Ate/Logic/TodayHome.swift",
-      "blob": "d396289704385439de542d75868df29b2310013b"
-    },
     {
       "path": "Ate/Models/Models.swift",
       "blob": "c3e697e2fd524080b963238e800d605db9a3fdfe"
-    },
-    {
-      "path": "Ate/Store/AppStore.swift",
-      "blob": "2ea9a2f5b3ae8e91394aca927ad7fc73f05219a3"
-    },
-    {
-      "path": "Ate/Views/AddRecipeSheet.swift",
-      "blob": "4d306525f394c9e668d541ce43aca92918f0a16e"
-    },
-    {
-      "path": "Ate/Views/LibraryView.swift",
-      "blob": "23f6199a15913f407ad884e7bb89d929fd6675a0"
-    },
-    {
-      "path": "Ate/Views/TodayView.swift",
-      "blob": "cfae14a8b66704693849ecb90d4a2863df0df252"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "title": "Today tab: saved recipes first, plus a Try something new entry",
-  "summary": "The first tab is now labelled Today with a calendar icon, and the saved-recipe collection is titled Recipes. Today shows: a greeting, an at-a-glance entry to your recipes, up to three saved picks with favourites first, and a Try something new card presenting the existing Suggest flow behind the same readiness gates. The saved-recipe collection is one canonical pushed root with a single Add/import sheet owner, Add and timer chrome live on exactly the two roots, and Search no longer pops the stack. Native final-head compile and device screenshots remain UNRUN.",
+  "summary": "The first tab is Today with a calendar icon, and the saved-recipe collection is Recipes. Today shows a device-local greeting, saved picks and Try something new behind existing readiness gates. Suggested recipe review uses one row: filled Save, secondary Edit/Preview and ghost Rerun, with unchanged actions and guards. The collection keeps one pushed root and Add/import owner, Add and timer chrome on exactly two roots, and Search preserves the stack. Native final-head compile and device screenshots remain UNRUN.",
   "source_commit": "ab6625cc8a1bedfaa9add6b6977b1f6c352ca434",
   "evidence": [
     {

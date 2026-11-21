@@ -1,11 +1,11 @@
 {
   "title": "Today tab: saved recipes first, plus a Try something new entry",
   "summary": "The first tab is Today with a calendar icon, and the saved-recipe collection is Recipes. Today shows a device-local greeting, saved picks and Try something new behind existing readiness gates. Suggested recipe review uses one row: filled Save, secondary Edit/Preview and ghost Rerun, with unchanged actions and guards. The collection keeps one pushed root and Add/import owner, Add and timer chrome on exactly two roots, and Search preserves the stack. Native final-head compile and device screenshots remain UNRUN.",
-  "source_commit": "ab6625cc8a1bedfaa9add6b6977b1f6c352ca434",
+  "source_commit": "bb7d842af7369ce3c04dcb67418aa0a015f64813",
   "evidence": [
     {
       "path": "Ate/App/AteApp.swift",
-      "blob": "cccc8529c18d42c41004cb8f9b08a6fd84623fe1"
+      "blob": "985f4f4aeb78f10230a125a98c3aa5730acb85c1"
     },
     {
       "path": "Ate/Logic/RecipeDiscoveryReadiness.swift",

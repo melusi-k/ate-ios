@@ -1,0 +1,7 @@
+{
+  "path": "AteUITests/JournalOpenStateUITests.swift",
+  "old": "        // Re-resolve after edit/reopen/delete, rather than observe the earlier detail handle.\n        // Same identity, disappearance assertion and 10s budget; no retry or pass fallback.\n        waitUntilGone(any(\"journal.detail.text\"))\n",
+  "new": "        // Assert zero matching detail nodes without resolving an absent firstMatch element.\n        // Same identifier, disappearance requirement and 10s budget; no pass fallback.\n        let detailNodes = app.descendants(matching: .any).matching(identifier: \"journal.detail.text\")\n        let noDetailNodes = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in\n            detailNodes.count == 0\n        }, object: nil)\n        XCTAssertEqual(XCTWaiter.wait(for: [noDetailNodes], timeout: 10), .completed,\n                       \"Confirmed deletion must leave zero journal.detail.text nodes\")\n",
+  "parent_sha256": "4696c51a3940a95c308eec3bd359281974bf226079fa481b20019e8e3ad74038",
+  "current_sha256": "d4d90714a134fa4047b1e3ca6b8a5eec71e63f73421588b57325e80073e56943"
+}

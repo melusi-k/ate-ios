@@ -100,7 +100,7 @@ class UnitLaneRoutingTests(unittest.TestCase):
         self.assertIn('-skip-testing:AteUITests/CookIngredientsUITests/testCookTimerCardLargeText', cook)
 
     def test_dogfood_critical_flows_remain_required_on_exact_head(self):
-        self.assertIn('ref: ${{ needs.pin-source.outputs.sha }}', self.dogfood)
+        self.assertIn('ref: ${{ github.event.pull_request.head.sha || github.sha }}', self.dogfood)
         for method in ('testQA1_AddFromURL_JSONLD', 'testQA1_AddFromURL_InstagramCaption', 'testQA1_AddFromURL_HiddenCaptionFallback', 'testQA2_AddFromPhoto', 'testQA3_GenerateAndEdit', 'testQA4_Save', 'testQA5_Share', 'testQA6_OpenShared', 'testQA8_Timers', 'test28_GroupSortAndMenus', 'test29_ReorderMyOrder', 'test29b_ReorderMyOrderActions'):
             self.assertIn('/' + method, self.dogfood)
         self.assertIn('missing named Library pass', self.dogfood)

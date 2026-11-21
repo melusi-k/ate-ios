@@ -1339,3 +1339,34 @@ No PR is pre-allocated. Use this week for carryover, current-main refresh, unres
 - 2026-11-21: Owner requested a sprint allocation for every open PR. Current search returned 84 open PRs. Added a rolling W48–W03 allocation, with a W01 buffer, aligned to the owner's ranked priorities.
 - 2026-11-21: Only W48 remains committed. Future sprint assignments are candidate queues pending estimates, dependency refresh, exact-main review and Monday commitment. No point estimates or delivery velocity have been fabricated.
 - 2026-11-21: Marked explicitly superseded, stale, held and diagnostic-only PRs as disposition/qualification allocations rather than merge commitments.
+
+
+## Ticket date alignment — owner update 2026-11-21
+
+The rolling portfolio allocation above is now the scheduling source for every open PR. The dates below are planned forecast dates in Africa/Johannesburg, not actual work timestamps. Apply the standard **Sprint schedule** block from the Ticket scheduling contract to each allocated PR and to each owning issue. Actual start and actual end remain blank until evidenced; do not infer either from creation, PR-open, or planned dates.
+
+| Sprint | Planned start | Planned end | PRs allocated | Ticket treatment |
+|---|---:|---:|---:|---|
+| 2026-W48 — Sprint 1 | 2026-11-23 | 2026-11-29 | 16 | Current committed scope plus planning record; #648 is documentation only |
+| 2026-W49 — Sprint 2 | 2026-11-30 | 2026-12-06 | 13 | Candidate/disposition queue; commitment only after estimation and Monday selection |
+| 2026-W50 — Sprint 3 | 2026-12-07 | 2026-12-13 | 11 | Candidate/held diagnostic queue; commitment only after estimation and dependency review |
+| 2026-W51 — Sprint 4 | 2026-12-14 | 2026-12-20 | 18 | Safety qualification and disposition queue; explicit owner gates remain |
+| 2026-W52 — Sprint 5 | 2026-12-21 | 2026-12-27 | 23 | Feature qualification and superseded-route disposition; not 23 delivery commitments |
+| 2027-W01 — buffer | 2026-12-28 | 2027-01-03 | 0 | Carryover/evidence reconciliation only; no ticket pre-allocation |
+| 2027-W02 — Sprint 6 | 2027-01-04 | 2027-01-10 | 1 | Dormant roadmap review only |
+| 2027-W03 — Sprint 7 | 2027-01-11 | 2027-01-17 | 2 | Post-pilot tooling only |
+
+### Owning issue date alignment
+
+| Issue | Current planned sprint | Planned start | Planned end | Commitment / boundary |
+|---|---|---:|---:|---|
+| #35 | 2026-W48 | 2026-11-23 | 2026-11-29 | Committed bounded source-import follow-through with PR #640; one outcome, not double-counted |
+| #89 | 2026-W48 | 2026-11-23 | 2026-11-29 | Committed generation-acceptance slice shared with #641/#643; broader issue acceptance remains open |
+| #641 | 2026-W48 | 2026-11-23 | 2026-11-29 | Committed generation entry/acceptance slice shared with #89/#643 |
+| #642 | 2026-W48 | 2026-11-23 | 2026-11-29 | Committed Today reference migration only; conditional-home work remains stretch |
+| #645 | 2026-W52 | 2026-12-21 | 2026-12-27 | LATER/cosmetic candidate associated with PR #647; not committed until W52 planning |
+| #646 | Backlog — unscheduled | — | — | Removed from W48 committed/stretch scope; retain its earlier proposed dates only as history, with no current planned window |
+
+**Date-change and history rules:** where an issue's earlier W48 schedule is superseded, preserve the original planned dates and append a dated change record rather than silently rewriting history. #645 moves from its superseded W48 proposal to the W52 candidate window. #646's W48 proposal is withdrawn and the ticket returns to the ranked backlog; do not give it a replacement date until selected. Lifecycle actual-start/end fields remain separate and unknown/blank until reliable evidence exists.
+
+**Capacity remains unchanged:** 21 points maximum per sprint, comprising at most 16 planned points and 5 reserved for NOW bugs. Future queues remain candidates, not commitments; do not add points or silently displace started work. A disposition-only PR receives a sprint window for review/decision, not permission to merge or close it.

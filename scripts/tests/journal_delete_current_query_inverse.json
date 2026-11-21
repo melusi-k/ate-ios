@@ -1,0 +1,7 @@
+{
+  "path": "AteUITests/JournalOpenStateUITests.swift",
+  "parent_sha256": "fe80bca9c448186e4ae6f7133e03b22fa80e701193ae6447d360b329b4276309",
+  "old": "        waitUntilGone(detail)\n        wait(app.navigationBars[\"Journal\"])\n        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: \"journal.entry\")",
+  "new": "        // Re-resolve after edit/reopen/delete, rather than observe the earlier detail handle.\n        // Same identity, disappearance assertion and 10s budget; no retry or pass fallback.\n        waitUntilGone(any(\"journal.detail.text\"))\n        wait(app.navigationBars[\"Journal\"])\n        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: \"journal.entry\")",
+  "current_sha256": "4696c51a3940a95c308eec3bd359281974bf226079fa481b20019e8e3ad74038"
+}

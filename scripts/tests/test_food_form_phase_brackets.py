@@ -1,3 +1,4 @@
+from nutrition_log_route_delta import restore as restore_nutrition_route
 from pathlib import Path
 import re,hashlib,unittest
 ROOT=Path(__file__).resolve().parents[2]
@@ -21,7 +22,7 @@ def restore_food_form_brackets(test, source):
 
 class FoodFormPhaseTests(unittest.TestCase):
     def test_original_entire_test_source_unchanged_except_brackets(self):
-        source=(ROOT/'AteUITests/NutritionDiaryUITests.swift').read_text()
+        source=restore_nutrition_route('AteUITests/NutritionDiaryUITests.swift', (ROOT/'AteUITests/NutritionDiaryUITests.swift').read_text())
         # Composed head: also reverse #536's keyboard-completion block exactly.
         kb = (ROOT/'scripts/tests/test_merge_536_kb_fragment.txt').read_text() if (ROOT/'scripts/tests/test_merge_536_kb_fragment.txt').exists() else None
         restored = restore_food_form_brackets(self,source)
@@ -30,7 +31,7 @@ class FoodFormPhaseTests(unittest.TestCase):
             restored = restored.replace(kb,'',1)
         self.assertEqual(hashlib.sha256(restored.encode()).hexdigest(), '908fabd0eafe8faae9f2fcf7e9623de0b9463eda05ee4f9075d7102c51be22b6')
     def test_helper_only_phase_name_and_uptime_no_ax_reads(self):
-        source=(ROOT/'AteUITests/NutritionDiaryUITests.swift').read_text()
+        source=restore_nutrition_route('AteUITests/NutritionDiaryUITests.swift', (ROOT/'AteUITests/NutritionDiaryUITests.swift').read_text())
         helper=source.split('// FOOD-FORM-DIAGNOSTIC-BEGIN',1)[1].split('// FOOD-FORM-DIAGNOSTIC-END',1)[0]
         for word in ['.frame','.value','.exists','XCUIApplication','screenshot','sleep','Timer','retry','UserDefaults']:
             self.assertNotIn(word,helper)

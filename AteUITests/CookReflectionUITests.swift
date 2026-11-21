@@ -55,7 +55,7 @@ final class CookReflectionUITests: XCTestCase {
         app.buttons["Add recipe"].tap()
         wait(text("Add a recipe"))
         app.buttons["Prompt"].tap()
-        let e = app.textViews["promptEditor"]; e.tap(); e.typeText("Miso salmon for two")
+        let e = app.textViews["promptEditor"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: "Miso salmon for two"))
         app.buttons["generateButton"].tap()
         wait(text("Review your card"), 15)
         app.buttons["saveRecipe"].tap()

@@ -13,7 +13,7 @@ class SearchReceiptTests(unittest.TestCase):
         for new,old in [(IMPORTS,''),(BINDING,OLD),(HELPER,'')]:
             self.assertEqual(source.count(new),1)
             source=source.replace(new,old,1)
-        self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), 'dded325b47238833a7fd993cafbc8f5f9c03ab2daa896af4466d240651bfd5d1')
+        self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), '99a4ca021c441c7398e7a59c0270b40494ae9b63b9b0bef061a4cd0ca77afe59')
         workflow=normalize('main:.github/workflows/compile-check.yml', (ROOT/'.github/workflows/compile-check.yml').read_text())
         self.assertEqual(workflow.count(WORKFLOW),1)
         # Retargeted 2026-11-18 (r2): pinned bytes now include the strict-concurrency block moved

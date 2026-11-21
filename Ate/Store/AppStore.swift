@@ -253,7 +253,7 @@ final class AppStore {
     /// Set by the system search intent ("Search ate for tripe"): Library adopts it as its query.
     var pendingSearch: String?
     func search(_ term: String) {
-        select(.library); path = []
+        select(.library)
         pendingSearch = term.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     /// Persisted independently from timers so exiting Cook Mode never loses an untimed step.
@@ -416,6 +416,24 @@ final class AppStore {
         case .search: return searchPath.isEmpty
         }
     }
+    /// The saved-recipe collection pushed from Today (#642) keeps the tab-root chrome
+    /// (the iOS 26 bottom accessory with Add recipe) it had as the former Library
+    /// landing tab, at its canonical root only.
+    var isAtCollectionRoot: Bool {
+        TodayHome.isCollectionRoot(isHomeTab: isHomeTab, path: path)
+    }
+    /// Only the home tab owns store.path and the Today/collection sheet ownership.
+    var isHomeTab: Bool {
+        switch tab {
+        case .library, .collection: return true
+        default: return false
+        }
+    }
+    /// Exactly one owner for the store-wide quick-add and share-extension import
+    /// sheets (#642), so they can never present or save twice.
+    var homeSheetOwner: HomeSheetOwner {
+        TodayHome.sheetOwner(isHomeTab: isHomeTab, path: path)
+    }
     var tab: AppTab = .library
     /// Item handed over by the "Save to ate" share extension, waiting for the Add sheet.
     var pendingImport: SharedInbox.Item?
@@ -439,10 +457,20 @@ final class AppStore {
     /// Explicit destination selection applies a collection; Library clears it.
     func select(_ t: AppTab) {
         switch t {
-        case .collection(let c): filter.collection = c; tab = t
-        case .library: filter.collection = nil; tab = t
+        case .collection(let c): filter.collection = c; tab = t; openCollection()
+        case .library: filter.collection = nil; tab = t; openCollection()
         default: tab = t
         }
+    }
+
+    /// Shows the full saved-recipe collection inside the Today stack (#642). The
+    /// collection used to be the Library tab's root; Today now owns that root, so
+    /// the collection is one push away and keeps its Back route to Today. Selection
+    /// always resolves the one canonical collection root: a re-selection from a
+    /// detail path pops back to it instead of stacking a duplicate.
+    func openCollection() {
+        guard isHomeTab else { return }
+        path = TodayHome.canonicalCollectionPath()
     }
 
     /// Delete with a 5-second Undo toast.

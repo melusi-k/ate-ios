@@ -1,0 +1,149 @@
+{
+ "base": "394fcd3dca5f1b0e6c4a0950d71c4bb58c39b4c6",
+ "contracts": {
+  "AteUITests/AccessibilityAuditUITests.swift": {
+   "fragments": [
+    {
+     "new": "    func addRecipe() {\n        app.buttons[\"Add recipe\"].tap()\n        app.buttons[\"Prompt\"].tap()\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: \"miso salmon\"))\n        app.buttons[\"generateButton\"].tap()\n        XCTAssertTrue(app.buttons[\"saveRecipe\"].waitForExistence(timeout: 15))\n        app.buttons[\"saveRecipe\"].tap()\n",
+     "old": "    func addRecipe() {\n        app.buttons[\"Add recipe\"].tap()\n        app.buttons[\"Prompt\"].tap()\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(\"miso salmon\")\n        app.buttons[\"generateButton\"].tap()\n        XCTAssertTrue(app.buttons[\"saveRecipe\"].waitForExistence(timeout: 15))\n        app.buttons[\"saveRecipe\"].tap()\n"
+    }
+   ],
+   "parent_sha": "264b3c1ded6d407ef0668b8ddfe88cc39d3799811d457b4a2a94738ec646912f"
+  },
+  "AteUITests/AteUITests.swift": {
+   "fragments": [
+    {
+     "new": "\n    func addPromptRecipe() {\n        addRecipe(tab: \"Prompt\", input: { app in\n            let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: \"Miso salmon for two\"))\n        }, shotPrefix: \"add-prompt\")\n    }\n\n",
+     "old": "\n    func addPromptRecipe() {\n        addRecipe(tab: \"Prompt\", input: { app in\n            let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(\"Miso salmon for two\")\n        }, shotPrefix: \"add-prompt\")\n    }\n\n"
+    },
+    {
+     "new": "        launch()\n        app.buttons[\"Add recipe\"].tap()\n        app.buttons[\"Prompt\"].tap()\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: \"Lentil soup\"))\n        app.buttons[\"generateButton\"].tap()\n        wait(text(\"Review your card\"), 15)\n        let badge = app.descendants(matching: .any)[\"sourceBadge\"].firstMatch\n",
+     "old": "        launch()\n        app.buttons[\"Add recipe\"].tap()\n        app.buttons[\"Prompt\"].tap()\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(\"Lentil soup\")\n        app.buttons[\"generateButton\"].tap()\n        wait(text(\"Review your card\"), 15)\n        let badge = app.descendants(matching: .any)[\"sourceBadge\"].firstMatch\n"
+    },
+    {
+     "new": "    func addNamed(_ name: String) {\n        app.buttons[\"Add recipe\"].tap()\n        app.buttons[\"Prompt\"].tap()\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: name))\n        app.buttons[\"generateButton\"].tap()\n        wait(app.buttons[\"saveRecipe\"], 15)\n        app.buttons[\"saveRecipe\"].tap()\n",
+     "old": "    func addNamed(_ name: String) {\n        app.buttons[\"Add recipe\"].tap()\n        app.buttons[\"Prompt\"].tap()\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(name)\n        app.buttons[\"generateButton\"].tap()\n        wait(app.buttons[\"saveRecipe\"], 15)\n        app.buttons[\"saveRecipe\"].tap()\n"
+    },
+    {
+     "new": "    func test30_SessionExpiryAndAccountSwitch() {\n        // Expired session: clear message, user signed out locally, recipes kept.\n        launch([\"-qaExpireSession\"])\n        addRecipe(tab: \"Prompt\", input: { a in let e = a.textViews[\"promptEditor\"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: \"Keep me safe\")) }, shotPrefix: \"expiry\")\n        signInViaSettingsAllowingExpiry()\n        wait(text(\"Your session expired\"), 10)\n        wait(app.buttons[\"openSignIn\"], 5)\n",
+     "old": "    func test30_SessionExpiryAndAccountSwitch() {\n        // Expired session: clear message, user signed out locally, recipes kept.\n        launch([\"-qaExpireSession\"])\n        addRecipe(tab: \"Prompt\", input: { a in let e = a.textViews[\"promptEditor\"]; e.tap(); e.typeText(\"Keep me safe\") }, shotPrefix: \"expiry\")\n        signInViaSettingsAllowingExpiry()\n        wait(text(\"Your session expired\"), 10)\n        wait(app.buttons[\"openSignIn\"], 5)\n"
+    },
+    {
+     "new": "\n        // Account switch: the previous account's library doesn't leak into the next one.\n        launch()\n        addRecipe(tab: \"Prompt\", input: { a in let e = a.textViews[\"promptEditor\"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: \"Account A stew\")) }, shotPrefix: \"switch\")\n        signInViaSettings()\n        wait(text(\"Synced\"), 10)\n        app.buttons[\"signOutButton\"].tap()\n",
+     "old": "\n        // Account switch: the previous account's library doesn't leak into the next one.\n        launch()\n        addRecipe(tab: \"Prompt\", input: { a in let e = a.textViews[\"promptEditor\"]; e.tap(); e.typeText(\"Account A stew\") }, shotPrefix: \"switch\")\n        signInViaSettings()\n        wait(text(\"Synced\"), 10)\n        app.buttons[\"signOutButton\"].tap()\n"
+    },
+    {
+     "new": "        let editor = app.textViews[\"promptEditor\"]\n        wait(editor, 5)\n        XCTAssertEqual(editor.value as? String, \"zzz\", \"the failed search becomes the new recipe's idea\")\n        // The preserved search idea is not recipe evidence. Supply explicit source\n        // after asserting the original prefill, before the original Generate tap.\n        editor.tap(); editor.typeText(PromptRecipeFixture.salmonContinuation)\n        app.buttons[\"generateButton\"].tap()\n        wait(text(\"Review your card\"), 15)\n        app.buttons[\"saveRecipe\"].tap()\n",
+     "old": "        let editor = app.textViews[\"promptEditor\"]\n        wait(editor, 5)\n        XCTAssertEqual(editor.value as? String, \"zzz\", \"the failed search becomes the new recipe's idea\")\n        app.buttons[\"generateButton\"].tap()\n        wait(text(\"Review your card\"), 15)\n        app.buttons[\"saveRecipe\"].tap()\n"
+    }
+   ],
+   "parent_sha": "d5bf200ec618af4b512b162ea56ddbcc0d5e8e92fb30955c391e96eca620d261"
+  },
+  "AteUITests/CookIngredientsUITests.swift": {
+   "fragments": [
+    {
+     "new": "        let sheetContent = app.scrollViews.containing(.textField, identifier: \"linkField\").firstMatch\n        wait(sheetContent.staticTexts.matching(NSPredicate(format: \"label CONTAINS %@\", \"Add a recipe\")).firstMatch)\n        app.buttons[\"Prompt\"].tap()\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: \"Miso salmon for two\"))\n        app.buttons[\"generateButton\"].tap()\n        wait(text(\"Review your card\"), 15)\n        app.buttons[\"saveRecipe\"].tap()\n",
+     "old": "        let sheetContent = app.scrollViews.containing(.textField, identifier: \"linkField\").firstMatch\n        wait(sheetContent.staticTexts.matching(NSPredicate(format: \"label CONTAINS %@\", \"Add a recipe\")).firstMatch)\n        app.buttons[\"Prompt\"].tap()\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(\"Miso salmon for two\")\n        app.buttons[\"generateButton\"].tap()\n        wait(text(\"Review your card\"), 15)\n        app.buttons[\"saveRecipe\"].tap()\n"
+    }
+   ],
+   "parent_sha": "be36a27eba7049f3b7d439625516edc090b516027daf26a227220e8a5e76aedb"
+  },
+  "AteUITests/CookReflectionUITests.swift": {
+   "fragments": [
+    {
+     "new": "        app.buttons[\"Add recipe\"].tap()\n        wait(text(\"Add a recipe\"))\n        app.buttons[\"Prompt\"].tap()\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: \"Miso salmon for two\"))\n        app.buttons[\"generateButton\"].tap()\n        wait(text(\"Review your card\"), 15)\n        app.buttons[\"saveRecipe\"].tap()\n",
+     "old": "        app.buttons[\"Add recipe\"].tap()\n        wait(text(\"Add a recipe\"))\n        app.buttons[\"Prompt\"].tap()\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(\"Miso salmon for two\")\n        app.buttons[\"generateButton\"].tap()\n        wait(text(\"Review your card\"), 15)\n        app.buttons[\"saveRecipe\"].tap()\n"
+    }
+   ],
+   "parent_sha": "1d8cc6ad796fddb4508470541bdd5e7c5ac20523e26b08596e9aadba9d47b464"
+  },
+  "AteUITests/CookSharedStepUITests.swift": {
+   "fragments": [
+    {
+     "new": "        app.buttons[\"Prompt\"].firstMatch.tap()\n        let editor = app.textViews[\"promptEditor\"]\n        XCTAssertTrue(editor.waitForExistence(timeout: 5))\n        editor.tap(); editor.typeText(PromptRecipeFixture.salmon(named: \"miso salmon\"))\n        app.buttons[\"generateButton\"].tap()\n        XCTAssertTrue(app.buttons[\"saveRecipe\"].waitForExistence(timeout: 15))\n        app.buttons[\"saveRecipe\"].tap()\n",
+     "old": "        app.buttons[\"Prompt\"].firstMatch.tap()\n        let editor = app.textViews[\"promptEditor\"]\n        XCTAssertTrue(editor.waitForExistence(timeout: 5))\n        editor.tap(); editor.typeText(\"miso salmon\")\n        app.buttons[\"generateButton\"].tap()\n        XCTAssertTrue(app.buttons[\"saveRecipe\"].waitForExistence(timeout: 15))\n        app.buttons[\"saveRecipe\"].tap()\n"
+    }
+   ],
+   "parent_sha": "b0952721702e3e991110faeb4f62af9e2171e26f8c5b356923458fb548394f43"
+  },
+  "AteUITests/CoverageUITests.swift": {
+   "fragments": [
+    {
+     "new": "        app.buttons[\"Add recipe\"].tap()\n        wait(text(\"Add a recipe\"))\n        app.buttons[\"Prompt\"].tap()\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: s))\n        app.buttons[\"generateButton\"].tap()\n    }\n    func addPrompt(_ s: String) {\n",
+     "old": "        app.buttons[\"Add recipe\"].tap()\n        wait(text(\"Add a recipe\"))\n        app.buttons[\"Prompt\"].tap()\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(s)\n        app.buttons[\"generateButton\"].tap()\n    }\n    func addPrompt(_ s: String) {\n"
+    }
+   ],
+   "parent_sha": "28357241b1a3afaadaeecb7ceb41bdb3e7deccc9f97fda2ba4646ac1b23b491f"
+  },
+  "AteUITests/DraftQualityRepairUITests.swift": {
+   "fragments": [
+    {
+     "new": "        let field = app.textViews[\"promptEditor\"]\n        XCTAssertTrue(field.waitForExistence(timeout: 5))\n        field.tap()\n        field.typeText(PromptRecipeFixture.breadSalad)\n        app.buttons[\"generateButton\"].tap()\n        let generated = XCTAttachment(screenshot: XCUIScreen.main.screenshot())\n        generated.name = \"draft-quality-before-identity-query\"\n",
+     "old": "        let field = app.textViews[\"promptEditor\"]\n        XCTAssertTrue(field.waitForExistence(timeout: 5))\n        field.tap()\n        field.typeText(\"Tomato bread salad\")\n        app.buttons[\"generateButton\"].tap()\n        let generated = XCTAttachment(screenshot: XCUIScreen.main.screenshot())\n        generated.name = \"draft-quality-before-identity-query\"\n"
+    }
+   ],
+   "parent_sha": "44644d83860ab50ce628453f54e7eafd07059a01856c7038441637ae40521bd4"
+  },
+  "AteUITests/ExploreUITests.swift": {
+   "fragments": [
+    {
+     "new": "        app.buttons[\"Prompt\"].tap()\n        let prompt = app.textViews[\"promptEditor\"]\n        XCTAssertTrue(prompt.waitForExistence(timeout: 5))\n        prompt.tap(); prompt.typeText(PromptRecipeFixture.salmon(named: \"Miso salmon for two\"))\n        app.buttons[\"generateButton\"].tap()\n        XCTAssertTrue(app.buttons[\"saveRecipe\"].waitForExistence(timeout: 15))\n        app.buttons[\"saveRecipe\"].tap()\n",
+     "old": "        app.buttons[\"Prompt\"].tap()\n        let prompt = app.textViews[\"promptEditor\"]\n        XCTAssertTrue(prompt.waitForExistence(timeout: 5))\n        prompt.tap(); prompt.typeText(\"Miso salmon for two\")\n        app.buttons[\"generateButton\"].tap()\n        XCTAssertTrue(app.buttons[\"saveRecipe\"].waitForExistence(timeout: 15))\n        app.buttons[\"saveRecipe\"].tap()\n"
+    }
+   ],
+   "parent_sha": "5e300bda3a3f8ab02caae977a6d3906f0d1df4700b11d29cbbb443af6fcf1b25"
+  },
+  "AteUITests/InsightsAcceptanceUITests.swift": {
+   "fragments": [
+    {
+     "new": "        let prompt = app.textViews[\"promptEditor\"]\n        wait(prompt)\n        prompt.tap()\n        prompt.typeText(PromptRecipeFixture.salmon(named: \"Miso salmon for two\"))\n        app.buttons[\"generateButton\"].tap()\n        wait(app.staticTexts[\"Review your card\"], 15)\n        app.buttons[\"saveRecipe\"].tap()\n",
+     "old": "        let prompt = app.textViews[\"promptEditor\"]\n        wait(prompt)\n        prompt.tap()\n        prompt.typeText(\"Miso salmon for two\")\n        app.buttons[\"generateButton\"].tap()\n        wait(app.staticTexts[\"Review your card\"], 15)\n        app.buttons[\"saveRecipe\"].tap()\n"
+    }
+   ],
+   "parent_sha": "728022eadb58993b2a7bdac0431a0f9ceb185dd7b01924c8434557a49d65fa49"
+  },
+  "AteUITests/InsightsPresentationUITests.swift": {
+   "fragments": [
+    {
+     "new": "        let prompt = app.textViews[\"promptEditor\"]\n        wait(prompt)\n        prompt.tap()\n        prompt.typeText(PromptRecipeFixture.salmon(named: \"Miso salmon for two\"))\n        app.buttons[\"generateButton\"].tap()\n        wait(app.staticTexts[\"Review your card\"], 15)\n        app.buttons[\"saveRecipe\"].tap()\n",
+     "old": "        let prompt = app.textViews[\"promptEditor\"]\n        wait(prompt)\n        prompt.tap()\n        prompt.typeText(\"Miso salmon for two\")\n        app.buttons[\"generateButton\"].tap()\n        wait(app.staticTexts[\"Review your card\"], 15)\n        app.buttons[\"saveRecipe\"].tap()\n"
+    }
+   ],
+   "parent_sha": "39fef63cb82833ced08f422a2723df719a254c6c053a0249587091a8fedb9400"
+  },
+  "AteUITests/KeyFlowsQATests.swift": {
+   "fragments": [
+    {
+     "new": "    func openAdd(_ tab: String) {\n        let add = app.buttons[\"Add recipe\"]\n        if !add.waitForExistence(timeout: 4) { self.tab(\"Today\"); _ = add.waitForExistence(timeout: 10) }\n        waitHittable(add)\n        add.tap()",
+     "old": "    func openAdd(_ tab: String) {\n        let add = app.buttons[\"Add recipe\"]\n        if !add.waitForExistence(timeout: 4) { self.tab(\"Library\"); _ = add.waitForExistence(timeout: 10) }\n        waitHittable(add)\n        add.tap()"
+    },
+    {
+     "new": "        launch()\n        addPrompt(\"Pea risotto\")\n        tab(\"Today\")\n        wait(text(\"Pea risotto\"), 5)\n        XCTAssertFalse(text(\"Nothing saved yet\").exists)",
+     "old": "        launch()\n        addPrompt(\"Pea risotto\")\n        tab(\"Library\")\n        wait(text(\"Pea risotto\"), 5)\n        XCTAssertFalse(text(\"Nothing saved yet\").exists)"
+    },
+    {
+     "new": "        // second launch: fresh local store, same server\n        launch([\"-qaPersistServer\"])\n        tab(\"Today\")\n        wait(text(\"Nothing saved yet\"), 5)\n        signIn()\n        wait(text(\"Synced\"), 10)\n        tab(\"Today\")\n        wait(text(\"Synced stew v2\"), 10)\n        shot(\"7-sync-device-b-pulled\")",
+     "old": "        // second launch: fresh local store, same server\n        launch([\"-qaPersistServer\"])\n        tab(\"Library\")\n        wait(text(\"Nothing saved yet\"), 5)\n        signIn()\n        wait(text(\"Synced\"), 10)\n        tab(\"Library\")\n        wait(text(\"Synced stew v2\"), 10)\n        shot(\"7-sync-device-b-pulled\")"
+    },
+    {
+     "new": "    }\n    func addPrompt(_ s: String) {\n        openAdd(\"Prompt\")\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: s))\n        generate(); review(); save()\n    }\n    func signIn() {\n",
+     "old": "    }\n    func addPrompt(_ s: String) {\n        openAdd(\"Prompt\")\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(s)\n        generate(); review(); save()\n    }\n    func signIn() {\n"
+    },
+    {
+     "new": "    func testQA3_GenerateAndEdit() {\n        launch()\n        openAdd(\"Prompt\")\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: \"Lemon chicken traybake\"))\n        generate(); review()\n        app.buttons[\"Edit\"].firstMatch.tap()\n        replace(app.textFields[\"editorTitle\"], \"QA edited traybake\")\n",
+     "old": "    func testQA3_GenerateAndEdit() {\n        launch()\n        openAdd(\"Prompt\")\n        let e = app.textViews[\"promptEditor\"]; e.tap(); e.typeText(\"Lemon chicken traybake\")\n        generate(); review()\n        app.buttons[\"Edit\"].firstMatch.tap()\n        replace(app.textFields[\"editorTitle\"], \"QA edited traybake\")\n"
+    }
+   ],
+   "parent_sha": "c07bdfa3a5a831f9fac67e546a6ab6607e73f141f7f6793cd8d1d6c6bb69d629"
+  },
+  "project.yml": {
+   "fragments": [
+    {
+     "new": "  AteTests:\n    type: bundle.unit-test\n    platform: iOS\n    sources: [AteTests, AteUITests/PromptRecipeFixture.swift]\n    dependencies:\n      - target: Ate\n      - package: Sentry\n",
+     "old": "  AteTests:\n    type: bundle.unit-test\n    platform: iOS\n    sources: [AteTests]\n    dependencies:\n      - target: Ate\n      - package: Sentry\n"
+    }
+   ],
+   "parent_sha": "9d02c34bbe462c83e727102118c22dbc4ae1df63b3bfcb44a4f987f41ed4ac40"
+  }
+ }
+}

@@ -123,7 +123,7 @@ struct TimerBarInset: ViewModifier {
         // actions (Cook mode, Add recipe) use their own inner safeAreaInset and therefore sit directly above it.
         content.safeAreaInset(edge: .bottom, spacing: 0) {
             // iOS 26: at tab roots the timer lives in the tab bar's bottom accessory, so the inset only shows on pushed screens.
-            if store.cookTarget == nil && !(TabChrome.usesAccessory && store.isAtTabRoot) {
+            if store.cookTarget == nil && !(TabChrome.usesAccessory && (store.isAtTabRoot || store.isAtCollectionRoot)) {
                 VStack(spacing: 0) {
                     if let session = store.cookSession { CookSessionMiniPlayer(session: session) }
                     if !store.timers.timers.isEmpty { TimerBar() }
@@ -412,12 +412,12 @@ extension RootView {
     @ViewBuilder var tabs26: some View {
         @Bindable var store = store
         // Keep the accessory only where it has a real action or live status.
-        let showBottomAccessory = store.cookTarget == nil && store.isAtTabRoot
+        let showBottomAccessory = store.cookTarget == nil && (store.isAtTabRoot || store.isAtCollectionRoot)
             && (store.activeAddContext != nil || store.cookSession != nil || !store.timers.timers.isEmpty)
         let base = TabView(selection: tabSelection) {
-            Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
+            Tab("Today", systemImage: "calendar", value: AppTab.library) {
                 NavigationStack(path: $store.path) {
-                    LibraryView(searchPlacement: .none).offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    TodayView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
             }
             Tab("Shopping", systemImage: "basket", value: AppTab.shopping) {
@@ -471,9 +471,9 @@ extension RootView {
     @ViewBuilder var tabs: some View {
         @Bindable var store = store
         TabView(selection: tabSelection) {
-            Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
+            Tab("Today", systemImage: "calendar", value: AppTab.library) {
                 NavigationStack(path: $store.path) {
-                    LibraryView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                    TodayView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
             }
             Tab("Shopping", systemImage: "basket", value: AppTab.shopping) {
@@ -521,6 +521,7 @@ struct RouteView: View {
     var body: some View {
         Group {
             switch route {
+            case .library: LibraryView(searchPlacement: TabChrome.usesAccessory ? .none : .drawer)
             case .recipe(let id): RecipeDetailView(recipeID: id)
             case .cook(let id): JournalBoundCookMode(recipeID: id)
             case .shopping: ShoppingListView()
@@ -570,7 +571,7 @@ struct LandscapeSplitView: View {
             if showSidebar {
                 List {
                     Section {
-                        row(.library, "Library", "books.vertical")
+                        row(.library, "Today", "calendar", id: "sidebar.Library")
                         row(.shopping, "Shopping list", "basket", badge: store.pendingShoppingCount)
                         row(.tracker, "Journal", "book.closed")
                         row(.settings, "Settings", "gearshape")
@@ -591,7 +592,7 @@ struct LandscapeSplitView: View {
                 switch store.tab {
                 case .library, .collection:
                     NavigationStack(path: $store.path) {
-                        LibraryView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
+                        TodayView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                     }.withTimerBar()
                 case .shopping:
                     NavigationStack(path: $store.shoppingPath) {
@@ -625,7 +626,7 @@ struct LandscapeSplitView: View {
         .tint(Theme.primary)
     }
 
-    private func row(_ t: AppTab, _ title: String, _ symbol: String, badge: Int = 0) -> some View {
+    private func row(_ t: AppTab, _ title: String, _ symbol: String, id: String? = nil, badge: Int = 0) -> some View {
         Button { store.select(t) } label: {
             HStack {
                 Label(title, systemImage: symbol)
@@ -635,7 +636,7 @@ struct LandscapeSplitView: View {
         }
         .listRowBackground(store.tab == t ? Theme.primary.opacity(0.15) : Color.clear)
         .foregroundStyle(store.tab == t ? Theme.primary : Theme.foreground)
-        .accessibilityIdentifier("sidebar." + title)
+        .accessibilityIdentifier(id ?? "sidebar." + title)
         .accessibilityAddTraits(store.tab == t ? .isSelected : [])
     }
 }

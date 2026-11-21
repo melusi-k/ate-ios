@@ -1,0 +1,37 @@
+{
+  "Ate/Logic/VerifiedPasteImport.swift": {
+    "parent_sha": "9e5093e2aad8f08069325a710cdb50db1600170efd14c3ad213612e2dee1fa07",
+    "fragments": [
+      {
+        "new": "        for line in lines[(i + 1)..<m] {\n            // The existing contract drops only explicit section markers. Retain\n            // their text attached to the next review row, never discard it.\n            if line.hasSuffix(\":\") && line.range(of: #\"\\d\"#, options: .regularExpression) == nil\n                || key(line).hasPrefix(\"for \") || key(line).hasPrefix(\"to \") {\n                prefix.append(line); continue\n            }\n",
+        "old": "        for line in lines[(i + 1)..<m] {\n            // The existing contract drops only explicit section markers. Retain\n            // their text attached to the next review row, never discard it.\n            if line.hasSuffix(\":\"), line.range(of: #\"\\d\"#, options: .regularExpression) == nil\n                || key(line).hasPrefix(\"for \") || key(line).hasPrefix(\"to \") {\n                prefix.append(line); continue\n            }\n"
+      }
+    ]
+  },
+  "Ate/Logic/SourceRecipeFidelity.swift": {
+    "parent_sha": "9dc21d1142b63e9dc952abe9dce51ec1ad9011f49f24b97cebaa35bfc432488c",
+    "fragments": [
+      {
+        "new": "                && line.range(of: #\"[.!?]\"#, options: .regularExpression) == nil\n                && line.split(whereSeparator: { $0.isWhitespace }).count <= 12\n        }\n        // A quantity-less caption can have no cooking steps. A measured row\n        // still claims this shape when other ingredient rows surround it, so a\n        // failed certification remains unverifiable rather than becoming .none.\n        return ingredientLike.count >= 3\n    }\n\n    /// A dish answer on a source-bound import sets the title only: the contract's\n",
+        "old": "                && line.range(of: #\"[.!?]\"#, options: .regularExpression) == nil\n                && line.split(whereSeparator: { $0.isWhitespace }).count <= 12\n        }\n        return ingredientLike.count >= 3 && lines.filter(action).count >= 2\n    }\n\n    /// A dish answer on a source-bound import sets the title only: the contract's\n"
+      }
+    ]
+  },
+  "AteTests/SourceRecipeFidelityTests.swift": {
+    "parent_sha": "ce59505ab7894e341ddfecd508c772d6473034c65c2cd746f96c79728223926f",
+    "fragments": [
+      {
+        "new": "                _ = try await backend.parseRecipe(.init(mode: .prompt, text: RecipePromptTests.midrandAd))\n                XCTFail(\"promo must not create a card\")\n            } catch {\n                XCTAssertTrue(error.localizedDescription.contains(\"recipe source\"))\n            }\n            XCTAssertEqual(fallback.parses, 0)\n        }\n",
+        "old": "                _ = try await backend.parseRecipe(.init(mode: .prompt, text: RecipePromptTests.midrandAd))\n                XCTFail(\"promo must not create a card\")\n            } catch {\n                XCTAssertTrue(error.localizedDescription.contains(\"doesn't look like a recipe\"))\n            }\n            XCTAssertEqual(fallback.parses, 0)\n        }\n"
+      },
+      {
+        "new": "    func testF1UnavailableModelDoesNotSubstituteDemoForExplicitSource() async {\n        let fallback = Fallback()\n        let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { false })\n        // Product-contract correction: readable source remains editable without AI.\n        do {\n            let card = try await backend.parseRecipe(.init(mode: .prompt, text: caption))\n            XCTAssertEqual(card.source, .imported)\n            XCTAssertEqual(card.sourceDraft?.text, caption)\n            XCTAssertTrue(card.isEditableDraft)\n            XCTAssertFalse(card.ingredients.isEmpty)\n        } catch { XCTFail(\"Readable source must remain editable: \\(error)\") }\n        XCTAssertEqual(fallback.parses, 0)\n    }\n\n",
+        "old": "    func testF1UnavailableModelDoesNotSubstituteDemoForExplicitSource() async {\n        let fallback = Fallback()\n        let backend = OnDeviceBackend(fallback: fallback, modelAvailable: { false })\n        do {\n            _ = try await backend.parseRecipe(.init(mode: .prompt, text: caption))\n            XCTFail(\"source extraction must not become a demo\")\n        } catch { XCTAssertTrue(error.localizedDescription.contains(\"No demo recipe was substituted\")) }\n        XCTAssertEqual(fallback.parses, 0)\n    }\n\n"
+      },
+      {
+        "new": "    // extraction fixtures above; model generation stays UNRUN on this host.\n    func testInterleavedParsesKeepTheirOwnInputsAndContracts() async throws {\n        let backend = OnDeviceBackend(fallback: Echo(), modelAvailable: { false })\n        // Product-contract correction: Add requires source, not dish ideas.\n        let first = \"Chicken curry\\nIngredients\\nchicken\\ncurry powder\\nMethod\\nSimmer the chicken until cooked.\"\n        let second = \"Vegan pancakes\\nIngredients\\nflour\\noat milk\\nMethod\\nMix and fry the pancakes.\"\n        async let a = backend.parseRecipeWithContract(.init(mode: .prompt, text: first))\n        async let b = backend.parseRecipeWithContract(.init(mode: .prompt, text: second))\n        let (ra, rb) = try await (a, b)\n        XCTAssertEqual(ra.card.title, \"Chicken curry\")\n        XCTAssertEqual(rb.card.title, \"Vegan pancakes\")\n        XCTAssertEqual(ra.card.sourceDraft?.text, first)\n        XCTAssertEqual(rb.card.sourceDraft?.text, second)\n        XCTAssertNil(ra.contract)\n        XCTAssertNil(rb.contract)\n    }\n",
+        "old": "    // extraction fixtures above; model generation stays UNRUN on this host.\n    func testInterleavedParsesKeepTheirOwnInputsAndContracts() async throws {\n        let backend = OnDeviceBackend(fallback: Echo(), modelAvailable: { false })\n        async let a = backend.parseRecipeWithContract(.init(mode: .prompt, text: \"chicken curry for 4\"))\n        async let b = backend.parseRecipeWithContract(.init(mode: .prompt, text: \"vegan pancakes for 2\"))\n        let (ra, rb) = try await (a, b)\n        XCTAssertEqual(ra.card.title, \"chicken curry for 4\")\n        XCTAssertEqual(rb.card.title, \"vegan pancakes for 2\")\n        XCTAssertNil(ra.contract)\n        XCTAssertNil(rb.contract)\n    }\n"
+      }
+    ]
+  }
+}

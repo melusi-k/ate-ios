@@ -4,7 +4,10 @@ ROOT=Path(__file__).resolve().parents[2]
 class PresentationReturnDiagnosticTests(unittest.TestCase):
     def test_original_entire_ui_except_flag_and_pixel(self):
         s=(ROOT/'AteUITests/CookingTrackerEntryUITests.swift').read_text().replace(', "-qaPresentationReturnDiagnostic"','').replace('        shot("68-journal-after-native-back-before-original-predicate")\n','')
-        self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'708d15cd6f5c0b891bb3a3a12bae2d8eb3924a08c75635b49ff08268cd8b7394')
+        # #642 rename slice: inverse the helper comment rename before the historical remainder hash.
+        self.assertEqual(s.count('// #642: the first tab is Today; the saved-recipe collection is one tap in.'),1)
+        s=s.replace('// #642: the first tab is Today; the saved-recipe collection is one tap in.','// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.',1)
+        self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'80ec81e9d231c7bcff106d51eab79a22637d6a36e553cd781550e63f5769b2c3')
     def test_bounded_paired_observer_without_mutation(self):
         s=(ROOT/'Ate/App/AteApp.swift').read_text()
         for token in ['if !oldPath.isEmpty && newPath.isEmpty','PresentationReturnDiagnostic.returnedIfRequested()','AppConfig.isUITesting','-qaPresentationReturnDiagnostic','rows.count < 24','schedulerRows.count < 10','qos: .utility','task-entered','task-cancelled','task-sleep-error']:

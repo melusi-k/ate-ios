@@ -79,10 +79,18 @@ struct RecipeCard: Codable, Identifiable, Hashable {
     /// Local cover file name (Covers folder in the App Group / app container). Bytes never sync;
     /// on another device a missing file falls back to `imageURL` or the branded tile.
     var coverImage: String?
+    /// Optional lossless evidence for an unchanged verified paste, never an AI source.
+    var pastedSource: PastedRecipeSource?
+    var sourceDraft: SourceDraft?
+    /// Single-pass Explore draft, kept editable without deriving unknown facts.
+    var suggestionDraft: Bool?
+    var isEditableDraft: Bool {
+        SourceDraft.applies(to: self) || (source == .appleIntelligence && suggestionDraft == true)
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, title, description, servings, timeMinutes, tags, ingredients, steps, imageURL, sourceURL, createdAt, source, generatedAt
-        case origin, favorite, lastCookedAt, cuisine, sortIndex, aiConfidence, aiNote, coverImage, aiAlternatives
+        case origin, favorite, lastCookedAt, cuisine, sortIndex, aiConfidence, aiNote, coverImage, aiAlternatives, pastedSource, sourceDraft, suggestionDraft
     }
 
     init(id: String = UUID().uuidString, title: String = "Untitled recipe", description: String? = nil,
@@ -101,10 +109,19 @@ struct RecipeCard: Codable, Identifiable, Hashable {
         id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
         title = (try? c.decode(String.self, forKey: .title)) ?? "Untitled recipe"
         description = try? c.decodeIfPresent(String.self, forKey: .description)
-        if let i = try? c.decode(Int.self, forKey: .servings) { servings = i }
-        else if let d = try? c.decode(Double.self, forKey: .servings) { servings = Int(d) } else { servings = 2 }
-        if let i = try? c.decode(Int.self, forKey: .timeMinutes) { timeMinutes = i }
-        else if let d = try? c.decode(Double.self, forKey: .timeMinutes) { timeMinutes = Int(d) } else { timeMinutes = nil }
+        // Decode legacy fractional numbers with the existing truncation behavior,
+        // but reject out-of-range values rather than trapping in Int(Double).
+        func legacyInteger(_ key: CodingKeys) throws -> Int? {
+            if let integer = try? c.decode(Int.self, forKey: key) { return integer }
+            guard let number = try? c.decode(Double.self, forKey: key) else { return nil }
+            guard number.isFinite, number >= Double(Int.min), number < Double(Int.max) else {
+                throw DecodingError.dataCorruptedError(forKey: key, in: c,
+                    debugDescription: "Recipe number is outside the supported integer range")
+            }
+            return Int(number)
+        }
+        servings = try legacyInteger(.servings) ?? 2
+        timeMinutes = try legacyInteger(.timeMinutes)
         tags = (try? c.decode([String].self, forKey: .tags)) ?? []
         ingredients = (try? c.decode([Ingredient].self, forKey: .ingredients)) ?? []
         steps = ((try? c.decode([Step].self, forKey: .steps)) ?? []).filter { $0.instruction.rangeOfCharacter(from: .alphanumerics) != nil }
@@ -122,6 +139,9 @@ struct RecipeCard: Codable, Identifiable, Hashable {
         aiNote = try? c.decodeIfPresent(String.self, forKey: .aiNote)
         coverImage = try? c.decodeIfPresent(String.self, forKey: .coverImage)
         aiAlternatives = try? c.decodeIfPresent([String].self, forKey: .aiAlternatives)
+        suggestionDraft = try? c.decodeIfPresent(Bool.self, forKey: .suggestionDraft)
+        sourceDraft = try? c.decodeIfPresent(SourceDraft.self, forKey: .sourceDraft)
+        pastedSource = try? c.decodeIfPresent(PastedRecipeSource.self, forKey: .pastedSource)
     }
 }
 
@@ -216,6 +236,8 @@ enum Route: Hashable {
     case cook(String)
     case shopping
     case settings
+    /// The full saved-recipe collection pushed inside the Today stack (#642).
+    case library
     case shared(String)
     case notFound
     case insights

@@ -1,0 +1,15 @@
+{
+  "path": "AteTests/RecipeStreamingTests.swift",
+  "parent_sha": "f45980a3593a99123a33d7c17eaf18c74d7a10af17ede4d4c8100db539aa1012",
+  "current_sha": "e277df1d94502ce6c943119b2ebc11b4220f7eacc802446363b0fd41595dc43a",
+  "fragments": [
+    {
+      "old": "",
+      "new": "        // The injected stream returning is not the session's rejection boundary:\n        // suggestRecipe must reject the echo, then catch/defer clears its preview.\n        let settled = expectation(description: \"echo rejection published and preview cleared\")\n        let observer = Task { @MainActor in\n            while session.loading && !Task.isCancelled { await Task.yield() }\n            if !Task.isCancelled { settled.fulfill() }\n        }\n        await fulfillment(of: [settled], timeout: 2)\n        observer.cancel()\n        XCTAssertFalse(session.loading)\n"
+    },
+    {
+      "old": "",
+      "new": "        XCTAssertEqual(session.message, \"AI could not create a suggestion. No demo recipe was substituted or saved.\")\n"
+    }
+  ]
+}

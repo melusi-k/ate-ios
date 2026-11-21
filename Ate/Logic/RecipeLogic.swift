@@ -25,9 +25,14 @@ enum RecipeLogic {
 
     static func normalize(_ card: RecipeCard) -> RecipeCard {
         var c = card
+        let keepsPaste = card.pastedSource?.matches(card) == true
+        if !keepsPaste { c.pastedSource = nil }
         let t = c.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        c.title = t.isEmpty ? "Untitled recipe" : ([.manual, .mock].contains(c.source) ? t : RecipeQuality.titleCased(t))
-        c.servings = max(1, c.servings)
+        c.title = t.isEmpty ? "Untitled recipe" : ([.manual, .mock].contains(c.source) || keepsPaste || c.isEditableDraft ? t : RecipeQuality.titleCased(t))
+        if c.isEditableDraft {
+            c.servings = max(0, c.servings)
+            c.sourceDraft?.unknownServings = c.servings == 0
+        } else { c.servings = max(1, c.servings) }
         c.tags = c.tags.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         c.ingredients = c.ingredients.map { var i = $0; if !i.quantity.isFinite { i.quantity = 0 }; return i }
         c.steps = nonBlank(c.steps).enumerated().map { idx, s in var s = s; s.order = idx + 1; return s }
@@ -73,10 +78,15 @@ enum RecipeLogic {
 
     /// Plain-text share format (PRD §7.4).
     static func text(for card: RecipeCard, factor: Double = 1, units: UnitSystem = .metric, shareURL: String? = nil) -> String {
+        // The unchanged paste exports its exact source, including ranges,
+        // section markers and unmeasured wording. No synthetic total or units.
+        if factor == 1, let paste = card.pastedSource, paste.matches(card) {
+            return paste.text
+        }
         let r = scaled(card, factor: factor)
         var lines: [String] = [r.title]
         if let d = r.description, !d.isEmpty { lines.append(d) }
-        var meta = "\(r.servings) servings"
+        var meta = r.servings > 0 ? "\(r.servings) servings" : "Servings unspecified"
         if let m = r.timeMinutes, m > 0 { meta += " · \(m) min" }
         lines.append(meta)
         lines.append("")

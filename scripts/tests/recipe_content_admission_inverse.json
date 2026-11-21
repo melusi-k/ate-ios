@@ -1,0 +1,28 @@
+{
+  "Ate/Logic/RecipeDiscovery.swift": {
+    "parent_sha": "c7b7754fb9686c1ac3f31f1346b9eb5cd2c0ab13dd08c38ba6acb99e13fee4d0",
+    "fragments": [
+      {
+        "new": "                    guard !RecipeDiscovery.excludes(card, context: current, suggested: suggestions.filter { $0.id != original?.id }) else {\n                        throw BackendError(message: \"That suggestion was already saved or cooked. Nothing was added. Try another suggestion.\")\n                    }\n                    guard (try? OnDeviceBackend.validateImportedContent(card)) != nil else {\n                        throw BackendError(message: \"AI didn't return a usable food recipe. Nothing was saved. Try another suggestion.\")\n                    }\n                    preview = nil\n",
+        "old": "                    guard !RecipeDiscovery.excludes(card, context: current, suggested: suggestions.filter { $0.id != original?.id }) else {\n                        throw BackendError(message: \"That suggestion was already saved or cooked. Nothing was added. Try another suggestion.\")\n                    }\n                    guard !RecipeQuality.isNonFoodTitle(card), card.title != \"Untitled recipe\",\n                          !card.ingredients.filter({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }).isEmpty else {\n                        throw BackendError(message: \"AI didn't return a usable food recipe. Nothing was saved. Try another suggestion.\")\n                    }\n                    preview = nil\n"
+      },
+      {
+        "new": "            guard !loading else { return false }\n            guard current.owner == owner else { accountChanged(); return false }\n            guard suggestions.contains(where: { $0.id == card.id }), card.source == .appleIntelligence,\n                  !savedIDs.contains(card.id),\n                  (try? OnDeviceBackend.validateImportedContent(card)) != nil else { return false }\n            guard !RecipeDiscovery.excludes(card, context: current) else {\n                throw BackendError(message: \"This recipe is already saved or cooked. No duplicate was added.\")\n            }\n",
+        "old": "            guard !loading else { return false }\n            guard current.owner == owner else { accountChanged(); return false }\n            guard suggestions.contains(where: { $0.id == card.id }), card.source == .appleIntelligence,\n                  !savedIDs.contains(card.id), !RecipeQuality.isNonFoodTitle(card), card.title != \"Untitled recipe\",\n                  !card.ingredients.filter({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }).isEmpty else { return false }\n            guard !RecipeDiscovery.excludes(card, context: current) else {\n                throw BackendError(message: \"This recipe is already saved or cooked. No duplicate was added.\")\n            }\n"
+      }
+    ]
+  },
+  "Ate/Services/OnDeviceBackend.swift": {
+    "parent_sha": "6a66067524d7a36d0227fa0685aff7080989076c42ef1d1af8a9b92273896fef",
+    "fragments": [
+      {
+        "new": "            }\n        }\n        try GenerationCancellation.check()\n        try Self.validateImportedContent(result)\n        result.id = original.id; result.createdAt = original.createdAt\n        result.favorite = original.favorite; result.coverImage = original.coverImage\n",
+        "old": "            }\n        }\n        try GenerationCancellation.check()\n        guard original.sourceDraft != nil || original.pastedSource != nil || !result.ingredients.isEmpty else {\n            throw BackendError(message: \"AI could not improve this recipe. Your original card is kept.\")\n        }\n        try Self.validateImportedContent(result)\n        result.id = original.id; result.createdAt = original.createdAt\n        result.favorite = original.favorite; result.coverImage = original.coverImage\n"
+      },
+      {
+        "new": "    static func validateImportedContent(_ card: RecipeCard) throws {\n        let ingredient = card.ingredients.contains { !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }\n        let action = card.steps.contains { SourceDraftImport.isAction($0.instruction) }\n        guard !RecipeQuality.isNonFoodTitle(card), card.title != \"Untitled recipe\", ingredient || action else { throw SourceDraftImport.unreadable }\n    }\n\n    /// Only the app-created discovery context chooses creative generation. User\n",
+        "old": "    static func validateImportedContent(_ card: RecipeCard) throws {\n        let ingredient = card.ingredients.contains { !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }\n        let action = card.steps.contains { SourceDraftImport.isAction($0.instruction) }\n        guard !RecipeQuality.isNonFoodTitle(card), ingredient || action else { throw SourceDraftImport.unreadable }\n    }\n\n    /// Only the app-created discovery context chooses creative generation. User\n"
+      }
+    ]
+  }
+}

@@ -3,6 +3,27 @@ import Foundation
 /// Conservative repair hints, not a claim to understand every food or method.
 /// Never adds ingredients, rewrites source text, or requires more steps by count.
 enum GeneratedStepQuality {
+    /// Advisory class: an unused IMPLICIT STAPLE whose exact normalized name is on
+    /// this closed list. Only plain staple names count: "chicken in water", "beef
+    /// stock with salt" or "rice flour" name main foods and are never advisory, and
+    /// flour, sugar and butter are NOT advisory at all, so a cake that never uses
+    /// its flour still repairs automatically. An advisory gap is listed on the
+    /// review card with a manual Repair option, and on its own never triggers the
+    /// automatic repair pass, which costs a second full on-device generation. An
+    /// unused main ingredient is a real gap and still repairs automatically.
+    /// Producer and classifier share this suffix so they cannot drift.
+    static let unusedIngredientGapSuffix = "it is listed but never used in the steps."
+    static let implicitStaples: Set<String> = ["salt", "black pepper", "pepper", "water",
+                                               "cooking oil", "oil", "olive oil",
+                                               "vegetable oil", "sunflower oil"]
+    static func isImplicitStapleGap(_ gap: String) -> Bool {
+        let prefix = "Explain when to use "
+        guard gap.hasPrefix(prefix), gap.hasSuffix(unusedIngredientGapSuffix) else { return false }
+        let name = gap.dropFirst(prefix.count).dropLast(unusedIngredientGapSuffix.count + 2)
+        let normalized = String(name).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            .split(whereSeparator: { $0 == " " }).joined(separator: " ")
+        return implicitStaples.contains(normalized)
+    }
     static func words(_ text: String) -> Set<String> {
         Set(text.lowercased().split(whereSeparator: { !$0.isLetter }).map {
             let word = String($0)
@@ -45,7 +66,7 @@ enum GeneratedStepQuality {
             for ingredient in card.ingredients {
                 let ingredientAnchors = anchors(ingredient.name)
                 if !ingredientAnchors.isEmpty && ingredientAnchors.isDisjoint(with: allStepWords) {
-                    gaps.append("Explain when to use \(ingredient.name); it is listed but never used in the steps.")
+                    gaps.append("Explain when to use \(ingredient.name); \(unusedIngredientGapSuffix)")
                 }
             }
         }

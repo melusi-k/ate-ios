@@ -4,6 +4,8 @@ import hashlib
 import json
 FIXTURE_SHA = 'f2a9acb2749da280fb7e1fe67f578734566a2bc764997239cff4a09e37200d73'
 def restore(key, raw):
+    from journal_delete_zero_nodes_delta import restore as restore_zero_nodes
+    raw = restore_zero_nodes(key, raw)
     if key.split(':', 1)[-1] != 'AteUITests/JournalOpenStateUITests.swift':
         return raw
     payload = Path(__file__).with_name('journal_delete_current_query_inverse.json').read_bytes()

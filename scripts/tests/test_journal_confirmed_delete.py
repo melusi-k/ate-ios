@@ -18,7 +18,7 @@ class ConfirmedDeleteTests(unittest.TestCase):
     def test_original_destructive_assertions_remain(self):
         s = (ROOT / 'AteUITests/JournalOpenStateUITests.swift').read_text()
         m = s.split('func testManualReflectionEditSaveCancelAndConfirmedDelete()', 1)[1].split('func testConfirmedDeleteFailure', 1)[0]
-        for t in ['Cancel must keep the reflection', 'waitUntilGone(detail)', 'wait(app.navigationBars["Journal"])',
+        for t in ['Cancel must keep the reflection', 'waitUntilGone(any("journal.detail.text"))', 'wait(app.navigationBars["Journal"])',
                   'Confirmed deletion must remove the created reflection from history']:
             self.assertIn(t, m)
         self.assertIn('confirmButton.tap()', m)

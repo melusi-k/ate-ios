@@ -1366,9 +1366,9 @@ The rolling portfolio allocation above is now the scheduling source for every op
 | #642 | 2026-W48 | 2026-11-23 | 2026-11-29 | Committed Today reference migration only; conditional-home work remains stretch |
 | #498 | 2026-W48 | 2026-11-23 | 2026-11-29 | Stretch only if NOW-bug reserve is clearly spare; not part of the 16 planned points |
 | #645 | 2026-W52 | 2026-12-21 | 2026-12-27 | LATER/cosmetic candidate associated with PR #647; not committed until W52 planning |
-| #646 | Backlog — unscheduled | — | — | Removed from W48 committed/stretch scope; retain its earlier proposed dates only as history, with no current planned window |
+| #646 | 2026-W48 — Sprint 1 (NOW reserve) | 2026-11-23 | 2026-11-29 | Owner-confirmed NOW bug; estimate TBD, charge against 5-point reserve and apply equal-scope swap/escalation rule |
 
-**Date-change and history rules:** where an issue's earlier W48 schedule is superseded, preserve the original planned dates and append a dated change record rather than silently rewriting history. #645 moves from its superseded W48 proposal to the W52 candidate window. #646's W48 proposal is withdrawn and the ticket returns to the ranked backlog; do not give it a replacement date until selected. Lifecycle actual-start/end fields remain separate and unknown/blank until reliable evidence exists.
+**Date-change and history rules:** where an issue's earlier W48 schedule is superseded, preserve the original planned dates and append a dated change record rather than silently rewriting history. #645 moves from its superseded W48 proposal to the W52 candidate window. #646 is reclassified by the owner as a NOW bug and reinstated in the W48 NOW reserve window (2026-11-23 to 2026-11-29); the intervening unscheduled decision remains historical. Lifecycle actual-start/end fields remain separate and unknown/blank until reliable evidence exists.
 
 **Capacity remains unchanged:** 21 points maximum per sprint, comprising at most 16 planned points and 5 reserved for NOW bugs. Future queues remain candidates, not commitments; do not add points or silently displace started work. A disposition-only PR receives a sprint window for review/decision, not permission to merge or close it.
 
@@ -1378,5 +1378,10 @@ The rolling portfolio allocation above is now the scheduling source for every op
 - Applied the standard **Sprint schedule** block to all 84 open PRs, using each PR's existing portfolio allocation for sprint name, planned start and planned end. Each block leaves actual start/end blank and records the outcome, dependencies and disposition-only boundary. No PR was merged or closed.
 - Updated owning issue schedule records for #35, #89, #641 and #642 to keep the W48 planned window (2026-11-23 to 2026-11-29), and #498 to retain its W48 Stretch window; actual schedule dates are blank until evidenced.
 - Updated #645 to the W52 candidate window (2026-12-21 to 2026-12-27), retaining the superseded W48 proposal and recording the dated change. This remains Stretch/LATER, not a W48 commitment.
-- Updated #646 to explicitly show **Unscheduled — ranked backlog**, with no current planned start/end. Its withdrawn W48 proposal remains history only.
+- Reclassified #646 as an owner-confirmed **NOW bug**, reinstated its W48 planned window (2026-11-23 to 2026-11-29), and marked its estimate TBD against the 5-point NOW reserve. The intervening unscheduled decision remains in history.
 - These are planned schedule metadata updates only. GitHub created/opened/merged/closed timestamps and retrospective lifecycle history were not changed. No repository governance, checks, labels, permissions, production settings or application code were changed.
+
+
+### #646 NOW-bug reclassification — owner update 2026-11-21
+
+Issue #646 is owner-confirmed NOW and is scheduled into the W48 NOW-bug reserve window (2026-11-23 to 2026-11-29). Its estimate is still TBD and must be established before execution. It is not part of the 16 planned points; charge the sized fix to the 5-point reserve. If it exceeds remaining reserve, remove equal scope only from work not yet started; if there is no safe swap, request an owner decision. Do not exceed the 21-point cap or silently displace started work. The prior unscheduled/backlog decision is preserved as history, not treated as the current classification. Actual start/end remain blank until supported by evidence.

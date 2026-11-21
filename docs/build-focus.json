@@ -1,7 +1,7 @@
 {
-  "title": "Workflow cleanup: remove two unused optional Dynamic Type lanes",
-  "summary": "Deletes only two optional workflow entry files; their native test sources stay unchanged. Normal-text required checks, selectors, assertions, limits and release paths are unchanged. Current main has 27 XcodeGen jobs; this deletion leaves 25, including the manual Nutrition wrapper. Python and native qualification must be reported for the exact refreshed head; this metadata is not acceptance.",
-  "source_commit": "f3924f1b29c829870ed7841c967153517a875ff5",
+  "title": "Independent exact-source Dogfood qualification groups",
+  "summary": "Preserves all twelve required QA and Library journeys in independent bounded jobs, with strict same-source AND qualification. Existing failures stay red; native acceptance on this refreshed source remains unproven.",
+  "source_commit": "ffa7fdcf242acdf7005905c3c05a39613cbb3976",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",

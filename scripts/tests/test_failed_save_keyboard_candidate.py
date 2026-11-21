@@ -1,3 +1,4 @@
+from nutrition_log_route_delta import restore as restore_nutrition_route
 """Candidate adds editing completion without removing the original journey."""
 from pathlib import Path
 import hashlib
@@ -6,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class FailedSaveKeyboardCandidateTests(unittest.TestCase):
     def test_candidate_is_only_a_keyboard_completion_insertion(self):
-        source = (ROOT / 'AteUITests/NutritionDiaryUITests.swift').read_text()
+        source = restore_nutrition_route('AteUITests/NutritionDiaryUITests.swift', (ROOT / 'AteUITests/NutritionDiaryUITests.swift').read_text())
         body = source.split('func testCancelledFailedSavesLeaveDiaryEmptyAfterRelaunch() throws {', 1)[1].split('\n    func ', 1)[0]
         start = body.index('        // Finish editing through the real keyboard')
         end = body.index('        let save = ', start)

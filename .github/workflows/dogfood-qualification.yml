@@ -112,7 +112,7 @@ jobs:
             -resultBundlePath build/DogfoodCriticalFlows.xcresult \
             -parallel-testing-enabled NO -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
-            CODE_SIGNING_ALLOWED=NO > dogfood-critical-flows.log 2>&1 || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" dogfood-critical-flows.log || true; tail -100 dogfood-critical-flows.log; exit 1; }
+            CODE_SIGNING_ALLOWED=NO 2>&1 | python3 -u scripts/stream-ui-test-progress.py --selection dogfood-critical-flows --log dogfood-critical-flows.log || { grep -n -B 8 -A 12 -E "error:|failed|XCTAssert|Testing failed|Fatal error" dogfood-critical-flows.log || true; tail -100 dogfood-critical-flows.log; exit 1; }
           total=$(sed -nE 's/^[[:space:]]*Executed ([0-9]+) tests?,.*/\1/p' dogfood-critical-flows.log | tail -1)
           if ! [[ "$total" =~ ^[0-9]+$ ]] || [ "$total" -lt 12 ]; then
             echo "::error::critical flow selection must execute at least twelve tests; got ${total:-missing}"

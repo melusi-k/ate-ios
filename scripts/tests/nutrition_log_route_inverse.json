@@ -1,0 +1,6 @@
+{
+  "parent_sha": "220432cfcedb4c3356b47fdfdf30573fb1e5a76effe124cad5b9627cbd76f33c",
+  "current_sha": "2309a49a4daca2a31a36812c996804ffcfdc3c37f7979a3a4b3276fed91eb10b",
+  "old": "        startupDiagnosticMark(\"open-log-form-start\")\n        openLogForm(app)\n",
+  "new": "        startupDiagnosticMark(\"open-log-form-start\")\n        // This journey is already on Food diary. Use its real toolbar action,\n        // not the optional root accessory's unrelated absent-control AX probe.\n        let logFood = app.navigationBars[\"Food diary\"].buttons[\"nutritionDiary.add\"]\n        XCTAssertTrue(logFood.waitForExistence(timeout: 2), \"Food diary must expose its Log food toolbar action\")\n        XCTAssertTrue(logFood.isHittable, \"Log food must be reachable on the active Food diary screen\")\n        logFood.tap()\n        XCTAssertTrue(app.textFields[\"nutritionDiary.foodName\"].waitForExistence(timeout: 5), \"Log form should open\")\n"
+}

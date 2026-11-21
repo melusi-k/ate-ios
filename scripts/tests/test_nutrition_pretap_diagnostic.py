@@ -1,3 +1,4 @@
+from nutrition_log_route_delta import restore as restore_nutrition_route
 from pathlib import Path
 import hashlib
 import unittest
@@ -5,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class NutritionPretapDiagnosticTests(unittest.TestCase):
     def test_original_journey_survives_only_evidence_and_flag_insertion(self):
-        source = (ROOT / 'AteUITests/NutritionDiaryUITests.swift').read_text()
+        source = restore_nutrition_route('AteUITests/NutritionDiaryUITests.swift', (ROOT / 'AteUITests/NutritionDiaryUITests.swift').read_text())
         from test_food_form_phase_brackets import restore_food_form_brackets
         source=restore_food_form_brackets(self,source)
         import re

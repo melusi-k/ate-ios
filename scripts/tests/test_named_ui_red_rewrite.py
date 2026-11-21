@@ -28,7 +28,9 @@ class NamedRedRewriteTests(unittest.TestCase):
         helper=(ROOT/'AteUITests/NamedRedReceipt.swift').read_text()
         self.assertLess(helper.index('emit("BEGIN step='),helper.index('let result = action()'))
         self.assertIn('FileHandle.standardOutput.write',helper)
-        self.assertIn('element.frame',helper)
+        self.assertIn('capture=phase-only',helper)
+        for query in ['element.exists', 'element.frame', 'element.identifier', 'element.label']:
+            self.assertNotIn(query,helper)
         self.assertIn('XCTAttachment(screenshot:',helper)
         for token in ['sleep(', 'waitFor', 'launch()', 'terminate()', '.tap()']:
             self.assertNotIn(token,helper)

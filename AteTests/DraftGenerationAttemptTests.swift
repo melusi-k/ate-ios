@@ -5,7 +5,12 @@ import XCTest
 final class DraftGenerationAttemptTests: XCTestCase {
     private final class DelayedBackend {
         var continuation: CheckedContinuation<RecipeCard, Never>?
-        func parse() async -> RecipeCard { await withCheckedContinuation { continuation = $0 } }
+        func parse(onRegistered: (() -> Void)? = nil) async -> RecipeCard {
+            await withCheckedContinuation {
+                continuation = $0
+                onRegistered?()
+            }
+        }
         func complete() {
             continuation?.resume(returning: RecipeCard(title: "Late recipe", source: .appleIntelligence))
             continuation = nil
@@ -48,8 +53,8 @@ final class DraftGenerationAttemptTests: XCTestCase {
         let attempt = DraftGenerationAttempt(), backend = DelayedBackend()
         let started = expectation(description: "started"), done = expectation(description: "returned")
         attempt.start { token in
-            started.fulfill()
-            let card = await backend.parse()
+            // Admit cancellation/completion only after the backend owns its continuation.
+            let card = await backend.parse(onRegistered: { started.fulfill() })
             attempt.publish(token) { drafts.saveDraft(card) }
             done.fulfill()
         }

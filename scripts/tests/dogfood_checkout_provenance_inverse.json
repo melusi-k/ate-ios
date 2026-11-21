@@ -1,0 +1,8 @@
+{
+  "path": ".github/workflows/dogfood-qualification.yml",
+  "parent_sha": "2c72fe9e723493b7451fcc70291f985c01b9206858de93efafe9521fe2f2c77e",
+  "current_sha": "1f146852ecdff2f7e479b0d7f296a4332c5ed33a4cb3003cc67a550788e47a3f",
+  "old": "          ref: ${{ needs.pin-source.outputs.sha }}",
+  "new": "          ref: ${{ github.event.pull_request.head.sha || github.sha }}",
+  "count": 4
+}

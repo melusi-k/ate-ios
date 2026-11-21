@@ -48,12 +48,18 @@ struct SuggestedNewRecipesView: View {
                         if editing {
                             RecipeEditor(recipe: Binding(get: { review ?? card }, set: { review = $0 })).disabled(session.loading)
                         } else { RecipeCardView(recipe: review ?? card, units: store.settings.units) }
-                        Button(editing ? "Preview" : "Edit") { editing.toggle() }.disabled(session.loading)
-                        Button("Rerun") { rerun(review ?? card) }
-                            .disabled(session.loading || session.savedIDs.contains(card.id))
-                            .accessibilityIdentifier("discovery.rerun")
-                        Button(session.savedIDs.contains(card.id) ? "Saved" : "Save") { if save(review ?? card) { review = nil } }
-                            .disabled(session.loading || session.savedIDs.contains(card.id))
+                        HStack(spacing: 8) {
+                            Button(session.savedIDs.contains(card.id) ? "Saved" : "Save") { if save(review ?? card) { review = nil } }
+                                .buttonStyle(.ate(.primary, full: true))
+                                .disabled(session.loading || session.savedIDs.contains(card.id))
+                            Button(editing ? "Preview" : "Edit") { editing.toggle() }
+                                .buttonStyle(.ate(.secondary))
+                                .disabled(session.loading)
+                            Button("Rerun") { rerun(review ?? card) }
+                                .buttonStyle(.ate(.ghost))
+                                .disabled(session.loading || session.savedIDs.contains(card.id))
+                                .accessibilityIdentifier("discovery.rerun")
+                        }
                         if let message = session.message { Text(message) }
                     }.padding()
                 }.navigationTitle("Suggested recipe")

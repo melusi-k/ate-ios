@@ -1221,3 +1221,121 @@ For each selected issue and PR, retain separate ticket identities and link relat
 - 2026-11-21: #498 (3 points) and Today conditional-home composition (2 points) moved to stretch; they may return only if the bug reserve is clearly spare.
 - 2026-11-21: Added explicit NOW/LATER/Unknown triage, reserve charging, equal-scope removal from unstarted work, and owner escalation where no safe swap exists.
 - Sunday close-out due 2026-11-29. No actual dates, delivery outcomes or velocity are inferred from this plan.
+
+
+# Rolling portfolio sprint allocation — reviewed 2026-11-21
+
+**Inventory snapshot:** 84 open pull requests returned by GitHub search for `repo:melusi-k/ate-ios is:open`. This is the complete open-PR allocation at this review point; refresh the inventory before each sprint planning session. **Planning main SHA:** `61f66f234d6f570617cbd1ebfd4e8fb28db4546a`. **Timezone:** Africa/Johannesburg (UTC+02:00).
+
+## Allocation policy
+
+1. Every open PR in the snapshot is assigned exactly one sprint below. A sprint allocation is a scheduling home, not an instruction to merge.
+2. Sprint 1 (W48) is the only committed scope in this portfolio plan: 16 planned points + 5 NOW-bug reserve = 21 points.
+3. Apply the same provisional 21-point ceiling to each future weekly sprint: at most 16 planned points and 5 points reserved for NOW bugs. Future allocations are **sequenced candidates, not commitments**. No estimates are invented: estimate each outcome at sprint planning, then select no more than 16 planned points. If the candidate queue exceeds capacity, defer lower-ranked work to the next sprint without changing its priority or acceptance bar.
+4. A related issue and PR, or multiple PRs that implement one outcome, are linked but counted once. A stacked PR chain is scheduled as one ordered workstream unless its PR body explicitly defines an independently acceptable deliverable.
+5. Distinguish delivery/qualification candidates from disposition-only PRs. Disposition-only means decide whether to close as superseded, retain as evidence, refresh against current main, or keep held. It never means merge.
+6. Existing draft/held/diagnostic labels and explicit "DO NOT MERGE" instructions remain controlling. No schedule assignment overrides them. Production writes, remote activation, new builds, dispatches or manual workflows still require the relevant explicit owner approval.
+7. NOW/LATER/Unknown bug policy applies every sprint: NOW = data loss, privacy/security exposure, crash, cook loop blocked with no workaround, invented recipe facts, or a regression from sprint work. LATER = cosmetic, rare edge case with workaround, unrelated feature request, or simulator-only failure without user impact. Unknown gets a quick impact/workaround check. Charge NOW fixes to the 5-point reserve first; above reserve, remove equal points only from unstarted scope; if no safe swap exists, ask the owner. Do not displace started work or silently exceed 21 points.
+8. Sprint close-out records actual delivery, carryovers, scope changes, blocker decisions and evidence. Planned dates never become actual start/end dates without evidence.
+
+## Sprint allocation summary
+
+| Sprint | Dates (SAST) | Theme / sequence | Open PRs assigned | Status |
+|---|---|---|---:|---|
+| 2026-W48 — Sprint 1 | 2026-11-23 to 2026-11-29 | Workflow cleanup; Today reference migration; generation acceptance; source-import follow-through | 16 | **Committed: 16 planned + 5 bug reserve = 21** |
+| 2026-W49 — Sprint 2 | 2026-11-30 to 2026-12-06 | Recipe-creation loop: source fidelity, refusal, ingredient completeness, generation and QA evidence | 13 | Sequenced candidate queue; estimate and commit at planning |
+| 2026-W50 — Sprint 3 | 2026-12-07 to 2026-12-13 | Cook loop, timer reliability, cooking history and pilot evidence | 11 | Sequenced candidate queue; estimate and commit at planning |
+| 2026-W51 — Sprint 4 | 2026-12-14 to 2026-12-20 | Pilot data integrity, account/privacy/security safety and safety evidence/disposition | 18 | Sequenced candidate queue; estimate and commit at planning |
+| 2026-W52 — Sprint 5 | 2026-12-21 to 2026-12-27 | Feature enhancements, UI/accessibility, cross-feature native qualification and superseded-route cleanup | 23 | Sequenced candidate queue; estimate and commit at planning |
+| 2027-W01 — buffer | 2026-12-28 to 2027-01-03 | Carryover, evidence reconciliation and year-boundary planning only; no new feature commitment pre-allocated | 0 | Buffer, not a delivery sprint commitment |
+| 2027-W02 — Sprint 6 | 2027-01-04 to 2027-01-10 | Dormant roadmap / inactive agentic workflow review | 1 | Sequenced candidate; remain inactive |
+| 2027-W03 — Sprint 7 | 2027-01-11 to 2027-01-17 | Post-pilot tooling and architecture slices | 2 | Sequenced candidates; explicitly post-pilot |
+
+## Detailed allocation
+
+### 2026-W48 — Sprint 1 (committed)
+
+- **Workflow cleanup convergence — 5 points, one combined outcome:** PRs #591, #592, #593, #594, #595, #596, #597, #598, #599, #602, #603, #604, #605. Ordered 13-PR stack. Capture the actual main SHA when refresh begins; forward-converge the complete stack on that baseline. Preserve every original check, selector, timeout, evidence gate, release path, source proof and review requirement. Native qualification/shared-job fit remain unproven until exact evidence exists.
+- **Today reference migration — 3 points:** issue #642 owns the implementation outcome; no separate open PR for #642 is in this 84-PR inventory. The conditional-home slice (2 points) remains stretch.
+- **Generation acceptance — 5 points, combined:** PR #643 with issues #641/#89. Eligible physical-device evidence is a hard dependency; simulator/source-only results are not acceptance.
+- **Source-import follow-through — 3 points, combined:** PR #640 with issue #35. Preserve source rows, written Method, raw source and honest unknowns.
+- **Planning artifact only:** PR #648 documents the plan; it is not product-delivery points.
+- Bug reserve: 5 points, governed by the rules above.
+
+### 2026-W49 — Sprint 2: recipe-creation loop and source fidelity
+
+**Delivery / qualification candidates:** #629, #630, #631 (generation/source stack); #637 and #639 (combined generation/decimal integration plus rejected-echo test correction); #638 (independent Dogfood QA/Library evidence); #600 and #601 (source binding/advisory repair stack); #543 (photo-question and draft-metadata honesty); #547 (Foundation Models initializer compatibility); #538 (experimental recipe structuring tool, subject to paired F13 physical-device evidence).
+
+**Disposition-only:** #633 and #635 are source ancestors/integrated corrections represented in #637; do not merge them as parallel duplicate deliveries. Preserve their evidence and decide their supersession/closure only after #637's exact-head qualification.
+
+**Sprint outcome:** prove the recipe creation path end-to-end without inventing facts: exact source preservation, fail-closed refusal, bounded generation, partial preview semantics, explicit Rerun/Save, interruption/rejection behavior and required native evidence. Do not treat source review or Python checks as Swift/native/device acceptance.
+
+### 2026-W50 — Sprint 3: cook loop, timer reliability and history
+
+**Delivery / qualification candidates:** #622, #623, #624, #625 (four-PR `stitch-cook-loop-lane-one` stack); #626 (timer notification IPC ordering); #634 (CookPlan cancellation dismissal test); #545 (full-size scrollable Cook instructions); #565 (explicit Cook finish retry); #551 and #552 (held pilot Cook golden capture chain); #590 (Live Activity end-event diagnostics).
+
+**Sprint outcome:** preserve the full cook journey and its state transitions—review, plan, cook, timer, finish/recovery and history—then qualify the exact final heads. For #551/#552, retain capture-only/held status; do not merge until the named normal-text device/pixel evidence and workflow-dispatch constraints are satisfied. #590 is diagnostic-only scope and does not claim a timer lifecycle change.
+
+### 2026-W51 — Sprint 4: pilot data and security safety
+
+**Delivery / qualification candidates:** #539 (dormant Journal/goals sync preparation; shipping sync remains OFF); #556 (Account diagnostics replacement); #559, #560, #561, #562 (Account/password-sheet and bounded Presentation qualification); #571 (remote diagnostics consent/readiness safety); #573 (manual disposable local Shopping conflict proof, dispatch only after explicit owner GO); #532 (real Food Journal owner qualification, activation OFF); #611 (Insights fixture handshake concurrency).
+
+**Disposition-only / held evidence:** #563, #557 and #558 are explicitly diagnostic-only / DO NOT MERGE; #541 is held diagnostic evidence; #567 (generation/source lifetime), #568 (pilot payload/durability), #569 (reflection save-failure), and #570 (Library Explore) are current-main inventory/reconciliation records, not merge candidates. Reconcile or close only after their retained evidence and linked issues are accounted for. Do not forward-merge stale cumulative branches.
+
+**Sprint outcome:** prove local data preservation, account/session ownership, deletion/reset behavior, sync safety and consent/readiness fences. No production writes, telemetry activation, shipping Food Journal activation, or workflow dispatch without the required explicit owner approval. The #498 implementation itself remains stretch/owner-gated; #568 is not a substitute for fresh #498 implementation work.
+
+### 2026-W52 — Sprint 5: feature enhancements and cross-feature qualification
+
+**Delivery / qualification candidates:** #581–#588 (eight open PRs in the `composed-insights-library` stack, following merged parent #580); #536 (Library protein grouping); #572 (Library scroll clearance); #566 (Insights reorder accessibility/Reduce Motion); #534 (Release Notes resources, Journal clearance and recipe repair); #609 (OCR host-timing observation, now that prerequisite #608 is merged); #647 (late-night greeting bug, classified LATER unless user-impact evidence changes).
+
+**Disposition-only:** #555 is superseded by #582; #554 by #583; #544 by #584; #546 by #585; #549 by #586; #548 by #587; #540 by #588; #537 by #581; #535 by merged clean route #580. Do not merge these old publication routes. Preserve their records and close/mark superseded only after verifying the clean route retains the intended delta and evidence.
+
+**Sprint outcome:** qualify useful user-facing improvements and accessibility with exact-head native tests, normal-text device pixels, VoiceOver and light/dark checks as applicable. The 8-PR stack is one ordered workstream; respect its parent-child order. #609 remains observational only and cannot alter native gates, timeouts or retries.
+
+### 2027-W01 — year-boundary buffer
+
+No PR is pre-allocated. Use this week for carryover, current-main refresh, unresolved native/device evidence, release-risk review and next sprint planning. Do not create a delivery commitment merely to fill the calendar.
+
+### 2027-W02 — Sprint 6: dormant roadmap
+
+- **#523** — review the eight prepared inactive Agentic Workflows as a dormant roadmap/tooling candidate. Every workflow must remain inactive; no inference, scheduled activation, credential, repository-setting, permission or label change is authorised by this allocation. Any activation requires a separate explicit owner decision and security review.
+
+### 2027-W03 — Sprint 7: post-pilot tooling
+
+- **#574** — Sync lifecycle coordinator and payload-version boundary; source-only post-pilot slice. Native/integration qualification and outbound schema/migration work remain separate.
+- **#575** — saved-recipe picker for Library and cooking-calendar planning; post-pilot source-only slice. Native/device qualification and both entry-flow acceptance remain required.
+- Neither item may be pulled into the cooking Pilot by virtue of this schedule. No production Supabase write, server change or migration apply is authorised.
+
+## Complete PR-to-sprint register (all 84 open PRs)
+
+| Sprint | PRs | Allocation meaning |
+|---|---|---|
+| 2026-W48 | #591, #592, #593, #594, #595, #596, #597, #598, #599, #602, #603, #604, #605 | One committed 5-point workflow-cleanup stack |
+| 2026-W48 | #640 | Committed 3-point source-import outcome with #35 |
+| 2026-W48 | #643 | Committed 5-point generation acceptance outcome with #89/#641 |
+| 2026-W48 | #648 | Planning/documentation record only |
+| 2026-W49 | #629, #630, #631 | Recipe source/generation stack candidate |
+| 2026-W49 | #637, #639 | Generation/decimal integration and test-correction qualification |
+| 2026-W49 | #638 | Dogfood QA/Library evidence infrastructure |
+| 2026-W49 | #600, #601 | Source-binding/advisory stack |
+| 2026-W49 | #543, #547, #538 | Recipe/photo honesty, initializer compatibility, experimental structuring qualification |
+| 2026-W49 | #633, #635 | Disposition only; integrated into #637 |
+| 2026-W50 | #622, #623, #624, #625 | One ordered Cook loop stack |
+| 2026-W50 | #626, #634, #545, #565, #590 | Timer, CookPlan, Cook readability/recovery and diagnostic qualification |
+| 2026-W50 | #551, #552 | Held pilot Cook golden capture chain |
+| 2026-W51 | #539, #556, #559, #560, #561, #562, #571, #573, #532, #611 | Pilot data/security and account safety qualification candidates |
+| 2026-W51 | #563, #557, #558, #541 | Diagnostic-only/held disposition; no merge |
+| 2026-W51 | #567, #568, #569, #570 | Stale/current-main inventory reconciliation; no implementation merge |
+| 2026-W52 | #581, #582, #583, #584, #585, #586, #587, #588 | One ordered feature/qualification stack following merged #580 |
+| 2026-W52 | #536, #572, #566, #534, #609, #647 | Feature enhancement, accessibility, release-note and observational qualification candidates |
+| 2026-W52 | #555, #554, #544, #546, #548, #549, #537, #535, #540 | Disposition only; superseded publication routes |
+| 2027-W02 | #523 | Dormant roadmap; keep all workflows inactive |
+| 2027-W03 | #574, #575 | Post-pilot tooling only |
+
+**Completeness check:** 84 distinct open PRs allocated once; no unassigned PR in the 2026-11-21 inventory. PRs marked disposition-only are allocated for a decision, not for merge. Re-run the open-PR search before each sprint because PRs may merge, close, be replaced or be added.
+
+## Planning change log
+
+- 2026-11-21: Owner requested a sprint allocation for every open PR. Current search returned 84 open PRs. Added a rolling W48–W03 allocation, with a W01 buffer, aligned to the owner's ranked priorities.
+- 2026-11-21: Only W48 remains committed. Future sprint assignments are candidate queues pending estimates, dependency refresh, exact-main review and Monday commitment. No point estimates or delivery velocity have been fabricated.
+- 2026-11-21: Marked explicitly superseded, stale, held and diagnostic-only PRs as disposition/qualification allocations rather than merge commitments.

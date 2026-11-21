@@ -1247,9 +1247,9 @@ For each selected issue and PR, retain separate ticket identities and link relat
 | 2026-W50 — Sprint 3 | 2026-12-07 to 2026-12-13 | Cook loop, timer reliability, cooking history and pilot evidence | 11 | Sequenced candidate queue; estimate and commit at planning |
 | 2026-W51 — Sprint 4 | 2026-12-14 to 2026-12-20 | Pilot data integrity, account/privacy/security safety and safety evidence/disposition | 18 | Sequenced candidate queue; estimate and commit at planning |
 | 2026-W52 — Sprint 5 | 2026-12-21 to 2026-12-27 | Feature enhancements, UI/accessibility, cross-feature native qualification and superseded-route cleanup | 23 | Sequenced candidate queue; estimate and commit at planning |
-| 2027-W01 — buffer | 2026-12-28 to 2027-01-03 | Carryover, evidence reconciliation and year-boundary planning only; no new feature commitment pre-allocated | 0 | Buffer, not a delivery sprint commitment |
-| 2027-W02 — Sprint 6 | 2027-01-04 to 2027-01-10 | Dormant roadmap / inactive agentic workflow review | 1 | Sequenced candidate; remain inactive |
-| 2027-W03 — Sprint 7 | 2027-01-11 to 2027-01-17 | Post-pilot tooling and architecture slices | 2 | Sequenced candidates; explicitly post-pilot |
+| 2026-W53 — buffer | 2026-12-28 to 2027-01-03 | Carryover, evidence reconciliation and year-boundary planning only; no new feature commitment pre-allocated | 0 | Buffer, not a delivery sprint commitment |
+| 2027-W01 — Sprint 6 | 2027-01-04 to 2027-01-10 | Dormant roadmap / inactive agentic workflow review | 1 | Sequenced candidate; remain inactive |
+| 2027-W02 — Sprint 7 | 2027-01-11 to 2027-01-17 | Post-pilot tooling and architecture slices | 2 | Sequenced candidates; explicitly post-pilot |
 
 ## Detailed allocation
 
@@ -1292,15 +1292,15 @@ For each selected issue and PR, retain separate ticket identities and link relat
 
 **Sprint outcome:** qualify useful user-facing improvements and accessibility with exact-head native tests, normal-text device pixels, VoiceOver and light/dark checks as applicable. The 8-PR stack is one ordered workstream; respect its parent-child order. #609 remains observational only and cannot alter native gates, timeouts or retries.
 
-### 2027-W01 — year-boundary buffer
+### 2026-W53 — year-boundary buffer
 
 No PR is pre-allocated. Use this week for carryover, current-main refresh, unresolved native/device evidence, release-risk review and next sprint planning. Do not create a delivery commitment merely to fill the calendar.
 
-### 2027-W02 — Sprint 6: dormant roadmap
+### 2027-W01 — Sprint 6: dormant roadmap
 
 - **#523** — review the eight prepared inactive Agentic Workflows as a dormant roadmap/tooling candidate. Every workflow must remain inactive; no inference, scheduled activation, credential, repository-setting, permission or label change is authorised by this allocation. Any activation requires a separate explicit owner decision and security review.
 
-### 2027-W03 — Sprint 7: post-pilot tooling
+### 2027-W02 — Sprint 7: post-pilot tooling
 
 - **#574** — Sync lifecycle coordinator and payload-version boundary; source-only post-pilot slice. Native/integration qualification and outbound schema/migration work remain separate.
 - **#575** — saved-recipe picker for Library and cooking-calendar planning; post-pilot source-only slice. Native/device qualification and both entry-flow acceptance remain required.
@@ -1329,14 +1329,14 @@ No PR is pre-allocated. Use this week for carryover, current-main refresh, unres
 | 2026-W52 | #581, #582, #583, #584, #585, #586, #587, #588 | One ordered feature/qualification stack following merged #580 |
 | 2026-W52 | #536, #572, #566, #534, #609, #647 | Feature enhancement, accessibility, release-note and observational qualification candidates |
 | 2026-W52 | #555, #554, #544, #546, #548, #549, #537, #535, #540 | Disposition only; superseded publication routes |
-| 2027-W02 | #523 | Dormant roadmap; keep all workflows inactive |
-| 2027-W03 | #574, #575 | Post-pilot tooling only |
+| 2027-W01 | #523 | Dormant roadmap; keep all workflows inactive |
+| 2027-W02 | #574, #575 | Post-pilot tooling only |
 
 **Completeness check:** 84 distinct open PRs allocated once; no unassigned PR in the 2026-11-21 inventory. PRs marked disposition-only are allocated for a decision, not for merge. Re-run the open-PR search before each sprint because PRs may merge, close, be replaced or be added.
 
 ## Planning change log
 
-- 2026-11-21: Owner requested a sprint allocation for every open PR. Current search returned 84 open PRs. Added a rolling W48–W03 allocation, with a W01 buffer, aligned to the owner's ranked priorities.
+- 2026-11-21: Owner requested a sprint allocation for every open PR. Current search returned 84 open PRs. Added a rolling W48–W02 allocation, with a W01 buffer, aligned to the owner's ranked priorities.
 - 2026-11-21: Only W48 remains committed. Future sprint assignments are candidate queues pending estimates, dependency refresh, exact-main review and Monday commitment. No point estimates or delivery velocity have been fabricated.
 - 2026-11-21: Marked explicitly superseded, stale, held and diagnostic-only PRs as disposition/qualification allocations rather than merge commitments.
 
@@ -1352,9 +1352,9 @@ The rolling portfolio allocation above is now the scheduling source for every op
 | 2026-W50 — Sprint 3 | 2026-12-07 | 2026-12-13 | 11 | Candidate/held diagnostic queue; commitment only after estimation and dependency review |
 | 2026-W51 — Sprint 4 | 2026-12-14 | 2026-12-20 | 18 | Safety qualification and disposition queue; explicit owner gates remain |
 | 2026-W52 — Sprint 5 | 2026-12-21 | 2026-12-27 | 23 | Feature qualification and superseded-route disposition; not 23 delivery commitments |
-| 2027-W01 — buffer | 2026-12-28 | 2027-01-03 | 0 | Carryover/evidence reconciliation only; no ticket pre-allocation |
-| 2027-W02 — Sprint 6 | 2027-01-04 | 2027-01-10 | 1 | Dormant roadmap review only |
-| 2027-W03 — Sprint 7 | 2027-01-11 | 2027-01-17 | 2 | Post-pilot tooling only |
+| 2026-W53 — buffer | 2026-12-28 | 2027-01-03 | 0 | Carryover/evidence reconciliation only; no ticket pre-allocation |
+| 2027-W01 — Sprint 6 | 2027-01-04 | 2027-01-10 | 1 | Dormant roadmap review only |
+| 2027-W02 — Sprint 7 | 2027-01-11 | 2027-01-17 | 2 | Post-pilot tooling only |
 
 ### Owning issue date alignment
 
@@ -1385,3 +1385,8 @@ The rolling portfolio allocation above is now the scheduling source for every op
 ### #646 NOW-bug reclassification — owner update 2026-11-21
 
 Issue #646 is owner-confirmed NOW and is scheduled into the W48 NOW-bug reserve window (2026-11-23 to 2026-11-29). Its estimate is still TBD and must be established before execution. It is not part of the 16 planned points; charge the sized fix to the 5-point reserve. If it exceeds remaining reserve, remove equal scope only from work not yet started; if there is no safe swap, request an owner decision. Do not exceed the 21-point cap or silently displace started work. The prior unscheduled/backlog decision is preserved as history, not treated as the current classification. Actual start/end remain blank until supported by evidence.
+
+
+### ISO-week correction — 2026-11-21 review
+
+The buffer dates2026-12-28 through2027-01-03 are ISO2026-W53. Sprint6dates2027-01-04 through2027-01-10 are ISO2027-W01, and Sprint7dates2027-01-11 through2027-01-17 are ISO2027-W02. Corrected the week labels above, preserving the planned dates, sprint ordering, scope and capacity. This corrects labels only, not a new commitment.

@@ -9,6 +9,9 @@ struct ParseRequest: Codable {
     var currentRecipe: RecipeCard?
     /// Explicit quality-panel repair, not a user-requested rewrite or re-roll.
     var repairQuality: Bool? = nil
+    /// The dish name the cook confirmed in "What dish is this?": titles the import,
+    /// never replaces the source's own ingredients or steps.
+    var dishHint: String? = nil
 }
 
 struct BackendError: LocalizedError {
@@ -26,8 +29,19 @@ struct BackendError: LocalizedError {
 /// All AI + sharing calls go through this protocol. No secret keys ever live in the app.
 protocol BackendService {
     func parseRecipe(_ request: ParseRequest) async throws -> RecipeCard
+    /// The parsed card plus the source contract that bound THIS call (nil when
+    /// unbound). Per-call state only: no shared handoff, so interleaved parses
+    /// can never cross contracts.
+    func parseRecipeWithContract(_ request: ParseRequest) async throws -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?)
     func publish(_ card: RecipeCard) async throws -> String   // returns slug
     func fetchShared(slug: String) async throws -> RecipeCard?
+}
+
+extension BackendService {
+    /// Default for backends with no source binding: the card, never a contract.
+    func parseRecipeWithContract(_ request: ParseRequest) async throws -> (card: RecipeCard, contract: SourceRecipeFidelity.Contract?) {
+        (try await parseRecipe(request), nil)
+    }
 }
 
 enum AppConfig {
@@ -106,6 +120,11 @@ enum AppConfig {
 // MARK: - Mock (default)
 
 final class MockBackend: BackendService {
+    #if DEBUG
+    // UI fixtures carry a first-line label plus real source, not a dish-name prompt.
+    // Release/demo behavior is unchanged. Native tests opt into this same UI contract.
+    var usesSourceFixtureTitles = AppConfig.isUITesting
+    #endif
     static let downMessage = "ate's server isn't responding right now (HTTP 503). Your recipes are safe on this iPhone. Try again in a moment."
     private static var published: [String: RecipeCard] = [:]
     private static var offlineOnce = true
@@ -219,7 +238,16 @@ final class MockBackend: BackendService {
         }
         let title: String
         switch request.mode {
-        case .prompt: title = seed.isEmpty ? "Weeknight miso salmon" : seed.prefix(1).uppercased() + seed.dropFirst()
+        case .prompt:
+            var titleSeed = seed
+            #if DEBUG
+            if usesSourceFixtureTitles {
+                titleSeed = seed.components(separatedBy: .newlines)
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .first { !$0.isEmpty } ?? ""
+            }
+            #endif
+            title = titleSeed.isEmpty ? "Weeknight miso salmon" : titleSeed.prefix(1).uppercased() + titleSeed.dropFirst()
         case .url: title = "Recipe from \(URL(string: seed)?.host ?? "the web")"
         case .image: title = "Screenshot recipe"
         case .rewrite: title = "Recipe"

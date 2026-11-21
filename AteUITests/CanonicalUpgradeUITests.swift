@@ -128,6 +128,8 @@ final class CanonicalUpgradeUITests: XCTestCase {
         shot("upgrade-backup-05-unverified-commit-after-relaunch")
     }
 
+    // DEVICE-ONLY permanently: real Files Cancel is verified by a manual iPhone check,
+    // not simulator CI. See docs/files-picker-cancel-device-check.md. No pass is assumed.
     func testActualFilesPickerCancellationDoesNotShowImportErrorOrAddMeal() {
         let app = launchBackupWorld()
         app.buttons["upgradeQA.diary"].tap()

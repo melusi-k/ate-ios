@@ -105,3 +105,118 @@ final class GeneratedStepQualityTests: XCTestCase {
     }
     #endif
 }
+
+final class AdvisoryGapRepairContracts: XCTestCase {
+    /// Passes the unchanged structure rules (>=3 ingredients, >=3 steps, timed+cued
+    /// heat steps, consistent total) so the ONLY shortfall items are the unused
+    /// oil/salt staples.
+    private func stapleCard() -> RecipeCard {
+        RecipeCard(title: "Beef and rice", servings: 4, timeMinutes: 25,
+                   ingredients: ["beef", "rice", "tomatoes", "onion", "oil", "salt", "water"].map { .init(name: $0, quantity: 1, unit: "pcs") },
+                   steps: [.init(order: 1, instruction: "Brown the beef and onion over medium heat until golden, 5 min", timeSeconds: 300),
+                           .init(order: 2, instruction: "Add the rice, tomatoes and water, cover and simmer until the rice is tender, 20 min", timeSeconds: 1200),
+                           .init(order: 3, instruction: "Fluff with a fork and serve", timeSeconds: nil)],
+                   source: .appleIntelligence)
+    }
+    /// Same shape, but the unused items are oil (staple) and beef (main ingredient).
+    private func mainIngredientCard() -> RecipeCard {
+        RecipeCard(title: "Chicken and rice", servings: 4, timeMinutes: 25,
+                   ingredients: ["chicken", "rice", "tomatoes", "onion", "oil", "water", "beef"].map { .init(name: $0, quantity: 1, unit: "pcs") },
+                   steps: [.init(order: 1, instruction: "Brown the chicken and onion over medium heat until golden, 5 min", timeSeconds: 300),
+                           .init(order: 2, instruction: "Add the rice, tomatoes and water, cover and simmer until the rice is tender, 20 min", timeSeconds: 1200),
+                           .init(order: 3, instruction: "Fluff with a fork and serve", timeSeconds: nil)],
+                   source: .appleIntelligence)
+    }
+
+    func testProducedStapleGapMatchesTheAdvisoryClassifierByteExactly() {
+        let gap = GeneratedStepQuality.issues(stapleCard()).first { $0.contains("oil") && $0.contains("never used") }
+        XCTAssertNotNil(gap)
+        XCTAssertEqual(gap, "Explain when to use oil; \(GeneratedStepQuality.unusedIngredientGapSuffix)")
+        XCTAssertTrue(gap.map(GeneratedStepQuality.isImplicitStapleGap) == true)
+    }
+
+    func testAdvisoryOnlyGapListNeverTriggersTheAutomaticRepairPass() {
+        let gaps = RecipeQuality.shortfall(stapleCard())
+        XCTAssertFalse(gaps.isEmpty, "advisory gaps still exist")
+        XCTAssertTrue(gaps.allSatisfy(GeneratedStepQuality.isImplicitStapleGap),
+                      "fixture must pass the unchanged structure rules: \(gaps)")
+        XCTAssertTrue(RecipeQuality.gapsNeedingRepair(gaps).isEmpty,
+                      "advisory-only gaps must not spend a second generation")
+    }
+
+    func testUnusedMainIngredientKeepsAutomaticRepair() {
+        let gaps = RecipeQuality.shortfall(mainIngredientCard())
+        XCTAssertTrue(gaps.contains(where: { $0.contains("beef") && $0.contains("never used") }))
+        XCTAssertFalse(GeneratedStepQuality.isImplicitStapleGap("Explain when to use beef; \(GeneratedStepQuality.unusedIngredientGapSuffix)"))
+        let repair = RecipeQuality.gapsNeedingRepair(gaps)
+        XCTAssertTrue(repair.contains(where: { $0.contains("beef") }), "an unused main ingredient still repairs automatically")
+        XCTAssertFalse(repair.contains(where: { $0.contains("oil") }), "the staple item is the only one filtered")
+    }
+
+    func testEveryListedStapleIsAdvisoryAndMainsAreNot() {
+        for staple in GeneratedStepQuality.implicitStaples {
+            XCTAssertTrue(GeneratedStepQuality.isImplicitStapleGap("Explain when to use \(staple); \(GeneratedStepQuality.unusedIngredientGapSuffix)"), staple)
+        }
+        for main in ["beef", "rice", "chicken", "tomatoes", "spinach", "pasta"] {
+            XCTAssertFalse(GeneratedStepQuality.isImplicitStapleGap("Explain when to use \(main); \(GeneratedStepQuality.unusedIngredientGapSuffix)"), main)
+        }
+        XCTAssertTrue(GeneratedStepQuality.isImplicitStapleGap("Explain when to use olive oil; \(GeneratedStepQuality.unusedIngredientGapSuffix)"),
+                      "olive oil is on the closed advisory list")
+        XCTAssertFalse(GeneratedStepQuality.isImplicitStapleGap("Explain when to use extra virgin olive oil; \(GeneratedStepQuality.unusedIngredientGapSuffix)"),
+                       "exact normalized names only: compounds beyond the list are not advisory")
+    }
+
+    func testClassifierNormalizesCaseAndWhitespace() {
+        XCTAssertTrue(GeneratedStepQuality.isImplicitStapleGap("Explain when to use Salt; \(GeneratedStepQuality.unusedIngredientGapSuffix)"))
+        XCTAssertTrue(GeneratedStepQuality.isImplicitStapleGap("Explain when to use OLIVE  OIL; \(GeneratedStepQuality.unusedIngredientGapSuffix)"))
+    }
+
+    func testCompoundNamesContainingStapleWordsAreNeverAdvisory() {
+        // The closed list matches exact normalized names only: a staple word inside a
+        // main food name never makes the gap advisory.
+        for name in ["chicken in water", "beef stock with salt", "rice flour", "salt beef", "oil for frying"] {
+            let gap = "Explain when to use \(name); \(GeneratedStepQuality.unusedIngredientGapSuffix)"
+            XCTAssertFalse(GeneratedStepQuality.isImplicitStapleGap(gap), name)
+        }
+    }
+
+    /// Passes the unchanged structure rules (same shape as stapleCard) so the ONLY
+    /// shortfall item is the unused flour.
+    private func cakeCard() -> RecipeCard {
+        RecipeCard(title: "Vanilla cake", servings: 4, timeMinutes: 35,
+                   ingredients: ["flour", "eggs", "sugar", "milk", "butter", "vanilla"].map { .init(name: $0, quantity: 1, unit: "pcs") },
+                   steps: [.init(order: 1, instruction: "Cream the butter, eggs, sugar and vanilla over medium heat until pale, 5 min", timeSeconds: 300),
+                           .init(order: 2, instruction: "Stir in the milk, cover and bake until the top springs back, 30 min", timeSeconds: 1800),
+                           .init(order: 3, instruction: "Cool in the tin and serve", timeSeconds: nil)],
+                   source: .appleIntelligence)
+    }
+
+    func testFlourSugarAndButterAreNotAdvisory() {
+        // Flour, sugar and butter are main baking ingredients, not shorthand staples:
+        // a cake that never uses its flour must still repair automatically.
+        for name in ["flour", "sugar", "butter"] {
+            let gap = "Explain when to use \(name); \(GeneratedStepQuality.unusedIngredientGapSuffix)"
+            XCTAssertFalse(GeneratedStepQuality.isImplicitStapleGap(gap), name)
+        }
+        let gaps = RecipeQuality.shortfall(cakeCard())
+        let flourGap = gaps.first { $0.contains("flour") && $0.contains("never used") }
+        XCTAssertNotNil(flourGap, "fixture must isolate the unused flour gap: \(gaps)")
+        XCTAssertTrue(RecipeQuality.gapsNeedingRepair(gaps).contains(where: { $0.contains("flour") }),
+                      "a cake missing flour in the method still repairs automatically")
+    }
+
+    func testRealGapsStillTriggerTheAutomaticRepairPass() {
+        let c = RecipeCard(title: "Rice", ingredients: ["rice", "water", "salt"].map { .init(name: $0, quantity: 1, unit: "pcs") },
+                           steps: [.init(order: 1, instruction: "Boil rice in water", timeSeconds: nil)], source: .appleIntelligence)
+        let repair = RecipeQuality.gapsNeedingRepair(RecipeQuality.shortfall(c))
+        XCTAssertTrue(repair.contains(where: { $0.contains("cooking time") }))
+        XCTAssertTrue(repair.contains(where: { $0.contains("doneness cue") }))
+    }
+
+    func testReviewCardGapListIsUnchangedByTheRepairPartition() {
+        // The user still sees the advisory gaps and the manual Repair button:
+        // only the automatic pass is narrowed.
+        XCTAssertTrue(RecipeQuality.issues(stapleCard()).contains(where: { $0.contains("oil") && $0.contains("never used") }))
+        XCTAssertTrue(RecipeQuality.shortfall(stapleCard()).contains(where: { $0.contains("salt") && $0.contains("never used") }))
+    }
+}

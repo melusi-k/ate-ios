@@ -50,7 +50,9 @@ class Merge536InverseMutationTests(unittest.TestCase):
         for key,contract in contracts.items():
             if key.startswith('account-restored:'):
                 continue
-            raw=(ROOT/contract['path']).read_text()
+            from named_ui_red_rewrite_delta import restore as restore_named_reds
+            from ui_progress_stream_delta import restore as restore_progress
+            raw=restore_named_reds(key,restore_progress(key,(ROOT/contract['path']).read_text()))
             for fragment in contract['inverse_fragments']:
                 old=fragment['merged_fragment']
                 with self.subTest(contract=key,fragment=old[:60]):

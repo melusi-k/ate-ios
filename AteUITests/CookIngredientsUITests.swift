@@ -46,7 +46,7 @@ final class CookIngredientsUITests: XCTestCase {
         let sheetContent = app.scrollViews.containing(.textField, identifier: "linkField").firstMatch
         wait(sheetContent.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Add a recipe")).firstMatch)
         app.buttons["Prompt"].tap()
-        let e = app.textViews["promptEditor"]; e.tap(); e.typeText("Miso salmon for two")
+        let e = app.textViews["promptEditor"]; e.tap(); e.typeText(PromptRecipeFixture.salmon(named: "Miso salmon for two"))
         app.buttons["generateButton"].tap()
         wait(text("Review your card"), 15)
         app.buttons["saveRecipe"].tap()

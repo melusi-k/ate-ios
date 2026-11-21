@@ -1,0 +1,12 @@
+{
+ "Ate/Views/SuggestedNewRecipesView.swift": {
+  "current_sha": "fbbf748fb9bb963da0ab27bfd628b7e50296a7070ae12efd11c4d769492256f7",
+  "parent_sha": "747f223ce47b18ac9d7dec344ac2e58b2253d26606e8004d382670aad3385f52",
+  "fragments": [
+   {
+    "old": "                        Button(editing ? \"Preview\" : \"Edit\") { editing.toggle() }.disabled(session.loading)\n                        Button(\"Rerun\") { rerun(review ?? card) }\n                            .disabled(session.loading || session.savedIDs.contains(card.id))\n                            .accessibilityIdentifier(\"discovery.rerun\")\n                        Button(session.savedIDs.contains(card.id) ? \"Saved\" : \"Save\") { if save(review ?? card) { review = nil } }\n                            .disabled(session.loading || session.savedIDs.contains(card.id))",
+    "new": "                        HStack(spacing: 8) {\n                            Button(session.savedIDs.contains(card.id) ? \"Saved\" : \"Save\") { if save(review ?? card) { review = nil } }\n                                .buttonStyle(.ate(.primary, full: true))\n                                .disabled(session.loading || session.savedIDs.contains(card.id))\n                            Button(editing ? \"Preview\" : \"Edit\") { editing.toggle() }\n                                .buttonStyle(.ate(.secondary))\n                                .disabled(session.loading)\n                            Button(\"Rerun\") { rerun(review ?? card) }\n                                .buttonStyle(.ate(.ghost))\n                                .disabled(session.loading || session.savedIDs.contains(card.id))\n                                .accessibilityIdentifier(\"discovery.rerun\")\n                        }"
+   }
+  ]
+ }
+}

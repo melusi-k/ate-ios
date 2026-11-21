@@ -1,0 +1,11 @@
+{
+  "AteTests/RecipeDiscoveryTests.swift": {
+    "parent_sha": "8b2e59b2c549e950ced17e4173f165d7e6979f25e7bc3b4ffd05e59d7861ed63",
+    "fragments": [
+      {
+        "new": "\n    func testDemoBadQualityAndExistingRecipesNeverBecomeSuggestions() async {\n        var demo = card(); demo.source = .mock\n        // Product-contract correction: actionable steps-only cards are editable.\n        // This negative fixture must have neither ingredients nor cooking steps.\n        var incomplete = card(); incomplete.ingredients = []; incomplete.steps = []\n        var uncertain = card(); uncertain.aiConfidence = 0.4\n        let duplicate = card(\"fresh\", \"Vegetable Soup\")\n        for (label, result) in [(\"mock\", demo), (\"neither ingredients nor cooking steps\", incomplete),\n                                (\"saved title\", duplicate)] {\n            let session = RecipeDiscoverySession()\n            await request(session, result: result)\n",
+        "old": "\n    func testDemoBadQualityAndExistingRecipesNeverBecomeSuggestions() async {\n        var demo = card(); demo.source = .mock\n        var incomplete = card(); incomplete.ingredients = []\n        var uncertain = card(); uncertain.aiConfidence = 0.4\n        let duplicate = card(\"fresh\", \"Vegetable Soup\")\n        for (label, result) in [(\"mock\", demo), (\"empty ingredients\", incomplete),\n                                (\"saved title\", duplicate)] {\n            let session = RecipeDiscoverySession()\n            await request(session, result: result)\n"
+      }
+    ]
+  }
+}

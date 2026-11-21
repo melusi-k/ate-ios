@@ -1,0 +1,7 @@
+{
+  "Ate/Services/OnDeviceBackend.swift": {
+    "parent_sha": "413ceec892d6e20ad2e1129e1c704e4f08a438cd75ae6645bee5661110d8cc00",
+    "current_sha": "a81f1265e460122fc634baa776fa89e24a4b098a426d626474ea2ff1d2cbe22f",
+    "new": "        if let card = MultilineCaptionImport.card(text) {\n            try GenerationCancellation.check()\n            return card\n        }\n"
+  }
+}

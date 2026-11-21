@@ -14,6 +14,14 @@ those artifacts - review any new check that handles credentials.
 """
 import argparse, json, os, re, sys, time, uuid, urllib.error, urllib.parse, urllib.request
 
+# Script mode: this file runs as __main__, but security_checks imports it as "backend_e2e".
+# Without this alias that import loads a SECOND module object whose CheckFailure is a
+# different class, and run_check's special catch would never see security_checks failures.
+# Register this module under its import name at module level (before main() can fail) so
+# both sides share one CheckFailure/expect identity.
+if __name__ == "__main__":
+    sys.modules.setdefault("backend_e2e", sys.modules[__name__])
+
 REF = os.environ.get("SUPABASE_PROJECT_REF", "ploncuhexmwydjxljuhe")
 URL = f"https://{REF}.supabase.co"
 SHARE_PAGE = os.environ.get("ATE_SHARE_PAGE", "https://melusi-k.github.io/ate-legal/r/?s=")
@@ -140,6 +148,66 @@ def scrub(text):
 _WITHHELD = "(details withheld: exception text may contain credentials)"
 
 
+# Explainable failures (vibe-shield): a CheckFailure's message is check-authored from the HTTP
+# status and a closed set of well-known error keys only, so run_check records it verbatim.
+# Free-form response text and every other exception type keep failing closed with _WITHHELD.
+class CheckFailure(AssertionError):
+    """An assertion whose message holds only the check label, HTTP status and whitelisted keys."""
+
+
+# Closed set of response-body keys whose VALUE may be quoted - and only when the value itself
+# is a structured identifier, never free-form response prose (vibe-shield r2: a closed set of
+# keys is not a closed set of safe values; an unregistered credential in message/hint/details
+# prose would survive scrub into results.json, summary.md and qa_results). Order matters: the
+# first present key with a VALID value wins. Non-dict bodies contribute nothing.
+_ERROR_KEYS = ("error_code", "error", "code")
+# Closed mapping, not a pattern: shape alone cannot distinguish a credential from a code.
+# Output is ALWAYS a literal from this mapping, never the upstream string. Unknown codes
+# deliberately lose diagnostic detail until a separately reviewed mapping addition.
+_KNOWN_ERROR_CODES = {
+    "invalid_grant": "invalid_grant",
+    "bad_request": "bad_request",
+    "invalid_credentials": "invalid_credentials",
+    "weak_password": "weak_password",
+    "email_not_confirmed": "email_not_confirmed",
+    "user_already_exists": "user_already_exists",
+    "42501": "42501",
+    "23505": "23505",
+    "23503": "23503",
+    "23502": "23502",
+    "22p02": "22P02",
+    "pgrst116": "PGRST116",
+}
+
+
+def _error_code(j):
+    """Return only an explicitly known literal identifier; all unknown values are omitted."""
+    if not isinstance(j, dict):
+        return None
+    for key in _ERROR_KEYS:
+        v = j.get(key)
+        if isinstance(v, str):
+            known = _KNOWN_ERROR_CODES.get(v.lower())
+            if known is not None:
+                return f"{key}={known}"
+    return None
+
+
+def expect(cond, label, code=None, j=None):
+    """Assert with an explainable failure note: the label, the HTTP status and one strictly
+    validated error identifier (see _error_code). Free-form response text, data rows and
+    tokens are never quoted: pass only error bodies as j, and only statuses as code."""
+    if cond:
+        return
+    parts = [label]
+    if code is not None:
+        parts.append(f"HTTP {code}")
+    detail = _error_code(j)
+    if detail:
+        parts.append(detail)
+    raise CheckFailure(" ".join(parts))
+
+
 def fail_closed(where, exc):
     """Fail closed for setup/cleanup errors (these run outside run_check): exception type name
     plus a fixed message on stderr, no exception text, no traceback. Request-URL errors land here."""
@@ -148,11 +216,21 @@ def fail_closed(where, exc):
 
 
 def run_check(ctx, results, ids, fn, *args):
-    """Run one check and record per-id results. Failures record only the exception type name,
-    check name and innermost frame location. The console line is static - ids and status only:
-    CodeQL does not treat scrub() as a sanitizer, so check-authored notes are never printed.
+    """Run one check and record per-id results. A CheckFailure (raised by expect) records its
+    check-authored message, built only from the HTTP status and whitelisted error keys, plus
+    the check's own location. Every other failure records only the exception type name, check
+    name and innermost frame location, details withheld. The console line is static - ids and
+    status only: CodeQL does not treat scrub() as a sanitizer, so notes are never printed.
     Notes (scrubbed, capped at 400 chars) live in results.json, summary.md and qa_results."""
     try: note = fn(ctx, *args); st = "pass"
+    except CheckFailure as e:
+        # Safe to quote (see expect); point at the check's own line, not expect's.
+        frames = []
+        tb = e.__traceback__
+        while tb: frames.append(tb); tb = tb.tb_next
+        target = next((f for f in reversed(frames) if f.tb_frame.f_code.co_name != "expect"), frames[-1] if frames else None)
+        at = f" at {target.tb_frame.f_code.co_name}:{target.tb_lineno}" if target else ""
+        note = f"CheckFailure in {getattr(fn, '__name__', '?')}{at}: {e}"; st = "fail"
     except Exception as e:
         # Diagnosable without exception text: check name + innermost frame function:line.
         tb = e.__traceback__
@@ -194,14 +272,14 @@ class Ctx:
         code, j = http("POST", f"{URL}/auth/v1/admin/users", self.svc(),
                        {"email": email, "password": password, "email_confirm": True,
                         "user_metadata": {"ate_e2e": True}})
-        assert code in (200, 201), f"admin create user {code} {j}"
+        expect(code in (200, 201), "admin create user", code, j)
         self.users.append(j["id"])
         return {"id": j["id"], "email": email, "password": password}
 
     def sign_in(self, u):
         code, j = http("POST", f"{URL}/auth/v1/token?grant_type=password", self.anon_h(),
                        {"email": u["email"], "password": u["password"]})
-        assert code == 200, f"password grant {code} {j}"
+        expect(code == 200, "password grant", code, j)
         register_secret(j.get("access_token")); register_secret(j.get("refresh_token"))
         return j
 
@@ -251,14 +329,14 @@ def upsert(ctx, token, rows):
 
 def pull(ctx, token, uid):
     code, j = http("GET", f"{URL}/rest/v1/user_recipes?select=id,data,updated_at,deleted&kind=eq.recipe&user_id=eq.{uid}", ctx.anon_h(token))
-    assert code == 200, f"pull {code} {j}"
+    expect(code == 200, "pull", code, j)
     return j
 
 
 # ---------- checks ----------
 def t_auth02(ctx):
     code, cfg = http("GET", f"https://api.supabase.com/v1/projects/{REF}/config/auth", ctx.mgmt)
-    assert code == 200, f"config/auth {code}"
+    expect(code == 200, "config/auth", code)
     mn, chars = cfg.get("password_min_length"), cfg.get("password_required_characters") or ""
     assert mn and mn >= 8, f"password_min_length={mn}"
     assert "abcdefghijklmnopqrstuvwxyz" in chars.lower() and "0123456789" in chars, f"required chars={chars!r}"
@@ -266,16 +344,16 @@ def t_auth02(ctx):
     # registered (short allowed for known vectors) so an upstream echo can never log them.
     register_secret("abc", known_vector=True); register_secret("onlyletters", known_vector=True)
     code, j = http("POST", f"{URL}/auth/v1/signup", ctx.anon_h(), {"email": f"ate-e2e+weak{uuid.uuid4().hex[:8]}@example.com", "password": "abc"})
-    assert code in (400, 422) and "weak" in json.dumps(j).lower(), f"weak signup {code} {j}"
+    expect(code in (400, 422) and "weak" in json.dumps(j).lower(), "weak signup", code, j)
     code, j2 = http("POST", f"{URL}/auth/v1/signup", ctx.anon_h(), {"email": f"ate-e2e+weak{uuid.uuid4().hex[:8]}@example.com", "password": "onlyletters"})
-    assert code in (400, 422), f"letters-only signup {code} {j2}"
+    expect(code in (400, 422), "letters-only signup", code, j2)
     # Duplicate (already confirmed) email: Supabase fakes success with an empty identities array; the app keys off that.
     u = ctx.new_user()
     dup_password = "Another-pass-123"  # synthetic e2e vector, registered so it can never reach logs
     register_secret(dup_password)
     code, j = http("POST", f"{URL}/auth/v1/signup", ctx.anon_h(), {"email": u["email"], "password": dup_password})
     ids = (j or {}).get("identities", (j or {}).get("user", {}).get("identities")) if isinstance(j, dict) else None
-    assert code == 200 and ids == [], f"duplicate signup {code} identities={ids}"
+    expect(code == 200 and ids == [], "duplicate signup", code)
     # The note is a constant: config values read under password-named keys (CodeQL name-taint)
     # never leave this function. The actual minimum stays enforced by the asserts above.
     return "min length >= 8 enforced, letters+digits required; weak/letters-only passwords rejected (weak_password); duplicate email → 200 with identities=[]"
@@ -284,12 +362,12 @@ def t_auth02(ctx):
 def t_auth06(ctx):
     u = ctx.new_user(); s = ctx.sign_in(u)
     code, j = http("POST", f"{URL}/auth/v1/token?grant_type=refresh_token", ctx.anon_h(), {"refresh_token": s["refresh_token"]})
-    assert code == 200 and j.get("access_token") and j["refresh_token"] != s["refresh_token"], f"refresh {code}"
+    expect(code == 200 and j.get("access_token") and j["refresh_token"] != s["refresh_token"], "refresh", code)
     register_secret(j.get("access_token")); register_secret(j.get("refresh_token"))
     upsert(ctx, j["access_token"], [{"user_id": u["id"], "kind": "recipe", "id": "after-refresh", "data": {"t": 1}, "updated_at": 1, "deleted": False}])
     assert any(r["id"] == "after-refresh" for r in pull(ctx, j["access_token"], u["id"])), "refreshed token can't sync"
     code, _ = http("GET", f"{URL}/rest/v1/user_recipes?select=id", ctx.anon_h("not-a-jwt"))
-    assert code in (401, 403), f"garbage token accepted {code}"
+    expect(code in (401, 403), "garbage token accepted", code)
     return "refresh_token grant rotates tokens; refreshed session syncs; invalid token → 401"
 
 
@@ -303,7 +381,7 @@ def t_auth07(ctx):
     # RLS: another user sees none of it
     other = ctx.sign_in(ctx.new_user())["access_token"]
     code, j = http("GET", f"{URL}/rest/v1/user_recipes?select=id&user_id=eq.{u['id']}", ctx.anon_h(other))
-    assert code == 200 and j == [], f"RLS leak {j}"
+    expect(code == 200 and j == [], "RLS leak", code)
     return "two live sessions for one user both push and pull each other's rows; other users see nothing (RLS)"
 
 
@@ -319,7 +397,7 @@ def t_sync(ctx):
         remote = [{**r, "id": p + r["id"]} for r in sc["remote"]]
         # device B wrote the remote state
         code, j = upsert(ctx, dev_b, [{"user_id": u["id"], "kind": "recipe", **r} for r in remote])
-        assert code in (200, 201, 204), f"{sc['name']} seed {code} {j}"
+        expect(code in (200, 201, 204), f"{sc['name']} seed", code, j)
         # device A pulls, merges, pushes
         server = [r for r in pull(ctx, dev_a, u["id"]) if r["id"].startswith(p)]
         res = merge(local, server)
@@ -329,8 +407,8 @@ def t_sync(ctx):
         assert res["push"] == [p + x for x in exp["push"]] and res["pushDeletes"] == [p + x for x in exp["pushDeletes"]], f"{sc['name']} push {res['push']} {res['pushDeletes']}"
         rows = rows_for(u["id"], res, res)
         if rows:
-            code, j = upsert(ctx, dev_a, rows); assert code in (200, 201, 204), f"{sc['name']} push {code} {j}"
-            code, j = upsert(ctx, dev_a, rows); assert code in (200, 201, 204), f"{sc['name']} idempotent re-push {code} {j}"
+            code, j = upsert(ctx, dev_a, rows); expect(code in (200, 201, 204), f"{sc['name']} push", code, j)
+            code, j = upsert(ctx, dev_a, rows); expect(code in (200, 201, 204), f"{sc['name']} idempotent re-push", code, j)
         # device B pulls and converges to A's view
         after = {r["id"]: r for r in pull(ctx, dev_b, u["id"]) if r["id"].startswith(p)}
         for k, v in res["data"].items():
@@ -342,7 +420,7 @@ def t_sync(ctx):
         notes.append(sc["name"])
     # duplicate id in one batch must fail cleanly (PostgREST 21000) rather than corrupt
     code, _ = upsert(ctx, dev_a, [{"user_id": u["id"], "kind": "recipe", "id": "dup", "data": {"v": 1}, "updated_at": 1, "deleted": False}] * 2)
-    assert code >= 400, f"duplicate ids in one batch accepted {code}"
+    expect(code >= 400, "duplicate ids in one batch accepted", code)
     return f"{len(notes)} fixture scenarios converge across two clients (LWW, tombstones, idempotent re-push, stale refs); in-batch dup id rejected"
 
 
@@ -361,22 +439,22 @@ def t_delete_account(ctx):
     marker = "delete-e2e-" + uuid.uuid4().hex[:12]
     code, j = upsert(ctx, token, [{"user_id": victim["id"], "kind": "recipe", "id": marker,
                                    "data": {"title": "Deletion test"}, "updated_at": 1, "deleted": False}])
-    assert code in (200, 201, 204), f"seed deletion test recipe {code} {j}"
+    expect(code in (200, 201, 204), "seed deletion test recipe", code, j)
     card = {"title": "Delete E2E " + uuid.uuid4().hex[:8], "servings": 1,
             "ingredients": [{"name": "test", "quantity": 1, "unit": "", "notes": ""}],
             "steps": [{"order": 1, "instruction": "test", "timeSeconds": None}]}
     code, j = http("POST", f"{URL}/functions/v1/publish-recipe", ctx.anon_h(token), {"card": card})
-    assert code == 200 and j.get("slug"), f"seed deletion test share {code} {j}"
+    expect(code == 200 and j.get("slug"), "seed deletion test share", code, j)
     share_slug = j["slug"]
     ctx.slugs.append(share_slug)
     code, j = http("POST", f"{URL}/functions/v1/delete-account", ctx.anon_h(token), {})
-    assert code == 200 and j.get("deleted") is True, f"delete-account success path {code} {j}"
+    expect(code == 200 and j.get("deleted") is True, "delete-account success path", code, j)
     code, rows = http("GET", f"{URL}/rest/v1/user_recipes?select=id&user_id=eq.{victim['id']}", ctx.svc())
-    assert code == 200 and not rows, f"account deletion left synced recipes: {rows}"
+    expect(code == 200 and not rows, "account deletion left synced recipes", code)
     code, rows = http("GET", f"{URL}/rest/v1/shared_recipes?select=slug&slug=eq.{share_slug}", ctx.svc())
-    assert code == 200 and not rows, f"account deletion left shares: {rows}"
+    expect(code == 200 and not rows, "account deletion left shares", code)
     code, _ = http("GET", f"{URL}/auth/v1/admin/users/{victim['id']}", ctx.svc())
-    assert code == 404, f"account still exists after deletion: {code}"
+    expect(code == 404, "account still exists after deletion", code)
     return "synced recipe and share removed, then disposable Auth user deleted"
 
 
@@ -384,7 +462,7 @@ def t_share(ctx, shots):
     card = {**SAMPLE, "title": f"E2E Chakalaka {uuid.uuid4().hex[:6]}"}
     tok = ctx.sign_in(ctx.new_user())["access_token"]  # signed-in share, like the app
     code, j = http("POST", f"{URL}/functions/v1/publish-recipe", ctx.anon_h(tok), {"card": card})
-    assert code == 200 and j.get("slug"), f"publish {code} {j}"
+    expect(code == 200 and j.get("slug"), "publish", code, j)
     slug = j["slug"]; ctx.slugs.append(slug)
     code, row = http("GET", f"{URL}/rest/v1/shared_recipes?slug=eq.{slug}&select=image_url,card", ctx.svc())
     assert row and row[0]["image_url"] is None and row[0]["card"].get("imageURL") is None, f"http cover kept: {row}"

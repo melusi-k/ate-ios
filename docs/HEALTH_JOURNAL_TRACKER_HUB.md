@@ -10,13 +10,13 @@ Current navigation decision (2026-11-05): the tab is **Journal** with the book.c
 2. Apple Health insight card, including explicit Connect action and honest unavailable, entitlement-missing, denied, error, sample-data, and no-data states.
 3. Health-aware meal suggestions and reflection prompts when an insight is available.
 4. Local Ate journal preview, with detail navigation and the existing full searchable journal list.
-5. Library/Home shortcut that opens Insights & Cooking History above the Journal root.
+5. Today/Home shortcut that opens Insights & Cooking History above the Journal root.
 
 The Insights screen should reuse its existing content in a single scroll view. Do not wrap one scroll view inside another or create a second calendar, Health model, or journal store. Keep existing routes, Shortcuts, CookingHistory, InsightsModel, and JournalStore as the sources of truth.
 
 ## Privacy and permission invariants
 
-- Opening the app, Library, or Insights must not request Health access.
+- Opening the app, Today, or Insights must not request Health access.
 - Health access is read-only and requested only after the user taps **Connect Apple Health**.
 - Journal entries stay in Ate's local store; no claim that Ate can write directly into Apple's Journal.
 - Sample data must be labelled. Missing Health entitlement, unsupported devices, denied access, and no-data states must remain distinct and explainable.
@@ -31,7 +31,7 @@ Run the full `CookingTrackerEntryUITests` target, the Cook Mode completion/early
 - The combined hub exposes the Health card, cooking calendar, and journal card without nested scrolling.
 - Opening Insights alone does not display a Health permission prompt; only the explicit Connect action can initiate access.
 - Existing journal list/search/detail/edit/cancel/delete/share/Shortcuts/location/media coverage remains intact.
-- Library/Home shortcut opens Insights & Cooking History above Journal and does not disturb iOS 26 Search or the bottom accessory.
+- Today/Home shortcut opens Insights & Cooking History above Journal and does not disturb iOS 26 Search or the bottom accessory.
 
 Simulator/CI acceptance is required for implementation and merge. **Physical-device and entitlement-matrix testing is deliberately deferred until the end of issue #38** and is not a blocker for implementing or merging this UI. Keep those device-only criteria open until actual evidence is recorded; do not mark issue #38 fully accepted before then.
 

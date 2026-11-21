@@ -82,7 +82,8 @@ enum RecipePrompt {
 
     static func social(caption raw: String) -> String {
         let caption = CaptionAnalysis.scrub(CaptionAnalysis.stripInstagramPrefix(raw))
-        var p = "Social media caption (the only source of truth):\n\"\"\"\n\(caption.prefix(3000))\n\"\"\"\n"
+        // The source reaches the model whole: a silent clip invents the rest.
+        var p = "Social media caption (the only source of truth):\n\"\"\"\n\(caption)\n\"\"\"\n"
         if CaptionAnalysis.isPromo(caption) && !CaptionAnalysis.hasRecipeSignals(caption) {
             p += "This caption looks like an advert or menu, not a recipe. Only use dish names that appear in it.\n"
         }
@@ -90,7 +91,10 @@ enum RecipePrompt {
     }
 
     static func page(_ text: String) -> String {
-        "Web page text:\n\"\"\"\n\(text.prefix(3500))\n\"\"\"\nExtract the recipe from it.\n" + glossary(for: text)
+        // Never clip here: the caller chooses and bounds the text (the verified
+        // contract's own text when one exists), and a silent cut drops recipe
+        // lines that start past the cap, so the model invents the rest.
+        "Web page text:\n\"\"\"\n\(text)\n\"\"\"\nExtract the recipe from it.\n" + glossary(for: text)
     }
 
     static func screenshot(_ text: String) -> String {
@@ -98,7 +102,9 @@ enum RecipePrompt {
     }
 
     static func prompt(_ text: String) -> String {
-        "Recipe card for: \(text.prefix(500))\n" + glossary(for: text)
+        // Never clip the user's text: a truncated paste becomes an invented recipe.
+        // Over-long pastes fail closed in OnDeviceBackend before reaching here.
+        "Recipe card for: \(text)\n" + glossary(for: text)
     }
 
     /// Food photo where the user (or a confident label) named the dish.

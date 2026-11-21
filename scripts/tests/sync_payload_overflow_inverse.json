@@ -1,0 +1,22 @@
+{
+  "Ate/Models/Models.swift": {
+    "parent_sha": "5389ea4bf33446f5deb270bd4aa59251a12b67191c5fe66c77b8395f799fcf52",
+    "current_sha": "af44727f730d170bb30ff4672a7f26f8db95752d18cbdfbe28379b63a7dacfb1",
+    "fragments": [
+      {
+        "old": "        id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString\n        title = (try? c.decode(String.self, forKey: .title)) ?? \"Untitled recipe\"\n        description = try? c.decodeIfPresent(String.self, forKey: .description)\n        if let i = try? c.decode(Int.self, forKey: .servings) { servings = i }\n        else if let d = try? c.decode(Double.self, forKey: .servings) { servings = Int(d) } else { servings = 2 }\n        if let i = try? c.decode(Int.self, forKey: .timeMinutes) { timeMinutes = i }\n        else if let d = try? c.decode(Double.self, forKey: .timeMinutes) { timeMinutes = Int(d) } else { timeMinutes = nil }\n        tags = (try? c.decode([String].self, forKey: .tags)) ?? []\n        ingredients = (try? c.decode([Ingredient].self, forKey: .ingredients)) ?? []\n        steps = ((try? c.decode([Step].self, forKey: .steps)) ?? []).filter { $0.instruction.rangeOfCharacter(from: .alphanumerics) != nil }\n",
+        "new": "        id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString\n        title = (try? c.decode(String.self, forKey: .title)) ?? \"Untitled recipe\"\n        description = try? c.decodeIfPresent(String.self, forKey: .description)\n        // Decode legacy fractional numbers with the existing truncation behavior,\n        // but reject out-of-range values rather than trapping in Int(Double).\n        func legacyInteger(_ key: CodingKeys) throws -> Int? {\n            if let integer = try? c.decode(Int.self, forKey: key) { return integer }\n            guard let number = try? c.decode(Double.self, forKey: key) else { return nil }\n            guard number.isFinite, number >= Double(Int.min), number < Double(Int.max) else {\n                throw DecodingError.dataCorruptedError(forKey: key, in: c,\n                    debugDescription: \"Recipe number is outside the supported integer range\")\n            }\n            return Int(number)\n        }\n        servings = try legacyInteger(.servings) ?? 2\n        timeMinutes = try legacyInteger(.timeMinutes)\n        tags = (try? c.decode([String].self, forKey: .tags)) ?? []\n        ingredients = (try? c.decode([Ingredient].self, forKey: .ingredients)) ?? []\n        steps = ((try? c.decode([Step].self, forKey: .steps)) ?? []).filter { $0.instruction.rangeOfCharacter(from: .alphanumerics) != nil }\n"
+      }
+    ]
+  },
+  "Ate/Logic/SyncPayloadSafety.swift": {
+    "parent_sha": "0150b7fb05390e851d478d5019372974d56c435e08a658dad3ae88292c6be445",
+    "current_sha": "1a66fbb3f6bc842bd379155ee0b2ef11b5b28aefd6bc6e7a15e48584d7ae8a66",
+    "fragments": [
+      {
+        "old": "            let steps: [Step]?\n        }\n        guard let core = try? decoder.decode(Core.self, from: raw) else { return false }\n        let decoded = try? decoder.decode(RecipeCard.self, from: raw)\n        let permitsUnknown = decoded.map { $0.isEditableDraft } ?? false\n        let numericServings = permitsUnknown && core.servings == 0 ? nil : core.servings\n",
+        "new": "            let steps: [Step]?\n        }\n        guard let core = try? decoder.decode(Core.self, from: raw) else { return false }\n        // Never decode the lenient domain model before these bounds. Its numeric\n        // conversion must not run on untrusted values outside Int's range. Zero\n        // servings is provisional here and is accepted only for an editable draft\n        // by the existing semantic check below.\n        for number in [core.servings, core.timeMinutes].compactMap({ $0 }) {\n            guard number.isFinite, number >= 0, number < Double(Int.max) else { return false }\n        }\n        let decoded = try? decoder.decode(RecipeCard.self, from: raw)\n        let permitsUnknown = decoded.map { $0.isEditableDraft } ?? false\n        let numericServings = permitsUnknown && core.servings == 0 ? nil : core.servings\n"
+      }
+    ]
+  }
+}

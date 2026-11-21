@@ -15,7 +15,7 @@ struct RecipeGridCard: View {
             Text(recipe.title).font(AteFont.body(17, .semibold)).lineLimit(2).multilineTextAlignment(.leading)
             HStack(spacing: 10) {
                 if let m = recipe.timeMinutes, m > 0 { Label("\(m) min", systemImage: "clock") }
-                Label("\(recipe.servings)", systemImage: "person.2")
+                Label(recipe.servings > 0 ? "\(recipe.servings)" : "Unspecified", systemImage: "person.2")
                 ForEach(Array(IngredientTags.tags(for: recipe).sorted().prefix(2)), id: \.self) { TagBadge(text: $0) }
             }
             .font(AteFont.body(12)).foregroundStyle(Theme.mutedForeground).lineLimit(1)

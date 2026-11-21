@@ -598,7 +598,7 @@ private struct LibrarySheets: ViewModifier {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
-        .sheet(item: Binding(get: { global ? store.quickAdd : nil }, set: { store.quickAdd = $0 })) { req in
+        .sheet(item: Binding(get: { global && store.homeSheetOwner == .collection ? store.quickAdd : nil }, set: { store.quickAdd = $0 })) { req in
             NavigationStack {
                 AddRecipeSheet(initialMode: req.mode) { card in
                     store.add(card)
@@ -612,7 +612,7 @@ private struct LibrarySheets: ViewModifier {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
-        .sheet(item: Binding(get: { global ? store.pendingImport : nil }, set: { store.pendingImport = $0 })) { item in
+        .sheet(item: Binding(get: { global && store.homeSheetOwner == .collection ? store.pendingImport : nil }, set: { store.pendingImport = $0 })) { item in
             NavigationStack {
                 AddRecipeSheet(initial: item) { card in
                     store.add(card)

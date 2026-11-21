@@ -1,0 +1,23 @@
+{
+  "path": ".github/workflows/compile-check.yml",
+  "parent_sha": "dfe6d1f533c44956b71590653e8091ac0d4e7e71efb073499c0fb01fa0341f4c",
+  "current_sha": "44622c559298ca5f27ef65b1d5b2671fa9c568f23fe4407e5e46f9bac43d9c65",
+  "fragments": [
+    {
+      "old": "          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/NutritionDiaryUITests \\\n",
+      "new": "          NSUnbufferedIO=YES xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/NutritionDiaryUITests \\\n"
+    },
+    {
+      "old": "            CODE_SIGNING_ALLOWED=NO > nutrition-ui-tests.log 2>&1 || status=$?\n",
+      "new": "            CODE_SIGNING_ALLOWED=NO 2>&1 | python3 -u scripts/stream-ui-test-progress.py --selection nutrition-ui --log nutrition-ui-tests.log || status=$?\n"
+    },
+    {
+      "old": "          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/CookIngredientsUITests \\\n",
+      "new": "          NSUnbufferedIO=YES xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/CookIngredientsUITests \\\n"
+    },
+    {
+      "old": "            CODE_SIGNING_ALLOWED=NO > cook-ingredients-tests.log 2>&1\n",
+      "new": "            CODE_SIGNING_ALLOWED=NO 2>&1 | python3 -u scripts/stream-ui-test-progress.py --selection cook-ingredients --log cook-ingredients-tests.log\n"
+    }
+  ]
+}

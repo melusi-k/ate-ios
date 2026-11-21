@@ -76,7 +76,7 @@ struct CookIngredientsSheet: View {
                                 .pickerStyle(.segmented).controlSize(.large)
                                 .accessibilityIdentifier("cookServingsPicker")
                                 .accessibilityHint("Scales ingredient amounts. Cooking times stay the same.")
-                                Text("\(scaled.servings) servings · tap an ingredient once you have it ready")
+                                Text((scaled.servings > 0 ? "\(scaled.servings) servings" : "Servings unspecified") + " · tap an ingredient once you have it ready")
                                     .font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
                             }
                             VStack(spacing: 0) {

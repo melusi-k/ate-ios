@@ -118,11 +118,11 @@ private struct CookingWidgetView: View {
     var body: some View {
         if let s = entry.snapshot {
             VStack(alignment: .leading, spacing: 6) {
-                Label("Cooking tracker", systemImage: "flame.fill").font(.caption.weight(.semibold)).foregroundStyle(WTheme.primary)
+                Label("Cooking tracker", systemImage: "flame.fill").font(.caption.weight(.semibold)).foregroundStyle(WTheme.brown)
                 Text("\(s.cookingStreak) day\(s.cookingStreak == 1 ? "" : "s")").font(.system(size: 28, weight: .bold, design: .rounded)).foregroundStyle(WTheme.brown)
                 Text(s.cookedToday ? "Cooked today" : "Not cooked today").font(.caption).foregroundStyle(WTheme.brown)
                 Spacer(minLength: 0)
-                Link("Open tracker", destination: URL(string: "ate://open")!).font(.caption.weight(.semibold)).foregroundStyle(WTheme.primary)
+                Link("Open tracker", destination: URL(string: "ate://open")!).font(.caption.weight(.semibold)).foregroundStyle(WTheme.brown)
             }.padding(4)
         } else { NoDataView(text: WidgetDataMessage.unavailable(groupAvailable: entry.groupAvailable), foreground: WTheme.brown) }
     }

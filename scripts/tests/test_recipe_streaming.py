@@ -1,6 +1,7 @@
 from source_refusal_wording_delta import restore as pre_wording
 from source_review_state_delta import restore as pre_review_state
 from recipe_content_admission_delta import restore as pre_content_admission
+from suggest_review_buttons_delta import restore as pre_buttons
 """Descendant source wiring and exact inverse checks. Not native qualification."""
 from pathlib import Path
 import hashlib,json,re,unittest
@@ -11,8 +12,11 @@ class RecipeStreamingPreflight(unittest.TestCase):
         for path,c in json.loads((ROOT/'scripts/tests/recipe_streaming_inverse.json').read_text()).items():
             s=pre_wording(path,pre_review_state(path,pre_content_admission(path,(ROOT/path).read_text())))
             self.assertEqual(hashlib.sha256(restore(path,s).encode()).hexdigest(),c['parent_sha'])
+            # Fragments are live at their own chain stage: the #646 button restyle sits
+            # above this layer, so fragment mutants are built after it is stripped.
+            stage=pre_buttons(path,s)
             for f in c['fragments']:
-                for changed in [s.replace(f['new'],'',1),s+f['new'],s+'// unrelated\n']:
+                for changed in [stage.replace(f['new'],'',1),stage+f['new'],stage+'// unrelated\n']:
                     with self.assertRaises(AssertionError):restore(path,changed)
     def test_per_request_first_pass_streams_have_no_global_sink_or_second_pass(self):
         s=(ROOT/'Ate/Services/OnDeviceBackend.swift').read_text()

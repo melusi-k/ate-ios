@@ -4,6 +4,9 @@ ROOT=Path(__file__).resolve().parents[2]
 class PresentationReturnDiagnosticTests(unittest.TestCase):
     def test_original_entire_ui_except_flag_and_pixel(self):
         s=(ROOT/'AteUITests/CookingTrackerEntryUITests.swift').read_text().replace(', "-qaPresentationReturnDiagnostic"','').replace('        shot("68-journal-after-native-back-before-original-predicate")\n','')
+        # #642 rename slice: inverse the helper comment rename before the historical remainder hash.
+        self.assertEqual(s.count('// #642: the first tab is Today; the saved-recipe collection is one tap in.'),1)
+        s=s.replace('// #642: the first tab is Today; the saved-recipe collection is one tap in.','// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.',1)
         self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'80ec81e9d231c7bcff106d51eab79a22637d6a36e553cd781550e63f5769b2c3')
     def test_bounded_paired_observer_without_mutation(self):
         s=(ROOT/'Ate/App/AteApp.swift').read_text()

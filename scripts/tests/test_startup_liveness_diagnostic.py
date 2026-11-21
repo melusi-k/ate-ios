@@ -5,6 +5,13 @@ ROOT=Path(__file__).resolve().parents[2]
 class StartupLivenessDiagnosticTests(unittest.TestCase):
     def test_original_entire_sources_reconstruct(self):
         source=normalize('source:Ate/App/AteApp.swift', (ROOT/'Ate/App/AteApp.swift').read_text())
+        # #650: inverse-restore the stable sidebar ID before the rename inverse and historical hash.
+        self.assertEqual(source.count('row(.library, "Today", "calendar", id: "sidebar.Library")'),1)
+        source=source.replace('row(.library, "Today", "calendar", id: "sidebar.Library")','row(.library, "Today", "calendar")',1)
+        self.assertEqual(source.count('private func row(_ t: AppTab, _ title: String, _ symbol: String, id: String? = nil, badge: Int = 0)'),1)
+        source=source.replace('private func row(_ t: AppTab, _ title: String, _ symbol: String, id: String? = nil, badge: Int = 0)','private func row(_ t: AppTab, _ title: String, _ symbol: String, badge: Int = 0)',1)
+        self.assertEqual(source.count('.accessibilityIdentifier(id ?? "sidebar." + title)'),1)
+        source=source.replace('.accessibilityIdentifier(id ?? "sidebar." + title)','.accessibilityIdentifier("sidebar." + title)',1)
         # #642 rename slice: inverse-restore the Today rename before the historical remainder hash.
         self.assertEqual(source.count('Tab("Today", systemImage: "calendar", value: AppTab.library)'),2)
         source=source.replace('Tab("Today", systemImage: "calendar", value: AppTab.library)','Tab("Library", systemImage: "books.vertical", value: AppTab.library)')

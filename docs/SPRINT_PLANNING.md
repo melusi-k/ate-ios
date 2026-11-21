@@ -1172,3 +1172,52 @@ Times are UTC ISO-8601 and SAST (UTC+02:00). Actual work start, human review, ap
 ### Cadence gap note — 2026-11-21
 
 The existing sprint log's latest dated operating record is W45 (2026-11-02 through 2026-11-04). No W46 or W47 planning baseline or Sunday close-out section is present in the file. Therefore there is no auditable active-sprint commitment denominator or committed-versus-delivered dataset to close retrospectively on 2026-11-21. No W46/W47 scope, delivery, carryover, or metric has been invented. W48 is planned prospectively for 2026-11-23 through 2026-11-29; its Sunday close-out remains due 2026-11-29.
+
+
+## Sprint 1 amendment — 2026-W48 (owner scope update, 2026-11-21)
+
+**Dates:** Monday 2026-11-23 through Sunday 2026-11-29. **Capacity cap:** 21 points, comprising 16 planned points plus a 5-point NOW-bug reserve. This amendment supersedes the earlier W48 proposed delivery scope (#645/#647 committed, #646 stretch) below; that proposal is retained as history and is not the active Sprint 1 scope. The earlier W48 review baseline and lifecycle evidence remain historical and must not be treated as the current-main baseline for stack refresh.
+
+### Planned scope — 16 points
+
+| Outcome | Tickets | Points | Commitment and acceptance boundary |
+|---|---|---:|---|
+| Workflow cleanup convergence | [PRs #591–#599, #602–#605](https://github.com/melusi-k/ate-ios/pulls) — 13-PR `workflow-cleanup` stack | 5 | Refresh/forward-converge the complete ordered stack on the `main` SHA captured when work starts. Preserve the parent/child chain, source provenance and all existing required checks, tests, selectors, evidence gates, timeouts and release paths. Validate exact hosted trees and each resulting head; no rebase/force-push/history rewrite, check bypass, weakened validation or merge as part of planning. Native qualification and shared-job fit remain to be demonstrated, not presumed. Five points are for the whole stack, not per PR. |
+| Today reference migration | [Issue #642](https://github.com/melusi-k/ate-ios/issues/642) | 3 | Audit and migrate references that mean the old default landing tab to Today and the full saved collection to Recipes, across app labels/copy/accessibility/help/routes/docs/current release notes/tests. Preserve semantically correct Library/data terminology and stable identifiers; do not rewrite historical release notes. This is reference migration only; conditional-home composition is stretch. |
+| Generation acceptance | [Issue #89](https://github.com/melusi-k/ate-ios/issues/89), [#641](https://github.com/melusi-k/ate-ios/issues/641), [PR #643](https://github.com/melusi-k/ate-ios/pull/643) | 5 | One combined outcome, not three separately counted tickets. Advance the shared Suggest new recipe route and bounded generation acceptance: eligible physical-device evidence for readiness/privacy/context gates, streaming, cancellation/interruption recovery, Review, Rerun, explicit Save and source-faithful/non-invented recipe facts. #641/#89 remain open wherever the 11-fixture/device or broader acceptance remains unproven. Eligible-device evidence is a hard acceptance dependency; simulator/source-only evidence cannot substitute. |
+| Source-import follow-through | [PR #640](https://github.com/melusi-k/ate-ios/pull/640), parent [#35](https://github.com/melusi-k/ate-ios/issues/35) | 3 | One combined outcome, not duplicate issue/PR credit. Preserve exact source ingredient rows, written Method and raw source; leave unspecified facts unspecified; retain honest refusal and source-import metadata/repair behavior. Complete the bounded follow-through and required exact-head/native/device evidence; do not close broad #35 from this slice alone. |
+| **Planned subtotal** | | **16** | |
+| NOW-bug reserve | Sprint-wide | **5** | Reserved capacity, not pre-assigned feature scope. |
+| **Sprint cap** | | **21** | **16 planned + 5 reserved.** |
+
+### Stretch — excluded from the 16 planned points
+
+- [Issue #498](https://github.com/melusi-k/ate-ios/issues/498) — local durability/sync-failure/payload-fixture checks: 3 points.
+- [Issue #642](https://github.com/melusi-k/ate-ios/issues/642) — conditional Today home composition: 2 points, separate from the 3-point reference migration.
+
+Neither stretch item starts merely because capacity appears available. Reconsider only when the 5-point bug reserve is clearly spare, no unresolved NOW defect needs it, and the work can be taken without jeopardising committed scope. Production writes or activation under #498 remain gated by the owner's explicit yes.
+
+### Bug triage and capacity policy
+
+**NOW:** data loss; privacy or security exposure; crash; cook loop blocked with no workaround; invented recipe facts; or a regression introduced by Sprint 1 work. **LATER:** cosmetic issues; rare edge cases with a workaround; unrelated feature requests; or simulator-only failures with no user impact. **Unknown impact:** perform a quick user-impact/workaround check before classifying; do not assume LATER.
+
+Charge each NOW fix against the 5-point reserve first. If forecast NOW work exceeds the reserve, remove an equal amount of scope only from work that has not started. Do not silently increase the 21-point cap or displace work already started. If there is no safe unstarted-scope swap, stop and ask the owner for a decision. Record each bug, classification rationale, points consumed, and any scope swap in the sprint change log. LATER items remain in the backlog and do not consume this reserve by default.
+
+### Dependencies and execution guardrails
+
+- Capture the actual `main` SHA at the point the workflow-cleanup refresh begins; the earlier W48 planning SHA above belongs to the superseded proposal and is not a valid substitute.
+- Cleanup chain order: #591 → #592 → #593 → #594 → #595 → #596 → #597 → #598 → #599 → #602 → #603 → #604 → #605. Preserve stack lineage and inspect all 13 heads against the same refreshed base.
+- Generation acceptance depends on the #640 source-import repair path and an eligible physical device; no remote/demo fallback, fabricated context, automatic generation or accidental save.
+- Today reference migration must preserve the #641 shared suggestion destination and differentiate Today from Recipes.
+- No new pilot build, production write, release activation, merge, governance change, test-gate change or timeout increase is authorised by this planning amendment. Follow the existing owner-approval and repository requirements.
+
+### Sprint schedule / lifecycle recording
+
+For each selected issue and PR, retain separate ticket identities and link related tickets. Planned start/end are 2026-11-23 / 2026-11-29. Actual start and actual end remain blank/Unknown until defensible evidence exists. For the cleanup stack, 5 points belong to the combined stack outcome, not 13 individual deliveries. For #640/#35 and #641/#89/#643, count one outcome per combined workstream; do not double-count parent issues and implementation PRs. Continue recording exact UTC timestamps and Africa/Johannesburg rendering, with Verified/Inferred/Unknown confidence. No lifecycle duration is calculated without evidenced endpoints.
+
+### Change log
+
+- 2026-11-21: Owner replaced the earlier proposed W48 scope with Sprint 1's 16-point planned scope and 5-point bug reserve; total cap remains 21. The earlier proposal is retained unchanged above as historical context and marked superseded by this amendment.
+- 2026-11-21: #498 (3 points) and Today conditional-home composition (2 points) moved to stretch; they may return only if the bug reserve is clearly spare.
+- 2026-11-21: Added explicit NOW/LATER/Unknown triage, reserve charging, equal-scope removal from unstarted work, and owner escalation where no safe swap exists.
+- Sunday close-out due 2026-11-29. No actual dates, delivery outcomes or velocity are inferred from this plan.

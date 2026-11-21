@@ -1,7 +1,39 @@
 {
  "AteUITests/AccessibilityAuditUITests.swift": {
-  "current_sha": "878e6afe1823659a2056d29209e58279c33fad75b0ccf791020a60d36d48ee7c",
+  "current_sha": "90e11b6e826bc67c265aaa58f0b5d96e84111cd0a7a8928e5f21464e986529a7",
   "fragments": [
+   {
+    "new": "        app = XCUIApplication(); app.launchArguments = [\"-UITesting\"] + extra; app.launch()\n    }\n    /// #642: the first tab is Today; the saved-recipe collection is one tap in.\n    func openLibraryCollection() {\n        let recipes = app.buttons[\"today.recipes\"]",
+    "old": "        app = XCUIApplication(); app.launchArguments = [\"-UITesting\"] + extra; app.launch()\n    }\n    /// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n    func openLibraryCollection() {\n        let recipes = app.buttons[\"today.recipes\"]"
+   },
+   {
+    "new": "        launch()\n        openLibraryCollection()\n        XCTAssertTrue(text(\"Recipes\").waitForExistence(timeout: 10))\n        try audit(\"library-empty\")\n        addRecipe()",
+    "old": "        launch()\n        openLibraryCollection()\n        XCTAssertTrue(text(\"Your Kitchen\").waitForExistence(timeout: 10))\n        try audit(\"library-empty\")\n        addRecipe()"
+   },
+   {
+    "new": "            launch([\"-UIPreferredContentSizeCategoryName\", category, \"-resetNutritionDiary\", \"-resetNutritionGoals\"])\n            openLibraryCollection()\n            XCTAssertTrue(text(\"Recipes\").waitForExistence(timeout: 10))\n            // Bottom chrome must be PRESENT for these captures: the mini-player capsule\n            // overlaps list content (v6 AX5 pixels, #179), so the diary/goals bottom",
+    "old": "            launch([\"-UIPreferredContentSizeCategoryName\", category, \"-resetNutritionDiary\", \"-resetNutritionGoals\"])\n            openLibraryCollection()\n            XCTAssertTrue(text(\"Your Kitchen\").waitForExistence(timeout: 10))\n            // Bottom chrome must be PRESENT for these captures: the mini-player capsule\n            // overlaps list content (v6 AX5 pixels, #179), so the diary/goals bottom"
+   },
+   {
+    "new": "                \"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryL\"])\n        openLibraryCollection()\n        XCTAssertTrue(text(\"Recipes\").waitForExistence(timeout: 10))\n        app.tabBars.buttons[\"Settings\"].tap()\n        let diaryEntry = app.buttons[\"settings.nutritionDiary\"]",
+    "old": "                \"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryL\"])\n        openLibraryCollection()\n        XCTAssertTrue(text(\"Your Kitchen\").waitForExistence(timeout: 10))\n        app.tabBars.buttons[\"Settings\"].tap()\n        let diaryEntry = app.buttons[\"settings.nutritionDiary\"]"
+   },
+   {
+    "new": "        launch([\"-resetNutritionDiary\", \"-resetNutritionGoals\"])\n        openLibraryCollection()\n        XCTAssertTrue(text(\"Recipes\").waitForExistence(timeout: 10))\n        app.tabBars.buttons[\"Settings\"].tap()\n",
+    "old": "        launch([\"-resetNutritionDiary\", \"-resetNutritionGoals\"])\n        openLibraryCollection()\n        XCTAssertTrue(text(\"Your Kitchen\").waitForExistence(timeout: 10))\n        app.tabBars.buttons[\"Settings\"].tap()\n"
+   },
+   {
+    "new": "        launch([\"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryAccessibilityXXXL\", \"-resetNutritionDiary\", \"-resetNutritionGoals\"])\n        openLibraryCollection()\n        XCTAssertTrue(text(\"Recipes\").waitForExistence(timeout: 10))\n        try audit(\"ax5-library\", strict: false)\n        addRecipe()",
+    "old": "        launch([\"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryAccessibilityXXXL\", \"-resetNutritionDiary\", \"-resetNutritionGoals\"])\n        openLibraryCollection()\n        XCTAssertTrue(text(\"Your Kitchen\").waitForExistence(timeout: 10))\n        try audit(\"ax5-library\", strict: false)\n        addRecipe()"
+   },
+   {
+    "new": "        launch([\"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryAccessibilityXXXL\", \"-resetNutritionDiary\", \"-resetNutritionGoals\"])\n        openLibraryCollection()\n        XCTAssertTrue(text(\"Recipes\").waitForExistence(timeout: 10))\n        addRecipe()\n        app.buttons[\"Cook mode\"].tap()",
+    "old": "        launch([\"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryAccessibilityXXXL\", \"-resetNutritionDiary\", \"-resetNutritionGoals\"])\n        openLibraryCollection()\n        XCTAssertTrue(text(\"Your Kitchen\").waitForExistence(timeout: 10))\n        addRecipe()\n        app.buttons[\"Cook mode\"].tap()"
+   },
+   {
+    "new": "        launch([\"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryAccessibilityXXXL\", \"-resetNutritionDiary\", \"-resetNutritionGoals\"])\n        openLibraryCollection()\n        XCTAssertTrue(text(\"Recipes\").waitForExistence(timeout: 10))\n        // The capsule must be up for this sweep: it overlaps list content at AX5 (v6 pixels,\n        // #179), so a chrome-free pass would verify an assumed band instead of the real one.",
+    "old": "        launch([\"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryAccessibilityXXXL\", \"-resetNutritionDiary\", \"-resetNutritionGoals\"])\n        openLibraryCollection()\n        XCTAssertTrue(text(\"Your Kitchen\").waitForExistence(timeout: 10))\n        // The capsule must be up for this sweep: it overlaps list content at AX5 (v6 pixels,\n        // #179), so a chrome-free pass would verify an assumed band instead of the real one."
+   },
    {
     "new": "    func launch(_ extra: [String] = []) {\n        app = XCUIApplication(); app.launchArguments = [\"-UITesting\"] + extra; app.launch()\n    }\n    /// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n    func openLibraryCollection() {\n        let recipes = app.buttons[\"today.recipes\"]\n        XCTAssertTrue(recipes.waitForExistence(timeout: 20), \"Today routes to the saved-recipe collection\")\n        recipes.tap()\n    }\n    func text(_ s: String) -> XCUIElement { app.staticTexts.matching(NSPredicate(format: \"label CONTAINS %@\", s)).firstMatch }",
     "old": "    func launch(_ extra: [String] = []) {\n        app = XCUIApplication(); app.launchArguments = [\"-UITesting\"] + extra; app.launch()\n    }\n    func text(_ s: String) -> XCUIElement { app.staticTexts.matching(NSPredicate(format: \"label CONTAINS %@\", s)).firstMatch }"
@@ -38,8 +70,92 @@
   "parent_sha": "7f6a1ab99664a8d73c58c1c15adee2c51050b8a66e2c1bb9d723f4a001d0798a"
  },
  "AteUITests/AteUITests.swift": {
-  "current_sha": "3f34892ac5ea7efd750f4a2a45b73404da019536993b92ce9a52f1df8115c7c7",
+  "current_sha": "5cc4e3e1f76b9fb84a4267ccd04e81298f24639147822de101c0810bd2dee9ed",
   "fragments": [
+   {
+    "new": "        } else if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }\n    }\n    /// #642: the first tab is Today; the saved-recipe collection is one tap in.\n    func openLibraryCollection() {\n        tab(\"Today\")\n        let recipes = app.buttons[\"today.recipes\"]\n        if recipes.waitForExistence(timeout: 5) { recipes.tap() }",
+    "old": "        } else if b.waitForExistence(timeout: 5) { b.tap() } else { app.buttons[name].firstMatch.tap() }\n    }\n    /// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n    func openLibraryCollection() {\n        tab(\"Library\")\n        let recipes = app.buttons[\"today.recipes\"]\n        if recipes.waitForExistence(timeout: 5) { recipes.tap() }"
+   },
+   {
+    "new": "        print(\"COOK-EXIT-DETAIL-NAVIGATION-AX-END\")\n        let backButtons = detailNavigation.buttons.matching(\n            NSPredicate(format: \"identifier == %@ AND label == %@\", \"BackButton\", \"Recipes\")\n        )\n        XCTAssertEqual(backButtons.count, 1, \"Recipe detail must expose exactly one BackButton returning to Your Kitchen\")",
+    "old": "        print(\"COOK-EXIT-DETAIL-NAVIGATION-AX-END\")\n        let backButtons = detailNavigation.buttons.matching(\n            NSPredicate(format: \"identifier == %@ AND label == %@\", \"BackButton\", \"Your Kitchen\")\n        )\n        XCTAssertEqual(backButtons.count, 1, \"Recipe detail must expose exactly one BackButton returning to Your Kitchen\")"
+   },
+   {
+    "new": "        launch()\n        openLibraryCollection()\n        wait(text(\"Recipes\"))\n        XCTAssertTrue(text(\"Nothing saved yet\").exists)\n        XCTAssertTrue(text(\"0 saved recipes\").exists)",
+    "old": "        launch()\n        openLibraryCollection()\n        wait(text(\"Your Kitchen\"))\n        XCTAssertTrue(text(\"Nothing saved yet\").exists)\n        XCTAssertTrue(text(\"0 saved recipes\").exists)"
+   },
+   {
+    "new": "        shot(\"tracker-day-recipe-cook-mode\")\n        app.buttons[\"Exit\"].tap()\n        wait(app.tabBars.buttons[\"Today\"], 10)\n        XCTAssertTrue(app.tabBars.buttons[\"Today\"].isHittable, \"the app is usable after leaving Cook mode\")\n    }\n",
+    "old": "        shot(\"tracker-day-recipe-cook-mode\")\n        app.buttons[\"Exit\"].tap()\n        wait(app.tabBars.buttons[\"Library\"], 10)\n        XCTAssertTrue(app.tabBars.buttons[\"Library\"].isHittable, \"the app is usable after leaving Cook mode\")\n    }\n"
+   },
+   {
+    "new": "        app.buttons[\"Reset timer\"].tap()\n        app.buttons[\"Exit\"].tap()\n        wait(app.tabBars.buttons[\"Today\"], 10)\n    }\n",
+    "old": "        app.buttons[\"Reset timer\"].tap()\n        app.buttons[\"Exit\"].tap()\n        wait(app.tabBars.buttons[\"Library\"], 10)\n    }\n"
+   },
+   {
+    "new": "        launch()\n        openLibraryCollection()\n        wait(text(\"Recipes\"))\n        tab(\"Shopping\")\n        wait(text(\"Nothing on the list\"))\n        shot(\"shopping-empty\")\n        tab(\"Today\")\n        addPromptRecipe()\n        app.buttons[\"Add to shopping list\"].tap()\n        tab(\"Today\")\n        tab(\"Shopping\")\n        wait(text(\"5 to buy\"))",
+    "old": "        launch()\n        openLibraryCollection()\n        wait(text(\"Your Kitchen\"))\n        tab(\"Shopping\")\n        wait(text(\"Nothing on the list\"))\n        shot(\"shopping-empty\")\n        tab(\"Library\")\n        addPromptRecipe()\n        app.buttons[\"Add to shopping list\"].tap()\n        tab(\"Library\")\n        tab(\"Shopping\")\n        wait(text(\"5 to buy\"))"
+   },
+   {
+    "new": "            XCTAssertLessThanOrEqual(footer.frame.maxY, app.tabBars.firstMatch.frame.minY + 1, \"Settings content sits under the tab bar\")\n        }\n        tab(\"Today\")\n        app.buttons[\"Add recipe\"].tap()\n        app.buttons[\"Prompt\"].tap()",
+    "old": "            XCTAssertLessThanOrEqual(footer.frame.maxY, app.tabBars.firstMatch.frame.minY + 1, \"Settings content sits under the tab bar\")\n        }\n        tab(\"Library\")\n        app.buttons[\"Add recipe\"].tap()\n        app.buttons[\"Prompt\"].tap()"
+   },
+   {
+    "new": "        shot(\"timerbar-detail\")\n        openLibraryCollection()\n        wait(text(\"Recipes\"))\n        XCTAssertTrue(open.exists, \"timer bar should persist on Library\")\n        shot(\"timerbar-library\")",
+    "old": "        shot(\"timerbar-detail\")\n        openLibraryCollection()\n        wait(text(\"Your Kitchen\"))\n        XCTAssertTrue(open.exists, \"timer bar should persist on Library\")\n        shot(\"timerbar-library\")"
+   },
+   {
+    "new": "        launch()\n        addPromptRecipe()\n        tab(\"Today\")\n        signInViaSettings()\n        let del = app.buttons[\"deleteAccountButton\"]",
+    "old": "        launch()\n        addPromptRecipe()\n        tab(\"Library\")\n        signInViaSettings()\n        let del = app.buttons[\"deleteAccountButton\"]"
+   },
+   {
+    "new": "        app.buttons[\"Open ate\"].tap()\n        openLibraryCollection()\n        wait(text(\"Recipes\"))\n\n        launch([\"-ateOpenURL\", \"ate://somewhere/else\"])\n        wait(text(\"Page not found\"), 10)\n        shot(\"not-found-404\")\n        app.buttons[\"Go home\"].tap()\n        openLibraryCollection()\n        wait(text(\"Recipes\"))\n    }\n",
+    "old": "        app.buttons[\"Open ate\"].tap()\n        openLibraryCollection()\n        wait(text(\"Your Kitchen\"))\n\n        launch([\"-ateOpenURL\", \"ate://somewhere/else\"])\n        wait(text(\"Page not found\"), 10)\n        shot(\"not-found-404\")\n        app.buttons[\"Go home\"].tap()\n        openLibraryCollection()\n        wait(text(\"Your Kitchen\"))\n    }\n"
+   },
+   {
+    "new": "        launch([\"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryL\"])\n        openLibraryCollection()\n        wait(text(\"Recipes\"))\n        shot(\"a11y-normal-text-library\")\n        app.buttons[\"Add recipe\"].tap()",
+    "old": "        launch([\"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryL\"])\n        openLibraryCollection()\n        wait(text(\"Your Kitchen\"))\n        shot(\"a11y-normal-text-library\")\n        app.buttons[\"Add recipe\"].tap()"
+   },
+   {
+    "new": "        let tabs = app.tabBars.firstMatch\n        wait(tabs)\n        XCTAssertTrue(tabs.buttons[\"Today\"].isSelected)\n        shot(\"tabbar-library\")\n        addPromptRecipe()",
+    "old": "        let tabs = app.tabBars.firstMatch\n        wait(tabs)\n        XCTAssertTrue(tabs.buttons[\"Library\"].isSelected)\n        shot(\"tabbar-library\")\n        addPromptRecipe()"
+   },
+   {
+    "new": "        wait(text(\"Timer notifications\"))\n        shot(\"tabbar-settings\")\n        tabs.buttons[\"Today\"].tap()\n        // Detail hides the tab bar, so tab() popped to root on the way out; reopen the recipe.\n        if !app.buttons[\"Cook mode\"].waitForExistence(timeout: 3) {",
+    "old": "        wait(text(\"Timer notifications\"))\n        shot(\"tabbar-settings\")\n        tabs.buttons[\"Library\"].tap()\n        // Detail hides the tab bar, so tab() popped to root on the way out; reopen the recipe.\n        if !app.buttons[\"Cook mode\"].waitForExistence(timeout: 3) {"
+   },
+   {
+    "new": "        // back to root\n        openLibraryCollection()\n        wait(text(\"Recipes\"), 5)\n    }\n",
+    "old": "        // back to root\n        openLibraryCollection()\n        wait(text(\"Your Kitchen\"), 5)\n    }\n"
+   },
+   {
+    "new": "        let tabs = app.tabBars.firstMatch\n        wait(tabs)\n        XCTAssertTrue(tabs.buttons[\"Today\"].isSelected)\n        shot(\"tabbar-deeplink-shared\")\n    }",
+    "old": "        let tabs = app.tabBars.firstMatch\n        wait(tabs)\n        XCTAssertTrue(tabs.buttons[\"Library\"].isSelected)\n        shot(\"tabbar-deeplink-shared\")\n    }"
+   },
+   {
+    "new": "        addPromptRecipe()\n        openLibraryCollection()\n        wait(text(\"Recipes\"), 5)\n        wait(app.buttons[\"chip.time30\"])\n        shot(\"library-filter-chips\")",
+    "old": "        addPromptRecipe()\n        openLibraryCollection()\n        wait(text(\"Your Kitchen\"), 5)\n        wait(app.buttons[\"chip.time30\"])\n        shot(\"library-filter-chips\")"
+   },
+   {
+    "new": "        wait(app.buttons[\"Cook mode\"], 5)\n        openLibraryCollection()\n        wait(text(\"Recipes\"), 5)\n    }\n",
+    "old": "        wait(app.buttons[\"Cook mode\"], 5)\n        openLibraryCollection()\n        wait(text(\"Your Kitchen\"), 5)\n    }\n"
+   },
+   {
+    "new": "        app.tabBars.buttons[\"Journal\"].tap()\n        XCTAssertEqual(add.label, \"New journal entry\", \"Journal root offers New journal entry, not the Shopping or recipe action\")\n        app.tabBars.buttons[\"Today\"].tap()\n        XCTAssertEqual(add.label, \"Add recipe\")\n        openLibraryCollection()\n        app.tabBars.buttons[\"Search\"].firstMatch.tap()\n        let field = app.searchFields.firstMatch\n        wait(field, 5); field.tap(); field.typeText(\"soup\")\n        XCTAssertTrue(text(\"Recipes\").waitForExistence(timeout: 3), \"title stays visible while searching\")\n        XCTAssertTrue(field.value as? String == \"soup\", \"search query is entered\")\n        shot(\"tab-search\")\n\n        // The Search tab and Library tab use separate NavigationStacks. Confirm SceneStorage\n        // keeps the query when crossing between them, and that Search shows no add action.\n        app.tabBars.buttons[\"Today\"].tap()\n        wait(text(\"Recipes\"), 5)\n        app.tabBars.buttons[\"Search\"].tap()\n        wait(field, 5)",
+    "old": "        app.tabBars.buttons[\"Journal\"].tap()\n        XCTAssertEqual(add.label, \"New journal entry\", \"Journal root offers New journal entry, not the Shopping or recipe action\")\n        app.tabBars.buttons[\"Library\"].tap()\n        XCTAssertEqual(add.label, \"Add recipe\")\n        openLibraryCollection()\n        app.tabBars.buttons[\"Search\"].firstMatch.tap()\n        let field = app.searchFields.firstMatch\n        wait(field, 5); field.tap(); field.typeText(\"soup\")\n        XCTAssertTrue(text(\"Your Kitchen\").waitForExistence(timeout: 3), \"title stays visible while searching\")\n        XCTAssertTrue(field.value as? String == \"soup\", \"search query is entered\")\n        shot(\"tab-search\")\n\n        // The Search tab and Library tab use separate NavigationStacks. Confirm SceneStorage\n        // keeps the query when crossing between them, and that Search shows no add action.\n        app.tabBars.buttons[\"Library\"].tap()\n        wait(text(\"Your Kitchen\"), 5)\n        app.tabBars.buttons[\"Search\"].tap()\n        wait(field, 5)"
+   },
+   {
+    "new": "        launch()\n        addPromptRecipe()\n        tab(\"Today\")\n        app.tabBars.buttons[\"Search\"].firstMatch.tap()\n        wait(app.staticTexts[\"library.searchStart\"])",
+    "old": "        launch()\n        addPromptRecipe()\n        tab(\"Library\")\n        app.tabBars.buttons[\"Search\"].firstMatch.tap()\n        wait(app.staticTexts[\"library.searchStart\"])"
+   },
+   {
+    "new": "        guard #available(iOS 26, *) else { return }\n        launch()\n        addPromptRecipe()\n        tab(\"Today\")\n        app.tabBars.buttons[\"Search\"].firstMatch.tap()\n        let field = app.searchFields.firstMatch\n        wait(field, 5)",
+    "old": "        guard #available(iOS 26, *) else { return }\n        launch()\n        addPromptRecipe()\n        tab(\"Library\")\n        app.tabBars.buttons[\"Search\"].firstMatch.tap()\n        let field = app.searchFields.firstMatch\n        wait(field, 5)"
+   },
+   {
+    "new": "        }\n        launch()\n        addPromptRecipe()\n        tab(\"Today\")\n        app.tabBars.buttons[\"Search\"].firstMatch.tap()\n        let field = app.searchFields.firstMatch\n        wait(field, 5)",
+    "old": "        }\n        launch()\n        addPromptRecipe()\n        tab(\"Library\")\n        app.tabBars.buttons[\"Search\"].firstMatch.tap()\n        let field = app.searchFields.firstMatch\n        wait(field, 5)"
+   },
    {
     "new": "    func test01_EmptyLibrary() {\n        launch()\n        openLibraryCollection()\n        wait(text(\"Your Kitchen\"))\n        XCTAssertTrue(text(\"Nothing saved yet\").exists)",
     "old": "    func test01_EmptyLibrary() {\n        launch()\n        wait(text(\"Your Kitchen\"))\n        XCTAssertTrue(text(\"Nothing saved yet\").exists)"
@@ -107,8 +223,12 @@
   "parent_sha": "74fd825cc5099c1bb110e4a48424c061d3b819b4d771d68ae9f2f71a07626f97"
  },
  "AteUITests/CookPlanUITests.swift": {
-  "current_sha": "ebec3d0953b1d42d1ab361b1dd56e730b52e16548a084d2f089a54d9e2395214",
+  "current_sha": "040f72ed7b7a990ac0ca80a842ccce3ede946ba3281ee65b574af1f4f1ba57f3",
   "fragments": [
+   {
+    "new": "        app.launchArguments = [\"-UITesting\", \"-qaNutritionFixtures\"]\n        app.launch()\n        // #642: the first tab is Today; the saved-recipe collection is one tap in.\n        let libraryEntry = app.buttons[\"today.recipes\"]\n        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 20), \"Today routes to the saved-recipe collection\")",
+    "old": "        app.launchArguments = [\"-UITesting\", \"-qaNutritionFixtures\"]\n        app.launch()\n        // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n        let libraryEntry = app.buttons[\"today.recipes\"]\n        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 20), \"Today routes to the saved-recipe collection\")"
+   },
    {
     "new": "        app.launchArguments = [\"-UITesting\", \"-qaNutritionFixtures\"]\n        app.launch()\n        // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n        let libraryEntry = app.buttons[\"today.recipes\"]\n        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 20), \"Today routes to the saved-recipe collection\")\n        libraryEntry.tap()\n        let recipe = app.staticTexts[\"QA pap and rice\"].firstMatch\n        XCTAssertTrue(recipe.waitForExistence(timeout: 10))",
     "old": "        app.launchArguments = [\"-UITesting\", \"-qaNutritionFixtures\"]\n        app.launch()\n        let recipe = app.staticTexts[\"QA pap and rice\"].firstMatch\n        XCTAssertTrue(recipe.waitForExistence(timeout: 10))"
@@ -117,8 +237,12 @@
   "parent_sha": "73ce8569fc98387a1118d579aeebe404299554617d421060487a1a77a70228ec"
  },
  "AteUITests/CookingTrackerEntryUITests.swift": {
-  "current_sha": "e674924e785d2964134c6aac66b029ecf3bd0de024584e8831ae284a4f4d0f29",
+  "current_sha": "d6c9efcdc0ce0d42231e5cc950d10b2998c19c676dc249d27f2d95a916341d63",
   "fragments": [
+   {
+    "new": "        app.launchArguments = [\"-UITesting\", \"-qaResetCookingHistory\"]\n        app.launch()\n        // #642: the first tab is Today; the saved-recipe collection is one tap in.\n        let libraryEntry = app.buttons[\"today.recipes\"]\n        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 20), \"Today routes to the saved-recipe collection\")",
+    "old": "        app.launchArguments = [\"-UITesting\", \"-qaResetCookingHistory\"]\n        app.launch()\n        // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n        let libraryEntry = app.buttons[\"today.recipes\"]\n        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 20), \"Today routes to the saved-recipe collection\")"
+   },
    {
     "new": "        app.launchArguments = [\"-UITesting\", \"-qaResetCookingHistory\"]\n        app.launch()\n        // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n        let libraryEntry = app.buttons[\"today.recipes\"]\n        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 20), \"Today routes to the saved-recipe collection\")\n        libraryEntry.tap()\n        let shortcut = app.buttons[\"library.todayJournalHub\"]\n        XCTAssertTrue(shortcut.waitForExistence(timeout: 10), \"Library should expose the Insights shortcut\")",
     "old": "        app.launchArguments = [\"-UITesting\", \"-qaResetCookingHistory\"]\n        app.launch()\n        let shortcut = app.buttons[\"library.todayJournalHub\"]\n        XCTAssertTrue(shortcut.waitForExistence(timeout: 10), \"Library should expose the Insights shortcut\")"
@@ -127,8 +251,28 @@
   "parent_sha": "26e32d20a568717b3c3088d45eb9fe8633feea74542c64caf83e22f93b0825bf"
  },
  "AteUITests/CoverageUITests.swift": {
-  "current_sha": "4b1876dc5f2523a5a4e244daf5eb39e078c6ff6e873910963dd4a08124989fce",
+  "current_sha": "62ea581904d2f41b0f1755593592415fc35d2a3518545da7947ec4be9005689f",
   "fragments": [
+   {
+    "new": "        app.buttons[\"generateButton\"].tap()\n    }\n    /// #642: the first tab is Today; the saved-recipe collection is one tap in.\n    func openLibraryCollection() {\n        tab(\"Today\")\n        let recipes = app.buttons[\"today.recipes\"]\n        if recipes.waitForExistence(timeout: 5) { recipes.tap() }",
+    "old": "        app.buttons[\"generateButton\"].tap()\n    }\n    /// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n    func openLibraryCollection() {\n        tab(\"Library\")\n        let recipes = app.buttons[\"today.recipes\"]\n        if recipes.waitForExistence(timeout: 5) { recipes.tap() }"
+   },
+   {
+    "new": "        shot(\"cover-detail-hero\")\n        // A second recipe without a cover gets the branded tile.\n        tab(\"Today\")\n        addPrompt(\"Plain rice\")\n        let tile = app.descendants(matching: .any)[\"recipeHero\"].firstMatch",
+    "old": "        shot(\"cover-detail-hero\")\n        // A second recipe without a cover gets the branded tile.\n        tab(\"Library\")\n        addPrompt(\"Plain rice\")\n        let tile = app.descendants(matching: .any)[\"recipeHero\"].firstMatch"
+   },
+   {
+    "new": "        XCTAssertTrue(expand.waitForNonExistence(timeout: 3), \"Close must dismiss the recipe sheet\")\n        wait(listCard, 5)\n        XCTAssertTrue(app.tabBars.buttons[\"Today\"].isSelected, \"Dismissal must return to the original Today tab\")\n        shot(\"recipe-sheet-return-library-portrait\")\n",
+    "old": "        XCTAssertTrue(expand.waitForNonExistence(timeout: 3), \"Close must dismiss the recipe sheet\")\n        wait(listCard, 5)\n        XCTAssertTrue(app.tabBars.buttons[\"Library\"].isSelected, \"Dismissal must return to the original Library tab\")\n        shot(\"recipe-sheet-return-library-portrait\")\n"
+   },
+   {
+    "new": "        shot(\"library-collections\")\n        browseMenuItem(\"Recently added\", icon: \"clock.arrow.trianglehead.counterclockwise.rotate.90\").tap()\n        wait(app.tabBars.buttons[\"Today\"], 5)\n        XCTAssertTrue(app.tabBars.buttons[\"Today\"].isSelected, \"collection should open the Today tab\")\n        wait(text(\"Miso salmon\"), 5)\n        shot(\"collection-filtered-library\")",
+    "old": "        shot(\"library-collections\")\n        browseMenuItem(\"Recently added\", icon: \"clock.arrow.trianglehead.counterclockwise.rotate.90\").tap()\n        wait(app.tabBars.buttons[\"Library\"], 5)\n        XCTAssertTrue(app.tabBars.buttons[\"Library\"].isSelected, \"collection should open the Library tab\")\n        wait(text(\"Miso salmon\"), 5)\n        shot(\"collection-filtered-library\")"
+   },
+   {
+    "new": "        launch([\"-qaBackendDown\"])\n        addPrompt(\"Keep this stew\")        // first generation succeeds, every later one fails\n        tab(\"Today\")\n        startPrompt(\"Second dish\")\n        wait(app.buttons[\"generateRetry\"], 10)",
+    "old": "        launch([\"-qaBackendDown\"])\n        addPrompt(\"Keep this stew\")        // first generation succeeds, every later one fails\n        tab(\"Library\")\n        startPrompt(\"Second dish\")\n        wait(app.buttons[\"generateRetry\"], 10)"
+   },
    {
     "new": "        defer { XCUIDevice.shared.orientation = .portrait }\n\n        openLibraryCollection()\n        let listCard = app.buttons[\"listCard\"].firstMatch\n        wait(listCard, 10)",
     "old": "        defer { XCUIDevice.shared.orientation = .portrait }\n\n        let listCard = app.buttons[\"listCard\"].firstMatch\n        wait(listCard, 10)"
@@ -157,8 +301,16 @@
   "parent_sha": "12b48d13fafcc0e4af04bb696f4c85898b301c1956abf21480651180877a7f20"
  },
  "AteUITests/ExploreUITests.swift": {
-  "current_sha": "6159646eb69c6c3f51358ffa3647c1b8b7158fe7a5a9d173211a60c63808a12b",
+  "current_sha": "5b25d18ee574c5436c77471830a6f21ca6b7976227be9d74239a3fbdf4e0680c",
   "fragments": [
+   {
+    "new": "        capture.name = name; capture.lifetime = .keepAlways; add(capture)\n    }\n    /// #642: the first tab is Today; the saved-recipe collection is one tap in.\n    private func openLibraryCollection() {\n        let recipes = app.buttons[\"today.recipes\"]",
+    "old": "        capture.name = name; capture.lifetime = .keepAlways; add(capture)\n    }\n    /// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n    private func openLibraryCollection() {\n        let recipes = app.buttons[\"today.recipes\"]"
+   },
+   {
+    "new": "                       \"Submitting Search must keep the full query before opening Explore\")\n        shot(\"explore-search-query-before-library\")\n        app.tabBars.buttons[\"Today\"].tap()\n        // The pushed collection survives the Search tab round-trip, so the\n        // filtered collection is already here; no Today re-entry is needed.",
+    "old": "                       \"Submitting Search must keep the full query before opening Explore\")\n        shot(\"explore-search-query-before-library\")\n        app.tabBars.buttons[\"Library\"].tap()\n        // The pushed collection survives the Search tab round-trip, so the\n        // filtered collection is already here; no Today re-entry is needed."
+   },
    {
     "new": "        }\n        app.launch()\n        openLibraryCollection()\n        XCTAssertTrue(app.buttons[\"library.explore\"].waitForExistence(timeout: 20))\n    }",
     "old": "        }\n        app.launch()\n        XCTAssertTrue(app.buttons[\"library.explore\"].waitForExistence(timeout: 20))\n    }"
@@ -180,8 +332,12 @@
   "parent_sha": "38ab58ee6539c118c916e1ac53d6061fd3721f30774a467c2af6f4a93775d75a"
  },
  "AteUITests/InsightsAcceptanceUITests.swift": {
-  "current_sha": "be09fde196f506ad6abebbf22577f4e6560d3e75c1374609ccd4c110461bc29f",
+  "current_sha": "2eb71e40e463446eb106d5a1903a3178184d5232866dc253ad75bb3ca354c063",
   "fragments": [
+   {
+    "new": "        wait(today, 5)\n        XCTAssertTrue(today.label.contains(\"cooked\") && today.label.contains(\"today\"), today.label)\n        tab(\"Today\")\n        let libraryRecipes = app.buttons[\"today.recipes\"]\n        wait(libraryRecipes, 5)",
+    "old": "        wait(today, 5)\n        XCTAssertTrue(today.label.contains(\"cooked\") && today.label.contains(\"today\"), today.label)\n        tab(\"Library\")\n        let libraryRecipes = app.buttons[\"today.recipes\"]\n        wait(libraryRecipes, 5)"
+   },
    {
     "count": 1,
     "new": "        tab(\"Library\")\n        let libraryRecipes = app.buttons[\"today.recipes\"]\n        wait(libraryRecipes, 5)\n        libraryRecipes.tap()\n    }\n\n    private func reveal(_ element: XCUIElement) {",
@@ -191,8 +347,16 @@
   "parent_sha": "d60a59508e15652311d0f07f8de22666259b9f9ab5ae8dda5e8ea71124f347cc"
  },
  "AteUITests/InsightsPresentationUITests.swift": {
-  "current_sha": "48b28725e48f585059e61e8c239825ee7cff975f04c20f536a0f4d20e4c8c89e",
+  "current_sha": "b313dccdef25bd2bf9c1d976e7592ee205e9dce5b662f0f2508c72d50e115a17",
   "fragments": [
+   {
+    "new": "        // RecipeDetailView hides the tab bar (full-height detail with Cook mode pinned at the\n        // bottom). Pop back to the Library root before any tab switch, exactly as a user would.\n        // The back button carries the previous screen's title, LibraryView's \"Recipes\"\n        // (L10n libraryTitle; en localization confirmed), the same named-back pattern\n        // reopenInsightsFromJournal uses with \"Journal\".\n        let detailBack = app.navigationBars.buttons[\"Recipes\"]\n        wait(detailBack)\n        detailBack.tap()\n        wait(app.navigationBars[\"Recipes\"])\n        wait(app.tabBars.firstMatch)\n",
+    "old": "        // RecipeDetailView hides the tab bar (full-height detail with Cook mode pinned at the\n        // bottom). Pop back to the Library root before any tab switch, exactly as a user would.\n        // The back button carries the previous screen's title, LibraryView's \"Your Kitchen\"\n        // (L10n libraryTitle; en localization confirmed), the same named-back pattern\n        // reopenInsightsFromJournal uses with \"Journal\".\n        let detailBack = app.navigationBars.buttons[\"Your Kitchen\"]\n        wait(detailBack)\n        detailBack.tap()\n        wait(app.navigationBars[\"Your Kitchen\"])\n        wait(app.tabBars.firstMatch)\n"
+   },
+   {
+    "new": "        wait(today, 5)\n        XCTAssertTrue(today.label.contains(\"cooked\") && today.label.contains(\"today\"), today.label)\n        tab(\"Today\", from: app.navigationBars[\"Insights & Cooking History\"],\n            arrival: app.navigationBars[\"Today\"])\n        let libraryRecipes = app.buttons[\"today.recipes\"]\n        wait(libraryRecipes, 5)\n        libraryRecipes.tap()\n        wait(app.navigationBars[\"Recipes\"], 10)\n    }\n\n    /// Switching tabs preserves the pushed hub. Return to Journal explicitly instead of\n    /// assuming a second tab selection pops a stack that was not currently selected.\n    private func reopenInsightsFromJournal() {\n        tab(\"Journal\", from: app.navigationBars[\"Recipes\"],\n            arrival: app.navigationBars[\"Insights & Cooking History\"])\n        let title = app.navigationBars[\"Insights & Cooking History\"]",
+    "old": "        wait(today, 5)\n        XCTAssertTrue(today.label.contains(\"cooked\") && today.label.contains(\"today\"), today.label)\n        tab(\"Library\", from: app.navigationBars[\"Insights & Cooking History\"],\n            arrival: app.navigationBars[\"Today\"])\n        let libraryRecipes = app.buttons[\"today.recipes\"]\n        wait(libraryRecipes, 5)\n        libraryRecipes.tap()\n        wait(app.navigationBars[\"Your Kitchen\"], 10)\n    }\n\n    /// Switching tabs preserves the pushed hub. Return to Journal explicitly instead of\n    /// assuming a second tab selection pops a stack that was not currently selected.\n    private func reopenInsightsFromJournal() {\n        tab(\"Journal\", from: app.navigationBars[\"Your Kitchen\"],\n            arrival: app.navigationBars[\"Insights & Cooking History\"])\n        let title = app.navigationBars[\"Insights & Cooking History\"]"
+   },
    {
     "count": 1,
     "new": "        tab(\"Library\", from: app.navigationBars[\"Insights & Cooking History\"],\n            arrival: app.navigationBars[\"Today\"])\n        let libraryRecipes = app.buttons[\"today.recipes\"]\n        wait(libraryRecipes, 5)\n        libraryRecipes.tap()\n        wait(app.navigationBars[\"Your Kitchen\"], 10)",
@@ -202,8 +366,16 @@
   "parent_sha": "17b96d9a7f04c0d7b8c9dbc274b68cd9e448d351956435fbf80317c1ea378540"
  },
  "AteUITests/JournalOpenStateUITests.swift": {
-  "current_sha": "7b1f11f04396c5aadea1086d47cb425f17606727a849cf9a46a356ec326bc044",
+  "current_sha": "fe80bca9c448186e4ae6f7133e03b22fa80e701193ae6447d360b329b4276309",
   "fragments": [
+   {
+    "new": "/// JournalStore.qaForcedOpenState) and verify the banner through the running app's\n/// realized accessibility tree, over the actual route a user takes:\n/// Today tab -> browse menu -> Journal sheet.\n///\n/// Why UI tests and not hosted rendering: a UIHostingController hosted in a unit",
+    "old": "/// JournalStore.qaForcedOpenState) and verify the banner through the running app's\n/// realized accessibility tree, over the actual route a user takes:\n/// Library tab -> browse menu -> Journal sheet.\n///\n/// Why UI tests and not hosted rendering: a UIHostingController hosted in a unit"
+   },
+   {
+    "new": "        // The screen stays navigable: the user is never trapped on a broken journal.\n        shot(\"jos-03-unavailable\")\n        let libraryTab = app.tabBars.buttons[\"Today\"]\n        XCTAssertTrue(libraryTab.waitForExistence(timeout: 10) && libraryTab.isHittable,\n                      \"the tab bar must remain selectable from a broken journal\")\n        libraryTab.tap()\n        // #642: the first tab is Today; the saved-recipe collection is one tap in.\n        let libraryEntry = app.buttons[\"today.recipes\"]\n        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 10), \"Today routes to the saved-recipe collection\")",
+    "old": "        // The screen stays navigable: the user is never trapped on a broken journal.\n        shot(\"jos-03-unavailable\")\n        let libraryTab = app.tabBars.buttons[\"Library\"]\n        XCTAssertTrue(libraryTab.waitForExistence(timeout: 10) && libraryTab.isHittable,\n                      \"the tab bar must remain selectable from a broken journal\")\n        libraryTab.tap()\n        // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n        let libraryEntry = app.buttons[\"today.recipes\"]\n        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 10), \"Today routes to the saved-recipe collection\")"
+   },
    {
     "new": "                      \"the tab bar must remain selectable from a broken journal\")\n        libraryTab.tap()\n        // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n        let libraryEntry = app.buttons[\"today.recipes\"]\n        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 10), \"Today routes to the saved-recipe collection\")\n        libraryEntry.tap()\n        wait(app.buttons[\"libraryBrowseMenu\"], 10)\n    }",
     "old": "                      \"the tab bar must remain selectable from a broken journal\")\n        libraryTab.tap()\n        wait(app.buttons[\"libraryBrowseMenu\"], 10)\n    }"
@@ -212,8 +384,12 @@
   "parent_sha": "ba284739e5e9806d8cc758a67addaead542f3d084d1b0ebed0076b2583393b51"
  },
  "AteUITests/LibraryProteinGroupingUITests.swift": {
-  "current_sha": "9f799975a9b293d9d7dddda059c2cc6f75c09c8c1ce83ed8c8d0cd6bbba0e451",
+  "current_sha": "719d6111065a1dfe5cf0eef730a2219d0449b431f5d6f11cd22b3bfc05e5eee0",
   "fragments": [
+   {
+    "new": "        receipt.step(\"launch-normal-text-pork-fixture\", pixels: true) { app.launch() }\n        receipt.step(\"open-saved-recipe-collection\", pixels: true) {\n            // #642: the first tab is Today; the saved-recipe collection is one tap in.\n            let recipes = app.buttons[\"today.recipes\"]\n            XCTAssertTrue(recipes.waitForExistence(timeout: 20), \"Today routes to the saved-recipe collection\")",
+    "old": "        receipt.step(\"launch-normal-text-pork-fixture\", pixels: true) { app.launch() }\n        receipt.step(\"open-saved-recipe-collection\", pixels: true) {\n            // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n            let recipes = app.buttons[\"today.recipes\"]\n            XCTAssertTrue(recipes.waitForExistence(timeout: 20), \"Today routes to the saved-recipe collection\")"
+   },
    {
     "new": "        app.launchArguments = [\"-UITesting\", \"-qaLibraryPorkGrouping\", \"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryL\"]\n        receipt.step(\"launch-normal-text-pork-fixture\", pixels: true) { app.launch() }\n        receipt.step(\"open-saved-recipe-collection\", pixels: true) {\n            // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n            let recipes = app.buttons[\"today.recipes\"]\n            XCTAssertTrue(recipes.waitForExistence(timeout: 20), \"Today routes to the saved-recipe collection\")\n            recipes.tap()\n        }\n        let pork = app.descendants(matching: .any)[\"section.Pork\"].firstMatch\n        let chicken = app.descendants(matching: .any)[\"section.Chicken\"].firstMatch",
     "old": "        app.launchArguments = [\"-UITesting\", \"-qaLibraryPorkGrouping\", \"-UIPreferredContentSizeCategoryName\", \"UICTContentSizeCategoryL\"]\n        receipt.step(\"launch-normal-text-pork-fixture\", pixels: true) { app.launch() }\n        let pork = app.descendants(matching: .any)[\"section.Pork\"].firstMatch\n        let chicken = app.descendants(matching: .any)[\"section.Chicken\"].firstMatch"
@@ -222,8 +398,12 @@
   "parent_sha": "d45e0d5d1c095c5fc8363ff3ed2727d9c72fd6a5b3098b8725eb6742579f3a5c"
  },
  "AteUITests/NutritionDiaryUITests.swift": {
-  "current_sha": "220432cfcedb4c3356b47fdfdf30573fb1e5a76effe124cad5b9627cbd76f33c",
+  "current_sha": "79a1e6d3ab2956c92d05c62ca488434a9baf39964d8b4593908f6195068ee7c4",
   "fragments": [
+   {
+    "new": "        app.launchArguments = [\"-UITesting\", \"-qaNutritionFixtures\"]\n        app.launch()\n        // #642: the first tab is Today; the saved-recipe collection is one tap in.\n        let libraryEntry = app.buttons[\"today.recipes\"]\n        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 20), \"Today routes to the saved-recipe collection\")",
+    "old": "        app.launchArguments = [\"-UITesting\", \"-qaNutritionFixtures\"]\n        app.launch()\n        // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n        let libraryEntry = app.buttons[\"today.recipes\"]\n        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 20), \"Today routes to the saved-recipe collection\")"
+   },
    {
     "new": "        app.launchArguments = [\"-UITesting\", \"-qaNutritionFixtures\"]\n        app.launch()\n        // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.\n        let libraryEntry = app.buttons[\"today.recipes\"]\n        XCTAssertTrue(libraryEntry.waitForExistence(timeout: 20), \"Today routes to the saved-recipe collection\")\n        libraryEntry.tap()\n        // Tap the card button itself: tapping the inner label text synthesises an event that\n        // does not reach the button's action on a loaded simulator, so the sheet never presents.",
     "old": "        app.launchArguments = [\"-UITesting\", \"-qaNutritionFixtures\"]\n        app.launch()\n        // Tap the card button itself: tapping the inner label text synthesises an event that\n        // does not reach the button's action on a loaded simulator, so the sheet never presents."

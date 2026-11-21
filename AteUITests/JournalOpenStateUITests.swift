@@ -4,7 +4,7 @@ import XCTest
 /// These launch the real app with a QA-forced open state (`-qaJournalOpenState`,
 /// JournalStore.qaForcedOpenState) and verify the banner through the running app's
 /// realized accessibility tree, over the actual route a user takes:
-/// Library tab -> browse menu -> Journal sheet.
+/// Today tab -> browse menu -> Journal sheet.
 ///
 /// Why UI tests and not hosted rendering: a UIHostingController hosted in a unit
 /// test never realizes SwiftUI's accessibility tree (no accessibility server queries
@@ -159,11 +159,11 @@ final class JournalOpenStateUITests: XCTestCase {
                        "an unavailable journal must not be presented as an empty healthy one")
         // The screen stays navigable: the user is never trapped on a broken journal.
         shot("jos-03-unavailable")
-        let libraryTab = app.tabBars.buttons["Library"]
+        let libraryTab = app.tabBars.buttons["Today"]
         XCTAssertTrue(libraryTab.waitForExistence(timeout: 10) && libraryTab.isHittable,
                       "the tab bar must remain selectable from a broken journal")
         libraryTab.tap()
-        // #642: the Library tab lands on Today; the saved-recipe collection is one tap in.
+        // #642: the first tab is Today; the saved-recipe collection is one tap in.
         let libraryEntry = app.buttons["today.recipes"]
         XCTAssertTrue(libraryEntry.waitForExistence(timeout: 10), "Today routes to the saved-recipe collection")
         libraryEntry.tap()

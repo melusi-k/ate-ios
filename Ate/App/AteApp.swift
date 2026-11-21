@@ -415,7 +415,7 @@ extension RootView {
         let showBottomAccessory = store.cookTarget == nil && (store.isAtTabRoot || store.isAtCollectionRoot)
             && (store.activeAddContext != nil || store.cookSession != nil || !store.timers.timers.isEmpty)
         let base = TabView(selection: tabSelection) {
-            Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
+            Tab("Today", systemImage: "calendar", value: AppTab.library) {
                 NavigationStack(path: $store.path) {
                     TodayView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
@@ -471,7 +471,7 @@ extension RootView {
     @ViewBuilder var tabs: some View {
         @Bindable var store = store
         TabView(selection: tabSelection) {
-            Tab("Library", systemImage: "books.vertical", value: AppTab.library) {
+            Tab("Today", systemImage: "calendar", value: AppTab.library) {
                 NavigationStack(path: $store.path) {
                     TodayView().offlineStrip().navigationDestination(for: Route.self) { RouteView(route: $0) }
                 }.withTimerBar()
@@ -571,7 +571,7 @@ struct LandscapeSplitView: View {
             if showSidebar {
                 List {
                     Section {
-                        row(.library, "Library", "books.vertical")
+                        row(.library, "Today", "calendar", id: "sidebar.Library")
                         row(.shopping, "Shopping list", "basket", badge: store.pendingShoppingCount)
                         row(.tracker, "Journal", "book.closed")
                         row(.settings, "Settings", "gearshape")
@@ -626,7 +626,7 @@ struct LandscapeSplitView: View {
         .tint(Theme.primary)
     }
 
-    private func row(_ t: AppTab, _ title: String, _ symbol: String, badge: Int = 0) -> some View {
+    private func row(_ t: AppTab, _ title: String, _ symbol: String, id: String? = nil, badge: Int = 0) -> some View {
         Button { store.select(t) } label: {
             HStack {
                 Label(title, systemImage: symbol)
@@ -636,7 +636,7 @@ struct LandscapeSplitView: View {
         }
         .listRowBackground(store.tab == t ? Theme.primary.opacity(0.15) : Color.clear)
         .foregroundStyle(store.tab == t ? Theme.primary : Theme.foreground)
-        .accessibilityIdentifier("sidebar." + title)
+        .accessibilityIdentifier(id ?? "sidebar." + title)
         .accessibilityAddTraits(store.tab == t ? .isSelected : [])
     }
 }

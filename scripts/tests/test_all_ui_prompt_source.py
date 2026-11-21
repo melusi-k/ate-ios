@@ -22,6 +22,11 @@ class AllUIPromptSourceTests(unittest.TestCase):
         for path in self.contracts():
             if not path.endswith('.swift'):continue
             source=pre_swipe_target(path,(ROOT/path).read_text());parent=restore(path,source)
+            # #642 rename slice: files outside the today-tab chain still carry the renamed text at
+            # this stage (chain-covered files are restored to the pre-rename original by
+            # pre_swipe_target); inverse-map the rename there so the audit compares like for like.
+            if json.loads((ROOT/'scripts/tests/today_tab_ui_inverse.json').read_text()).get(path) is None:
+                source=source.replace('tab("Today")','tab("Library")').replace('tabBars.buttons["Today"]','tabBars.buttons["Library"]').replace('"Recipes"','"Your Kitchen"')
             for token in ['XCTAssert','XCTFail','wait(','waitFor','launch(','launchArguments','generateButton','saveRecipe','repair.tap()','confirmDraft']:
                 self.assertEqual([line for line in source.splitlines() if token in line],
                                  [line for line in parent.splitlines() if token in line],(path,token))

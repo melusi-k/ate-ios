@@ -5,6 +5,8 @@ import json
 FIXTURE_SHA = 'd7010c178b0e83d636776bd66b5ef96002a21283c0e8161801a59a927d2a1744'
 
 def restore(path, text):
+    from suggest_review_buttons_delta import restore as restore_buttons
+    text = restore_buttons(path,text)
     if path != 'Ate/Services/OnDeviceBackend.swift':
         from verified_paste_import_delta import restore as pre_simplification
         text = pre_simplification(path,text)

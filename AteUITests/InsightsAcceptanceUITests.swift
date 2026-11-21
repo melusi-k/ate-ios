@@ -124,7 +124,7 @@ final class InsightsAcceptanceUITests: XCTestCase {
         let today = app.buttons["tracker.day.\(day)"]
         wait(today, 5)
         XCTAssertTrue(today.label.contains("cooked") && today.label.contains("today"), today.label)
-        tab("Library")
+        tab("Today")
         let libraryRecipes = app.buttons["today.recipes"]
         wait(libraryRecipes, 5)
         libraryRecipes.tap()

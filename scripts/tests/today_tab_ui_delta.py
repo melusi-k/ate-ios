@@ -1,7 +1,7 @@
 """Exact Today-tab UI route inverse; historical frozen hashes unchanged."""
 from pathlib import Path
 import hashlib,json
-FIXTURE_SHA='a59d291428139f6844fefd91cbd9fefcac306901d779c34b273dec3e90518877'
+FIXTURE_SHA='dca8c1251630f5049cf28bc111a6ca465634619945f89ab48583e49ec4fde85e'
 def restore(key,raw):
  path=key.split(':',1)[-1]
  payload=Path(__file__).with_name('today_tab_ui_inverse.json').read_bytes()

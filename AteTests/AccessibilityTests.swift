@@ -16,6 +16,6 @@ final class AccessibilityTests: XCTestCase {
 
     func testStringCatalogHasEnglishSource() {
         XCTAssertEqual(Bundle.main.developmentLocalization, "en")
-        XCTAssertEqual(L10n.libraryTitle, "Your Kitchen")
+        XCTAssertEqual(L10n.libraryTitle, "Recipes")
     }
 }

@@ -6,7 +6,7 @@ ROOT=Path(__file__).resolve().parents[2]
 PATH='Ate/Models/Models.swift'
 REUSED_HEAD_SHAS={
  'Ate/Logic/RecipeDiscovery.swift':'232df0f236e2225c22b47572aa80557fde899db8f222339ac3ea3a60bda8cd4a',
- 'Ate/Views/SuggestedNewRecipesView.swift':'747f223ce47b18ac9d7dec344ac2e58b2253d26606e8004d382670aad3385f52',
+ 'Ate/Views/SuggestedNewRecipesView.swift':'fbbf748fb9bb963da0ab27bfd628b7e50296a7070ae12efd11c4d769492256f7',
  'Ate/Services/OnDeviceBackend.swift':'a81f1265e460122fc634baa776fa89e24a4b098a426d626474ea2ff1d2cbe22f',
  'Ate/Logic/RecipeDiscoveryReadiness.swift':'372eabddc8edc5758ee4e0b0e457fd3d5a18d512e2c5f5d52199deb47983cbb4'}
 
@@ -56,6 +56,20 @@ class TodayTabRouteTests(unittest.TestCase):
   self.assertNotIn('store.path.isEmpty ? store.pendingImport',today)
   library=(ROOT/'Ate/Views/LibraryView.swift').read_text()
   self.assertEqual(library.count('global && store.homeSheetOwner == .collection ?'),2)
+
+ def test_first_tab_is_today_with_calendar_icon_and_collection_is_recipes(self):
+  app=(ROOT/'Ate/App/AteApp.swift').read_text()
+  self.assertEqual(app.count('Tab("Today", systemImage: "calendar", value: AppTab.library)'),2)
+  self.assertNotIn('Tab("Library"',app)
+  self.assertNotIn('books.vertical',app)
+  self.assertEqual(app.count('row(.library, "Today", "calendar")'),1)
+  self.assertNotIn('row(.library, "Library"',app)
+  l10n=(ROOT/'Ate/Logic/L10n.swift').read_text()
+  self.assertIn('static var libraryTitle: String { String(localized: "library.title", defaultValue: "Recipes") }',l10n)
+  self.assertNotIn('Your Kitchen',l10n)
+  xc=(ROOT/'Ate/Resources/Localizable.xcstrings').read_text()
+  self.assertNotIn('Your Kitchen',xc)
+  self.assertIn('"Today"',xc)
 
  def test_today_view_is_presentation_only_and_reuses_the_existing_flow(self):
   s=(ROOT/'Ate/Views/TodayView.swift').read_text()

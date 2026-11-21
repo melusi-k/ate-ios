@@ -1,8 +1,10 @@
 """Exact inverse for the independently bounded Dogfood groups only."""
+from dogfood_checkout_provenance_delta import restore as restore_checkout_provenance
 from pathlib import Path
 import hashlib,json
 FIXTURE_SHA='6adae6a6280759640f03ef074e19cac2c4ef1bbe6c238b7fc95ea4936d0e1ceb'
 def restore(path,raw):
+    raw=restore_checkout_provenance(path,raw)
     payload=Path(__file__).with_name('dogfood_independent_lane_inverse.json').read_bytes()
     assert hashlib.sha256(payload).hexdigest()==FIXTURE_SHA
     path=path.split(':',1)[-1]

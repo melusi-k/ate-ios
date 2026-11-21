@@ -62,7 +62,7 @@ class TodayTabRouteTests(unittest.TestCase):
   self.assertEqual(app.count('Tab("Today", systemImage: "calendar", value: AppTab.library)'),2)
   self.assertNotIn('Tab("Library"',app)
   self.assertNotIn('books.vertical',app)
-  self.assertEqual(app.count('row(.library, "Today", "calendar")'),1)
+  self.assertEqual(app.count('row(.library, "Today", "calendar", id: "sidebar.Library")'),1)
   self.assertNotIn('row(.library, "Library"',app)
   l10n=(ROOT/'Ate/Logic/L10n.swift').read_text()
   self.assertIn('static var libraryTitle: String { String(localized: "library.title", defaultValue: "Recipes") }',l10n)
@@ -70,6 +70,20 @@ class TodayTabRouteTests(unittest.TestCase):
   xc=(ROOT/'Ate/Resources/Localizable.xcstrings').read_text()
   self.assertNotIn('Your Kitchen',xc)
   self.assertIn('"Today"',xc)
+
+ def test_sidebar_library_id_is_stable_across_titles(self):
+  # #650: the sidebar row's accessibility ID must not derive from the display title,
+  # so a label rename can never break sidebar.Library queries (Coverage32d red).
+  app=(ROOT/'Ate/App/AteApp.swift').read_text()
+  self.assertEqual(app.count('private func row(_ t: AppTab, _ title: String, _ symbol: String, id: String? = nil, badge: Int = 0)'),1)
+  self.assertEqual(app.count('.accessibilityIdentifier(id ?? "sidebar." + title)'),1)
+  self.assertEqual(app.count('row(.library, "Today", "calendar", id: "sidebar.Library")'),1)
+  # Other sidebar rows keep the title-derived fallback; only the renamed row pins a stable ID.
+  self.assertEqual(app.count('row(.shopping, "Shopping list", "basket", badge: store.pendingShoppingCount)'),1)
+  for path,n in [('AteUITests/CoverageUITests.swift',1),('AteUITests/InsightsPresentationUITests.swift',1),('AteUITests/AteUITests.swift',1)]:
+   s=(ROOT/path).read_text()
+   self.assertEqual(s.count('app.buttons["sidebar.Library"]'),n,path)
+   self.assertNotIn('sidebar.Today',s,path)
 
  def test_today_view_is_presentation_only_and_reuses_the_existing_flow(self):
   s=(ROOT/'Ate/Views/TodayView.swift').read_text()

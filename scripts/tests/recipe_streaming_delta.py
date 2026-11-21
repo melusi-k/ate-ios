@@ -3,6 +3,8 @@ from pathlib import Path
 import hashlib,json
 FIXTURE_SHA='5a87c0e149ec571324e7c08620a12732e44542ecf6915be56c482a3a64af9b17'
 def restore(path,raw):
+    from suggest_review_buttons_delta import restore as restore_buttons
+    raw = restore_buttons(path,raw)
     from source_refusal_wording_delta import restore as restore_wording
     if "That text doesn't look like a recipe source." in (raw.decode() if isinstance(raw,bytes) else raw):
         raw = restore_wording(path,raw)

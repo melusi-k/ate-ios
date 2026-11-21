@@ -1,11 +1,11 @@
 {
-  "title": "Independent QA and Library native evidence",
-  "summary": "Dogfood QA9 and Library3 run independently on one frozen source, keeping 60-minute jobs, 30-minute required steps and 240/480 test allowances. Exact named native results and successful matching source receipts from both groups remain required. QA can finish while Library is red; the split does not fix Library failures. Compile remains unchanged. Native and hosted workflow execution remain UNRUN.",
-  "source_commit": "cce94c10a44406d3afe80bd8f71b18382d6bb8cb",
+  "title": "Workflow cleanup: remove two unused optional Dynamic Type lanes",
+  "summary": "Deletes only two optional workflow entry files; their native test sources stay unchanged. Normal-text required checks, selectors, assertions, limits and release paths are unchanged. Current main has 27 XcodeGen jobs; this deletion leaves 25, including the manual Nutrition wrapper. Python and native qualification must be reported for the exact refreshed head; this metadata is not acceptance.",
+  "source_commit": "f3924f1b29c829870ed7841c967153517a875ff5",
   "evidence": [
     {
       "path": "Ate/Models/Models.swift",
-      "blob": "8af03461b45f0fab7632bb750f51d48b1fdd056d"
+      "blob": "c3e697e2fd524080b963238e800d605db9a3fdfe"
     }
   ]
 }

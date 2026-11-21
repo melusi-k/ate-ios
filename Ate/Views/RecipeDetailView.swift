@@ -215,9 +215,11 @@ struct RecipeDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Label("This recipe looks thin", systemImage: "exclamationmark.bubble").font(AteFont.body(14, .semibold))
                     ForEach(gaps, id: \.self) { Text("• " + $0).font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground) }
-                    Button { Task { await rewrite(recipe, repairQuality: true) } } label: {
-                        Label("Repair these gaps", systemImage: "wand.and.sparkles")
-                    }.buttonStyle(.ate(.secondary, height: 40)).disabled(asking).accessibilityIdentifier("improveWithAI")
+                    if RecipeDraftRepair.canRepair(recipe) {
+                        Button { Task { await rewrite(recipe, repairQuality: true) } } label: {
+                            Label("Repair these gaps", systemImage: "wand.and.sparkles")
+                        }.buttonStyle(.ate(.secondary, height: 40)).disabled(asking).accessibilityIdentifier("improveWithAI")
+                    }
                 }
             }
             HStack(spacing: 8) {

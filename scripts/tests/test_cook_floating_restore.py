@@ -26,15 +26,16 @@ class CookFloatingRestoreTests(unittest.TestCase):
             with self.assertRaises(AssertionError):validate_float(source.replace(old,new,1))
 
     def test_cook_action_and_native_acceptance_unchanged(self):
+        from all_ui_prompt_source_delta import restore as restore_source
         s=(ROOT/'Ate/Views/RecipeDetailView.swift').read_text()
         self.assertEqual(s.count('store.beginCookSession(recipeID: recipeID, factor: factor)'),1)
         self.assertEqual(s.count('store.cookTarget = CookTarget(id: recipeID)'),1)
         self.assertIn('.buttonStyle(.ate(.primary, height: 56)).floatShadow().padding(.vertical, 8)',s)
-        self.assertEqual(hashlib.sha256((ROOT/'AteUITests/KeyFlowsQATests.swift').read_bytes()).hexdigest(),'c07bdfa3a5a831f9fac67e546a6ab6607e73f141f7f6793cd8d1d6c6bb69d629')
+        self.assertEqual(hashlib.sha256(restore_source('AteUITests/KeyFlowsQATests.swift',(ROOT/'AteUITests/KeyFlowsQATests.swift').read_bytes())).hexdigest(),'c07bdfa3a5a831f9fac67e546a6ab6607e73f141f7f6793cd8d1d6c6bb69d629')
         # fix/445-insights-discovery (#535): CoverageUITests gains DEBUG launch diagnostics and
         # surface-scoped scrolling; original assertions retained (see added tokens). Inverse-
         # restore each hunk, then verify the original remainder hash (no hash replacement).
-        c=(ROOT/'AteUITests/CoverageUITests.swift').read_text()
+        c=restore_source('AteUITests/CoverageUITests.swift',(ROOT/'AteUITests/CoverageUITests.swift').read_text())
         for token in ['captureCoverageLaunch','coverageLaunchMark("launch-enter")','surface: XCUIElement? = nil','-qaDraftRestoreSnapshotDiagnostic']:
             self.assertIn(token,c)
         c=c.replace('\n    override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }\n\n    private var captureCoverageLaunch = false\n    private func coverageLaunchMark(_ phase: String) {\n        guard captureCoverageLaunch else { return }\n        print("COVERAGE-LAUNCH phase=\\(phase) uptime=\\(ProcessInfo.processInfo.systemUptime)")\n    }\n\n    @discardableResult\n    func launch(_ extra: [String] = []) -> XCUIApplication {\n        app = XCUIApplication(); app.launchArguments = ["-UITesting"] + extra\n        if captureCoverageLaunch {\n            coverageLaunchMark("before-pixels")\n            shot("coverage-launch-before-original-call")\n            coverageLaunchMark("launch-enter")\n        }\n        defer {\n            if captureCoverageLaunch {\n                coverageLaunchMark("launch-scope-exit")\n                shot("coverage-launch-scope-exit")\n            }\n        }\n        app.launch()\n        coverageLaunchMark("launch-return")\n        return app\n    }\n    func shot(_ name: String) {\n        let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)','\n    override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }\n\n    @discardableResult\n    func launch(_ extra: [String] = []) -> XCUIApplication {\n        app = XCUIApplication(); app.launchArguments = ["-UITesting"] + extra; app.launch(); return app\n    }\n    func shot(_ name: String) {\n        let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)',1)

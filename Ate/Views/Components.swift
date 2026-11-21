@@ -21,6 +21,7 @@ struct RecipeCardView: View {
 
     var body: some View {
         let r = RecipeLogic.scaled(recipe, factor: factor)
+        let paste = r.pastedSource.flatMap { $0.matches(r) ? $0 : nil }
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(r.title).font(AteFont.display(24)).foregroundStyle(Theme.warmForeground)
@@ -28,10 +29,19 @@ struct RecipeCardView: View {
                     Text(d).font(AteFont.body(14)).foregroundStyle(Theme.warmForeground.opacity(0.8))
                 }
                 HStack(spacing: 14) {
-                    if let m = r.timeMinutes, m > 0 { Label("\(m) min", systemImage: "clock") }
-                    Label("\(r.servings) servings", systemImage: "person.2")
+                    if let written = paste?.writtenTime {
+                        Label(written, systemImage: "clock")
+                    } else if let m = r.timeMinutes, m > 0 { Label("\(m) min", systemImage: "clock") }
+                    Label(r.servings > 0 ? "\(r.servings) servings" : "Servings unspecified", systemImage: "person.2")
                 }
                 .font(AteFont.body(13, .medium)).foregroundStyle(Theme.warmForeground)
+                if paste != nil, let note = r.aiNote {
+                    Text(note).font(AteFont.body(12)).foregroundStyle(Theme.warmForeground)
+                }
+                if let source = r.sourceDraft, paste == nil {
+                    ForEach(source.warnings, id: \.self) { Text($0).font(AteFont.body(12)) }
+                    DisclosureGroup("Original source") { Text(source.text).font(AteFont.body(13)).textSelection(.enabled) }
+                }
                 if !r.tags.isEmpty {
                     FlowRow(r.tags) { TagBadge(text: $0, outline: true) }
                 }
@@ -45,8 +55,13 @@ struct RecipeCardView: View {
                     Text("Ingredients").overline()
                     ForEach(Array(r.ingredients.enumerated()), id: \.offset) { index, ing in
                         let (q, u) = Units.convert(quantity: ing.quantity, unit: ing.unit, to: units)
+                        if let paste, factor == 1,
+                           paste.ingredientLines.indices.contains(index) {
+                            Text(paste.ingredientLines[index]).font(AteFont.body(15))
+                                .accessibilityIdentifier("recipe.ingredient.\(index)")
+                        } else {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text(Units.formatAmount(q, u)).font(AteFont.body(15, .medium)).monospacedDigit()
+                            Text(r.isEditableDraft && q == 0 ? "" : Units.formatAmount(q, u)).font(AteFont.body(15, .medium)).monospacedDigit()
                                 .frame(width: 96, alignment: .leading)
                             (Text(ing.name) + Text(ing.notes.map { $0.isEmpty ? "" : " — \($0)" } ?? "").foregroundColor(Theme.mutedForeground))
                                 .font(AteFont.body(15))
@@ -56,6 +71,7 @@ struct RecipeCardView: View {
                         .accessibilityIdentifier("recipe.ingredient.\(index)")
                         .padding(.bottom, 8)
                         .overlay(alignment: .bottom) { Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1) }
+                        }
                     }
                 }
                 VStack(alignment: .leading, spacing: 12) {
@@ -65,7 +81,7 @@ struct RecipeCardView: View {
                         HStack(alignment: .top, spacing: 12) {
                             Text("\(idx + 1)").font(AteFont.body(12, .bold)).foregroundStyle(.white)
                                 .frame(width: 24, height: 24).background(Theme.primary, in: Circle())
-                            (Text(Units.convertTemperatures(in: s.instruction, to: units))
+                            (Text(paste != nil ? s.instruction : Units.convertTemperatures(in: s.instruction, to: units))
                              + Text(Durations.spans(in: s.instruction).isEmpty ? (s.timeSeconds.map { $0 > 0 ? " (\(Int((Double($0) / 60).rounded())) min)" : "" } ?? "") : "").foregroundColor(Theme.mutedForeground))
                                 .font(AteFont.body(15))
                                 .fixedSize(horizontal: false, vertical: true)
@@ -185,7 +201,7 @@ struct RecipeRowMetadataItem: View {
 
     var body: some View {
         Group {
-            if let symbol { Label(text, systemImage: symbol) }
+            if let symbol { Label(text, systemImage: symbol).labelStyle(.titleAndIcon) }
             else { TagBadge(text: text) }
         }
         .font(AteFont.body(12))
@@ -203,7 +219,7 @@ struct RecipeRowMetadata: View {
             if let m = recipe.timeMinutes, m > 0 {
                 RecipeRowMetadataItem(text: "\(m) min", symbol: "clock")
             }
-            RecipeRowMetadataItem(text: "\(recipe.servings)", symbol: "person.2")
+            RecipeRowMetadataItem(text: recipe.servings > 0 ? "\(recipe.servings)" : "Unspecified", symbol: "person.2")
             ForEach(Array(recipe.tags.prefix(2).enumerated()), id: \.offset) { _, tag in
                 RecipeRowMetadataItem(text: tag)
             }
@@ -269,10 +285,18 @@ struct RecipeEditor: View {
             }
             HStack(spacing: 12) {
                 labeled("Servings") {
-                    TextField("2", value: $recipe.servings, format: .number).keyboardType(.numberPad).ateField()
+                    if recipe.isEditableDraft {
+                        TextField("Servings", text: sourceServings).keyboardType(.numberPad).ateField()
+                    } else {
+                        TextField("2", value: $recipe.servings, format: .number).keyboardType(.numberPad).ateField()
+                    }
                 }
                 labeled("Total minutes") {
-                    TextField("30", value: optInt($recipe.timeMinutes), format: .number).keyboardType(.numberPad).ateField()
+                    if recipe.isEditableDraft {
+                        TextField("Minutes", text: sourceTime($recipe.timeMinutes)).keyboardType(.numberPad).ateField()
+                    } else {
+                        TextField("30", value: optInt($recipe.timeMinutes), format: .number).keyboardType(.numberPad).ateField()
+                    }
                 }
             }
             labeled("Tags") { TextField("comma separated", text: tagsText).ateField() }
@@ -290,8 +314,12 @@ struct RecipeEditor: View {
                     TextField("ingredient", text: ing(i, \.name, ""), axis: .vertical).lineLimit(1...4).ateField()
                         .accessibilityIdentifier("editorIngredientName")
                     HStack(spacing: 6) {
-                        TextField("qty", value: ing(i, \.quantity, 0), format: .number)
-                            .keyboardType(.decimalPad).frame(maxWidth: 90).ateField()
+                        if recipe.isEditableDraft {
+                            TextField("Amount", text: sourceAmount(i)).keyboardType(.decimalPad).frame(maxWidth: 90).ateField()
+                        } else {
+                            TextField("qty", value: ing(i, \.quantity, 0), format: .number)
+                                .keyboardType(.decimalPad).frame(maxWidth: 90).ateField()
+                        }
                         TextField("unit", text: ing(i, \.unit, "")).frame(maxWidth: 90).ateField()
                         TextField("notes (e.g. finely chopped)", text: Binding(
                             get: { recipe.ingredients.indices.contains(i) ? (recipe.ingredients[i].notes ?? "") : "" },
@@ -316,9 +344,15 @@ struct RecipeEditor: View {
                     TextField("Instruction", text: stp(i, \.instruction, ""), axis: .vertical).lineLimit(2...6).ateField()
                     // Edited in minutes; seconds stay internal (fields used to show raw 600 / 1 500).
                     HStack(spacing: 4) {
-                        TextField("0", value: minutes(stp(i, \.timeSeconds, nil)), format: .number)
-                            .keyboardType(.numberPad).frame(width: 56).ateField()
-                            .accessibilityLabel("Step \(i + 1) minutes").accessibilityIdentifier("editorStepMinutes")
+                        if recipe.isEditableDraft {
+                            TextField("Minutes", text: sourceTime(stp(i, \.timeSeconds, nil), scale: 60))
+                                .keyboardType(.numberPad).frame(width: 56).ateField()
+                                .accessibilityLabel("Step \(i + 1) minutes").accessibilityIdentifier("editorStepMinutes")
+                        } else {
+                            TextField("0", value: minutes(stp(i, \.timeSeconds, nil)), format: .number)
+                                .keyboardType(.numberPad).frame(width: 56).ateField()
+                                .accessibilityLabel("Step \(i + 1) minutes").accessibilityIdentifier("editorStepMinutes")
+                        }
                         Text("min").font(AteFont.body(13)).foregroundStyle(Theme.mutedForeground)
                     }
                     IconButton(symbol: "trash", label: "Remove step", tint: Theme.mutedForeground) {
@@ -339,6 +373,22 @@ struct RecipeEditor: View {
     private func stp<T>(_ i: Int, _ kp: WritableKeyPath<Step, T>, _ fallback: T) -> Binding<T> {
         Binding(get: { recipe.steps.indices.contains(i) ? recipe.steps[i][keyPath: kp] : fallback },
                 set: { if recipe.steps.indices.contains(i) { recipe.steps[i][keyPath: kp] = $0 } })
+    }
+
+    private var sourceServings: Binding<String> {
+        Binding(get: { recipe.servings > 0 ? String(recipe.servings) : "" },
+                set: { recipe.servings = max(0, Int($0) ?? 0); recipe.sourceDraft?.unknownServings = recipe.servings == 0 })
+    }
+    private func sourceAmount(_ index: Int) -> Binding<String> {
+        let amount = ing(index, \.quantity, 0)
+        return Binding(get: { amount.wrappedValue > 0 ? String(amount.wrappedValue) : "" },
+            set: { let q = Double($0) ?? 0; amount.wrappedValue = q.isFinite && q > 0 ? q : 0 })
+    }
+    private func sourceTime(_ time: Binding<Int?>, scale: Int = 1) -> Binding<String> {
+        Binding(get: { time.wrappedValue.map { String($0 / scale) } ?? "" }, set: { text in
+            guard let value = Int(text), value > 0, value <= Int.max / scale else { time.wrappedValue = nil; return }
+            time.wrappedValue = value * scale
+        })
     }
 
     private func minutes(_ b: Binding<Int?>) -> Binding<Int> {

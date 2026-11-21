@@ -1,0 +1,68 @@
+{
+  "Ate/Logic/RecipeQuality.swift": {
+    "parent_sha": "987d0c102a5542eddf8831b0aed5917e231073d658618901d9efcac04c73e9d3",
+    "current_sha": "567f7351af37de679e1052466aabb4b96a7bcc3772296dac3414ed17dde9e6a6",
+    "fragments": [
+      {
+        "old": "        if isMainDish(c) && real.count < 4 { out.append(\"Needs at least 4 ingredients with quantities (has \\(real.count)).\") }\n",
+        "new": "        if isMainDish(c) && !SourceDraft.applies(to: c) && real.count < 4 { out.append(\"Needs at least 4 ingredients with quantities (has \\(real.count)).\") }\n"
+      }
+    ]
+  },
+  "Ate/Logic/RecipeDraftRepair.swift": {
+    "parent_sha": "f0766409b4c254ae996c84914047e212b1666109f1a5922858f82ae6d22f9c63",
+    "current_sha": "99dec17dc178c8ad943ef81617057a6730438f0933435e04a12d670f29969bb1",
+    "fragments": [
+      {
+        "old": "",
+        "new": "    static func canRepair(_ card: RecipeCard) -> Bool {\n        RecipeQuality.isGenerated(card) && !RecipeQuality.shortfall(card).isEmpty\n    }\n\n"
+      },
+      {
+        "old": "        guard RecipeQuality.isGenerated(card), !RecipeQuality.shortfall(card).isEmpty else {\n",
+        "new": "        guard canRepair(card) else {\n"
+      }
+    ]
+  },
+  "Ate/Logic/RecipeNutrition.swift": {
+    "parent_sha": "7ba617b606b0ddb3992cea879e3252f276135ad44e0af0373e7553db15eaf9cb",
+    "current_sha": "0db1d17ef75c935d0393b810d7a2ececcbf3d8fa3b5462eadc1cbdb10c70ad0d",
+    "fragments": [
+      {
+        "old": "",
+        "new": "    static func servingsAreUnspecified(_ recipe: RecipeCard) -> Bool {\n        recipe.servings == 0 && recipe.isEditableDraft\n    }\n\n"
+      },
+      {
+        "old": "",
+        "new": "            let reason = Self.servingsAreUnspecified(recipe) ? \"servings needed\" : \"invalid servings\"\n"
+      },
+      {
+        "old": "                                         unmappedIngredients: [], incompleteIngredients: [recipe.title + \" (invalid servings)\"])\n",
+        "new": "                                         unmappedIngredients: [], incompleteIngredients: [recipe.title + \" (\" + reason + \")\"])\n"
+      }
+    ]
+  },
+  "Ate/Views/RecipeDetailView.swift": {
+    "parent_sha": "725fc7ecfe02ecc121bef45329c7e240363b49c2224291966fa55b2debc9c397",
+    "current_sha": "7f7058cfdc6196042056f028c9dffa602633bd83715bd46b1881fddb678f2884",
+    "fragments": [
+      {
+        "old": "                    Button { Task { await rewrite(recipe, repairQuality: true) } } label: {\n                        Label(\"Repair these gaps\", systemImage: \"wand.and.sparkles\")\n                    }.buttonStyle(.ate(.secondary, height: 40)).disabled(asking).accessibilityIdentifier(\"improveWithAI\")\n",
+        "new": "                    if RecipeDraftRepair.canRepair(recipe) {\n                        Button { Task { await rewrite(recipe, repairQuality: true) } } label: {\n                            Label(\"Repair these gaps\", systemImage: \"wand.and.sparkles\")\n                        }.buttonStyle(.ate(.secondary, height: 40)).disabled(asking).accessibilityIdentifier(\"improveWithAI\")\n                    }\n"
+      }
+    ]
+  },
+  "Ate/Views/RecipeNutritionView.swift": {
+    "parent_sha": "c298f65cc21b1501c2b6dc2f7d0b5354feb954642d7f550ddb15f1a11d696c66",
+    "current_sha": "c05290bf221d06684c7b4645649bf8065bd38ce90a9da8303cbc53d019808d0e",
+    "fragments": [
+      {
+        "old": "                if !result.incompleteIngredients.isEmpty {\n",
+        "new": "                if !result.incompleteIngredients.isEmpty && !RecipeNutritionCalculator.servingsAreUnspecified(recipe) {\n"
+      },
+      {
+        "old": "",
+        "new": "        if RecipeNutritionCalculator.servingsAreUnspecified(recipe) {\n            return \"Add the number of servings to estimate nutrition. Ate won't guess it.\"\n        }\n"
+      }
+    ]
+  }
+}

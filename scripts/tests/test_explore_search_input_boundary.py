@@ -12,7 +12,7 @@ class ExploreSearchInputBoundaryTests(unittest.TestCase):
         self.assertLess(journey.index('XCTWaiter.wait(for: [readyForInput], timeout: 5)'), journey.index('search.typeText("miso")'))
         self.assertEqual(journey.count('XCTAssertEqual(search.value as? String, "miso"'), 3)
         self.assertLess(journey.index('The full Search query must land before testing retention'), journey.index('search.typeText("\\n")'))
-        self.assertLess(journey.index('Submitting Search must keep the full query'), journey.index('app.tabBars.buttons["Library"].tap()'))
+        self.assertLess(journey.index('Submitting Search must keep the full query'), journey.index('app.tabBars.buttons["Today"].tap()'))
         self.assertIn('Explore must not clear the Search tab query', journey)
         self.assertIn('app.navigationBars["Favourites"].waitForExistence(timeout: 10)', journey)
         self.assertIn('explore-search-query-before-submit', journey)

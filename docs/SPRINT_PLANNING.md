@@ -1113,3 +1113,280 @@ This append-only correction supersedes the affected statements in the Nov 2 thro
 - **Owner authority and governance:** The earlier decision to keep all 30 PRs open until independent approval, ownership review and effective repository governance were satisfied records the reviewing agent's historical decision and proposed safeguards. It is not a recovered owner instruction or an agreed repository-wide policy. Recommendations to nominate an independent CODEOWNER, enable rulesets or require human/CODEOWNER approval remain proposals pending owner agreement. Configured rules, enforced rules and recommended rules are distinct. The historical metadata above reported the ruleset disabled and CODEOWNERS review not required; recommendations must not be presented as enforced requirements. No repository settings or policy change was made by this clarification.
 - **Branch-update availability:** The historical observation was `allow_update_branch=false`. That flag controls the repository's "Always suggest updating pull request branches" setting. It does not by itself prove that GitHub has no safe supported branch-update route. Where the earlier notes said no update action was exposed, that describes the observed action surface only, not categorical platform inability. No branch update was performed in those observations. An actual reconciliation would need its own supported-route and exact-tree validation; this correction does not authorize a rebase, force push or branch update. Source: [GitHub's explanation of update-branch suggestions](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-suggestions-to-update-pull-request-branches).
 - **Insights #195 is blocking at the historical SHA:** In `.github/workflows/compile-check.yml` at `e5665234129e047baf56e3c6af5ea0a5f254e59f`, the focused Insights acceptance step allows later diagnostics to continue, but the final `Enforce Insights acceptance result (#195)` step uses `always()` with `steps.insights_acceptance.outcome == 'failure'` and exits 1 (lines 537-542). An Insights acceptance failure therefore blocks the aggregate Compile gate at that SHA. Its inclusion in the earlier list must not imply that it was non-blocking. Other focused suites need their own enforcement analysis; `continue-on-error` alone establishes neither a pass nor the final gate result. This correction is anchored to the historical SHA, not to the later contents of `main`.
+
+
+---
+
+## Sprint 2026-W48 — Monday planning (reviewed 2026-11-21 SAST)
+
+**Sprint:** 2026-W48 — Today experience reliability  
+**Dates:** Monday 2026-11-23 through Sunday 2026-11-29  
+**Planning review:** 2026-11-21T01:29:00+02:00 (Saturday pre-planning review for the next Monday–Sunday cycle)  
+**Main baseline:** `61f66f234d6f570617cbd1ebfd4e8fb28db4546a` (PR #647 base SHA; build 457 evidence is anchored to this SHA).  
+**Goal:** Close the small, user-visible Today greeting defect with exact-head native evidence and owner verification, without treating a green subset or bot status as release approval.
+
+### Review findings and constraints
+
+- Reviewed `PRD.md`, `PRODUCT_BACKLOG.md`, `PRD_GAP_REGISTER.md`, `MVP_CHECKLIST.md`, `QA_MATRIX.md`, current `main` baseline, open/recent issues and PRs, dependencies and available CI evidence. PRD/MVP progress snapshots are dated 2026-10-24; historical statuses are not fresh passes.
+- Latest exact candidate record in [#33](https://github.com/melusi-k/ate-ios/issues/33): build 457, run [44829767825](https://github.com/melusi-k/ate-ios/actions/runs/44829767825), SHA `61f66f234d6f570617cbd1ebfd4e8fb28db4546a`: **BLOCKED**, 1/59 verified, 12 failing, 46 open; unit, 8-flow QA, UI and E2E skipped; QA-results retrieval failed HTTP 400. This is not release-ready.
+- PR [#647](https://github.com/melusi-k/ate-ios/pull/647) head `01ce0d8d7faf4c58c42c5918573899c9ce678e7f`: Compile Check, Dogfood Qualification and Journal open-state UI were in progress; CodeQL Advanced, stacked-PR validation and label automation succeeded. Underlying active jobs were still running. Codex review could not complete due usage limits; no inline threads or human review/approval recorded.
+- Repository default branch is `main`; auto-merge is disabled. No governance settings were changed or presumed enforced.
+- Release blockers tracked by #33/#30 and wider auth/sync/share/device gates remain outside this narrow W48 commitment. This sprint is not a release go/no-go.
+
+### Committed scope
+
+| Ticket | Commitment | Planned dates | Outcome / acceptance |
+|---|---|---|---|
+| [Issue #645](https://github.com/melusi-k/ate-ios/issues/645) — Today late-night greeting | Committed | 2026-11-23 to 2026-11-29 | Correct late-night copy; deterministic tests cover both sides of 04/05, 11/12, 16/17, 21/22 and midnight; owner verifies late-night Hello and unchanged daytime buckets on a build from the merged head. |
+| [PR #647](https://github.com/melusi-k/ate-ios/pull/647) — implementation for #645 | Committed | 2026-11-23 to 2026-11-29 | Qualify final exact head through Compile Check, Dogfood Qualification and Journal open-state UI; resolve review findings, obtain qualifying human review/approval where required, merge only after all gates pass, then capture owner device evidence. Issue and PR are separate tickets but one delivery outcome. |
+
+### Stretch scope
+
+| Ticket | Planned dates | Bounded acceptance / dependency |
+|---|---|---|
+| [Issue #646](https://github.com/melusi-k/ate-ios/issues/646) — Suggested preview action styling | 2026-11-23 to 2026-11-29 | Only if #645/#647 is on track and the #641/#643 Suggested recipe surface is available on a clean base. Align Save/Edit/Rerun styling and order; preserve behavior, labels, disabled logic, identifiers and validation; add focused UI evidence and owner device screenshot. Any implementation PR links to #646 and counts as one outcome. |
+
+### Not committed / carryover release risks
+
+- [#33](https://github.com/melusi-k/ate-ios/issues/33) remains **BLOCKED**; no W48 release approval is implied. [#30](https://github.com/melusi-k/ate-ios/issues/30) remains the engineering/evidence history.
+- Authentication, sync failure stability, share/deep-link/outage behavior, full UI/device accessibility, and production security/operational gates remain release risks. No new scope is committed for them in this one-week cycle.
+- PR #643 and its parent/stack are dependencies/context for stretch #646, not W48 committed deliveries.
+
+### Lifecycle reconstruction — selected tickets
+
+Times are UTC ISO-8601 and SAST (UTC+02:00). Actual work start, human review, approval and completion remain Unknown where GitHub evidence does not establish them. Bot comments are activity only, not human reviews; COMMENTED is not approval. No lead, implementation, review, approval or cycle-time metric is calculated without evidenced endpoints.
+
+| Ticket | Created/opened (UTC) | Created/opened (SAST) | Actual work start | Review / approval | Completion |
+|---|---|---|---|---|---|
+| [Issue #645](https://github.com/melusi-k/ate-ios/issues/645) | 2026-11-20T23:11:07Z | 2026-11-21T01:11:07+02:00 | Unknown | N/A at issue level | Open / Unknown |
+| [PR #647](https://github.com/melusi-k/ate-ios/pull/647) | 2026-11-20T23:14:31Z | 2026-11-21T01:14:31+02:00 | Unknown | Human review Unknown; approval Unknown | Open / not merged |
+| [Issue #646](https://github.com/melusi-k/ate-ios/issues/646) | 2026-11-20T23:13:40Z | 2026-11-21T01:13:40+02:00 | Unknown | N/A until a PR exists | Open / Unknown |
+
+### Change log
+
+- 2026-11-21: Added W48 planning baseline after Saturday review for the upcoming Monday–Sunday sprint. Original W45/W46 records remain unchanged.
+- No actual-start/end dates were inferred from planned dates. No PR merged, check bypassed, validation weakened, or governance setting changed.
+- Sunday close-out due 2026-11-29; no premature close-out or committed-versus-delivered claim is made.
+
+
+### Cadence gap note — 2026-11-21
+
+The existing sprint log's latest dated operating record is W45 (2026-11-02 through 2026-11-04). No W46 or W47 planning baseline or Sunday close-out section is present in the file. Therefore there is no auditable active-sprint commitment denominator or committed-versus-delivered dataset to close retrospectively on 2026-11-21. No W46/W47 scope, delivery, carryover, or metric has been invented. W48 is planned prospectively for 2026-11-23 through 2026-11-29; its Sunday close-out remains due 2026-11-29.
+
+
+## Sprint 1 amendment — 2026-W48 (owner scope update, 2026-11-21)
+
+**Dates:** Monday 2026-11-23 through Sunday 2026-11-29. **Capacity cap:** 21 points, comprising 16 planned points plus a 5-point NOW-bug reserve. This amendment supersedes the earlier W48 proposed delivery scope (#645/#647 committed, #646 stretch) below; that proposal is retained as history and is not the active Sprint 1 scope. The earlier W48 review baseline and lifecycle evidence remain historical and must not be treated as the current-main baseline for stack refresh.
+
+### Planned scope — 16 points
+
+| Outcome | Tickets | Points | Commitment and acceptance boundary |
+|---|---|---:|---|
+| Workflow cleanup convergence | [PRs #591–#599, #602–#605](https://github.com/melusi-k/ate-ios/pulls) — 13-PR `workflow-cleanup` stack | 5 | Refresh/forward-converge the complete ordered stack on the `main` SHA captured when work starts. Preserve the parent/child chain, source provenance and all existing required checks, tests, selectors, evidence gates, timeouts and release paths. Validate exact hosted trees and each resulting head; no rebase/force-push/history rewrite, check bypass, weakened validation or merge as part of planning. Native qualification and shared-job fit remain to be demonstrated, not presumed. Five points are for the whole stack, not per PR. |
+| Today reference migration | [Issue #642](https://github.com/melusi-k/ate-ios/issues/642) | 3 | Audit and migrate references that mean the old default landing tab to Today and the full saved collection to Recipes, across app labels/copy/accessibility/help/routes/docs/current release notes/tests. Preserve semantically correct Library/data terminology and stable identifiers; do not rewrite historical release notes. This is reference migration only; conditional-home composition is stretch. |
+| Generation acceptance | [Issue #89](https://github.com/melusi-k/ate-ios/issues/89), [#641](https://github.com/melusi-k/ate-ios/issues/641), [PR #643](https://github.com/melusi-k/ate-ios/pull/643) | 5 | One combined outcome, not three separately counted tickets. Advance the shared Suggest new recipe route and bounded generation acceptance: eligible physical-device evidence for readiness/privacy/context gates, streaming, cancellation/interruption recovery, Review, Rerun, explicit Save and source-faithful/non-invented recipe facts. #641/#89 remain open wherever the 11-fixture/device or broader acceptance remains unproven. Eligible-device evidence is a hard acceptance dependency; simulator/source-only evidence cannot substitute. |
+| Source-import follow-through | [PR #640](https://github.com/melusi-k/ate-ios/pull/640), parent [#35](https://github.com/melusi-k/ate-ios/issues/35) | 3 | One combined outcome, not duplicate issue/PR credit. Preserve exact source ingredient rows, written Method and raw source; leave unspecified facts unspecified; retain honest refusal and source-import metadata/repair behavior. Complete the bounded follow-through and required exact-head/native/device evidence; do not close broad #35 from this slice alone. |
+| **Planned subtotal** | | **16** | |
+| NOW-bug reserve | Sprint-wide | **5** | Reserved capacity, not pre-assigned feature scope. |
+| **Sprint cap** | | **21** | **16 planned + 5 reserved.** |
+
+### Stretch — excluded from the 16 planned points
+
+- [Issue #498](https://github.com/melusi-k/ate-ios/issues/498) — local durability/sync-failure/payload-fixture checks: 3 points.
+- [Issue #642](https://github.com/melusi-k/ate-ios/issues/642) — conditional Today home composition: 2 points, separate from the 3-point reference migration.
+
+Neither stretch item starts merely because capacity appears available. Reconsider only when the 5-point bug reserve is clearly spare, no unresolved NOW defect needs it, and the work can be taken without jeopardising committed scope. Production writes or activation under #498 remain gated by the owner's explicit yes.
+
+### Bug triage and capacity policy
+
+**NOW:** data loss; privacy or security exposure; crash; cook loop blocked with no workaround; invented recipe facts; or a regression introduced by Sprint 1 work. **LATER:** cosmetic issues; rare edge cases with a workaround; unrelated feature requests; or simulator-only failures with no user impact. **Unknown impact:** perform a quick user-impact/workaround check before classifying; do not assume LATER.
+
+Charge each NOW fix against the 5-point reserve first. If forecast NOW work exceeds the reserve, remove an equal amount of scope only from work that has not started. Do not silently increase the 21-point cap or displace work already started. If there is no safe unstarted-scope swap, stop and ask the owner for a decision. Record each bug, classification rationale, points consumed, and any scope swap in the sprint change log. LATER items remain in the backlog and do not consume this reserve by default.
+
+### Dependencies and execution guardrails
+
+- Capture the actual `main` SHA at the point the workflow-cleanup refresh begins; the earlier W48 planning SHA above belongs to the superseded proposal and is not a valid substitute.
+- Cleanup chain order: #591 → #592 → #593 → #594 → #595 → #596 → #597 → #598 → #599 → #602 → #603 → #604 → #605. Preserve stack lineage and inspect all 13 heads against the same refreshed base.
+- Generation acceptance depends on the #640 source-import repair path and an eligible physical device; no remote/demo fallback, fabricated context, automatic generation or accidental save.
+- Today reference migration must preserve the #641 shared suggestion destination and differentiate Today from Recipes.
+- No new pilot build, production write, release activation, merge, governance change, test-gate change or timeout increase is authorised by this planning amendment. Follow the existing owner-approval and repository requirements.
+
+### Sprint schedule / lifecycle recording
+
+For each selected issue and PR, retain separate ticket identities and link related tickets. Planned start/end are 2026-11-23 / 2026-11-29. Actual start and actual end remain blank/Unknown until defensible evidence exists. For the cleanup stack, 5 points belong to the combined stack outcome, not 13 individual deliveries. For #640/#35 and #641/#89/#643, count one outcome per combined workstream; do not double-count parent issues and implementation PRs. Continue recording exact UTC timestamps and Africa/Johannesburg rendering, with Verified/Inferred/Unknown confidence. No lifecycle duration is calculated without evidenced endpoints.
+
+### Change log
+
+- 2026-11-21: Owner replaced the earlier proposed W48 scope with Sprint 1's 16-point planned scope and 5-point bug reserve; total cap remains 21. The earlier proposal is retained unchanged above as historical context and marked superseded by this amendment.
+- 2026-11-21: #498 (3 points) and Today conditional-home composition (2 points) moved to stretch; they may return only if the bug reserve is clearly spare.
+- 2026-11-21: Added explicit NOW/LATER/Unknown triage, reserve charging, equal-scope removal from unstarted work, and owner escalation where no safe swap exists.
+- Sunday close-out due 2026-11-29. No actual dates, delivery outcomes or velocity are inferred from this plan.
+
+
+# Rolling portfolio sprint allocation — reviewed 2026-11-21
+
+**Inventory snapshot:** 84 open pull requests returned by GitHub search for `repo:melusi-k/ate-ios is:open`. This is the complete open-PR allocation at this review point; refresh the inventory before each sprint planning session. **Planning main SHA:** `61f66f234d6f570617cbd1ebfd4e8fb28db4546a`. **Timezone:** Africa/Johannesburg (UTC+02:00).
+
+## Allocation policy
+
+1. Every open PR in the snapshot is assigned exactly one sprint below. A sprint allocation is a scheduling home, not an instruction to merge.
+2. Sprint 1 (W48) is the only committed scope in this portfolio plan: 16 planned points + 5 NOW-bug reserve = 21 points.
+3. Apply the same provisional 21-point ceiling to each future weekly sprint: at most 16 planned points and 5 points reserved for NOW bugs. Future allocations are **sequenced candidates, not commitments**. No estimates are invented: estimate each outcome at sprint planning, then select no more than 16 planned points. If the candidate queue exceeds capacity, defer lower-ranked work to the next sprint without changing its priority or acceptance bar.
+4. A related issue and PR, or multiple PRs that implement one outcome, are linked but counted once. A stacked PR chain is scheduled as one ordered workstream unless its PR body explicitly defines an independently acceptable deliverable.
+5. Distinguish delivery/qualification candidates from disposition-only PRs. Disposition-only means decide whether to close as superseded, retain as evidence, refresh against current main, or keep held. It never means merge.
+6. Existing draft/held/diagnostic labels and explicit "DO NOT MERGE" instructions remain controlling. No schedule assignment overrides them. Production writes, remote activation, new builds, dispatches or manual workflows still require the relevant explicit owner approval.
+7. NOW/LATER/Unknown bug policy applies every sprint: NOW = data loss, privacy/security exposure, crash, cook loop blocked with no workaround, invented recipe facts, or a regression from sprint work. LATER = cosmetic, rare edge case with workaround, unrelated feature request, or simulator-only failure without user impact. Unknown gets a quick impact/workaround check. Charge NOW fixes to the 5-point reserve first; above reserve, remove equal points only from unstarted scope; if no safe swap exists, ask the owner. Do not displace started work or silently exceed 21 points.
+8. Sprint close-out records actual delivery, carryovers, scope changes, blocker decisions and evidence. Planned dates never become actual start/end dates without evidence.
+
+## Sprint allocation summary
+
+| Sprint | Dates (SAST) | Theme / sequence | Open PRs assigned | Status |
+|---|---|---|---:|---|
+| 2026-W48 — Sprint 1 | 2026-11-23 to 2026-11-29 | Workflow cleanup; Today reference migration; generation acceptance; source-import follow-through | 16 | **Committed: 16 planned + 5 bug reserve = 21** |
+| 2026-W49 — Sprint 2 | 2026-11-30 to 2026-12-06 | Recipe-creation loop: source fidelity, refusal, ingredient completeness, generation and QA evidence | 13 | Sequenced candidate queue; estimate and commit at planning |
+| 2026-W50 — Sprint 3 | 2026-12-07 to 2026-12-13 | Cook loop, timer reliability, cooking history and pilot evidence | 11 | Sequenced candidate queue; estimate and commit at planning |
+| 2026-W51 — Sprint 4 | 2026-12-14 to 2026-12-20 | Pilot data integrity, account/privacy/security safety and safety evidence/disposition | 18 | Sequenced candidate queue; estimate and commit at planning |
+| 2026-W52 — Sprint 5 | 2026-12-21 to 2026-12-27 | Feature enhancements, UI/accessibility, cross-feature native qualification and superseded-route cleanup | 23 | Sequenced candidate queue; estimate and commit at planning |
+| 2026-W53 — buffer | 2026-12-28 to 2027-01-03 | Carryover, evidence reconciliation and year-boundary planning only; no new feature commitment pre-allocated | 0 | Buffer, not a delivery sprint commitment |
+| 2027-W01 — Sprint 6 | 2027-01-04 to 2027-01-10 | Dormant roadmap / inactive agentic workflow review | 1 | Sequenced candidate; remain inactive |
+| 2027-W02 — Sprint 7 | 2027-01-11 to 2027-01-17 | Post-pilot tooling and architecture slices | 2 | Sequenced candidates; explicitly post-pilot |
+
+## Detailed allocation
+
+### 2026-W48 — Sprint 1 (committed)
+
+- **Workflow cleanup convergence — 5 points, one combined outcome:** PRs #591, #592, #593, #594, #595, #596, #597, #598, #599, #602, #603, #604, #605. Ordered 13-PR stack. Capture the actual main SHA when refresh begins; forward-converge the complete stack on that baseline. Preserve every original check, selector, timeout, evidence gate, release path, source proof and review requirement. Native qualification/shared-job fit remain unproven until exact evidence exists.
+- **Today reference migration — 3 points:** issue #642 owns the implementation outcome; no separate open PR for #642 is in this 84-PR inventory. The conditional-home slice (2 points) remains stretch.
+- **Generation acceptance — 5 points, combined:** PR #643 with issues #641/#89. Eligible physical-device evidence is a hard dependency; simulator/source-only results are not acceptance.
+- **Source-import follow-through — 3 points, combined:** PR #640 with issue #35. Preserve source rows, written Method, raw source and honest unknowns.
+- **Planning artifact only:** PR #648 documents the plan; it is not product-delivery points.
+- Bug reserve: 5 points, governed by the rules above.
+
+### 2026-W49 — Sprint 2: recipe-creation loop and source fidelity
+
+**Delivery / qualification candidates:** #629, #630, #631 (generation/source stack); #637 and #639 (combined generation/decimal integration plus rejected-echo test correction); #638 (independent Dogfood QA/Library evidence); #600 and #601 (source binding/advisory repair stack); #543 (photo-question and draft-metadata honesty); #547 (Foundation Models initializer compatibility); #538 (experimental recipe structuring tool, subject to paired F13 physical-device evidence).
+
+**Disposition-only:** #633 and #635 are source ancestors/integrated corrections represented in #637; do not merge them as parallel duplicate deliveries. Preserve their evidence and decide their supersession/closure only after #637's exact-head qualification.
+
+**Sprint outcome:** prove the recipe creation path end-to-end without inventing facts: exact source preservation, fail-closed refusal, bounded generation, partial preview semantics, explicit Rerun/Save, interruption/rejection behavior and required native evidence. Do not treat source review or Python checks as Swift/native/device acceptance.
+
+### 2026-W50 — Sprint 3: cook loop, timer reliability and history
+
+**Delivery / qualification candidates:** #622, #623, #624, #625 (four-PR `stitch-cook-loop-lane-one` stack); #626 (timer notification IPC ordering); #634 (CookPlan cancellation dismissal test); #545 (full-size scrollable Cook instructions); #565 (explicit Cook finish retry); #551 and #552 (held pilot Cook golden capture chain); #590 (Live Activity end-event diagnostics).
+
+**Sprint outcome:** preserve the full cook journey and its state transitions—review, plan, cook, timer, finish/recovery and history—then qualify the exact final heads. For #551/#552, retain capture-only/held status; do not merge until the named normal-text device/pixel evidence and workflow-dispatch constraints are satisfied. #590 is diagnostic-only scope and does not claim a timer lifecycle change.
+
+### 2026-W51 — Sprint 4: pilot data and security safety
+
+**Delivery / qualification candidates:** #539 (dormant Journal/goals sync preparation; shipping sync remains OFF); #556 (Account diagnostics replacement); #559, #560, #561, #562 (Account/password-sheet and bounded Presentation qualification); #571 (remote diagnostics consent/readiness safety); #573 (manual disposable local Shopping conflict proof, dispatch only after explicit owner GO); #532 (real Food Journal owner qualification, activation OFF); #611 (Insights fixture handshake concurrency).
+
+**Disposition-only / held evidence:** #563, #557 and #558 are explicitly diagnostic-only / DO NOT MERGE; #541 is held diagnostic evidence; #567 (generation/source lifetime), #568 (pilot payload/durability), #569 (reflection save-failure), and #570 (Library Explore) are current-main inventory/reconciliation records, not merge candidates. Reconcile or close only after their retained evidence and linked issues are accounted for. Do not forward-merge stale cumulative branches.
+
+**Sprint outcome:** prove local data preservation, account/session ownership, deletion/reset behavior, sync safety and consent/readiness fences. No production writes, telemetry activation, shipping Food Journal activation, or workflow dispatch without the required explicit owner approval. The #498 implementation itself remains stretch/owner-gated; #568 is not a substitute for fresh #498 implementation work.
+
+### 2026-W52 — Sprint 5: feature enhancements and cross-feature qualification
+
+**Delivery / qualification candidates:** #581–#588 (eight open PRs in the `composed-insights-library` stack, following merged parent #580); #536 (Library protein grouping); #572 (Library scroll clearance); #566 (Insights reorder accessibility/Reduce Motion); #534 (Release Notes resources, Journal clearance and recipe repair); #609 (OCR host-timing observation, now that prerequisite #608 is merged); #647 (late-night greeting bug, classified LATER unless user-impact evidence changes).
+
+**Disposition-only:** #555 is superseded by #582; #554 by #583; #544 by #584; #546 by #585; #549 by #586; #548 by #587; #540 by #588; #537 by #581; #535 by merged clean route #580. Do not merge these old publication routes. Preserve their records and close/mark superseded only after verifying the clean route retains the intended delta and evidence.
+
+**Sprint outcome:** qualify useful user-facing improvements and accessibility with exact-head native tests, normal-text device pixels, VoiceOver and light/dark checks as applicable. The 8-PR stack is one ordered workstream; respect its parent-child order. #609 remains observational only and cannot alter native gates, timeouts or retries.
+
+### 2026-W53 — year-boundary buffer
+
+No PR is pre-allocated. Use this week for carryover, current-main refresh, unresolved native/device evidence, release-risk review and next sprint planning. Do not create a delivery commitment merely to fill the calendar.
+
+### 2027-W01 — Sprint 6: dormant roadmap
+
+- **#523** — review the eight prepared inactive Agentic Workflows as a dormant roadmap/tooling candidate. Every workflow must remain inactive; no inference, scheduled activation, credential, repository-setting, permission or label change is authorised by this allocation. Any activation requires a separate explicit owner decision and security review.
+
+### 2027-W02 — Sprint 7: post-pilot tooling
+
+- **#574** — Sync lifecycle coordinator and payload-version boundary; source-only post-pilot slice. Native/integration qualification and outbound schema/migration work remain separate.
+- **#575** — saved-recipe picker for Library and cooking-calendar planning; post-pilot source-only slice. Native/device qualification and both entry-flow acceptance remain required.
+- Neither item may be pulled into the cooking Pilot by virtue of this schedule. No production Supabase write, server change or migration apply is authorised.
+
+## Complete PR-to-sprint register (all 84 open PRs)
+
+| Sprint | PRs | Allocation meaning |
+|---|---|---|
+| 2026-W48 | #591, #592, #593, #594, #595, #596, #597, #598, #599, #602, #603, #604, #605 | One committed 5-point workflow-cleanup stack |
+| 2026-W48 | #640 | Committed 3-point source-import outcome with #35 |
+| 2026-W48 | #643 | Committed 5-point generation acceptance outcome with #89/#641 |
+| 2026-W48 | #648 | Planning/documentation record only |
+| 2026-W49 | #629, #630, #631 | Recipe source/generation stack candidate |
+| 2026-W49 | #637, #639 | Generation/decimal integration and test-correction qualification |
+| 2026-W49 | #638 | Dogfood QA/Library evidence infrastructure |
+| 2026-W49 | #600, #601 | Source-binding/advisory stack |
+| 2026-W49 | #543, #547, #538 | Recipe/photo honesty, initializer compatibility, experimental structuring qualification |
+| 2026-W49 | #633, #635 | Disposition only; integrated into #637 |
+| 2026-W50 | #622, #623, #624, #625 | One ordered Cook loop stack |
+| 2026-W50 | #626, #634, #545, #565, #590 | Timer, CookPlan, Cook readability/recovery and diagnostic qualification |
+| 2026-W50 | #551, #552 | Held pilot Cook golden capture chain |
+| 2026-W51 | #539, #556, #559, #560, #561, #562, #571, #573, #532, #611 | Pilot data/security and account safety qualification candidates |
+| 2026-W51 | #563, #557, #558, #541 | Diagnostic-only/held disposition; no merge |
+| 2026-W51 | #567, #568, #569, #570 | Stale/current-main inventory reconciliation; no implementation merge |
+| 2026-W52 | #581, #582, #583, #584, #585, #586, #587, #588 | One ordered feature/qualification stack following merged #580 |
+| 2026-W52 | #536, #572, #566, #534, #609, #647 | Feature enhancement, accessibility, release-note and observational qualification candidates |
+| 2026-W52 | #555, #554, #544, #546, #548, #549, #537, #535, #540 | Disposition only; superseded publication routes |
+| 2027-W01 | #523 | Dormant roadmap; keep all workflows inactive |
+| 2027-W02 | #574, #575 | Post-pilot tooling only |
+
+**Completeness check:** 84 distinct open PRs allocated once; no unassigned PR in the 2026-11-21 inventory. PRs marked disposition-only are allocated for a decision, not for merge. Re-run the open-PR search before each sprint because PRs may merge, close, be replaced or be added.
+
+## Planning change log
+
+- 2026-11-21: Owner requested a sprint allocation for every open PR. Current search returned 84 open PRs. Added a rolling W48–W02 allocation, with a W01 buffer, aligned to the owner's ranked priorities.
+- 2026-11-21: Only W48 remains committed. Future sprint assignments are candidate queues pending estimates, dependency refresh, exact-main review and Monday commitment. No point estimates or delivery velocity have been fabricated.
+- 2026-11-21: Marked explicitly superseded, stale, held and diagnostic-only PRs as disposition/qualification allocations rather than merge commitments.
+
+
+## Ticket date alignment — owner update 2026-11-21
+
+The rolling portfolio allocation above is now the scheduling source for every open PR. The dates below are planned forecast dates in Africa/Johannesburg, not actual work timestamps. Apply the standard **Sprint schedule** block from the Ticket scheduling contract to each allocated PR and to each owning issue. Actual start and actual end remain blank until evidenced; do not infer either from creation, PR-open, or planned dates.
+
+| Sprint | Planned start | Planned end | PRs allocated | Ticket treatment |
+|---|---:|---:|---:|---|
+| 2026-W48 — Sprint 1 | 2026-11-23 | 2026-11-29 | 16 | Current committed scope plus planning record; #648 is documentation only |
+| 2026-W49 — Sprint 2 | 2026-11-30 | 2026-12-06 | 13 | Candidate/disposition queue; commitment only after estimation and Monday selection |
+| 2026-W50 — Sprint 3 | 2026-12-07 | 2026-12-13 | 11 | Candidate/held diagnostic queue; commitment only after estimation and dependency review |
+| 2026-W51 — Sprint 4 | 2026-12-14 | 2026-12-20 | 18 | Safety qualification and disposition queue; explicit owner gates remain |
+| 2026-W52 — Sprint 5 | 2026-12-21 | 2026-12-27 | 23 | Feature qualification and superseded-route disposition; not 23 delivery commitments |
+| 2026-W53 — buffer | 2026-12-28 | 2027-01-03 | 0 | Carryover/evidence reconciliation only; no ticket pre-allocation |
+| 2027-W01 — Sprint 6 | 2027-01-04 | 2027-01-10 | 1 | Dormant roadmap review only |
+| 2027-W02 — Sprint 7 | 2027-01-11 | 2027-01-17 | 2 | Post-pilot tooling only |
+
+### Owning issue date alignment
+
+| Issue | Current planned sprint | Planned start | Planned end | Commitment / boundary |
+|---|---|---:|---:|---|
+| #35 | 2026-W48 | 2026-11-23 | 2026-11-29 | Committed bounded source-import follow-through with PR #640; one outcome, not double-counted |
+| #89 | 2026-W48 | 2026-11-23 | 2026-11-29 | Committed generation-acceptance slice shared with #641/#643; broader issue acceptance remains open |
+| #641 | 2026-W48 | 2026-11-23 | 2026-11-29 | Committed generation entry/acceptance slice shared with #89/#643 |
+| #642 | 2026-W48 | 2026-11-23 | 2026-11-29 | Committed Today reference migration only; conditional-home work remains stretch |
+| #498 | 2026-W48 | 2026-11-23 | 2026-11-29 | Stretch only if NOW-bug reserve is clearly spare; not part of the 16 planned points |
+| #645 | 2026-W52 | 2026-12-21 | 2026-12-27 | LATER/cosmetic candidate associated with PR #647; not committed until W52 planning |
+| #646 | 2026-W48 — Sprint 1 (NOW reserve) | 2026-11-23 | 2026-11-29 | Owner-confirmed NOW bug; estimate TBD, charge against 5-point reserve and apply equal-scope swap/escalation rule |
+
+**Date-change and history rules:** where an issue's earlier W48 schedule is superseded, preserve the original planned dates and append a dated change record rather than silently rewriting history. #645 moves from its superseded W48 proposal to the W52 candidate window. #646 is reclassified by the owner as a NOW bug and reinstated in the W48 NOW reserve window (2026-11-23 to 2026-11-29); the intervening unscheduled decision remains historical. Lifecycle actual-start/end fields remain separate and unknown/blank until reliable evidence exists.
+
+**Capacity remains unchanged:** 21 points maximum per sprint, comprising at most 16 planned points and 5 reserved for NOW bugs. Future queues remain candidates, not commitments; do not add points or silently displace started work. A disposition-only PR receives a sprint window for review/decision, not permission to merge or close it.
+
+
+### Ticket update execution log — 2026-11-21
+
+- Applied the standard **Sprint schedule** block to all 84 open PRs, using each PR's existing portfolio allocation for sprint name, planned start and planned end. Each block leaves actual start/end blank and records the outcome, dependencies and disposition-only boundary. No PR was merged or closed.
+- Updated owning issue schedule records for #35, #89, #641 and #642 to keep the W48 planned window (2026-11-23 to 2026-11-29), and #498 to retain its W48 Stretch window; actual schedule dates are blank until evidenced.
+- Updated #645 to the W52 candidate window (2026-12-21 to 2026-12-27), retaining the superseded W48 proposal and recording the dated change. This remains Stretch/LATER, not a W48 commitment.
+- Reclassified #646 as an owner-confirmed **NOW bug**, reinstated its W48 planned window (2026-11-23 to 2026-11-29), and marked its estimate TBD against the 5-point NOW reserve. The intervening unscheduled decision remains in history.
+- These are planned schedule metadata updates only. GitHub created/opened/merged/closed timestamps and retrospective lifecycle history were not changed. No repository governance, checks, labels, permissions, production settings or application code were changed.
+
+
+### #646 NOW-bug reclassification — owner update 2026-11-21
+
+Issue #646 is owner-confirmed NOW and is scheduled into the W48 NOW-bug reserve window (2026-11-23 to 2026-11-29). Its estimate is still TBD and must be established before execution. It is not part of the 16 planned points; charge the sized fix to the 5-point reserve. If it exceeds remaining reserve, remove equal scope only from work not yet started; if there is no safe swap, request an owner decision. Do not exceed the 21-point cap or silently displace started work. The prior unscheduled/backlog decision is preserved as history, not treated as the current classification. Actual start/end remain blank until supported by evidence.
+
+
+### ISO-week correction — 2026-11-21 review
+
+The buffer dates2026-12-28 through2027-01-03 are ISO2026-W53. Sprint6dates2027-01-04 through2027-01-10 are ISO2027-W01, and Sprint7dates2027-01-11 through2027-01-17 are ISO2027-W02. Corrected the week labels above, preserving the planned dates, sprint ordering, scope and capacity. This corrects labels only, not a new commitment.

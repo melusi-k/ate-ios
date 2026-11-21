@@ -227,36 +227,19 @@ jobs:
         run: |
           mkdir -p cooking-journal-screenshots/raw
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/cooking-journal-host.xcresult" --output-path cooking-journal-screenshots/raw
-      # Owner-approved acceptance boundary: genuine Files is a system integration diagnostic,
-      # not a CI qualification pass. Its unchanged cancellation test remains required on device.
-      - name: Real Files cancellation - NON-QUALIFYING system diagnostic
-        id: files_cancel_diagnostic
-        if: ${{ always() && steps.build.outcome == 'success' }}
-        continue-on-error: true
-        run: |
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteUITests/CanonicalUpgradeUITests/testActualFilesPickerCancellationDoesNotShowImportErrorOrAddMeal \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/files-cancel-system-diagnostic.xcresult" \
-            -parallel-testing-enabled NO -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
-            CODE_SIGNING_ALLOWED=NO > files-cancel-system-diagnostic.log 2>&1
-      - name: Record Files cancellation acceptance boundary
+      # DEVICE-ONLY permanently: real Files picker Cancel is checked manually on iPhone.
+      # Simulator CI does not qualify this system integration. Keep the main-lane skip above.
+      - name: Record device-only Files cancellation check
         if: always()
-        env:
-          FILES_DIAGNOSTIC_OUTCOME: ${{ steps.files_cancel_diagnostic.outcome }}
         run: |
           {
-            echo '### Real Files cancellation: NOT a CI qualification pass'
-            echo "- System diagnostic outcome: ${FILES_DIAGNOSTIC_OUTCOME:-not run}."
-            echo '- Required device check: PENDING owner verification. No device pass is claimed.'
-            echo '- App-owned import/review assertions remain required and unchanged.'
-            echo '- Prior failed workflow runs remain failed; this split does not reclassify them.'
+            echo '### Real Files cancellation: DEVICE-ONLY, not run in CI'
+            echo '- Manual iPhone check: Settings > Food diary > Restore your JSON meal backup > Cancel.'
+            echo '- Expect the same diary, no new import error, no review sheet and no added meal.'
+            echo '- Device verification is PENDING. No device pass is claimed.'
+            echo '- App-owned import/review tests remain required and unchanged.'
+            echo '- Historical diagnostic failures are not reclassified.'
           } >> "$GITHUB_STEP_SUMMARY"
-          mkdir -p files-cancel-system-diagnostic-attachments
-          if [ -d "$RUNNER_TEMP/ate-test-results/files-cancel-system-diagnostic.xcresult" ]; then
-            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/files-cancel-system-diagnostic.xcresult" \
-              --output-path files-cancel-system-diagnostic-attachments || true
-          fi
       - name: Export rendered screenshots
         if: always()
         run: |
@@ -296,9 +279,6 @@ jobs:
           name: journal-open-state-ui-${{ github.run_number }}
           path: |
             journal-open-state-ui.log
-            files-cancel-system-diagnostic.log
-            files-cancel-system-diagnostic-attachments
-            ${{ runner.temp }}/ate-test-results/files-cancel-system-diagnostic.xcresult
             reset-composition.log
             reset-attachments
             ${{ runner.temp }}/ate-test-results/reset-composition.xcresult

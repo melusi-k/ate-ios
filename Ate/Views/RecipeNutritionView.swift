@@ -52,7 +52,7 @@ struct RecipeNutritionView: View {
                         .foregroundStyle(Theme.mutedForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                if !result.incompleteIngredients.isEmpty {
+                if !result.incompleteIngredients.isEmpty && !RecipeNutritionCalculator.servingsAreUnspecified(recipe) {
                     Text("Needs a supported quantity or complete nutrient record: " + result.incompleteIngredients.joined(separator: ", "))
                         .font(AteFont.body(12))
                         .foregroundStyle(Theme.mutedForeground)
@@ -66,6 +66,9 @@ struct RecipeNutritionView: View {
     }
 
     private var incompleteDescription: String {
+        if RecipeNutritionCalculator.servingsAreUnspecified(recipe) {
+            return "Add the number of servings to estimate nutrition. Ate won't guess it."
+        }
         if NutritionFoodCatalogue.records.isEmpty {
             return "Verified food-composition data is not available in this build yet. Ate won't guess nutrient values."
         }

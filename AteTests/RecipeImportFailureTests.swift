@@ -63,12 +63,15 @@ final class RecipeImportFailureTests: XCTestCase {
         XCTAssertEqual(fallback.calls, 0)
     }
 
-    func testHealthyNonstructuredPageKeepsExplicitDemoFallback() async throws {
+    // Historical case name retained. Unreadable pages no longer produce Demo.
+    func testHealthyNonstructuredPageKeepsExplicitDemoFallback() async {
         let fallback = Fallback()
         let backend = OnDeviceBackend(fallback: fallback, loadPageHTML: { _ in "<html>A recipe article</html>" }, modelAvailable: { false })
-        let card = try await backend.parseRecipe(.init(mode: .url, text: "https://recipes.example/article"))
-        XCTAssertEqual(card.source, .mock)
-        XCTAssertEqual(fallback.calls, 1)
+        do {
+            _ = try await backend.parseRecipe(.init(mode: .url, text: "https://recipes.example/article"))
+            XCTFail("Unreadable article must ask for readable source")
+        } catch { XCTAssertTrue(error.localizedDescription.contains("read")) }
+        XCTAssertEqual(fallback.calls, 0)
     }
 
     func testInvalidURLNeverFetchesOrFallsBack() async {

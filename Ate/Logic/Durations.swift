@@ -97,6 +97,10 @@ enum Durations {
 
     /// Reconciles model/import times with the step text and caps nonsense. Returns the fixed card and whether anything changed.
     static func sanitize(_ card: RecipeCard) -> (card: RecipeCard, corrected: Bool) {
+        // A matching verified paste carries written ranges, not model durations.
+        // Do not create countdowns or totals; edits invalidate this exact snapshot.
+        if card.pastedSource?.matches(card) == true { return (card, false) }
+        if card.isEditableDraft { return (card, false) }
         var c = card, corrected = false
         // If the model's time is off by 5x or more on any step whose text states a time, its units can't be trusted anywhere.
         let unitsBroken = card.steps.contains { s in

@@ -4,6 +4,8 @@ import hashlib
 import json
 FIXTURE_SHA = '01131abe077872592d415aefb9917d7159f252b0c9a8d03df5417f8befd32908'
 def restore(key, raw):
+    from cookplan_cancel_phase_delta import restore as restore_cancel_phases
+    raw = restore_cancel_phases(key, raw)
     path = key.split(':', 1)[-1]
     payload = Path(__file__).with_name('live_query_capture_inverse.json').read_bytes()
     assert hashlib.sha256(payload).hexdigest() == FIXTURE_SHA

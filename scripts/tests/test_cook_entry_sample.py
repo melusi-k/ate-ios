@@ -57,7 +57,8 @@ class CookEntrySampleTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(payload).hexdigest(), FIXTURE_SHA)
         c = json.loads(payload)
         for item in c.values():
-            self.assertEqual((ROOT/item['path']).read_text(), item['new'])
+            from live_query_capture_delta import restore as restore_live_query
+            self.assertEqual(restore_live_query(item['path'], (ROOT/item['path']).read_text()), item['new'])
         wf = c['workflow']['new'].replace('          python3 scripts/cook_entry_sample.py --log full-unit-tests.log --simulator "$SIM_ID" --output cook-entry-sample -- \\\n', '', 1).replace('            cook-entry-sample\n', '', 1)
         self.assertEqual(wf, c['workflow']['old'])
         wrapper = c['wrapper']['new'].replace('def main(observer=observe):', 'def main():', 1).replace('threading.Thread(target=observer,', 'threading.Thread(target=observe,', 1)

@@ -94,13 +94,23 @@ final class InsightsRefreshOwnershipTests: XCTestCase {
     func testAccessLostDuringWordingAndNewEmptyEvidenceClearWithoutPublishing() async {
         let source = SuspendedInsightHealth(), prompts = SuspendedInsightPrompts(); var publications = 0
         let model = InsightsModel(health: source, makePrompts: { await prompts.make($0) }, publishHealthState: { _ in publications += 1 })
+        insightAwaitPhase("accesslost-before-health-one")
         let waiting = Task { await model.refresh(recipes: []) }; await source.waitForRead(1)
+        insightAwaitPhase("accesslost-after-health-one")
+        insightAwaitPhase("accesslost-before-prompts-one")
         source.reads[0].resume(returning: summary("recovery")); await prompts.waitForRead(1)
+        insightAwaitPhase("accesslost-after-prompts-one")
+        insightAwaitPhase("accesslost-before-waiting-task-return")
         source.access = .denied; prompts.reads[0].resume(returning: []); await waiting.value
+        insightAwaitPhase("accesslost-after-waiting-task-return")
         XCTAssertNil(model.context); XCTAssertEqual(model.access, .denied); XCTAssertEqual(publications, 0)
         source.access = .requested
+        insightAwaitPhase("accesslost-before-health-two")
         let empty = Task { await model.refresh(recipes: []) }; await source.waitForRead(2)
+        insightAwaitPhase("accesslost-after-health-two")
+        insightAwaitPhase("accesslost-before-empty-task-return")
         source.reads[1].resume(returning: HealthSummary(days: [])); await empty.value
+        insightAwaitPhase("accesslost-after-empty-task-return")
         XCTAssertNil(model.context); XCTAssertFalse(model.loading); XCTAssertEqual(publications, 0)
     }
 }

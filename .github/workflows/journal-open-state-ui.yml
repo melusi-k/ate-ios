@@ -145,9 +145,10 @@ jobs:
               mark("simulator-readiness-complete", sim_id=sim, runtime=runtime, authority="bootstatus-return-zero")
               mark("unchanged-four-tests-next")
           PYREADINESS
+          # UI target only: avoid the stale unit-host PID handoff before the first app launch.
+          # JournalReflectionEditTests stay mandatory in Compile's full AteTests suite.
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/JournalOpenStateUITests \
-            -only-testing:AteTests/JournalReflectionEditTests \
             -only-testing:AteUITests/CanonicalUpgradeUITests \
             -skip-testing:AteUITests/CanonicalUpgradeUITests/testActualFilesPickerCancellationDoesNotShowImportErrorOrAddMeal \
             -skip-testing:AteUITests/JournalOpenStateUITests/testManualSaveFailureVisibleAtXXXL \
@@ -160,8 +161,6 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > journal-open-state-ui.log 2>&1 || \
             { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed" journal-open-state-ui.log || true; tail -120 journal-open-state-ui.log; exit 1; }
           for evidence in \
-            "JournalReflectionEditTests testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits]' passed" \
-            "JournalReflectionEditTests testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse]' passed" \
             "JournalOpenStateUITests testReflectionEditFailureRetainsDraftThenRetryCommitsAndRefreshesHistory]' passed"; do
             grep -qF "$evidence" journal-open-state-ui.log || { echo "::error::Missing reflection edit pass: $evidence"; exit 1; }
           done

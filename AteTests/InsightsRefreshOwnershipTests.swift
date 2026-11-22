@@ -1,44 +1,95 @@
 import XCTest
 @testable import Ate
 
-/// Native UNRUN. No HealthKit, model or widget/default side effects.
+/// Test-only rendezvous. Read arrival and waiter registration share one lock.
+/// Notifications run after unlocking so continuations can safely re-enter.
+private final class SuspendedInsightReads<Value> {
+    private struct Waiter {
+        let count: Int
+        let notify: () -> Void
+    }
+    private let lock = NSLock()
+    private var values: [Value] = []
+    private var waiters: [Waiter] = []
+
+    var snapshot: [Value] { lock.withLock { values } }
+
+    func append(_ value: Value) {
+        let ready: [() -> Void] = lock.withLock {
+            values.append(value)
+            let count = values.count
+            let ready = waiters.filter { $0.count <= count }.map { $0.notify }
+            waiters.removeAll { $0.count <= count }
+            return ready
+        }
+        ready.forEach { $0() }
+    }
+
+    func whenRead(_ count: Int, notify: @escaping () -> Void) {
+        let ready = lock.withLock {
+            if values.count >= count { return true }
+            waiters.append(Waiter(count: count, notify: notify))
+            return false
+        }
+        if ready { notify() }
+    }
+
+    func waitForRead(_ count: Int) async {
+        await withCheckedContinuation { continuation in
+            whenRead(count) { continuation.resume() }
+        }
+    }
+}
+
 private final class SuspendedInsightHealth: HealthKitServicing {
     var access: HealthAccess = .requested
     var lastError: String?
-    var reads: [CheckedContinuation<HealthSummary, Never>] = []
-    var onRead: (() -> Void)?
+    private let pending = SuspendedInsightReads<CheckedContinuation<HealthSummary, Never>>()
+    var reads: [CheckedContinuation<HealthSummary, Never>] { pending.snapshot }
     func requestAccess() async -> HealthAccess { access }
     func summary(days: Int) async -> HealthSummary {
-        await withCheckedContinuation { continuation in
-            reads.append(continuation); onRead?()
-        }
+        await withCheckedContinuation { continuation in pending.append(continuation) }
     }
-    func waitForRead(_ count: Int) async {
-        if reads.count >= count { return }
-        await withCheckedContinuation { continuation in
-            onRead = { [weak self] in
-                if let self, self.reads.count >= count { self.onRead = nil; continuation.resume() }
-            }
-        }
-    }
+    func waitForRead(_ count: Int) async { await pending.waitForRead(count) }
 }
 private final class SuspendedInsightPrompts {
-    var reads: [CheckedContinuation<[JournalPrompt], Never>] = []
-    var onRead: (() -> Void)?
+    private let pending = SuspendedInsightReads<CheckedContinuation<[JournalPrompt], Never>>()
+    var reads: [CheckedContinuation<[JournalPrompt], Never>] { pending.snapshot }
     func make(_ insight: HealthInsight) async -> [JournalPrompt] {
-        await withCheckedContinuation { continuation in reads.append(continuation); onRead?() }
+        await withCheckedContinuation { continuation in pending.append(continuation) }
     }
-    func waitForRead(_ count: Int) async {
-        if reads.count >= count { return }
-        await withCheckedContinuation { continuation in
-            onRead = { [weak self] in
-                if let self, self.reads.count >= count { self.onRead = nil; continuation.resume() }
-            }
-        }
-    }
+    func waitForRead(_ count: Int) async { await pending.waitForRead(count) }
 }
 @MainActor
 final class InsightsRefreshOwnershipTests: XCTestCase {
+    func testReadRegistrationCannotLoseArrivalAfterEarlierEmptyObservation() {
+        let pending = SuspendedInsightReads<Int>()
+        // Replay the lost-wakeup order: observe empty, arrive, then register.
+        XCTAssertTrue(pending.snapshot.isEmpty)
+        pending.append(1)
+        var notifications = 0
+        pending.whenRead(1) { notifications += 1 }
+        XCTAssertEqual(notifications, 1)
+        XCTAssertEqual(pending.snapshot, [1])
+        pending.append(2)
+        XCTAssertEqual(notifications, 1)
+    }
+    func testReadRegistrationNotifiesEachThresholdOnceAfterUnlocking() {
+        let pending = SuspendedInsightReads<Int>()
+        var notifications: [Int] = []
+        pending.whenRead(1) {
+            notifications.append(pending.snapshot.count)
+        }
+        pending.whenRead(2) {
+            notifications.append(pending.snapshot.count)
+        }
+        pending.append(1)
+        XCTAssertEqual(notifications, [1])
+        pending.append(2)
+        XCTAssertEqual(notifications, [1, 2])
+        pending.append(3)
+        XCTAssertEqual(notifications, [1, 2])
+    }
     private func summary(_ scenario: String) -> HealthSummary {
         MockHealthKitService.fixture(scenario, now: Date(timeIntervalSince1970: 1_794_564_000))
     }

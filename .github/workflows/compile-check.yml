@@ -131,6 +131,7 @@ jobs:
         run: |
           set -o pipefail
           echo "Full unit suite source: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/cook_entry_sample.py --log full-unit-tests.log --simulator "$SIM_ID" --output cook-entry-sample -- \
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteTests \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/full-unit-tests.xcresult" \
@@ -155,6 +156,7 @@ jobs:
           if-no-files-found: error
           path: |
             full-unit-tests.log
+            cook-entry-sample
             full-unit-tests.json
             ${{ runner.temp }}/ate-test-results/full-unit-tests.xcresult
 

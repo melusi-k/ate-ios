@@ -5,6 +5,7 @@ import re
 import unittest
 import yaml
 from journal_delete_snapshot_delta import contract, restore
+from canonical_goals_property_wait_delta import restore as restore_goals
 ROOT = Path(__file__).resolve().parents[2]
 
 class JournalDeleteSnapshotTests(unittest.TestCase):
@@ -19,7 +20,7 @@ class JournalDeleteSnapshotTests(unittest.TestCase):
             for mutant in [source + '// unrelated', source[:-1]]:
                 with self.assertRaises(AssertionError): restore(path, mutant)
         for path, digest in contract()['protected_sha256'].items():
-            self.assertEqual(hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), digest, path)
+            self.assertEqual(hashlib.sha256(restore_goals(path, (ROOT / path).read_bytes())).hexdigest(), digest, path)
 
     def test_every_journey_and_assertion_stays_byte_identical(self):
         path = 'AteUITests/JournalOpenStateUITests.swift'

@@ -60,12 +60,17 @@ final class SystemCookPlanNotificationClient: CookPlanNotificationClient {
 enum CookPlanNotificationRemoval {
     static func perform(ids: [String], operation: @escaping @Sendable ([String]) -> Void) async {
         guard !ids.isEmpty else { return }
+        CookPlanCancelDiagnostic.mark("removal-continuation-before")
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            CookPlanCancelDiagnostic.mark("utility-dispatch-before")
             DispatchQueue.global(qos: .utility).async {
+                CookPlanCancelDiagnostic.mark("utility-enter")
                 operation(ids)
+                CookPlanCancelDiagnostic.mark("utility-operation-return")
                 continuation.resume()
             }
         }
+        CookPlanCancelDiagnostic.mark("removal-continuation-return")
     }
 }
 
@@ -87,10 +92,19 @@ final class CookPlanNotifications {
         generation += 1
         let token = generation
         let previous = tail
+        CookPlanCancelDiagnostic.mark("queue-register", generation: token)
         let task = Task { @MainActor in
-            defer { if token == self.generation { self.tail = nil } }
+            CookPlanCancelDiagnostic.mark("queue-task-enter", generation: token)
+            defer {
+                CookPlanCancelDiagnostic.mark("queue-task-return", generation: token)
+                if token == self.generation { self.tail = nil }
+            }
+            CookPlanCancelDiagnostic.mark("queue-predecessor-before", generation: token)
             _ = try? await previous?.value
+            CookPlanCancelDiagnostic.mark("queue-predecessor-after", generation: token)
+            CookPlanCancelDiagnostic.mark("queue-work-before", generation: token)
             try await work(token)
+            CookPlanCancelDiagnostic.mark("queue-work-after", generation: token)
         }
         tail = task
         return task
@@ -103,19 +117,37 @@ final class CookPlanNotifications {
     func saveWithoutReminder(_ plan: CookPlan, store: CookPlanStore,
                              onRemovalFailure: @escaping @MainActor () -> Void) throws -> Task<Void, Never> {
         guard !plan.reminderRequested else { throw CookPlanError.invalidPlan }
+        CookPlanCancelDiagnostic.mark("off-save-local-before")
         try store.save(plan)
+        CookPlanCancelDiagnostic.mark("off-save-local-after")
         let removal = enqueue { _ in try await self.removeAndVerify(recipeID: plan.recipeID) }
+        CookPlanCancelDiagnostic.mark("off-save-cleanup-registered")
         return Task { @MainActor in
-            do { try await removal.value }
-            catch { onRemovalFailure() }
+            CookPlanCancelDiagnostic.mark("off-save-cleanup-await")
+            do {
+                try await removal.value
+                CookPlanCancelDiagnostic.mark("off-save-cleanup-return")
+            }
+            catch {
+                CookPlanCancelDiagnostic.mark("off-save-cleanup-catch")
+                onRemovalFailure()
+            }
         }
     }
 
     private func removeAndVerify(recipeID: String) async throws {
         let ids = [CookPlan.reminderID(recipeID: recipeID)]
+        CookPlanCancelDiagnostic.mark("remove-before")
         await client.remove(ids)
+        CookPlanCancelDiagnostic.mark("remove-after")
+        CookPlanCancelDiagnostic.mark("pending-ids-before")
         let remaining = await client.pendingIDs()
-        guard remaining.isDisjoint(with: ids) else { throw CookPlanError.verificationFailed }
+        CookPlanCancelDiagnostic.mark("pending-ids-after")
+        guard remaining.isDisjoint(with: ids) else {
+            CookPlanCancelDiagnostic.mark("verify-failed")
+            throw CookPlanError.verificationFailed
+        }
+        CookPlanCancelDiagnostic.mark("verify-passed")
     }
 
     func reconcile(plans: [CookPlan], recipes: [RecipeCard], now: Date = Date()) async throws {
@@ -159,5 +191,17 @@ final class CookPlanNotifications {
                 throw CookPlanError.verificationFailed
             }
         }.value
+    }
+}
+
+/// Fixed QA-only phase evidence. No IDs, content, waits, timers or model reads.
+enum CookPlanCancelDiagnostic {
+    static func mark(_ phase: String, generation: Int = -1) {
+        #if DEBUG
+        guard AppConfig.isUITesting,
+              ProcessInfo.processInfo.arguments.contains("-qaCookPlanCancelDiagnostic") else { return }
+        let line = "COOK-PLAN-CANCEL phase=\(phase) generation=\(generation) monotonic_ns=\(DispatchTime.now().uptimeNanoseconds) main_thread=\(Thread.isMainThread)\n"
+        FileHandle.standardOutput.write(Data(line.utf8))
+        #endif
     }
 }

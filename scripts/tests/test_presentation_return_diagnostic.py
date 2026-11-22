@@ -3,7 +3,8 @@ import unittest,hashlib,yaml,subprocess
 ROOT=Path(__file__).resolve().parents[2]
 class PresentationReturnDiagnosticTests(unittest.TestCase):
     def test_original_entire_ui_except_flag_and_pixel(self):
-        s=(ROOT/'AteUITests/CookingTrackerEntryUITests.swift').read_text().replace(', "-qaPresentationReturnDiagnostic"','').replace('        shot("68-journal-after-native-back-before-original-predicate")\n','')
+        from live_query_capture_delta import restore as restore_live_query
+        s=restore_live_query('AteUITests/CookingTrackerEntryUITests.swift',(ROOT/'AteUITests/CookingTrackerEntryUITests.swift').read_text()).replace(', "-qaPresentationReturnDiagnostic"','').replace('        shot("68-journal-after-native-back-before-original-predicate")\n','')
         # #642 rename slice: inverse the helper comment rename before the historical remainder hash.
         self.assertEqual(s.count('// #642: the first tab is Today; the saved-recipe collection is one tap in.'),1)
         s=s.replace('// #642: the first tab is Today; the saved-recipe collection is one tap in.','// #642: the Library tab lands on Today; the saved-recipe collection is one tap in.',1)

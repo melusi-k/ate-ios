@@ -1503,3 +1503,13 @@ Source file blob SHAs on the reviewed main baseline: PRD `324e6a0f290bbf7eadb396
 Issue [#70](https://github.com/melusi-k/ate-ios/issues/70) remains the owner for requirement/checklist/matrix ownership reconciliation. It is not added to W48 committed scope: the existing owner-approved 16-point plan plus 5-point NOW reserve already consumes the 21-point cap. Carry #70 as a ranked follow-up and pull it forward only if committed work is accepted early or an owner-approved equal-scope swap is made.
 
 Release decision remains with [#45](https://github.com/melusi-k/ate-ios/issues/45); [#33](https://github.com/melusi-k/ate-ios/issues/33) is the candidate evidence record and still reports unresolved release blockers. Do not treat a successful Build IPA artifact workflow or Release readiness wrapper as a release approval.
+
+
+### Linked-ticket counting clarification — 2026-11-22
+
+- [PR #650](https://github.com/melusi-k/ate-ios/pull/650) is **one PR and one merge event**. Its diff contains bounded implementation slices related to both [issue #642](https://github.com/melusi-k/ate-ios/issues/642) and [issue #646](https://github.com/melusi-k/ate-ios/issues/646). Report the partial issue-level scope under each owning issue only where its separate acceptance is evidenced; count #650 once in PR/merge metrics. Neither issue is closed or fully accepted. [PR #649](https://github.com/melusi-k/ate-ios/pull/649) is duplicate content and adds no second delivery.
+- [PR #644](https://github.com/melusi-k/ate-ios/pull/644) is a separate earlier PR/merge under #642. The merged PRs do not complete the full Today reference/device acceptance.
+- [PR #652](https://github.com/melusi-k/ate-ios/pull/652) is one manual-only workflow-wrapper merge. It is a dependency for the separate [PR #651](https://github.com/melusi-k/ate-ios/pull/651), which remains open and unqualified; do not count the wrapper as product-route acceptance or as a second #651 delivery.
+- [PR #647](https://github.com/melusi-k/ate-ios/pull/647) is one merge under #645; the issue remains open because its qualification evidence is red. [PR #591](https://github.com/melusi-k/ate-ios/pull/591) is one workflow-cleanup merge, with an owner exception limited to that exact head.
+
+These are ticket relationships and evidence boundaries, not new acceptance claims. No issue is marked complete solely because a linked PR merged.

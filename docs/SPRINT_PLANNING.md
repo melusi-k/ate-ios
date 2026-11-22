@@ -1484,3 +1484,22 @@ W48 gates: preserve stack order and exact source lineage; all required exact-hea
 - PR #656 exact head at this review: `24aa838071b1e6eca38536c8f0ff72331f689522`. Required ruleset contexts: `compile` and `dogfood-qualification` execution jobs were **skipped** by the documentation-only path; `Compile qualification result`, `Dogfood qualification result`, and `Journal qualification result` completed successfully. CodeQL and the latest stack validation completed successfully. The skipped jobs are not native application qualification evidence; no native test pass is claimed.
 - The submitted-review API returned no human review and no qualifying approval for #656. Keep it draft/open. Do not merge until the required review and final-head governance conditions are satisfied.
 - This addendum clarifies the snapshot boundary and current PR validation only; it does not change the W47 baseline gap, W48 scope, planned dates, 16+5 capacity, acceptance results or lifecycle timestamps.
+
+
+### Planning-source freshness audit — 2026-11-22
+
+The W48 revalidation also inspected the product-planning sources on current `main` (`ffa7fdcf242acdf7005905c3c05a39613cbb3976`):
+
+| Source | Snapshot found | Planning implication |
+|---|---|---|
+| [PRD.md](PRD.md) | Implementation-audit header dated 2026-10-24; its aggregate readiness numbers are historical. | Use current issue #33/#45 and exact candidate evidence for release decisions; do not reuse the October totals as current status. |
+| [PRODUCT_BACKLOG.md](PRODUCT_BACKLOG.md) | Pilot/Launch policy approved 2026-11-10; criterion-level inventory triage remains open. | Keep issue labels and gate policy intact; backlog classification is not acceptance proof. |
+| [PRD_GAP_REGISTER.md](PRD_GAP_REGISTER.md) | Structural audit dated 2026-10-21 records 176 unique IDs/rows. | This is an older structural snapshot, not current implementation status. |
+| [MVP_CHECKLIST.md](MVP_CHECKLIST.md) | Current progress snapshot dated 2026-10-24. | Treat area-level status as historical until each row is rebound to exact current evidence. |
+| [QA_MATRIX.md](QA_MATRIX.md) | 2026-11-10 policy header reports 179 checklist IDs/rows plus 2 supplemental platform rows; no current pass percentage is asserted. | The 176-versus-179 inventory figures come from different dated snapshots and need criterion-level reconciliation, not a bulk count correction. |
+
+Source file blob SHAs on the reviewed main baseline: PRD `324e6a0f290bbf7eadb3967313d28aa526534031`; backlog `80df7bb1ad6ace84315a3277bb292e2c138fe330`; gap register `aa81d533bebf08dfe7373042b56efcfa6c2775fa`; MVP checklist `1f37b957f9e3708ba03f25c04064bbe6bf464f8a`; QA matrix `a152f3ae183caa168b138d386a279fd8eab40904`.
+
+Issue [#70](https://github.com/melusi-k/ate-ios/issues/70) remains the owner for requirement/checklist/matrix ownership reconciliation. It is not added to W48 committed scope: the existing owner-approved 16-point plan plus 5-point NOW reserve already consumes the 21-point cap. Carry #70 as a ranked follow-up and pull it forward only if committed work is accepted early or an owner-approved equal-scope swap is made.
+
+Release decision remains with [#45](https://github.com/melusi-k/ate-ios/issues/45); [#33](https://github.com/melusi-k/ate-ios/issues/33) is the candidate evidence record and still reports unresolved release blockers. Do not treat a successful Build IPA artifact workflow or Release readiness wrapper as a release approval.

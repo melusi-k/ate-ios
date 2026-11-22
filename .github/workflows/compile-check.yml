@@ -175,7 +175,8 @@ jobs:
             wait "$lifecycle_pid" || true
           }
           trap stop_lifecycle EXIT
-          NSUnbufferedIO=YES xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+          NSUnbufferedIO=YES python3 scripts/ui_query_samples.py --log nutrition-ui-tests.log --simulator "$SIM_ID" --output cook-plan-cancel-live-query -- \
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
             -only-testing:AteUITests/CookPlanUITests \
@@ -244,6 +245,7 @@ jobs:
           path: |
             nutrition-ui-tests.log
             cookplan-process-lifecycle
+            cook-plan-cancel-live-query
             nutrition-startup-liveness
             ${{ runner.temp }}/ate-test-results/nutrition-ui-tests.xcresult
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments

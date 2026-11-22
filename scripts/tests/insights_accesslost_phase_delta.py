@@ -3,7 +3,9 @@ from pathlib import Path
 import hashlib
 import json
 FIXTURE_SHA = '3b70df014f197b15f6e0ca517b195b8992e6e5bd33eaf37077d18019e5fe97dd'
+from insights_atomic_read_delta import restore as restore_atomic
 def restore(source):
+    source = restore_atomic(source)
     payload = Path(__file__).with_name('insights_accesslost_phase_inverse.json').read_bytes()
     assert hashlib.sha256(payload).hexdigest() == FIXTURE_SHA
     c = json.loads(payload)

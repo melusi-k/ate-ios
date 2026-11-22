@@ -4,6 +4,8 @@ import hashlib,json
 from journal_delete_current_query_delta import restore as restore_current_query
 FIXTURE_SHA='dca8c1251630f5049cf28bc111a6ca465634619945f89ab48583e49ec4fde85e'
 def restore(key,raw):
+ from cookplan_cancel_journey_delta import restore as restore_cancel_journey
+ raw=restore_cancel_journey(key,raw)
  raw=restore_current_query(key,raw)
  path=key.split(':',1)[-1]
  payload=Path(__file__).with_name('today_tab_ui_inverse.json').read_bytes()

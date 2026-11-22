@@ -2,6 +2,7 @@
 from pathlib import Path
 import hashlib
 import json
+from canonical_goals_property_wait_delta import restore as restore_goals
 FIXTURE_SHA = '60f57c499893d4ab60048aae61e64f60187c5d679c6e523ae269d2deeab4dd4e'
 
 def contract():
@@ -10,6 +11,7 @@ def contract():
     return json.loads(payload)
 
 def restore(key, raw):
+    raw = restore_goals(key, raw)
     path = key.split(':', 1)[-1]
     c = contract()
     if path not in c['files']:

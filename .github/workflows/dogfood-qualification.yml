@@ -96,6 +96,7 @@ jobs:
           xcrun simctl bootstatus "$SIM_ID" -b
           # QA1 flow = the exact three cases below; keep in sync with QA1_REQUIRED_CASES
           # in scripts/qa-summary.py and scripts/release/readiness.py.
+          python3 scripts/group28_idle_samples.py --log dogfood-critical-flows.log --simulator "$SIM_ID" --output dogfood-idle-samples -- \
           xcodebuild test -project Ate.xcodeproj -scheme "$SCHEME" -destination "id=$SIM_ID" \
             -only-testing:AteUITests/KeyFlowsQATests/testQA1_AddFromURL_JSONLD \
             -only-testing:AteUITests/KeyFlowsQATests/testQA1_AddFromURL_InstagramCaption \
@@ -195,6 +196,7 @@ jobs:
           name: dogfood-qualification-${{ github.run_number }}
           path: |
             dogfood-critical-flows.log
+            dogfood-idle-samples
             dogfood-startup-liveness
             dogfood-photo-import-phases.log
             dogfood-sync-quarantine.log

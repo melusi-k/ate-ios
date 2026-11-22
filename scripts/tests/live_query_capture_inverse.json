@@ -1,0 +1,51 @@
+{
+  "AteUITests/CookingTrackerEntryUITests.swift": {
+    "path": "AteUITests/CookingTrackerEntryUITests.swift",
+    "parent_sha256": "d6c9efcdc0ce0d42231e5cc950d10b2998c19c676dc249d27f2d95a916341d63",
+    "fragments": [
+      {
+        "old": "        let returnedToCurrentMonth = XCTNSPredicateExpectation(\n            predicate: NSPredicate(format: \"label == %@\", currentMonth),\n            object: month\n        )\n        XCTAssertEqual(XCTWaiter.wait(for: [returnedToCurrentMonth], timeout: 3), .completed)\n",
+        "new": "        let returnedMonthPredicate = NSPredicate(format: \"label == %@\", currentMonth)\n        var lastReturnedMonth: String?\n        let returnedToCurrentMonth = XCTNSPredicateExpectation(\n            predicate: NSPredicate { object, _ in\n                guard let element = object as? XCUIElement else { return false }\n                trackerQueryMark(\"begin\")\n                let label = element.label\n                trackerQueryMark(\"end\")\n                lastReturnedMonth = label\n                // Evaluate the original predicate against that same returned label.\n                return returnedMonthPredicate.evaluate(with: [\"label\": label])\n            },\n            object: month\n        )\n        let returnedMonthResult = XCTWaiter.wait(for: [returnedToCurrentMonth], timeout: 3)\n        let evidence = \"TRACKER-RETURNED-MONTH result=\\(returnedMonthResult.rawValue) expected=\\(String(reflecting: currentMonth)) observed=\\(String(reflecting: lastReturnedMonth)) monotonic_ns=\\(DispatchTime.now().uptimeNanoseconds)\\n\"\n        FileHandle.standardOutput.write(Data(evidence.utf8))\n        XCTAssertEqual(returnedMonthResult, .completed)\n"
+      },
+      {
+        "old": " 1)\n        XCTAssertTrue(rootLogo.exists)\n        XCTAssertTrue(hub.exists && hub.isHittable)\n        XCTAssertTrue(journalTab.isSelected)\n        shot(\"68-journal-after-edge-swipe-normal\")\n    }\n\n}\n",
+        "new": " 1)\n        XCTAssertTrue(rootLogo.exists)\n        XCTAssertTrue(hub.exists && hub.isHittable)\n        XCTAssertTrue(journalTab.isSelected)\n        shot(\"68-journal-after-edge-swipe-normal\")\n    }\n\n}\n\n// Fixed markers only; no extra accessibility query or synchronization.\nprivate func trackerQueryMark(_ edge: String) {\n    let line = \"UI-QUERY-DIAGNOSTIC boundary=tracker-returned-month edge=\\(edge) monotonic_ns=\\(DispatchTime.now().uptimeNanoseconds)\\n\"\n    FileHandle.standardOutput.write(Data(line.utf8))\n}\n"
+      }
+    ],
+    "current_sha256": "e18e8c54c05828cdb9d8981954be6e0fdd3b0b983218e99dadb5abf058d28630"
+  },
+  "AteUITests/AteUITests.swift": {
+    "path": "AteUITests/AteUITests.swift",
+    "parent_sha256": "5cc4e3e1f76b9fb84a4267ccd04e81298f24639147822de101c0810bd2dee9ed",
+    "fragments": [
+      {
+        "old": "        if captureAddTitleQuery { shot(\"cook-completion-before-add-title-query\") }\n        wait(text(\"Add a recipe\"))\n",
+        "new": "        if captureAddTitleQuery {\n            shot(\"cook-completion-before-add-title-query\")\n            cookAddTitleQueryMark(\"begin\")\n        }\n        wait(text(\"Add a recipe\"))\n        if captureAddTitleQuery { cookAddTitleQueryMark(\"end\") }\n"
+      },
+      {
+        "old": "eset Filters clears filters, not the search query\")\n        XCTAssertTrue(app.buttons[\"listCard\"].firstMatch.exists, \"the unfiltered result returns\")\n        shot(\"search-results-menu-reset\")\n    }\n}\n",
+        "new": "eset Filters clears filters, not the search query\")\n        XCTAssertTrue(app.buttons[\"listCard\"].firstMatch.exists, \"the unfiltered result returns\")\n        shot(\"search-results-menu-reset\")\n    }\n}\n\n// Fixed markers around the existing completion-journey title wait only.\nprivate func cookAddTitleQueryMark(_ edge: String) {\n    let line = \"UI-QUERY-DIAGNOSTIC boundary=cook-add-title edge=\\(edge) monotonic_ns=\\(DispatchTime.now().uptimeNanoseconds)\\n\"\n    FileHandle.standardOutput.write(Data(line.utf8))\n}\n"
+      }
+    ],
+    "current_sha256": "ef69afed128574172230f3ce838895a003ab20f960e8665b2862a59d7bd19826"
+  },
+  ".github/workflows/compile-check.yml": {
+    "path": ".github/workflows/compile-check.yml",
+    "parent_sha256": "b759b9638cb68980f729007fe2d1b7f368c3a5ea245260bd1f567672953fd1bd",
+    "fragments": [
+      {
+        "old": "          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" -resultBundlePath \"$RUNNER_TEMP/ate-test-results/cooking-tracker-ui-tests.xcresult\" -only-testing:AteUITests/CookingTrackerEntryUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1\n",
+        "new": "          python3 scripts/ui_query_samples.py --log tracker-ui.log --simulator \"$SIM_ID\" --output tracker-live-query -- \\\n          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" -resultBundlePath \"$RUNNER_TEMP/ate-test-results/cooking-tracker-ui-tests.xcresult\" -only-testing:AteUITests/CookingTrackerEntryUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1\n"
+      },
+      {
+        "old": "          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" -resultBundlePath \"$RUNNER_TEMP/ate-test-results/cook-mode-history-ui-tests.xcresult\" -only-testing:AteUITests/AteUITests/test06_CookMode -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > cook-mode-history.log 2>&1\n",
+        "new": "          python3 scripts/ui_query_samples.py --log cook-mode-history.log --simulator \"$SIM_ID\" --output cook-live-query -- \\\n          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" -resultBundlePath \"$RUNNER_TEMP/ate-test-results/cook-mode-history-ui-tests.xcresult\" -only-testing:AteUITests/AteUITests/test06_CookMode -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > cook-mode-history.log 2>&1\n"
+      },
+      {
+        "old": "            tracker-query-window\n",
+        "new": "            tracker-query-window\n            tracker-live-query\n            cook-live-query\n"
+      }
+    ],
+    "current_sha256": "c483e7be3f22d63fce4ca60c302117866e842c3b1a73fd51e485c8e59e91b44a"
+  }
+}

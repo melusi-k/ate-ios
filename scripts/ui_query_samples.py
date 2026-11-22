@@ -7,7 +7,7 @@ import subprocess
 import time
 from group28_idle_samples import main
 
-MARK = re.compile(r'^UI-QUERY-DIAGNOSTIC boundary=(tracker-returned-month|cook-add-title) edge=(begin|end) monotonic_ns=([0-9]+)$')
+MARK = re.compile(r'^UI-QUERY-DIAGNOSTIC boundary=(tracker-returned-month|cook-add-title|cook-plan-cancel) edge=(begin|end) monotonic_ns=([0-9]+)$')
 
 class QueryWatch:
     def __init__(self):
@@ -15,6 +15,8 @@ class QueryWatch:
         self.sampled = set()
 
     def line(self, line):
+        if "Test Case '-[AteUITests.CookPlanUITests testSavedRecipePlanWithoutReminderCanBeReopenedAndCancelled]'" in line and any(x in line for x in (' passed ', ' failed ', 'exceeded execution')):
+            self.open.pop('cook-plan-cancel', None)
         match = MARK.fullmatch(line.strip())
         if match:
             name, edge, nanos = match.groups()

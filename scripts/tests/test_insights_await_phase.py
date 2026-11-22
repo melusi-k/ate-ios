@@ -3,12 +3,13 @@ from pathlib import Path
 import hashlib
 import json
 import unittest
+from insights_accesslost_phase_delta import restore as restore_accesslost
 ROOT = Path(__file__).resolve().parents[2]
 
 class InsightsAwaitPhaseTests(unittest.TestCase):
     def test_exact_inverse_preserves_original_test_and_helpers(self):
         c = json.loads((ROOT / 'scripts/tests/insights_await_phase_inverse.json').read_text())
-        source = (ROOT / 'AteTests/InsightsRefreshOwnershipTests.swift').read_text()
+        source = restore_accesslost((ROOT / 'AteTests/InsightsRefreshOwnershipTests.swift').read_text())
         self.assertEqual(source.count(c['new']), 1)
         self.assertTrue(source.endswith(c['helper']))
         restored = source[:-len(c['helper'])].replace(c['new'], c['old'], 1)

@@ -4,6 +4,8 @@ import hashlib
 import json
 FIXTURE_SHA = '393cd0c3d17ab1579603f6c4c21b011d1a850a439e9246ad8fa00579710d7fba'
 def restore(key, raw):
+    from cookplan_cancel_phase_delta import restore as restore_cancel_phases
+    raw = restore_cancel_phases(key, raw)
     if key.split(':', 1)[-1] != 'AteUITests/CookPlanUITests.swift':
         return raw
     payload = Path(__file__).with_name('cookplan_cancel_journey_inverse.json').read_bytes()

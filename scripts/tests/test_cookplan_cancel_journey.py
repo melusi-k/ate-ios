@@ -18,5 +18,7 @@ class CookPlanCancelJourneyTests(unittest.TestCase):
         self.assertNotIn('sleep(', new)
         self.assertNotIn('try?', new)
         self.assertEqual(new.count('plan.tap()'), 1)
+        from cookplan_cancel_phase_delta import restore as restore_cancel_phases
+        source = restore_cancel_phases(c['path'], source)
         for mutant in [source.replace(c['new'], '', 1), source+c['new'], source+'// unrelated', source.replace('reminder.waitForNonExistence(timeout: 10)', 'reminder.waitForNonExistence(timeout: 20)', 1)]:
             with self.assertRaises(AssertionError): restore(c['path'], mutant)

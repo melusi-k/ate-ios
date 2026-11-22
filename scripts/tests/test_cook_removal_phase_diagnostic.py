@@ -14,4 +14,5 @@ class CookRemovalPhaseDiagnosticTests(unittest.TestCase):
         self.assertNotIn('Task {',diagnostic)
         self.assertNotIn('DispatchQueue',diagnostic)
         self.assertEqual(source.count('cookRemovalDiagnostic("'),11)
-        self.assertEqual(hashlib.sha256((ROOT/'Ate/Services/CookPlanNotifications.swift').read_bytes()).hexdigest(),'4948a4701ea465790e97d29a357d76e08d9031c25ca865aa051809aa1e1c2c55')
+        from cookplan_cancel_phase_delta import restore as restore_cancel_phases
+        self.assertEqual(hashlib.sha256(restore_cancel_phases('Ate/Services/CookPlanNotifications.swift',(ROOT/'Ate/Services/CookPlanNotifications.swift').read_bytes())).hexdigest(),'4948a4701ea465790e97d29a357d76e08d9031c25ca865aa051809aa1e1c2c55')

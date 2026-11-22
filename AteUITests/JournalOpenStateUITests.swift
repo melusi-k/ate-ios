@@ -57,8 +57,12 @@ final class JournalOpenStateUITests: XCTestCase {
         for index in 0..<matches.count {
             let candidate = matches.element(boundBy: index)
             XCTAssertEqual(candidate.label, label, "Every alias must name the same decision", file: file, line: line)
-            let descendants = candidate.descendants(matching: .button)
-            let nested = descendants.matching(identifier: identifier)
+            // One immutable subtree replaces the compound remote descendant query.
+            // Keep every button alias and every decision, including invalid ones.
+            let snapshot = try candidate.snapshot()
+            let descendants = JournalDeleteSnapshotWalk.descendants(
+                of: snapshot, children: { $0.children }, matching: { $0.elementType == .button })
+            let nested = descendants.filter { $0.identifier == identifier }
             XCTAssertEqual(descendants.count, nested.count, "An alias cannot contain a different action", file: file, line: line)
             if nested.count == 0 { leaves.append(candidate) }
         }

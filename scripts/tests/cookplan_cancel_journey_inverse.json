@@ -1,0 +1,7 @@
+{
+  "path": "AteUITests/CookPlanUITests.swift",
+  "old": "        app.buttons[\"cookPlan.cancelPlan\"].tap()\n        XCTAssertTrue(plan.waitForExistence(timeout: 10))\n        plan.tap()\n        XCTAssertFalse(app.buttons[\"cookPlan.cancelPlan\"].exists)",
+  "new": "        app.buttons[\"cookPlan.cancelPlan\"].tap()\n        // The recipe button exists underneath the sheet. Prove cancellation dismissed\n        // this sheet before tapping it, then prove a new sheet mounted before absence.\n        XCTAssertTrue(reminder.waitForNonExistence(timeout: 10), \"Cancel must dismiss the saved plan sheet before reopening\")\n        XCTAssertTrue(plan.waitForExistence(timeout: 10))\n        XCTAssertTrue(plan.isHittable, \"Reopen must target the uncovered recipe plan action\")\n        plan.tap()\n        XCTAssertTrue(reminder.waitForExistence(timeout: 10), \"Reopen must mount a new plan sheet before checking cancellation\")\n        XCTAssertFalse(app.buttons[\"cookPlan.cancelPlan\"].exists)",
+  "parent_sha256": "040f72ed7b7a990ac0ca80a842ccce3ede946ba3281ee65b574af1f4f1ba57f3",
+  "current_sha256": "76770d7bd73831f6e5972391e17cf8bb42adf74f882778b8782482ab8725cee5"
+}

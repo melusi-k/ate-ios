@@ -2,6 +2,8 @@
 from pathlib import Path
 import hashlib,json,unittest
 from today_tab_ui_delta import restore
+from cookplan_cancel_journey_delta import restore as restore_cancel_journey
+from journal_delete_current_query_delta import restore as restore_current_query
 ROOT=Path(__file__).resolve().parents[2]
 
 class TodayTabUIDeltaTests(unittest.TestCase):
@@ -13,7 +15,8 @@ class TodayTabUIDeltaTests(unittest.TestCase):
    # Each fragment is mutant-tested at the stage where it is live: fragments
    # carried from an earlier layer step exist only after newer fragments are
    # reversed, so mutating the raw head text would be a no-op for them.
-   stage=s
+   from live_query_capture_delta import restore as restore_live_query
+   stage=restore_current_query(path,restore_cancel_journey(path,restore_live_query(path,s)))
    for f in c['fragments']:
     for mutant in [stage.replace(f['new'],'',1),stage+f['new'],stage+'// unrelated\n']:
      with self.assertRaises(AssertionError,msg=path):restore(path,mutant)

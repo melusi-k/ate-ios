@@ -1,0 +1,9 @@
+# Sample the real Cook removal-entry wait
+
+47380107 full-unit ran1346 tests/1 failure: CookPlan blocked-removal test64.488s, strict2s entry expectation failed. Main task entered0.754ms after wait start. Utility callback entry was2.873s later, before-fulfill another8.524s, wait-return another8.119s after fulfill. Multiple scheduling/assertion/logging boundaries are delayed. No in-flight sample was retained. No product-versus-XCTest cause is established. Priorb406/ed82 passes0.003/0.009s remain non-reproduction evidence.
+
+Host-only diagnostic wraps the unchanged full-unit command. Existing before-entry-wait timestamp arms a single1s sample of the uniquely matched simulator Ate executable at0.25–1.25s wait age. A completed wait or stale buffered timestamp suppresses capture. This best-effort timing is not a guarantee: file buffering, PID lookup and scheduler delays may make the sample late or absent. Sample timestamp and stderr are retained. All test bytes,11 current print stamps, started.fulfill placement,2s waiter, assertions, product implementation and native selections/allowances remain unchanged. Missing/ambiguous PID/sample failure never qualify the test.
+
+Reuse existing diagnostic wrapper's status/output preservation, stop/join and signal forwarding through a two-site observer injection. Add only the wrapper prefix and artifact path in Compile. A sample subprocess has3s timeout; PID lookup1s. No retry, threshold increase, new assertion or output rewriting. Sampling itself adds overhead and may disturb the strict wait: a sampled failure cannot establish uninstrumented latency, and a pass is non-reproduction. Buffered test diagnostics are deliberately deferred rather than introducing new cross-thread synchronization in this packet. Do not widen capture to other tests before the Group28 sampler receipt is reviewed.
+
+Source: https://github.com/melusi-k/ate-ios/actions/runs/44968168282

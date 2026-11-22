@@ -76,8 +76,13 @@ final class CanonicalUpgradeUITests: XCTestCase {
         app.buttons["upgradeQA.goals"].tap()
         let enabled = app.switches["nutritionGoals.enabled.energy"]
         XCTAssertTrue(enabled.waitForExistence(timeout: 10))
-        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: enabled)
-        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed)
+        let readyStart = ProcessInfo.processInfo.systemUptime
+        print("GOALS-ENABLED-WAIT begin timeout=5 monotonic_s=\(readyStart)")
+        let ready = enabled.wait(for: \.isEnabled, toEqual: true, timeout: 5)
+        let readyElapsed = ProcessInfo.processInfo.systemUptime - readyStart
+        print("GOALS-ENABLED-WAIT end result=\(ready) elapsed_s=\(readyElapsed)")
+        if !ready { shot("upgrade-goals-enabled-wait-failed") }
+        XCTAssertTrue(ready, "Energy switch must become enabled within the unchanged five-second wait")
         XCTAssertEqual(enabled.value as? String, "0", "Cleared draft must save to the same runtime domain and survive relaunch")
         XCTAssertFalse(energy.exists)
         shot("upgrade-goals-02-saved-runtime-domain-after-relaunch")

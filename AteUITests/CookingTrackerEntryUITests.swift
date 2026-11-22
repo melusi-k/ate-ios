@@ -64,11 +64,24 @@ final class CookingTrackerEntryUITests: XCTestCase {
         let next = app.buttons["tracker.nextMonth"]
         XCTAssertTrue(next.isHittable)
         next.tap()
+        let returnedMonthPredicate = NSPredicate(format: "label == %@", currentMonth)
+        var lastReturnedMonth: String?
         let returnedToCurrentMonth = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "label == %@", currentMonth),
+            predicate: NSPredicate { object, _ in
+                guard let element = object as? XCUIElement else { return false }
+                trackerQueryMark("begin")
+                let label = element.label
+                trackerQueryMark("end")
+                lastReturnedMonth = label
+                // Evaluate the original predicate against that same returned label.
+                return returnedMonthPredicate.evaluate(with: ["label": label])
+            },
             object: month
         )
-        XCTAssertEqual(XCTWaiter.wait(for: [returnedToCurrentMonth], timeout: 3), .completed)
+        let returnedMonthResult = XCTWaiter.wait(for: [returnedToCurrentMonth], timeout: 3)
+        let evidence = "TRACKER-RETURNED-MONTH result=\(returnedMonthResult.rawValue) expected=\(String(reflecting: currentMonth)) observed=\(String(reflecting: lastReturnedMonth)) monotonic_ns=\(DispatchTime.now().uptimeNanoseconds)\n"
+        FileHandle.standardOutput.write(Data(evidence.utf8))
+        XCTAssertEqual(returnedMonthResult, .completed)
         XCTAssertFalse(next.isEnabled, "The calendar must not navigate beyond the current month")
     }
 
@@ -167,4 +180,10 @@ final class CookingTrackerEntryUITests: XCTestCase {
         shot("68-journal-after-edge-swipe-normal")
     }
 
+}
+
+// Fixed markers only; no extra accessibility query or synchronization.
+private func trackerQueryMark(_ edge: String) {
+    let line = "UI-QUERY-DIAGNOSTIC boundary=tracker-returned-month edge=\(edge) monotonic_ns=\(DispatchTime.now().uptimeNanoseconds)\n"
+    FileHandle.standardOutput.write(Data(line.utf8))
 }

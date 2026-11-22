@@ -131,6 +131,7 @@ jobs:
         run: |
           set -o pipefail
           echo "Full unit suite source: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/cook_entry_sample.py --log full-unit-tests.log --simulator "$SIM_ID" --output cook-entry-sample -- \
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteTests \
             -resultBundlePath "$RUNNER_TEMP/ate-test-results/full-unit-tests.xcresult" \
@@ -155,6 +156,7 @@ jobs:
           if-no-files-found: error
           path: |
             full-unit-tests.log
+            cook-entry-sample
             full-unit-tests.json
             ${{ runner.temp }}/ate-test-results/full-unit-tests.xcresult
 
@@ -173,7 +175,8 @@ jobs:
             wait "$lifecycle_pid" || true
           }
           trap stop_lifecycle EXIT
-          NSUnbufferedIO=YES xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+          NSUnbufferedIO=YES python3 scripts/ui_query_samples.py --log nutrition-ui-tests.log --simulator "$SIM_ID" --output cook-plan-cancel-live-query -- \
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
             -only-testing:AteUITests/NutritionDiaryUITests \
             -only-testing:AteUITests/NutritionGoalsUITests \
             -only-testing:AteUITests/CookPlanUITests \
@@ -242,6 +245,7 @@ jobs:
           path: |
             nutrition-ui-tests.log
             cookplan-process-lifecycle
+            cook-plan-cancel-live-query
             nutrition-startup-liveness
             ${{ runner.temp }}/ate-test-results/nutrition-ui-tests.xcresult
             ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
@@ -625,6 +629,7 @@ jobs:
           mkdir -p tracker-query-window
           date -u '+%Y-%m-%d %H:%M:%S' > tracker-query-window/start-utc.txt
           trap 'date -u "+%Y-%m-%d %H:%M:%S" > tracker-query-window/end-utc.txt' EXIT
+          python3 scripts/ui_query_samples.py --log tracker-ui.log --simulator "$SIM_ID" --output tracker-live-query -- \
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cooking-tracker-ui-tests.xcresult" -only-testing:AteUITests/CookingTrackerEntryUITests -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > tracker-ui.log 2>&1
           status=$?
           set -e
@@ -694,6 +699,7 @@ jobs:
           mkdir -p cook-completion-window
           date -u '+%Y-%m-%d %H:%M:%S' > cook-completion-window/start-utc.txt
           trap 'date -u "+%Y-%m-%d %H:%M:%S" > cook-completion-window/end-utc.txt' EXIT
+          python3 scripts/ui_query_samples.py --log cook-mode-history.log --simulator "$SIM_ID" --output cook-live-query -- \
           xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/cook-mode-history-ui-tests.xcresult" -only-testing:AteUITests/AteUITests/test06_CookMode -only-testing:AteUITests/AteUITests/testCookModeExitDoesNotRecordCookingDay -only-testing:AteUITests/AteUITests/testCookModeCompletionRecordsCookingDay -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO > cook-mode-history.log 2>&1
           status=$?
           set -e
@@ -925,6 +931,8 @@ jobs:
           if-no-files-found: warn
           path: |
             tracker-query-window
+            tracker-live-query
+            cook-live-query
             cook-completion-window
             coverage-launch-lifecycle
             *.log

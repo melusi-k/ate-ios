@@ -1,6 +1,7 @@
 """Static state and strict UI assertion preservation, not native execution."""
 from pathlib import Path
 import unittest
+from journal_delete_zero_nodes_delta import restore as restore_zero_nodes
 
 ROOT = Path(__file__).resolve().parents[2]
 class ConfirmedDeleteTests(unittest.TestCase):
@@ -16,9 +17,9 @@ class ConfirmedDeleteTests(unittest.TestCase):
         self.assertLess(d.index('dismiss()'), d.index('store.journalRevision += 1'))
         self.assertIn('deleteProblem =', d)
     def test_original_destructive_assertions_remain(self):
-        s = (ROOT / 'AteUITests/JournalOpenStateUITests.swift').read_text()
+        s = restore_zero_nodes('AteUITests/JournalOpenStateUITests.swift', (ROOT / 'AteUITests/JournalOpenStateUITests.swift').read_text())
         m = s.split('func testManualReflectionEditSaveCancelAndConfirmedDelete()', 1)[1].split('func testConfirmedDeleteFailure', 1)[0]
-        for t in ['Cancel must keep the reflection', 'waitUntilGone(detail)', 'wait(app.navigationBars["Journal"])',
+        for t in ['Cancel must keep the reflection', 'waitUntilGone(any("journal.detail.text"))', 'wait(app.navigationBars["Journal"])',
                   'Confirmed deletion must remove the created reflection from history']:
             self.assertIn(t, m)
         self.assertIn('confirmButton.tap()', m)

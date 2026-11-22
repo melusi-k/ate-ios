@@ -3,6 +3,10 @@ from pathlib import Path
 import json,hashlib
 FIXTURE_SHA='1c6eaa94607d21bb1a0bf0b17169b67643b77425f8faf30c82d0299400a32e21'
 def restore(key,raw):
+ from cookplan_cancel_phase_delta import restore as restore_cancel_phases
+ _phase_probe = raw.decode() if isinstance(raw,bytes) else raw
+ if 'cook-plan-cancel-live-query' in _phase_probe:
+  raw=restore_cancel_phases(key,raw)
  _marker_probe = raw.decode() if isinstance(raw,bytes) else raw
  if 'openLibraryCollection' in _marker_probe or 'today.recipes' in _marker_probe:
   from today_tab_ui_delta import restore as restore_today_tab_ui

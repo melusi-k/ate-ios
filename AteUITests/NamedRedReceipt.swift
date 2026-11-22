@@ -35,13 +35,15 @@ final class NamedRedReceipt {
         }
     }
 
-    /// Only call at a deliberate assertion boundary. The preceding marker survives a stalled query.
-    func inspect(_ name: String, _ element: XCUIElement) {
+    /// Diagnostic boundary only. Do not resolve an element again for logging:
+    /// exists/frame/identifier/label can each start a blocking remote AX query.
+    /// Callers may supply plain values they already captured for an assertion.
+    /// The element argument remains for source compatibility; it is never read.
+    func inspect(_ name: String, _: XCUIElement, capturedValues: String? = nil) {
         step("inspect-\(name)") {
-            let exists = element.exists
-            emit("ELEMENT name=\(name) exists=\(exists)")
-            if exists {
-                emit("FRAME name=\(name) frame=\(element.frame) id=\(element.identifier) label=\(element.label)")
+            emit("ELEMENT name=\(name) capture=phase-only")
+            if let capturedValues {
+                emit("CAPTURED name=\(name) values=\(capturedValues)")
             }
         }
     }

@@ -266,7 +266,7 @@ targets:
   AteTests:
     type: bundle.unit-test
     platform: iOS
-    sources: [AteTests, AteUITests/PromptRecipeFixture.swift]
+    sources: [AteTests, AteUITests/PromptRecipeFixture.swift, AteUITests/JournalDeleteSnapshotWalk.swift]
     dependencies:
       - target: Ate
       - package: Sentry

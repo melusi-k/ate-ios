@@ -34,7 +34,7 @@ class JournalActionIdentityTests(unittest.TestCase):
         self.assertEqual(source.count('try uniqueDeleteAlertAction('), 8)
         helper = source.split('private func uniqueDeleteAlertAction', 1)[1].split('private func any', 1)[0]
         for check in ['XCTAssertEqual(app.alerts.count, 1', 'XCTAssertEqual(leaves.count, 1',
-                      'candidate.descendants(matching: .button)', 'XCTAssertEqual(descendants.count, nested.count', 'if nested.count == 0',
+                      'JournalDeleteSnapshotWalk.descendants(', 'XCTAssertEqual(descendants.count, nested.count', 'if nested.count == 0',
                       'XCTAssertEqual(candidate.label, label', 'XCTAssertEqual(alias.frame, frame',
                       'XCTAssertTrue(alert.frame.contains(frame)', 'XCTAssertTrue(action.isHittable',
                       'guard leaves.count == 1 else']:

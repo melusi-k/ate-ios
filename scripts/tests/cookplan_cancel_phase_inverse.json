@@ -1,0 +1,102 @@
+{
+  "Ate/Views/CookPlanSheet.swift": {
+    "path": "Ate/Views/CookPlanSheet.swift",
+    "parent_sha256": "75fb68558b403342dcbd9d790c48e16410c2b1122f52fa93c020b8de6c182d9e",
+    "fragments": [
+      {
+        "old": "    private func cancel() {\n        busy = true\n        Task { @MainActor in\n            do {\n                try store.cookPlanStore.cancel(recipeID: recipeID)\n                try await store.cookPlanNotifications.cancel(recipeID: recipeID)\n                busy = false\n                store.show(\"Cooking plan cancelled\")\n                dismiss()\n            } catch {\n                busy = false\n                problem = \"Cancellation could not be verified. Try again to remove the reminder.\"\n            }\n        }\n    }\n",
+        "new": "    private func cancel() {\n        CookPlanCancelDiagnostic.mark(\"handler-enter\")\n        busy = true\n        CookPlanCancelDiagnostic.mark(\"busy-set\")\n        Task { @MainActor in\n            CookPlanCancelDiagnostic.mark(\"task-enter\")\n            do {\n                CookPlanCancelDiagnostic.mark(\"local-cancel-before\")\n                try store.cookPlanStore.cancel(recipeID: recipeID)\n                CookPlanCancelDiagnostic.mark(\"local-cancel-after\")\n                CookPlanCancelDiagnostic.mark(\"notification-cancel-before\")\n                try await store.cookPlanNotifications.cancel(recipeID: recipeID)\n                CookPlanCancelDiagnostic.mark(\"notification-cancel-after\")\n                busy = false\n                store.show(\"Cooking plan cancelled\")\n                CookPlanCancelDiagnostic.mark(\"dismiss-before\")\n                dismiss()\n                CookPlanCancelDiagnostic.mark(\"dismiss-return\")\n            } catch {\n                CookPlanCancelDiagnostic.mark(\"cancel-catch\")\n                busy = false\n                problem = \"Cancellation could not be verified. Try again to remove the reminder.\"\n            }\n        }\n    }\n"
+      },
+      {
+        "old": "            .onAppear(perform: load)\n",
+        "new": "            .onAppear(perform: load)\n            .onDisappear { CookPlanCancelDiagnostic.mark(\"sheet-disappear\") }\n"
+      }
+    ],
+    "current_sha256": "1634821f86abfec766b038f3d0e405801c086e03d0edb3ba129b37c264a16191"
+  },
+  "Ate/Services/CookPlanNotifications.swift": {
+    "path": "Ate/Services/CookPlanNotifications.swift",
+    "parent_sha256": "4948a4701ea465790e97d29a357d76e08d9031c25ca865aa051809aa1e1c2c55",
+    "fragments": [
+      {
+        "old": "        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in\n            DispatchQueue.global(qos: .utility).async {\n                operation(ids)\n                continuation.resume()\n            }\n        }\n",
+        "new": "        CookPlanCancelDiagnostic.mark(\"removal-continuation-before\")\n        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in\n            CookPlanCancelDiagnostic.mark(\"utility-dispatch-before\")\n            DispatchQueue.global(qos: .utility).async {\n                CookPlanCancelDiagnostic.mark(\"utility-enter\")\n                operation(ids)\n                CookPlanCancelDiagnostic.mark(\"utility-operation-return\")\n                continuation.resume()\n            }\n        }\n        CookPlanCancelDiagnostic.mark(\"removal-continuation-return\")\n"
+      },
+      {
+        "old": "        let previous = tail\n        let task = Task { @MainActor in\n            defer { if token == self.generation { self.tail = nil } }\n            _ = try? await previous?.value\n            try await work(token)\n        }\n        tail = task\n",
+        "new": "        let previous = tail\n        CookPlanCancelDiagnostic.mark(\"queue-register\", generation: token)\n        let task = Task { @MainActor in\n            CookPlanCancelDiagnostic.mark(\"queue-task-enter\", generation: token)\n            defer {\n                CookPlanCancelDiagnostic.mark(\"queue-task-return\", generation: token)\n                if token == self.generation { self.tail = nil }\n            }\n            CookPlanCancelDiagnostic.mark(\"queue-predecessor-before\", generation: token)\n            _ = try? await previous?.value\n            CookPlanCancelDiagnostic.mark(\"queue-predecessor-after\", generation: token)\n            CookPlanCancelDiagnostic.mark(\"queue-work-before\", generation: token)\n            try await work(token)\n            CookPlanCancelDiagnostic.mark(\"queue-work-after\", generation: token)\n        }\n        tail = task\n"
+      },
+      {
+        "old": "        try store.save(plan)\n        let removal = enqueue { _ in try await self.removeAndVerify(recipeID: plan.recipeID) }\n        return Task { @MainActor in\n            do { try await removal.value }\n            catch { onRemovalFailure() }\n        }\n",
+        "new": "        CookPlanCancelDiagnostic.mark(\"off-save-local-before\")\n        try store.save(plan)\n        CookPlanCancelDiagnostic.mark(\"off-save-local-after\")\n        let removal = enqueue { _ in try await self.removeAndVerify(recipeID: plan.recipeID) }\n        CookPlanCancelDiagnostic.mark(\"off-save-cleanup-registered\")\n        return Task { @MainActor in\n            CookPlanCancelDiagnostic.mark(\"off-save-cleanup-await\")\n            do {\n                try await removal.value\n                CookPlanCancelDiagnostic.mark(\"off-save-cleanup-return\")\n            }\n            catch {\n                CookPlanCancelDiagnostic.mark(\"off-save-cleanup-catch\")\n                onRemovalFailure()\n            }\n        }\n"
+      },
+      {
+        "old": "        await client.remove(ids)\n        let remaining = await client.pendingIDs()\n        guard remaining.isDisjoint(with: ids) else { throw CookPlanError.verificationFailed }\n",
+        "new": "        CookPlanCancelDiagnostic.mark(\"remove-before\")\n        await client.remove(ids)\n        CookPlanCancelDiagnostic.mark(\"remove-after\")\n        CookPlanCancelDiagnostic.mark(\"pending-ids-before\")\n        let remaining = await client.pendingIDs()\n        CookPlanCancelDiagnostic.mark(\"pending-ids-after\")\n        guard remaining.isDisjoint(with: ids) else {\n            CookPlanCancelDiagnostic.mark(\"verify-failed\")\n            throw CookPlanError.verificationFailed\n        }\n        CookPlanCancelDiagnostic.mark(\"verify-passed\")\n"
+      },
+      {
+        "old": "ning.allSatisfy({ !$0.hasPrefix(CookPlan.reminderPrefix) }) else {\n                throw CookPlanError.verificationFailed\n            }\n        }.value\n    }\n}\n",
+        "new": "ning.allSatisfy({ !$0.hasPrefix(CookPlan.reminderPrefix) }) else {\n                throw CookPlanError.verificationFailed\n            }\n        }.value\n    }\n}\n\n/// Fixed QA-only phase evidence. No IDs, content, waits, timers or model reads.\nenum CookPlanCancelDiagnostic {\n    static func mark(_ phase: String, generation: Int = -1) {\n        #if DEBUG\n        guard AppConfig.isUITesting,\n              ProcessInfo.processInfo.arguments.contains(\"-qaCookPlanCancelDiagnostic\") else { return }\n        let line = \"COOK-PLAN-CANCEL phase=\\(phase) generation=\\(generation) monotonic_ns=\\(DispatchTime.now().uptimeNanoseconds) main_thread=\\(Thread.isMainThread)\\n\"\n        FileHandle.standardOutput.write(Data(line.utf8))\n        #endif\n    }\n}\n"
+      }
+    ],
+    "current_sha256": "f3513f4a1e5b505048b8855e8e9f815620d61c09a93bff63df285947a46e723f"
+  },
+  "AteUITests/CookPlanUITests.swift": {
+    "path": "AteUITests/CookPlanUITests.swift",
+    "parent_sha256": "76770d7bd73831f6e5972391e17cf8bb42adf74f882778b8782482ab8725cee5",
+    "fragments": [
+      {
+        "old": "app.launchArguments = [\"-UITesting\", \"-qaNutritionFixtures\"]",
+        "new": "app.launchArguments = [\"-UITesting\", \"-qaNutritionFixtures\", \"-qaCookPlanCancelDiagnostic\"]"
+      },
+      {
+        "old": "        app.buttons[\"cookPlan.cancelPlan\"].tap()\n",
+        "new": "        cookPlanCancelQueryMark(\"begin\")\n        app.buttons[\"cookPlan.cancelPlan\"].tap()\n"
+      },
+      {
+        "old": "        XCTAssertTrue(reminder.waitForNonExistence(timeout: 10), \"Cancel must dismiss the saved plan sheet before reopening\")\n",
+        "new": "        XCTAssertTrue(reminder.waitForNonExistence(timeout: 10), \"Cancel must dismiss the saved plan sheet before reopening\")\n        cookPlanCancelQueryMark(\"end\")\n"
+      },
+      {
+        "old": "ence(timeout: 10), \"Reopen must mount a new plan sheet before checking cancellation\")\n        XCTAssertFalse(app.buttons[\"cookPlan.cancelPlan\"].exists)\n    }\n}\n",
+        "new": "ence(timeout: 10), \"Reopen must mount a new plan sheet before checking cancellation\")\n        XCTAssertFalse(app.buttons[\"cookPlan.cancelPlan\"].exists)\n    }\n}\n\nprivate func cookPlanCancelQueryMark(_ edge: String) {\n    let line = \"UI-QUERY-DIAGNOSTIC boundary=cook-plan-cancel edge=\\(edge) monotonic_ns=\\(DispatchTime.now().uptimeNanoseconds)\\n\"\n    FileHandle.standardOutput.write(Data(line.utf8))\n}\n"
+      }
+    ],
+    "current_sha256": "ab7d15cace7e59255fd5c735d2b1cca0dfc8ee221f7c0fabd10e03a64a11f309"
+  },
+  "scripts/ui_query_samples.py": {
+    "path": "scripts/ui_query_samples.py",
+    "parent_sha256": "984180ee9e1f410d12339483f496505d304a7b6350bd2f8e0fdb5cd5276377fb",
+    "fragments": [
+      {
+        "old": "(tracker-returned-month|cook-add-title)",
+        "new": "(tracker-returned-month|cook-add-title|cook-plan-cancel)"
+      },
+      {
+        "old": "    def line(self, line):\n        match",
+        "new": "    def line(self, line):\n        if \"Test Case '-[AteUITests.CookPlanUITests testSavedRecipePlanWithoutReminderCanBeReopenedAndCancelled]'\" in line and any(x in line for x in (' passed ', ' failed ', 'exceeded execution')):\n            self.open.pop('cook-plan-cancel', None)\n        match"
+      }
+    ],
+    "current_sha256": "81ff1dfd2e40bb9a5854b8d126e91c949ec5a6ba7e089cddb1367ac551903e0b"
+  },
+  ".github/workflows/compile-check.yml": {
+    "path": ".github/workflows/compile-check.yml",
+    "parent_sha256": "c483e7be3f22d63fce4ca60c302117866e842c3b1a73fd51e485c8e59e91b44a",
+    "fragments": [
+      {
+        "old": "          NSUnbufferedIO=YES xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/NutritionDiaryUITests \\\n",
+        "new": "          NSUnbufferedIO=YES python3 scripts/ui_query_samples.py --log nutrition-ui-tests.log --simulator \"$SIM_ID\" --output cook-plan-cancel-live-query -- \\\n          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/NutritionDiaryUITests \\\n"
+      },
+      {
+        "old": "            nutrition-ui-tests.log\n            cookplan-process-lifecycle\n",
+        "new": "            nutrition-ui-tests.log\n            cookplan-process-lifecycle\n            cook-plan-cancel-live-query\n"
+      }
+    ],
+    "current_sha256": "cb04f861c4b71fbd914b158f88800bbce0560422d8ca45f42233b2d7b350398f",
+    "ancestor_sha256": [
+      "44622c559298ca5f27ef65b1d5b2671fa9c568f23fe4407e5e46f9bac43d9c65",
+      "b759b9638cb68980f729007fe2d1b7f368c3a5ea245260bd1f567672953fd1bd",
+      "c483e7be3f22d63fce4ca60c302117866e842c3b1a73fd51e485c8e59e91b44a"
+    ]
+  }
+}

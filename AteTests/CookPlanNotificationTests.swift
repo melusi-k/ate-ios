@@ -202,23 +202,34 @@ final class CookPlanNotificationTests: XCTestCase {
 // Exercise the real off-Main boundary without contacting notification services.
 extension CookPlanNotificationTests {
     func testBlockedSystemRemovalLeavesMainResponsiveAndDoesNotReturnEarly() async {
+        cookRemovalDiagnostic("test-entry")
         let started = expectation(description: "utility removal entered")
         let release = DispatchSemaphore(value: 0)
         var returned = false
         let removal = Task { @MainActor in
+            cookRemovalDiagnostic("main-task-entry")
             await CookPlanNotificationRemoval.perform(ids: ["cook-r1"]) { ids in
+                cookRemovalDiagnostic("utility-callback-entry")
                 XCTAssertFalse(Thread.isMainThread, "Blocking OS removal must not run on Main")
                 XCTAssertEqual(ids, ["cook-r1"], "Removal must preserve the requested identities")
+                cookRemovalDiagnostic("before-entry-fulfill")
                 started.fulfill()
+                cookRemovalDiagnostic("after-entry-fulfill")
                 release.wait()
+                cookRemovalDiagnostic("utility-released")
             }
+            cookRemovalDiagnostic("removal-await-return")
             returned = true
         }
+        cookRemovalDiagnostic("before-entry-wait")
         await fulfillment(of: [started], timeout: 2)
+        cookRemovalDiagnostic("entry-wait-return")
         // This MainActor assertion runs while the synchronous boundary is blocked.
         XCTAssertFalse(returned, "Ordered cleanup cannot report completion before OS removal returns")
+        cookRemovalDiagnostic("before-release")
         release.signal()
         await removal.value
+        cookRemovalDiagnostic("test-completion")
         XCTAssertTrue(returned)
     }
 
@@ -227,4 +238,9 @@ extension CookPlanNotificationTests {
             XCTFail("No identifiers means no OS removal request")
         }
     }
+}
+
+// Diagnostic output only: monotonic correlation, no scheduling or synchronization.
+private func cookRemovalDiagnostic(_ phase: String) {
+    print("COOK-REMOVAL-PHASE phase=\(phase) monotonic_ns=\(DispatchTime.now().uptimeNanoseconds) main_thread=\(Thread.isMainThread)")
 }

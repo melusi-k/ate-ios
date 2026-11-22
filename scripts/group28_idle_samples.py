@@ -107,7 +107,7 @@ def observe(log, simulator, output, stop):
         (output / 'receipt.json').write_text(json.dumps({'diagnostic_only': True, 'sampled_phases': sorted(watch.sampled), 'events': events, 'finished_uptime': time.monotonic()}, indent=2) + '\n')
 
 
-def main():
+def main(observer=observe):
     parser = argparse.ArgumentParser()
     parser.add_argument('--log', required=True, type=Path)
     parser.add_argument('--simulator', required=True)
@@ -118,7 +118,7 @@ def main():
     if not command:
         parser.error('native command required')
     stop = threading.Event()
-    watcher = threading.Thread(target=observe, args=(args.log, args.simulator, args.output, stop))
+    watcher = threading.Thread(target=observer, args=(args.log, args.simulator, args.output, stop))
     watcher.start()
     child = None
     def interrupted(signum, _frame):

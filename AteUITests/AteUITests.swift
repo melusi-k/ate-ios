@@ -116,8 +116,12 @@ final class AteUITests: XCTestCase {
     /// Opens Add sheet, picks a tab, generates via mock and saves; ends on Recipe detail.
     func addRecipe(tab: String, input: ((XCUIApplication) -> Void)?, shotPrefix: String) {
         app.buttons["Add recipe"].tap()
-        if captureAddTitleQuery { shot("cook-completion-before-add-title-query") }
+        if captureAddTitleQuery {
+            shot("cook-completion-before-add-title-query")
+            cookAddTitleQueryMark("begin")
+        }
         wait(text("Add a recipe"))
+        if captureAddTitleQuery { cookAddTitleQueryMark("end") }
         app.buttons[tab].tap()
         input?(app)
         shot("\(shotPrefix)-1-input")
@@ -1539,4 +1543,10 @@ final class AteUITests: XCTestCase {
         XCTAssertTrue(app.buttons["listCard"].firstMatch.exists, "the unfiltered result returns")
         shot("search-results-menu-reset")
     }
+}
+
+// Fixed markers around the existing completion-journey title wait only.
+private func cookAddTitleQueryMark(_ edge: String) {
+    let line = "UI-QUERY-DIAGNOSTIC boundary=cook-add-title edge=\(edge) monotonic_ns=\(DispatchTime.now().uptimeNanoseconds)\n"
+    FileHandle.standardOutput.write(Data(line.utf8))
 }

@@ -4,7 +4,7 @@ final class CookPlanUITests: XCTestCase {
     func testSavedRecipePlanWithoutReminderCanBeReopenedAndCancelled() {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-UITesting", "-qaNutritionFixtures"]
+        app.launchArguments = ["-UITesting", "-qaNutritionFixtures", "-qaCookPlanCancelDiagnostic"]
         app.launch()
         // #642: the first tab is Today; the saved-recipe collection is one tap in.
         let libraryEntry = app.buttons["today.recipes"]
@@ -41,14 +41,21 @@ final class CookPlanUITests: XCTestCase {
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "cook-plan-saved-without-reminder"; shot.lifetime = .keepAlways
         add(shot)
+        cookPlanCancelQueryMark("begin")
         app.buttons["cookPlan.cancelPlan"].tap()
         // The recipe button exists underneath the sheet. Prove cancellation dismissed
         // this sheet before tapping it, then prove a new sheet mounted before absence.
         XCTAssertTrue(reminder.waitForNonExistence(timeout: 10), "Cancel must dismiss the saved plan sheet before reopening")
+        cookPlanCancelQueryMark("end")
         XCTAssertTrue(plan.waitForExistence(timeout: 10))
         XCTAssertTrue(plan.isHittable, "Reopen must target the uncovered recipe plan action")
         plan.tap()
         XCTAssertTrue(reminder.waitForExistence(timeout: 10), "Reopen must mount a new plan sheet before checking cancellation")
         XCTAssertFalse(app.buttons["cookPlan.cancelPlan"].exists)
     }
+}
+
+private func cookPlanCancelQueryMark(_ edge: String) {
+    let line = "UI-QUERY-DIAGNOSTIC boundary=cook-plan-cancel edge=\(edge) monotonic_ns=\(DispatchTime.now().uptimeNanoseconds)\n"
+    FileHandle.standardOutput.write(Data(line.utf8))
 }

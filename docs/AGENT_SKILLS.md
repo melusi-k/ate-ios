@@ -32,6 +32,7 @@ Keep the body action-oriented: when to use the skill, what to inspect, constrain
 | `ate-journal` | Journal persistence, lifecycle, archive/recovery, consumers |
 | `ate-integrations` | App Intents, Apple platform surfaces, AI and external integrations |
 | `ate-release-readiness` | PR quality, CI gates, rollout, release acceptance |
+| `ate-code-review` | Review-time gates for SwiftUI, accessibility, concurrency, testing, performance |
 
 ## Instruction precedence
 

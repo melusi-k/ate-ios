@@ -10,6 +10,8 @@ NEW='''        // Target the full list row, not the narrow StaticText title chil
         appleRow.element(boundBy: 0).swipeRight()
         wait(app.buttons["Favourite"].firstMatch, 3)'''
 def restore(path,raw):
+    from journal_delete_snapshot_delta import restore as restore_snapshot
+    raw = restore_snapshot(path, raw)
     from ui_progress_stream_delta import restore as restore_progress
     raw = restore_progress(path,raw)
     from named_ui_red_rewrite_delta import restore as restore_reds

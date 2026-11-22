@@ -1,0 +1,32 @@
+name: Review rules
+
+# Advisory ratchet for the mechanical review rules in
+# .agents/skills/ate-code-review/ (deprecated SwiftUI APIs, single-parameter
+# onChange, Task inside onAppear, negation inside #expect/#require,
+# Task.sleep waits in tests). Fails only when a rule's hit count exceeds its
+# baseline in scripts/review-rules-baseline.txt, so existing baselined hits
+# never turn CI red but new violations do not land. Once every rule reaches
+# zero, drop the baseline to make the checks fully blocking.
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: review-rules-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review-rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Check review rules against baseline
+        run: bash scripts/check-review-rules.sh

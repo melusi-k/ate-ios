@@ -1512,3 +1512,118 @@ Implementation duration is not calculated because actual work-start endpoints ar
 
 ### Open-PR inventory count clarification — 2026-11-23
 The Monday repository search returned 86 open PRs before this documentation PR was created. After opening [PR #657](https://github.com/melusi-k/ate-ios/pull/657), the open-PR inventory is 87. PR #657 is documentation-only and adds no product scope or sprint points.
+
+
+## W48 Monday execution and lifecycle verification addendum — 2026-11-23
+
+**Verification snapshot:** 2026-11-23T07:18:10Z (Africa/Johannesburg 2026-11-23 09:18:10+02:00). Current main remains `ef58846bf8e2ab54b3abfc09e39264187d7cd1cc`. This is a Monday execution baseline, not a sprint close-out. W48 planned dates and owner-approved 16+5 capacity are unchanged.
+
+### Current inventory and allocation reconciliation
+
+The current GitHub searches returned **72 open issues**, **3 recently closed issues**, **87 open PRs**, and **20 recently closed PRs updated since 2026-11-16**. The prior full PR register contained 84 open PRs. Since that snapshot, #591, #647 and #648 have left the open set (merged), and six new PRs have opened: #649, #651, #654, #655, #656 and #657. Arithmetic reconciles exactly: 84 - 3 + 6 = 87.
+
+| New PR | Allocation | Commitment / points | Dependency and acceptance boundary |
+|---|---|---|---|
+| [#649](https://github.com/melusi-k/ate-ios/pull/649) | 2026-W48, 2026-11-23 to 2026-11-29 | Disposition only; 0 points | Duplicate record for implementation already merged in #650. Compare complete diff, preserve unique evidence if any, and decide disposition; do not merge duplicate content or count a second #646 delivery. |
+| [#651](https://github.com/melusi-k/ate-ios/pull/651) | 2026-W48, 2026-11-23 to 2026-11-29 | Test/CI triage only; 0 points | Not a runtime fix or W48 product commitment. Preserve all original selectors/assertions/caps; exact-head Compile/Dogfood/Journal and the single targeted failed-save acceptance must pass before normal review/merge. Current Compile and regression jobs are red. |
+| [#654](https://github.com/melusi-k/ate-ios/pull/654) | 2026-W52 candidate, 2026-12-21 to 2026-12-27 | Uncommitted documentation candidate; 0 points | Keep root/domain guidance authoritative and preserve upstream notices. Exact-head required checks and independent review remain necessary; current Compile and Dogfood results are red. |
+| [#655](https://github.com/melusi-k/ate-ios/pull/655) | 2026-W52 candidate, 2026-12-21 to 2026-12-27 | Uncommitted CI/tooling candidate; 0 points | Related to #654 but no branch dependency. Preserve all required Compile/Dogfood/Journal contexts; TSan remains non-required/nightly and unrun. Current Compile and Dogfood results are red. No governance change is authorised by its candidate allocation. |
+| [#656](https://github.com/melusi-k/ate-ios/pull/656) | W47 close-out documentation carryover; planned W47 close window 2026-11-16 to 2026-11-22 | Documentation only; 0 product points | Separate W47 retrospective artifact, still draft and not on main. Do not rewrite its historical window; skipped required native execution contexts and no submitted human review remain blockers. |
+| [#657](https://github.com/melusi-k/ate-ios/pull/657) | 2026-W48, 2026-11-23 to 2026-11-29 | Monday planning documentation only; 0 product points | This PR contains the W48 plan. Exact-head documentation checks pass, but required Compile and Dogfood execution jobs are skipped on the docs-only path; remain draft until required contexts and independent review are satisfied. |
+
+The 20 recently closed PRs include the relevant pre-W48 merges #591, #644, #647, #648, #650, #652 and #653. #591/#644/#647/#648/#650/#652/#653 are not W48 delivery. Their merges do not close the owning product issues. Other recently closed PRs remain historical/related work and are not pulled into W48 without a dependency and acceptance reason.
+
+### Current W48 execution order and gates
+
+The committed outcome remains 16 planned points:
+
+1. **Workflow cleanup — 5 shared points:** #591 is merged pre-sprint; active stack is #592–#599 and #602–#605 (12 open PRs). Root #592 head `d81646f7e7334a8b7705ae1bd60432ce7413f535` is based on old main `ffa7fdcf242acdf7005905c3c05a39613cbb3976`, not current main. Compile [44917186447](https://github.com/melusi-k/ate-ios/actions/runs/44917186447) failed; Dogfood [44917186562](https://github.com/melusi-k/ate-ios/actions/runs/44917186562) failed. Journal result succeeded, but regressions and the two required qualification outcomes are red. All 12 active stack PRs returned zero submitted GitHub review records. Forward-refresh the complete ordered stack to one captured current-main ancestry, preserving all selectors, assertions, evidence gates, required checks and timeouts. No child is qualified from source-only checks.
+2. **Source import — 3 shared points:** #35 / PR #640. Exact head `b5e878c7aaf70e1e7d8a108a71880a6a9fa2f86b`, old base `cef39066d83b49718a6d72cca5897617dee1e93a`. Compile [44802087062](https://github.com/melusi-k/ate-ios/actions/runs/44802087062) failed, including native nutrition and regression jobs; Python source tests passed (426), but they are not native/device acceptance. Preserve exact source rows/order, written Method, raw source and unknown facts. Correct and qualify this route before generation acceptance.
+3. **Generation acceptance — 5 shared points:** #89/#641 / PR #643. Exact head `561a26099ba590706c07ce062cf23fa6cab6d3d0` is based on #640's failed head; only Supabase Preview was reported (skipped). No native Compile/Dogfood/UI result exists for this exact head. Do not claim readiness/privacy/context, on-device streaming, cancellation/recovery, Review, Rerun or explicit Save until exact-build eligible-device evidence exists.
+4. **Today references — 3 points:** #642; #644 and #650 are pre-sprint merges. Finish only the remaining semantic audit of labels/copy, accessibility, help/onboarding, routes/deep links, docs and active tests. Preserve valid Library/data terminology and stable identifiers. No duplicate implementation or W48 credit for the already-merged slices.
+
+The **5-point NOW reserve** remains #646 verification only. #650 contains the button implementation; #649 is duplicate/disposition-only. #649's exact head has Compile [44846295864](https://github.com/melusi-k/ate-ios/actions/runs/44846295864) and Dogfood qualification [44846295850](https://github.com/melusi-k/ate-ios/actions/runs/44846295850) failures. Verify Save/Edit/Rerun hierarchy and preserved behavior on an owner-device build from merged #650; do not assume source merge is acceptance. Any further code fix must be sized before execution and paid for by an equal-scope removal from unstarted work or owner escalation.
+
+Stretch remains #498 (3 points) only if committed outcomes are accepted and the NOW reserve is spare; PR #568 is W51 disposition-only, not an implementation shortcut. Today conditional-home composition (2 points) also remains stretch. #70 is the first bounded pull-forward candidate if capacity genuinely frees, focused on the closure/evidence reconciliation below. No scope exceeds the 21-point cap.
+
+### Current main, release and governance evidence
+
+- Main Build IPA [45015893954](https://github.com/melusi-k/ate-ios/actions/runs/45015893954) concluded success, but the run's `backend-e2e` and `ui-suite` jobs were skipped and beta promotion was skipped; no unit-test job ran in that workflow. It is an artifact/build wrapper, not full candidate qualification.
+- Nightly QA [45009447433](https://github.com/melusi-k/ate-ios/actions/runs/45009447433) failed on preceding SHA `ffa7fdcf242acdf7005905c3c05a39613cbb3976` (backend E2E and QA gate); it is not a full run on current main.
+- Release readiness [45017899547](https://github.com/melusi-k/ate-ios/actions/runs/45017899547) succeeded as a wrapper only. Workflow security [45015893987](https://github.com/melusi-k/ate-ios/actions/runs/45015893987) succeeded. CodeQL [45081688648](https://github.com/melusi-k/ate-ios/actions/runs/45081688648) passed Actions/Python/JavaScript but skipped Swift analysis.
+- PR #653's exact Compile [45009157802](https://github.com/melusi-k/ate-ios/actions/runs/45009157802) failed one CookPlan notification/removal-entry timing test (1,354 passed, 1 failed, 0 skipped). Its merge followed an explicit owner exception for that exact red head; the root cause remains open. That exception is not a precedent for other PRs.
+- #33 remains BLOCKED at 1/59 verified, 12 failing and 46 open; required unit/QA/UI/E2E evidence is absent or skipped and QA-results retrieval previously returned HTTP 400. #45 remains the owner go/no-go checklist with no Pilot/Launch approval recorded.
+- `main-production-protection` ruleset 26236404 is active. It requires one approving review, resolved review threads and strict `compile`, `dogfood-qualification`, `Compile qualification result`, `Dogfood qualification result` and `Journal qualification result` contexts. A repository-role PR bypass actor is configured. No governance setting, permission, branch rule, required check, timeout or validation was changed.
+
+### Exact-head status of new/adjacent PRs
+
+| PR / exact head | Latest relevant result | Review/merge state |
+|---|---|---|
+| #651 / `f0cec91bbc160d6820b9d1858af34b0997409b33` | Compile [44892991205](https://github.com/melusi-k/ate-ios/actions/runs/44892991205) and regression suites failed; Dogfood and Journal result succeeded. | Zero submitted human reviews; open/unmerged; triage only. |
+| #654 / `3dd8774802c07a965a5034f7d639f269b5f49416` | Compile [44991558246](https://github.com/melusi-k/ate-ios/actions/runs/44991558246) and Dogfood [44991558235](https://github.com/melusi-k/ate-ios/actions/runs/44991558235) failed; Journal result and source-analysis checks succeeded. | Zero submitted human reviews; open/unmerged; W52 candidate only. |
+| #655 / `6e21fcdafa51edb354a6864996f96b5c11cf6070` | Compile [44991905103](https://github.com/melusi-k/ate-ios/actions/runs/44991905103) and Dogfood [44991905150](https://github.com/melusi-k/ate-ios/actions/runs/44991905150) failed; Journal result and advisory `review-rules` check succeeded. Native TSan did not run. | Zero submitted human reviews; open/unmerged; W52 candidate only. |
+| #657 / `d28a19f18a1314891ab8b29fab02ff48d30b1641` | docs-validation, Python tests, stack validator, test-head validator and CodeQL Actions/Python/JavaScript succeeded. Required `compile`, `dogfood-qualification`, regressions, open-state UI, build-nutrition and Swift analysis were skipped; qualification-result wrapper contexts succeeded. | Zero submitted human reviews; draft/open. Skipped required execution is not a pass; do not merge. |
+
+The active W48 stack #592–#599/#602–#605, plus #640/#643/#649/#650/#654/#655/#657, returned zero submitted review records in the review-submission API. This does not prove no conversation/inline comments exist; first substantive human review and qualifying approval remain **Unknown** unless a qualifying submitted review is evidenced. Bot comments and owner conversation comments are not approvals.
+
+### Issue timeline first-event correction
+
+Correction to the earlier sentence saying issue timeline endpoints were unavailable: the GitHub issue timeline endpoint was accessible in this follow-up. The first event below is the earliest returned timeline event, not an actual work-start record. All UTC timestamps and SAST conversions are **Verified** from the timeline payload.
+
+| Issue | Created (UTC; SAST) | First timeline event (UTC; SAST) | Actor | Actual work start |
+|---|---|---|---|---|
+| #35 | 2026-10-11T23:01:22Z; 2026-10-12 01:01:22+02:00 | `labeled` 2026-10-11T23:01:23Z; 2026-10-12 01:01:23+02:00 | melusi-k | Unknown |
+| #70 | 2026-10-13T04:05:22Z; 2026-10-13 06:05:22+02:00 | `cross-referenced` 2026-10-13T04:05:36Z; 2026-10-13 06:05:36+02:00 | melusi-k | Unknown |
+| #89 | 2026-10-14T05:36:48Z; 2026-10-14 07:36:48+02:00 | `cross-referenced` 2026-10-14T05:36:56Z; 2026-10-14 07:36:56+02:00 | melusi-k | Unknown |
+| #498 | 2026-11-12T15:28:56Z; 2026-11-12 17:28:56+02:00 | `labeled` 2026-11-12T15:28:57Z; 2026-11-12 17:28:57+02:00 | melusi-k | Unknown |
+| #641 | 2026-11-20T16:24:19Z; 2026-11-20 18:24:19+02:00 | `added_to_project_v2` 2026-11-20T16:24:22Z; 2026-11-20 18:24:22+02:00 | github-project-automation[bot] | Inferred from earliest linked PR #643 commit 2026-11-20T19:29:54Z; not verified human start |
+| #642 | 2026-11-20T17:23:25Z; 2026-11-20 19:23:25+02:00 | `added_to_project_v2` 2026-11-20T17:23:27Z; 2026-11-20 19:23:27+02:00 | github-project-automation[bot] | Unknown |
+| #646 | 2026-11-20T23:13:40Z; 2026-11-21 01:13:40+02:00 | `added_to_project_v2` 2026-11-20T23:13:42Z; 2026-11-21 01:13:42+02:00 | github-project-automation[bot] | Inferred from earliest linked PR #649 commit 2026-11-21T00:45:49Z; not verified human start |
+
+The first retained human issue comments already recorded in the issue bodies remain separate from these timeline events. Bot project events are not human reviews. Issue #35/#89/#498/#70 actual work starts remain Unknown; #641/#646 have only inferred earliest linked-commit activity; #642 remains Unknown.
+
+### Lifecycle reconstruction — remaining 12 workflow-stack PRs
+
+PR creation/open is Verified metadata. The earliest branch commit is **Inferred** earliest observable implementation activity, not a verified human start. All 12 returned zero submitted review records. First substantive human review, qualifying approval, merge, issue closure and actual completion remain Unknown/N/A as applicable; no review/approval duration or completion cycle is calculated.
+
+| PR | Created/opened (UTC; SAST) | Earliest branch commit (UTC; SAST; Inferred) | First human review / approval | Current state |
+|---|---|---|---|---|
+| #592 | 2026-11-18T19:43:03Z; 21:43:03+02:00 | 2026-11-18T19:41:17Z; 21:41:17+02:00 | Unknown / Unknown | Open, root checks red |
+| #593 | 2026-11-18T19:44:06Z; 21:44:06+02:00 | 2026-11-18T19:43:41Z; 21:43:41+02:00 | Unknown / Unknown | Open, downstream of #592 |
+| #594 | 2026-11-18T19:49:26Z; 21:49:26+02:00 | 2026-11-18T19:47:53Z; 21:47:53+02:00 | Unknown / Unknown | Open, downstream of #593 |
+| #595 | 2026-11-18T19:52:24Z; 21:52:24+02:00 | 2026-11-18T19:51:08Z; 21:51:08+02:00 | Unknown / Unknown | Open, downstream of #594 |
+| #596 | 2026-11-18T19:53:47Z; 21:53:47+02:00 | 2026-11-18T19:53:13Z; 21:53:13+02:00 | Unknown / Unknown | Open, downstream of #595 |
+| #597 | 2026-11-18T19:55:02Z; 21:55:02+02:00 | 2026-11-18T19:54:38Z; 21:54:38+02:00 | Unknown / Unknown | Open, downstream of #596 |
+| #598 | 2026-11-18T19:59:06Z; 21:59:06+02:00 | 2026-11-18T19:56:01Z; 21:56:01+02:00 | Unknown / Unknown | Open, downstream of #597 |
+| #599 | 2026-11-18T20:17:54Z; 22:17:54+02:00 | 2026-11-18T20:00:23Z; 22:00:23+02:00 | Unknown / Unknown | Open, downstream of #598 |
+| #602 | 2026-11-18T20:29:51Z; 22:29:51+02:00 | 2026-11-18T20:28:37Z; 22:28:37+02:00 | Unknown / Unknown | Open, downstream of #599 |
+| #603 | 2026-11-18T20:33:01Z; 22:33:01+02:00 | 2026-11-18T20:31:06Z; 22:31:06+02:00 | Unknown / Unknown | Open, downstream of #602 |
+| #604 | 2026-11-18T20:34:41Z; 22:34:41+02:00 | 2026-11-18T20:33:29Z; 22:33:29+02:00 | Unknown / Unknown | Open, downstream of #603 |
+| #605 | 2026-11-18T20:37:26Z; 22:37:26+02:00 | 2026-11-18T20:35:28Z; 22:35:28+02:00 | Unknown / Unknown | Open, terminal stack PR |
+
+The 10 middle PR descriptions (#593–#599 and #602–#604) now carry an appended W48 correction clarifying that #591 is pre-sprint and the remaining active stack is 12 PRs, all one 5-point outcome. Existing position numbers/parent links are retained as historical stack lineage.
+
+### Recently closed issue acceptance reconciliation
+
+The recent-closed-issue search returned #76, #101 and #145. Their closure timestamps are Verified, but remaining acceptance is not automatically considered complete:
+
+- [#76](https://github.com/melusi-k/ate-ios/issues/76) closed 2026-11-12T10:56:46Z (SAST 12:56:46+02:00, state reason `completed`). The test remains quarantined; removal of quarantine, repeated determinism and real-server/two-device/cross-account acceptance remain unchecked. A diagnostic pass is not a full sync acceptance.
+- [#101](https://github.com/melusi-k/ate-ios/issues/101) closed 2026-11-19T04:02:04Z (SAST 06:02:04+02:00, state reason `completed`). Stronger automated detent/scroll/dismiss/return coverage, accessibility/responsive matrix and exact-candidate evidence remain unchecked; actual product completion Unknown.
+- [#145](https://github.com/melusi-k/ate-ios/issues/145) closed 2026-10-23T01:03:17Z (SAST 03:03:17+02:00, state reason `completed`). One Settings/About native test passed, but complete visual/source/device acceptance remains unchecked.
+
+No issue was reopened and no acceptance checkbox was changed. [#70](https://github.com/melusi-k/ate-ios/issues/70) now owns a bounded reconciliation: map each remaining criterion to current owner, implementation, exact-head/device evidence and explicit administrative/partial closure or descoping decision. Do not bulk reopen, relabel or tick boxes.
+
+### Evidence-based metrics and unresolved endpoints
+
+- PR-open-to-merge lead time remains calculable only for merged PRs with both metadata endpoints: #591 2d 19h 18m 14s; #644 2h 12m 54s; #648 10h 47m 21s; #650 5h 49m 15s; #653 18h 05m 32s. These are metadata intervals, not implementation or product acceptance cycle time.
+- For the 12 active workflow-stack PRs, no merge endpoint exists. For #640/#643/#649/#651/#654/#655/#657, no merge endpoint exists. Do not calculate PR lead-to-completion.
+- Implementation duration is not calculated because earliest commit timestamps are Inferred rather than verified human work starts. Review/approval duration is not calculated because no qualifying submitted human review/approval endpoint was found. Issue lead/cycle time is not calculated because the selected product issues remain open or actual product completion is Unknown.
+- Preserve all UTC timestamps and SAST conversions above. Planned dates remain forecasts; actual start/end remain Unknown unless new evidence appears.
+
+### Change log — Monday follow-up
+
+- 2026-11-23: Verified current inventory 72 open issues, 3 recently closed issues, 87 open PRs and 20 recently closed PRs; reconciled the 84-PR prior register as 84 - 3 merged (#591/#647/#648) + 6 new (#649/#651/#654/#655/#656/#657) = 87.
+- 2026-11-23: Added first timeline events to #35/#70/#89/#498/#641/#642/#646 issue descriptions and this document; corrected the earlier note that the issue timeline endpoint was unavailable.
+- 2026-11-23: Appended the 12-PR stack correction to #593–#599 and #602–#604; no original parent/position history or planned dates were rewritten.
+- 2026-11-23: Added #76/#101/#145 closure/acceptance reconciliation to #70; no issues reopened and no acceptance boxes changed.
+- 2026-11-23: No PR merged, no checks bypassed, no validation weakened and no governance or production settings changed.

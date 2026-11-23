@@ -1508,3 +1508,7 @@ Implementation duration is not calculated because actual work-start endpoints ar
 - 2026-11-23: Revalidated the existing W48 owner-approved dates and 16+5 capacity; no planned date change. #591, #644 and #650 are confirmed pre-sprint merges and are not counted as W48 delivery. The remaining workflow stack is 12 open PRs. Current main moved to `ef58846` after #653; #592's old base and failed exact-head Compile/Dogfood are explicit blockers. #640's failed Compile and #643's missing native run are explicit dependency gates. #646 remains a NOW reserve verification outcome; #649 is duplicate/disposition-only. #498 remains stretch; PR #568 is not a W48 implementation route.
 - W47 close-out remains in draft PR #656 and is not on main. Its W47 committed baseline was not recorded; no W47 committed-versus-delivered percentage or velocity is invented here.
 - No PR merged, no check bypassed, no validation weakened, and no repository governance or production setting changed by this planning update.
+
+
+### Open-PR inventory count clarification — 2026-11-23
+The Monday repository search returned 86 open PRs before this documentation PR was created. After opening [PR #657](https://github.com/melusi-k/ate-ios/pull/657), the open-PR inventory is 87. PR #657 is documentation-only and adds no product scope or sprint points.

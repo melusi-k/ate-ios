@@ -10,7 +10,9 @@ into local arrays (removing the production guard would not have failed them), th
 check ran outside the deadline, and ResumeBox was a local type inside a generic function.
 Round 4/5 supersede round 3: the test harness needed UIKit/@MainActor, the Boolean loading
 marker let a superseded attempt (or an overlapping resolve's unconditional defer) clear a
-running operation's shimmer, and the overlap test assumed ordering with sleeps.
+running operation's shimmer, and the overlap test assumed ordering with sleeps. Round 6/7
+fixed an XCTest synchronous-autoclosure violation; round 8 fixes the fixture construction
+above.
 
 ## The red and its cause (unchanged analysis, pass/fail compared)
 
@@ -94,8 +96,12 @@ test:
 
 ## Fixture fix: a real settled state, not a bypass
 
-`ExploreRetentionQAFixtures` sets the fixture card's `coverImage` to `CoverStore.removed`
-("none") - the product's actual user-removed-cover state: branded tile, no backfill attempt,
+`ExploreRetentionQAFixtures` constructs the fixture card with the supported RecipeCard init
+and then assigns `coverImage = CoverStore.removed` ("none") through the model property -
+`RecipeCard`'s memberwise init takes no coverImage, and the round-7 packet failed
+build-for-testing on exactly that (Compile 45144749563, and the same compile failure
+cascaded into the Journal lane's open-state-ui build step; one root cause, both reds). The
+state is the product's actual user-removed-cover state: branded tile, no backfill attempt,
 per existing `ensure` semantics. Scope honesty: the settled-fixture fast pass validates the
 retention journey only; the production shimmer fix is proven by the deadline unit tests above,
 not by the Explore test. Every other recipe and UI test keeps the full lazy-backfill behavior,
@@ -106,9 +112,9 @@ passes unchanged.
 ## Evidence and pins
 
 - `Ate/Services/CoverStore.swift` forward `a46949930076...`;
-  `Ate/App/ExploreRetentionQAFixtures.swift` forward `6e16f8ed2bd8...` (full hashes in inverse JSON).
+  `Ate/App/ExploreRetentionQAFixtures.swift` forward `50bfcfd41d7a...` (full hashes in inverse JSON).
 - `scripts/tests/cover_generation_terminal_delta.py` + `cover_generation_terminal_inverse.json`
-  (fixture SHA `66d59c2164b586d018d0317fd8d1824fbaf306cd1c8b2b8a06cf173de95c38ab`) restore both
+  (fixture SHA `a6d03fd23626f216329d50446405142229572e2a585540cc82f19a7cc7decff6`) restore both
   files byte-for-byte to their historical hashes (`8c7d0dea...`, `1cf24d26...`).
 - `scripts/tests/test_cover_generation_terminal.py` pins: the seam structure (generate and
   the runner contain no `save`; the commit seam's guard ordering, guard before save; the

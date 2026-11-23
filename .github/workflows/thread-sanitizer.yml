@@ -1,0 +1,64 @@
+name: Thread Sanitizer
+
+# Runs the AteTests unit suite under the Thread Sanitizer to catch data races.
+# Nightly plus manual only, so it never gates PRs and the existing
+# compile-check and QA gates are untouched. Uses the repo's xcode-27 runner
+# and Xcode 27.1 like compile-check, because the app requires the iOS 26 SDK
+# (Foundation Models). Serial execution and time limits match the full-unit
+# job exactly; budgets are not raised.
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: "37 0 * * *"   # 00:37 UTC, separate from nightly.yml
+  workflow_dispatch:
+
+concurrency:
+  group: thread-sanitizer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  thread-sanitizer:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: xcode-27-homebrew-xcodegen-v1
+          restore-keys: |
+            xcode-27-homebrew-
+      - run: brew install xcodegen && xcodegen generate
+      - name: Run AteTests with Thread Sanitizer
+        run: |
+          set -o pipefail
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          xcodebuild test -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            -enableThreadSanitizer YES \
+            -only-testing:AteTests \
+            -resultBundlePath "$RUNNER_TEMP/tsan-tests.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO > tsan-tests.log 2>&1 || { grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|ThreadSanitizer" tsan-tests.log || true; tail -120 tsan-tests.log; exit 1; }
+          grep -E "Test Case .* (passed|failed)|Executed|TEST SUCCEEDED|ThreadSanitizer" tsan-tests.log | tail -60
+      - name: Upload TSan diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tsan-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            tsan-tests.log
+            ${{ env.RUNNER_TEMP }}/tsan-tests.xcresult
+          if-no-files-found: ignore
+          retention-days: 7

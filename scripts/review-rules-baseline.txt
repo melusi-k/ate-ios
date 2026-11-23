@@ -1,0 +1,6 @@
+foregroundcolor=3
+cornerradius=0
+onchange-single-param=0
+task-in-onappear=0
+expect-negation=0
+task-sleep-tests=2

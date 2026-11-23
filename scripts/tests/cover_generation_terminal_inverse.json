@@ -35,10 +35,14 @@
     "parent_sha256": "1cf24d260d4b51b905d5367932383f101308ee84cab60621e1d66b86a0000701",
     "fragments": [
       {
+        "old": "        store.layout = LibraryLayout()\n        store.recipes = [RecipeCard(id: \"qa-explore-retention-miso\", title: \"Miso salmon for two\",\n            servings: 2, timeMinutes: 25,\n",
+        "new": "        store.layout = LibraryLayout()\n        var miso = RecipeCard(id: \"qa-explore-retention-miso\", title: \"Miso salmon for two\",\n            servings: 2, timeMinutes: 25,\n"
+      },
+      {
         "old": "                          .init(name: \"white miso\", quantity: 2, unit: \"tbsp\")],\n            steps: [.init(order: 1, instruction: \"Roast the salmon until flaky.\", timeSeconds: 600)])]\n        if mode == .favourites { store.filter.collection = .favourites }\n",
-        "new": "                          .init(name: \"white miso\", quantity: 2, unit: \"tbsp\")],\n            steps: [.init(order: 1, instruction: \"Roast the salmon until flaky.\", timeSeconds: 600)],\n            // Settled cover state (the real user-removed value, not a bypass): the card shows\n            // the branded tile and never enters lazy backfill, keeping this retention journey\n            // deterministic while backfill stays fully live for every other recipe and test.\n            coverImage: CoverStore.removed)]\n        if mode == .favourites { store.filter.collection = .favourites }\n"
+        "new": "                          .init(name: \"white miso\", quantity: 2, unit: \"tbsp\")],\n            steps: [.init(order: 1, instruction: \"Roast the salmon until flaky.\", timeSeconds: 600)])\n        // Settled cover state (the real user-removed value, not a bypass), assigned through\n        // the model property - RecipeCard's memberwise init takes no coverImage: the card\n        // shows the branded tile and never enters lazy backfill, keeping this retention\n        // journey deterministic while backfill stays fully live for every other recipe/test.\n        miso.coverImage = CoverStore.removed\n        store.recipes = [miso]\n        if mode == .favourites { store.filter.collection = .favourites }\n"
       }
     ],
-    "current_sha256": "6e16f8ed2bd801a6a7411aa99afb4de8202f8ea52595c861cb846659f5077352"
+    "current_sha256": "50bfcfd41d7a3242f31eace7797e0d7b464ec3a10a117268504a07c32a3702e7"
   }
 }

@@ -84,7 +84,10 @@ class CoverGenerationTerminalTests(unittest.TestCase):
 
     def test_fixture_uses_the_real_settled_cover_state_not_a_bypass(self):
         source = (ROOT / FIXTURE).read_text()
-        self.assertIn('coverImage: CoverStore.removed', source)
+        self.assertIn('miso.coverImage = CoverStore.removed', source)
+        self.assertIn('store.recipes = [miso]', source)
+        self.assertNotIn('coverImage: CoverStore.removed)]', source,
+                         'RecipeCard init takes no coverImage - assign through the model property')
         self.assertNotIn('isUITesting) { return }', (ROOT / STORE).read_text())
         store = (ROOT / STORE).read_text()
         self.assertIn('nonisolated static let removed = "none"', store)

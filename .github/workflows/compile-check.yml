@@ -50,12 +50,12 @@ jobs:
       - name: Validate docs IDs and generated checklist consistency
         run: python3 scripts/check-ids.py
 
-  build-nutrition:
+  nutrition-units:
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27
-    # Full units/nutrition and later regressions have independent exact-head jobs
-    # with separate lower budgets (45m / 110m).
+    # Full units and App Clip once. UI selection is disjoint in nutrition-ui;
+    # each worker keeps the existing 45-minute cap.
     timeout-minutes: 45
     env:
       ATE_SIGN_STYLE: Automatic
@@ -160,117 +160,11 @@ jobs:
             full-unit-tests.json
             ${{ runner.temp }}/ate-test-results/full-unit-tests.xcresult
 
-      # Keep normal-size audits required; retain cross-size cases in the optional lane.
-      - name: Nutrition diary and goals UI regressions (#179)
-        if: ${{ always() && steps.build.outcome == 'success' }}
-        run: |
-          set -o pipefail
-          # Clean process so launch arguments are real (same rationale as other UI shards).
-          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
-          mkdir -p cookplan-process-lifecycle
-          python3 scripts/capture-cookplan-process-lifecycle.py --sim-id "$SIM_ID" --output cookplan-process-lifecycle > cookplan-process-lifecycle/collector-status.txt 2>&1 &
-          lifecycle_pid=$!
-          stop_lifecycle() {
-            kill "$lifecycle_pid" 2>/dev/null || true
-            wait "$lifecycle_pid" || true
-          }
-          trap stop_lifecycle EXIT
-          NSUnbufferedIO=YES python3 scripts/ui_query_samples.py --log nutrition-ui-tests.log --simulator "$SIM_ID" --output cook-plan-cancel-live-query -- \
-          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
-            -only-testing:AteUITests/NutritionDiaryUITests \
-            -only-testing:AteUITests/NutritionGoalsUITests \
-            -only-testing:AteUITests/CookPlanUITests \
-            -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreensWithoutDynamicType \
-            -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
-            -parallel-testing-enabled NO -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | python3 -u scripts/stream-ui-test-progress.py --selection nutrition-ui --log nutrition-ui-tests.log || status=$?
-          stop_lifecycle
-          trap - EXIT
-          # Export screenshots, hierarchy snapshots and audit attachments on every outcome,
-          # including successful runs, so merge-gate pixel evidence is retained.
-          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/nutrition-ui-attachments" 2>/dev/null || true
-          if [ "${status:-0}" -ne 0 ]; then
-            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-ui-tests.log || true
-            tail -120 nutrition-ui-tests.log
-            exit 1
-          fi
-          # Execution evidence: a green selection that ran nothing is a failure, and every
-          # named test must appear with its own pass line in the log.
-          if grep -q "Executed 0 tests" nutrition-ui-tests.log; then echo "::error::nutrition UI selection executed 0 tests"; exit 1; fi
-          for evidence in \
-            "NutritionDiaryUITests testFoodDiaryOpensAndExplicitlyLogsFoodWithUnavailableValues]' passed" \
-            "NutritionDiaryUITests testDiaryShowsGoalPromptWhenGoalsUnconfiguredAndEmptyState]' passed" \
-            "NutritionDiaryUITests testLogFoodRejectsNonPositiveQuantityWithVisibleError]' passed" \
-            "NutritionDiaryUITests testLogFoodSurfacesSaveFailure]' passed" \
-            "NutritionDiaryUITests testCorruptDiaryShowsErrorAndRecoversAfterBackupReset]' passed" \
-            "NutritionDiaryUITests testCorruptGoalsShowLoadErrorWithRetry]' passed" \
-            "NutritionDiaryUITests testRecipeNutritionShowsIncompleteStateForUnmappedIngredient]' passed" \
-            "NutritionDiaryUITests testLoggedEntryCanBeEditedAndShowsUpdatedValues]' passed" \
-            "CookPlanUITests testSavedRecipePlanWithoutReminderCanBeReopenedAndCancelled]' passed" \
-            "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed" \
-            "NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed" \
-            "AccessibilityAuditUITests testAuditNutritionScreensWithoutDynamicType]' passed"; do
-            grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }
-          done
-          grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
-
-      - name: Retain selected Nutrition startup liveness
-        if: always()
-        run: |
-          mkdir -p nutrition-startup-liveness
-          date -u '+%Y-%m-%dT%H:%M:%SZ' > nutrition-startup-liveness/copy-utc.txt
-          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> nutrition-startup-liveness/container-errors.txt); then
-            found=0
-            for evidence in "$data_container"/Library/Caches/startup-liveness-*.txt; do
-              if [ -f "$evidence" ]; then
-                cp "$evidence" nutrition-startup-liveness/
-                found=1
-              fi
-            done
-            if [ "$found" -eq 0 ]; then
-              echo 'No startup samples retained; liveness unverified.' > nutrition-startup-liveness/missing.txt
-            fi
-          fi
-
-      - name: Retain CookPlan cancel phase ledger
-        if: always()
-        run: |
-          # The app writes COOK-PLAN-CANCEL phase marks to stdout, which never reaches
-          # exported diagnostics; the on-device ledger in the app container does. Copy it
-          # into the already-exported live-query directory so the phase chain survives.
-          mkdir -p cook-plan-cancel-live-query
-          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> cook-plan-cancel-live-query/ledger-container-errors.txt); then
-            ledger="$data_container/Library/Caches/cookplan-cancel-ledger.txt"
-            if [ -f "$ledger" ]; then
-              cp "$ledger" cook-plan-cancel-live-query/cookplan-cancel-ledger.txt
-            else
-              echo 'No cancel phase ledger retained; marks unexported.' > cook-plan-cancel-live-query/ledger-missing.txt
-            fi
-          fi
-
-      - name: Upload nutrition UI diagnostics (early)
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          # Unique per run+attempt and distinct from the tail artifact, so this early upload
-          # never collides with the immutable tail artifact name and nutrition diagnostics
-          # survive even when a later push supersedes this run before the job tail.
-          name: nutrition-ui-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
-          if-no-files-found: warn
-          path: |
-            nutrition-ui-tests.log
-            cookplan-process-lifecycle
-            cook-plan-cancel-live-query
-            nutrition-startup-liveness
-            ${{ runner.temp }}/ate-test-results/nutrition-ui-tests.xcresult
-            ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
-
       - name: Upload build and nutrition diagnostics
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: compile-build-nutrition-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          name: compile-unit-build-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
             build.log
@@ -299,12 +193,228 @@ jobs:
             ${{ runner.temp }}/ate-test-results/explore-attachments
             ${{ runner.temp }}/ate-test-results/cook-finish-accessory-attachments
 
+  nutrition-ui:
+    name: nutrition UI (${{ matrix.shard }})
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - shard: cookplan
+            selectors: >-
+              -only-testing:AteUITests/CookPlanUITests
+              -only-testing:AteUITests/AccessibilityAuditUITests/testAuditNutritionScreensWithoutDynamicType
+            named_passes: |
+              CookPlanUITests testSavedRecipePlanWithoutReminderCanBeReopenedAndCancelled]' passed
+              AccessibilityAuditUITests testAuditNutritionScreensWithoutDynamicType]' passed
+          - shard: diary
+            selectors: >-
+              -only-testing:AteUITests/NutritionDiaryUITests
+            named_passes: |
+              NutritionDiaryUITests testFoodDiaryOpensAndExplicitlyLogsFoodWithUnavailableValues]' passed
+              NutritionDiaryUITests testDiaryShowsGoalPromptWhenGoalsUnconfiguredAndEmptyState]' passed
+              NutritionDiaryUITests testLogFoodRejectsNonPositiveQuantityWithVisibleError]' passed
+              NutritionDiaryUITests testLogFoodSurfacesSaveFailure]' passed
+              NutritionDiaryUITests testCorruptDiaryShowsErrorAndRecoversAfterBackupReset]' passed
+              NutritionDiaryUITests testCorruptGoalsShowLoadErrorWithRetry]' passed
+              NutritionDiaryUITests testRecipeNutritionShowsIncompleteStateForUnmappedIngredient]' passed
+              NutritionDiaryUITests testLoggedEntryCanBeEditedAndShowsUpdatedValues]' passed
+              NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed
+          - shard: goals
+            selectors: >-
+              -only-testing:AteUITests/NutritionGoalsUITests
+            named_passes: |
+              NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed
+    env:
+      ATE_SIGN_STYLE: Automatic
+    steps:
+      # PR validation must build the exact proposed head, not GitHub's synthetic merge commit.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "27.1"
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-27-xcode-deriveddata-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+            xcode-27-xcode-deriveddata-
+      - name: Validate docs IDs and generated checklist consistency
+        run: python3 scripts/check-ids.py
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: xcode-27-homebrew-xcodegen-v1
+          restore-keys: |
+            xcode-27-homebrew-
+      - run: brew install xcodegen && xcodegen generate
+      - name: Prepare diagnostics directory
+        run: mkdir -p "$RUNNER_TEMP/ate-test-results"
+      - name: Build for testing (iOS simulator)
+        id: build
+        run: |
+          set -o pipefail
+          STEP_START=$(date +%s)
+          SIM_ID=$(python3 scripts/select-ios-simulator.py)
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+
+          set +e
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+          status=$?
+          set -e
+          STEP_END=$(date +%s)
+          echo "::notice::CI_TIMING step=build-for-testing duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
+
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Simulator build failed (xcodebuild exit $status). Matching diagnostics and recent log follow:"
+            grep -n -B 8 -A 12 -E "error:|warning:|failed|Fatal error|Testing failed" build.log || true
+            echo "::group::Last 100 build log lines"
+            tail -n 100 build.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
+
+          grep -E "warning: .*(Widgets|Intents|Snapshot)" build.log > build-warnings.log || true
+          tail -n 30 build-warnings.log || true
+      # Keep normal-size audits required; retain cross-size cases in the optional lane.
+      - name: Nutrition diary and goals UI regressions (#179)
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        env:
+          NUTRITION_SELECTORS: ${{ matrix.selectors }}
+          NAMED_PASSES: ${{ matrix.named_passes }}
+        run: |
+          set -o pipefail
+          # Clean process so launch arguments are real (same rationale as other UI shards).
+          xcrun simctl terminate "$SIM_ID" com.melusik.ate >/dev/null 2>&1 || true
+          mkdir -p cookplan-process-lifecycle
+          python3 scripts/capture-cookplan-process-lifecycle.py --sim-id "$SIM_ID" --output cookplan-process-lifecycle > cookplan-process-lifecycle/collector-status.txt 2>&1 &
+          lifecycle_pid=$!
+          stop_lifecycle() {
+            kill "$lifecycle_pid" 2>/dev/null || true
+            wait "$lifecycle_pid" || true
+          }
+          trap stop_lifecycle EXIT
+          NSUnbufferedIO=YES python3 scripts/ui_query_samples.py --log nutrition-ui-tests.log --simulator "$SIM_ID" --output cook-plan-cancel-live-query -- \
+          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \
+            $NUTRITION_SELECTORS \
+            -resultBundlePath "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480 \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | python3 -u scripts/stream-ui-test-progress.py --selection nutrition-ui --log nutrition-ui-tests.log || status=$?
+          printf '%s\n' "${status:-0}" > nutrition-ui-exit-status.txt
+          stop_lifecycle
+          trap - EXIT
+          if [ "${status:-0}" -ne 0 ]; then
+            grep -n -B 8 -A 15 -E "error:|failed|XCTAssert|Assertion Failure|Test Case .* failed|Fatal error|Testing failed|Assertion failed" nutrition-ui-tests.log || true
+            tail -120 nutrition-ui-tests.log
+            exit 1
+          fi
+          # Execution evidence: a green selection that ran nothing is a failure, and every
+          # named test must appear with its own pass line in the log.
+          if grep -q "Executed 0 tests" nutrition-ui-tests.log; then echo "::error::nutrition UI selection executed 0 tests"; exit 1; fi
+          while IFS= read -r evidence; do
+            [ -n "$evidence" ] || continue
+            grep -qF "$evidence" nutrition-ui-tests.log || { echo "::error::missing pass evidence: $evidence"; tail -60 nutrition-ui-tests.log; exit 1; }
+          done <<< "$NAMED_PASSES"
+          grep -E "Test Case .* (passed|failed)|Executed" nutrition-ui-tests.log | tail -80
+
+      - name: Retain CookPlan cancel phase ledger
+        if: ${{ always() && matrix.shard == 'cookplan' }}
+        run: |
+          # QA phase marks are file-only. Copy the on-device ledger
+          # into the already-exported live-query directory so the phase chain survives.
+          mkdir -p cook-plan-cancel-live-query
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> cook-plan-cancel-live-query/ledger-container-errors.txt); then
+            ledger="$data_container/Library/Caches/cookplan-cancel-ledger.txt"
+            if [ -f "$ledger" ]; then
+              cp "$ledger" cook-plan-cancel-live-query/cookplan-cancel-ledger.txt
+            else
+              echo 'No cancel phase ledger retained; marks unexported.' > cook-plan-cancel-live-query/ledger-missing.txt
+            fi
+          fi
+
+      - name: Export shard xcresult attachments
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        run: |
+          status=0
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ate-test-results/nutrition-ui-tests.xcresult" --output-path "$RUNNER_TEMP/ate-test-results/nutrition-ui-attachments" > nutrition-export-status.log 2>&1 || status=$?
+          printf 'export_exit=%s\n' "$status" >> nutrition-export-status.log
+          if [ "$status" -ne 0 ]; then
+            cat nutrition-export-status.log
+            echo '::error::Shard attachment export failed; raw xcresult and status retained.'
+          fi
+          exit "$status"
+
+      - name: Retain selected Nutrition startup liveness
+        if: always()
+        run: |
+          mkdir -p nutrition-startup-liveness
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > nutrition-startup-liveness/copy-utc.txt
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> nutrition-startup-liveness/container-errors.txt); then
+            found=0
+            for evidence in "$data_container"/Library/Caches/startup-liveness-*.txt; do
+              if [ -f "$evidence" ]; then
+                cp "$evidence" nutrition-startup-liveness/
+                found=1
+              fi
+            done
+            if [ "$found" -eq 0 ]; then
+              echo 'No startup samples retained; liveness unverified.' > nutrition-startup-liveness/missing.txt
+            fi
+          fi
+
+      - name: Upload nutrition UI diagnostics (early)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          # Unique per run+attempt and distinct from the tail artifact, so this early upload
+          # never collides with the immutable tail artifact name and nutrition diagnostics
+          # survive even when a later push supersedes this run before the job tail.
+          name: nutrition-ui-diagnostics-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            nutrition-ui-tests.log
+            nutrition-ui-exit-status.txt
+            nutrition-export-status.log
+            build.log
+            cookplan-process-lifecycle
+            cook-plan-cancel-live-query
+            nutrition-startup-liveness
+            ${{ runner.temp }}/ate-test-results/nutrition-ui-tests.xcresult
+            ${{ runner.temp }}/ate-test-results/nutrition-ui-attachments
+
+  build-nutrition:
+    # Preserve the required context; missing/cancelled workers are never passes.
+    needs: [changes, nutrition-units, nutrition-ui]
+    if: ${{ always() && needs.changes.outputs.app == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require units and all three disjoint nutrition UI workers
+        env:
+          UNITS_RESULT: ${{ needs.nutrition-units.result }}
+          UI_RESULT: ${{ needs.nutrition-ui.result }}
+        run: |
+          if [ "$UNITS_RESULT" != success ] || [ "$UI_RESULT" != success ]; then
+            echo "::error::Nutrition qualification incomplete: units=$UNITS_RESULT ui=$UI_RESULT"
+            exit 1
+          fi
+
   regression-suites:
     name: regression suite (${{ matrix.suite }})
     # Separate standard hosted VMs; one simulator and sequential tests per worker.
-    # Two regression workers plus nutrition, Journal and Dogfood permit five
-    # priority native jobs per head. GitHub's account-wide macOS cap still
-    # queues these alongside other PRs; this matrix reserves no extra capacity.
+    # Nutrition units and one UI matrix worker are independent. More setup
+    # repeats can increase Mac minutes and queues; no speed/cost claim.
+    # This regression matrix reserves no account-wide runner capacity.
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: xcode-27

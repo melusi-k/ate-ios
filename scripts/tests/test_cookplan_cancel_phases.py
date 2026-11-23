@@ -23,8 +23,17 @@ class CookPlanCancelPhaseTests(unittest.TestCase):
                 with self.assertRaises(AssertionError):
                     restore(path, mutant)
             if path.endswith('.swift'):
+                # The cancel fix moves the notification wait out of the sheet into the
+                # service's cancelInBackground seam, so these counts change on purpose.
+                # Pin the exact new counts for the moved work; every other token keeps
+                # the historical equality guard.
+                moved = {('Ate/Views/CookPlanSheet.swift', 'await '): 3,
+                         ('Ate/Views/CookPlanSheet.swift', 'Task {'): 2,
+                         ('Ate/Services/CookPlanNotifications.swift', 'await '): 31,
+                         ('Ate/Services/CookPlanNotifications.swift', 'Task {'): 3}
                 for token in ['await ', 'Task {', 'DispatchQueue.global(qos: .utility).async', 'continuation.resume()', 'dismiss()', 'XCTAssert', 'timeout: 10']:
-                    self.assertEqual(source.count(token), old.count(token), (path, token))
+                    expected = moved.get((path, token), old.count(token))
+                    self.assertEqual(source.count(token), expected, (path, token))
 
     def test_flag_gate_fixed_content_and_no_new_scheduling(self):
         service = (ROOT/'Ate/Services/CookPlanNotifications.swift').read_text()
@@ -33,6 +42,9 @@ class CookPlanCancelPhaseTests(unittest.TestCase):
             self.assertIn(token, helper)
         for token in ['recipeID', 'reminderID', 'Date()', 'Task {', 'DispatchQueue', 'sleep', 'Timer', 'while ', 'for ', 'pendingIDs()', 'notificationSettings']:
             self.assertNotIn(token, helper)
+        self.assertNotIn('standardOutput', helper)
+        self.assertLess(helper.index('lock.lock()'), helper.index('FileHandle(forWritingTo:'))
+        self.assertLess(helper.index('handle.write('), helper.index('lock.unlock()'))
         test = (ROOT/'AteUITests/CookPlanUITests.swift').read_text()
         self.assertEqual(test.count('-qaCookPlanCancelDiagnostic'), 1)
         self.assertEqual(test.count('cookPlanCancelQueryMark("begin")'), 1)
@@ -48,18 +60,35 @@ class CookPlanCancelPhaseTests(unittest.TestCase):
     def test_cancel_boundaries_bracket_existing_work_and_disappearance(self):
         sheet = (ROOT/'Ate/Views/CookPlanSheet.swift').read_text()
         s = sheet.split('private func cancel() {', 1)[1]
-        tokens = ['handler-enter', 'busy = true', 'busy-set', 'Task { @MainActor in', 'task-enter', 'local-cancel-before', 'try store.cookPlanStore.cancel', 'local-cancel-after', 'notification-cancel-before', 'try await store.cookPlanNotifications.cancel', 'notification-cancel-after', 'busy = false', 'dismiss-before', 'dismiss()', 'dismiss-return', 'cancel-catch']
+        tokens = ['handler-enter', 'busy = true', 'busy-set', 'try store.cookPlanNotifications.cancelFromSheet', 'onCommitted:', 'busy = false', 'dismiss-before', 'dismiss()', 'dismiss-return', 'onRemovalFailure:', 'cancel-catch']
         indexes = [s.index(x) for x in tokens]
         self.assertEqual(indexes, sorted(indexes))
+        self.assertNotIn('try await store.cookPlanNotifications.cancel', s)
+        self.assertNotIn('Task { @MainActor in', s)
         self.assertIn('.onDisappear { CookPlanCancelDiagnostic.mark("sheet-disappear") }', sheet)
         service = (ROOT/'Ate/Services/CookPlanNotifications.swift').read_text()
+        seam = service.split('func cancelFromSheet(', 1)[1].split('/// User-facing sheet cancel:', 1)[0]
+        tokens = ['local-cancel-before', 'try store.cancel(recipeID: recipeID)', 'local-cancel-after', 'notification-cancel-before', 'let cleanup = cancelInBackground', 'notification-cancel-after', 'onCommitted()', 'return cleanup']
+        self.assertEqual([seam.index(x) for x in tokens], sorted(seam.index(x) for x in tokens))
         for tokens in [
             ['queue-register', 'queue-task-enter', 'queue-predecessor-before', '_ = try? await previous?.value', 'queue-predecessor-after', 'queue-work-before', 'try await work(token)', 'queue-work-after'],
             ['off-save-local-before', 'try store.save(plan)', 'off-save-local-after', 'let removal = enqueue', 'off-save-cleanup-registered', 'off-save-cleanup-await', 'try await removal.value', 'off-save-cleanup-return', 'off-save-cleanup-catch'],
             ['remove-before', 'await client.remove(ids)', 'remove-after', 'pending-ids-before', 'let remaining = await client.pendingIDs()', 'pending-ids-after', 'verify-failed', 'verify-passed'],
+            ['cancel-background-registered', 'let removal = enqueue { _ in try await self.removeAndVerify(recipeID: recipeID) }', 'cancel-background-await', 'cancel-background-return', 'mark("cancel-background-catch")\n                onRemovalFailure()'],
             ['utility-dispatch-before', 'DispatchQueue.global(qos: .utility).async', 'utility-enter', 'operation(ids)', 'utility-operation-return', 'continuation.resume()', 'removal-continuation-return']]:
             indexes = [service.index(x) for x in tokens]
             self.assertEqual(indexes, sorted(indexes))
+
+    def test_native_cancel_cases_drive_the_production_sheet_seam(self):
+        source = (ROOT/'AteTests/CookPlanCancelBackgroundTests.swift').read_text()
+        self.assertEqual(source.count('    func test'), 4)
+        self.assertEqual(source.count('adapter.cancelFromSheet('), 4)
+        for token in ['Task.sleep', 'Thread.sleep', 'Task.yield', 'timeout:', 'asyncAfter']:
+            self.assertNotIn(token, source)
+        for token in ['await entered.waitForEntry()', 'client.removalContinuation?.resume()',
+                      'XCTAssertFalse(dismissed', 'XCTAssertTrue(reported',
+                      'XCTAssertEqual(client.removalCalls, 1)', 'try await reenabling.value']:
+            self.assertIn(token, source)
 
     def test_cancel_watcher_fresh_once_closed_stale_and_test_end(self):
         begin = 'UI-QUERY-DIAGNOSTIC boundary=cook-plan-cancel edge=begin monotonic_ns=100000000000'

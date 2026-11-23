@@ -7,7 +7,7 @@
     "AteTests/JournalReflectionEditTests.swift": "253c7ab7fe1bea950b2a5d2cd0d5dff0d2cd0a668a189f459cb4ed50b63bb6cb",
     "AteUITests/CanonicalUpgradeUITests.swift": "47a9d0320594916d7f77c46130a2fbfa87c36b87ba24d6fa84e4c49fbe9072fa",
     "AteUITests/JournalOpenStateUITests.swift": "d4d90714a134fa4047b1e3ca6b8a5eec71e63f73421588b57325e80073e56943",
-    ".github/workflows/compile-check.yml": "cb04f861c4b71fbd914b158f88800bbce0560422d8ca45f42233b2d7b350398f",
+    ".github/workflows/compile-check.yml": "a020cc8d15e99b729f0bf013b3c3ea02e30532b871107c4b6c2aedf7d6534636",
     "scripts/verify-full-unit-required.py": "e05460be7eeee13c753ae0783644ce47761ca2344350abdd2e9a70eabd9a2abb"
   },
   "files": {

@@ -126,25 +126,21 @@ struct CookPlanSheet: View {
         CookPlanCancelDiagnostic.mark("handler-enter")
         busy = true
         CookPlanCancelDiagnostic.mark("busy-set")
-        Task { @MainActor in
-            CookPlanCancelDiagnostic.mark("task-enter")
-            do {
-                CookPlanCancelDiagnostic.mark("local-cancel-before")
-                try store.cookPlanStore.cancel(recipeID: recipeID)
-                CookPlanCancelDiagnostic.mark("local-cancel-after")
-                CookPlanCancelDiagnostic.mark("notification-cancel-before")
-                try await store.cookPlanNotifications.cancel(recipeID: recipeID)
-                CookPlanCancelDiagnostic.mark("notification-cancel-after")
-                busy = false
-                store.show("Cooking plan cancelled")
-                CookPlanCancelDiagnostic.mark("dismiss-before")
-                dismiss()
-                CookPlanCancelDiagnostic.mark("dismiss-return")
-            } catch {
-                CookPlanCancelDiagnostic.mark("cancel-catch")
-                busy = false
-                problem = "Cancellation could not be verified. Try again to remove the reminder."
-            }
+        do {
+            try store.cookPlanNotifications.cancelFromSheet(recipeID: recipeID, store: store.cookPlanStore,
+                onCommitted: {
+                    busy = false
+                    store.show("Cooking plan cancelled")
+                    CookPlanCancelDiagnostic.mark("dismiss-before")
+                    dismiss()
+                    CookPlanCancelDiagnostic.mark("dismiss-return")
+                }, onRemovalFailure: {
+                    store.show("Cooking plan cancelled, but reminder removal could not be verified.")
+                })
+        } catch {
+            CookPlanCancelDiagnostic.mark("cancel-catch")
+            busy = false
+            problem = "Cancellation could not be verified. Try again to remove the reminder."
         }
     }
 }

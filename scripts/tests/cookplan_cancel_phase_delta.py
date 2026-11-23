@@ -2,7 +2,7 @@
 from pathlib import Path
 import hashlib
 import json
-FIXTURE_SHA = '789f6bd58243ccb1732c7cc9ceb2042ea52ef3d02fe9b4f94214c69187f68769'
+FIXTURE_SHA = '920b56ad7741a18c1bdabab85ca565ac1b313918965cbf3d28249e62d2878f28'
 def restore(key, raw):
     path = key.split(':', 1)[-1]
     payload = Path(__file__).with_name('cookplan_cancel_phase_inverse.json').read_bytes()

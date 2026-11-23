@@ -233,6 +233,22 @@ jobs:
             fi
           fi
 
+      - name: Retain CookPlan cancel phase ledger
+        if: always()
+        run: |
+          # The app writes COOK-PLAN-CANCEL phase marks to stdout, which never reaches
+          # exported diagnostics; the on-device ledger in the app container does. Copy it
+          # into the already-exported live-query directory so the phase chain survives.
+          mkdir -p cook-plan-cancel-live-query
+          if data_container=$(xcrun simctl get_app_container "$SIM_ID" com.melusik.ate data 2> cook-plan-cancel-live-query/ledger-container-errors.txt); then
+            ledger="$data_container/Library/Caches/cookplan-cancel-ledger.txt"
+            if [ -f "$ledger" ]; then
+              cp "$ledger" cook-plan-cancel-live-query/cookplan-cancel-ledger.txt
+            else
+              echo 'No cancel phase ledger retained; marks unexported.' > cook-plan-cancel-live-query/ledger-missing.txt
+            fi
+          fi
+
       - name: Upload nutrition UI diagnostics (early)
         if: always()
         uses: actions/upload-artifact@v7

@@ -2,7 +2,7 @@
 from pathlib import Path
 import hashlib
 import json
-FIXTURE_SHA = '130a236afa29046685f0413e76336509bc97bf0eae58b9c4c1b58c1cd56cd950'
+FIXTURE_SHA = 'e22f7f71f6363a91fe25c81dfbe4e4a51b67b99249b045a6d26e1149f032d6a4'
 
 def contract():
     data = Path(__file__).with_name('journal_ui_host_handoff_inverse.json').read_bytes()

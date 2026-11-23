@@ -1,0 +1,23 @@
+{
+  "selectors": [
+    "AteUITests/NutritionDiaryUITests",
+    "AteUITests/NutritionGoalsUITests",
+    "AteUITests/CookPlanUITests",
+    "AteUITests/AccessibilityAuditUITests/testAuditNutritionScreensWithoutDynamicType"
+  ],
+  "guards": [
+    "NutritionDiaryUITests testFoodDiaryOpensAndExplicitlyLogsFoodWithUnavailableValues]' passed",
+    "NutritionDiaryUITests testDiaryShowsGoalPromptWhenGoalsUnconfiguredAndEmptyState]' passed",
+    "NutritionDiaryUITests testLogFoodRejectsNonPositiveQuantityWithVisibleError]' passed",
+    "NutritionDiaryUITests testLogFoodSurfacesSaveFailure]' passed",
+    "NutritionDiaryUITests testCorruptDiaryShowsErrorAndRecoversAfterBackupReset]' passed",
+    "NutritionDiaryUITests testCorruptGoalsShowLoadErrorWithRetry]' passed",
+    "NutritionDiaryUITests testRecipeNutritionShowsIncompleteStateForUnmappedIngredient]' passed",
+    "NutritionDiaryUITests testLoggedEntryCanBeEditedAndShowsUpdatedValues]' passed",
+    "CookPlanUITests testSavedRecipePlanWithoutReminderCanBeReopenedAndCancelled]' passed",
+    "NutritionGoalsUITests testGoalsCanBeConfiguredAndClearedFromSettings]' passed",
+    "NutritionDiaryUITests testThisWeekSectionShowsTotalsForLoggedEntries]' passed",
+    "AccessibilityAuditUITests testAuditNutritionScreensWithoutDynamicType]' passed"
+  ],
+  "base": "1b33291084fafe1bb9d21c4da96d5fa5c803a291"
+}

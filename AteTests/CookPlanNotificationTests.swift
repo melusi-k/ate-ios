@@ -203,7 +203,7 @@ final class CookPlanNotificationTests: XCTestCase {
 extension CookPlanNotificationTests {
     func testBlockedSystemRemovalLeavesMainResponsiveAndDoesNotReturnEarly() async {
         cookRemovalDiagnostic("test-entry")
-        let started = expectation(description: "utility removal entered")
+        let entered = CookRemovalEntryGate()
         let release = DispatchSemaphore(value: 0)
         var returned = false
         let removal = Task { @MainActor in
@@ -213,7 +213,7 @@ extension CookPlanNotificationTests {
                 XCTAssertFalse(Thread.isMainThread, "Blocking OS removal must not run on Main")
                 XCTAssertEqual(ids, ["cook-r1"], "Removal must preserve the requested identities")
                 cookRemovalDiagnostic("before-entry-fulfill")
-                started.fulfill()
+                entered.signalEntry()
                 cookRemovalDiagnostic("after-entry-fulfill")
                 release.wait()
                 cookRemovalDiagnostic("utility-released")
@@ -222,7 +222,7 @@ extension CookPlanNotificationTests {
             returned = true
         }
         cookRemovalDiagnostic("before-entry-wait")
-        await fulfillment(of: [started], timeout: 2)
+        await entered.waitForEntry()
         cookRemovalDiagnostic("entry-wait-return")
         // This MainActor assertion runs while the synchronous boundary is blocked.
         XCTAssertFalse(returned, "Ordered cleanup cannot report completion before OS removal returns")
@@ -236,6 +236,36 @@ extension CookPlanNotificationTests {
     func testEmptyRemovalDoesNotContactSystem() async {
         await CookPlanNotificationRemoval.perform(ids: []) { _ in
             XCTFail("No identifiers means no OS removal request")
+        }
+    }
+}
+
+// Deterministic entry gate: the utility callback signals entry directly, so the
+// wait resumes when the boundary is reached with no wall-clock scheduler bound.
+private final class CookRemovalEntryGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var entered = false
+    private var waiter: CheckedContinuation<Void, Never>?
+
+    func signalEntry() {
+        lock.lock()
+        entered = true
+        let pending = waiter
+        waiter = nil
+        lock.unlock()
+        pending?.resume()
+    }
+
+    func waitForEntry() async {
+        await withCheckedContinuation { continuation in
+            lock.lock()
+            if entered {
+                lock.unlock()
+                continuation.resume()
+            } else {
+                waiter = continuation
+                lock.unlock()
+            }
         }
     }
 }

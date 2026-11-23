@@ -66,7 +66,7 @@ class CookEntrySampleTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256((ROOT/'AteTests/CookPlanNotificationTests.swift').read_bytes()).hexdigest(), TEST_SHA)
 
 FIXTURE_SHA = '9012e77dcf40c51fd362d968023b9a0073b571a7625bbf67b5e3ecfebd621ab5'
-TEST_SHA = 'f74ce8876ea4962b52ee7b1da0649868c2c3b5bf184e2b30c5b6963ea438f934'
+TEST_SHA = '6fcbbda4253e61f94d0a0ffcd3d44070e31ec9e741e03b39051e3e2bab537489'
 
 class CookEntryInverseMutants(unittest.TestCase):
     def test_missing_duplicate_unrelated_and_selection_mutants_fail(self):

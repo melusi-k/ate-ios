@@ -1,141 +1,141 @@
 {
-  "base": "f6949b44beea44f96d1abb7436c24f0e44a54ba4",
-  "required_native": [
-    "JournalDeleteSnapshotWalkTests/testTerminalButtonHasNoDescendants",
-    "JournalDeleteSnapshotWalkTests/testNestedAliasesRetainBothNodesAndOneTerminalDecision",
-    "JournalDeleteSnapshotWalkTests/testEqualFrameSiblingActionsRemainTwoLeaves",
-    "JournalDeleteSnapshotWalkTests/testDifferentIdentifierDescendantIsNotFiltered",
-    "JournalDeleteSnapshotWalkTests/testButtonsUnderNonbuttonContainersRemainReachable",
-    "JournalDeleteSnapshotWalkTests/testMismatchedLabelsDisabledAliasesAndFramesStayVisible"
-  ],
-  "files": {
-    "AteUITests/JournalOpenStateUITests.swift": {
-      "parent_sha256": "d4d90714a134fa4047b1e3ca6b8a5eec71e63f73421588b57325e80073e56943",
-      "current_sha256": "bff466a9fc6315b79c496e5eac291ef392fdec847621114888cabbff98b9e5ac",
-      "fragments": [
-        {
-          "old": "            XCTAssertEqual(candidate.label, label, \"Every alias must name the same decision\", file: file, line: line)\n            let descendants = candidate.descendants(matching: .button)\n            let nested = descendants.matching(identifier: identifier)\n            XCTAssertEqual(descendants.count, nested.count, \"An alias cannot contain a different action\", file: file, line: line)\n",
-          "new": "            XCTAssertEqual(candidate.label, label, \"Every alias must name the same decision\", file: file, line: line)\n            // One immutable subtree replaces the compound remote descendant query.\n            // Keep every button alias and every decision, including invalid ones.\n            let snapshot = try candidate.snapshot()\n            let descendants = JournalDeleteSnapshotWalk.descendants(\n                of: snapshot, children: { $0.children }, matching: { $0.elementType == .button })\n            let nested = descendants.filter { $0.identifier == identifier }\n            XCTAssertEqual(descendants.count, nested.count, \"An alias cannot contain a different action\", file: file, line: line)\n"
-        }
-      ]
-    },
-    "project.yml": {
-      "parent_sha256": "7e4a61892a6a9f816a453c1366152c11031df784e3566799e41d0c5edff17e0b",
-      "current_sha256": "ffdecd7c0ad68f849d3f12e0ec9c3afa545de3368fcd41fb43389e25a9a71878",
-      "fragments": [
-        {
-          "old": "    platform: iOS\n    sources: [AteTests, AteUITests/PromptRecipeFixture.swift]\n    dependencies:\n",
-          "new": "    platform: iOS\n    sources: [AteTests, AteUITests/PromptRecipeFixture.swift, AteUITests/JournalDeleteSnapshotWalk.swift]\n    dependencies:\n"
-        }
-      ]
-    },
-    "scripts/full-unit-required.txt": {
-      "parent_sha256": "d98c489b8b9fd54ea47208f7ff2c173886401f74f2ec4e431d7a7e1e6a4b36c3",
-      "current_sha256": "018b97c35592b2f49d76829af09689f9ad44e0ae0a7fc94c3eb14f72a2ad66be",
-      "fragments": [
-        {
-          "old": "JournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse\n",
-          "new": "JournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse\nJournalDeleteSnapshotWalkTests/testTerminalButtonHasNoDescendants\nJournalDeleteSnapshotWalkTests/testNestedAliasesRetainBothNodesAndOneTerminalDecision\nJournalDeleteSnapshotWalkTests/testEqualFrameSiblingActionsRemainTwoLeaves\nJournalDeleteSnapshotWalkTests/testDifferentIdentifierDescendantIsNotFiltered\nJournalDeleteSnapshotWalkTests/testButtonsUnderNonbuttonContainersRemainReachable\nJournalDeleteSnapshotWalkTests/testMismatchedLabelsDisabledAliasesAndFramesStayVisible\n"
-        }
-      ]
-    },
-    "scripts/tests/test_unit_lane_routing.py": {
-      "parent_sha256": "ea97c7599bfdf7d223ff735ad0080a63f1d07ccb94db391ec014c2d90934f4db",
-      "current_sha256": "a5413cf1167700012b493933cb83bd4cc57cb8c1366ee7264fc77cf604af37e8",
-      "fragments": [
-        {
-          "old": "        journal_edit = ['JournalReflectionEditTests/testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits', 'JournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse']\n        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline + source_required + verified_paste + caption_paste + streaming + content_admission + heading_fix + ui_fixtures + sync_overflow + inline_caption + multiline_caption + row_style + source_review + refusal_wording + discovery_entry + today_home + journal_edit))\n        actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()\n",
-          "new": "        journal_edit = ['JournalReflectionEditTests/testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits', 'JournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse']\n        snapshot_walk = ['JournalDeleteSnapshotWalkTests/testTerminalButtonHasNoDescendants', 'JournalDeleteSnapshotWalkTests/testNestedAliasesRetainBothNodesAndOneTerminalDecision', 'JournalDeleteSnapshotWalkTests/testEqualFrameSiblingActionsRemainTwoLeaves', 'JournalDeleteSnapshotWalkTests/testDifferentIdentifierDescendantIsNotFiltered', 'JournalDeleteSnapshotWalkTests/testButtonsUnderNonbuttonContainersRemainReachable', 'JournalDeleteSnapshotWalkTests/testMismatchedLabelsDisabledAliasesAndFramesStayVisible']\n        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline + source_required + verified_paste + caption_paste + streaming + content_admission + heading_fix + ui_fixtures + sync_overflow + inline_caption + multiline_caption + row_style + source_review + refusal_wording + discovery_entry + today_home + journal_edit + snapshot_walk))\n        actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()\n"
-        }
-      ]
-    },
-    "scripts/tests/journal_delete_zero_nodes_delta.py": {
-      "parent_sha256": "88383e68be7b63daf4079f0d5a929278376ec0e08cc829d4c9f6c600e25ccaef",
-      "current_sha256": "55b4974e64ee1617be6388f0804f8fa2aa04ee8798b3d644ff1b4bf4d6d03bd3",
-      "fragments": [
-        {
-          "old": "def restore(key, raw):\n    if key.split(':', 1)[-1] != 'AteUITests/JournalOpenStateUITests.swift':\n",
-          "new": "def restore(key, raw):\n    from journal_delete_snapshot_delta import restore as restore_snapshot\n    raw = restore_snapshot(key, raw)\n    if key.split(':', 1)[-1] != 'AteUITests/JournalOpenStateUITests.swift':\n"
-        }
-      ]
-    },
-    "scripts/tests/test_journal_action_identity.py": {
-      "parent_sha256": "0b22b0ba456a5623b666755edf32a1eb398615a7f663869936765493f9670539",
-      "current_sha256": "048732c8394f6c6065c3d3091b9a7c8e60c3177bea43314c5edba3a5bfeaea6d",
-      "fragments": [
-        {
-          "old": "        for check in ['XCTAssertEqual(app.alerts.count, 1', 'XCTAssertEqual(leaves.count, 1',\n                      'candidate.descendants(matching: .button)', 'XCTAssertEqual(descendants.count, nested.count', 'if nested.count == 0',\n                      'XCTAssertEqual(candidate.label, label', 'XCTAssertEqual(alias.frame, frame',\n",
-          "new": "        for check in ['XCTAssertEqual(app.alerts.count, 1', 'XCTAssertEqual(leaves.count, 1',\n                      'JournalDeleteSnapshotWalk.descendants(', 'XCTAssertEqual(descendants.count, nested.count', 'if nested.count == 0',\n                      'XCTAssertEqual(candidate.label, label', 'XCTAssertEqual(alias.frame, frame',\n"
-        }
-      ]
-    },
-    "scripts/tests/test_journal_ui_host_handoff.py": {
-      "parent_sha256": "160ec340ae2fdfa7825d465cde3504ceb325df78bbcb61732918efe20011ead8",
-      "current_sha256": "59b3ddd9c4467a905f7c8fcc07bd6324046a443eebac94d4f970ed3fff1f8ee7",
-      "fragments": [
-        {
-          "old": "from journal_ui_host_handoff_delta import contract, restore\nROOT = Path(__file__).resolve().parents[2]\n",
-          "new": "from journal_ui_host_handoff_delta import contract, restore\nfrom journal_delete_snapshot_delta import restore as restore_snapshot\nROOT = Path(__file__).resolve().parents[2]\n"
-        },
-        {
-          "old": "        for path, c in contract()['files'].items():\n            source = (ROOT / path).read_text()\n            old = restore(path, source)\n",
-          "new": "        for path, c in contract()['files'].items():\n            source = restore_snapshot(path, (ROOT / path).read_text())\n            old = restore(path, source)\n"
-        },
-        {
-          "old": "        for path, digest in contract()['protected_sha256'].items():\n            self.assertEqual(hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), digest, path)\n\n",
-          "new": "        for path, digest in contract()['protected_sha256'].items():\n            self.assertEqual(hashlib.sha256(restore_snapshot(path, (ROOT / path).read_bytes())).hexdigest(), digest, path)\n\n"
-        },
-        {
-          "old": "        path = '.github/workflows/journal-open-state-ui.yml'\n        current = (ROOT / path).read_text()\n        old = restore(path, current)\n",
-          "new": "        path = '.github/workflows/journal-open-state-ui.yml'\n        current = restore_snapshot(path, (ROOT / path).read_text())\n        old = restore(path, current)\n"
-        },
-        {
-          "old": "        path = 'scripts/full-unit-required.txt'\n        current = (ROOT / path).read_text()\n        old = restore(path, current)\n",
-          "new": "        path = 'scripts/full-unit-required.txt'\n        current = restore_snapshot(path, (ROOT / path).read_text())\n        old = restore(path, current)\n"
-        },
-        {
-          "old": "        path = '.github/workflows/journal-open-state-ui.yml'\n        source = (ROOT / path).read_text()\n        mixed = source.replace('-only-testing:AteUITests/CanonicalUpgradeUITests', '-only-testing:AteTests/JournalReflectionEditTests \\\\\\n            -only-testing:AteUITests/CanonicalUpgradeUITests', 1)\n        with self.assertRaises(AssertionError): restore(path, mixed)\n        path = 'scripts/full-unit-required.txt'; source = (ROOT / path).read_text()\n        for identity in contract()['required']:\n",
-          "new": "        path = '.github/workflows/journal-open-state-ui.yml'\n        source = restore_snapshot(path, (ROOT / path).read_text())\n        mixed = source.replace('-only-testing:AteUITests/CanonicalUpgradeUITests', '-only-testing:AteTests/JournalReflectionEditTests \\\\\\n            -only-testing:AteUITests/CanonicalUpgradeUITests', 1)\n        with self.assertRaises(AssertionError): restore(path, mixed)\n        path = 'scripts/full-unit-required.txt'; source = restore_snapshot(path, (ROOT / path).read_text())\n        for identity in contract()['required']:\n"
-        }
-      ]
-    },
-    "scripts/tests/live_query_capture_delta.py": {
-      "parent_sha256": "93d3784bb116e2c1956764b069a65fd4f8dbba905e40016bca3b7db4803a3d70",
-      "current_sha256": "a8bbbbc81a9e7b1dc41546977dc5f41fc625e57aed8d63f7bac59eb7508ce6c8",
-      "fragments": [
-        {
-          "old": "def restore(key, raw):\n    from cookplan_cancel_phase_delta import restore as restore_cancel_phases\n",
-          "new": "def restore(key, raw):\n    from journal_delete_snapshot_delta import restore as restore_snapshot\n    raw = restore_snapshot(key, raw)\n    from cookplan_cancel_phase_delta import restore as restore_cancel_phases\n"
-        }
-      ]
-    },
-    "scripts/tests/group28_swipe_target_delta.py": {
-      "parent_sha256": "9efa04237ebff9327e0d9e0020fe1b3c28eccd4e39f4fc8fec404d6b16d48b06",
-      "current_sha256": "8ad9f5382d82f4096f4ac60ecb48dc369e2930efbc02670e740a6a6cc331213f",
-      "fragments": [
-        {
-          "old": "def restore(path,raw):\n    from ui_progress_stream_delta import restore as restore_progress\n",
-          "new": "def restore(path,raw):\n    from journal_delete_snapshot_delta import restore as restore_snapshot\n    raw = restore_snapshot(path, raw)\n    from ui_progress_stream_delta import restore as restore_progress\n"
-        }
-      ]
+ "base": "f6949b44beea44f96d1abb7436c24f0e44a54ba4",
+ "required_native": [
+  "JournalDeleteSnapshotWalkTests/testTerminalButtonHasNoDescendants",
+  "JournalDeleteSnapshotWalkTests/testNestedAliasesRetainBothNodesAndOneTerminalDecision",
+  "JournalDeleteSnapshotWalkTests/testEqualFrameSiblingActionsRemainTwoLeaves",
+  "JournalDeleteSnapshotWalkTests/testDifferentIdentifierDescendantIsNotFiltered",
+  "JournalDeleteSnapshotWalkTests/testButtonsUnderNonbuttonContainersRemainReachable",
+  "JournalDeleteSnapshotWalkTests/testMismatchedLabelsDisabledAliasesAndFramesStayVisible"
+ ],
+ "files": {
+  "AteUITests/JournalOpenStateUITests.swift": {
+   "parent_sha256": "d4d90714a134fa4047b1e3ca6b8a5eec71e63f73421588b57325e80073e56943",
+   "current_sha256": "bff466a9fc6315b79c496e5eac291ef392fdec847621114888cabbff98b9e5ac",
+   "fragments": [
+    {
+     "old": "            XCTAssertEqual(candidate.label, label, \"Every alias must name the same decision\", file: file, line: line)\n            let descendants = candidate.descendants(matching: .button)\n            let nested = descendants.matching(identifier: identifier)\n            XCTAssertEqual(descendants.count, nested.count, \"An alias cannot contain a different action\", file: file, line: line)\n",
+     "new": "            XCTAssertEqual(candidate.label, label, \"Every alias must name the same decision\", file: file, line: line)\n            // One immutable subtree replaces the compound remote descendant query.\n            // Keep every button alias and every decision, including invalid ones.\n            let snapshot = try candidate.snapshot()\n            let descendants = JournalDeleteSnapshotWalk.descendants(\n                of: snapshot, children: { $0.children }, matching: { $0.elementType == .button })\n            let nested = descendants.filter { $0.identifier == identifier }\n            XCTAssertEqual(descendants.count, nested.count, \"An alias cannot contain a different action\", file: file, line: line)\n"
     }
+   ]
   },
-  "legacy_journal_sha256": [
-    "4696c51a3940a95c308eec3bd359281974bf226079fa481b20019e8e3ad74038",
-    "d4d90714a134fa4047b1e3ca6b8a5eec71e63f73421588b57325e80073e56943",
-    "fe80bca9c448186e4ae6f7133e03b22fa80e701193ae6447d360b329b4276309",
-    "4696c51a3940a95c308eec3bd359281974bf226079fa481b20019e8e3ad74038"
-  ],
-  "protected_sha256": {
-    ".github/workflows/journal-open-state-ui.yml": "00e1dda4a8f918ae64326670122adb618961f567bb85176a57a77335a80a4dd5",
-    ".github/workflows/compile-check.yml": "cb04f861c4b71fbd914b158f88800bbce0560422d8ca45f42233b2d7b350398f",
-    "Ate/Views/JournalDeleteConfirmation.swift": "02ab29bb3980d479452de6e9f241c7bf8ec5bdcf6c5ee48c347bdb2b8ef63041",
-    "AteUITests/CanonicalUpgradeUITests.swift": "47a9d0320594916d7f77c46130a2fbfa87c36b87ba24d6fa84e4c49fbe9072fa",
-    "AteTests/JournalReflectionEditTests.swift": "253c7ab7fe1bea950b2a5d2cd0d5dff0d2cd0a668a189f459cb4ed50b63bb6cb",
-    "scripts/tests/journal_delete_zero_nodes_inverse.json": "9edbfd45cce5748e6e70ff1be684a4485237555cf8c5efc8cccc30e76ea86b45",
-    "scripts/tests/journal_delete_current_query_inverse.json": "f2a9acb2749da280fb7e1fe67f578734566a2bc764997239cff4a09e37200d73",
-    "scripts/tests/journal_ui_host_handoff_inverse.json": "cdfe15114909d5ea1d63e4676fd72f48770adb2a03f2f90f590d90e64fbaea10",
-    "AteUITests/JournalDeleteSnapshotWalk.swift": "2d3503f1ca00935ce295f66b1d86d553e232f7ce1d43fea48cd98c514c229cfd",
-    "AteTests/JournalDeleteSnapshotWalkTests.swift": "ef34c2e243516d5cafd8eb3d380fc45d5dda6748b545e0e40af359a4ca64034e"
+  "project.yml": {
+   "parent_sha256": "7e4a61892a6a9f816a453c1366152c11031df784e3566799e41d0c5edff17e0b",
+   "current_sha256": "ffdecd7c0ad68f849d3f12e0ec9c3afa545de3368fcd41fb43389e25a9a71878",
+   "fragments": [
+    {
+     "old": "    platform: iOS\n    sources: [AteTests, AteUITests/PromptRecipeFixture.swift]\n    dependencies:\n",
+     "new": "    platform: iOS\n    sources: [AteTests, AteUITests/PromptRecipeFixture.swift, AteUITests/JournalDeleteSnapshotWalk.swift]\n    dependencies:\n"
+    }
+   ]
+  },
+  "scripts/full-unit-required.txt": {
+   "parent_sha256": "d98c489b8b9fd54ea47208f7ff2c173886401f74f2ec4e431d7a7e1e6a4b36c3",
+   "current_sha256": "018b97c35592b2f49d76829af09689f9ad44e0ae0a7fc94c3eb14f72a2ad66be",
+   "fragments": [
+    {
+     "old": "JournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse\n",
+     "new": "JournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse\nJournalDeleteSnapshotWalkTests/testTerminalButtonHasNoDescendants\nJournalDeleteSnapshotWalkTests/testNestedAliasesRetainBothNodesAndOneTerminalDecision\nJournalDeleteSnapshotWalkTests/testEqualFrameSiblingActionsRemainTwoLeaves\nJournalDeleteSnapshotWalkTests/testDifferentIdentifierDescendantIsNotFiltered\nJournalDeleteSnapshotWalkTests/testButtonsUnderNonbuttonContainersRemainReachable\nJournalDeleteSnapshotWalkTests/testMismatchedLabelsDisabledAliasesAndFramesStayVisible\n"
+    }
+   ]
+  },
+  "scripts/tests/test_unit_lane_routing.py": {
+   "parent_sha256": "ea97c7599bfdf7d223ff735ad0080a63f1d07ccb94db391ec014c2d90934f4db",
+   "current_sha256": "a5413cf1167700012b493933cb83bd4cc57cb8c1366ee7264fc77cf604af37e8",
+   "fragments": [
+    {
+     "old": "        journal_edit = ['JournalReflectionEditTests/testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits', 'JournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse']\n        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline + source_required + verified_paste + caption_paste + streaming + content_admission + heading_fix + ui_fixtures + sync_overflow + inline_caption + multiline_caption + row_style + source_review + refusal_wording + discovery_entry + today_home + journal_edit))\n        actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()\n",
+     "new": "        journal_edit = ['JournalReflectionEditTests/testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits', 'JournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse']\n        snapshot_walk = ['JournalDeleteSnapshotWalkTests/testTerminalButtonHasNoDescendants', 'JournalDeleteSnapshotWalkTests/testNestedAliasesRetainBothNodesAndOneTerminalDecision', 'JournalDeleteSnapshotWalkTests/testEqualFrameSiblingActionsRemainTwoLeaves', 'JournalDeleteSnapshotWalkTests/testDifferentIdentifierDescendantIsNotFiltered', 'JournalDeleteSnapshotWalkTests/testButtonsUnderNonbuttonContainersRemainReachable', 'JournalDeleteSnapshotWalkTests/testMismatchedLabelsDisabledAliasesAndFramesStayVisible']\n        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline + source_required + verified_paste + caption_paste + streaming + content_admission + heading_fix + ui_fixtures + sync_overflow + inline_caption + multiline_caption + row_style + source_review + refusal_wording + discovery_entry + today_home + journal_edit + snapshot_walk))\n        actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()\n"
+    }
+   ]
+  },
+  "scripts/tests/journal_delete_zero_nodes_delta.py": {
+   "parent_sha256": "88383e68be7b63daf4079f0d5a929278376ec0e08cc829d4c9f6c600e25ccaef",
+   "current_sha256": "55b4974e64ee1617be6388f0804f8fa2aa04ee8798b3d644ff1b4bf4d6d03bd3",
+   "fragments": [
+    {
+     "old": "def restore(key, raw):\n    if key.split(':', 1)[-1] != 'AteUITests/JournalOpenStateUITests.swift':\n",
+     "new": "def restore(key, raw):\n    from journal_delete_snapshot_delta import restore as restore_snapshot\n    raw = restore_snapshot(key, raw)\n    if key.split(':', 1)[-1] != 'AteUITests/JournalOpenStateUITests.swift':\n"
+    }
+   ]
+  },
+  "scripts/tests/test_journal_action_identity.py": {
+   "parent_sha256": "0b22b0ba456a5623b666755edf32a1eb398615a7f663869936765493f9670539",
+   "current_sha256": "048732c8394f6c6065c3d3091b9a7c8e60c3177bea43314c5edba3a5bfeaea6d",
+   "fragments": [
+    {
+     "old": "        for check in ['XCTAssertEqual(app.alerts.count, 1', 'XCTAssertEqual(leaves.count, 1',\n                      'candidate.descendants(matching: .button)', 'XCTAssertEqual(descendants.count, nested.count', 'if nested.count == 0',\n                      'XCTAssertEqual(candidate.label, label', 'XCTAssertEqual(alias.frame, frame',\n",
+     "new": "        for check in ['XCTAssertEqual(app.alerts.count, 1', 'XCTAssertEqual(leaves.count, 1',\n                      'JournalDeleteSnapshotWalk.descendants(', 'XCTAssertEqual(descendants.count, nested.count', 'if nested.count == 0',\n                      'XCTAssertEqual(candidate.label, label', 'XCTAssertEqual(alias.frame, frame',\n"
+    }
+   ]
+  },
+  "scripts/tests/test_journal_ui_host_handoff.py": {
+   "parent_sha256": "160ec340ae2fdfa7825d465cde3504ceb325df78bbcb61732918efe20011ead8",
+   "current_sha256": "59b3ddd9c4467a905f7c8fcc07bd6324046a443eebac94d4f970ed3fff1f8ee7",
+   "fragments": [
+    {
+     "old": "from journal_ui_host_handoff_delta import contract, restore\nROOT = Path(__file__).resolve().parents[2]\n",
+     "new": "from journal_ui_host_handoff_delta import contract, restore\nfrom journal_delete_snapshot_delta import restore as restore_snapshot\nROOT = Path(__file__).resolve().parents[2]\n"
+    },
+    {
+     "old": "        for path, c in contract()['files'].items():\n            source = (ROOT / path).read_text()\n            old = restore(path, source)\n",
+     "new": "        for path, c in contract()['files'].items():\n            source = restore_snapshot(path, (ROOT / path).read_text())\n            old = restore(path, source)\n"
+    },
+    {
+     "old": "        for path, digest in contract()['protected_sha256'].items():\n            self.assertEqual(hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), digest, path)\n\n",
+     "new": "        for path, digest in contract()['protected_sha256'].items():\n            self.assertEqual(hashlib.sha256(restore_snapshot(path, (ROOT / path).read_bytes())).hexdigest(), digest, path)\n\n"
+    },
+    {
+     "old": "        path = '.github/workflows/journal-open-state-ui.yml'\n        current = (ROOT / path).read_text()\n        old = restore(path, current)\n",
+     "new": "        path = '.github/workflows/journal-open-state-ui.yml'\n        current = restore_snapshot(path, (ROOT / path).read_text())\n        old = restore(path, current)\n"
+    },
+    {
+     "old": "        path = 'scripts/full-unit-required.txt'\n        current = (ROOT / path).read_text()\n        old = restore(path, current)\n",
+     "new": "        path = 'scripts/full-unit-required.txt'\n        current = restore_snapshot(path, (ROOT / path).read_text())\n        old = restore(path, current)\n"
+    },
+    {
+     "old": "        path = '.github/workflows/journal-open-state-ui.yml'\n        source = (ROOT / path).read_text()\n        mixed = source.replace('-only-testing:AteUITests/CanonicalUpgradeUITests', '-only-testing:AteTests/JournalReflectionEditTests \\\\\\n            -only-testing:AteUITests/CanonicalUpgradeUITests', 1)\n        with self.assertRaises(AssertionError): restore(path, mixed)\n        path = 'scripts/full-unit-required.txt'; source = (ROOT / path).read_text()\n        for identity in contract()['required']:\n",
+     "new": "        path = '.github/workflows/journal-open-state-ui.yml'\n        source = restore_snapshot(path, (ROOT / path).read_text())\n        mixed = source.replace('-only-testing:AteUITests/CanonicalUpgradeUITests', '-only-testing:AteTests/JournalReflectionEditTests \\\\\\n            -only-testing:AteUITests/CanonicalUpgradeUITests', 1)\n        with self.assertRaises(AssertionError): restore(path, mixed)\n        path = 'scripts/full-unit-required.txt'; source = restore_snapshot(path, (ROOT / path).read_text())\n        for identity in contract()['required']:\n"
+    }
+   ]
+  },
+  "scripts/tests/live_query_capture_delta.py": {
+   "parent_sha256": "93d3784bb116e2c1956764b069a65fd4f8dbba905e40016bca3b7db4803a3d70",
+   "current_sha256": "a8bbbbc81a9e7b1dc41546977dc5f41fc625e57aed8d63f7bac59eb7508ce6c8",
+   "fragments": [
+    {
+     "old": "def restore(key, raw):\n    from cookplan_cancel_phase_delta import restore as restore_cancel_phases\n",
+     "new": "def restore(key, raw):\n    from journal_delete_snapshot_delta import restore as restore_snapshot\n    raw = restore_snapshot(key, raw)\n    from cookplan_cancel_phase_delta import restore as restore_cancel_phases\n"
+    }
+   ]
+  },
+  "scripts/tests/group28_swipe_target_delta.py": {
+   "parent_sha256": "9efa04237ebff9327e0d9e0020fe1b3c28eccd4e39f4fc8fec404d6b16d48b06",
+   "current_sha256": "8ad9f5382d82f4096f4ac60ecb48dc369e2930efbc02670e740a6a6cc331213f",
+   "fragments": [
+    {
+     "old": "def restore(path,raw):\n    from ui_progress_stream_delta import restore as restore_progress\n",
+     "new": "def restore(path,raw):\n    from journal_delete_snapshot_delta import restore as restore_snapshot\n    raw = restore_snapshot(path, raw)\n    from ui_progress_stream_delta import restore as restore_progress\n"
+    }
+   ]
   }
+ },
+ "legacy_journal_sha256": [
+  "4696c51a3940a95c308eec3bd359281974bf226079fa481b20019e8e3ad74038",
+  "d4d90714a134fa4047b1e3ca6b8a5eec71e63f73421588b57325e80073e56943",
+  "fe80bca9c448186e4ae6f7133e03b22fa80e701193ae6447d360b329b4276309",
+  "4696c51a3940a95c308eec3bd359281974bf226079fa481b20019e8e3ad74038"
+ ],
+ "protected_sha256": {
+  ".github/workflows/journal-open-state-ui.yml": "00e1dda4a8f918ae64326670122adb618961f567bb85176a57a77335a80a4dd5",
+  ".github/workflows/compile-check.yml": "a020cc8d15e99b729f0bf013b3c3ea02e30532b871107c4b6c2aedf7d6534636",
+  "Ate/Views/JournalDeleteConfirmation.swift": "02ab29bb3980d479452de6e9f241c7bf8ec5bdcf6c5ee48c347bdb2b8ef63041",
+  "AteUITests/CanonicalUpgradeUITests.swift": "47a9d0320594916d7f77c46130a2fbfa87c36b87ba24d6fa84e4c49fbe9072fa",
+  "AteTests/JournalReflectionEditTests.swift": "253c7ab7fe1bea950b2a5d2cd0d5dff0d2cd0a668a189f459cb4ed50b63bb6cb",
+  "scripts/tests/journal_delete_zero_nodes_inverse.json": "9edbfd45cce5748e6e70ff1be684a4485237555cf8c5efc8cccc30e76ea86b45",
+  "scripts/tests/journal_delete_current_query_inverse.json": "f2a9acb2749da280fb7e1fe67f578734566a2bc764997239cff4a09e37200d73",
+  "scripts/tests/journal_ui_host_handoff_inverse.json": "130a236afa29046685f0413e76336509bc97bf0eae58b9c4c1b58c1cd56cd950",
+  "AteUITests/JournalDeleteSnapshotWalk.swift": "2d3503f1ca00935ce295f66b1d86d553e232f7ce1d43fea48cd98c514c229cfd",
+  "AteTests/JournalDeleteSnapshotWalkTests.swift": "ef34c2e243516d5cafd8eb3d380fc45d5dda6748b545e0e40af359a4ca64034e"
+ }
 }

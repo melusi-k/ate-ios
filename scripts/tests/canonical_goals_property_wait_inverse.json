@@ -13,7 +13,7 @@
   },
   "scripts/tests/journal_delete_snapshot_delta.py": {
    "parent_sha256": "00eb00aac36c201646f526c8304c7d50cc1bb3e5474df2009569ddad11547037",
-   "current_sha256": "3d1397439ebc425d666826b5f8b74e033fef1e6a0984c19139dee73dd506a81d",
+   "current_sha256": "e1af6c4a8bedbc53e532d5d60579e651073420497ff325cf48b60ce1c6e3dc81",
    "fragments": [
     {
      "old": "import json\n",
@@ -26,6 +26,10 @@
     {
      "old": "FIXTURE_SHA = '60f57c499893d4ab60048aae61e64f60187c5d679c6e523ae269d2deeab4dd4e'",
      "new": "FIXTURE_SHA = '1efaaa7f7530d24f3f7d82b3a1f875ed40cecf558db455ece8c087623a0f3e25'"
+    },
+    {
+     "old": "\"\"\"Reverse only the snapshot traversal delta before historical source pins.\"\"\"\nfrom pathlib import Path\nimport hashlib\nimport json\nfrom canonical_goals_property_wait_delta import restore as restore_goals\nFIXTURE_SHA = '1efaaa7f7530d24f3f7d82b3a1f875ed40cecf558db455ece8c087623a0f3e25'\n\ndef contract():\n    payload = Path(__file__).with_name('journal_delete_snapshot_inverse.json').read_bytes()\n    assert hashlib.sha256(payload).hexdigest() == FIXTURE_SHA\n    return json.loads(payload)\n\ndef restore(key, raw):\n    raw = restore_goals(key, raw)\n    path = key.split(':', 1)[-1]\n    c = contract()\n    if path not in c['files']:\n        return raw\n    binary = isinstance(raw, bytes)\n    text = raw.decode() if binary else raw\n    digest = hashlib.sha256(text.encode()).hexdigest()\n    entry = c['files'][path]\n    if digest == entry['parent_sha256'] or (path == 'AteUITests/JournalOpenStateUITests.swift' and digest in c['legacy_journal_sha256']):\n        return raw\n    assert digest == entry['current_sha256'], 'unrelated snapshot delta: ' + path\n    for fragment in reversed(entry['fragments']):\n        assert text.count(fragment['new']) == 1\n        text = text.replace(fragment['new'], fragment['old'], 1)\n    assert hashlib.sha256(text.encode()).hexdigest() == entry['parent_sha256']\n    return text.encode() if binary else text\n",
+     "new": "\"\"\"Reverse only the snapshot traversal delta before historical source pins.\"\"\"\nfrom pathlib import Path\nimport hashlib\nimport json\nfrom canonical_goals_property_wait_delta import restore as restore_goals\nFIXTURE_SHA = 'ec5d2a9b48cacfbdc27348462aa3d7f73e15f9e92b21db7c45eab227355d4c24'\n\ndef contract():\n    payload = Path(__file__).with_name('journal_delete_snapshot_inverse.json').read_bytes()\n    assert hashlib.sha256(payload).hexdigest() == FIXTURE_SHA\n    return json.loads(payload)\n\ndef restore(key, raw):\n    raw = restore_goals(key, raw)\n    path = key.split(':', 1)[-1]\n    c = contract()\n    if path not in c['files']:\n        return raw\n    binary = isinstance(raw, bytes)\n    text = raw.decode() if binary else raw\n    digest = hashlib.sha256(text.encode()).hexdigest()\n    entry = c['files'][path]\n    if digest == entry['parent_sha256'] or (path == 'AteUITests/JournalOpenStateUITests.swift' and digest in c['legacy_journal_sha256']):\n        return raw\n    assert digest == entry['current_sha256'], 'unrelated snapshot delta: ' + path\n    for fragment in reversed(entry['fragments']):\n        assert text.count(fragment['new']) == 1\n        text = text.replace(fragment['new'], fragment['old'], 1)\n    assert hashlib.sha256(text.encode()).hexdigest() == entry['parent_sha256']\n    return text.encode() if binary else text\n"
     }
    ]
   },
@@ -45,7 +49,7 @@
   }
  },
  "protected_sha256": {
-  ".github/workflows/compile-check.yml": "a020cc8d15e99b729f0bf013b3c3ea02e30532b871107c4b6c2aedf7d6534636",
+  ".github/workflows/compile-check.yml": "e7e3e9a54ace046a0686a4130f7caa5b5740616b84a1db22fc2c20e4908954c0",
   ".github/workflows/journal-open-state-ui.yml": "00e1dda4a8f918ae64326670122adb618961f567bb85176a57a77335a80a4dd5",
   "project.yml": "ffdecd7c0ad68f849d3f12e0ec9c3afa545de3368fcd41fb43389e25a9a71878",
   "scripts/full-unit-required.txt": "018b97c35592b2f49d76829af09689f9ad44e0ae0a7fc94c3eb14f72a2ad66be",
@@ -64,13 +68,13 @@
   "scripts/tests/suggest_review_buttons_inverse.json": "d06e156ccb03dfbb9304cebbee542e7bd0ca4360d4373de6d9471fc439638186",
   "scripts/tests/all_ui_prompt_source_inverse.json": "e9a801badfd6a736d1a27625d013ab4da7b66c0499ddaf0a48ab64a29d67b35c",
   "scripts/tests/row_metadata_style_inverse.json": "09c03406e5725f08ef76255b82ed64e2aed9fc75563eee2870da7970a7c1b5bf",
-  "scripts/tests/journal_delete_snapshot_inverse.json": "1efaaa7f7530d24f3f7d82b3a1f875ed40cecf558db455ece8c087623a0f3e25",
+  "scripts/tests/journal_delete_snapshot_inverse.json": "ec5d2a9b48cacfbdc27348462aa3d7f73e15f9e92b21db7c45eab227355d4c24",
   "scripts/tests/ui_fixture_title_inverse.json": "471c1fd77148443feab4d32914dcb4f0093c04fdf0232a52ca90c6128fe26ed2",
   "scripts/tests/sync_payload_overflow_inverse.json": "87e3d7f273ddc7097194150a36ca8b63d17159d854c6916fb5236b58b91cc654",
   "scripts/tests/sync_decoder_boundary_inverse.json": "7340fa04098fd125c90e47c3a9515c0fcfc772f7d55dd1556c93ea3d66f668b2",
   "scripts/tests/recipe_content_admission_inverse.json": "99c49484ed044cb70d939bb24ec892762e0d9a26fd2842a379002d793c19d7f2",
   "scripts/tests/add_stack_composition_inverse.json": "10f73527b1a692cbef4fdd73dc669fe3e8406a5a8af9dae3ee5f99e81b7aec46",
-  "scripts/tests/journal_ui_host_handoff_inverse.json": "130a236afa29046685f0413e76336509bc97bf0eae58b9c4c1b58c1cd56cd950",
+  "scripts/tests/journal_ui_host_handoff_inverse.json": "e22f7f71f6363a91fe25c81dfbe4e4a51b67b99249b045a6d26e1149f032d6a4",
   "scripts/tests/multiline_caption_inverse.json": "5921e82c3e8fdf6ccba2004b4f9e22d9be9ae38425cbbb95a7e5788887b44016",
   "scripts/tests/today_tab_ui_inverse.json": "dca8c1251630f5049cf28bc111a6ca465634619945f89ab48583e49ec4fde85e",
   "scripts/tests/group28_idle_samples_inverse.json": "2b036a90653507ebb1b1fea1af1d8ea69bd33e0aeb71ac1c58852bdbdb4efe33",

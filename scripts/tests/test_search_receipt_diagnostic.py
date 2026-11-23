@@ -16,7 +16,10 @@ class SearchReceiptTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), '99a4ca021c441c7398e7a59c0270b40494ae9b63b9b0bef061a4cd0ca77afe59')
         workflow=normalize('main:.github/workflows/compile-check.yml', (ROOT/'.github/workflows/compile-check.yml').read_text())
         self.assertEqual(workflow.count(WORKFLOW),1)
-        self.assertEqual(hashlib.sha256(workflow.replace(WORKFLOW,'',1).encode()).hexdigest(), 'bd947a85e736a87bdc887475e0908050e4f8718f2314b34ce5cb07b03ea871c3')
+        # Retargeted 2026-11-18 (r2): pinned bytes now include the strict-concurrency block moved
+        # from the retired journal-foundation lane; byte-exact proof = old pinned bytes + PR
+        # compile-check diff via git apply.
+        self.assertEqual(hashlib.sha256(workflow.replace(WORKFLOW,'',1).encode()).hexdigest(), 'eaf26accb07766b354334e0cd3e2fe2f82c95596e4056de2420d14c02c75e069')
     def test_native_input_contract_entire_file_unchanged(self):
         self.assertEqual(hashlib.sha256(normalize('main:AteUITests/ExploreUITests.swift', (ROOT/'AteUITests/ExploreUITests.swift').read_bytes())).hexdigest(), '5e300bda3a3f8ab02caae977a6d3906f0d1df4700b11d29cbbb443af6fcf1b25')
     def test_numeric_opt_in_bounded_no_polling_or_query_text(self):

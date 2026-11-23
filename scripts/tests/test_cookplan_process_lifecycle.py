@@ -13,7 +13,10 @@ class CookPlanProcessLifecycleTests(unittest.TestCase):
         s=s.replace('            nutrition-ui-tests.log\n            cookplan-process-lifecycle\n','            nutrition-ui-tests.log\n')
         s=s.replace('          stop_lifecycle\n          trap - EXIT\n          # Export screenshots, hierarchy snapshots and audit attachments on every outcome,','          # Export screenshots, hierarchy snapshots and audit attachments on every outcome,')
         s=s.replace('          mkdir -p cookplan-process-lifecycle\n          python3 scripts/capture-cookplan-process-lifecycle.py --sim-id "$SIM_ID" --output cookplan-process-lifecycle > cookplan-process-lifecycle/collector-status.txt 2>&1 &\n          lifecycle_pid=$!\n          stop_lifecycle() {\n            kill "$lifecycle_pid" 2>/dev/null || true\n            wait "$lifecycle_pid" || true\n          }\n          trap stop_lifecycle EXIT\n          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \\\n            -only-testing:AteUITests/NutritionDiaryUITests','          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" \\\n            -only-testing:AteUITests/NutritionDiaryUITests')
-        self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'afeac149d3d5c349bbe63d9c064f6465b361c7cea438ba0839bf3c6010cc858e')
+        # Retargeted 2026-11-18 (r2): pinned bytes now include the strict-concurrency block moved
+        # from the retired journal-foundation lane; byte-exact proof = old pinned bytes + PR
+        # compile-check diff via git apply.
+        self.assertEqual(hashlib.sha256(s.encode()).hexdigest(),'4e9cbc69aa0bb6daec517ffd3e9c9f5637cd38cef3af5367e41f3e26f3c816c4')
         w=yaml.safe_load(normalize('source:.github/workflows/compile-check.yml', (ROOT/'.github/workflows/compile-check.yml').read_text()))
         for job in w['jobs'].values():
             for step in job.get('steps',[]):

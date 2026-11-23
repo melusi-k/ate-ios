@@ -108,9 +108,15 @@ jobs:
           echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
 
           set +e
-          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/build.xcresult" CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+          # SWIFT_STRICT_CONCURRENCY=complete preserves the strict-concurrency setting
+          # from the retired journal-foundation-qualification lane (owner-approved
+          # 2026-11-18 cleanup), now on the PR-gate build. The grep below surfaces
+          # concurrency diagnostics in the job log, display-only, exactly as the
+          # retired lane did; it does not fail the job.
+          xcodebuild build-for-testing -project Ate.xcodeproj -scheme Ate -destination "id=$SIM_ID" -resultBundlePath "$RUNNER_TEMP/ate-test-results/build.xcresult" SWIFT_STRICT_CONCURRENCY=complete CODE_SIGNING_ALLOWED=NO > build.log 2>&1
           status=$?
           set -e
+          grep -E "warning:.*(concurr|Sendable|actor)" build.log || true
           STEP_END=$(date +%s)
           echo "::notice::CI_TIMING step=build-for-testing duration_seconds=$((STEP_END-STEP_START)) exit_code=$status"
 

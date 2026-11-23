@@ -180,6 +180,40 @@ final class CookPlanNotifications {
     func cancel(recipeID: String) async throws {
         try await enqueue { _ in try await self.removeAndVerify(recipeID: recipeID) }.value
     }
+    /// Commit and register removal before allowing the sheet's success action.
+    /// A local-store error throws before either notification work or dismissal.
+    @discardableResult
+    func cancelFromSheet(recipeID: String, store: CookPlanStore,
+                         onCommitted: () -> Void,
+                         onRemovalFailure: @escaping @MainActor () -> Void) throws -> Task<Void, Never> {
+        CookPlanCancelDiagnostic.mark("local-cancel-before")
+        try store.cancel(recipeID: recipeID)
+        CookPlanCancelDiagnostic.mark("local-cancel-after")
+        CookPlanCancelDiagnostic.mark("notification-cancel-before")
+        let cleanup = cancelInBackground(recipeID: recipeID, onRemovalFailure: onRemovalFailure)
+        CookPlanCancelDiagnostic.mark("notification-cancel-after")
+        onCommitted()
+        return cleanup
+    }
+    /// User-facing sheet cancel: the local plan is already gone. Cleanup registers
+    /// before the sheet dismisses. The reminder removal stays ordered in the SAME queue (a later re-enable
+    /// cannot be cancelled by a late task) but never blocks the sheet on system callbacks;
+    /// a removal failure surfaces through the handler, the saveWithoutReminder pattern.
+    @discardableResult
+    func cancelInBackground(recipeID: String, onRemovalFailure: @escaping @MainActor () -> Void) -> Task<Void, Never> {
+        CookPlanCancelDiagnostic.mark("cancel-background-registered")
+        let removal = enqueue { _ in try await self.removeAndVerify(recipeID: recipeID) }
+        return Task { @MainActor in
+            CookPlanCancelDiagnostic.mark("cancel-background-await")
+            do {
+                try await removal.value
+                CookPlanCancelDiagnostic.mark("cancel-background-return")
+            } catch {
+                CookPlanCancelDiagnostic.mark("cancel-background-catch")
+                onRemovalFailure()
+            }
+        }
+    }
     func cancelAll() async throws {
         try await enqueue { _ in
             let pending = await self.client.pendingIDs()
@@ -196,12 +230,29 @@ final class CookPlanNotifications {
 
 /// Fixed QA-only phase evidence. No IDs, content, waits, timers or model reads.
 enum CookPlanCancelDiagnostic {
+    private static let lock = NSLock()
     static func mark(_ phase: String, generation: Int = -1) {
         #if DEBUG
         guard AppConfig.isUITesting,
               ProcessInfo.processInfo.arguments.contains("-qaCookPlanCancelDiagnostic") else { return }
         let line = "COOK-PLAN-CANCEL phase=\(phase) generation=\(generation) monotonic_ns=\(DispatchTime.now().uptimeNanoseconds) main_thread=\(Thread.isMainThread)\n"
-        FileHandle.standardOutput.write(Data(line.utf8))
+        // File ledger only: it is the artifact-exported record and stays
+        // independent of stdout, which can block on a full pipe and must never
+        // decide whether a phase is recorded. The lock keeps concurrent marks
+        // from interleaving bytes or clobbering the append. Content stays fixed:
+        // phase name, generation, monotonic clock, thread flag, no IDs or data.
+        lock.lock()
+        if let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            let ledger = caches.appendingPathComponent("cookplan-cancel-ledger.txt")
+            if let handle = try? FileHandle(forWritingTo: ledger) {
+                handle.seekToEndOfFile()
+                handle.write(Data(line.utf8))
+                try? handle.close()
+            } else {
+                try? Data(line.utf8).write(to: ledger)
+            }
+        }
+        lock.unlock()
         #endif
     }
 }

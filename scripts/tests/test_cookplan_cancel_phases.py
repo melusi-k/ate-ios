@@ -107,7 +107,8 @@ class CookPlanCancelPhaseTests(unittest.TestCase):
 
     def test_workflow_keeps_native_selection_pipeline_and_status(self):
         path = '.github/workflows/compile-check.yml'
-        source = (ROOT/path).read_text()
+        from nutrition_shards_delta import restore as restore_shards
+        source = restore_shards(path, (ROOT/path).read_text())
         old = restore(path, source)
         for token in ['-only-testing:', '-skip-testing:', '-default-test-execution-time-allowance', '-maximum-test-execution-time-allowance', '|| status=$?', 'exit "$status"', 'stop_lifecycle', 'scripts/stream-ui-test-progress.py']:
             self.assertEqual(source.count(token), old.count(token), token)

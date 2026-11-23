@@ -2,7 +2,7 @@
 from pathlib import Path
 import hashlib
 import json
-FIXTURE_SHA = '66d59c2164b586d018d0317fd8d1824fbaf306cd1c8b2b8a06cf173de95c38ab'
+FIXTURE_SHA = 'a6d03fd23626f216329d50446405142229572e2a585540cc82f19a7cc7decff6'
 def restore(key, raw):
     path = key.split(':', 1)[-1]
     payload = Path(__file__).with_name('cover_generation_terminal_inverse.json').read_bytes()

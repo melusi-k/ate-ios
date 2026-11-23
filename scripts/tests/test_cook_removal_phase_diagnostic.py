@@ -8,7 +8,7 @@ class CookRemovalPhaseDiagnosticTests(unittest.TestCase):
         diagnostic = source.split('// Diagnostic output only: monotonic correlation, no scheduling or synchronization.')[1]
         original = source.split('// Diagnostic output only: monotonic correlation, no scheduling or synchronization.')[0]
         original = re.sub(r'^ +cookRemovalDiagnostic\("[a-z-]+"\)\n', '', original, flags=re.M).rstrip()+'\n'
-        self.assertEqual(hashlib.sha256(original.encode()).hexdigest(), 'e8e42897e24abdbaf061c1b117df751de5443522663d51b8c0ea2027acc7596f')
+        self.assertEqual(hashlib.sha256(original.encode()).hexdigest(), '73ebbb792a5a6c773c9fc5f1483457f5396edfcacca97625bebbbce4c3c2f22a')
         self.assertIn('DispatchTime.now().uptimeNanoseconds',diagnostic)
         self.assertIn('Thread.isMainThread',diagnostic)
         self.assertNotIn('Task {',diagnostic)

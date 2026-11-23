@@ -4,6 +4,38 @@ import UIKit
 import ImagePlayground
 #endif
 
+/// Single-resume race box for `CoverStore.withTerminalDeadline`: first `resume` wins.
+/// File scope on purpose - a local type inside a generic function cannot capture the
+/// function's generic parameter, so this must live outside it to compile.
+final class ResumeBox<T>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<T?, Never>?
+    private var resolved: T??
+    func resume(with value: T?) {
+        lock.lock()
+        if let stored = resolved {
+            lock.unlock(); _ = stored; return
+        }
+        resolved = value
+        let pending = continuation
+        continuation = nil
+        lock.unlock()
+        pending?.resume(returning: value)
+    }
+    func wait() async -> T? {
+        await withCheckedContinuation { continuation in
+            lock.lock()
+            if let value = resolved {
+                lock.unlock()
+                continuation.resume(returning: value)
+            } else {
+                self.continuation = continuation
+                lock.unlock()
+            }
+        }
+    }
+}
+
 /// Recipe cover images: local JPEG files (App Group or app container), an in-memory cache,
 /// lazy backfill (og:image / oEmbed thumbnail) and optional on-device Image Playground generation.
 /// Everything here is async and best-effort; it never blocks saving a recipe.
@@ -15,6 +47,23 @@ final class CoverStore {
     private var cache: [String: UIImage] = [:]
     /// Recipe ids with a cover being fetched/generated (drives the shimmer).
     private(set) var loading: Set<String> = []
+    /// Shimmer ownership: each in-flight cover operation (a resolve, a generation attempt)
+    /// holds one count for the recipe; the `loading` marker clears only when the last
+    /// holder releases. No operation - including an older resolve or a superseded
+    /// generation attempt - can clear another operation's shimmer.
+    @ObservationIgnored private var loadingHolders: [String: Int] = [:]
+
+    /// Takes one shimmer hold for the recipe. Callers: resolve and runCoverAttempt.
+    func beginCoverLoading(_ id: String) {
+        loadingHolders[id, default: 0] += 1
+        loading.insert(id)
+    }
+
+    /// Releases one shimmer hold; the marker clears when the last holder releases.
+    func endCoverLoading(_ id: String) {
+        let n = (loadingHolders[id] ?? 1) - 1
+        if n <= 0 { loadingHolders[id] = nil; loading.remove(id) } else { loadingHolders[id] = n }
+    }
     @ObservationIgnored private var attempted: Set<String> = []
     /// Writer seam (#245, lane 3): production composition injects the shared boundary
     /// and a post-await validator; the defaults preserve today's behavior exactly.
@@ -115,7 +164,7 @@ final class CoverStore {
 
     /// Finds a cover for a recipe without a user photo: remote image → page image → Image Playground.
     func resolve(_ r: RecipeCard, allowGenerate: Bool = true) async -> (file: String, imageURL: String?)? {
-        loading.insert(r.id); defer { loading.remove(r.id) }
+        beginCoverLoading(r.id); defer { endCoverLoading(r.id) }
         var imageURL = CoverLogic.httpsURL(r.imageURL)
         if imageURL == nil, let page = CoverLogic.httpsURL(r.sourceURL) { imageURL = await Self.findPageImage(page) }
         if let u = imageURL, let img = await Self.download(u) {
@@ -165,17 +214,87 @@ final class CoverStore {
     static func checkPlayground() async {
         #if canImport(ImagePlayground)
         if #available(iOS 18.4, *) {
-            do {
-                let c = try await ImageCreator()
-                playgroundAvailable = !c.availableStyles.isEmpty
-                playgroundStatus = playgroundAvailable ? "ImageCreator ready (\(c.availableStyles.count) styles)" : "ImageCreator: no styles"
-            } catch { playgroundAvailable = false; playgroundStatus = "ImageCreator unavailable: \(error.localizedDescription)" }
+            // The availability init can hang on the same uncooperative system path as the
+            // generation stream, so it runs under the same terminal deadline: a hung check
+            // resolves to "unavailable" (tile fallback) instead of an unbounded await.
+            let outcome: (Bool, String)? = await withTerminalDeadline(seconds: generationDeadlineSeconds) { () async -> (Bool, String)? in
+                do {
+                    let c = try await ImageCreator()
+                    let ok = !c.availableStyles.isEmpty
+                    return (ok, ok ? "ImageCreator ready (\(c.availableStyles.count) styles)" : "ImageCreator: no styles")
+                } catch { return (false, "ImageCreator unavailable: \(error.localizedDescription)") }
+            }
+            playgroundAvailable = outcome?.0 ?? false
+            playgroundStatus = outcome?.1 ?? "ImageCreator availability check timed out"
             return
         }
         playgroundStatus = "needs iOS 18.4"
         #else
         playgroundStatus = "ImagePlayground not in SDK"
         #endif
+    }
+
+    /// One generation attempt must reach a terminal state even when the system stream
+    /// never settles: after this bound the attempt reports failure, `loading` clears and
+    /// the Shimmer stops, so the app can idle again. The branded tile is the designed
+    /// fallback; a result produced after the deadline is ineligible at the effect boundary.
+    nonisolated static let generationDeadlineSeconds: UInt64 = 45
+
+    /// First completion wins: the operation's value, or nil once the deadline passes.
+    /// Unstructured on purpose: a structured task group would still wait for a hung,
+    /// cancellation-uncooperative system stream at scope exit. After the winner is known
+    /// both loser tasks are cancelled (the timer so a fast success does not keep a 45s
+    /// sleep alive, the operation as a cooperative-cleanup best effort); a stream that
+    /// ignores cancellation ends unread - this function retains nothing after return,
+    /// and late-write safety comes from the caller's effect boundary, not cancellation.
+    nonisolated static func withTerminalDeadline<T>(seconds: UInt64, _ operation: @escaping () async -> T?) async -> T? {
+        let box = ResumeBox<T>()
+        let work = Task { box.resume(with: await operation()) }
+        let timer = Task {
+            try? await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+            box.resume(with: nil)
+        }
+        let result = await box.wait()
+        work.cancel()
+        timer.cancel()
+        return result
+    }
+
+    /// Monotonic per-recipe attempt identity. Only the latest attempt may commit a cover
+    /// at the effect boundary; a superseded or deadline-losing attempt's product is dropped.
+    @ObservationIgnored private var coverGenerationAttempts: [String: UInt64] = [:]
+
+    /// Attempt seam, token half: begins a generation attempt, superseding any earlier one.
+    func beginCoverAttempt(for r: RecipeCard) -> UInt64 {
+        let next = (coverGenerationAttempts[r.id] ?? 0) + 1
+        coverGenerationAttempts[r.id] = next
+        return next
+    }
+
+    /// Attempt seam, commit half - the effect boundary generate() commits through and tests
+    /// drive directly: only a winning product from the still-current attempt, re-proven
+    /// against the writer epoch, may write a cover. Cancellation of a loser task is cleanup
+    /// only; this guard is what makes a late or stale write impossible.
+    @discardableResult
+    func commitGeneratedCover(_ produced: CGImage?, attempt: UInt64, for r: RecipeCard) -> String? {
+        guard let produced,
+              coverGenerationAttempts[r.id] == attempt,
+              (try? validateWriter()) != nil else { return nil }
+        return save(UIImage(cgImage: produced), recipeID: r.id, source: .generated)
+    }
+
+    /// Attempt seam, runner: token, shimmer state, deadline race over the producer, then
+    /// commit at the effect boundary. Production calls it with the Image Playground
+    /// producer; tests drive it with synthetic producers (hung, late, failing) so the
+    /// behavior under test is the production path itself, not a copy of it.
+    func runCoverAttempt(for r: RecipeCard, seconds: UInt64 = CoverStore.generationDeadlineSeconds, produce: @escaping () async -> CGImage?) async -> String? {
+        let attempt = beginCoverAttempt(for: r)
+        beginCoverLoading(r.id)
+        defer { endCoverLoading(r.id) }
+        // Production only: the stream result leaves the race as a value. Nothing here
+        // writes state, so a product that arrives after the deadline has no effect.
+        let produced = await Self.withTerminalDeadline(seconds: seconds, produce)
+        return commitGeneratedCover(produced, attempt: attempt, for: r)
     }
 
     /// Generates an illustration from the title + main ingredients. Returns nil on any error.
@@ -186,20 +305,18 @@ final class CoverStore {
         }
         #if canImport(ImagePlayground)
         if #available(iOS 18.4, *) {
-            let wasLoading = loading.contains(r.id)
-            loading.insert(r.id); defer { if !wasLoading { loading.remove(r.id) } }
-            do {
-                let creator = try await ImageCreator()
-                let styles = creator.availableStyles
-                guard let style = styles.contains(.illustration) ? ImagePlaygroundStyle.illustration : styles.first else { return nil }
-                let text = CoverLogic.concept(title: r.title, ingredients: r.ingredients.map(\.name))
-                for try await img in creator.images(for: [.text(text)], style: style, limit: 1) {
-                    // Epoch re-check after the generator await: a cover produced for a
-                    // pre-reset state is dropped, never written.
-                    guard (try? validateWriter()) != nil else { return nil }
-                    return save(UIImage(cgImage: img.cgImage), recipeID: r.id, source: .generated)
-                }
-            } catch { return nil }
+            return await runCoverAttempt(for: r) {
+                do {
+                    let creator = try await ImageCreator()
+                    let styles = creator.availableStyles
+                    guard let style = styles.contains(.illustration) ? ImagePlaygroundStyle.illustration : styles.first else { return nil }
+                    let text = CoverLogic.concept(title: r.title, ingredients: r.ingredients.map(\.name))
+                    for try await img in creator.images(for: [.text(text)], style: style, limit: 1) {
+                        return img.cgImage
+                    }
+                } catch { return nil }
+                return nil
+            }
         }
         #endif
         return nil

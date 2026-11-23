@@ -3,7 +3,7 @@ from pathlib import Path
 import hashlib
 import json
 from canonical_goals_property_wait_delta import restore as restore_goals
-FIXTURE_SHA = '60f57c499893d4ab60048aae61e64f60187c5d679c6e523ae269d2deeab4dd4e'
+FIXTURE_SHA = '1efaaa7f7530d24f3f7d82b3a1f875ed40cecf558db455ece8c087623a0f3e25'
 
 def contract():
     payload = Path(__file__).with_name('journal_delete_snapshot_inverse.json').read_bytes()

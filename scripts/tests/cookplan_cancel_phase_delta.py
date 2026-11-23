@@ -4,6 +4,8 @@ import hashlib
 import json
 FIXTURE_SHA = '920b56ad7741a18c1bdabab85ca565ac1b313918965cbf3d28249e62d2878f28'
 def restore(key, raw):
+    from nutrition_shards_delta import restore as restore_shards
+    raw = restore_shards(key, raw, strict=False)
     path = key.split(':', 1)[-1]
     payload = Path(__file__).with_name('cookplan_cancel_phase_inverse.json').read_bytes()
     assert hashlib.sha256(payload).hexdigest() == FIXTURE_SHA

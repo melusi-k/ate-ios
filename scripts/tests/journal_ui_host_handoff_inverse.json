@@ -1,49 +1,49 @@
 {
-  "required": [
-    "JournalReflectionEditTests/testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits",
-    "JournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse"
-  ],
-  "protected_sha256": {
-    "AteTests/JournalReflectionEditTests.swift": "253c7ab7fe1bea950b2a5d2cd0d5dff0d2cd0a668a189f459cb4ed50b63bb6cb",
-    "AteUITests/CanonicalUpgradeUITests.swift": "47a9d0320594916d7f77c46130a2fbfa87c36b87ba24d6fa84e4c49fbe9072fa",
-    "AteUITests/JournalOpenStateUITests.swift": "d4d90714a134fa4047b1e3ca6b8a5eec71e63f73421588b57325e80073e56943",
-    ".github/workflows/compile-check.yml": "a020cc8d15e99b729f0bf013b3c3ea02e30532b871107c4b6c2aedf7d6534636",
-    "scripts/verify-full-unit-required.py": "e05460be7eeee13c753ae0783644ce47761ca2344350abdd2e9a70eabd9a2abb"
-  },
-  "files": {
-    ".github/workflows/journal-open-state-ui.yml": {
-      "parent_sha256": "d37adc55c3cd06f89eb533b31125cc0e67b83c016b27b9a151877a49d22209e6",
-      "current_sha256": "00e1dda4a8f918ae64326670122adb618961f567bb85176a57a77335a80a4dd5",
-      "fragments": [
-        {
-          "old": "          PYREADINESS\n          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/JournalOpenStateUITests \\\n            -only-testing:AteTests/JournalReflectionEditTests \\\n            -only-testing:AteUITests/CanonicalUpgradeUITests \\\n",
-          "new": "          PYREADINESS\n          # UI target only: avoid the stale unit-host PID handoff before the first app launch.\n          # JournalReflectionEditTests stay mandatory in Compile's full AteTests suite.\n          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/JournalOpenStateUITests \\\n            -only-testing:AteUITests/CanonicalUpgradeUITests \\\n"
-        },
-        {
-          "old": "          for evidence in \\\n            \"JournalReflectionEditTests testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits]' passed\" \\\n            \"JournalReflectionEditTests testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse]' passed\" \\\n            \"JournalOpenStateUITests testReflectionEditFailureRetainsDraftThenRetryCommitsAndRefreshesHistory]' passed\"; do\n",
-          "new": "          for evidence in \\\n            \"JournalOpenStateUITests testReflectionEditFailureRetainsDraftThenRetryCommitsAndRefreshesHistory]' passed\"; do\n"
-        }
-      ]
+ "required": [
+  "JournalReflectionEditTests/testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits",
+  "JournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse"
+ ],
+ "protected_sha256": {
+  "AteTests/JournalReflectionEditTests.swift": "253c7ab7fe1bea950b2a5d2cd0d5dff0d2cd0a668a189f459cb4ed50b63bb6cb",
+  "AteUITests/CanonicalUpgradeUITests.swift": "47a9d0320594916d7f77c46130a2fbfa87c36b87ba24d6fa84e4c49fbe9072fa",
+  "AteUITests/JournalOpenStateUITests.swift": "d4d90714a134fa4047b1e3ca6b8a5eec71e63f73421588b57325e80073e56943",
+  ".github/workflows/compile-check.yml": "e7e3e9a54ace046a0686a4130f7caa5b5740616b84a1db22fc2c20e4908954c0",
+  "scripts/verify-full-unit-required.py": "e05460be7eeee13c753ae0783644ce47761ca2344350abdd2e9a70eabd9a2abb"
+ },
+ "files": {
+  ".github/workflows/journal-open-state-ui.yml": {
+   "parent_sha256": "d37adc55c3cd06f89eb533b31125cc0e67b83c016b27b9a151877a49d22209e6",
+   "current_sha256": "00e1dda4a8f918ae64326670122adb618961f567bb85176a57a77335a80a4dd5",
+   "fragments": [
+    {
+     "old": "          PYREADINESS\n          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/JournalOpenStateUITests \\\n            -only-testing:AteTests/JournalReflectionEditTests \\\n            -only-testing:AteUITests/CanonicalUpgradeUITests \\\n",
+     "new": "          PYREADINESS\n          # UI target only: avoid the stale unit-host PID handoff before the first app launch.\n          # JournalReflectionEditTests stay mandatory in Compile's full AteTests suite.\n          xcodebuild test-without-building -project Ate.xcodeproj -scheme Ate -destination \"id=$SIM_ID\" \\\n            -only-testing:AteUITests/JournalOpenStateUITests \\\n            -only-testing:AteUITests/CanonicalUpgradeUITests \\\n"
     },
-    "scripts/full-unit-required.txt": {
-      "parent_sha256": "4be98443e5b8bdbac23795edf3a804d19c079700c05573a7754521b2976f6e0e",
-      "current_sha256": "d98c489b8b9fd54ea47208f7ff2c173886401f74f2ec4e431d7a7e1e6a4b36c3",
-      "fragments": [
-        {
-          "old": "TodayNavigationTests/testAddAndTimerChromeFollowTabRootAndCanonicalCollectionRootOnly\n",
-          "new": "TodayNavigationTests/testAddAndTimerChromeFollowTabRootAndCanonicalCollectionRootOnly\nJournalReflectionEditTests/testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits\nJournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse\n"
-        }
-      ]
-    },
-    "scripts/tests/test_unit_lane_routing.py": {
-      "parent_sha256": "13043022b46603f896efa89bb17f127ba63215c15f66dcd9145398a2c329f189",
-      "current_sha256": "ea97c7599bfdf7d223ff735ad0080a63f1d07ccb94db391ec014c2d90934f4db",
-      "fragments": [
-        {
-          "old": "        today_home += ['TodayNavigationTests/testExplicitCollectionSelectionResolvesOneCanonicalRoot', 'TodayNavigationTests/testSheetOwnerTransfersExactlyOnceAcrossPushPopAndTabSwitch', 'TodayNavigationTests/testQuickAddRequestDismissAndSaveEffectsHappenExactlyOnce', 'TodayNavigationTests/testSystemSearchKeepsTheCollectionOnTheHomeStack', 'TodayNavigationTests/testAddAndTimerChromeFollowTabRootAndCanonicalCollectionRootOnly']\n        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline + source_required + verified_paste + caption_paste + streaming + content_admission + heading_fix + ui_fixtures + sync_overflow + inline_caption + multiline_caption + row_style + source_review + refusal_wording + discovery_entry + today_home))\n        actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()\n",
-          "new": "        today_home += ['TodayNavigationTests/testExplicitCollectionSelectionResolvesOneCanonicalRoot', 'TodayNavigationTests/testSheetOwnerTransfersExactlyOnceAcrossPushPopAndTabSwitch', 'TodayNavigationTests/testQuickAddRequestDismissAndSaveEffectsHappenExactlyOnce', 'TodayNavigationTests/testSystemSearchKeepsTheCollectionOnTheHomeStack', 'TodayNavigationTests/testAddAndTimerChromeFollowTabRootAndCanonicalCollectionRootOnly']\n        journal_edit = ['JournalReflectionEditTests/testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits', 'JournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse']\n        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline + source_required + verified_paste + caption_paste + streaming + content_admission + heading_fix + ui_fixtures + sync_overflow + inline_caption + multiline_caption + row_style + source_review + refusal_wording + discovery_entry + today_home + journal_edit))\n        actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()\n"
-        }
-      ]
+    {
+     "old": "          for evidence in \\\n            \"JournalReflectionEditTests testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits]' passed\" \\\n            \"JournalReflectionEditTests testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse]' passed\" \\\n            \"JournalOpenStateUITests testReflectionEditFailureRetainsDraftThenRetryCommitsAndRefreshesHistory]' passed\"; do\n",
+     "new": "          for evidence in \\\n            \"JournalOpenStateUITests testReflectionEditFailureRetainsDraftThenRetryCommitsAndRefreshesHistory]' passed\"; do\n"
     }
+   ]
+  },
+  "scripts/full-unit-required.txt": {
+   "parent_sha256": "4be98443e5b8bdbac23795edf3a804d19c079700c05573a7754521b2976f6e0e",
+   "current_sha256": "d98c489b8b9fd54ea47208f7ff2c173886401f74f2ec4e431d7a7e1e6a4b36c3",
+   "fragments": [
+    {
+     "old": "TodayNavigationTests/testAddAndTimerChromeFollowTabRootAndCanonicalCollectionRootOnly\n",
+     "new": "TodayNavigationTests/testAddAndTimerChromeFollowTabRootAndCanonicalCollectionRootOnly\nJournalReflectionEditTests/testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits\nJournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse\n"
+    }
+   ]
+  },
+  "scripts/tests/test_unit_lane_routing.py": {
+   "parent_sha256": "13043022b46603f896efa89bb17f127ba63215c15f66dcd9145398a2c329f189",
+   "current_sha256": "ea97c7599bfdf7d223ff735ad0080a63f1d07ccb94db391ec014c2d90934f4db",
+   "fragments": [
+    {
+     "old": "        today_home += ['TodayNavigationTests/testExplicitCollectionSelectionResolvesOneCanonicalRoot', 'TodayNavigationTests/testSheetOwnerTransfersExactlyOnceAcrossPushPopAndTabSwitch', 'TodayNavigationTests/testQuickAddRequestDismissAndSaveEffectsHappenExactlyOnce', 'TodayNavigationTests/testSystemSearchKeepsTheCollectionOnTheHomeStack', 'TodayNavigationTests/testAddAndTimerChromeFollowTabRootAndCanonicalCollectionRootOnly']\n        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline + source_required + verified_paste + caption_paste + streaming + content_admission + heading_fix + ui_fixtures + sync_overflow + inline_caption + multiline_caption + row_style + source_review + refusal_wording + discovery_entry + today_home))\n        actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()\n",
+     "new": "        today_home += ['TodayNavigationTests/testExplicitCollectionSelectionResolvesOneCanonicalRoot', 'TodayNavigationTests/testSheetOwnerTransfersExactlyOnceAcrossPushPopAndTabSwitch', 'TodayNavigationTests/testQuickAddRequestDismissAndSaveEffectsHappenExactlyOnce', 'TodayNavigationTests/testSystemSearchKeepsTheCollectionOnTheHomeStack', 'TodayNavigationTests/testAddAndTimerChromeFollowTabRootAndCanonicalCollectionRootOnly']\n        journal_edit = ['JournalReflectionEditTests/testFailedEditKeepsCommittedReaderAndUnrelatedPendingWorkThenRetryCommits', 'JournalReflectionEditTests/testUnavailableEmptyMissingAndNonReflectionEditsReturnFalse']\n        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline + source_required + verified_paste + caption_paste + streaming + content_admission + heading_fix + ui_fixtures + sync_overflow + inline_caption + multiline_caption + row_style + source_review + refusal_wording + discovery_entry + today_home + journal_edit))\n        actual = (ROOT / 'scripts/full-unit-required.txt').read_text().splitlines()\n"
+    }
+   ]
   }
+ }
 }

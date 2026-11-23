@@ -40,6 +40,17 @@ For a stack root, use a stable ID (e.g. `issue-179`), Parent PR `None`, Position
 **Verification notes**
 <!-- Commands, test results, device details, exact SHA/build, workflow links, or outstanding limitations. Do not claim unrun tests passed. -->
 
+## Test-to-area mapping (dry-run; existing gates still apply)
+- **Changed areas and shared consumers:**
+- **Exact associated target/class/method selectors:**
+- **Why these cover the changed production seams:**
+- **Mapping plan artifact and base/head SHAs:**
+- **Unmapped/shared paths and conservative fallback:**
+- **Mapping reviewer:**
+
+This declaration does not authorize skipped checks. Mapping is dry-run only until
+reviewed main coverage and an owner-approved gate transition are in place.
+
 ## Risk and rollout
 - **Risk:** Low / Medium / High
 - **Migration, configuration, or backend changes:** None / Describe

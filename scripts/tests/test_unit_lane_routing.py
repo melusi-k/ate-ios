@@ -80,9 +80,9 @@ class UnitLaneRoutingTests(unittest.TestCase):
         self.assertIn('"$total" -lt 1', self.full)
         self.assertIn('"$total" =~ ^[0-9]+$', self.full)
 
-    def test_no_new_mac_job_or_budget_increase(self):
-        self.assertEqual(self.compile.count('runs-on: xcode-27'), 2)
-        nutrition = self.compile.split('  build-nutrition:', 1)[1].split('  regression-suites:', 1)[0]
+    def test_reviewed_shards_keep_each_worker_budget(self):
+        self.assertEqual(self.compile.count('runs-on: xcode-27'), 3)
+        nutrition = self.compile.split('  nutrition-units:', 1)[1].split('  regression-suites:', 1)[0]
         self.assertIn('timeout-minutes: 45', nutrition)
         self.assertIn('-default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 480', self.full)
         self.assertIn('timeout-minutes: 110', self.compile)

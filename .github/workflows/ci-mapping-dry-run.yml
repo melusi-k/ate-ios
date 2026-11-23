@@ -1,0 +1,56 @@
+name: CI mapping dry run
+
+# Plan evidence only. This workflow never controls existing native gates.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  mapping-plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out trusted base logic
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: trusted
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check out candidate as data only
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: proposed
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Emit non-authorizing plan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir -p mapping-evidence
+          if [ -f trusted/scripts/ci-mapping.py ] && [ -f trusted/ci/test-area-map.json ]; then
+            python3 trusted/scripts/ci-mapping.py --repo proposed --manifest trusted/ci/test-area-map.json \
+              --base "$BASE_SHA" --head "$HEAD_SHA" --output mapping-evidence/plan.json
+          else
+            python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          plan = {'mode': 'DRY_RUN_ONLY', 'authorizes_narrowing': False,
+                  'qualification': 'NOT RUN; existing gates unchanged',
+                  'mapping_gate': 'review_required', 'base_sha': os.environ['BASE_SHA'],
+                  'head_sha': os.environ['HEAD_SHA'],
+                  'reason': 'Bootstrap: trusted base has no resolver/manifest. Candidate logic not executed.'}
+          Path('mapping-evidence/plan.json').write_text(json.dumps(plan, indent=2) + '\n')
+          PY
+          fi
+      - name: Retain dry-run mapping evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-mapping-dry-run-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          path: mapping-evidence

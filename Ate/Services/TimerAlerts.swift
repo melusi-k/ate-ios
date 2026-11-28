@@ -4,6 +4,34 @@ import UIKit
 import AudioToolbox
 
 enum TimerAlerts {
+    /// Serial queue carrying every notification-center IPC. The first synchronous
+    /// UNUserNotificationCenter call of a process can block for a very long time
+    /// (usernoted startup); synchronous callers include the widget/Siri relay return,
+    /// which has a hard wall-clock allowance, so alert IPC never runs on the
+    /// caller's thread. One serial queue preserves schedule/cancel ordering.
+    private static let alertQueue = DispatchQueue(label: "ate.timer-alerts", qos: .userInitiated)
+
+    private static let stateLock = NSLock()
+    private static var _lastScheduleError: String?
+    /// Recorded failure surface for best-effort scheduling: the most recent
+    /// notification-center error, nil after the most recent success. Nothing throws.
+    static var lastScheduleError: String? {
+        stateLock.lock(); defer { stateLock.unlock() }
+        return _lastScheduleError
+    }
+
+    /// The blocking system calls, isolated behind one seam so tests can observe or
+    /// stall them. A nil request performs only the cancel half. Always invoked on
+    /// alertQueue; never call directly from a thread with a return deadline.
+    static func systemSchedule(id: String, request: UNNotificationRequest?, completion: @escaping (Error?) -> Void) {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["ate.timer." + id])
+        guard let request else { completion(nil); return }
+        center.add(request, withCompletionHandler: completion)
+    }
+    /// Test seam; production keeps the default. Restored by tests in tearDown.
+    static var performSystemSchedule: (_ id: String, _ request: UNNotificationRequest?, _ completion: @escaping (Error?) -> Void) -> Void = systemSchedule
+
     static func requestPermission() async -> Bool {
         if AppConfig.isUITesting { return false }
         return (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false
@@ -24,22 +52,35 @@ enum TimerAlerts {
         return s < e ? (now >= s && now < e) : (now >= s || now < e)
     }
 
+    /// Best-effort: the request is built on the caller's thread, but the blocking
+    /// notification-center IPC (cancel-then-add) runs on alertQueue and failures are
+    /// recorded in `lastScheduleError` instead of thrown, so synchronous callers such
+    /// as the kitchen-toggle relay return immediately.
     static func schedule(id: String, step: Int, recipeTitle: String, at end: Date, prefs: TimerPrefs) {
-        cancel(id: id)
-        guard prefs.stepAlerts else { return }
-        let content = UNMutableNotificationContent()
-        content.title = "Step \(step) is done"
-        content.body = recipeTitle
-        content.sound = (prefs.sound && !isQuiet(prefs, at: end)) ? UNNotificationSound(named: UNNotificationSoundName("ate-chime.wav")) : nil
-        content.interruptionLevel = .timeSensitive
-        let interval = max(1, end.timeIntervalSinceNow)
-        let req = UNNotificationRequest(identifier: "ate.timer." + id, content: content,
-                                        trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false))
-        UNUserNotificationCenter.current().add(req)
+        let request: UNNotificationRequest? = {
+            guard prefs.stepAlerts else { return nil }
+            let content = UNMutableNotificationContent()
+            content.title = "Step \(step) is done"
+            content.body = recipeTitle
+            content.sound = (prefs.sound && !isQuiet(prefs, at: end)) ? UNNotificationSound(named: UNNotificationSoundName("ate-chime.wav")) : nil
+            content.interruptionLevel = .timeSensitive
+            let interval = max(1, end.timeIntervalSinceNow)
+            return UNNotificationRequest(identifier: "ate.timer." + id, content: content,
+                                         trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false))
+        }()
+        alertQueue.async {
+            performSystemSchedule(id, request) { error in
+                stateLock.lock()
+                _lastScheduleError = error.map { String(describing: $0) }
+                stateLock.unlock()
+            }
+        }
     }
 
     static func cancel(id: String) {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["ate.timer." + id])
+        alertQueue.async {
+            performSystemSchedule(id, nil) { _ in }
+        }
     }
 
     /// Clear-all (lane 3): removes pending AND delivered notifications, then verifies

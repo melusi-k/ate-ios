@@ -103,13 +103,25 @@ final class TimerCenter {
 
     func startQuick(seconds: Int = TimerMath.quickSeconds) {
         try? writerBoundary.withEffect {
+#if DEBUG
+            print("KITCHEN-SUB phase=enter uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
             let total = AppConfig.qaFastTimers ? max(2, seconds / 30) : seconds
             var t = ActiveTimer(recipeID: TimerMath.quickRecipeID, recipeTitle: "Kitchen timer", stepIndex: 0, stepCount: 1,
                                 stepText: "Kitchen timer", total: total, endDate: nil, pausedRemaining: total)
             if let existing = timer(TimerMath.quickRecipeID, 0) { t = existing; if t.isRunning { return } }
             t.endDate = Date().addingTimeInterval(TimeInterval(t.pausedRemaining > 0 ? t.pausedRemaining : total))
             upsert(t)
+#if DEBUG
+            print("KITCHEN-SUB phase=post-upsert uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
             TimerAlerts.schedule(id: t.id, step: 1, recipeTitle: t.recipeTitle, at: t.endDate!, prefs: prefsProvider())
+#if DEBUG
+            print("KITCHEN-SUB phase=post-alerts uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
+#if DEBUG
+            print("KITCHEN-SUB phase=pre-liveactivity uptime=\(ProcessInfo.processInfo.systemUptime)")
+#endif
             LiveActivities.startOrUpdate(t)
         }
     }

@@ -464,7 +464,8 @@
         "AteTests/CookedJournalReflectionTests.swift",
         "AteUITests/CookFinishAccessoryUITests.swift",
         "AteUITests/CookIngredientsUITests.swift",
-        "AteUITests/CookSharedStepUITests.swift"
+        "AteUITests/CookSharedStepUITests.swift",
+        "AteTests/TimerAlertsRelayTests.swift"
       ],
       "selectors": [
         "AteTests/CookCompletionTests/testEmptyIncomingIdIsRefusedBeforeAnyWriteAndLeavesAHealthyQueueReadable",
@@ -537,7 +538,19 @@
         "AteUITests/CookIngredientsUITests/testCookIngredientSheetScalesChecksAndPersists",
         "AteUITests/CookIngredientsUITests/testCookTimerCardLargeText",
         "AteUITests/CookIngredientsUITests/testCookTimerCardNormalText",
-        "AteUITests/CookSharedStepUITests/testExternalSharedStepChangeWhileCookIsOpenUpdatesCurrentStep"
+        "AteUITests/CookSharedStepUITests/testExternalSharedStepChangeWhileCookIsOpenUpdatesCurrentStep",
+        "AteTests/TimerAlertsRelayTests/testScheduleDoesNotBlockCallerWhenNotificationIPCStalls",
+        "AteTests/TimerAlertsRelayTests/testCancelDoesNotBlockCallerWhenNotificationIPCStalls",
+        "AteTests/TimerAlertsRelayTests/testScheduleRecordsFailureSurfaceOnAlertError",
+        "AteTests/TimerAlertsRelayTests/testScheduleSuccessClearsSeededFailureSurface",
+        "AteTests/TimerAlertsRelayTests/testKitchenToggleRelayReturnsWithSynchronousSnapshotWhileAlertIPCStalled",
+        "AteTests/TimerAlertsRelayTests/testScheduleComputesTriggerAfterRemovalFromRetainedEndDate",
+        "AteTests/TimerAlertsRelayTests/testScheduleRefusesEndDateExpiredDuringRemovalAndRecordsRefusal",
+        "AteTests/TimerAlertsRelayTests/testEraseWaitsForInFlightAddCallbackBeforeRemoving",
+        "AteTests/TimerAlertsRelayTests/testStaleQueuedScheduleRejectedAfterClearAllEpoch",
+        "AteTests/TimerAlertsRelayTests/testEraseReportsFailureWhenInFlightWorkCannotDrain",
+        "AteTests/TimerAlertsRelayTests/testOlderCompletionCannotOverwriteNewerRecordedResult",
+        "AteTests/TimerAlertsRelayTests/testNewerCompletionAfterOlderFailureReplacesRecordedResult"
       ],
       "reviewer": "Reviewer + area PO review required",
       "reason": "Initial conservative proposal from existing test families; not authorization to narrow checks."

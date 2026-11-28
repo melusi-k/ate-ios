@@ -35,7 +35,7 @@
   },
   "scripts/tests/test_journal_delete_snapshot.py": {
    "parent_sha256": "8b5c15cf2a71330eb588f00f8d7128d42e8805922953b0f5745ec95316bfdc2b",
-   "current_sha256": "0bddbaa412f483994993718f0ab2cf606de4b84a66b17e78eef07f0529980196",
+   "current_sha256": "98439e5a66a1a78c314da56db5b7bdae7fd1993f919c2c7a60f255486ef56939",
    "fragments": [
     {
      "old": "from journal_delete_snapshot_delta import contract, restore\n",
@@ -44,6 +44,22 @@
     {
      "old": "hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), digest, path",
      "new": "hashlib.sha256(restore_goals(path, (ROOT / path).read_bytes())).hexdigest(), digest, path"
+    },
+    {
+     "old": "from canonical_goals_property_wait_delta import restore as restore_goals\n",
+     "new": "from canonical_goals_property_wait_delta import restore as restore_goals\nfrom timer_alerts_relay_delta import restore as restore_timer_alerts\n"
+    },
+    {
+     "old": "            source = (ROOT / path).read_text()\n            self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), entry['current_sha256'])",
+     "new": "            source = restore_timer_alerts(path, (ROOT / path).read_text())\n            self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), entry['current_sha256'])"
+    },
+    {
+     "old": "            self.assertEqual(hashlib.sha256(restore_goals(path, (ROOT / path).read_bytes())).hexdigest(), digest, path)",
+     "new": "            self.assertEqual(hashlib.sha256(restore_goals(path, restore_timer_alerts(path, (ROOT / path).read_bytes()))).hexdigest(), digest, path)"
+    },
+    {
+     "old": "        path = 'scripts/full-unit-required.txt'; source = (ROOT / path).read_text(); parent = restore(path, source)",
+     "new": "        path = 'scripts/full-unit-required.txt'; source = restore_timer_alerts(path, (ROOT / path).read_text()); parent = restore(path, source)"
     }
    ]
   }
@@ -52,7 +68,7 @@
   ".github/workflows/compile-check.yml": "e7e3e9a54ace046a0686a4130f7caa5b5740616b84a1db22fc2c20e4908954c0",
   ".github/workflows/journal-open-state-ui.yml": "00e1dda4a8f918ae64326670122adb618961f567bb85176a57a77335a80a4dd5",
   "project.yml": "ffdecd7c0ad68f849d3f12e0ec9c3afa545de3368fcd41fb43389e25a9a71878",
-  "scripts/full-unit-required.txt": "018b97c35592b2f49d76829af09689f9ad44e0ae0a7fc94c3eb14f72a2ad66be",
+  "scripts/full-unit-required.txt": "500ac0aff46be9de545ae04ba9d6b101737b22425a5c7a1e5d7281d5f2d3ebca",
   "AteUITests/JournalOpenStateUITests.swift": "bff466a9fc6315b79c496e5eac291ef392fdec847621114888cabbff98b9e5ac",
   "AteUITests/JournalDeleteSnapshotWalk.swift": "2d3503f1ca00935ce295f66b1d86d553e232f7ce1d43fea48cd98c514c229cfd",
   "AteTests/JournalDeleteSnapshotWalkTests.swift": "ef34c2e243516d5cafd8eb3d380fc45d5dda6748b545e0e40af359a4ca64034e",

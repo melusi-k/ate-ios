@@ -6,12 +6,13 @@ import unittest
 import yaml
 from journal_delete_snapshot_delta import contract, restore
 from canonical_goals_property_wait_delta import restore as restore_goals
+from timer_alerts_relay_delta import restore as restore_timer_alerts
 ROOT = Path(__file__).resolve().parents[2]
 
 class JournalDeleteSnapshotTests(unittest.TestCase):
     def test_exact_inverse_and_all_historical_pins(self):
         for path, entry in contract()['files'].items():
-            source = (ROOT / path).read_text()
+            source = restore_timer_alerts(path, (ROOT / path).read_text())
             self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), entry['current_sha256'])
             old = restore(path, source)
             self.assertEqual(hashlib.sha256(old.encode()).hexdigest(), entry['parent_sha256'])
@@ -20,7 +21,7 @@ class JournalDeleteSnapshotTests(unittest.TestCase):
             for mutant in [source + '// unrelated', source[:-1]]:
                 with self.assertRaises(AssertionError): restore(path, mutant)
         for path, digest in contract()['protected_sha256'].items():
-            self.assertEqual(hashlib.sha256(restore_goals(path, (ROOT / path).read_bytes())).hexdigest(), digest, path)
+            self.assertEqual(hashlib.sha256(restore_goals(path, restore_timer_alerts(path, (ROOT / path).read_bytes()))).hexdigest(), digest, path)
 
     def test_every_journey_and_assertion_stays_byte_identical(self):
         path = 'AteUITests/JournalOpenStateUITests.swift'
@@ -58,7 +59,7 @@ class JournalDeleteSnapshotTests(unittest.TestCase):
         self.assertEqual(spec['targets']['AteUITests'], old['targets']['AteUITests'])
 
     def test_six_native_adversarial_cases_remain_mandatory(self):
-        path = 'scripts/full-unit-required.txt'; source = (ROOT / path).read_text(); parent = restore(path, source)
+        path = 'scripts/full-unit-required.txt'; source = restore_timer_alerts(path, (ROOT / path).read_text()); parent = restore(path, source)
         required = contract()['required_native']
         self.assertEqual(source, parent + '\n'.join(required) + '\n')
         self.assertEqual(len(source.splitlines()), len(set(source.splitlines())))

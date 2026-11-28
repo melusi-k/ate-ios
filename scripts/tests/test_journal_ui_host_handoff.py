@@ -6,7 +6,9 @@ import re
 import unittest
 import yaml
 from journal_ui_host_handoff_delta import contract, restore
-from journal_delete_snapshot_delta import restore as restore_snapshot
+from journal_delete_snapshot_delta import restore as restore_snapshot_inner
+from timer_alerts_relay_delta import restore as restore_timer_alerts
+def restore_snapshot(path, source): return restore_snapshot_inner(path, restore_timer_alerts(path, source))
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('journal_required_native', ROOT / 'scripts/verify-full-unit-required.py')
 verifier = importlib.util.module_from_spec(spec)

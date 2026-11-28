@@ -2,7 +2,7 @@
 from pathlib import Path
 import hashlib
 import json
-FIXTURE_SHA = '72e1c0c5ee6b2d2c9022faf2999bfb9eacae29964d3ed63320268a049de92d72'
+FIXTURE_SHA = '9dd75982752cad94f271ca696b3d9eed67f95deebc3f45905a5116ef63315080'
 
 def contract():
     payload = Path(__file__).with_name('canonical_goals_property_wait_inverse.json').read_bytes()

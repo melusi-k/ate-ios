@@ -6578,6 +6578,66 @@
       "kind": "native"
     },
     {
+      "selector": "AteTests/TimerAlertsRelayTests/testCancelDoesNotBlockCallerWhenNotificationIPCStalls",
+      "path": "AteTests/TimerAlertsRelayTests.swift",
+      "kind": "native"
+    },
+    {
+      "selector": "AteTests/TimerAlertsRelayTests/testEraseReportsFailureWhenInFlightWorkCannotDrain",
+      "path": "AteTests/TimerAlertsRelayTests.swift",
+      "kind": "native"
+    },
+    {
+      "selector": "AteTests/TimerAlertsRelayTests/testEraseWaitsForInFlightAddCallbackBeforeRemoving",
+      "path": "AteTests/TimerAlertsRelayTests.swift",
+      "kind": "native"
+    },
+    {
+      "selector": "AteTests/TimerAlertsRelayTests/testKitchenToggleRelayReturnsWithSynchronousSnapshotWhileAlertIPCStalled",
+      "path": "AteTests/TimerAlertsRelayTests.swift",
+      "kind": "native"
+    },
+    {
+      "selector": "AteTests/TimerAlertsRelayTests/testNewerCompletionAfterOlderFailureReplacesRecordedResult",
+      "path": "AteTests/TimerAlertsRelayTests.swift",
+      "kind": "native"
+    },
+    {
+      "selector": "AteTests/TimerAlertsRelayTests/testOlderCompletionCannotOverwriteNewerRecordedResult",
+      "path": "AteTests/TimerAlertsRelayTests.swift",
+      "kind": "native"
+    },
+    {
+      "selector": "AteTests/TimerAlertsRelayTests/testScheduleComputesTriggerAfterRemovalFromRetainedEndDate",
+      "path": "AteTests/TimerAlertsRelayTests.swift",
+      "kind": "native"
+    },
+    {
+      "selector": "AteTests/TimerAlertsRelayTests/testScheduleDoesNotBlockCallerWhenNotificationIPCStalls",
+      "path": "AteTests/TimerAlertsRelayTests.swift",
+      "kind": "native"
+    },
+    {
+      "selector": "AteTests/TimerAlertsRelayTests/testScheduleRecordsFailureSurfaceOnAlertError",
+      "path": "AteTests/TimerAlertsRelayTests.swift",
+      "kind": "native"
+    },
+    {
+      "selector": "AteTests/TimerAlertsRelayTests/testScheduleRefusesEndDateExpiredDuringRemovalAndRecordsRefusal",
+      "path": "AteTests/TimerAlertsRelayTests.swift",
+      "kind": "native"
+    },
+    {
+      "selector": "AteTests/TimerAlertsRelayTests/testScheduleSuccessClearsSeededFailureSurface",
+      "path": "AteTests/TimerAlertsRelayTests.swift",
+      "kind": "native"
+    },
+    {
+      "selector": "AteTests/TimerAlertsRelayTests/testStaleQueuedScheduleRejectedAfterClearAllEpoch",
+      "path": "AteTests/TimerAlertsRelayTests.swift",
+      "kind": "native"
+    },
+    {
       "selector": "AteTests/TodayHomeTests/testGreetingBoundaries",
       "path": "AteTests/TodayHomeTests.swift",
       "kind": "native"
@@ -10290,6 +10350,16 @@
     {
       "selector": "test_tab_collection_retention.TabCollectionRetentionTests.test_tab_binding_uses_distinct_state_transition",
       "path": "scripts/tests/test_tab_collection_retention.py",
+      "kind": "python"
+    },
+    {
+      "selector": "test_timer_alerts_relay.TimerAlertsRelayDeltaTests.test_exact_inverse_and_all_pins",
+      "path": "scripts/tests/test_timer_alerts_relay.py",
+      "kind": "python"
+    },
+    {
+      "selector": "test_timer_alerts_relay.TimerAlertsRelayDeltaTests.test_five_native_relay_cases_remain_mandatory",
+      "path": "scripts/tests/test_timer_alerts_relay.py",
       "kind": "python"
     },
     {

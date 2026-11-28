@@ -1,0 +1,71 @@
+{
+ "base": "81d478f4a5ebb397287ee2ecd39ad2725147d56c",
+ "required_native": [
+  "TimerAlertsRelayTests/testScheduleDoesNotBlockCallerWhenNotificationIPCStalls",
+  "TimerAlertsRelayTests/testCancelDoesNotBlockCallerWhenNotificationIPCStalls",
+  "TimerAlertsRelayTests/testScheduleRecordsFailureSurfaceOnAlertError",
+  "TimerAlertsRelayTests/testScheduleSuccessClearsSeededFailureSurface",
+  "TimerAlertsRelayTests/testKitchenToggleRelayReturnsWithSynchronousSnapshotWhileAlertIPCStalled",
+  "TimerAlertsRelayTests/testScheduleComputesTriggerAfterRemovalFromRetainedEndDate",
+  "TimerAlertsRelayTests/testScheduleRefusesEndDateExpiredDuringRemovalAndRecordsRefusal",
+  "TimerAlertsRelayTests/testEraseWaitsForInFlightAddCallbackBeforeRemoving",
+  "TimerAlertsRelayTests/testStaleQueuedScheduleRejectedAfterClearAllEpoch",
+  "TimerAlertsRelayTests/testEraseReportsFailureWhenInFlightWorkCannotDrain",
+  "TimerAlertsRelayTests/testOlderCompletionCannotOverwriteNewerRecordedResult",
+  "TimerAlertsRelayTests/testNewerCompletionAfterOlderFailureReplacesRecordedResult"
+ ],
+ "files": {
+  "scripts/full-unit-required.txt": {
+   "parent_sha256": "018b97c35592b2f49d76829af09689f9ad44e0ae0a7fc94c3eb14f72a2ad66be",
+   "current_sha256": "500ac0aff46be9de545ae04ba9d6b101737b22425a5c7a1e5d7281d5f2d3ebca",
+   "fragments": [
+    {
+     "old": "JournalDeleteSnapshotWalkTests/testMismatchedLabelsDisabledAliasesAndFramesStayVisible\n",
+     "new": "JournalDeleteSnapshotWalkTests/testMismatchedLabelsDisabledAliasesAndFramesStayVisible\nTimerAlertsRelayTests/testScheduleDoesNotBlockCallerWhenNotificationIPCStalls\nTimerAlertsRelayTests/testCancelDoesNotBlockCallerWhenNotificationIPCStalls\nTimerAlertsRelayTests/testScheduleRecordsFailureSurfaceOnAlertError\nTimerAlertsRelayTests/testScheduleSuccessClearsSeededFailureSurface\nTimerAlertsRelayTests/testKitchenToggleRelayReturnsWithSynchronousSnapshotWhileAlertIPCStalled\nTimerAlertsRelayTests/testScheduleComputesTriggerAfterRemovalFromRetainedEndDate\nTimerAlertsRelayTests/testScheduleRefusesEndDateExpiredDuringRemovalAndRecordsRefusal\nTimerAlertsRelayTests/testEraseWaitsForInFlightAddCallbackBeforeRemoving\nTimerAlertsRelayTests/testStaleQueuedScheduleRejectedAfterClearAllEpoch\nTimerAlertsRelayTests/testEraseReportsFailureWhenInFlightWorkCannotDrain\nTimerAlertsRelayTests/testOlderCompletionCannotOverwriteNewerRecordedResult\nTimerAlertsRelayTests/testNewerCompletionAfterOlderFailureReplacesRecordedResult\n"
+    }
+   ]
+  },
+  "scripts/tests/test_unit_lane_routing.py": {
+   "parent_sha256": "b4b4d08859629321b0f6821c01910f1622078cb376507bd55f8b8b0eb4edbee5",
+   "current_sha256": "4a00e89c4e7ae379733cd836a2260ae4059b8c432f320645bb41fa375bf88fe5",
+   "fragments": [
+    {
+     "old": "        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline + source_required + verified_paste + caption_paste + streaming + content_admission + heading_fix + ui_fixtures + sync_overflow + inline_caption + multiline_caption + row_style + source_review + refusal_wording + discovery_entry + today_home + journal_edit + snapshot_walk))\n",
+     "new": "        timer_alerts_relay = ['TimerAlertsRelayTests/testScheduleDoesNotBlockCallerWhenNotificationIPCStalls', 'TimerAlertsRelayTests/testCancelDoesNotBlockCallerWhenNotificationIPCStalls', 'TimerAlertsRelayTests/testScheduleRecordsFailureSurfaceOnAlertError', 'TimerAlertsRelayTests/testScheduleSuccessClearsSeededFailureSurface', 'TimerAlertsRelayTests/testKitchenToggleRelayReturnsWithSynchronousSnapshotWhileAlertIPCStalled', 'TimerAlertsRelayTests/testScheduleComputesTriggerAfterRemovalFromRetainedEndDate', 'TimerAlertsRelayTests/testScheduleRefusesEndDateExpiredDuringRemovalAndRecordsRefusal', 'TimerAlertsRelayTests/testEraseWaitsForInFlightAddCallbackBeforeRemoving', 'TimerAlertsRelayTests/testStaleQueuedScheduleRejectedAfterClearAllEpoch', 'TimerAlertsRelayTests/testEraseReportsFailureWhenInFlightWorkCannotDrain', 'TimerAlertsRelayTests/testOlderCompletionCannotOverwriteNewerRecordedResult', 'TimerAlertsRelayTests/testNewerCompletionAfterOlderFailureReplacesRecordedResult']\n        union = list(dict.fromkeys(expected + additions + root_regressions + generation + inputs + source_native_regressions + metadata + deadline + source_required + verified_paste + caption_paste + streaming + content_admission + heading_fix + ui_fixtures + sync_overflow + inline_caption + multiline_caption + row_style + source_review + refusal_wording + discovery_entry + today_home + journal_edit + snapshot_walk + timer_alerts_relay))\n"
+    }
+   ]
+  },
+  "scripts/tests/test_journal_delete_snapshot.py": {
+   "parent_sha256": "0bddbaa412f483994993718f0ab2cf606de4b84a66b17e78eef07f0529980196",
+   "current_sha256": "98439e5a66a1a78c314da56db5b7bdae7fd1993f919c2c7a60f255486ef56939",
+   "fragments": [
+    {
+     "old": "from canonical_goals_property_wait_delta import restore as restore_goals\n",
+     "new": "from canonical_goals_property_wait_delta import restore as restore_goals\nfrom timer_alerts_relay_delta import restore as restore_timer_alerts\n"
+    },
+    {
+     "old": "            source = (ROOT / path).read_text()\n            self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), entry['current_sha256'])",
+     "new": "            source = restore_timer_alerts(path, (ROOT / path).read_text())\n            self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), entry['current_sha256'])"
+    },
+    {
+     "old": "            self.assertEqual(hashlib.sha256(restore_goals(path, (ROOT / path).read_bytes())).hexdigest(), digest, path)",
+     "new": "            self.assertEqual(hashlib.sha256(restore_goals(path, restore_timer_alerts(path, (ROOT / path).read_bytes()))).hexdigest(), digest, path)"
+    },
+    {
+     "old": "        path = 'scripts/full-unit-required.txt'; source = (ROOT / path).read_text(); parent = restore(path, source)",
+     "new": "        path = 'scripts/full-unit-required.txt'; source = restore_timer_alerts(path, (ROOT / path).read_text()); parent = restore(path, source)"
+    }
+   ]
+  },
+  "scripts/tests/test_journal_ui_host_handoff.py": {
+   "parent_sha256": "59b3ddd9c4467a905f7c8fcc07bd6324046a443eebac94d4f970ed3fff1f8ee7",
+   "current_sha256": "907cc5341b9cc054894b024a6dd0dfdaca4a546a3b89500b060b20a4e3f18410",
+   "fragments": [
+    {
+     "old": "from journal_delete_snapshot_delta import restore as restore_snapshot\n",
+     "new": "from journal_delete_snapshot_delta import restore as restore_snapshot_inner\nfrom timer_alerts_relay_delta import restore as restore_timer_alerts\ndef restore_snapshot(path, source): return restore_snapshot_inner(path, restore_timer_alerts(path, source))\n"
+    }
+   ]
+  }
+ }
+}

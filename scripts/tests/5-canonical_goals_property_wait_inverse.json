@@ -1,0 +1,122 @@
+{
+ "base": "eb030bd2605f4b4e082ec93e2cfc8a6f7ef9a1b8",
+ "files": {
+  "AteUITests/CanonicalUpgradeUITests.swift": {
+   "parent_sha256": "47a9d0320594916d7f77c46130a2fbfa87c36b87ba24d6fa84e4c49fbe9072fa",
+   "current_sha256": "4d18715dd8e27d6165a8e483c1c54ea86b83ecf1f62ca3030b07c58dad482ff6",
+   "fragments": [
+    {
+     "old": "        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: \"enabled == true\"), object: enabled)\n        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed)\n",
+     "new": "        let readyStart = ProcessInfo.processInfo.systemUptime\n        print(\"GOALS-ENABLED-WAIT begin timeout=5 monotonic_s=\\(readyStart)\")\n        let ready = enabled.wait(for: \\.isEnabled, toEqual: true, timeout: 5)\n        let readyElapsed = ProcessInfo.processInfo.systemUptime - readyStart\n        print(\"GOALS-ENABLED-WAIT end result=\\(ready) elapsed_s=\\(readyElapsed)\")\n        if !ready { shot(\"upgrade-goals-enabled-wait-failed\") }\n        XCTAssertTrue(ready, \"Energy switch must become enabled within the unchanged five-second wait\")\n"
+    }
+   ]
+  },
+  "scripts/tests/journal_delete_snapshot_delta.py": {
+   "parent_sha256": "00eb00aac36c201646f526c8304c7d50cc1bb3e5474df2009569ddad11547037",
+   "current_sha256": "e1af6c4a8bedbc53e532d5d60579e651073420497ff325cf48b60ce1c6e3dc81",
+   "fragments": [
+    {
+     "old": "import json\n",
+     "new": "import json\nfrom canonical_goals_property_wait_delta import restore as restore_goals\n"
+    },
+    {
+     "old": "def restore(key, raw):\n",
+     "new": "def restore(key, raw):\n    raw = restore_goals(key, raw)\n"
+    },
+    {
+     "old": "FIXTURE_SHA = '60f57c499893d4ab60048aae61e64f60187c5d679c6e523ae269d2deeab4dd4e'",
+     "new": "FIXTURE_SHA = '1efaaa7f7530d24f3f7d82b3a1f875ed40cecf558db455ece8c087623a0f3e25'"
+    },
+    {
+     "old": "\"\"\"Reverse only the snapshot traversal delta before historical source pins.\"\"\"\nfrom pathlib import Path\nimport hashlib\nimport json\nfrom canonical_goals_property_wait_delta import restore as restore_goals\nFIXTURE_SHA = '1efaaa7f7530d24f3f7d82b3a1f875ed40cecf558db455ece8c087623a0f3e25'\n\ndef contract():\n    payload = Path(__file__).with_name('journal_delete_snapshot_inverse.json').read_bytes()\n    assert hashlib.sha256(payload).hexdigest() == FIXTURE_SHA\n    return json.loads(payload)\n\ndef restore(key, raw):\n    raw = restore_goals(key, raw)\n    path = key.split(':', 1)[-1]\n    c = contract()\n    if path not in c['files']:\n        return raw\n    binary = isinstance(raw, bytes)\n    text = raw.decode() if binary else raw\n    digest = hashlib.sha256(text.encode()).hexdigest()\n    entry = c['files'][path]\n    if digest == entry['parent_sha256'] or (path == 'AteUITests/JournalOpenStateUITests.swift' and digest in c['legacy_journal_sha256']):\n        return raw\n    assert digest == entry['current_sha256'], 'unrelated snapshot delta: ' + path\n    for fragment in reversed(entry['fragments']):\n        assert text.count(fragment['new']) == 1\n        text = text.replace(fragment['new'], fragment['old'], 1)\n    assert hashlib.sha256(text.encode()).hexdigest() == entry['parent_sha256']\n    return text.encode() if binary else text\n",
+     "new": "\"\"\"Reverse only the snapshot traversal delta before historical source pins.\"\"\"\nfrom pathlib import Path\nimport hashlib\nimport json\nfrom canonical_goals_property_wait_delta import restore as restore_goals\nFIXTURE_SHA = 'ec5d2a9b48cacfbdc27348462aa3d7f73e15f9e92b21db7c45eab227355d4c24'\n\ndef contract():\n    payload = Path(__file__).with_name('journal_delete_snapshot_inverse.json').read_bytes()\n    assert hashlib.sha256(payload).hexdigest() == FIXTURE_SHA\n    return json.loads(payload)\n\ndef restore(key, raw):\n    raw = restore_goals(key, raw)\n    path = key.split(':', 1)[-1]\n    c = contract()\n    if path not in c['files']:\n        return raw\n    binary = isinstance(raw, bytes)\n    text = raw.decode() if binary else raw\n    digest = hashlib.sha256(text.encode()).hexdigest()\n    entry = c['files'][path]\n    if digest == entry['parent_sha256'] or (path == 'AteUITests/JournalOpenStateUITests.swift' and digest in c['legacy_journal_sha256']):\n        return raw\n    assert digest == entry['current_sha256'], 'unrelated snapshot delta: ' + path\n    for fragment in reversed(entry['fragments']):\n        assert text.count(fragment['new']) == 1\n        text = text.replace(fragment['new'], fragment['old'], 1)\n    assert hashlib.sha256(text.encode()).hexdigest() == entry['parent_sha256']\n    return text.encode() if binary else text\n"
+    }
+   ]
+  },
+  "scripts/tests/test_journal_delete_snapshot.py": {
+   "parent_sha256": "8b5c15cf2a71330eb588f00f8d7128d42e8805922953b0f5745ec95316bfdc2b",
+   "current_sha256": "98439e5a66a1a78c314da56db5b7bdae7fd1993f919c2c7a60f255486ef56939",
+   "fragments": [
+    {
+     "old": "from journal_delete_snapshot_delta import contract, restore\n",
+     "new": "from journal_delete_snapshot_delta import contract, restore\nfrom canonical_goals_property_wait_delta import restore as restore_goals\n"
+    },
+    {
+     "old": "hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), digest, path",
+     "new": "hashlib.sha256(restore_goals(path, (ROOT / path).read_bytes())).hexdigest(), digest, path"
+    },
+    {
+     "old": "from canonical_goals_property_wait_delta import restore as restore_goals\n",
+     "new": "from canonical_goals_property_wait_delta import restore as restore_goals\nfrom timer_alerts_relay_delta import restore as restore_timer_alerts\n"
+    },
+    {
+     "old": "            source = (ROOT / path).read_text()\n            self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), entry['current_sha256'])",
+     "new": "            source = restore_timer_alerts(path, (ROOT / path).read_text())\n            self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), entry['current_sha256'])"
+    },
+    {
+     "old": "            self.assertEqual(hashlib.sha256(restore_goals(path, (ROOT / path).read_bytes())).hexdigest(), digest, path)",
+     "new": "            self.assertEqual(hashlib.sha256(restore_goals(path, restore_timer_alerts(path, (ROOT / path).read_bytes()))).hexdigest(), digest, path)"
+    },
+    {
+     "old": "        path = 'scripts/full-unit-required.txt'; source = (ROOT / path).read_text(); parent = restore(path, source)",
+     "new": "        path = 'scripts/full-unit-required.txt'; source = restore_timer_alerts(path, (ROOT / path).read_text()); parent = restore(path, source)"
+    }
+   ]
+  }
+ },
+ "protected_sha256": {
+  ".github/workflows/compile-check.yml": "e7e3e9a54ace046a0686a4130f7caa5b5740616b84a1db22fc2c20e4908954c0",
+  ".github/workflows/journal-open-state-ui.yml": "00e1dda4a8f918ae64326670122adb618961f567bb85176a57a77335a80a4dd5",
+  "project.yml": "ffdecd7c0ad68f849d3f12e0ec9c3afa545de3368fcd41fb43389e25a9a71878",
+  "scripts/full-unit-required.txt": "500ac0aff46be9de545ae04ba9d6b101737b22425a5c7a1e5d7281d5f2d3ebca",
+  "AteUITests/JournalOpenStateUITests.swift": "bff466a9fc6315b79c496e5eac291ef392fdec847621114888cabbff98b9e5ac",
+  "AteUITests/JournalDeleteSnapshotWalk.swift": "2d3503f1ca00935ce295f66b1d86d553e232f7ce1d43fea48cd98c514c229cfd",
+  "AteTests/JournalDeleteSnapshotWalkTests.swift": "ef34c2e243516d5cafd8eb3d380fc45d5dda6748b545e0e40af359a4ca64034e",
+  "AteTests/JournalReflectionEditTests.swift": "253c7ab7fe1bea950b2a5d2cd0d5dff0d2cd0a668a189f459cb4ed50b63bb6cb",
+  "scripts/tests/journal_delete_current_query_inverse.json": "f2a9acb2749da280fb7e1fe67f578734566a2bc764997239cff4a09e37200d73",
+  "scripts/tests/suggest_new_recipe_entry_inverse.json": "fa8e4da7b79d7be20676b500077cbbabc92f93096d5abf5ab59d013e303ae0f0",
+  "scripts/tests/insights_await_phase_inverse.json": "1436932248085d0b76ed2461bac154b14f62a87a0b19b60d6c1d6f1facb1f16d",
+  "scripts/tests/add_generation_deadline_inverse.json": "0589e86a6a3723b19fcfeebea8b6461c4206ea55cd52fdff29e1c06b68aad628",
+  "scripts/tests/streaming_echo_completion_inverse.json": "e9cbd5e0a6125a5d620a5667dc49a1f22784b9c19d17a3f5f0e3329bd2464ebf",
+  "scripts/tests/verified_heading_fix_inverse.json": "980180e25895f96e561cac6707f3176b86ad71f96c8772b32082da18b99c3eaa",
+  "scripts/tests/source_review_state_inverse.json": "e117e0252a43f9cd78160437ea36adedc0bb7bb75614e222d42006ed6d7b3b18",
+  "scripts/tests/cookplan_cancel_journey_inverse.json": "393cd0c3d17ab1579603f6c4c21b011d1a850a439e9246ad8fa00579710d7fba",
+  "scripts/tests/suggest_review_buttons_inverse.json": "d06e156ccb03dfbb9304cebbee542e7bd0ca4360d4373de6d9471fc439638186",
+  "scripts/tests/all_ui_prompt_source_inverse.json": "e9a801badfd6a736d1a27625d013ab4da7b66c0499ddaf0a48ab64a29d67b35c",
+  "scripts/tests/row_metadata_style_inverse.json": "09c03406e5725f08ef76255b82ed64e2aed9fc75563eee2870da7970a7c1b5bf",
+  "scripts/tests/journal_delete_snapshot_inverse.json": "ec5d2a9b48cacfbdc27348462aa3d7f73e15f9e92b21db7c45eab227355d4c24",
+  "scripts/tests/ui_fixture_title_inverse.json": "471c1fd77148443feab4d32914dcb4f0093c04fdf0232a52ca90c6128fe26ed2",
+  "scripts/tests/sync_payload_overflow_inverse.json": "87e3d7f273ddc7097194150a36ca8b63d17159d854c6916fb5236b58b91cc654",
+  "scripts/tests/sync_decoder_boundary_inverse.json": "7340fa04098fd125c90e47c3a9515c0fcfc772f7d55dd1556c93ea3d66f668b2",
+  "scripts/tests/recipe_content_admission_inverse.json": "99c49484ed044cb70d939bb24ec892762e0d9a26fd2842a379002d793c19d7f2",
+  "scripts/tests/add_stack_composition_inverse.json": "10f73527b1a692cbef4fdd73dc669fe3e8406a5a8af9dae3ee5f99e81b7aec46",
+  "scripts/tests/journal_ui_host_handoff_inverse.json": "e22f7f71f6363a91fe25c81dfbe4e4a51b67b99249b045a6d26e1149f032d6a4",
+  "scripts/tests/multiline_caption_inverse.json": "5921e82c3e8fdf6ccba2004b4f9e22d9be9ae38425cbbb95a7e5788887b44016",
+  "scripts/tests/today_tab_ui_inverse.json": "dca8c1251630f5049cf28bc111a6ca465634619945f89ab48583e49ec4fde85e",
+  "scripts/tests/group28_idle_samples_inverse.json": "2b036a90653507ebb1b1fea1af1d8ea69bd33e0aeb71ac1c58852bdbdb4efe33",
+  "scripts/tests/draft_registration_inverse.json": "aeb6d21463eca91643d46fadf6073ad660e029b017d0b475c00ab710a09aca5c",
+  "scripts/tests/source_refusal_route_inverse.json": "5ed80cebf3d59b8534eec5d160288000eb5443391fb1040222db7bd6d368099d",
+  "scripts/tests/insights_atomic_read_inverse.json": "f01a6058bbfd01c46fb271f1c098070e42ed32d4142bb084a05c09cfb1c5fdbe",
+  "scripts/tests/prompt_draft_boundary_inverse.json": "05aebc07ba400c66e6d78f3537bad0faf1d0226df2d731bf91d40c8d17e432ca",
+  "scripts/tests/generation_native_reds_inverse.json": "eb5e05b021928f94e7e9081bd726956406abe454b0cb8494462352cd1d876dce",
+  "scripts/tests/recipe_streaming_inverse.json": "5a87c0e149ec571324e7c08620a12732e44542ecf6915be56c482a3a64af9b17",
+  "scripts/tests/cook_entry_sample_inverse.json": "9012e77dcf40c51fd362d968023b9a0073b571a7625bbf67b5e3ecfebd621ab5",
+  "scripts/tests/insights_accesslost_phase_inverse.json": "3b70df014f197b15f6e0ca517b195b8992e6e5bd33eaf37077d18019e5fe97dd",
+  "scripts/tests/live_query_capture_inverse.json": "01131abe077872592d415aefb9917d7159f252b0c9a8d03df5417f8befd32908",
+  "scripts/tests/source_refusal_wording_inverse.json": "7ef5725cf8b96b95be1c215af34fe01d67b8f340e12f38dcf16ff289ca605923",
+  "scripts/tests/cookplan_cancel_phase_inverse.json": "920b56ad7741a18c1bdabab85ca565ac1b313918965cbf3d28249e62d2878f28",
+  "scripts/tests/journal_delete_zero_nodes_inverse.json": "9edbfd45cce5748e6e70ff1be684a4485237555cf8c5efc8cccc30e76ea86b45",
+  "scripts/tests/recipe_discovery_intent_inverse.json": "d7010c178b0e83d636776bd66b5ef96002a21283c0e8161801a59a927d2a1744",
+  "scripts/tests/add_prompt_source_inverse.json": "d3223fca803706574ba42420a03bbaa920266fa2a731c9f378e02c2f76b056a9",
+  "scripts/tests/verified_paste_import_inverse.json": "c9c47f10d433eebb512382c9a32b30164ea27c9c3b810ec2918be74bbdd25794",
+  "scripts/tests/ui_progress_stream_inverse.json": "1c6eaa94607d21bb1a0bf0b17169b67643b77425f8faf30c82d0299400a32e21",
+  "scripts/tests/steps_only_fixture_inverse.json": "ddde18a03047f4604153e0ecd2929e3b57de3f373e342a5f4aad7e26f256c968",
+  "scripts/tests/named_ui_red_rewrite_inverse.json": "4d334ecba48eca33f96f177209676fc32132b7a045fb4580caa3a7b6230b35a7",
+  "scripts/tests/today_tab_route_inverse.json": "70f1531939e732ded88c1db20a4a815240f5dd0f92f3b42311c6fd8577829cd8"
+ },
+ "expected_native_counts": {
+  "Journal": 27,
+  "AteTests": 1354
+ },
+ "qualification": "Candidate only. No native compile or runtime pass inferred."
+}
